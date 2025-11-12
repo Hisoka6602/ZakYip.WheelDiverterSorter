@@ -50,9 +50,13 @@ builder.Services.AddSingleton<IParcelDetectionService, ParcelDetectionService>()
 // 注册RuleEngine通信服务（支持TCP/SignalR/MQTT/HTTP）
 builder.Services.AddRuleEngineCommunication(builder.Configuration);
 
-// 注册传感器监听后台服务（可选）
-// 取消注释以下行以启用自动传感器监听
+// 注册包裹分拣编排服务
+builder.Services.AddSingleton<ParcelSortingOrchestrator>();
+
+// 注册后台服务（可选）
+// 取消注释以下行以启用自动传感器监听和分拣编排
 // builder.Services.AddHostedService<SensorMonitoringWorker>();
+// builder.Services.AddHostedService<ParcelSortingWorker>();
 
 var app = builder.Build();
 
