@@ -9,7 +9,10 @@ IO传感器监听模块，负责感应包裹并触发包裹检测事件。
 - ✅ **工厂模式架构**：支持动态加载不同厂商的传感器
 - ✅ **事件驱动架构**：传感器事件触发机制
 - ✅ **包裹到达检测**：自动检测包裹并生成唯一ID
-- ✅ **防抖动机制**：避免短时间内重复触发
+- ✅ **线程安全的包裹ID生成**：使用共享Random实例确保高并发环境下的唯一性
+- ✅ **包裹去重机制**：基于时间窗口和ID历史的双重去重机制
+- ✅ **防抖动机制**：可配置的时间窗口避免短时间内重复触发
+- ✅ **位置信息记录**：记录包裹检测的时间和传感器位置
 - ✅ **传感器健康监控**：实时监控传感器状态，故障检测和恢复通知
 - ✅ **错误处理和报告**：传感器错误事件和自动报告机制
 - ✅ **依赖注入支持**：易于集成到ASP.NET Core应用
@@ -81,6 +84,10 @@ builder.Services.AddSensorServices(builder.Configuration);
         "IsEnabled": true
       }
     ]
+  },
+  "ParcelDetection": {
+    "DeduplicationWindowMs": 1000,
+    "ParcelIdHistorySize": 1000
   }
 }
 ```
@@ -109,9 +116,18 @@ builder.Services.AddSensorServices(builder.Configuration);
         }
       ]
     }
+  },
+  "ParcelDetection": {
+    "DeduplicationWindowMs": 1000,
+    "ParcelIdHistorySize": 1000
   }
 }
 ```
+
+#### 包裹检测配置选项
+
+- **DeduplicationWindowMs**: 去重时间窗口（毫秒）。在此时间窗口内，同一传感器的重复触发将被忽略。默认值：1000ms (1秒)
+- **ParcelIdHistorySize**: 包裹ID历史记录最大数量。用于防止重复包裹ID，超过此数量将移除最旧的记录。默认值：1000
 
 ### 3. 使用包裹检测服务和健康监控
 
@@ -145,6 +161,9 @@ public class MyService
     private void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
         Console.WriteLine($"检测到包裹: {e.ParcelId}");
+        Console.WriteLine($"  检测时间: {e.DetectedAt}");
+        Console.WriteLine($"  检测位置: {e.Position} (传感器: {e.SensorId})");
+        Console.WriteLine($"  传感器类型: {e.SensorType}");
         
         // 在这里处理包裹检测逻辑：
         // 1. 保存包裹记录到数据库

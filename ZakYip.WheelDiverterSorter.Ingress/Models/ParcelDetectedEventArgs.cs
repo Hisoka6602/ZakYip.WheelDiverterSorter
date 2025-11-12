@@ -24,4 +24,9 @@ public record ParcelDetectedEventArgs
     /// 传感器类型
     /// </summary>
     public required SensorType SensorType { get; init; }
+
+    /// <summary>
+    /// 检测位置（传感器ID的别名，用于更明确表达位置信息）
+    /// </summary>
+    public string Position => SensorId;
 }
