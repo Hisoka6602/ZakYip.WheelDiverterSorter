@@ -1086,3 +1086,38 @@ dotnet test
 ## 联系方式
 
 项目维护者：待补充
+
+---
+
+## 🧪 测试 (Testing)
+
+项目包含全面的单元测试和代码覆盖率工具。
+
+The project includes comprehensive unit tests and code coverage tools.
+
+### 运行测试 (Run Tests)
+
+```bash
+# 运行所有测试
+dotnet test
+
+# 运行测试并生成覆盖率报告
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+```
+
+### 测试项目 (Test Projects)
+
+- **ZakYip.WheelDiverterSorter.Core.Tests**: 核心路径生成逻辑单元测试
+- **ZakYip.WheelDiverterSorter.Drivers.Tests**: 硬件驱动Mock设备测试
+
+### 代码覆盖率 (Code Coverage)
+
+- 目标覆盖率 >80%
+- 使用 coverlet 进行覆盖率收集
+- CI/CD 自动检查覆盖率阈值
+
+详细测试文档请查看 [TESTING.md](TESTING.md)
+
+For detailed testing documentation, see [TESTING.md](TESTING.md)
+
+---
