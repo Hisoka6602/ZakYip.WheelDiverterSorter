@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Configuration;
+
 namespace ZakYip.WheelDiverterSorter.Core;
 
 /// <summary>
@@ -18,7 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Core;
 /// </list>
 /// </para>
 /// <para>
-/// 当前实现使用简化的硬编码映射。后续可改为基于 <see cref="SorterTopology"/> 的动态路径生成。
+/// 当前实现使用LiteDB数据库存储的配置映射，支持动态修改配置而无需重新编译部署。
 /// </para>
 /// </remarks>
 public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
@@ -40,34 +42,15 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </remarks>
     private const string DefaultFallbackChuteId = "CHUTE_EXCEPTION";
 
-    // TODO: 这里应该注入或配置格口到摆轮的映射关系
-    // 当前是示例性的硬编码映射，实际项目中应从配置文件或数据库加载
-    private readonly Dictionary<string, List<DiverterConfig>> _chuteToRouteMap;
+    private readonly IRouteConfigurationRepository _routeRepository;
 
-    public DefaultSwitchingPathGenerator()
+    /// <summary>
+    /// 初始化路径生成器
+    /// </summary>
+    /// <param name="routeRepository">路由配置仓储</param>
+    public DefaultSwitchingPathGenerator(IRouteConfigurationRepository routeRepository)
     {
-        // 示例映射：格口 -> 摆轮配置列表
-        // 实际生产环境应通过构造函数注入或配置加载
-        _chuteToRouteMap = new Dictionary<string, List<DiverterConfig>>
-        {
-            // 示例：格口A需要经过摆轮D1（30度）和摆轮D2（45度）
-            ["CHUTE_A"] = new List<DiverterConfig>
-            {
-                new DiverterConfig("D1", DiverterAngle.Angle30),
-                new DiverterConfig("D2", DiverterAngle.Angle45)
-            },
-            // 示例：格口B需要经过摆轮D1（0度直行）
-            ["CHUTE_B"] = new List<DiverterConfig>
-            {
-                new DiverterConfig("D1", DiverterAngle.Angle0)
-            },
-            // 示例：格口C需要经过摆轮D1（90度）和摆轮D3（30度）
-            ["CHUTE_C"] = new List<DiverterConfig>
-            {
-                new DiverterConfig("D1", DiverterAngle.Angle90),
-                new DiverterConfig("D3", DiverterAngle.Angle30)
-            }
-        };
+        _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
     }
 
     /// <summary>
@@ -85,15 +68,17 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return null;
         }
 
-        // 查找格口对应的摆轮配置
-        if (!_chuteToRouteMap.TryGetValue(targetChuteId, out var diverterConfigs))
+        // 从数据库查询格口对应的摆轮配置
+        var routeConfig = _routeRepository.GetByChuteId(targetChuteId);
+        if (routeConfig == null || routeConfig.DiverterConfigurations.Count == 0)
         {
             // 无法映射到摆轮组合，返回null，包裹将走异常口
             return null;
         }
 
-        // 生成有序的摆轮段列表，顺序号从1开始
-        var segments = diverterConfigs
+        // 生成有序的摆轮段列表，按配置中的顺序号排序
+        var segments = routeConfig.DiverterConfigurations
+            .OrderBy(config => config.SequenceNumber)
             .Select((config, index) => new SwitchingPathSegment
             {
                 SequenceNumber = index + 1,
@@ -111,9 +96,4 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             FallbackChuteId = DefaultFallbackChuteId
         };
     }
-
-    /// <summary>
-    /// 内部配置类，表示单个摆轮的配置
-    /// </summary>
-    private record DiverterConfig(string DiverterId, DiverterAngle TargetAngle);
 }
