@@ -1,4 +1,6 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
@@ -14,8 +16,12 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly IEnumerable<ISensor> _sensors;
     private readonly ILogger<ParcelDetectionService>? _logger;
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
+    private readonly ParcelDetectionOptions _options;
     private readonly Dictionary<string, DateTimeOffset> _lastTriggerTimes = new();
+    private readonly Queue<string> _recentParcelIds = new();
+    private readonly HashSet<string> _parcelIdSet = new();
     private readonly object _lockObject = new();
+    private readonly Random _random = new();
     private bool _isRunning;
 
     /// <summary>
@@ -27,14 +33,17 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// 构造函数
     /// </summary>
     /// <param name="sensors">传感器集合</param>
+    /// <param name="options">包裹检测配置选项</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="healthMonitor">传感器健康监控器（可选）</param>
     public ParcelDetectionService(
         IEnumerable<ISensor> sensors,
+        IOptions<ParcelDetectionOptions>? options = null,
         ILogger<ParcelDetectionService>? logger = null,
         Services.ISensorHealthMonitor? healthMonitor = null)
     {
         _sensors = sensors ?? throw new ArgumentNullException(nameof(sensors));
+        _options = options?.Value ?? new ParcelDetectionOptions();
         _logger = logger;
         _healthMonitor = healthMonitor;
     }
@@ -118,34 +127,42 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             if (_lastTriggerTimes.TryGetValue(sensorEvent.SensorId, out var lastTime))
             {
                 var timeSinceLastTrigger = sensorEvent.TriggerTime - lastTime;
-                if (timeSinceLastTrigger.TotalMilliseconds < 1000) // 1秒内的重复触发忽略
+                if (timeSinceLastTrigger.TotalMilliseconds < _options.DeduplicationWindowMs)
                 {
+                    _logger?.LogDebug(
+                        "忽略重复触发: 传感器 {SensorId}, 距上次触发 {TimeSinceLastMs}ms",
+                        sensorEvent.SensorId,
+                        timeSinceLastTrigger.TotalMilliseconds);
                     return;
                 }
             }
 
             _lastTriggerTimes[sensorEvent.SensorId] = sensorEvent.TriggerTime;
+
+            // 生成唯一包裹ID，并确保不重复
+            var parcelId = GenerateUniqueParcelId(sensorEvent);
+
+            // 记录包裹ID到历史记录中
+            AddParcelIdToHistory(parcelId);
+
+            _logger?.LogInformation(
+                "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}",
+                parcelId,
+                sensorEvent.SensorId,
+                sensorEvent.SensorType,
+                sensorEvent.SensorId);
+
+            // 触发包裹检测事件
+            var eventArgs = new ParcelDetectedEventArgs
+            {
+                ParcelId = parcelId,
+                DetectedAt = sensorEvent.TriggerTime,
+                SensorId = sensorEvent.SensorId,
+                SensorType = sensorEvent.SensorType
+            };
+
+            ParcelDetected?.Invoke(this, eventArgs);
         }
-
-        // 生成唯一包裹ID
-        var parcelId = GenerateParcelId(sensorEvent);
-
-        _logger?.LogInformation(
-            "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})",
-            parcelId,
-            sensorEvent.SensorId,
-            sensorEvent.SensorType);
-
-        // 触发包裹检测事件
-        var eventArgs = new ParcelDetectedEventArgs
-        {
-            ParcelId = parcelId,
-            DetectedAt = sensorEvent.TriggerTime,
-            SensorId = sensorEvent.SensorId,
-            SensorType = sensorEvent.SensorType
-        };
-
-        ParcelDetected?.Invoke(this, eventArgs);
     }
 
     /// <summary>
@@ -153,16 +170,56 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     /// <param name="sensorEvent">传感器事件</param>
     /// <returns>唯一包裹ID</returns>
-    private static string GenerateParcelId(SensorEvent sensorEvent)
+    private string GenerateUniqueParcelId(SensorEvent sensorEvent)
     {
-        // 格式: PKG_{时间戳}_{传感器ID后缀}_{随机数}
-        var timestamp = sensorEvent.TriggerTime.ToUnixTimeMilliseconds();
-        var sensorSuffix = sensorEvent.SensorId.Length > 3 
-            ? sensorEvent.SensorId[^3..] 
-            : sensorEvent.SensorId;
-        var random = new Random().Next(1000, 9999);
+        string parcelId;
+        int attempts = 0;
+        const int maxAttempts = 10;
 
-        return $"PKG_{timestamp}_{sensorSuffix}_{random}";
+        do
+        {
+            // 格式: PKG_{时间戳}_{传感器ID后缀}_{随机数}
+            var timestamp = sensorEvent.TriggerTime.ToUnixTimeMilliseconds();
+            var sensorSuffix = sensorEvent.SensorId.Length > 3 
+                ? sensorEvent.SensorId[^3..] 
+                : sensorEvent.SensorId;
+            var random = _random.Next(1000, 9999);
+
+            parcelId = $"PKG_{timestamp}_{sensorSuffix}_{random}";
+            attempts++;
+
+            // 检查是否已存在于历史记录中
+            if (!_parcelIdSet.Contains(parcelId))
+            {
+                break;
+            }
+
+            _logger?.LogWarning(
+                "生成的包裹ID {ParcelId} 已存在，重新生成 (尝试 {Attempt}/{MaxAttempts})",
+                parcelId,
+                attempts,
+                maxAttempts);
+
+        } while (attempts < maxAttempts);
+
+        return parcelId;
+    }
+
+    /// <summary>
+    /// 将包裹ID添加到历史记录
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    private void AddParcelIdToHistory(string parcelId)
+    {
+        _parcelIdSet.Add(parcelId);
+        _recentParcelIds.Enqueue(parcelId);
+
+        // 如果超过最大历史记录数量，移除最旧的记录
+        while (_recentParcelIds.Count > _options.ParcelIdHistorySize)
+        {
+            var oldestId = _recentParcelIds.Dequeue();
+            _parcelIdSet.Remove(oldestId);
+        }
     }
 
     /// <summary>

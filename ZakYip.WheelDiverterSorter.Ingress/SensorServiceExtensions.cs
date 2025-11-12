@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
@@ -26,6 +27,10 @@ public static class SensorServiceExtensions
         // 绑定配置
         var sensorOptions = new SensorOptions();
         configuration.GetSection("Sensor").Bind(sensorOptions);
+
+        // 绑定包裹检测配置
+        services.Configure<ParcelDetectionOptions>(
+            options => configuration.GetSection("ParcelDetection").Bind(options));
 
         // 注册传感器工厂
         if (sensorOptions.UseHardwareSensor)
