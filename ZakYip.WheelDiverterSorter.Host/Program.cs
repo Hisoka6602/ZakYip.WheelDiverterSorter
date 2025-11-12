@@ -3,6 +3,9 @@ using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Ingress;
+using ZakYip.WheelDiverterSorter.Ingress.Sensors;
+using ZakYip.WheelDiverterSorter.Ingress.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,6 +36,15 @@ builder.Services.AddSingleton<IRouteConfigurationRepository>(serviceProvider =>
 builder.Services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGenerator>();
 builder.Services.AddSingleton<ISwitchingPathExecutor, MockSwitchingPathExecutor>();
 builder.Services.AddSingleton<DebugSortService>();
+
+// 注册传感器和包裹检测服务
+builder.Services.AddSingleton<ISensor>(sp => new MockPhotoelectricSensor("SENSOR_PE_01"));
+builder.Services.AddSingleton<ISensor>(sp => new MockLaserSensor("SENSOR_LASER_01"));
+builder.Services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
+
+// 注册传感器监听后台服务（可选）
+// 取消注释以下行以启用自动传感器监听
+// builder.Services.AddHostedService<SensorMonitoringWorker>();
 
 var app = builder.Build();
 
