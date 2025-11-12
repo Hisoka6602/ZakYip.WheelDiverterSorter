@@ -15,4 +15,8 @@
     <PackageReference Include="MQTTnet" Version="4.3.3.952" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -39,14 +39,48 @@ public abstract class MockSensorBase : ISensor
     public event EventHandler<SensorErrorEventArgs>? SensorError;
 
     /// <summary>
+    /// 模拟触发最小间隔（毫秒）
+    /// </summary>
+    protected int MinTriggerIntervalMs { get; }
+
+    /// <summary>
+    /// 模拟触发最大间隔（毫秒）
+    /// </summary>
+    protected int MaxTriggerIntervalMs { get; }
+
+    /// <summary>
+    /// 模拟包裹通过最小时间（毫秒）
+    /// </summary>
+    protected int MinParcelPassTimeMs { get; }
+
+    /// <summary>
+    /// 模拟包裹通过最大时间（毫秒）
+    /// </summary>
+    protected int MaxParcelPassTimeMs { get; }
+
+    /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="type">传感器类型</param>
-    protected MockSensorBase(string sensorId, SensorType type)
+    /// <param name="minTriggerIntervalMs">模拟触发最小间隔（毫秒）</param>
+    /// <param name="maxTriggerIntervalMs">模拟触发最大间隔（毫秒）</param>
+    /// <param name="minParcelPassTimeMs">模拟包裹通过最小时间（毫秒）</param>
+    /// <param name="maxParcelPassTimeMs">模拟包裹通过最大时间（毫秒）</param>
+    protected MockSensorBase(
+        string sensorId, 
+        SensorType type,
+        int minTriggerIntervalMs = 5000,
+        int maxTriggerIntervalMs = 15000,
+        int minParcelPassTimeMs = 200,
+        int maxParcelPassTimeMs = 500)
     {
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
         Type = type;
+        MinTriggerIntervalMs = minTriggerIntervalMs;
+        MaxTriggerIntervalMs = maxTriggerIntervalMs;
+        MinParcelPassTimeMs = minParcelPassTimeMs;
+        MaxParcelPassTimeMs = maxParcelPassTimeMs;
     }
 
     /// <summary>
@@ -103,8 +137,8 @@ public abstract class MockSensorBase : ISensor
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            // 模拟随机触发事件（5-15秒间隔）
-            await Task.Delay(random.Next(5000, 15000), cancellationToken);
+            // 模拟随机触发事件（使用配置的间隔）
+            await Task.Delay(random.Next(MinTriggerIntervalMs, MaxTriggerIntervalMs), cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
             {
@@ -120,8 +154,8 @@ public abstract class MockSensorBase : ISensor
                 IsTriggered = true
             });
 
-            // 模拟包裹通过的时间（200-500ms）
-            await Task.Delay(random.Next(200, 500), cancellationToken);
+            // 模拟包裹通过的时间（使用配置的时间）
+            await Task.Delay(random.Next(MinParcelPassTimeMs, MaxParcelPassTimeMs), cancellationToken);
 
             // 触发事件：遮挡解除
             OnSensorTriggered(new SensorEvent

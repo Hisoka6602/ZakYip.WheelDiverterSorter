@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -21,6 +22,11 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     /// 客户端是否已连接
     /// </summary>
     public bool IsConnected => _connection?.State == HubConnectionState.Connected;
+
+    /// <summary>
+    /// 格口分配通知事件
+    /// </summary>
+    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
 
     /// <summary>
     /// 构造函数
@@ -52,6 +58,11 @@ public class SignalRRuleEngineClient : IRuleEngineClient
             .WithAutomaticReconnect()
             .Build();
 
+        // 注册格口分配推送的处理程序
+        _connection.On<ChuteAssignmentNotificationEventArgs>(
+            "ReceiveChuteAssignment",
+            OnChuteAssignmentReceived);
+
         _connection.Closed += async (error) =>
         {
             _logger.LogWarning(error, "SignalR连接已关闭");
@@ -73,6 +84,19 @@ public class SignalRRuleEngineClient : IRuleEngineClient
             _logger.LogInformation("SignalR重新连接成功，连接ID: {ConnectionId}", connectionId);
             return Task.CompletedTask;
         };
+    }
+
+    /// <summary>
+    /// 处理接收到的格口分配通知
+    /// </summary>
+    private void OnChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
+    {
+        _logger.LogInformation(
+            "收到包裹 {ParcelId} 的格口分配: {ChuteNumber}",
+            notification.ParcelId,
+            notification.ChuteNumber);
+
+        ChuteAssignmentReceived?.Invoke(this, notification);
     }
 
     /// <summary>
@@ -121,8 +145,54 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 请求包裹的格口号
+    /// 通知RuleEngine包裹已到达
     /// </summary>
+    public async Task<bool> NotifyParcelDetectedAsync(
+        string parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(parcelId))
+        {
+            throw new ArgumentException("包裹ID不能为空", nameof(parcelId));
+        }
+
+        // 尝试连接（如果未连接）
+        if (!IsConnected)
+        {
+            var connected = await ConnectAsync(cancellationToken);
+            if (!connected)
+            {
+                _logger.LogError("无法连接到RuleEngine SignalR Hub，无法发送包裹检测通知");
+                return false;
+            }
+        }
+
+        try
+        {
+            _logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
+
+            var notification = new ParcelDetectionNotification { ParcelId = parcelId };
+            
+            // 调用Hub方法通知包裹到达，不等待响应
+            await _connection!.InvokeAsync(
+                "NotifyParcelDetected",
+                notification,
+                cancellationToken);
+
+            _logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 请求包裹的格口号（已废弃，保留用于兼容性）
+    /// </summary>
+    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
         string parcelId,
         CancellationToken cancellationToken = default)
@@ -141,7 +211,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = "CHUTE_EXCEPTION",
+                    ChuteNumber = WellKnownChuteIds.Exception,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine SignalR Hub"
                 };
@@ -191,7 +261,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = "CHUTE_EXCEPTION",
+            ChuteNumber = WellKnownChuteIds.Exception,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

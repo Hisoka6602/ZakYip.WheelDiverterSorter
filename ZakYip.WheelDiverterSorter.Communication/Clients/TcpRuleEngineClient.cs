@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -15,6 +16,11 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// </remarks>
 public class TcpRuleEngineClient : IRuleEngineClient
 {
+    /// <summary>
+    /// TCP接收缓冲区大小（字节）
+    /// </summary>
+    private const int TcpReceiveBufferSize = 8192;
+
     private readonly ILogger<TcpRuleEngineClient> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private TcpClient? _client;
@@ -25,6 +31,14 @@ public class TcpRuleEngineClient : IRuleEngineClient
     /// 客户端是否已连接
     /// </summary>
     public bool IsConnected => _isConnected && _client?.Connected == true;
+
+    /// <summary>
+    /// 格口分配通知事件
+    /// </summary>
+    /// <remarks>
+    /// TCP客户端当前使用请求/响应模型，此事件不会触发
+    /// </remarks>
+    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
 
     /// <summary>
     /// 构造函数
@@ -103,8 +117,44 @@ public class TcpRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 请求包裹的格口号
+    /// 通知RuleEngine包裹已到达
     /// </summary>
+    /// <remarks>
+    /// TCP客户端使用请求/响应模型，此方法将调用RequestChuteAssignmentAsync
+    /// 并通过ChuteAssignmentReceived事件返回结果
+    /// </remarks>
+    public async Task<bool> NotifyParcelDetectedAsync(
+        string parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            #pragma warning disable CS0618 // 类型或成员已过时
+            var response = await RequestChuteAssignmentAsync(parcelId, cancellationToken);
+            #pragma warning restore CS0618
+            
+            // 触发事件
+            var notification = new ChuteAssignmentNotificationEventArgs
+            {
+                ParcelId = response.ParcelId,
+                ChuteNumber = response.ChuteNumber,
+                NotificationTime = response.ResponseTime
+            };
+            ChuteAssignmentReceived?.Invoke(this, notification);
+            
+            return response.IsSuccess;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "通知包裹检测失败: {ParcelId}", parcelId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 请求包裹的格口号（已废弃，保留用于兼容性）
+    /// </summary>
+    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
         string parcelId,
         CancellationToken cancellationToken = default)
@@ -123,7 +173,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = "CHUTE_EXCEPTION",
+                    ChuteNumber = WellKnownChuteIds.Exception,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine服务器"
                 };
@@ -152,7 +202,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
                 await _stream.FlushAsync(cts.Token);
 
                 // 读取响应
-                var buffer = new byte[8192];
+                var buffer = new byte[TcpReceiveBufferSize];
                 var bytesRead = await _stream.ReadAsync(buffer, cts.Token);
 
                 if (bytesRead == 0)
@@ -196,7 +246,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = "CHUTE_EXCEPTION",
+            ChuteNumber = WellKnownChuteIds.Exception,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

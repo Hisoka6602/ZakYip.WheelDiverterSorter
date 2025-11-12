@@ -13,8 +13,17 @@ public class MockLaserSensor : MockSensorBase
     /// 构造函数
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
-    public MockLaserSensor(string sensorId)
-        : base(sensorId, SensorType.Laser)
+    /// <param name="minTriggerIntervalMs">模拟触发最小间隔（毫秒）</param>
+    /// <param name="maxTriggerIntervalMs">模拟触发最大间隔（毫秒）</param>
+    /// <param name="minParcelPassTimeMs">模拟包裹通过最小时间（毫秒）</param>
+    /// <param name="maxParcelPassTimeMs">模拟包裹通过最大时间（毫秒）</param>
+    public MockLaserSensor(
+        string sensorId,
+        int minTriggerIntervalMs = 5000,
+        int maxTriggerIntervalMs = 15000,
+        int minParcelPassTimeMs = 200,
+        int maxParcelPassTimeMs = 500)
+        : base(sensorId, SensorType.Laser, minTriggerIntervalMs, maxTriggerIntervalMs, minParcelPassTimeMs, maxParcelPassTimeMs)
     {
     }
 }

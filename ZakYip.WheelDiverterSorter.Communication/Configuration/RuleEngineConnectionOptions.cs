@@ -80,4 +80,12 @@ public class RuleEngineConnectionOptions
     /// 是否启用自动重连
     /// </summary>
     public bool EnableAutoReconnect { get; set; } = true;
+
+    /// <summary>
+    /// 格口分配等待超时时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 等待RuleEngine推送格口分配的最大时间。超时后将使用异常格口
+    /// </remarks>
+    public int ChuteAssignmentTimeoutMs { get; set; } = 10000;
 }
