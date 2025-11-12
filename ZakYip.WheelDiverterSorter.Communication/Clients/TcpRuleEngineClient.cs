@@ -33,6 +33,14 @@ public class TcpRuleEngineClient : IRuleEngineClient
     public bool IsConnected => _isConnected && _client?.Connected == true;
 
     /// <summary>
+    /// 格口分配通知事件
+    /// </summary>
+    /// <remarks>
+    /// TCP客户端当前使用请求/响应模型，此事件不会触发
+    /// </remarks>
+    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
+
+    /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="logger">日志记录器</param>
@@ -109,8 +117,44 @@ public class TcpRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 请求包裹的格口号
+    /// 通知RuleEngine包裹已到达
     /// </summary>
+    /// <remarks>
+    /// TCP客户端使用请求/响应模型，此方法将调用RequestChuteAssignmentAsync
+    /// 并通过ChuteAssignmentReceived事件返回结果
+    /// </remarks>
+    public async Task<bool> NotifyParcelDetectedAsync(
+        string parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            #pragma warning disable CS0618 // 类型或成员已过时
+            var response = await RequestChuteAssignmentAsync(parcelId, cancellationToken);
+            #pragma warning restore CS0618
+            
+            // 触发事件
+            var notification = new ChuteAssignmentNotificationEventArgs
+            {
+                ParcelId = response.ParcelId,
+                ChuteNumber = response.ChuteNumber,
+                NotificationTime = response.ResponseTime
+            };
+            ChuteAssignmentReceived?.Invoke(this, notification);
+            
+            return response.IsSuccess;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "通知包裹检测失败: {ParcelId}", parcelId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 请求包裹的格口号（已废弃，保留用于兼容性）
+    /// </summary>
+    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
         string parcelId,
         CancellationToken cancellationToken = default)

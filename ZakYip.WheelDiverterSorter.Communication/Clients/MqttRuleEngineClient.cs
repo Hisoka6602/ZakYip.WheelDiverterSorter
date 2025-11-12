@@ -25,14 +25,19 @@ public class MqttRuleEngineClient : IRuleEngineClient
     private readonly ILogger<MqttRuleEngineClient> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private IMqttClient? _mqttClient;
-    private readonly string _requestTopic;
-    private readonly string _responseTopic;
+    private readonly string _detectionTopic;
+    private readonly string _assignmentTopic;
     private readonly Dictionary<string, TaskCompletionSource<ChuteAssignmentResponse>> _pendingRequests;
 
     /// <summary>
     /// 客户端是否已连接
     /// </summary>
     public bool IsConnected => _mqttClient?.IsConnected == true;
+
+    /// <summary>
+    /// 格口分配通知事件
+    /// </summary>
+    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
 
     /// <summary>
     /// 构造函数
@@ -51,8 +56,8 @@ public class MqttRuleEngineClient : IRuleEngineClient
             throw new ArgumentException("MQTT Broker地址不能为空", nameof(options));
         }
 
-        _requestTopic = $"{_options.MqttTopic}/request";
-        _responseTopic = $"{_options.MqttTopic}/response";
+        _detectionTopic = $"{_options.MqttTopic}/detection";
+        _assignmentTopic = $"{_options.MqttTopic}/assignment";
         _pendingRequests = new Dictionary<string, TaskCompletionSource<ChuteAssignmentResponse>>();
 
         InitializeMqttClient();
@@ -102,14 +107,14 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
             await _mqttClient!.ConnectAsync(mqttOptions, cancellationToken);
 
-            // 订阅响应主题
+            // 订阅格口分配主题
             var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
-                .WithTopicFilter(_responseTopic)
+                .WithTopicFilter(_assignmentTopic)
                 .Build();
 
             await _mqttClient.SubscribeAsync(subscribeOptions, cancellationToken);
 
-            _logger.LogInformation("成功连接到MQTT Broker并订阅主题: {Topic}", _responseTopic);
+            _logger.LogInformation("成功连接到MQTT Broker并订阅主题: {Topic}", _assignmentTopic);
             return true;
         }
         catch (Exception ex)
@@ -139,8 +144,56 @@ public class MqttRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 请求包裹的格口号
+    /// 通知RuleEngine包裹已到达
     /// </summary>
+    public async Task<bool> NotifyParcelDetectedAsync(
+        string parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(parcelId))
+        {
+            throw new ArgumentException("包裹ID不能为空", nameof(parcelId));
+        }
+
+        // 尝试连接（如果未连接）
+        if (!IsConnected)
+        {
+            var connected = await ConnectAsync(cancellationToken);
+            if (!connected)
+            {
+                _logger.LogError("无法连接到MQTT Broker，无法发送包裹检测通知");
+                return false;
+            }
+        }
+
+        try
+        {
+            _logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
+
+            var notification = new ParcelDetectionNotification { ParcelId = parcelId };
+            var notificationJson = JsonSerializer.Serialize(notification);
+            var message = new MqttApplicationMessageBuilder()
+                .WithTopic(_detectionTopic)
+                .WithPayload(notificationJson)
+                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build();
+
+            await _mqttClient!.PublishAsync(message, cancellationToken);
+
+            _logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 请求包裹的格口号（已废弃，保留用于兼容性）
+    /// </summary>
+    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
         string parcelId,
         CancellationToken cancellationToken = default)
@@ -179,11 +232,11 @@ public class MqttRuleEngineClient : IRuleEngineClient
                 var tcs = new TaskCompletionSource<ChuteAssignmentResponse>();
                 _pendingRequests[parcelId] = tcs;
 
-                // 构造并发布请求消息
+                // 构造并发布请求消息（向后兼容，使用detection主题）
                 var request = new ChuteAssignmentRequest { ParcelId = parcelId };
                 var requestJson = JsonSerializer.Serialize(request);
                 var message = new MqttApplicationMessageBuilder()
-                    .WithTopic(_requestTopic)
+                    .WithTopic(_detectionTopic)
                     .WithPayload(requestJson)
                     .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
                     .Build();
@@ -236,13 +289,31 @@ public class MqttRuleEngineClient : IRuleEngineClient
         try
         {
             var payload = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
-            var response = JsonSerializer.Deserialize<ChuteAssignmentResponse>(payload);
+            
+            // 尝试解析为格口分配通知
+            var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(payload);
 
-            if (response != null && _pendingRequests.TryGetValue(response.ParcelId, out var tcs))
+            if (notification != null)
             {
-                tcs.SetResult(response);
-                _pendingRequests.Remove(response.ParcelId);
-                _logger.LogDebug("收到包裹 {ParcelId} 的响应", response.ParcelId);
+                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteNumber}", 
+                    notification.ParcelId, notification.ChuteNumber);
+                
+                // 触发事件
+                ChuteAssignmentReceived?.Invoke(this, notification);
+
+                // 如果有待处理的请求（向后兼容）
+                if (_pendingRequests.TryGetValue(notification.ParcelId, out var tcs))
+                {
+                    var response = new ChuteAssignmentResponse
+                    {
+                        ParcelId = notification.ParcelId,
+                        ChuteNumber = notification.ChuteNumber,
+                        IsSuccess = true,
+                        ResponseTime = notification.NotificationTime
+                    };
+                    tcs.SetResult(response);
+                    _pendingRequests.Remove(notification.ParcelId);
+                }
             }
         }
         catch (Exception ex)

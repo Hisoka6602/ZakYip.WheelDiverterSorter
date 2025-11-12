@@ -1,6 +1,30 @@
 namespace ZakYip.WheelDiverterSorter.Communication;
 
 /// <summary>
+/// 包裹检测通知
+/// </summary>
+/// <remarks>
+/// 当系统检测到包裹时，发送此通知给RuleEngine
+/// </remarks>
+public record ParcelDetectionNotification
+{
+    /// <summary>
+    /// 包裹ID
+    /// </summary>
+    public required string ParcelId { get; init; }
+
+    /// <summary>
+    /// 检测时间
+    /// </summary>
+    public DateTimeOffset DetectionTime { get; init; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// 额外的元数据（可选）
+    /// </summary>
+    public Dictionary<string, string>? Metadata { get; init; }
+}
+
+/// <summary>
 /// 包裹格口分配请求
 /// </summary>
 public record ChuteAssignmentRequest
