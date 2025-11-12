@@ -107,3 +107,6 @@ app.MapPost("/api/debug/sort", async (
 .WithTags("调试接口");
 
 app.Run();
+
+// Make Program class accessible to integration tests
+public partial class Program { }
