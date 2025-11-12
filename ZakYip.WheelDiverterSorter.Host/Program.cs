@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
@@ -7,6 +8,26 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 添加服务到容器
 builder.Services.AddControllers();
+
+// 配置路由数据库路径
+var databasePath = builder.Configuration["RouteConfiguration:DatabasePath"] ?? "Data/routes.db";
+var fullDatabasePath = Path.Combine(AppContext.BaseDirectory, databasePath);
+
+// 确保数据目录存在
+var dataDirectory = Path.GetDirectoryName(fullDatabasePath);
+if (!string.IsNullOrEmpty(dataDirectory) && !Directory.Exists(dataDirectory))
+{
+    Directory.CreateDirectory(dataDirectory);
+}
+
+// 注册路由配置仓储为单例
+builder.Services.AddSingleton<IRouteConfigurationRepository>(serviceProvider =>
+{
+    var repository = new LiteDbRouteConfigurationRepository(fullDatabasePath);
+    // 初始化默认数据
+    repository.InitializeDefaultData();
+    return repository;
+});
 
 // 注册摆轮分拣相关服务
 builder.Services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGenerator>();

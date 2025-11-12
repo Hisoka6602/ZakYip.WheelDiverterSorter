@@ -249,6 +249,52 @@ curl -X POST http://localhost:5000/api/debug/sort \
 - **CHUTE_B**: 需要经过摆轮D1（0度直行）
 - **CHUTE_C**: 需要经过摆轮D1（90度）和摆轮D3（30度）
 
+**注意**: 这些配置存储在 LiteDB 数据库中，可以通过配置管理 API 动态修改。
+
+## 配置管理 API
+
+系统提供了完整的 RESTful API 用于动态管理格口到摆轮的路由配置，支持热更新（无需重启）。
+
+### 主要功能
+
+- ✅ **动态配置管理**: 通过 API 添加、修改、删除格口配置
+- ✅ **热更新支持**: 配置更改立即生效，无需重启应用
+- ✅ **数据持久化**: 使用 LiteDB 存储配置数据
+- ✅ **配置验证**: 自动验证配置的正确性和完整性
+
+### API 端点
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/config/routes` | 获取所有路由配置 |
+| GET | `/api/config/routes/{chuteId}` | 获取指定格口配置 |
+| POST | `/api/config/routes` | 创建新的路由配置 |
+| PUT | `/api/config/routes/{chuteId}` | 更新路由配置（热更新） |
+| DELETE | `/api/config/routes/{chuteId}` | 删除路由配置 |
+
+### 快速示例
+
+```bash
+# 创建新格口配置
+curl -X POST http://localhost:5000/api/config/routes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chuteId": "CHUTE_D",
+    "diverterConfigurations": [
+      {"diverterId": "D2", "targetAngle": 45, "sequenceNumber": 1},
+      {"diverterId": "D3", "targetAngle": 90, "sequenceNumber": 2}
+    ],
+    "isEnabled": true
+  }'
+
+# 立即使用新配置（无需重启）
+curl -X POST http://localhost:5000/api/debug/sort \
+  -H "Content-Type: application/json" \
+  -d '{"parcelId": "PKG001", "targetChuteId": "CHUTE_D"}'
+```
+
+详细的 API 文档请参阅：[配置管理 API 文档](CONFIGURATION_API.md)
+
 ## 运行项目
 
 ```bash
@@ -262,14 +308,15 @@ dotnet run
 
 ### 🔴 高优先级隐患
 
-#### 1. 硬编码配置依赖
+#### 1. ~~硬编码配置依赖~~ ✅ 已解决
 - **问题**：格口到摆轮的映射关系硬编码在 `DefaultSwitchingPathGenerator` 中
 - **风险**：添加或修改格口需要重新编译和部署代码
 - **影响**：生产环境灵活性差，维护成本高
-- **建议**：
-  - 将映射关系移至配置文件（JSON/YAML）或数据库
-  - 支持热重载配置，无需重启服务
-  - 提供配置管理界面
+- **解决方案**：
+  - ✅ 使用 LiteDB 存储配置，支持动态管理
+  - ✅ 提供完整的 RESTful API 进行配置管理
+  - ✅ 支持热更新，配置更改立即生效无需重启
+  - ✅ 详见 [配置管理 API 文档](CONFIGURATION_API.md)
 
 #### 2. 缺少真实设备集成
 - **问题**：当前仅有模拟执行器，无法控制真实PLC/摆轮设备
