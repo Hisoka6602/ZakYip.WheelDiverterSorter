@@ -1,5 +1,7 @@
-﻿namespace ZakYip.WheelDiverterSorter.Observability {
-    public class Class1 {
+﻿namespace ZakYip.WheelDiverterSorter.Observability
+{
+    public class Class1
+    {
 
     }
 }
