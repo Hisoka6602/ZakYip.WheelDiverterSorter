@@ -168,10 +168,13 @@
   - 当前仅有基础日志记录，缺少指标收集、链路追踪等
   - 需要集成Prometheus、Grafana、OpenTelemetry
 
-- **通信层** (0%)
-  - **需要开发**：与RuleEngine.Core的通信客户端
-  - **需要支持**：TCP/SignalR/MQTT等多种协议
-  - 当前仅有HTTP调试接口（生产环境禁用）
+- **通信层** (100%) ✅ **已完成** 🆕
+  - ✅ 实现了TCP/SignalR/MQTT/HTTP客户端
+  - ✅ 完整的连接管理和自动重连机制
+  - ✅ 错误处理和重试逻辑
+  - ✅ 与包裹检测流程集成
+  - ✅ ParcelSortingOrchestrator编排服务
+  - 详见 [通信层集成文档](COMMUNICATION_INTEGRATION.md)
 
 ### ❌ 未完成功能
 
@@ -183,10 +186,12 @@
   - ✅ 传感器健康监控已完成
   - ⚠️ 其他厂商传感器待扩展
 
-- **与RuleEngine通信**
-  - 实现TCP/SignalR/MQTT客户端
-  - 向RuleEngine请求格口号
-  - 处理连接管理和错误重试
+- **与RuleEngine通信** ✅ **已完成** 🆕
+  - ~~实现TCP/SignalR/MQTT客户端~~
+  - ~~向RuleEngine请求格口号~~
+  - ~~处理连接管理和错误重试~~
+  - ✅ 全部通信功能已实现并集成
+  - 详见 [通信层集成文档](COMMUNICATION_INTEGRATION.md)
 
 - **多厂商硬件支持**
   - 当前仅支持雷赛（Leadshine）控制器
@@ -223,10 +228,10 @@
 | 传感器驱动 | 85% | ✅ 🆕 | 雷赛驱动完成，健康监控完成 |
 | 调试接口 | 100% | ✅ | 测试环境可用 |
 | 可观测性 | 30% | ⚠️ | 仅基础日志 |
-| 通信层 | 0% | ❌ | 待开发 |
+| 通信层 | 100% | ✅ 🆕 | TCP/SignalR/MQTT/HTTP全部实现并集成 |
 | 测试覆盖 | 0% | ❌ | 无测试 |
 
-**整体完成度：约 80%**（相比之前的75%有所提升，传感器层大幅完善）
+**整体完成度：约 85%**（相比之前的80%有所提升，通信层已完成）
 
 ## 🎯 后续开发方向和计划
 
@@ -305,45 +310,52 @@
 - `ZakYip.WheelDiverterSorter.Drivers/DriverServiceExtensions.cs` 扩展注册逻辑
 - `appsettings.json` 添加多厂商配置选项
 
-### 阶段3：通信层开发（高优先级） ⏰ 预计3-4周
+### 阶段3：通信层开发（高优先级） ⏰ 预计3-4周 ✅ **已完成** 🆕
 
 **目标**：实现与RuleEngine.Core的网络通信
 
 **任务清单**：
-- [ ] **实现多协议通信客户端**
-  - TCP Socket客户端（推荐生产环境）
-  - SignalR客户端（推荐生产环境）
-  - MQTT客户端（推荐生产环境）
-  - HTTP客户端（仅供测试）
+- [x] **实现多协议通信客户端**
+  - TCP Socket客户端（推荐生产环境）✅
+  - SignalR客户端（推荐生产环境）✅
+  - MQTT客户端（推荐生产环境）✅
+  - HTTP客户端（仅供测试）✅
   
-- [ ] **请求格口号接口**
-  - 发送包裹ID到RuleEngine
-  - 等待接收格口号响应
-  - 超时和重试机制
-  - 消息序列化和反序列化
+- [x] **请求格口号接口**
+  - 发送包裹ID到RuleEngine ✅
+  - 等待接收格口号响应 ✅
+  - 超时和重试机制 ✅
+  - 消息序列化和反序列化 ✅
   
-- [ ] **连接管理**
-  - 自动连接和断线重连
-  - 心跳检测
-  - 连接状态监控
-  - 连接池管理
+- [x] **连接管理**
+  - 自动连接和断线重连 ✅
+  - 心跳检测 ✅（SignalR自带）
+  - 连接状态监控 ✅
+  - 连接池管理 ✅
   
-- [ ] **配置切换**
-  - 支持通过配置文件切换通信协议
-  - 不同环境使用不同协议（测试用HTTP，生产用TCP/SignalR/MQTT）
-  - 协议参数优化（超时、缓冲区大小等）
+- [x] **配置切换**
+  - 支持通过配置文件切换通信协议 ✅
+  - 不同环境使用不同协议（测试用HTTP，生产用TCP/SignalR/MQTT）✅
+  - 协议参数优化（超时、缓冲区大小等）✅
+
+- [x] **集成到包裹分拣流程**
+  - 实现ParcelSortingOrchestrator编排服务 ✅
+  - 实现ParcelSortingWorker后台服务 ✅
+  - 与传感器检测事件集成 ✅
+  - 完整的错误处理和降级策略 ✅
 
 **修改涉及的文件**：
-- 新增 `ZakYip.WheelDiverterSorter.Communication/` 通信层项目
-- `ZakYip.WheelDiverterSorter.Core/Interfaces/` 定义通信接口
-- `ZakYip.WheelDiverterSorter.Host/Program.cs` 注册通信服务
-- `appsettings.json` 添加RuleEngine连接配置
+- `ZakYip.WheelDiverterSorter.Communication/` ✅ 通信层项目已实现
+- `ZakYip.WheelDiverterSorter.Host/Services/` ✅ 编排服务已实现
+- `ZakYip.WheelDiverterSorter.Host/Program.cs` ✅ 已注册通信和编排服务
+- `appsettings.json` ✅ 已添加RuleEngine连接配置
+- `COMMUNICATION_INTEGRATION.md` ✅ 完整集成文档
 
 **关键配置示例**：
 ```json
 {
   "RuleEngineConnection": {
-    "Mode": "TCP",  // 可选: TCP, SignalR, MQTT, HTTP
+    "Mode": "Tcp",  // 可选: Tcp, SignalR, Mqtt, Http
     "TcpServer": "192.168.1.100:8000",
     "SignalRHub": "http://192.168.1.100:5000/sortingHub",
     "MqttBroker": "mqtt://192.168.1.100:1883",
@@ -354,15 +366,17 @@
 }
 ```
 
+**状态**：✅ **已完成** - TCP/SignalR/MQTT/HTTP全部实现，并与分拣流程完整集成
+
 ### 阶段4：整合与测试（中优先级） ⏰ 预计3-4周
 
 **目标**：将所有组件整合到完整流程并进行全面测试
 
 **任务清单**：
-- [ ] **完整流程集成**
-  - 传感器检测 → 创建包裹 → 请求格口号 → 执行分拣
-  - 异常处理和降级策略
-  - 完整的日志记录和链路追踪
+- [x] **完整流程集成** ✅ 部分完成
+  - 传感器检测 → 创建包裹 → 请求格口号 → 执行分拣 ✅
+  - 异常处理和降级策略 ✅
+  - 完整的日志记录和链路追踪 ⚠️ 仅基础日志
   - 事件驱动架构优化
   
 - [ ] **硬件联调测试**
@@ -413,26 +427,27 @@
 
 ### 关键修改方向总结
 
-| 优先级 | 功能模块 | 涉及项目/文件 | 预计工期 | 依赖 |
-|-------|---------|-------------|---------|------|
+| 优先级 | 功能模块 | 涉及项目/文件 | 预计工期 | 依赖 | 状态 |
+|-------|---------|-------------|---------|------|------|
 | 🔴 **最高** | 真实传感器集成 | Ingress层 | 2-3周 | 传感器硬件设备 | ✅ **已完成** |
 | 🔴 **最高** | 传感器健康监控 | Ingress层 | 1周 | 无 | ✅ **已完成** |
+| 🔴 **最高** | 通信层开发 | Communication项目 | 3-4周 | RuleEngine已部署 | ✅ **已完成** 🆕 |
 | 🔴 **最高** | 多厂商硬件驱动 | Drivers层扩展 | 2-3周 | PLC设备和驱动 | 进行中 |
-| 🔴 **最高** | 通信层开发 | 新增Communication项目 | 3-4周 | RuleEngine已部署 | 待开始 |
-| 🟡 **中等** | 整合与测试 | 所有层 | 3-4周 | 前面阶段完成 | 待开始 |
+| 🟡 **中等** | 整合与测试 | 所有层 | 3-4周 | 前面阶段完成 | ⚠️ 部分完成 |
 | 🟢 **低** | 生产功能 | 各层 | 持续开发 | 核心功能稳定 | 待开始 |
 
-**总体时间线**：完成核心功能（阶段1-4）预计需要 **8-12周**（阶段1已完成，节省2-3周）
+**总体时间线**：完成核心功能（阶段1-4）预计需要 **8-12周**（阶段1和3已完成，节省5-7周）
 
 **成功标准**：
 - ✅ 真实传感器能自动感应包裹并创建记录
 - ✅ 传感器健康监控能自动检测故障
 - ✅ 传感器错误能自动报告和处理
+- ✅ 系统能通过TCP/SignalR/MQTT与RuleEngine通信 🆕
+- ✅ ParcelSortingOrchestrator完整集成传感器→RuleEngine→执行流程 🆕
 - ⚠️ 支持至少3种主流PLC厂商（雷赛✅、西门子、三菱/欧姆龙）
-- ❌ 系统能通过TCP/SignalR/MQTT与RuleEngine通信
-- ❌ 完整的包裹分拣流程可以端到端运行
+- ⚠️ 完整的包裹分拣流程可以端到端运行（待RuleEngine联调测试）
 - ❌ 真实硬件环境下稳定运行24小时以上
-- ❌ 生产环境禁用HTTP，仅用TCP/SignalR/MQTT
+- ❌ 生产环境禁用HTTP，仅用TCP/SignalR/MQTT（已实现，待部署验证）
 - ❌ 核心逻辑测试覆盖率达到80%以上
 
 详细的系统关系和集成方案请参阅：[与规则引擎的关系文档](RELATIONSHIP_WITH_RULEENGINE.md)
@@ -445,9 +460,9 @@
 - **ZakYip.WheelDiverterSorter.Execution**: 执行层，包含路径执行器接口和模拟实现
 - **ZakYip.WheelDiverterSorter.Drivers**: 🆕 硬件驱动层，包含PLC控制器驱动和IO端口抽象
 - **ZakYip.WheelDiverterSorter.Host**: Web API 主机，提供调试接口和配置管理API
-- **ZakYip.WheelDiverterSorter.Ingress**: 入口管理（**部分完成**：模拟传感器已实现，真实硬件待集成）
+- **ZakYip.WheelDiverterSorter.Ingress**: 入口管理（✅ **已完成**：真实传感器和健康监控已实现）
 - **ZakYip.WheelDiverterSorter.Observability**: 可观测性支持（待实现）
-- **ZakYip.WheelDiverterSorter.Communication**: 通信层（**待创建**：与RuleEngine通信）
+- **ZakYip.WheelDiverterSorter.Communication**: 通信层（✅ **已完成** 🆕：TCP/SignalR/MQTT/HTTP客户端全部实现）
 
 ## 项目运行流程
 
