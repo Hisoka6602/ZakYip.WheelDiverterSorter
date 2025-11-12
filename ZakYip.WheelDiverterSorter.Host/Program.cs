@@ -5,8 +5,8 @@ using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
-using ZakYip.WheelDiverterSorter.Ingress.Sensors;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
+using ZakYip.WheelDiverterSorter.Communication;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,10 +41,14 @@ builder.Services.AddDriverServices(builder.Configuration);
 
 builder.Services.AddSingleton<DebugSortService>();
 
-// 注册传感器和包裹检测服务
-builder.Services.AddSingleton<ISensor>(sp => new MockPhotoelectricSensor("SENSOR_PE_01"));
-builder.Services.AddSingleton<ISensor>(sp => new MockLaserSensor("SENSOR_LASER_01"));
+// 注册传感器服务（使用工厂模式，支持多厂商）
+builder.Services.AddSensorServices(builder.Configuration);
+
+// 注册包裹检测服务
 builder.Services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
+
+// 注册RuleEngine通信服务（支持TCP/SignalR/MQTT/HTTP）
+builder.Services.AddRuleEngineCommunication(builder.Configuration);
 
 // 注册传感器监听后台服务（可选）
 // 取消注释以下行以启用自动传感器监听
