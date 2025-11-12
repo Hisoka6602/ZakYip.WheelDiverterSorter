@@ -101,20 +101,32 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
             var mqttOptions = new MqttClientOptionsBuilder()
                 .WithTcpServer(uri.Host, uri.Port > 0 ? uri.Port : MqttDefaultPort)
-                .WithClientId($"WheelDiverter_{Guid.NewGuid():N}")
-                .WithCleanSession()
+                .WithClientId($"{_options.Mqtt.ClientIdPrefix}_{Guid.NewGuid():N}")
+                .WithCleanSession(_options.Mqtt.CleanSession)
+                .WithSessionExpiryInterval((uint)_options.Mqtt.SessionExpiryInterval)
                 .Build();
 
             await _mqttClient!.ConnectAsync(mqttOptions, cancellationToken);
 
             // 订阅格口分配主题
+            var qosLevel = _options.Mqtt.QualityOfServiceLevel switch
+            {
+                0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
+                2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
+                _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
+            };
+
             var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
-                .WithTopicFilter(_assignmentTopic)
+                .WithTopicFilter(f => f.WithTopic(_assignmentTopic).WithQualityOfServiceLevel(qosLevel))
                 .Build();
 
             await _mqttClient.SubscribeAsync(subscribeOptions, cancellationToken);
 
-            _logger.LogInformation("成功连接到MQTT Broker并订阅主题: {Topic}", _assignmentTopic);
+            _logger.LogInformation(
+                "成功连接到MQTT Broker并订阅主题: {Topic} (QoS: {Qos}, CleanSession: {Clean})",
+                _assignmentTopic,
+                _options.Mqtt.QualityOfServiceLevel,
+                _options.Mqtt.CleanSession);
             return true;
         }
         catch (Exception ex)
@@ -172,11 +184,25 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
             var notification = new ParcelDetectionNotification { ParcelId = parcelId };
             var notificationJson = JsonSerializer.Serialize(notification);
-            var message = new MqttApplicationMessageBuilder()
+            
+            var qosLevel = _options.Mqtt.QualityOfServiceLevel switch
+            {
+                0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
+                2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
+                _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
+            };
+
+            var messageBuilder = new MqttApplicationMessageBuilder()
                 .WithTopic(_detectionTopic)
                 .WithPayload(notificationJson)
-                .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
-                .Build();
+                .WithQualityOfServiceLevel(qosLevel);
+
+            if (_options.Mqtt.MessageExpiryInterval > 0)
+            {
+                messageBuilder.WithMessageExpiryInterval((uint)_options.Mqtt.MessageExpiryInterval);
+            }
+
+            var message = messageBuilder.Build();
 
             await _mqttClient!.PublishAsync(message, cancellationToken);
 
@@ -235,10 +261,18 @@ public class MqttRuleEngineClient : IRuleEngineClient
                 // 构造并发布请求消息（向后兼容，使用detection主题）
                 var request = new ChuteAssignmentRequest { ParcelId = parcelId };
                 var requestJson = JsonSerializer.Serialize(request);
+                
+                var qosLevel = _options.Mqtt.QualityOfServiceLevel switch
+                {
+                    0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
+                    2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
+                    _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
+                };
+
                 var message = new MqttApplicationMessageBuilder()
                     .WithTopic(_detectionTopic)
                     .WithPayload(requestJson)
-                    .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+                    .WithQualityOfServiceLevel(qosLevel)
                     .Build();
 
                 await _mqttClient!.PublishAsync(message, cancellationToken);

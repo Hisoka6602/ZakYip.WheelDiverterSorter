@@ -16,11 +16,6 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// </remarks>
 public class TcpRuleEngineClient : IRuleEngineClient
 {
-    /// <summary>
-    /// TCP接收缓冲区大小（字节）
-    /// </summary>
-    private const int TcpReceiveBufferSize = 8192;
-
     private readonly ILogger<TcpRuleEngineClient> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private TcpClient? _client;
@@ -80,12 +75,29 @@ public class TcpRuleEngineClient : IRuleEngineClient
             var host = parts[0];
             _logger.LogInformation("正在连接到RuleEngine TCP服务器 {Host}:{Port}...", host, port);
 
-            _client = new TcpClient();
+            _client = new TcpClient
+            {
+                ReceiveBufferSize = _options.Tcp.ReceiveBufferSize,
+                SendBufferSize = _options.Tcp.SendBufferSize,
+                NoDelay = _options.Tcp.NoDelay
+            };
             await _client.ConnectAsync(host, port, cancellationToken);
             _stream = _client.GetStream();
             _isConnected = true;
 
-            _logger.LogInformation("成功连接到RuleEngine TCP服务器");
+            // 配置KeepAlive（如果启用）
+            if (_options.Tcp.KeepAliveInterval > 0)
+            {
+                _client.Client.SetSocketOption(
+                    SocketOptionLevel.Socket,
+                    SocketOptionName.KeepAlive,
+                    true);
+            }
+
+            _logger.LogInformation(
+                "成功连接到RuleEngine TCP服务器 (缓冲区: {Buffer}KB, NoDelay: {NoDelay})",
+                _options.Tcp.ReceiveBufferSize / 1024,
+                _options.Tcp.NoDelay);
             return true;
         }
         catch (Exception ex)
@@ -202,7 +214,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
                 await _stream.FlushAsync(cts.Token);
 
                 // 读取响应
-                var buffer = new byte[TcpReceiveBufferSize];
+                var buffer = new byte[_options.Tcp.ReceiveBufferSize];
                 var bytesRead = await _stream.ReadAsync(buffer, cts.Token);
 
                 if (bytesRead == 0)

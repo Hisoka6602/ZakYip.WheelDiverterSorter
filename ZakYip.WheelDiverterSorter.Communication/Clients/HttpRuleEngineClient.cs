@@ -50,12 +50,29 @@ public class HttpRuleEngineClient : IRuleEngineClient
             throw new ArgumentException("HTTP API URL不能为空", nameof(options));
         }
 
-        _httpClient = new HttpClient
+        var handler = new SocketsHttpHandler
+        {
+            MaxConnectionsPerServer = _options.Http.MaxConnectionsPerServer,
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(_options.Http.PooledConnectionIdleTimeout),
+            PooledConnectionLifetime = _options.Http.PooledConnectionLifetime > 0 
+                ? TimeSpan.FromSeconds(_options.Http.PooledConnectionLifetime) 
+                : Timeout.InfiniteTimeSpan
+        };
+
+        _httpClient = new HttpClient(handler)
         {
             Timeout = TimeSpan.FromMilliseconds(_options.TimeoutMs)
         };
 
-        _logger.LogWarning("⚠️ 使用HTTP客户端，此模式仅用于测试，生产环境禁用");
+        if (_options.Http.UseHttp2)
+        {
+            _httpClient.DefaultRequestVersion = new Version(2, 0);
+        }
+
+        _logger.LogWarning(
+            "⚠️ 使用HTTP客户端（连接池: {MaxConn}, HTTP/{Version}），此模式仅用于测试，生产环境禁用",
+            _options.Http.MaxConnectionsPerServer,
+            _options.Http.UseHttp2 ? "2" : "1.1");
     }
 
     /// <summary>

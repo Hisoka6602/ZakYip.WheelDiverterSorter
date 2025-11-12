@@ -95,12 +95,40 @@ public interface IRuleEngineClient : IDisposable
     "TimeoutMs": 5000,
     "RetryCount": 3,
     "RetryDelayMs": 1000,
-    "EnableAutoReconnect": true
+    "EnableAutoReconnect": true,
+    "Tcp": {
+      "ReceiveBufferSize": 8192,
+      "SendBufferSize": 8192,
+      "NoDelay": true,
+      "KeepAliveInterval": 60
+    },
+    "Http": {
+      "MaxConnectionsPerServer": 10,
+      "PooledConnectionIdleTimeout": 60,
+      "PooledConnectionLifetime": 0,
+      "UseHttp2": false
+    },
+    "Mqtt": {
+      "QualityOfServiceLevel": 1,
+      "CleanSession": true,
+      "SessionExpiryInterval": 3600,
+      "MessageExpiryInterval": 0,
+      "ClientIdPrefix": "WheelDiverter"
+    },
+    "SignalR": {
+      "HandshakeTimeout": 15,
+      "KeepAliveInterval": 30,
+      "ServerTimeout": 60,
+      "ReconnectIntervals": null,
+      "SkipNegotiation": false
+    }
   }
 }
 ```
 
 ### 配置项说明
+
+#### 通用配置
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |-------|------|--------|------|
@@ -114,6 +142,44 @@ public interface IRuleEngineClient : IDisposable
 | RetryCount | int | 3 | 重试次数 |
 | RetryDelayMs | int | 1000 | 重试延迟（毫秒） |
 | EnableAutoReconnect | bool | true | 是否启用自动重连 |
+
+#### TCP协议配置 (Tcp)
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|-------|------|--------|------|
+| ReceiveBufferSize | int | 8192 | TCP接收缓冲区大小（字节）。根据消息大小调整：小消息<1KB用4096，中等消息1-4KB用8192，大消息>4KB用16384或更大 |
+| SendBufferSize | int | 8192 | TCP发送缓冲区大小（字节） |
+| NoDelay | bool | true | 是否禁用Nagle算法。true降低延迟（推荐），false提高网络利用率但增加延迟 |
+| KeepAliveInterval | int | 60 | TCP KeepAlive时间间隔（秒）。0表示禁用KeepAlive |
+
+#### HTTP协议配置 (Http)
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|-------|------|--------|------|
+| MaxConnectionsPerServer | int | 10 | HTTP连接池最大连接数。根据并发需求调整 |
+| PooledConnectionIdleTimeout | int | 60 | 连接空闲超时时间（秒）。连接空闲超过此时间会被回收 |
+| PooledConnectionLifetime | int | 0 | 连接生存时间（秒）。0表示无限制。强制回收长期连接以应对DNS变化 |
+| UseHttp2 | bool | false | 是否使用HTTP/2协议。仅当服务端支持时启用 |
+
+#### MQTT协议配置 (Mqtt)
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|-------|------|--------|------|
+| QualityOfServiceLevel | int | 1 | MQTT服务质量等级。0=最多一次（可能丢失），1=至少一次（可能重复，推荐），2=恰好一次（最可靠但最慢） |
+| CleanSession | bool | true | 是否使用Clean Session。true=不保留会话状态（推荐），false=保留会话状态和订阅 |
+| SessionExpiryInterval | int | 3600 | 会话保持时间（秒）。0表示连接断开后立即清理会话 |
+| MessageExpiryInterval | int | 0 | 消息保留时间（秒）。0表示不保留。用于保留最后一条消息给新订阅者 |
+| ClientIdPrefix | string | WheelDiverter | MQTT客户端ID前缀。完整ID为：前缀_GUID |
+
+#### SignalR协议配置 (SignalR)
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|-------|------|--------|------|
+| HandshakeTimeout | int | 15 | 握手超时时间（秒） |
+| KeepAliveInterval | int | 30 | 保持连接超时时间（秒）。服务端发送心跳包的间隔 |
+| ServerTimeout | int | 60 | 服务端超时时间（秒）。未收到服务端心跳的最大等待时间 |
+| ReconnectIntervals | int[] | null | 重连间隔（毫秒）。null使用默认策略，可设置固定重连间隔如 [0, 2000, 5000, 10000] |
+| SkipNegotiation | bool | false | 是否跳过协商（直接使用WebSocket）。true可减少连接延迟，但需要服务端支持 |
 
 ## 使用步骤
 
@@ -142,50 +208,118 @@ builder.Services.AddHostedService<SensorMonitoringWorker>();
 builder.Services.AddHostedService<ParcelSortingWorker>();
 ```
 
-### 步骤3：配置通信模式
+### 步骤3：配置通信模式与环境切换
 
-根据部署环境选择合适的通信模式：
+系统支持通过环境变量和配置文件切换不同的通信协议。ASP.NET Core会根据 `ASPNETCORE_ENVIRONMENT` 环境变量自动加载对应的配置文件：
 
-**开发/测试环境**：
+- **开发环境**：`ASPNETCORE_ENVIRONMENT=Development` → 加载 `appsettings.Development.json`
+- **生产环境**：`ASPNETCORE_ENVIRONMENT=Production` → 加载 `appsettings.Production.json`
+- **自定义环境**：可使用 `appsettings.{EnvironmentName}.json` 格式
+
+#### 方式1：使用环境特定配置文件（推荐）
+
+项目已提供了针对不同环境和协议的配置文件：
+
+- `appsettings.Development.json` - 开发环境（HTTP）
+- `appsettings.Production.TCP.json` - 生产环境TCP协议
+- `appsettings.Production.SignalR.json` - 生产环境SignalR协议
+- `appsettings.Production.MQTT.json` - 生产环境MQTT协议
+
+**使用方法**：
+
+1. 复制对应的配置文件内容到 `appsettings.Production.json` 或通过命令行参数指定：
+```bash
+# Linux/Mac
+export ASPNETCORE_ENVIRONMENT=Production
+dotnet run --launch-profile Production
+
+# Windows
+set ASPNETCORE_ENVIRONMENT=Production
+dotnet run --launch-profile Production
+
+# Docker
+docker run -e ASPNETCORE_ENVIRONMENT=Production myapp
+```
+
+2. 或在 `launchSettings.json` 中配置：
 ```json
 {
-  "RuleEngineConnection": {
-    "Mode": "Http",
-    "HttpApi": "http://localhost:5000/api/sorting/chute"
+  "profiles": {
+    "Production-TCP": {
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Production.TCP"
+      }
+    }
   }
 }
 ```
 
-**生产环境（TCP）**：
+#### 方式2：直接修改配置文件
+
+根据部署环境选择合适的通信模式：
+
+**开发/测试环境（HTTP）**：
+```json
+{
+  "RuleEngineConnection": {
+    "Mode": "Http",
+    "HttpApi": "http://localhost:5000/api/sorting/chute",
+    "TimeoutMs": 10000,
+    "Http": {
+      "MaxConnectionsPerServer": 10,
+      "UseHttp2": false
+    }
+  }
+}
+```
+
+**生产环境（TCP - 高性能优化）**：
 ```json
 {
   "RuleEngineConnection": {
     "Mode": "Tcp",
     "TcpServer": "192.168.1.100:8000",
     "TimeoutMs": 5000,
-    "RetryCount": 3
+    "RetryCount": 3,
+    "Tcp": {
+      "ReceiveBufferSize": 16384,
+      "SendBufferSize": 16384,
+      "NoDelay": true,
+      "KeepAliveInterval": 60
+    }
   }
 }
 ```
 
-**生产环境（SignalR）**：
+**生产环境（SignalR - 自动重连优化）**：
 ```json
 {
   "RuleEngineConnection": {
     "Mode": "SignalR",
     "SignalRHub": "http://192.168.1.100:5000/sortingHub",
-    "EnableAutoReconnect": true
+    "EnableAutoReconnect": true,
+    "SignalR": {
+      "HandshakeTimeout": 15,
+      "KeepAliveInterval": 15,
+      "ServerTimeout": 30,
+      "ReconnectIntervals": [0, 2000, 5000, 10000, 30000]
+    }
   }
 }
 ```
 
-**生产环境（MQTT）**：
+**生产环境（MQTT - QoS优化）**：
 ```json
 {
   "RuleEngineConnection": {
     "Mode": "Mqtt",
     "MqttBroker": "mqtt://192.168.1.100:1883",
-    "MqttTopic": "sorting/chute/assignment"
+    "MqttTopic": "sorting/chute/assignment",
+    "Mqtt": {
+      "QualityOfServiceLevel": 1,
+      "CleanSession": true,
+      "SessionExpiryInterval": 3600
+    }
   }
 }
 ```
@@ -288,6 +422,38 @@ curl -X POST http://localhost:5000/api/debug/sort \
 3. **合理设置重试次数**：`RetryCount` 建议3-5次，避免过多重试阻塞处理
 4. **启用自动重连**：保持 `EnableAutoReconnect: true`，增强系统鲁棒性
 5. **监控连接状态**：定期检查 `IRuleEngineClient.IsConnected` 状态
+
+### 协议参数优化建议
+
+#### TCP优化
+- **缓冲区大小**：根据消息大小调整 `ReceiveBufferSize` 和 `SendBufferSize`
+  - 小消息（<1KB）：4096字节
+  - 中等消息（1-4KB）：8192字节（默认）
+  - 大消息（>4KB）：16384字节或更大
+- **NoDelay**：保持 `true`（禁用Nagle算法）以降低延迟
+- **KeepAlive**：设置为60秒，确保长连接稳定性
+
+#### HTTP优化
+- **连接池**：根据并发需求调整 `MaxConnectionsPerServer`（默认10）
+- **连接复用**：调整 `PooledConnectionIdleTimeout`（默认60秒）
+- **HTTP/2**：如果服务端支持，启用 `UseHttp2` 以提高性能
+- **注意**：仅用于测试环境，生产环境禁用
+
+#### MQTT优化
+- **QoS等级**：
+  - QoS 0：最快但可能丢失消息
+  - QoS 1：推荐，至少传输一次，平衡性能和可靠性
+  - QoS 2：最可靠但最慢，仅在必须保证消息不重复时使用
+- **Clean Session**：保持 `true` 以避免会话状态累积
+- **Session Expiry**：设置合理的过期时间（默认3600秒）
+
+#### SignalR优化
+- **重连策略**：配置 `ReconnectIntervals` 如 `[0, 2000, 5000, 10000, 30000]`
+- **超时设置**：
+  - `HandshakeTimeout`：15秒（默认）
+  - `KeepAliveInterval`：15-30秒，根据网络稳定性调整
+  - `ServerTimeout`：30-60秒，为 KeepAliveInterval 的 2倍
+- **WebSocket直连**：网络稳定时可启用 `SkipNegotiation: true` 减少延迟
 
 ## 监控与调试
 
