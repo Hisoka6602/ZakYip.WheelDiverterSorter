@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Text.RegularExpressions;
 using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
@@ -19,6 +20,17 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
     private readonly SemaphoreSlim _concurrencyThrottle;
     private readonly ILogger<ConcurrentSwitchingPathExecutor> _logger;
     private readonly ConcurrencyOptions _options;
+    private static readonly Regex LogSanitizer = new Regex(@"[\r\n]", RegexOptions.Compiled);
+
+    /// <summary>
+    /// 清理日志字符串，防止日志注入
+    /// </summary>
+    private static string SanitizeForLog(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+        return LogSanitizer.Replace(input, "");
+    }
 
     /// <summary>
     /// 初始化带并发控制的路径执行器
@@ -64,7 +76,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
         {
             _logger.LogDebug(
                 "获取并发槽位成功，目标格口: {TargetChuteId}",
-                path.TargetChuteId);
+                SanitizeForLog(path.TargetChuteId));
 
             // 第二层：按顺序获取每个摆轮的锁
             var lockHandles = new List<IDisposable>();
@@ -109,7 +121,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
 
                 _logger.LogDebug(
                     "已获取路径所有摆轮的锁，开始执行路径，目标格口: {TargetChuteId}",
-                    path.TargetChuteId);
+                    SanitizeForLog(path.TargetChuteId));
 
                 // 执行实际的路径
                 var result = await _innerExecutor.ExecuteAsync(path, cancellationToken)
