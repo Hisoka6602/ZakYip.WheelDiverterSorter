@@ -1,4 +1,5 @@
 using System.Reflection;
+using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers;
@@ -15,6 +16,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 添加服务到容器
 builder.Services.AddControllers();
+
+// 添加性能监控和优化服务
+builder.Services.AddMemoryCache(options =>
+{
+    options.SizeLimit = 1000; // 最多缓存1000个路径
+});
+builder.Services.AddMetrics();
+builder.Services.AddSingleton<SorterMetrics>();
 
 // 配置Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -89,7 +98,29 @@ builder.Services.AddSingleton<ISystemConfigurationRepository>(serviceProvider =>
 });
 
 // 注册摆轮分拣相关服务
-builder.Services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGenerator>();
+// 首先注册基础路径生成器
+builder.Services.AddSingleton<DefaultSwitchingPathGenerator>();
+
+// 使用装饰器模式添加缓存功能（可选，通过配置启用）
+var enablePathCaching = builder.Configuration.GetValue<bool>("Performance:EnablePathCaching", true);
+if (enablePathCaching)
+{
+    builder.Services.AddSingleton<ISwitchingPathGenerator>(serviceProvider =>
+    {
+        var innerGenerator = serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>();
+        var cache = serviceProvider.GetRequiredService<IMemoryCache>();
+        var logger = serviceProvider.GetRequiredService<ILogger<CachedSwitchingPathGenerator>>();
+        return new CachedSwitchingPathGenerator(innerGenerator, cache, logger);
+    });
+}
+else
+{
+    builder.Services.AddSingleton<ISwitchingPathGenerator>(serviceProvider =>
+        serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>());
+}
+
+// 注册优化的分拣服务
+builder.Services.AddSingleton<OptimizedSortingService>();
 
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
