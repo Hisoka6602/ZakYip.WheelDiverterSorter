@@ -27,7 +27,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
     private IMqttClient? _mqttClient;
     private readonly string _detectionTopic;
     private readonly string _assignmentTopic;
-    private readonly Dictionary<string, TaskCompletionSource<ChuteAssignmentResponse>> _pendingRequests;
+    private readonly Dictionary<long, TaskCompletionSource<ChuteAssignmentResponse>> _pendingRequests;
 
     /// <summary>
     /// 客户端是否已连接
@@ -58,7 +58,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
         _detectionTopic = $"{_options.MqttTopic}/detection";
         _assignmentTopic = $"{_options.MqttTopic}/assignment";
-        _pendingRequests = new Dictionary<string, TaskCompletionSource<ChuteAssignmentResponse>>();
+        _pendingRequests = new Dictionary<long, TaskCompletionSource<ChuteAssignmentResponse>>();
 
         InitializeMqttClient();
     }
@@ -159,12 +159,12 @@ public class MqttRuleEngineClient : IRuleEngineClient
     /// 通知RuleEngine包裹已到达
     /// </summary>
     public async Task<bool> NotifyParcelDetectedAsync(
-        string parcelId,
+        long parcelId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(parcelId))
+        if (parcelId <= 0)
         {
-            throw new ArgumentException("包裹ID不能为空", nameof(parcelId));
+            throw new ArgumentException("包裹ID必须为正数", nameof(parcelId));
         }
 
         // 尝试连接（如果未连接）
@@ -221,12 +221,12 @@ public class MqttRuleEngineClient : IRuleEngineClient
     /// </summary>
     [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
-        string parcelId,
+        long parcelId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(parcelId))
+        if (parcelId <= 0)
         {
-            throw new ArgumentException("包裹ID不能为空", nameof(parcelId));
+            throw new ArgumentException("包裹ID必须为正数", nameof(parcelId));
         }
 
         // 尝试连接（如果未连接）

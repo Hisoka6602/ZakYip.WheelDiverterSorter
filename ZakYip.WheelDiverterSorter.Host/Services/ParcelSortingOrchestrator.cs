@@ -31,7 +31,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly ILogger<ParcelSortingOrchestrator> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
-    private readonly Dictionary<string, TaskCompletionSource<string>> _pendingAssignments;
+    private readonly Dictionary<long, TaskCompletionSource<string>> _pendingAssignments;
     private readonly object _lockObject = new object();
     private bool _isConnected;
 
@@ -54,10 +54,13 @@ public class ParcelSortingOrchestrator : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
-        _pendingAssignments = new Dictionary<string, TaskCompletionSource<string>>();
+        _pendingAssignments = new Dictionary<long, TaskCompletionSource<string>>();
 
         // 订阅包裹检测事件
         _parcelDetectionService.ParcelDetected += OnParcelDetected;
+        
+        // 订阅重复触发异常事件
+        _parcelDetectionService.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
         
         // 订阅格口分配事件
         _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
@@ -110,6 +113,45 @@ public class ParcelSortingOrchestrator : IDisposable
                 tcs.TrySetResult(e.ChuteNumber);
                 _pendingAssignments.Remove(e.ParcelId);
             }
+        }
+    }
+
+    /// <summary>
+    /// 处理重复触发异常事件
+    /// </summary>
+    private async void OnDuplicateTriggerDetected(object? sender, ZakYip.WheelDiverterSorter.Ingress.Models.DuplicateTriggerEventArgs e)
+    {
+        var parcelId = e.ParcelId;
+        _logger.LogWarning(
+            "检测到重复触发异常: ParcelId={ParcelId}, 传感器={SensorId}, " +
+            "距上次触发={TimeSinceLastMs}ms, 原因={Reason}",
+            parcelId,
+            e.SensorId,
+            e.TimeSinceLastTriggerMs,
+            e.Reason);
+
+        try
+        {
+            // 获取异常格口ID
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+            // 通知RuleEngine包裹重复触发异常
+            var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
+            
+            if (!notificationSent)
+            {
+                _logger.LogError(
+                    "包裹 {ParcelId} (重复触发异常) 无法发送检测通知到RuleEngine，将直接发送到异常格口",
+                    parcelId);
+            }
+
+            // 直接将包裹发送到异常格口，不等待RuleEngine响应
+            await ProcessSortingAsync(parcelId, exceptionChuteId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理重复触发异常包裹 {ParcelId} 时发生错误", parcelId);
         }
     }
 
@@ -194,7 +236,7 @@ public class ParcelSortingOrchestrator : IDisposable
     /// <summary>
     /// 执行分拣流程
     /// </summary>
-    private async Task ProcessSortingAsync(string parcelId, string targetChuteId)
+    private async Task ProcessSortingAsync(long parcelId, string targetChuteId)
     {
         try
         {
@@ -255,6 +297,7 @@ public class ParcelSortingOrchestrator : IDisposable
     {
         // 取消订阅事件
         _parcelDetectionService.ParcelDetected -= OnParcelDetected;
+        _parcelDetectionService.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
         _ruleEngineClient.ChuteAssignmentReceived -= OnChuteAssignmentReceived;
 
         // 断开连接

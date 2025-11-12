@@ -9,9 +9,9 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 public record ParcelDetectionNotification
 {
     /// <summary>
-    /// 包裹ID
+    /// 包裹ID (毫秒时间戳)
     /// </summary>
-    public required string ParcelId { get; init; }
+    public required long ParcelId { get; init; }
 
     /// <summary>
     /// 检测时间
@@ -30,9 +30,9 @@ public record ParcelDetectionNotification
 public record ChuteAssignmentRequest
 {
     /// <summary>
-    /// 包裹ID
+    /// 包裹ID (毫秒时间戳)
     /// </summary>
-    public required string ParcelId { get; init; }
+    public required long ParcelId { get; init; }
 
     /// <summary>
     /// 请求时间
@@ -46,9 +46,9 @@ public record ChuteAssignmentRequest
 public record ChuteAssignmentResponse
 {
     /// <summary>
-    /// 包裹ID
+    /// 包裹ID (毫秒时间戳)
     /// </summary>
-    public required string ParcelId { get; init; }
+    public required long ParcelId { get; init; }
 
     /// <summary>
     /// 目标格口号

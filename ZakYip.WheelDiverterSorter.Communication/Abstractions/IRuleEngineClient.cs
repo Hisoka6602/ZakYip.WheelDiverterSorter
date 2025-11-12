@@ -38,20 +38,20 @@ public interface IRuleEngineClient : IDisposable
     /// <summary>
     /// 通知RuleEngine包裹已到达
     /// </summary>
-    /// <param name="parcelId">包裹ID</param>
+    /// <param name="parcelId">包裹ID (毫秒时间戳)</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否成功发送通知</returns>
     /// <remarks>
     /// 此方法不等待响应，仅发送通知。格口分配将通过ChuteAssignmentReceived事件推送。
     /// </remarks>
     Task<bool> NotifyParcelDetectedAsync(
-        string parcelId,
+        long parcelId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 请求包裹的格口号（保留用于兼容性，不推荐使用）
     /// </summary>
-    /// <param name="parcelId">包裹ID</param>
+    /// <param name="parcelId">包裹ID (毫秒时间戳)</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>格口分配响应</returns>
     /// <remarks>
@@ -60,6 +60,6 @@ public interface IRuleEngineClient : IDisposable
     /// </remarks>
     [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
-        string parcelId,
+        long parcelId,
         CancellationToken cancellationToken = default);
 }

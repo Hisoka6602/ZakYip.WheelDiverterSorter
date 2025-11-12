@@ -24,7 +24,7 @@ public class ParcelDetectionServiceTests
         var options = Options.Create(new ParcelDetectionOptions());
         var service = new ParcelDetectionService(sensors, options);
 
-        var detectedParcelIds = new List<string>();
+        var detectedParcelIds = new List<long>();
         service.ParcelDetected += (sender, e) => detectedParcelIds.Add(e.ParcelId);
 
         // Start the service to subscribe to sensor events
@@ -51,7 +51,7 @@ public class ParcelDetectionServiceTests
     }
 
     [Fact]
-    public async Task DeduplicationWindow_ShouldIgnoreDuplicateTriggersWithinWindow()
+    public async Task DeduplicationWindow_ShouldDetectDuplicateTriggersWithinWindow()
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
@@ -67,7 +67,9 @@ public class ParcelDetectionServiceTests
         var service = new ParcelDetectionService(sensors, options);
 
         var detectedCount = 0;
+        var duplicateCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
+        service.DuplicateTriggerDetected += (sender, e) => duplicateCount++;
 
         // Start the service
         await service.StartAsync();
@@ -93,8 +95,9 @@ public class ParcelDetectionServiceTests
         };
         mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent2);
 
-        // Assert - Should only detect once
-        Assert.Equal(1, detectedCount);
+        // Assert - Should detect both parcels, second one flagged as duplicate
+        Assert.Equal(2, detectedCount);
+        Assert.Equal(1, duplicateCount);
     }
 
     [Fact]
@@ -177,8 +180,7 @@ public class ParcelDetectionServiceTests
 
         // Assert
         Assert.NotNull(detectedArgs);
-        Assert.NotNull(detectedArgs.ParcelId);
-        Assert.StartsWith("PKG_", detectedArgs.ParcelId);
+        Assert.True(detectedArgs.ParcelId > 0); // ParcelId should be a positive timestamp
         Assert.Equal(triggerTime, detectedArgs.DetectedAt);
         Assert.Equal("SENSOR_01", detectedArgs.SensorId);
         Assert.Equal(SensorType.Photoelectric, detectedArgs.SensorType);
@@ -297,7 +299,7 @@ public class ParcelDetectionServiceTests
         });
         var service = new ParcelDetectionService(sensors, options);
 
-        var detectedParcelIds = new List<string>();
+        var detectedParcelIds = new List<long>();
         service.ParcelDetected += (sender, e) => detectedParcelIds.Add(e.ParcelId);
 
         // Start the service
