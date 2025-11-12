@@ -84,7 +84,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
             GeneratedAt = DateTimeOffset.UtcNow,
-            FallbackChuteId = WellKnownChuteIds.Exception
+            FallbackChuteId = WellKnownChuteIds.DefaultException
         };
     }
 }

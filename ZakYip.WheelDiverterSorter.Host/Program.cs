@@ -79,6 +79,15 @@ builder.Services.AddSingleton<IRouteConfigurationRepository>(serviceProvider =>
     return repository;
 });
 
+// 注册系统配置仓储为单例
+builder.Services.AddSingleton<ISystemConfigurationRepository>(serviceProvider =>
+{
+    var repository = new LiteDbSystemConfigurationRepository(fullDatabasePath);
+    // 初始化默认配置
+    repository.InitializeDefault();
+    return repository;
+});
+
 // 注册摆轮分拣相关服务
 builder.Services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGenerator>();
 

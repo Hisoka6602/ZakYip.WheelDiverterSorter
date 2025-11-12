@@ -239,7 +239,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = WellKnownChuteIds.Exception,
+                    ChuteNumber = WellKnownChuteIds.DefaultException,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine SignalR Hub"
                 };
@@ -289,7 +289,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = WellKnownChuteIds.Exception,
+            ChuteNumber = WellKnownChuteIds.DefaultException,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

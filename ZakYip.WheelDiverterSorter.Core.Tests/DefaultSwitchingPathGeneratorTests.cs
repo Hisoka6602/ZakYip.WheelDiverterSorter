@@ -56,7 +56,7 @@ public class DefaultSwitchingPathGeneratorTests
         Assert.Equal("Diverter2", result.Segments[1].DiverterId);
         Assert.Equal(DiverterAngle.Angle30, result.Segments[1].TargetAngle);
         Assert.Equal(2, result.Segments[1].SequenceNumber);
-        Assert.Equal(WellKnownChuteIds.Exception, result.FallbackChuteId);
+        Assert.Equal(WellKnownChuteIds.DefaultException, result.FallbackChuteId);
     }
 
     [Fact]

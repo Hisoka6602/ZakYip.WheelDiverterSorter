@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
@@ -29,6 +30,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly ILogger<ParcelSortingOrchestrator> _logger;
     private readonly RuleEngineConnectionOptions _options;
+    private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly Dictionary<string, TaskCompletionSource<string>> _pendingAssignments;
     private readonly object _lockObject = new object();
     private bool _isConnected;
@@ -42,6 +44,7 @@ public class ParcelSortingOrchestrator : IDisposable
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
         IOptions<RuleEngineConnectionOptions> options,
+        ISystemConfigurationRepository systemConfigRepository,
         ILogger<ParcelSortingOrchestrator> logger)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
@@ -50,6 +53,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _pendingAssignments = new Dictionary<string, TaskCompletionSource<string>>();
 
         // 订阅包裹检测事件
@@ -119,6 +123,10 @@ public class ParcelSortingOrchestrator : IDisposable
 
         try
         {
+            // 获取系统配置
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+
             // 步骤1: 通知RuleEngine包裹到达
             var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
             
@@ -127,7 +135,7 @@ public class ParcelSortingOrchestrator : IDisposable
                 _logger.LogError(
                     "包裹 {ParcelId} 无法发送检测通知到RuleEngine，将发送到异常格口",
                     parcelId);
-                await ProcessSortingAsync(parcelId, WellKnownChuteIds.Exception);
+                await ProcessSortingAsync(parcelId, exceptionChuteId);
                 return;
             }
 
@@ -142,8 +150,9 @@ public class ParcelSortingOrchestrator : IDisposable
 
             try
             {
-                // 等待格口分配或超时
-                using var cts = new CancellationTokenSource(_options.ChuteAssignmentTimeoutMs);
+                // 使用系统配置中的超时时间
+                var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
+                using var cts = new CancellationTokenSource(timeoutMs);
                 targetChuteId = await tcs.Task.WaitAsync(cts.Token);
                 
                 _logger.LogInformation("包裹 {ParcelId} 分配到格口 {ChuteNumber}", parcelId, targetChuteId);
@@ -153,16 +162,16 @@ public class ParcelSortingOrchestrator : IDisposable
                 _logger.LogWarning(
                     "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将发送到异常格口",
                     parcelId,
-                    _options.ChuteAssignmentTimeoutMs);
-                targetChuteId = WellKnownChuteIds.Exception;
+                    systemConfig.ChuteAssignmentTimeoutMs);
+                targetChuteId = exceptionChuteId;
             }
             catch (OperationCanceledException)
             {
                 _logger.LogWarning(
                     "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将发送到异常格口",
                     parcelId,
-                    _options.ChuteAssignmentTimeoutMs);
-                targetChuteId = WellKnownChuteIds.Exception;
+                    systemConfig.ChuteAssignmentTimeoutMs);
+                targetChuteId = exceptionChuteId;
             }
             finally
             {
@@ -189,6 +198,10 @@ public class ParcelSortingOrchestrator : IDisposable
     {
         try
         {
+            // 获取系统配置
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+
             // 生成摆轮路径
             var path = _pathGenerator.GeneratePath(targetChuteId);
 
@@ -200,7 +213,7 @@ public class ParcelSortingOrchestrator : IDisposable
                     targetChuteId);
 
                 // 生成到异常格口的路径
-                targetChuteId = WellKnownChuteIds.Exception;
+                targetChuteId = exceptionChuteId;
                 path = _pathGenerator.GeneratePath(targetChuteId);
 
                 if (path == null)
