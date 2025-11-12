@@ -40,6 +40,11 @@ public class LeadshineLaserSensor : ISensor
     public event EventHandler<SensorEvent>? SensorTriggered;
 
     /// <summary>
+    /// 传感器错误事件
+    /// </summary>
+    public event EventHandler<SensorErrorEventArgs>? SensorError;
+
+    /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="logger">日志记录器</param>
@@ -154,6 +159,16 @@ public class LeadshineLaserSensor : ISensor
             catch (Exception ex)
             {
                 _logger.LogError(ex, "雷赛激光传感器 {SensorId} 读取失败", SensorId);
+                
+                // 触发错误事件
+                OnSensorError(new SensorErrorEventArgs
+                {
+                    SensorId = SensorId,
+                    Type = Type,
+                    ErrorMessage = $"读取输入位失败: {ex.Message}",
+                    Exception = ex
+                });
+
                 // 发生错误时等待一段时间再重试
                 await Task.Delay(1000, cancellationToken);
             }
@@ -168,6 +183,14 @@ public class LeadshineLaserSensor : ISensor
     protected virtual void OnSensorTriggered(SensorEvent sensorEvent)
     {
         SensorTriggered?.Invoke(this, sensorEvent);
+    }
+
+    /// <summary>
+    /// 触发传感器错误事件
+    /// </summary>
+    protected virtual void OnSensorError(SensorErrorEventArgs args)
+    {
+        SensorError?.Invoke(this, args);
     }
 
     /// <summary>
