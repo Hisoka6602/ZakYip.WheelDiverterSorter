@@ -12,8 +12,13 @@ public record class PathExecutionResult
 
     /// <summary>
     /// 实际落格的格口标识
-    /// 当执行失败时，此值为异常格口（exception chute）
     /// </summary>
+    /// <remarks>
+    /// <para>当执行成功时，此值应等于 <see cref="SwitchingPath.TargetChuteId"/>；</para>
+    /// <para>当执行失败时，此值应为 <see cref="SwitchingPath.FallbackChuteId"/>（最终异常格口）。</para>
+    /// <para>注意：如果旧代码中存在硬编码的异常口逻辑，应统一使用 
+    /// <see cref="SwitchingPath.FallbackChuteId"/> 字段，删除旧的实现方式。</para>
+    /// </remarks>
     public required string ActualChuteId { get; init; }
 
     /// <summary>

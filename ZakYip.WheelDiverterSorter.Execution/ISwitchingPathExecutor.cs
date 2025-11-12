@@ -13,11 +13,15 @@ namespace ZakYip.WheelDiverterSorter.Execution;
 ///     若当前段在 <see cref="SwitchingPathSegment.TtlMilliseconds"/> 
 ///     指定的时间内未完成，立即判定为执行失败</item>
 /// <item>执行失败时，在 <see cref="PathExecutionResult.ActualChuteId"/> 
-///     中返回异常格口标识</item>
+///     中返回 <see cref="SwitchingPath.FallbackChuteId"/>（最终异常格口）</item>
 /// </list>
 /// <para><strong>重要：</strong>执行层必须对现场异常做好隔离，不能影响调用方。
 /// 所有现场设备通信异常、超时异常等必须在执行器内部捕获并转换为
 /// <see cref="PathExecutionResult"/>，确保方法始终正常返回，不抛出异常。</para>
+/// <para><strong>异常格口说明：</strong>当路径执行过程中任意一段失败时，
+/// 执行器必须将包裹引导到 <see cref="SwitchingPath.FallbackChuteId"/> 指定的异常格口。
+/// 这样可以防止包裹滞留造成输送线堵塞，与"单段TTL"机制配合使用，确保系统的高可用性。
+/// 注意：如果旧代码中存在其他异常口处理逻辑（如硬编码的异常口ID），应统一使用本字段，删除旧的实现。</para>
 /// </remarks>
 public interface ISwitchingPathExecutor
 {
@@ -39,7 +43,8 @@ public interface ISwitchingPathExecutor
     ///     <list type="bullet">
     ///     <item>下发摆轮动作指令到现场设备（具体实现由派生类完成）</item>
     ///     <item>等待该段完成，但不超过 <see cref="SwitchingPathSegment.TtlMilliseconds"/></item>
-    ///     <item>如果超时未完成，立即判定失败，返回异常格口</item>
+    ///     <item>如果超时未完成，立即判定失败，
+    ///         返回 <see cref="SwitchingPath.FallbackChuteId"/> 作为实际格口</item>
     ///     </list>
     /// </item>
     /// <item>所有段都成功完成后，返回成功结果，
@@ -48,7 +53,9 @@ public interface ISwitchingPathExecutor
     /// </list>
     /// <para>异常处理：</para>
     /// <para>执行器必须捕获所有现场异常（设备通信失败、网络超时、设备故障等），
-    /// 并将其转换为失败的 <see cref="PathExecutionResult"/>。
+    /// 并将其转换为失败的 <see cref="PathExecutionResult"/>，
+    /// 其中 <see cref="PathExecutionResult.ActualChuteId"/> 应设置为 
+    /// <see cref="SwitchingPath.FallbackChuteId"/>。
     /// 调用方不应需要处理任何异常情况。</para>
     /// </remarks>
     Task<PathExecutionResult> ExecuteAsync(
