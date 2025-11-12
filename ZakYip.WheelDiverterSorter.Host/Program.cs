@@ -1,5 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
@@ -34,7 +35,10 @@ builder.Services.AddSingleton<IRouteConfigurationRepository>(serviceProvider =>
 
 // 注册摆轮分拣相关服务
 builder.Services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGenerator>();
-builder.Services.AddSingleton<ISwitchingPathExecutor, MockSwitchingPathExecutor>();
+
+// 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
+builder.Services.AddDriverServices(builder.Configuration);
+
 builder.Services.AddSingleton<DebugSortService>();
 
 // 注册传感器和包裹检测服务
