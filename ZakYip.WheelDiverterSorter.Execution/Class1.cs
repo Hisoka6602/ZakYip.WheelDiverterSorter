@@ -1,5 +1,7 @@
-﻿namespace ZakYip.WheelDiverterSorter.Execution {
-    public class Class1 {
+﻿namespace ZakYip.WheelDiverterSorter.Execution
+{
+    public class Class1
+    {
 
     }
 }
