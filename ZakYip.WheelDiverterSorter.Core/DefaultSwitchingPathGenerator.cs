@@ -6,6 +6,21 @@ namespace ZakYip.WheelDiverterSorter.Core;
 /// 实现逻辑：包裹进入 → 获取目标Chute → 生成从入口到该Chute的摆轮列表
 /// </para>
 /// </summary>
+/// <remarks>
+/// <para><b>拓扑配置说明：</b></para>
+/// <para>
+/// 本生成器依赖摆轮拓扑配置来确定路径。拓扑配置描述了直线输送线上的摆轮节点顺序，
+/// 以及每个节点能分到哪些Chute。相关配置类参见：
+/// <list type="bullet">
+/// <item><description><see cref="SorterTopology"/>: 描述完整的拓扑结构（入口 → A → B → C → 末端）</description></item>
+/// <item><description><see cref="DiverterNode"/>: 表示单个摆轮节点及其支持的动作（直行/左/右）</description></item>
+/// <item><description><see cref="DefaultSorterTopologyProvider"/>: 提供默认的硬编码拓扑示例</description></item>
+/// </list>
+/// </para>
+/// <para>
+/// 当前实现使用简化的硬编码映射。后续可改为基于 <see cref="SorterTopology"/> 的动态路径生成。
+/// </para>
+/// </remarks>
 public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 {
     /// <summary>
