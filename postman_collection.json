@@ -1,0 +1,140 @@
+{
+  "info": {
+    "_postman_id": "wheel-diverter-sorter-api",
+    "name": "摆轮分拣系统 API",
+    "description": "直线摆轮分拣系统的Web API接口文档，提供路由配置管理和分拣调试功能",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "路由配置管理",
+      "item": [
+        {
+          "name": "获取所有路由配置",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/config/routes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "config", "routes"]
+            },
+            "description": "获取所有启用的路由配置列表"
+          },
+          "response": []
+        },
+        {
+          "name": "根据格口ID获取路由配置",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/config/routes/CHUTE-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "config", "routes", "CHUTE-01"]
+            },
+            "description": "根据格口ID获取指定的路由配置"
+          },
+          "response": []
+        },
+        {
+          "name": "创建路由配置",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chuteId\": \"CHUTE-01\",\n  \"diverterConfigurations\": [\n    {\n      \"diverterId\": \"DIV-001\",\n      \"targetAngle\": 45,\n      \"sequenceNumber\": 1\n    },\n    {\n      \"diverterId\": \"DIV-002\",\n      \"targetAngle\": 30,\n      \"sequenceNumber\": 2\n    },\n    {\n      \"diverterId\": \"DIV-003\",\n      \"targetAngle\": 45,\n      \"sequenceNumber\": 3\n    }\n  ],\n  \"isEnabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/config/routes",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "config", "routes"]
+            },
+            "description": "创建新的路由配置。摆轮配置按顺序执行，顺序号必须从1开始且连续。"
+          },
+          "response": []
+        },
+        {
+          "name": "更新路由配置",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"chuteId\": \"CHUTE-01\",\n  \"diverterConfigurations\": [\n    {\n      \"diverterId\": \"DIV-001\",\n      \"targetAngle\": 90,\n      \"sequenceNumber\": 1\n    },\n    {\n      \"diverterId\": \"DIV-002\",\n      \"targetAngle\": 45,\n      \"sequenceNumber\": 2\n    }\n  ],\n  \"isEnabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/config/routes/CHUTE-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "config", "routes", "CHUTE-01"]
+            },
+            "description": "更新现有路由配置，支持热更新。配置更新后立即生效，无需重启服务。"
+          },
+          "response": []
+        },
+        {
+          "name": "删除路由配置",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/config/routes/CHUTE-01",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "config", "routes", "CHUTE-01"]
+            },
+            "description": "删除指定格口的路由配置"
+          },
+          "response": []
+        }
+      ],
+      "description": "路由配置管理接口，用于配置不同格口对应的摆轮动作序列"
+    },
+    {
+      "name": "调试接口",
+      "item": [
+        {
+          "name": "调试分拣",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parcelId\": \"PKG001\",\n  \"targetChuteId\": \"CHUTE-01\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/sort",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "debug", "sort"]
+            },
+            "description": "调试分拣接口：手动触发包裹分拣流程。接收包裹ID和目标格口ID，生成并执行摆轮路径，返回执行结果。这是调试入口，正式环境可改成由扫码或供包台触发。"
+          },
+          "response": []
+        }
+      ],
+      "description": "调试接口，用于测试分拣功能"
+    }
+  ]
+}

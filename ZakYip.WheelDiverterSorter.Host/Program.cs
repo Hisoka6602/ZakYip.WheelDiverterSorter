@@ -1,3 +1,4 @@
+using System.Reflection;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers;
@@ -8,11 +9,55 @@ using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Communication;
+using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // 添加服务到容器
 builder.Services.AddControllers();
+
+// 配置Swagger/OpenAPI
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "摆轮分拣系统 API",
+        Description = "直线摆轮分拣系统的Web API接口文档，提供路由配置管理和分拣调试功能",
+        Contact = new OpenApiContact
+        {
+            Name = "技术支持",
+            Email = "support@example.com"
+        }
+    });
+
+    // 包含XML注释
+    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
+    if (File.Exists(xmlPath))
+    {
+        options.IncludeXmlComments(xmlPath);
+    }
+
+    // 添加API标签说明
+    options.TagActionsBy(api =>
+    {
+        if (api.GroupName != null)
+        {
+            return new[] { api.GroupName };
+        }
+
+        if (api.ActionDescriptor is Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor controllerActionDescriptor)
+        {
+            return new[] { controllerActionDescriptor.ControllerName };
+        }
+
+        return new[] { "其他" };
+    });
+    
+    options.DocInclusionPredicate((name, api) => true);
+});
 
 // 配置路由数据库路径
 var databasePath = builder.Configuration["RouteConfiguration:DatabasePath"] ?? "Data/routes.db";
@@ -67,6 +112,18 @@ builder.Services.AddSingleton<ParcelSortingOrchestrator>();
 
 var app = builder.Build();
 
+// 配置Swagger中间件
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "摆轮分拣系统 API v1");
+    options.RoutePrefix = "swagger"; // 设置Swagger UI访问路径为 /swagger
+    options.DocumentTitle = "摆轮分拣系统 API 文档";
+    options.DefaultModelsExpandDepth(2);
+    options.DefaultModelExpandDepth(2);
+    options.DisplayRequestDuration();
+});
+
 app.MapControllers();
 
 /// <summary>
@@ -75,11 +132,22 @@ app.MapControllers();
 /// <remarks>
 /// 这是调试入口，用于手动触发包裹分拣流程，测试直线摆轮方案。
 /// 正式环境可改成由扫码触发或供包台触发。
+/// 
+/// 示例请求:
+/// 
+///     POST /api/debug/sort
+///     {
+///         "parcelId": "PKG001",
+///         "targetChuteId": "CHUTE-01"
+///     }
+/// 
 /// </remarks>
 /// <param name="request">包含包裹ID和目标格口ID的请求</param>
 /// <param name="debugService">调试服务</param>
 /// <param name="cancellationToken">取消令牌</param>
 /// <returns>包含执行结果和实际落格ID的响应</returns>
+/// <response code="200">分拣请求已处理（成功或失败）</response>
+/// <response code="400">请求参数无效</response>
 app.MapPost("/api/debug/sort", async (
     DebugSortRequest request,
     DebugSortService debugService,
@@ -104,7 +172,9 @@ app.MapPost("/api/debug/sort", async (
 })
 .WithName("DebugSort")
 .WithDescription("调试分拣接口：接收包裹ID和目标格口ID，生成并执行摆轮路径，返回执行结果。这是调试入口，正式环境可改成由扫码/供包台触发。")
-.WithTags("调试接口");
+.WithTags("调试接口")
+.Produces<DebugSortResponse>(200)
+.Produces(400);
 
 app.Run();
 
