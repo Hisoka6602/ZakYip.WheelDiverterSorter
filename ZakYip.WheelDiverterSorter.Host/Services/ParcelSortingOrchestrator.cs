@@ -101,7 +101,7 @@ public class ParcelSortingOrchestrator : IDisposable
                     response.ErrorMessage);
 
                 // 使用异常格口
-                response = response with { ChuteNumber = "CHUTE_EXCEPTION" };
+                response = response with { ChuteNumber = WellKnownChuteIds.Exception };
             }
 
             var targetChuteId = response.ChuteNumber;
@@ -118,7 +118,7 @@ public class ParcelSortingOrchestrator : IDisposable
                     targetChuteId);
 
                 // 生成到异常格口的路径
-                targetChuteId = "CHUTE_EXCEPTION";
+                targetChuteId = WellKnownChuteIds.Exception;
                 path = _pathGenerator.GeneratePath(targetChuteId);
 
                 if (path == null)

@@ -33,15 +33,6 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </remarks>
     private const int DefaultSegmentTtlMs = 5000;
 
-    /// <summary>
-    /// 默认的最终异常格口标识
-    /// </summary>
-    /// <remarks>
-    /// <para>当路径执行失败时，包裹将被引导到此异常格口。</para>
-    /// <para>当前使用固定值，实际生产环境应从配置文件或数据库加载。</para>
-    /// </remarks>
-    private const string DefaultFallbackChuteId = "CHUTE_EXCEPTION";
-
     private readonly IRouteConfigurationRepository _routeRepository;
 
     /// <summary>
@@ -93,7 +84,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
             GeneratedAt = DateTimeOffset.UtcNow,
-            FallbackChuteId = DefaultFallbackChuteId
+            FallbackChuteId = WellKnownChuteIds.Exception
         };
     }
 }

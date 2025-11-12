@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -15,6 +16,11 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// </remarks>
 public class TcpRuleEngineClient : IRuleEngineClient
 {
+    /// <summary>
+    /// TCP接收缓冲区大小（字节）
+    /// </summary>
+    private const int TcpReceiveBufferSize = 8192;
+
     private readonly ILogger<TcpRuleEngineClient> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private TcpClient? _client;
@@ -123,7 +129,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = "CHUTE_EXCEPTION",
+                    ChuteNumber = WellKnownChuteIds.Exception,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine服务器"
                 };
@@ -152,7 +158,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
                 await _stream.FlushAsync(cts.Token);
 
                 // 读取响应
-                var buffer = new byte[8192];
+                var buffer = new byte[TcpReceiveBufferSize];
                 var bytesRead = await _stream.ReadAsync(buffer, cts.Token);
 
                 if (bytesRead == 0)
@@ -196,7 +202,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = "CHUTE_EXCEPTION",
+            ChuteNumber = WellKnownChuteIds.Exception,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

@@ -5,6 +5,7 @@ using MQTTnet;
 using MQTTnet.Client;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -16,6 +17,11 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// </remarks>
 public class MqttRuleEngineClient : IRuleEngineClient
 {
+    /// <summary>
+    /// MQTT协议默认端口
+    /// </summary>
+    private const int MqttDefaultPort = 1883;
+
     private readonly ILogger<MqttRuleEngineClient> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private IMqttClient? _mqttClient;
@@ -89,7 +95,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
             _logger.LogInformation("正在连接到MQTT Broker: {Broker}...", _options.MqttBroker);
 
             var mqttOptions = new MqttClientOptionsBuilder()
-                .WithTcpServer(uri.Host, uri.Port > 0 ? uri.Port : 1883)
+                .WithTcpServer(uri.Host, uri.Port > 0 ? uri.Port : MqttDefaultPort)
                 .WithClientId($"WheelDiverter_{Guid.NewGuid():N}")
                 .WithCleanSession()
                 .Build();
@@ -153,7 +159,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = "CHUTE_EXCEPTION",
+                    ChuteNumber = WellKnownChuteIds.Exception,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到MQTT Broker"
                 };
@@ -216,7 +222,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = "CHUTE_EXCEPTION",
+            ChuteNumber = WellKnownChuteIds.Exception,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

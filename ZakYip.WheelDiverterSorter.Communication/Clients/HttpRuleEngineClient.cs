@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -130,7 +131,7 @@ public class HttpRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = "CHUTE_EXCEPTION",
+            ChuteNumber = WellKnownChuteIds.Exception,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

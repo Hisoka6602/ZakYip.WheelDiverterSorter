@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -141,7 +142,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = "CHUTE_EXCEPTION",
+                    ChuteNumber = WellKnownChuteIds.Exception,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine SignalR Hub"
                 };
@@ -191,7 +192,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = "CHUTE_EXCEPTION",
+            ChuteNumber = WellKnownChuteIds.Exception,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

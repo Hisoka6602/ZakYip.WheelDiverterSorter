@@ -87,4 +87,24 @@ public class MockSensorConfigDto
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; } = true;
+
+    /// <summary>
+    /// 模拟触发最小间隔（毫秒）
+    /// </summary>
+    public int MinTriggerIntervalMs { get; set; } = 5000;
+
+    /// <summary>
+    /// 模拟触发最大间隔（毫秒）
+    /// </summary>
+    public int MaxTriggerIntervalMs { get; set; } = 15000;
+
+    /// <summary>
+    /// 模拟包裹通过最小时间（毫秒）
+    /// </summary>
+    public int MinParcelPassTimeMs { get; set; } = 200;
+
+    /// <summary>
+    /// 模拟包裹通过最大时间（毫秒）
+    /// </summary>
+    public int MaxParcelPassTimeMs { get; set; } = 500;
 }
