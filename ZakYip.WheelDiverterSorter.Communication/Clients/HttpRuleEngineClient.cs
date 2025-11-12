@@ -192,7 +192,7 @@ public class HttpRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = WellKnownChuteIds.Exception,
+            ChuteNumber = WellKnownChuteIds.DefaultException,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

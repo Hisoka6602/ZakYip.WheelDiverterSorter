@@ -185,7 +185,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = WellKnownChuteIds.Exception,
+                    ChuteNumber = WellKnownChuteIds.DefaultException,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine服务器"
                 };
@@ -258,7 +258,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = WellKnownChuteIds.Exception,
+            ChuteNumber = WellKnownChuteIds.DefaultException,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };
