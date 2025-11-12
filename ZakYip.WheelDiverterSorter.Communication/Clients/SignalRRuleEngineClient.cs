@@ -53,10 +53,35 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     /// </summary>
     private void InitializeConnection()
     {
-        _connection = new HubConnectionBuilder()
+        var builder = new HubConnectionBuilder()
             .WithUrl(_options.SignalRHub!)
-            .WithAutomaticReconnect()
-            .Build();
+            .ConfigureLogging(logging =>
+            {
+                logging.AddFilter("Microsoft.AspNetCore.SignalR", LogLevel.Information);
+            });
+
+        // 配置自动重连
+        if (_options.EnableAutoReconnect)
+        {
+            if (_options.SignalR.ReconnectIntervals != null && _options.SignalR.ReconnectIntervals.Length > 0)
+            {
+                // 使用自定义重连间隔
+                var delays = _options.SignalR.ReconnectIntervals.Select(i => TimeSpan.FromMilliseconds(i)).ToArray();
+                builder.WithAutomaticReconnect(delays);
+            }
+            else
+            {
+                // 使用默认重连策略
+                builder.WithAutomaticReconnect();
+            }
+        }
+
+        _connection = builder.Build();
+
+        // 配置连接超时
+        _connection.HandshakeTimeout = TimeSpan.FromSeconds(_options.SignalR.HandshakeTimeout);
+        _connection.KeepAliveInterval = TimeSpan.FromSeconds(_options.SignalR.KeepAliveInterval);
+        _connection.ServerTimeout = TimeSpan.FromSeconds(_options.SignalR.ServerTimeout);
 
         // 注册格口分配推送的处理程序
         _connection.On<ChuteAssignmentNotificationEventArgs>(
@@ -115,7 +140,10 @@ public class SignalRRuleEngineClient : IRuleEngineClient
             
             await _connection!.StartAsync(cancellationToken);
             
-            _logger.LogInformation("成功连接到RuleEngine SignalR Hub");
+            _logger.LogInformation(
+                "成功连接到RuleEngine SignalR Hub (Timeout: {Timeout}s, KeepAlive: {KeepAlive}s)",
+                _options.SignalR.ServerTimeout,
+                _options.SignalR.KeepAliveInterval);
             return true;
         }
         catch (Exception ex)
