@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj" />
+    <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Drivers\ZakYip.WheelDiverterSorter.Drivers.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Execution\ZakYip.WheelDiverterSorter.Execution.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Ingress\ZakYip.WheelDiverterSorter.Ingress.csproj" />
   </ItemGroup>
