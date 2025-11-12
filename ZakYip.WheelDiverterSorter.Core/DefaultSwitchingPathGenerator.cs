@@ -31,6 +31,15 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </remarks>
     private const int DefaultSegmentTtlMs = 5000;
 
+    /// <summary>
+    /// 默认的最终异常格口标识
+    /// </summary>
+    /// <remarks>
+    /// <para>当路径执行失败时，包裹将被引导到此异常格口。</para>
+    /// <para>当前使用固定值，实际生产环境应从配置文件或数据库加载。</para>
+    /// </remarks>
+    private const string DefaultFallbackChuteId = "CHUTE_EXCEPTION";
+
     // TODO: 这里应该注入或配置格口到摆轮的映射关系
     // 当前是示例性的硬编码映射，实际项目中应从配置文件或数据库加载
     private readonly Dictionary<string, List<DiverterConfig>> _chuteToRouteMap;
@@ -98,7 +107,8 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         {
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.UtcNow
+            GeneratedAt = DateTimeOffset.UtcNow,
+            FallbackChuteId = DefaultFallbackChuteId
         };
     }
 
