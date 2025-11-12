@@ -2,6 +2,29 @@
 
 直线摆轮分拣系统
 
+## ⚠️ 重要说明
+
+本程序和 [ZakYip.Sorting.RuleEngine.Core](https://github.com/Hisoka6602/ZakYip.Sorting.RuleEngine.Core) 是**分开部署**的两个独立程序，互为上下游关系：
+
+- **ZakYip.WheelDiverterSorter（本项目，下游）**：
+  - 通过**IO传感器**感应物理包裹并创建包裹记录
+  - 向RuleEngine请求格口号
+  - 负责**实际执行分拣**动作（控制摆轮）
+
+- **ZakYip.Sorting.RuleEngine.Core（上游）**：
+  - 接收包裹ID请求
+  - 与**DWS第三方API**通信获取包裹信息（条码、重量、尺寸等）
+  - 通过规则引擎决策目标格口号
+  - 返回格口号给WheelDiverterSorter
+
+**通信方式：** 两个系统通过**TCP/SignalR/MQTT**等协议通信（多选一）
+- ✅ **生产环境推荐**：TCP、SignalR或MQTT（高性能、长连接）
+- ❌ **生产环境禁止**：HTTP（仅用于模拟测试，性能不足）
+
+详细的系统关系和集成方案请参阅：[与规则引擎的关系文档](RELATIONSHIP_WITH_RULEENGINE.md)
+
+---
+
 ## 项目简介
 
 本项目是一个基于直线摆轮（Wheel Diverter）的包裹自动分拣系统。通过在直线输送线上配置多个摆轮节点，实现包裹到不同格口的智能分拣。系统采用分层架构设计，支持路径规划、执行和可观测性。
@@ -39,13 +62,29 @@
 
 - **入口管理** (30%)
   - 项目结构中已创建Ingress层，但功能未实现
+  - **需要开发**：IO传感器监听模块，用于感应包裹并创建包裹记录
   - 缺少扫码触发和供包台触发等生产环境入口
 
 - **可观测性** (30%)
   - 项目结构中已创建Observability层，但功能未实现
   - 当前仅有基础日志记录，缺少指标收集、链路追踪等
 
+- **通信层** (0%)
+  - **需要开发**：与RuleEngine.Core的通信客户端
+  - **需要支持**：TCP/SignalR/MQTT等多种协议
+  - 当前仅有HTTP调试接口（生产环境禁用）
+
 ### ❌ 未完成功能
+
+- **IO传感器集成**
+  - 需要实现物理传感器监听（光电、激光等）
+  - 包裹到达时触发创建事件
+  - 生成唯一包裹ID
+
+- **与RuleEngine通信**
+  - 实现TCP/SignalR/MQTT客户端
+  - 向RuleEngine请求格口号
+  - 处理连接管理和错误重试
 
 - **真实设备集成**
   - 当前仅有模拟执行器，无真实PLC/设备通信模块
@@ -64,13 +103,138 @@
 - **测试覆盖**
   - 项目中无单元测试或集成测试
 
+## 🎯 后续开发方向和计划
+
+### 核心目标：实现与RuleEngine.Core的完整集成
+
+为了实现完整的自动分拣流程，需要按以下优先级进行开发：
+
+### 阶段1：IO传感器集成（高优先级） ⏰ 预计2-3周
+
+**目标**：实现包裹的自动感应和创建
+
+**任务清单**：
+- [ ] **实现IO传感器监听模块**（Ingress层）
+  - 支持光电传感器、激光传感器等
+  - 传感器事件触发机制
+  - 包裹到达检测逻辑
+  
+- [ ] **包裹创建流程**
+  - 自动生成唯一包裹ID
+  - 创建包裹记录到本地数据库
+  - 记录包裹到达时间和传感器位置
+  
+- [ ] **配置管理**
+  - 传感器配置（端口、类型、灵敏度等）
+  - 支持热更新配置
+
+**修改涉及的文件**：
+- `ZakYip.WheelDiverterSorter.Ingress/` 新增传感器监听模块
+- `ZakYip.WheelDiverterSorter.Core/Models/` 完善包裹数据模型
+- `appsettings.json` 添加传感器配置
+
+### 阶段2：通信层开发（高优先级） ⏰ 预计3-4周
+
+**目标**：实现与RuleEngine.Core的网络通信
+
+**任务清单**：
+- [ ] **实现多协议通信客户端**
+  - TCP Socket客户端（推荐生产环境）
+  - SignalR客户端（推荐生产环境）
+  - MQTT客户端（推荐生产环境）
+  - HTTP客户端（仅供测试）
+  
+- [ ] **请求格口号接口**
+  - 发送包裹ID到RuleEngine
+  - 等待接收格口号响应
+  - 超时和重试机制
+  
+- [ ] **连接管理**
+  - 自动连接和断线重连
+  - 心跳检测
+  - 连接状态监控
+  
+- [ ] **配置切换**
+  - 支持通过配置文件切换通信协议
+  - 不同环境使用不同协议（测试用HTTP，生产用TCP/SignalR/MQTT）
+
+**修改涉及的文件**：
+- 新增 `ZakYip.WheelDiverterSorter.Communication/` 通信层项目
+- `ZakYip.WheelDiverterSorter.Core/Interfaces/` 定义通信接口
+- `ZakYip.WheelDiverterSorter.Host/Program.cs` 注册通信服务
+- `appsettings.json` 添加RuleEngine连接配置
+
+**关键配置示例**：
+```json
+{
+  "RuleEngineConnection": {
+    "Mode": "TCP",  // 可选: TCP, SignalR, MQTT, HTTP
+    "TcpServer": "192.168.1.100:8000",
+    "SignalRHub": "http://192.168.1.100:5000/sortingHub",
+    "MqttBroker": "mqtt://192.168.1.100:1883",
+    "HttpApi": "http://localhost:5000/api/sorting/chute",
+    "TimeoutMs": 5000,
+    "RetryCount": 3
+  }
+}
+```
+
+### 阶段3：整合与测试（中优先级） ⏰ 预计2-3周
+
+**目标**：将IO传感器和通信层整合到完整流程
+
+**任务清单**：
+- [ ] **完整流程集成**
+  - IO传感器检测 → 创建包裹 → 请求格口号 → 执行分拣
+  - 异常处理和降级策略
+  - 日志记录和追踪
+  
+- [ ] **联调测试**
+  - 与RuleEngine.Core进行端到端测试
+  - 模拟各种异常场景
+  - 性能和压力测试
+  
+- [ ] **文档更新**
+  - 更新部署文档
+  - 编写运维手册
+  - API接口文档
+
+### 阶段4：生产环境功能（低优先级） ⏰ 预计持续开发
+
+- [ ] 真实PLC/设备集成
+- [ ] 可观测性增强（Prometheus、Grafana）
+- [ ] 单元测试和集成测试
+- [ ] 性能优化和并发控制
+
+### 关键修改方向总结
+
+| 优先级 | 功能模块 | 涉及项目/文件 | 预计工期 |
+|-------|---------|-------------|---------|
+| 🔴 **最高** | IO传感器监听 | Ingress层 | 2-3周 |
+| 🔴 **最高** | 通信层开发 | 新增Communication项目 | 3-4周 |
+| 🟡 **中等** | 整合测试 | Host、Core | 2-3周 |
+| 🟢 **低** | 生产功能 | 各层 | 持续开发 |
+
+**总体时间线**：完成核心功能（阶段1-3）预计需要 **7-10周**
+
+**成功标准**：
+- ✅ IO传感器能自动感应包裹并创建记录
+- ✅ 系统能通过TCP/SignalR/MQTT与RuleEngine通信
+- ✅ 完整的包裹分拣流程可以端到端运行
+- ✅ 生产环境禁用HTTP，仅用TCP/SignalR/MQTT
+
+详细的系统关系和集成方案请参阅：[与规则引擎的关系文档](RELATIONSHIP_WITH_RULEENGINE.md)
+
+---
+
 ## 项目结构
 
 - **ZakYip.WheelDiverterSorter.Core**: 核心业务逻辑，包含路径生成器接口和实现
 - **ZakYip.WheelDiverterSorter.Execution**: 执行层，包含路径执行器接口和模拟实现
 - **ZakYip.WheelDiverterSorter.Host**: Web API 主机，提供调试接口
-- **ZakYip.WheelDiverterSorter.Ingress**: 入口管理（待实现）
+- **ZakYip.WheelDiverterSorter.Ingress**: 入口管理（**待实现**：IO传感器监听）
 - **ZakYip.WheelDiverterSorter.Observability**: 可观测性支持（待实现）
+- **ZakYip.WheelDiverterSorter.Communication**: 通信层（**待创建**：与RuleEngine通信）
 
 ## 项目运行流程
 
@@ -91,17 +255,32 @@
 
 ### 包裹分拣流程
 
-#### 完整工作流程
+#### 完整工作流程（生产环境）
 
 ```
-包裹到达 → 扫码识别 → 查询目标格口 → 生成摆轮路径 → 执行路径 → 到达目标格口
+IO传感器感应 → 创建包裹 → 请求格口号(TCP/SignalR/MQTT) → RuleEngine决策 
+→ 接收格口号 → 生成摆轮路径 → 执行路径 → 到达目标格口
+```
+
+#### 当前流程（测试环境）
+
+```
+手动触发HTTP API → 生成摆轮路径 → 执行路径 → 到达目标格口
 ```
 
 #### 详细步骤说明
 
-1. **包裹入口** (当前为调试接口)
-   - 调试模式：通过HTTP API手动触发 `POST /api/debug/sort`
-   - 生产模式（待实现）：扫码器触发或供包台自动触发
+1. **包裹入口**
+   - **生产模式（待实现）**：
+     - IO传感器感应包裹到达
+     - 自动创建包裹记录并生成包裹ID
+     - 通过TCP/SignalR/MQTT向RuleEngine.Core请求格口号
+     - RuleEngine与DWS第三方API通信获取包裹信息
+     - RuleEngine返回目标格口ID
+   - **调试模式（当前实现）**：
+     - 通过HTTP API手动触发 `POST /api/debug/sort`
+     - 直接提供包裹ID和目标格口ID
+     - ⚠️ 此模式仅用于测试，生产环境禁用HTTP
 
 2. **路径生成阶段** (`ISwitchingPathGenerator`)
    - 接收包裹ID和目标格口ID
