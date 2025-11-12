@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj" />
+  </ItemGroup>
+
 </Project>
