@@ -283,6 +283,59 @@ public class ParcelDetectionServiceTests
     }
 
     [Fact]
+    public async Task DuplicateTriggerEvent_ShouldContainCorrectInformation()
+    {
+        // Arrange
+        var mockSensor = new Mock<ISensor>();
+        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
+        mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var sensors = new[] { mockSensor.Object };
+        var options = Options.Create(new ParcelDetectionOptions
+        {
+            DeduplicationWindowMs = 500 // 500ms window
+        });
+        var service = new ParcelDetectionService(sensors, options);
+
+        ZakYip.WheelDiverterSorter.Ingress.Models.DuplicateTriggerEventArgs? duplicateArgs = null;
+        service.DuplicateTriggerDetected += (sender, e) => duplicateArgs = e;
+
+        // Start the service
+        await service.StartAsync();
+
+        var baseTime = DateTimeOffset.UtcNow;
+
+        // Act - Trigger twice within deduplication window
+        var sensorEvent1 = new SensorEvent
+        {
+            SensorId = "SENSOR_01",
+            SensorType = SensorType.Photoelectric,
+            TriggerTime = baseTime,
+            IsTriggered = true
+        };
+        mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent1);
+
+        var sensorEvent2 = new SensorEvent
+        {
+            SensorId = "SENSOR_01",
+            SensorType = SensorType.Photoelectric,
+            TriggerTime = baseTime.AddMilliseconds(300), // Within 500ms window
+            IsTriggered = true
+        };
+        mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent2);
+
+        // Assert - Duplicate event should be triggered with correct information
+        Assert.NotNull(duplicateArgs);
+        Assert.True(duplicateArgs.ParcelId > 0);
+        Assert.Equal("SENSOR_01", duplicateArgs.SensorId);
+        Assert.Equal(SensorType.Photoelectric, duplicateArgs.SensorType);
+        Assert.Equal(baseTime.AddMilliseconds(300), duplicateArgs.DetectedAt);
+        Assert.True(duplicateArgs.TimeSinceLastTriggerMs >= 299 && duplicateArgs.TimeSinceLastTriggerMs <= 301); // Allow small tolerance
+        Assert.Contains("去重窗口", duplicateArgs.Reason);
+    }
+
+    [Fact]
     public async Task ParcelIdHistory_ShouldLimitSize()
     {
         // Arrange
