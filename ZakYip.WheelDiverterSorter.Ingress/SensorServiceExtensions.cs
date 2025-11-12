@@ -1,0 +1,125 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+using ZakYip.WheelDiverterSorter.Ingress.Configuration;
+using ZakYip.WheelDiverterSorter.Ingress.Sensors;
+
+namespace ZakYip.WheelDiverterSorter.Ingress;
+
+/// <summary>
+/// 传感器服务注册扩展
+/// </summary>
+public static class SensorServiceExtensions
+{
+    /// <summary>
+    /// 添加传感器服务
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="configuration">配置</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddSensorServices(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // 绑定配置
+        var sensorOptions = new SensorOptions();
+        configuration.GetSection("Sensor").Bind(sensorOptions);
+
+        // 注册传感器工厂
+        if (sensorOptions.UseHardwareSensor)
+        {
+            // 使用硬件传感器
+            switch (sensorOptions.VendorType?.ToLowerInvariant())
+            {
+                case "leadshine":
+                    AddLeadshineSensorServices(services, sensorOptions);
+                    break;
+
+                default:
+                    throw new NotSupportedException(
+                        $"不支持的传感器厂商类型: {sensorOptions.VendorType}");
+            }
+        }
+        else
+        {
+            // 使用模拟传感器
+            AddMockSensorServices(services, sensorOptions);
+        }
+
+        return services;
+    }
+
+    /// <summary>
+    /// 添加雷赛传感器服务
+    /// </summary>
+    private static void AddLeadshineSensorServices(
+        IServiceCollection services,
+        SensorOptions sensorOptions)
+    {
+        if (sensorOptions.Leadshine == null)
+        {
+            throw new InvalidOperationException("雷赛传感器配置不能为空");
+        }
+
+        // 注册输入端口
+        services.AddSingleton<IInputPort>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<LeadshineInputPort>>();
+            return new LeadshineInputPort(logger, sensorOptions.Leadshine.CardNo);
+        });
+
+        // 注册传感器工厂
+        services.AddSingleton<ISensorFactory>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var inputPort = sp.GetRequiredService<IInputPort>();
+            return new LeadshineSensorFactory(
+                logger,
+                loggerFactory,
+                inputPort,
+                sensorOptions.Leadshine);
+        });
+
+        // 注册传感器实例
+        services.AddSingleton<IEnumerable<ISensor>>(sp =>
+        {
+            var factory = sp.GetRequiredService<ISensorFactory>();
+            return factory.CreateSensors();
+        });
+    }
+
+    /// <summary>
+    /// 添加模拟传感器服务
+    /// </summary>
+    private static void AddMockSensorServices(
+        IServiceCollection services,
+        SensorOptions sensorOptions)
+    {
+        // 如果没有配置模拟传感器，使用默认配置
+        if (!sensorOptions.MockSensors.Any())
+        {
+            sensorOptions.MockSensors = new List<MockSensorConfigDto>
+            {
+                new() { SensorId = "SENSOR_PE_01", Type = SensorType.Photoelectric, IsEnabled = true },
+                new() { SensorId = "SENSOR_LASER_01", Type = SensorType.Laser, IsEnabled = true }
+            };
+        }
+
+        // 注册传感器工厂
+        services.AddSingleton<ISensorFactory>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<MockSensorFactory>>();
+            return new MockSensorFactory(logger, sensorOptions.MockSensors);
+        });
+
+        // 注册传感器实例
+        services.AddSingleton<IEnumerable<ISensor>>(sp =>
+        {
+            var factory = sp.GetRequiredService<ISensorFactory>();
+            return factory.CreateSensors();
+        });
+    }
+}
