@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
@@ -13,6 +14,17 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
 {
     private readonly ILogger<HardwareSwitchingPathExecutor> _logger;
     private readonly Dictionary<string, IDiverterController> _diverters;
+    private static readonly Regex LogSanitizer = new Regex(@"[\r\n]", RegexOptions.Compiled);
+
+    /// <summary>
+    /// 清理日志字符串，防止日志注入
+    /// </summary>
+    private static string SanitizeForLog(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+            return string.Empty;
+        return LogSanitizer.Replace(input, "");
+    }
 
     /// <summary>
     /// 初始化硬件摆轮路径执行器
@@ -48,7 +60,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
         {
             _logger.LogInformation(
                 "开始执行路径，目标格口: {TargetChuteId}，段数: {SegmentCount}",
-                path.TargetChuteId, path.Segments.Count);
+                SanitizeForLog(path.TargetChuteId), path.Segments.Count);
 
             // 按顺序执行每个路径段
             foreach (var segment in path.Segments)
@@ -118,7 +130,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
             // 所有段执行成功
             _logger.LogInformation(
                 "路径执行成功，到达目标格口: {TargetChuteId}",
-                path.TargetChuteId);
+                SanitizeForLog(path.TargetChuteId));
 
             return new PathExecutionResult
             {
