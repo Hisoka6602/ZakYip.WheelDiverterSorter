@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
@@ -38,6 +39,12 @@ builder.Services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGener
 
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
+
+// 注册并发控制服务
+builder.Services.AddConcurrencyControl(builder.Configuration);
+
+// 装饰现有的路径执行器，添加并发控制功能
+builder.Services.DecorateWithConcurrencyControl();
 
 builder.Services.AddSingleton<DebugSortService>();
 
