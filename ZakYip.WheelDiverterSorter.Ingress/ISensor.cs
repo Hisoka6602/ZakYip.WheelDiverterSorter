@@ -31,6 +31,11 @@ public interface ISensor : IDisposable
     event EventHandler<SensorEvent>? SensorTriggered;
 
     /// <summary>
+    /// 传感器错误事件
+    /// </summary>
+    event EventHandler<SensorErrorEventArgs>? SensorError;
+
+    /// <summary>
     /// 启动传感器监听
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>

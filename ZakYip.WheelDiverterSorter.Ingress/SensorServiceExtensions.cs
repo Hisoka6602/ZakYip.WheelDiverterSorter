@@ -48,6 +48,12 @@ public static class SensorServiceExtensions
             AddMockSensorServices(services, sensorOptions);
         }
 
+        // 注册包裹检测服务
+        services.AddSingleton<IParcelDetectionService, Services.ParcelDetectionService>();
+
+        // 注册传感器健康监控服务
+        services.AddSingleton<Services.ISensorHealthMonitor, Services.SensorHealthMonitor>();
+
         return services;
     }
 

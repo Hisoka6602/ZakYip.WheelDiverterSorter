@@ -34,6 +34,11 @@ public abstract class MockSensorBase : ISensor
     public event EventHandler<SensorEvent>? SensorTriggered;
 
     /// <summary>
+    /// 传感器错误事件
+    /// </summary>
+    public event EventHandler<SensorErrorEventArgs>? SensorError;
+
+    /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
@@ -135,6 +140,14 @@ public abstract class MockSensorBase : ISensor
     protected virtual void OnSensorTriggered(SensorEvent sensorEvent)
     {
         SensorTriggered?.Invoke(this, sensorEvent);
+    }
+
+    /// <summary>
+    /// 触发传感器错误事件
+    /// </summary>
+    protected virtual void OnSensorError(SensorErrorEventArgs args)
+    {
+        SensorError?.Invoke(this, args);
     }
 
     /// <summary>
