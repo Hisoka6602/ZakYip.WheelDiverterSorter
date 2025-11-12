@@ -25,6 +25,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Drivers", "ZakYip.WheelDiverterSorter.Drivers\ZakYip.WheelDiverterSorter.Drivers.csproj", "{DD5310AB-D34B-457D-AD4E-E73E8A27878D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication", "ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj", "{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -107,6 +109,18 @@ Global
 		{DD5310AB-D34B-457D-AD4E-E73E8A27878D}.Release|x64.Build.0 = Release|Any CPU
 		{DD5310AB-D34B-457D-AD4E-E73E8A27878D}.Release|x86.ActiveCfg = Release|Any CPU
 		{DD5310AB-D34B-457D-AD4E-E73E8A27878D}.Release|x86.Build.0 = Release|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Debug|x64.Build.0 = Debug|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Debug|x86.Build.0 = Debug|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Release|x64.ActiveCfg = Release|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Release|x64.Build.0 = Release|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Release|x86.ActiveCfg = Release|Any CPU
+		{E91CECB3-4B44-480E-BAB3-0C4F1B0CC03C}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
