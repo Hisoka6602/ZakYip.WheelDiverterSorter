@@ -1,6 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
+using ZakYip.WheelDiverterSorter.Host.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -36,8 +37,8 @@ public class DebugSortService
         CancellationToken cancellationToken = default)
     {
         // 清理输入以防止日志注入攻击
-        var sanitizedParcelId = SanitizeForLogging(parcelId);
-        var sanitizedTargetChuteId = SanitizeForLogging(targetChuteId);
+        var sanitizedParcelId = LoggingHelper.SanitizeForLogging(parcelId);
+        var sanitizedTargetChuteId = LoggingHelper.SanitizeForLogging(targetChuteId);
 
         _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", 
             sanitizedParcelId, sanitizedTargetChuteId);
@@ -61,13 +62,13 @@ public class DebugSortService
         }
 
         _logger.LogInformation("路径生成成功: 段数={SegmentCount}, 目标格口={TargetChuteId}",
-            path.Segments.Count, SanitizeForLogging(path.TargetChuteId));
+            path.Segments.Count, LoggingHelper.SanitizeForLogging(path.TargetChuteId));
 
         // 2. 调用执行器执行路径
         var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
 
         _logger.LogInformation("路径执行完成: 成功={IsSuccess}, 实际格口={ActualChuteId}",
-            executionResult.IsSuccess, SanitizeForLogging(executionResult.ActualChuteId));
+            executionResult.IsSuccess, LoggingHelper.SanitizeForLogging(executionResult.ActualChuteId));
 
         // 3. 返回执行结果
         return new DebugSortResponse
@@ -82,24 +83,5 @@ public class DebugSortService
             FailureReason = executionResult.FailureReason,
             PathSegmentCount = path.Segments.Count
         };
-    }
-
-    /// <summary>
-    /// 清理字符串以防止日志注入攻击
-    /// </summary>
-    /// <param name="input">输入字符串</param>
-    /// <returns>清理后的字符串</returns>
-    private static string SanitizeForLogging(string input)
-    {
-        if (string.IsNullOrEmpty(input))
-        {
-            return input;
-        }
-
-        // 移除或替换可能导致日志注入的字符（换行符、回车符等）
-        return input
-            .Replace("\r", "")
-            .Replace("\n", "")
-            .Replace("\t", " ");
     }
 }

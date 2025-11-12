@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Host.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -64,7 +65,7 @@ public class RouteConfigController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取格口 {ChuteId} 的配置失败", chuteId);
+            _logger.LogError(ex, "获取格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(chuteId));
             return StatusCode(500, new { message = "获取配置失败" });
         }
     }
@@ -104,12 +105,12 @@ public class RouteConfigController : ControllerBase
             var config = MapToConfiguration(request);
             _repository.Upsert(config);
 
-            _logger.LogInformation("创建格口 {ChuteId} 的路由配置成功", request.ChuteId);
+            _logger.LogInformation("创建格口 {ChuteId} 的路由配置成功", LoggingHelper.SanitizeForLogging(request.ChuteId));
             return CreatedAtAction(nameof(GetRoute), new { chuteId = request.ChuteId }, MapToResponse(config));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "创建格口 {ChuteId} 的配置失败", request.ChuteId);
+            _logger.LogError(ex, "创建格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(request.ChuteId));
             return StatusCode(500, new { message = "创建配置失败" });
         }
     }
@@ -145,12 +146,12 @@ public class RouteConfigController : ControllerBase
             var config = MapToConfiguration(request);
             _repository.Upsert(config);
 
-            _logger.LogInformation("更新格口 {ChuteId} 的路由配置成功，配置已热更新", chuteId);
+            _logger.LogInformation("更新格口 {ChuteId} 的路由配置成功，配置已热更新", LoggingHelper.SanitizeForLogging(chuteId));
             return Ok(MapToResponse(config));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "更新格口 {ChuteId} 的配置失败", chuteId);
+            _logger.LogError(ex, "更新格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(chuteId));
             return StatusCode(500, new { message = "更新配置失败" });
         }
     }
@@ -174,12 +175,12 @@ public class RouteConfigController : ControllerBase
                 return NotFound(new { message = $"格口 {chuteId} 的配置不存在" });
             }
 
-            _logger.LogInformation("删除格口 {ChuteId} 的路由配置成功", chuteId);
+            _logger.LogInformation("删除格口 {ChuteId} 的路由配置成功", LoggingHelper.SanitizeForLogging(chuteId));
             return NoContent();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "删除格口 {ChuteId} 的配置失败", chuteId);
+            _logger.LogError(ex, "删除格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(chuteId));
             return StatusCode(500, new { message = "删除配置失败" });
         }
     }
