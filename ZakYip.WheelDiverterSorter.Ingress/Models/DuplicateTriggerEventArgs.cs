@@ -1,12 +1,12 @@
 namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
-/// 包裹检测事件参数
+/// 重复触发异常事件参数
 /// </summary>
-public record ParcelDetectedEventArgs
+public record DuplicateTriggerEventArgs
 {
     /// <summary>
-    /// 生成的唯一包裹ID (毫秒时间戳)
+    /// 包裹ID
     /// </summary>
     public required long ParcelId { get; init; }
 
@@ -26,7 +26,12 @@ public record ParcelDetectedEventArgs
     public required SensorType SensorType { get; init; }
 
     /// <summary>
-    /// 检测位置（传感器ID的别名，用于更明确表达位置信息）
+    /// 距离上次触发的时间间隔（毫秒）
     /// </summary>
-    public string Position => SensorId;
+    public required double TimeSinceLastTriggerMs { get; init; }
+
+    /// <summary>
+    /// 异常原因
+    /// </summary>
+    public required string Reason { get; init; }
 }

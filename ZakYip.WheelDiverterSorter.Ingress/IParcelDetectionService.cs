@@ -16,6 +16,11 @@ public interface IParcelDetectionService
     event EventHandler<ParcelDetectedEventArgs>? ParcelDetected;
 
     /// <summary>
+    /// 重复触发异常事件
+    /// </summary>
+    event EventHandler<DuplicateTriggerEventArgs>? DuplicateTriggerDetected;
+
+    /// <summary>
     /// 启动包裹检测服务
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>

@@ -136,7 +136,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
     /// 并通过ChuteAssignmentReceived事件返回结果
     /// </remarks>
     public async Task<bool> NotifyParcelDetectedAsync(
-        string parcelId,
+        long parcelId,
         CancellationToken cancellationToken = default)
     {
         try
@@ -168,12 +168,12 @@ public class TcpRuleEngineClient : IRuleEngineClient
     /// </summary>
     [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
     public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
-        string parcelId,
+        long parcelId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(parcelId))
+        if (parcelId <= 0)
         {
-            throw new ArgumentException("包裹ID不能为空", nameof(parcelId));
+            throw new ArgumentException("包裹ID必须为正数", nameof(parcelId));
         }
 
         // 尝试连接（如果未连接）

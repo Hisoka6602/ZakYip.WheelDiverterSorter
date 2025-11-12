@@ -9,9 +9,9 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 public class ChuteAssignmentNotificationEventArgs : EventArgs
 {
     /// <summary>
-    /// 包裹ID
+    /// 包裹ID (毫秒时间戳)
     /// </summary>
-    public required string ParcelId { get; init; }
+    public required long ParcelId { get; init; }
 
     /// <summary>
     /// 目标格口号
