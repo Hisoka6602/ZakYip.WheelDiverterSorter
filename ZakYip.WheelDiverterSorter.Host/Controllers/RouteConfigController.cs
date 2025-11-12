@@ -8,8 +8,12 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// <summary>
 /// 路由配置管理API控制器
 /// </summary>
+/// <remarks>
+/// 提供格口路由配置的增删改查功能，支持热更新
+/// </remarks>
 [ApiController]
 [Route("api/config/routes")]
+[Produces("application/json")]
 public class RouteConfigController : ControllerBase
 {
     private readonly IRouteConfigurationRepository _repository;
@@ -26,7 +30,12 @@ public class RouteConfigController : ControllerBase
     /// <summary>
     /// 获取所有启用的路由配置
     /// </summary>
+    /// <returns>所有启用的路由配置列表</returns>
+    /// <response code="200">成功返回配置列表</response>
+    /// <response code="500">服务器内部错误</response>
     [HttpGet]
+    [ProducesResponseType(typeof(IEnumerable<RouteConfigResponse>), 200)]
+    [ProducesResponseType(typeof(object), 500)]
     public ActionResult<IEnumerable<RouteConfigResponse>> GetAllRoutes()
     {
         try
@@ -45,7 +54,17 @@ public class RouteConfigController : ControllerBase
     /// <summary>
     /// 根据格口ID获取路由配置
     /// </summary>
+    /// <param name="chuteId">格口标识</param>
+    /// <returns>指定格口的路由配置</returns>
+    /// <response code="200">成功返回配置</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="404">配置不存在</response>
+    /// <response code="500">服务器内部错误</response>
     [HttpGet("{chuteId}")]
+    [ProducesResponseType(typeof(RouteConfigResponse), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 404)]
+    [ProducesResponseType(typeof(object), 500)]
     public ActionResult<RouteConfigResponse> GetRoute(string chuteId)
     {
         try
@@ -73,7 +92,39 @@ public class RouteConfigController : ControllerBase
     /// <summary>
     /// 创建新的路由配置
     /// </summary>
+    /// <param name="request">路由配置请求</param>
+    /// <returns>创建的路由配置</returns>
+    /// <response code="201">创建成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="409">配置已存在</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     POST /api/config/routes
+    ///     {
+    ///         "chuteId": "CHUTE-01",
+    ///         "diverterConfigurations": [
+    ///             {
+    ///                 "diverterId": "DIV-001",
+    ///                 "targetAngle": 45,
+    ///                 "sequenceNumber": 1
+    ///             },
+    ///             {
+    ///                 "diverterId": "DIV-002",
+    ///                 "targetAngle": 30,
+    ///                 "sequenceNumber": 2
+    ///             }
+    ///         ],
+    ///         "isEnabled": true
+    ///     }
+    /// 
+    /// </remarks>
     [HttpPost]
+    [ProducesResponseType(typeof(RouteConfigResponse), 201)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 409)]
+    [ProducesResponseType(typeof(object), 500)]
     public ActionResult<RouteConfigResponse> CreateRoute([FromBody] RouteConfigRequest request)
     {
         try
@@ -118,7 +169,34 @@ public class RouteConfigController : ControllerBase
     /// <summary>
     /// 更新现有路由配置（支持热更新）
     /// </summary>
+    /// <param name="chuteId">格口标识（URL中的参数优先于请求体）</param>
+    /// <param name="request">路由配置请求</param>
+    /// <returns>更新后的路由配置</returns>
+    /// <response code="200">更新成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     PUT /api/config/routes/CHUTE-01
+    ///     {
+    ///         "chuteId": "CHUTE-01",
+    ///         "diverterConfigurations": [
+    ///             {
+    ///                 "diverterId": "DIV-001",
+    ///                 "targetAngle": 90,
+    ///                 "sequenceNumber": 1
+    ///             }
+    ///         ],
+    ///         "isEnabled": true
+    ///     }
+    /// 
+    /// 配置更新后立即生效，无需重启服务
+    /// </remarks>
     [HttpPut("{chuteId}")]
+    [ProducesResponseType(typeof(RouteConfigResponse), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
     public ActionResult<RouteConfigResponse> UpdateRoute(string chuteId, [FromBody] RouteConfigRequest request)
     {
         try
@@ -159,7 +237,17 @@ public class RouteConfigController : ControllerBase
     /// <summary>
     /// 删除路由配置
     /// </summary>
+    /// <param name="chuteId">格口标识</param>
+    /// <returns>无内容</returns>
+    /// <response code="204">删除成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="404">配置不存在</response>
+    /// <response code="500">服务器内部错误</response>
     [HttpDelete("{chuteId}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 404)]
+    [ProducesResponseType(typeof(object), 500)]
     public ActionResult DeleteRoute(string chuteId)
     {
         try
