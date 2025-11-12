@@ -7,7 +7,7 @@ public class ParcelDetectionOptions
 {
     /// <summary>
     /// 去重时间窗口（毫秒）
-    /// 在此时间窗口内，同一传感器的重复触发将被忽略
+    /// 在此时间窗口内，同一传感器的重复触发将被检测并标记为异常
     /// 默认值: 1000ms (1秒)
     /// </summary>
     public int DeduplicationWindowMs { get; set; } = 1000;
