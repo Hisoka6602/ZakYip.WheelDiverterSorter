@@ -23,14 +23,4 @@ public static class LoggingHelper
             .Replace("\n", "")
             .Replace("\t", " ");
     }
-
-    /// <summary>
-    /// 清理整数值用于日志记录
-    /// </summary>
-    /// <param name="value">输入整数</param>
-    /// <returns>字符串格式的整数值</returns>
-    public static string SanitizeForLogging(int value)
-    {
-        return value.ToString();
-    }
 }

@@ -43,8 +43,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Drivers", "Drivers", "{1AA6
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Communication", "Communication", "{D54CD29C-2BEE-446A-A3F9-C72B2DB82339}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.E2ETests", "ZakYip.WheelDiverterSorter.E2ETests\ZakYip.WheelDiverterSorter.E2ETests.csproj", "{ABC99A76-8397-4F10-B15C-A4AFD16631DD}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -199,18 +197,6 @@ Global
 		{A6CBC272-C997-42A5-962D-6592947F55E0}.Release|x64.Build.0 = Release|Any CPU
 		{A6CBC272-C997-42A5-962D-6592947F55E0}.Release|x86.ActiveCfg = Release|Any CPU
 		{A6CBC272-C997-42A5-962D-6592947F55E0}.Release|x86.Build.0 = Release|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Debug|x64.Build.0 = Debug|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Debug|x86.Build.0 = Debug|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Release|x64.ActiveCfg = Release|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Release|x64.Build.0 = Release|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Release|x86.ActiveCfg = Release|Any CPU
-		{ABC99A76-8397-4F10-B15C-A4AFD16631DD}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

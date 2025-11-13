@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Host.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -74,13 +74,7 @@ public class RouteConfigController : ControllerBase
                 return BadRequest(new { message = "格口ID不能为空" });
             }
 
-            // 解析格口ID
-            if (!ChuteIdHelper.TryParseChuteId(chuteId, out var numericChuteId))
-            {
-                return BadRequest(new { message = $"格口ID格式无效: {chuteId}" });
-            }
-
-            var config = _repository.GetByChuteId(numericChuteId);
+            var config = _repository.GetByChuteId(chuteId);
             if (config == null)
             {
                 return NotFound(new { message = $"格口 {chuteId} 的配置不存在" });
@@ -153,12 +147,7 @@ public class RouteConfigController : ControllerBase
             }
 
             // 检查是否已存在相同的格口ID
-            if (!ChuteIdHelper.TryParseChuteId(request.ChuteId, out var numericChuteId))
-            {
-                return BadRequest(new { message = $"格口ID格式无效: {request.ChuteId}" });
-            }
-
-            var existing = _repository.GetByChuteId(numericChuteId);
+            var existing = _repository.GetByChuteId(request.ChuteId);
             if (existing != null)
             {
                 return Conflict(new { message = $"格口 {request.ChuteId} 的配置已存在，请使用PUT方法更新" });
@@ -168,7 +157,7 @@ public class RouteConfigController : ControllerBase
             var duplicateRoute = CheckForDuplicateRoute(request.DiverterConfigurations);
             if (duplicateRoute != null)
             {
-                return Conflict(new { message = $"路由配置重复：与格口 {ChuteIdHelper.FormatChuteId(duplicateRoute.ChuteId)} 的配置完全相同" });
+                return Conflict(new { message = $"路由配置重复：与格口 {duplicateRoute.ChuteId} 的配置完全相同" });
             }
 
             var config = MapToConfiguration(request);
@@ -240,7 +229,7 @@ public class RouteConfigController : ControllerBase
             var duplicateRoute = CheckForDuplicateRoute(request.DiverterConfigurations, chuteId);
             if (duplicateRoute != null)
             {
-                return Conflict(new { message = $"路由配置重复：与格口 {ChuteIdHelper.FormatChuteId(duplicateRoute.ChuteId)} 的配置完全相同" });
+                return Conflict(new { message = $"路由配置重复：与格口 {duplicateRoute.ChuteId} 的配置完全相同" });
             }
 
             // URL中的chuteId优先级高于Body中的
@@ -282,13 +271,7 @@ public class RouteConfigController : ControllerBase
                 return BadRequest(new { message = "格口ID不能为空" });
             }
 
-            // 解析格口ID
-            if (!ChuteIdHelper.TryParseChuteId(chuteId, out var numericChuteId))
-            {
-                return BadRequest(new { message = $"格口ID格式无效: {chuteId}" });
-            }
-
-            var success = _repository.Delete(numericChuteId);
+            var success = _repository.Delete(chuteId);
             if (!success)
             {
                 return NotFound(new { message = $"格口 {chuteId} 的配置不存在" });
@@ -408,14 +391,7 @@ public class RouteConfigController : ControllerBase
                     }
 
                     // 检查是否已存在
-                    if (!ChuteIdHelper.TryParseChuteId(route.ChuteId, out var numericChuteId))
-                    {
-                        errors.Add($"格口 {route.ChuteId}: 格口ID格式无效");
-                        errorCount++;
-                        continue;
-                    }
-
-                    var existing = _repository.GetByChuteId(numericChuteId);
+                    var existing = _repository.GetByChuteId(route.ChuteId);
                     if (existing != null)
                     {
                         skipCount++;
@@ -426,7 +402,7 @@ public class RouteConfigController : ControllerBase
                     var duplicateRoute = CheckForDuplicateRoute(route.DiverterConfigurations);
                     if (duplicateRoute != null)
                     {
-                        errors.Add($"格口 {route.ChuteId}: 路由配置重复，与格口 {ChuteIdHelper.FormatChuteId(duplicateRoute.ChuteId)} 的配置完全相同");
+                        errors.Add($"格口 {route.ChuteId}: 路由配置重复，与格口 {duplicateRoute.ChuteId} 的配置完全相同");
                         errorCount++;
                         continue;
                     }
@@ -508,13 +484,6 @@ public class RouteConfigController : ControllerBase
     {
         var allConfigs = _repository.GetAllEnabled();
         
-        // 解析要排除的格口ID
-        int? excludeNumericId = null;
-        if (!string.IsNullOrEmpty(excludeChuteId) && ChuteIdHelper.TryParseChuteId(excludeChuteId, out var parsed))
-        {
-            excludeNumericId = parsed;
-        }
-        
         // 创建当前配置的签名（按顺序的摆轮ID和方向组合）
         var currentSignature = string.Join("|", diverterConfigs
             .OrderBy(c => c.SequenceNumber)
@@ -523,7 +492,7 @@ public class RouteConfigController : ControllerBase
         foreach (var existing in allConfigs)
         {
             // 排除指定的格口ID
-            if (excludeNumericId.HasValue && existing.ChuteId == excludeNumericId.Value)
+            if (!string.IsNullOrEmpty(excludeChuteId) && existing.ChuteId == excludeChuteId)
             {
                 continue;
             }
@@ -547,20 +516,14 @@ public class RouteConfigController : ControllerBase
     /// </summary>
     private ChuteRouteConfiguration MapToConfiguration(RouteConfigRequest request)
     {
-        // 解析格口ID
-        if (!ChuteIdHelper.TryParseChuteId(request.ChuteId, out var numericChuteId))
-        {
-            throw new ArgumentException($"无效的格口ID格式: {request.ChuteId}", nameof(request));
-        }
-
         return new ChuteRouteConfiguration
         {
-            ChuteId = numericChuteId,
+            ChuteId = request.ChuteId,
             ChuteName = request.ChuteName,
             DiverterConfigurations = request.DiverterConfigurations
                 .Select(d => new DiverterConfigurationEntry
                 {
-                    DiverterId = int.TryParse(d.DiverterId, out var diverterId) ? diverterId : 0,
+                    DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber
                 })
@@ -570,7 +533,7 @@ public class RouteConfigController : ControllerBase
             ToleranceTimeMs = request.ToleranceTimeMs,
             SensorConfig = request.SensorConfig != null ? new ChuteSensorConfig
             {
-                SensorId = int.TryParse(request.SensorConfig.SensorId, out var sensorId) ? sensorId : 0,
+                SensorId = request.SensorConfig.SensorId,
                 SensorType = request.SensorConfig.SensorType,
                 InputBit = request.SensorConfig.InputBit,
                 IsEnabled = request.SensorConfig.IsEnabled,
@@ -588,12 +551,12 @@ public class RouteConfigController : ControllerBase
         return new RouteConfigResponse
         {
             Id = config.Id,
-            ChuteId = ChuteIdHelper.FormatChuteId(config.ChuteId),
+            ChuteId = config.ChuteId,
             ChuteName = config.ChuteName,
             DiverterConfigurations = config.DiverterConfigurations
                 .Select(d => new DiverterConfigRequest
                 {
-                    DiverterId = d.DiverterId.ToString(),
+                    DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber
                 })
@@ -603,7 +566,7 @@ public class RouteConfigController : ControllerBase
             ToleranceTimeMs = config.ToleranceTimeMs,
             SensorConfig = config.SensorConfig != null ? new ChuteSensorConfigRequest
             {
-                SensorId = config.SensorConfig.SensorId.ToString(),
+                SensorId = config.SensorConfig.SensorId,
                 SensorType = config.SensorConfig.SensorType,
                 InputBit = config.SensorConfig.InputBit,
                 IsEnabled = config.SensorConfig.IsEnabled,

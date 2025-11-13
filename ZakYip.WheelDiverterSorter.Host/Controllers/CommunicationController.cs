@@ -3,7 +3,6 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using System.Diagnostics;

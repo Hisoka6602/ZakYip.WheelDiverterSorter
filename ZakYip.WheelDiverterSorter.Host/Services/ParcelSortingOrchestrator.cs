@@ -31,7 +31,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly ILogger<ParcelSortingOrchestrator> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
-    private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
+    private readonly Dictionary<long, TaskCompletionSource<string>> _pendingAssignments;
     private readonly object _lockObject = new object();
     private bool _isConnected;
 
@@ -54,7 +54,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
-        _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
+        _pendingAssignments = new Dictionary<long, TaskCompletionSource<string>>();
 
         // 订阅包裹检测事件
         _parcelDetectionService.ParcelDetected += OnParcelDetected;
@@ -182,8 +182,8 @@ public class ParcelSortingOrchestrator : IDisposable
             }
 
             // 步骤2: 等待RuleEngine推送格口分配（带超时）
-            int? targetChuteId = null;
-            var tcs = new TaskCompletionSource<int>();
+            string? targetChuteId = null;
+            var tcs = new TaskCompletionSource<string>();
             
             lock (_lockObject)
             {
@@ -225,7 +225,7 @@ public class ParcelSortingOrchestrator : IDisposable
             }
 
             // 步骤3: 执行分拣
-            await ProcessSortingAsync(parcelId, targetChuteId!.Value);
+            await ProcessSortingAsync(parcelId, targetChuteId!);
         }
         catch (Exception ex)
         {
@@ -236,7 +236,7 @@ public class ParcelSortingOrchestrator : IDisposable
     /// <summary>
     /// 执行分拣流程
     /// </summary>
-    private async Task ProcessSortingAsync(long parcelId, int targetChuteId)
+    private async Task ProcessSortingAsync(long parcelId, string targetChuteId)
     {
         try
         {
