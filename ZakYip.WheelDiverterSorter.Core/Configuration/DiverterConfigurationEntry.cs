@@ -6,9 +6,17 @@ namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 public class DiverterConfigurationEntry
 {
     /// <summary>
-    /// 摆轮标识或设备ID
+    /// 摆轮标识（数字ID，与硬件设备对应）
     /// </summary>
-    public required string DiverterId { get; set; }
+    public required int DiverterId { get; set; }
+
+    /// <summary>
+    /// 摆轮名称（可选）- Diverter Name (Optional)
+    /// </summary>
+    /// <remarks>
+    /// 用于显示的友好名称，例如 "DIV-001"、"1号摆轮"
+    /// </remarks>
+    public string? DiverterName { get; set; }
 
     /// <summary>
     /// 目标摆轮转向方向

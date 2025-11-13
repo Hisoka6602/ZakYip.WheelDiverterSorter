@@ -30,9 +30,9 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     /// <summary>
     /// 根据格口ID获取路由配置
     /// </summary>
-    public ChuteRouteConfiguration? GetByChuteId(string chuteId)
+    public ChuteRouteConfiguration? GetByChuteId(int chuteId)
     {
-        if (string.IsNullOrWhiteSpace(chuteId))
+        if (chuteId <= 0)
         {
             return null;
         }
@@ -89,9 +89,9 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     /// <summary>
     /// 删除指定格口的路由配置
     /// </summary>
-    public bool Delete(string chuteId)
+    public bool Delete(int chuteId)
     {
-        if (string.IsNullOrWhiteSpace(chuteId))
+        if (chuteId <= 0)
         {
             return false;
         }
@@ -128,23 +128,24 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
 
         // 插入默认配置，基于直线拓扑结构
         // 拓扑结构（从摆轮视角，上方为左侧，下方为右侧）：
-        //       格口B     格口D     格口F
+        //       格口2     格口4     格口6
         //         ↑         ↑         ↑
-        // 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(默认异常口)
+        // 入口 → 摆轮1 → 摆轮2 → 摆轮3 → 末端(默认异常口999)
         //         ↓         ↓         ↓
-        //      格口A      格口C     格口E
+        //      格口1      格口3     格口5
         var defaultConfigurations = new[]
         {
-            // 格口A：摆轮D1右侧
+            // 格口1：摆轮1右侧
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_A",
-                ChuteName = "格口A（D1右侧）",
+                ChuteId = 1,
+                ChuteName = "格口1（摆轮1右侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D1",
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Right,
                         SequenceNumber = 1
                     }
@@ -154,16 +155,17 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                 ToleranceTimeMs = 2000,
                 IsEnabled = true
             },
-            // 格口B：摆轮D1左侧
+            // 格口2：摆轮1左侧
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_B",
-                ChuteName = "格口B（D1左侧）",
+                ChuteId = 2,
+                ChuteName = "格口2（摆轮1左侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D1",
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Left,
                         SequenceNumber = 1
                     }
@@ -173,22 +175,24 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                 ToleranceTimeMs = 2000,
                 IsEnabled = true
             },
-            // 格口C：摆轮D2右侧（需要D1直行通过）
+            // 格口3：摆轮2右侧（需要摆轮1直行通过）
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_C",
-                ChuteName = "格口C（D2右侧）",
+                ChuteId = 3,
+                ChuteName = "格口3（摆轮2右侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D1",
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 1
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D2",
+                        DiverterId = 2,
+                        DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Right,
                         SequenceNumber = 2
                     }
@@ -198,22 +202,24 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                 ToleranceTimeMs = 2000,
                 IsEnabled = true
             },
-            // 格口D：摆轮D2左侧（需要D1直行通过）
+            // 格口4：摆轮2左侧（需要摆轮1直行通过）
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_D",
-                ChuteName = "格口D（D2左侧）",
+                ChuteId = 4,
+                ChuteName = "格口4（摆轮2左侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D1",
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 1
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D2",
+                        DiverterId = 2,
+                        DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Left,
                         SequenceNumber = 2
                     }
@@ -223,28 +229,31 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                 ToleranceTimeMs = 2000,
                 IsEnabled = true
             },
-            // 格口E：摆轮D3右侧（需要D1、D2直行通过）
+            // 格口5：摆轮3右侧（需要摆轮1、2直行通过）
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_E",
-                ChuteName = "格口E（D3右侧）",
+                ChuteId = 5,
+                ChuteName = "格口5（摆轮3右侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D1",
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 1
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D2",
+                        DiverterId = 2,
+                        DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 2
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D3",
+                        DiverterId = 3,
+                        DiverterName = "摆轮3",
                         TargetDirection = DiverterDirection.Right,
                         SequenceNumber = 3
                     }
@@ -254,34 +263,71 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                 ToleranceTimeMs = 2000,
                 IsEnabled = true
             },
-            // 格口F：摆轮D3左侧（需要D1、D2直行通过）
+            // 格口6：摆轮3左侧（需要摆轮1、2直行通过）
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_F",
-                ChuteName = "格口F（D3左侧）",
+                ChuteId = 6,
+                ChuteName = "格口6（摆轮3左侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D1",
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 1
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D2",
+                        DiverterId = 2,
+                        DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 2
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D3",
+                        DiverterId = 3,
+                        DiverterName = "摆轮3",
                         TargetDirection = DiverterDirection.Left,
                         SequenceNumber = 3
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
                 BeltLengthMeter = 15.0,
+                ToleranceTimeMs = 2000,
+                IsEnabled = true
+            },
+            // 异常格口999：所有摆轮直行通过到末端
+            new ChuteRouteConfiguration
+            {
+                ChuteId = 999,
+                ChuteName = "异常格口（末端）",
+                DiverterConfigurations = new List<DiverterConfigurationEntry>
+                {
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = 1,
+                        DiverterName = "摆轮1",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 1
+                    },
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = 2,
+                        DiverterName = "摆轮2",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 2
+                    },
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = 3,
+                        DiverterName = "摆轮3",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 3
+                    }
+                },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 20.0,
                 ToleranceTimeMs = 2000,
                 IsEnabled = true
             }

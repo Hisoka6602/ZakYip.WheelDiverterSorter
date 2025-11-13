@@ -9,12 +9,20 @@ namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 public class ChuteSensorConfig
 {
     /// <summary>
-    /// 传感器ID
+    /// 传感器ID（数字ID，与硬件设备对应）
     /// </summary>
     /// <remarks>
     /// 关联到传感器配置中的传感器标识符
     /// </remarks>
-    public required string SensorId { get; set; }
+    public required int SensorId { get; set; }
+
+    /// <summary>
+    /// 传感器名称（可选）- Sensor Name (Optional)
+    /// </summary>
+    /// <remarks>
+    /// 用于显示的友好名称，例如 "SENSOR_PE_01"、"格口1前传感器"
+    /// </remarks>
+    public string? SensorName { get; set; }
 
     /// <summary>
     /// 传感器类型 (Photoelectric/Laser)

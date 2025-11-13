@@ -25,14 +25,14 @@ public class SystemConfiguration
     public string ConfigName { get; set; } = "system";
 
     /// <summary>
-    /// 异常格口ID
+    /// 异常格口ID（数字ID，与路由配置中的格口ID对应）
     /// </summary>
     /// <remarks>
     /// <para>当包裹分拣失败或无法分配格口时使用的目标格口</para>
     /// <para>异常格口永远不能为空。如果未配置，系统将使用默认值</para>
     /// <para>建议：配置为在最末端一个摆轮的直行方向的格口，确保包裹能够安全通过系统</para>
     /// </remarks>
-    public string ExceptionChuteId { get; set; } = "CHUTE_EXCEPTION";
+    public int ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
     /// MQTT默认端口
@@ -114,9 +114,9 @@ public class SystemConfiguration
     /// <returns>验证结果和错误消息</returns>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
-        if (string.IsNullOrWhiteSpace(ExceptionChuteId))
+        if (ExceptionChuteId <= 0)
         {
-            return (false, "异常格口ID不能为空");
+            return (false, "异常格口ID必须大于0");
         }
 
         if (MqttDefaultPort < 1 || MqttDefaultPort > 65535)
@@ -160,7 +160,7 @@ public class SystemConfiguration
         return new SystemConfiguration
         {
             ConfigName = "system",
-            ExceptionChuteId = "CHUTE_EXCEPTION",
+            ExceptionChuteId = 999,
             MqttDefaultPort = 1883,
             TcpDefaultPort = 8888,
             ChuteAssignmentTimeoutMs = 10000,
