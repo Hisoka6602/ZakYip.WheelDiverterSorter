@@ -23,6 +23,12 @@ public class DiverterConfigurationEntry
     /// <summary>
     /// 目标摆轮转向方向
     /// </summary>
+    /// <remarks>
+    /// 可选值:
+    /// - Straight (0): 直行通过
+    /// - Left (1): 转向左侧格口
+    /// - Right (2): 转向右侧格口
+    /// </remarks>
     public required DiverterDirection TargetDirection { get; set; }
 
     /// <summary>

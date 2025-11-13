@@ -11,8 +11,15 @@ public class CommunicationConfiguration
     public int Id { get; set; }
 
     /// <summary>
-    /// 通信模式（枚举值：Http=0, Tcp=1, SignalR=2, Mqtt=3）
+    /// 通信模式
     /// </summary>
+    /// <remarks>
+    /// 可选值:
+    /// - 0: Http (HTTP REST API，仅用于测试，生产环境禁用)
+    /// - 1: Tcp (TCP Socket，推荐生产环境)
+    /// - 2: SignalR (SignalR，推荐生产环境)
+    /// - 3: Mqtt (MQTT，推荐生产环境)
+    /// </remarks>
     public int Mode { get; set; } = 0; // Http
 
     /// <summary>
@@ -214,9 +221,24 @@ public class CommunicationConfiguration
 /// </summary>
 public class TcpConfig
 {
+    /// <summary>
+    /// 接收缓冲区大小（字节）
+    /// </summary>
     public int ReceiveBufferSize { get; set; } = 8192;
+    
+    /// <summary>
+    /// 发送缓冲区大小（字节）
+    /// </summary>
     public int SendBufferSize { get; set; } = 8192;
+    
+    /// <summary>
+    /// 禁用Nagle算法以减少延迟
+    /// </summary>
     public bool NoDelay { get; set; } = true;
+    
+    /// <summary>
+    /// 保持连接心跳间隔（秒）
+    /// </summary>
     public int KeepAliveInterval { get; set; } = 60;
 }
 
@@ -225,9 +247,24 @@ public class TcpConfig
 /// </summary>
 public class HttpConfig
 {
+    /// <summary>
+    /// 每个服务器的最大连接数
+    /// </summary>
     public int MaxConnectionsPerServer { get; set; } = 10;
+    
+    /// <summary>
+    /// 连接池中空闲连接的超时时间（秒）
+    /// </summary>
     public int PooledConnectionIdleTimeout { get; set; } = 60;
+    
+    /// <summary>
+    /// 连接池中连接的生命周期（秒，0表示无限制）
+    /// </summary>
     public int PooledConnectionLifetime { get; set; } = 0;
+    
+    /// <summary>
+    /// 是否使用HTTP/2协议
+    /// </summary>
     public bool UseHttp2 { get; set; } = false;
 }
 
@@ -236,10 +273,29 @@ public class HttpConfig
 /// </summary>
 public class MqttConfig
 {
+    /// <summary>
+    /// 服务质量等级 (0: 最多一次, 1: 至少一次, 2: 恰好一次)
+    /// </summary>
     public int QualityOfServiceLevel { get; set; } = 1;
+    
+    /// <summary>
+    /// 是否使用清除会话
+    /// </summary>
     public bool CleanSession { get; set; } = true;
+    
+    /// <summary>
+    /// 会话过期时间间隔（秒）
+    /// </summary>
     public int SessionExpiryInterval { get; set; } = 3600;
+    
+    /// <summary>
+    /// 消息过期时间间隔（秒，0表示不过期）
+    /// </summary>
     public int MessageExpiryInterval { get; set; } = 0;
+    
+    /// <summary>
+    /// 客户端ID前缀
+    /// </summary>
     public string ClientIdPrefix { get; set; } = "WheelDiverter";
 }
 
@@ -248,8 +304,23 @@ public class MqttConfig
 /// </summary>
 public class SignalRConfig
 {
+    /// <summary>
+    /// 握手超时时间（秒）
+    /// </summary>
     public int HandshakeTimeout { get; set; } = 15;
+    
+    /// <summary>
+    /// 保持连接心跳间隔（秒）
+    /// </summary>
     public int KeepAliveInterval { get; set; } = 30;
+    
+    /// <summary>
+    /// 服务器超时时间（秒）
+    /// </summary>
     public int ServerTimeout { get; set; } = 60;
+    
+    /// <summary>
+    /// 是否跳过协议协商
+    /// </summary>
     public bool SkipNegotiation { get; set; } = false;
 }

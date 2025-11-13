@@ -25,8 +25,13 @@ public class ChuteSensorConfig
     public string? SensorName { get; set; }
 
     /// <summary>
-    /// 传感器类型 (Photoelectric/Laser)
+    /// 传感器类型
     /// </summary>
+    /// <remarks>
+    /// 可选值:
+    /// - Photoelectric: 光电传感器
+    /// - Laser: 激光传感器
+    /// </remarks>
     public string SensorType { get; set; } = "Photoelectric";
 
     /// <summary>
