@@ -16,6 +16,14 @@ public class ChuteRouteConfiguration
     public required string ChuteId { get; set; }
 
     /// <summary>
+    /// 格口名称（可选）- Chute Name (Optional)
+    /// </summary>
+    /// <remarks>
+    /// 用于显示的友好名称，例如 "A区01号口"
+    /// </remarks>
+    public string? ChuteName { get; set; }
+
+    /// <summary>
     /// 摆轮配置列表，按顺序执行
     /// </summary>
     public required List<DiverterConfigurationEntry> DiverterConfigurations { get; set; }

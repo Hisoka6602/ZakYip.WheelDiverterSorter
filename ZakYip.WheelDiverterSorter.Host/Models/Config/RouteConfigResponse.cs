@@ -18,6 +18,12 @@ public class RouteConfigResponse
     public required string ChuteId { get; set; }
 
     /// <summary>
+    /// 格口名称（可选）- Chute Name (Optional)
+    /// </summary>
+    /// <example>A区01号口</example>
+    public string? ChuteName { get; set; }
+
+    /// <summary>
     /// 摆轮配置列表
     /// </summary>
     public required List<DiverterConfigRequest> DiverterConfigurations { get; set; }

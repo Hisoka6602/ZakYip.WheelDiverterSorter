@@ -316,6 +316,7 @@ public class RouteConfigController : ControllerBase
         return new ChuteRouteConfiguration
         {
             ChuteId = request.ChuteId,
+            ChuteName = request.ChuteName,
             DiverterConfigurations = request.DiverterConfigurations
                 .Select(d => new DiverterConfigurationEntry
                 {
@@ -337,6 +338,7 @@ public class RouteConfigController : ControllerBase
         {
             Id = config.Id,
             ChuteId = config.ChuteId,
+            ChuteName = config.ChuteName,
             DiverterConfigurations = config.DiverterConfigurations
                 .Select(d => new DiverterConfigRequest
                 {
