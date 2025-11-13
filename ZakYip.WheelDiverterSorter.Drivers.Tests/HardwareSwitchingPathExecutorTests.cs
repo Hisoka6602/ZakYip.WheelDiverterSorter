@@ -2,8 +2,10 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests;
 
@@ -21,12 +23,12 @@ public class HardwareSwitchingPathExecutorTests
     {
         // Arrange
         var mockDiverter1 = new Mock<IDiverterController>();
-        mockDiverter1.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter1.Setup(d => d.DiverterId).Returns("1");
         mockDiverter1.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         var mockDiverter2 = new Mock<IDiverterController>();
-        mockDiverter2.Setup(d => d.DiverterId).Returns("Diverter2");
+        mockDiverter2.Setup(d => d.DiverterId).Returns("2");
         mockDiverter2.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -36,22 +38,22 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 2,
-                    DiverterId = "Diverter2",
+                    DiverterId = 2,
                     TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 }
@@ -63,7 +65,7 @@ public class HardwareSwitchingPathExecutorTests
 
         // Assert
         Assert.True(result.IsSuccess);
-        Assert.Equal("Chute01", result.ActualChuteId);
+        Assert.Equal(1, result.ActualChuteId);
         Assert.Null(result.FailureReason);
 
         mockDiverter1.Verify(d => d.SetAngleAsync(0, It.IsAny<CancellationToken>()), Times.Once);
@@ -85,7 +87,7 @@ public class HardwareSwitchingPathExecutorTests
     {
         // Arrange
         var mockDiverter1 = new Mock<IDiverterController>();
-        mockDiverter1.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter1.Setup(d => d.DiverterId).Returns("1");
 
         var executor = new HardwareSwitchingPathExecutor(
             _mockLogger.Object,
@@ -93,15 +95,15 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "NonExistentDiverter",
+                    DiverterId = 999,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
@@ -113,7 +115,7 @@ public class HardwareSwitchingPathExecutorTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Equal("Exception", result.ActualChuteId);
+        Assert.Equal(999, result.ActualChuteId);
         Assert.Contains("找不到摆轮控制器", result.FailureReason);
     }
 
@@ -132,15 +134,15 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
@@ -152,7 +154,7 @@ public class HardwareSwitchingPathExecutorTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Equal("Exception", result.ActualChuteId);
+        Assert.Equal(999, result.ActualChuteId);
         Assert.Contains("执行失败", result.FailureReason);
     }
 
@@ -171,15 +173,15 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
@@ -194,7 +196,7 @@ public class HardwareSwitchingPathExecutorTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Equal("Exception", result.ActualChuteId);
+        Assert.Equal(999, result.ActualChuteId);
         Assert.Contains("取消", result.FailureReason);
     }
 
@@ -213,15 +215,15 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
@@ -233,7 +235,7 @@ public class HardwareSwitchingPathExecutorTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Equal("Exception", result.ActualChuteId);
+        Assert.Equal(999, result.ActualChuteId);
         Assert.Contains("执行异常", result.FailureReason);
     }
 
@@ -244,7 +246,7 @@ public class HardwareSwitchingPathExecutorTests
         var executionOrder = new List<string>();
         
         var mockDiverter1 = new Mock<IDiverterController>();
-        mockDiverter1.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter1.Setup(d => d.DiverterId).Returns("1");
         mockDiverter1.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -253,7 +255,7 @@ public class HardwareSwitchingPathExecutorTests
             });
 
         var mockDiverter2 = new Mock<IDiverterController>();
-        mockDiverter2.Setup(d => d.DiverterId).Returns("Diverter2");
+        mockDiverter2.Setup(d => d.DiverterId).Returns("2");
         mockDiverter2.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -262,7 +264,7 @@ public class HardwareSwitchingPathExecutorTests
             });
 
         var mockDiverter3 = new Mock<IDiverterController>();
-        mockDiverter3.Setup(d => d.DiverterId).Returns("Diverter3");
+        mockDiverter3.Setup(d => d.DiverterId).Returns("3");
         mockDiverter3.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -276,29 +278,29 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 2,
-                    DiverterId = "Diverter2",
+                    DiverterId = 2,
                     TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 3,
-                    DiverterId = "Diverter3",
+                    DiverterId = 3,
                     TargetDirection = DiverterDirection.Right,
                     TtlMilliseconds = 5000
                 }
@@ -320,7 +322,7 @@ public class HardwareSwitchingPathExecutorTests
         var executionOrder = new List<string>();
 
         var mockDiverter1 = new Mock<IDiverterController>();
-        mockDiverter1.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter1.Setup(d => d.DiverterId).Returns("1");
         mockDiverter1.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -329,7 +331,7 @@ public class HardwareSwitchingPathExecutorTests
             });
 
         var mockDiverter2 = new Mock<IDiverterController>();
-        mockDiverter2.Setup(d => d.DiverterId).Returns("Diverter2");
+        mockDiverter2.Setup(d => d.DiverterId).Returns("2");
         mockDiverter2.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -338,7 +340,7 @@ public class HardwareSwitchingPathExecutorTests
             });
 
         var mockDiverter3 = new Mock<IDiverterController>();
-        mockDiverter3.Setup(d => d.DiverterId).Returns("Diverter3");
+        mockDiverter3.Setup(d => d.DiverterId).Returns("3");
         mockDiverter3.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {
@@ -352,29 +354,29 @@ public class HardwareSwitchingPathExecutorTests
 
         var path = new SwitchingPath
         {
-            TargetChuteId = "Chute01",
-            FallbackChuteId = "Exception",
+            TargetChuteId = 1,
+            FallbackChuteId = 999,
             GeneratedAt = DateTimeOffset.UtcNow,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 2,
-                    DiverterId = "Diverter2",
+                    DiverterId = 2,
                     TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 3,
-                    DiverterId = "Diverter3",
+                    DiverterId = 3,
                     TargetDirection = DiverterDirection.Right,
                     TtlMilliseconds = 5000
                 }
