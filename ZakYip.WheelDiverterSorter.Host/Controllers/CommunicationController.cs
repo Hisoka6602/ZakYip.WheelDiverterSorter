@@ -1,11 +1,12 @@
+using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
-using ZakYip.WheelDiverterSorter.Host.Services;
-using System.Diagnostics;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -18,8 +19,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [ApiController]
 [Route("api/communication")]
 [Produces("application/json")]
-public class CommunicationController : ControllerBase
-{
+public class CommunicationController : ControllerBase {
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly IOptions<RuleEngineConnectionOptions> _connectionOptions;
     private readonly ICommunicationConfigurationRepository _configRepository;
@@ -31,8 +31,7 @@ public class CommunicationController : ControllerBase
         IOptions<RuleEngineConnectionOptions> connectionOptions,
         ICommunicationConfigurationRepository configRepository,
         CommunicationStatsService statsService,
-        ILogger<CommunicationController> logger)
-    {
+        ILogger<CommunicationController> logger) {
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
@@ -49,15 +48,12 @@ public class CommunicationController : ControllerBase
     [HttpGet("config")]
     [ProducesResponseType(typeof(RuleEngineConnectionOptions), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RuleEngineConnectionOptions> GetConfiguration()
-    {
-        try
-        {
+    public ActionResult<RuleEngineConnectionOptions> GetConfiguration() {
+        try {
             var config = _connectionOptions.Value;
             return Ok(config);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError(ex, "获取通信配置失败 - Failed to get communication configuration");
             return StatusCode(500, new { message = "获取通信配置失败 - Failed to get communication configuration" });
         }
@@ -75,37 +71,31 @@ public class CommunicationController : ControllerBase
     [HttpPost("test")]
     [ProducesResponseType(typeof(ConnectionTestResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public async Task<ActionResult<ConnectionTestResponse>> TestConnection(CancellationToken cancellationToken = default)
-    {
+    public async Task<ActionResult<ConnectionTestResponse>> TestConnection(CancellationToken cancellationToken = default) {
         var sw = Stopwatch.StartNew();
         var testedAt = DateTimeOffset.UtcNow;
 
-        try
-        {
+        try {
             _logger.LogInformation("开始测试通信连接 - Starting communication connection test");
 
             var connected = await _ruleEngineClient.ConnectAsync(cancellationToken);
             sw.Stop();
 
-            if (connected)
-            {
-                _logger.LogInformation("连接测试成功，响应时间: {ResponseTimeMs}ms - Connection test succeeded, response time: {ResponseTimeMs}ms", 
+            if (connected) {
+                _logger.LogInformation("连接测试成功，响应时间: {ResponseTimeMs}ms - Connection test succeeded, response time: {ResponseTimeMs}ms",
                     sw.ElapsedMilliseconds, sw.ElapsedMilliseconds);
 
-                return Ok(new ConnectionTestResponse
-                {
+                return Ok(new ConnectionTestResponse {
                     Success = true,
                     ResponseTimeMs = sw.ElapsedMilliseconds,
                     Message = "连接成功 - Connection successful",
                     TestedAt = testedAt
                 });
             }
-            else
-            {
+            else {
                 _logger.LogWarning("连接测试失败 - Connection test failed");
 
-                return Ok(new ConnectionTestResponse
-                {
+                return Ok(new ConnectionTestResponse {
                     Success = false,
                     ResponseTimeMs = sw.ElapsedMilliseconds,
                     Message = "连接失败 - Connection failed",
@@ -114,13 +104,11 @@ public class CommunicationController : ControllerBase
                 });
             }
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             sw.Stop();
             _logger.LogError(ex, "连接测试时发生异常 - Exception occurred during connection test");
 
-            return Ok(new ConnectionTestResponse
-            {
+            return Ok(new ConnectionTestResponse {
                 Success = false,
                 ResponseTimeMs = sw.ElapsedMilliseconds,
                 Message = "连接测试失败 - Connection test failed",
@@ -142,15 +130,12 @@ public class CommunicationController : ControllerBase
     [HttpGet("status")]
     [ProducesResponseType(typeof(CommunicationStatusResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationStatusResponse> GetStatus()
-    {
-        try
-        {
+    public ActionResult<CommunicationStatusResponse> GetStatus() {
+        try {
             var config = _connectionOptions.Value;
             var isConnected = _ruleEngineClient.IsConnected;
 
-            string? serverAddress = config.Mode switch
-            {
+            string? serverAddress = config.Mode switch {
                 CommunicationMode.Tcp => config.TcpServer,
                 CommunicationMode.Http => config.HttpApi,
                 CommunicationMode.Mqtt => config.MqttBroker,
@@ -158,8 +143,7 @@ public class CommunicationController : ControllerBase
                 _ => null
             };
 
-            var response = new CommunicationStatusResponse
-            {
+            var response = new CommunicationStatusResponse {
                 Mode = config.Mode.ToString(),
                 IsConnected = isConnected,
                 MessagesSent = _statsService.MessagesSent,
@@ -173,8 +157,7 @@ public class CommunicationController : ControllerBase
 
             return Ok(response);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError(ex, "获取通信状态失败 - Failed to get communication status");
             return StatusCode(500, new { message = "获取通信状态失败 - Failed to get communication status" });
         }
@@ -192,16 +175,13 @@ public class CommunicationController : ControllerBase
     [HttpPost("reset-stats")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult ResetStatistics()
-    {
-        try
-        {
+    public ActionResult ResetStatistics() {
+        try {
             _statsService.Reset();
             _logger.LogInformation("通信统计已重置 - Communication statistics reset");
             return Ok(new { message = "统计计数器已重置 - Statistics counters reset", resetAt = DateTimeOffset.UtcNow });
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError(ex, "重置统计失败 - Failed to reset statistics");
             return StatusCode(500, new { message = "重置统计失败 - Failed to reset statistics" });
         }
@@ -216,15 +196,12 @@ public class CommunicationController : ControllerBase
     [HttpGet("config/persisted")]
     [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfiguration> GetPersistedConfiguration()
-    {
-        try
-        {
+    public ActionResult<CommunicationConfiguration> GetPersistedConfiguration() {
+        try {
             var config = _configRepository.Get();
             return Ok(config);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError(ex, "获取持久化通信配置失败 - Failed to get persisted communication configuration");
             return StatusCode(500, new { message = "获取持久化通信配置失败 - Failed to get persisted communication configuration" });
         }
@@ -240,7 +217,7 @@ public class CommunicationController : ControllerBase
     /// <response code="500">服务器内部错误 - Internal server error</response>
     /// <remarks>
     /// 示例请求:
-    /// 
+    ///
     ///     PUT /api/communication/config/persisted
     ///     {
     ///         "mode": 1,
@@ -248,7 +225,7 @@ public class CommunicationController : ControllerBase
     ///         "timeoutMs": 5000,
     ///         "retryCount": 3
     ///     }
-    /// 
+    ///
     /// 通信模式: Http=0, Tcp=1, SignalR=2, Mqtt=3
     /// 配置更新后立即生效，无需重启服务
     /// </remarks>
@@ -256,12 +233,9 @@ public class CommunicationController : ControllerBase
     [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfiguration> UpdatePersistedConfiguration([FromBody] CommunicationConfiguration request)
-    {
-        try
-        {
-            if (!ModelState.IsValid)
-            {
+    public ActionResult<CommunicationConfiguration> UpdatePersistedConfiguration([FromBody] CommunicationConfiguration request) {
+        try {
+            if (!ModelState.IsValid) {
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage);
@@ -270,8 +244,7 @@ public class CommunicationController : ControllerBase
 
             // 验证配置
             var (isValid, errorMessage) = request.Validate();
-            if (!isValid)
-            {
+            if (!isValid) {
                 return BadRequest(new { message = errorMessage });
             }
 
@@ -285,13 +258,11 @@ public class CommunicationController : ControllerBase
             var updatedConfig = _configRepository.Get();
             return Ok(updatedConfig);
         }
-        catch (ArgumentException ex)
-        {
+        catch (ArgumentException ex) {
             _logger.LogWarning(ex, "通信配置验证失败 - Communication configuration validation failed");
             return BadRequest(new { message = ex.Message });
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError(ex, "更新通信配置失败 - Failed to update communication configuration");
             return StatusCode(500, new { message = "更新通信配置失败 - Failed to update communication configuration" });
         }
@@ -306,10 +277,8 @@ public class CommunicationController : ControllerBase
     [HttpPost("config/persisted/reset")]
     [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfiguration> ResetPersistedConfiguration()
-    {
-        try
-        {
+    public ActionResult<CommunicationConfiguration> ResetPersistedConfiguration() {
+        try {
             var defaultConfig = CommunicationConfiguration.GetDefault();
             _configRepository.Update(defaultConfig);
 
@@ -318,8 +287,7 @@ public class CommunicationController : ControllerBase
             var updatedConfig = _configRepository.Get();
             return Ok(updatedConfig);
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) {
             _logger.LogError(ex, "重置通信配置失败 - Failed to reset communication configuration");
             return StatusCode(500, new { message = "重置通信配置失败 - Failed to reset communication configuration" });
         }

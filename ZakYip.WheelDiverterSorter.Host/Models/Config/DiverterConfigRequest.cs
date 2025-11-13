@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core;
+using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
@@ -7,6 +8,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 /// 摆轮配置请求模型
 /// </summary>
 public class DiverterConfigRequest {
+
     /// <summary>
     /// 摆轮标识或设备ID
     /// </summary>
