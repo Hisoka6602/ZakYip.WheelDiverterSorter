@@ -32,7 +32,7 @@ public class ChuteRouteConfiguration
     /// 皮带速度（米/秒）- Belt Speed (m/s)
     /// </summary>
     /// <remarks>
-    /// 用于计算包裹到达摆轮的预期时间
+    /// 用于计算包裹到达格口的预期时间
     /// </remarks>
     public double BeltSpeedMeterPerSecond { get; set; } = 1.0;
 
@@ -40,7 +40,7 @@ public class ChuteRouteConfiguration
     /// 皮带长度（米）- Belt Length (m)
     /// </summary>
     /// <remarks>
-    /// 从入口传感器到格口的总长度
+    /// 从上一个检测点（入口或上一个格口）到此格口的距离
     /// </remarks>
     public double BeltLengthMeter { get; set; } = 10.0;
 
@@ -52,6 +52,14 @@ public class ChuteRouteConfiguration
     /// 包裹实际到达时间 = 理论时间 ± 容差时间
     /// </remarks>
     public int ToleranceTimeMs { get; set; } = 2000;
+
+    /// <summary>
+    /// 格口前触发传感器IO配置 - Chute Trigger Sensor IO Configuration
+    /// </summary>
+    /// <remarks>
+    /// 每个格口前面都有一个触发传感器，用于检测包裹到达
+    /// </remarks>
+    public ChuteSensorConfig? SensorConfig { get; set; }
 
     /// <summary>
     /// 配置创建时间

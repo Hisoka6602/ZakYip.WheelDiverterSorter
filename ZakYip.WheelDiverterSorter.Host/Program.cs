@@ -97,6 +97,33 @@ builder.Services.AddSingleton<ISystemConfigurationRepository>(serviceProvider =>
     return repository;
 });
 
+// 注册驱动器配置仓储为单例
+builder.Services.AddSingleton<IDriverConfigurationRepository>(serviceProvider =>
+{
+    var repository = new LiteDbDriverConfigurationRepository(fullDatabasePath);
+    // 初始化默认配置
+    repository.InitializeDefault();
+    return repository;
+});
+
+// 注册传感器配置仓储为单例
+builder.Services.AddSingleton<ISensorConfigurationRepository>(serviceProvider =>
+{
+    var repository = new LiteDbSensorConfigurationRepository(fullDatabasePath);
+    // 初始化默认配置
+    repository.InitializeDefault();
+    return repository;
+});
+
+// 注册通信配置仓储为单例
+builder.Services.AddSingleton<ICommunicationConfigurationRepository>(serviceProvider =>
+{
+    var repository = new LiteDbCommunicationConfigurationRepository(fullDatabasePath);
+    // 初始化默认配置
+    repository.InitializeDefault();
+    return repository;
+});
+
 // 注册摆轮分拣相关服务
 // 首先注册基础路径生成器
 builder.Services.AddSingleton<DefaultSwitchingPathGenerator>();

@@ -73,6 +73,14 @@ public class RouteConfigRequest
     public int ToleranceTimeMs { get; set; } = 2000;
 
     /// <summary>
+    /// 格口前触发传感器IO配置
+    /// </summary>
+    /// <remarks>
+    /// 每个格口前面都有一个触发传感器，用于检测包裹到达
+    /// </remarks>
+    public ChuteSensorConfigRequest? SensorConfig { get; set; }
+
+    /// <summary>
     /// 是否启用此配置
     /// </summary>
     /// <example>true</example>

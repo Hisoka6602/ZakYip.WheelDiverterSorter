@@ -47,6 +47,11 @@ public class RouteConfigResponse
     public int ToleranceTimeMs { get; set; }
 
     /// <summary>
+    /// 格口前触发传感器IO配置
+    /// </summary>
+    public ChuteSensorConfigRequest? SensorConfig { get; set; }
+
+    /// <summary>
     /// 是否启用
     /// </summary>
     /// <example>true</example>

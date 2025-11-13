@@ -328,6 +328,14 @@ public class RouteConfigController : ControllerBase
             BeltSpeedMeterPerSecond = request.BeltSpeedMeterPerSecond,
             BeltLengthMeter = request.BeltLengthMeter,
             ToleranceTimeMs = request.ToleranceTimeMs,
+            SensorConfig = request.SensorConfig != null ? new ChuteSensorConfig
+            {
+                SensorId = request.SensorConfig.SensorId,
+                SensorType = request.SensorConfig.SensorType,
+                InputBit = request.SensorConfig.InputBit,
+                IsEnabled = request.SensorConfig.IsEnabled,
+                DebounceTimeMs = request.SensorConfig.DebounceTimeMs
+            } : null,
             IsEnabled = request.IsEnabled
         };
     }
@@ -353,6 +361,14 @@ public class RouteConfigController : ControllerBase
             BeltSpeedMeterPerSecond = config.BeltSpeedMeterPerSecond,
             BeltLengthMeter = config.BeltLengthMeter,
             ToleranceTimeMs = config.ToleranceTimeMs,
+            SensorConfig = config.SensorConfig != null ? new ChuteSensorConfigRequest
+            {
+                SensorId = config.SensorConfig.SensorId,
+                SensorType = config.SensorConfig.SensorType,
+                InputBit = config.SensorConfig.InputBit,
+                IsEnabled = config.SensorConfig.IsEnabled,
+                DebounceTimeMs = config.SensorConfig.DebounceTimeMs
+            } : null,
             IsEnabled = config.IsEnabled,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
