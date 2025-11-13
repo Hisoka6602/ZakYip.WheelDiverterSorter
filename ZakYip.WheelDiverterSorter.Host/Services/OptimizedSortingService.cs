@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Diagnostics;
 using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -44,9 +45,26 @@ public class OptimizedSortingService
 
         try
         {
+            // 解析格口ID
+            if (!ChuteIdHelper.TryParseChuteId(targetChuteId, out var numericChuteId))
+            {
+                _logger.LogWarning("无效的格口ID格式: ParcelId={ParcelId}, ChuteId={ChuteId}", 
+                    parcelId, targetChuteId);
+                
+                overallStopwatch.Stop();
+                _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
+                
+                return new PathExecutionResult
+                {
+                    IsSuccess = false,
+                    ActualChuteId = WellKnownChuteIds.DefaultException,
+                    FailureReason = $"格口ID格式无效: {targetChuteId}"
+                };
+            }
+
             // 阶段1: 路径生成
             var pathGenStopwatch = Stopwatch.StartNew();
-            var path = _pathGenerator.GeneratePath(targetChuteId);
+            var path = _pathGenerator.GeneratePath(numericChuteId);
             pathGenStopwatch.Stop();
             
             var pathGenDuration = pathGenStopwatch.Elapsed.TotalMilliseconds;
@@ -63,7 +81,7 @@ public class OptimizedSortingService
                 return new PathExecutionResult
                 {
                     IsSuccess = false,
-                    ActualChuteId = "UNKNOWN",
+                    ActualChuteId = WellKnownChuteIds.DefaultException,
                     FailureReason = "目标格口无法映射到任何摆轮组合"
                 };
             }
@@ -111,7 +129,7 @@ public class OptimizedSortingService
             return new PathExecutionResult
             {
                 IsSuccess = false,
-                ActualChuteId = "EXCEPTION",
+                ActualChuteId = WellKnownChuteIds.DefaultException,
                 FailureReason = $"执行异常: {ex.Message}"
             };
         }

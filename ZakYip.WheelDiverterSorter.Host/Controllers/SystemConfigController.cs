@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Host.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -68,7 +68,7 @@ public class SystemConfigController : ControllerBase
         var defaultConfig = SystemConfiguration.GetDefault();
         return Ok(new SystemConfigRequest
         {
-            ExceptionChuteId = defaultConfig.ExceptionChuteId,
+            ExceptionChuteId = ChuteIdHelper.FormatChuteId(defaultConfig.ExceptionChuteId),
             MqttDefaultPort = defaultConfig.MqttDefaultPort,
             TcpDefaultPort = defaultConfig.TcpDefaultPort,
             ChuteAssignmentTimeoutMs = defaultConfig.ChuteAssignmentTimeoutMs,
@@ -204,9 +204,16 @@ public class SystemConfigController : ControllerBase
     /// </summary>
     private SystemConfiguration MapToConfiguration(SystemConfigRequest request)
     {
+        // 解析异常格口ID
+        if (!ChuteIdHelper.TryParseChuteId(request.ExceptionChuteId, out var exceptionChuteId))
+        {
+            // 如果解析失败，使用默认值999
+            exceptionChuteId = 999;
+        }
+
         return new SystemConfiguration
         {
-            ExceptionChuteId = request.ExceptionChuteId,
+            ExceptionChuteId = exceptionChuteId,
             MqttDefaultPort = request.MqttDefaultPort,
             TcpDefaultPort = request.TcpDefaultPort,
             ChuteAssignmentTimeoutMs = request.ChuteAssignmentTimeoutMs,
@@ -225,7 +232,7 @@ public class SystemConfigController : ControllerBase
         return new SystemConfigResponse
         {
             Id = config.Id,
-            ExceptionChuteId = config.ExceptionChuteId,
+            ExceptionChuteId = ChuteIdHelper.FormatChuteId(config.ExceptionChuteId),
             MqttDefaultPort = config.MqttDefaultPort,
             TcpDefaultPort = config.TcpDefaultPort,
             ChuteAssignmentTimeoutMs = config.ChuteAssignmentTimeoutMs,
