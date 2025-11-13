@@ -28,7 +28,9 @@ public class SystemConfiguration
     /// 异常格口ID
     /// </summary>
     /// <remarks>
-    /// 当包裹分拣失败或无法分配格口时使用的目标格口
+    /// <para>当包裹分拣失败或无法分配格口时使用的目标格口</para>
+    /// <para>异常格口永远不能为空。如果未配置，系统将使用默认值</para>
+    /// <para>建议：配置为在最末端一个摆轮的直行方向的格口，确保包裹能够安全通过系统</para>
     /// </remarks>
     public string ExceptionChuteId { get; set; } = "CHUTE_EXCEPTION";
 
