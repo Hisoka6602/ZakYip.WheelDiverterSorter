@@ -148,7 +148,10 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Right,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
@@ -168,7 +171,10 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Left,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
@@ -188,14 +194,20 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 2,
                         DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Right,
-                        SequenceNumber = 2
+                        SequenceNumber = 2,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
@@ -215,14 +227,20 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 2,
                         DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Left,
-                        SequenceNumber = 2
+                        SequenceNumber = 2,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
@@ -242,21 +260,30 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 2,
                         DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 2
+                        SequenceNumber = 2,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 3,
                         DiverterName = "摆轮3",
                         TargetDirection = DiverterDirection.Right,
-                        SequenceNumber = 3
+                        SequenceNumber = 3,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
@@ -276,21 +303,30 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 2,
                         DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 2
+                        SequenceNumber = 2,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 3,
                         DiverterName = "摆轮3",
                         TargetDirection = DiverterDirection.Left,
-                        SequenceNumber = 3
+                        SequenceNumber = 3,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,
@@ -310,21 +346,30 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
                         DiverterId = 1,
                         DiverterName = "摆轮1",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 1
+                        SequenceNumber = 1,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 2,
                         DiverterName = "摆轮2",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 2
+                        SequenceNumber = 2,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = 3,
                         DiverterName = "摆轮3",
                         TargetDirection = DiverterDirection.Straight,
-                        SequenceNumber = 3
+                        SequenceNumber = 3,
+                        SegmentLengthMeter = 5.0,
+                        SegmentSpeedMeterPerSecond = 1.5,
+                        SegmentToleranceTimeMs = 2000
                     }
                 },
                 BeltSpeedMeterPerSecond = 1.5,

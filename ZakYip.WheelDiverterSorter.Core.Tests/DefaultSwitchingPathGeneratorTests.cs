@@ -173,7 +173,7 @@ public class DefaultSwitchingPathGeneratorTests
     }
 
     [Fact]
-    public void GeneratePath_SetsDefaultTtlForAllSegments()
+    public void GeneratePath_CalculatesTtlDynamicallyBasedOnSegmentConfiguration()
     {
         // Arrange
         var chuteId = 1;
@@ -186,7 +186,10 @@ public class DefaultSwitchingPathGeneratorTests
                 {
                     DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
-                    SequenceNumber = 1
+                    SequenceNumber = 1,
+                    SegmentLengthMeter = 5.0,
+                    SegmentSpeedMeterPerSecond = 1.0,
+                    SegmentToleranceTimeMs = 2000
                 }
             }
         };
@@ -198,7 +201,8 @@ public class DefaultSwitchingPathGeneratorTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.All(result.Segments, segment => Assert.Equal(5000, segment.TtlMilliseconds));
+        // TTL = (5.0 / 1.0) * 1000 + 2000 = 7000ms
+        Assert.All(result.Segments, segment => Assert.Equal(7000, segment.TtlMilliseconds));
     }
 
     [Fact]
@@ -270,5 +274,202 @@ public class DefaultSwitchingPathGeneratorTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(direction, result.Segments[0].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_CalculatesTtlWithDifferentSegmentSpeeds()
+    {
+        // Arrange
+        var chuteId = 1;
+        var config = new ChuteRouteConfiguration
+        {
+            ChuteId = chuteId,
+            DiverterConfigurations = new List<DiverterConfigurationEntry>
+            {
+                new DiverterConfigurationEntry
+                {
+                    DiverterId = 1,
+                    TargetDirection = DiverterDirection.Straight,
+                    SequenceNumber = 1,
+                    SegmentLengthMeter = 10.0,
+                    SegmentSpeedMeterPerSecond = 2.0,
+                    SegmentToleranceTimeMs = 1000
+                },
+                new DiverterConfigurationEntry
+                {
+                    DiverterId = 2,
+                    TargetDirection = DiverterDirection.Right,
+                    SequenceNumber = 2,
+                    SegmentLengthMeter = 5.0,
+                    SegmentSpeedMeterPerSecond = 1.5,
+                    SegmentToleranceTimeMs = 1500
+                }
+            }
+        };
+
+        _mockRepository.Setup(r => r.GetByChuteId(chuteId)).Returns(config);
+
+        // Act
+        var result = _generator.GeneratePath(chuteId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Segments.Count);
+        // Segment 1: (10.0 / 2.0) * 1000 + 1000 = 6000ms
+        Assert.Equal(6000, result.Segments[0].TtlMilliseconds);
+        // Segment 2: (5.0 / 1.5) * 1000 + 1500 = 3333 + 1500 = 4834ms (rounded up)
+        Assert.Equal(4834, result.Segments[1].TtlMilliseconds);
+    }
+
+    [Fact]
+    public void GeneratePath_EnforcesMinimumTtl()
+    {
+        // Arrange
+        var chuteId = 1;
+        var config = new ChuteRouteConfiguration
+        {
+            ChuteId = chuteId,
+            DiverterConfigurations = new List<DiverterConfigurationEntry>
+            {
+                new DiverterConfigurationEntry
+                {
+                    DiverterId = 1,
+                    TargetDirection = DiverterDirection.Straight,
+                    SequenceNumber = 1,
+                    SegmentLengthMeter = 0.1,  // Very short segment
+                    SegmentSpeedMeterPerSecond = 10.0,  // Very fast
+                    SegmentToleranceTimeMs = 0  // No tolerance
+                }
+            }
+        };
+
+        _mockRepository.Setup(r => r.GetByChuteId(chuteId)).Returns(config);
+
+        // Act
+        var result = _generator.GeneratePath(chuteId);
+
+        // Assert
+        Assert.NotNull(result);
+        // Should enforce minimum TTL of 1000ms even though calculated value is much smaller
+        Assert.All(result.Segments, segment => Assert.True(segment.TtlMilliseconds >= 1000));
+    }
+
+    [Fact]
+    public void GeneratePath_CalculatesTtlForMultipleSegmentsIndependently()
+    {
+        // Arrange
+        var chuteId = 1;
+        var config = new ChuteRouteConfiguration
+        {
+            ChuteId = chuteId,
+            DiverterConfigurations = new List<DiverterConfigurationEntry>
+            {
+                new DiverterConfigurationEntry
+                {
+                    DiverterId = 1,
+                    TargetDirection = DiverterDirection.Straight,
+                    SequenceNumber = 1,
+                    SegmentLengthMeter = 5.0,
+                    SegmentSpeedMeterPerSecond = 1.0,
+                    SegmentToleranceTimeMs = 2000
+                },
+                new DiverterConfigurationEntry
+                {
+                    DiverterId = 2,
+                    TargetDirection = DiverterDirection.Straight,
+                    SequenceNumber = 2,
+                    SegmentLengthMeter = 8.0,
+                    SegmentSpeedMeterPerSecond = 1.5,
+                    SegmentToleranceTimeMs = 2500
+                },
+                new DiverterConfigurationEntry
+                {
+                    DiverterId = 3,
+                    TargetDirection = DiverterDirection.Right,
+                    SequenceNumber = 3,
+                    SegmentLengthMeter = 6.0,
+                    SegmentSpeedMeterPerSecond = 2.0,
+                    SegmentToleranceTimeMs = 1500
+                }
+            }
+        };
+
+        _mockRepository.Setup(r => r.GetByChuteId(chuteId)).Returns(config);
+
+        // Act
+        var result = _generator.GeneratePath(chuteId);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(3, result.Segments.Count);
+        // Segment 1: (5.0 / 1.0) * 1000 + 2000 = 7000ms
+        Assert.Equal(7000, result.Segments[0].TtlMilliseconds);
+        // Segment 2: (8.0 / 1.5) * 1000 + 2500 = 5333 + 2500 = 7834ms (rounded up)
+        Assert.Equal(7834, result.Segments[1].TtlMilliseconds);
+        // Segment 3: (6.0 / 2.0) * 1000 + 1500 = 4500ms
+        Assert.Equal(4500, result.Segments[2].TtlMilliseconds);
+    }
+
+    [Theory]
+    [InlineData(1000, 400, true)]  // Tolerance 400ms < 500ms (1000/2), should be valid
+    [InlineData(1000, 500, false)] // Tolerance 500ms = 500ms (1000/2), should be invalid (not strictly less than)
+    [InlineData(1000, 600, false)] // Tolerance 600ms > 500ms (1000/2), should be invalid
+    [InlineData(2000, 999, true)]  // Tolerance 999ms < 1000ms (2000/2), should be valid
+    [InlineData(2000, 1000, false)] // Tolerance 1000ms = 1000ms (2000/2), should be invalid
+    [InlineData(500, 200, true)]   // Tolerance 200ms < 250ms (500/2), should be valid
+    [InlineData(500, 250, false)]  // Tolerance 250ms = 250ms (500/2), should be invalid
+    public void ValidateToleranceTime_WithVariousIntervals_ReturnsExpectedResult(
+        int parcelIntervalMs, int toleranceMs, bool expectedValid)
+    {
+        // Arrange
+        var segmentConfig = new DiverterConfigurationEntry
+        {
+            DiverterId = 1,
+            TargetDirection = DiverterDirection.Straight,
+            SequenceNumber = 1,
+            SegmentLengthMeter = 5.0,
+            SegmentSpeedMeterPerSecond = 1.0,
+            SegmentToleranceTimeMs = toleranceMs
+        };
+
+        // Act
+        var result = DefaultSwitchingPathGenerator.ValidateToleranceTime(segmentConfig, parcelIntervalMs);
+
+        // Assert
+        Assert.Equal(expectedValid, result);
+    }
+
+    [Fact]
+    public void ValidateToleranceTime_WithZeroInterval_ThrowsArgumentException()
+    {
+        // Arrange
+        var segmentConfig = new DiverterConfigurationEntry
+        {
+            DiverterId = 1,
+            TargetDirection = DiverterDirection.Straight,
+            SequenceNumber = 1,
+            SegmentToleranceTimeMs = 1000
+        };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            DefaultSwitchingPathGenerator.ValidateToleranceTime(segmentConfig, 0));
+    }
+
+    [Fact]
+    public void ValidateToleranceTime_WithNegativeInterval_ThrowsArgumentException()
+    {
+        // Arrange
+        var segmentConfig = new DiverterConfigurationEntry
+        {
+            DiverterId = 1,
+            TargetDirection = DiverterDirection.Straight,
+            SequenceNumber = 1,
+            SegmentToleranceTimeMs = 1000
+        };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            DefaultSwitchingPathGenerator.ValidateToleranceTime(segmentConfig, -100));
     }
 }
