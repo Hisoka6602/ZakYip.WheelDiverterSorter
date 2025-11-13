@@ -467,7 +467,10 @@ public class RouteConfigController : ControllerBase {
                 .Select(d => new DiverterConfigurationEntry {
                     DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
-                    SequenceNumber = d.SequenceNumber
+                    SequenceNumber = d.SequenceNumber,
+                    SegmentLengthMeter = d.SegmentLengthMeter,
+                    SegmentSpeedMeterPerSecond = d.SegmentSpeedMeterPerSecond,
+                    SegmentToleranceTimeMs = d.SegmentToleranceTimeMs
                 })
                 .ToList(),
             BeltSpeedMeterPerSecond = request.BeltSpeedMeterPerSecond,
@@ -496,7 +499,10 @@ public class RouteConfigController : ControllerBase {
                 .Select(d => new DiverterConfigRequest {
                     DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
-                    SequenceNumber = d.SequenceNumber
+                    SequenceNumber = d.SequenceNumber,
+                    SegmentLengthMeter = d.SegmentLengthMeter,
+                    SegmentSpeedMeterPerSecond = d.SegmentSpeedMeterPerSecond,
+                    SegmentToleranceTimeMs = d.SegmentToleranceTimeMs
                 })
                 .ToList(),
             BeltSpeedMeterPerSecond = config.BeltSpeedMeterPerSecond,

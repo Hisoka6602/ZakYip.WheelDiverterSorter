@@ -75,7 +75,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 SequenceNumber = index + 1,
                 DiverterId = config.DiverterId,
                 TargetDirection = config.TargetDirection,
-                TtlMilliseconds = DefaultSegmentTtlMs
+                TtlMilliseconds = CalculateSegmentTtl(config)
             })
             .ToList();
 
@@ -86,5 +86,27 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             GeneratedAt = DateTimeOffset.UtcNow,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
+    }
+
+    /// <summary>
+    /// 计算段的TTL（生存时间）
+    /// </summary>
+    /// <param name="segmentConfig">段配置</param>
+    /// <returns>计算得到的TTL（毫秒）</returns>
+    /// <remarks>
+    /// 计算公式：TTL = (段长度 / 段速度) * 1000 + 容差时间
+    /// 如果计算结果小于最小TTL，使用最小TTL
+    /// </remarks>
+    private int CalculateSegmentTtl(DiverterConfigurationEntry segmentConfig)
+    {
+        // 计算理论通过时间（毫秒）
+        var theoreticalTimeMs = (segmentConfig.SegmentLengthMeter / segmentConfig.SegmentSpeedMeterPerSecond) * 1000;
+        
+        // 加上容差时间
+        var calculatedTtl = (int)Math.Ceiling(theoreticalTimeMs) + segmentConfig.SegmentToleranceTimeMs;
+        
+        // 确保TTL不小于最小值（1秒）
+        const int MinTtlMs = 1000;
+        return Math.Max(calculatedTtl, MinTtlMs);
     }
 }
