@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>

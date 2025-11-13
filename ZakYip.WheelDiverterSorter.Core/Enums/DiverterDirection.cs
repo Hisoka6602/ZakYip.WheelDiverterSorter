@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.Enums;
 
 /// <summary>
 /// 表示摆轮转向方向的枚举

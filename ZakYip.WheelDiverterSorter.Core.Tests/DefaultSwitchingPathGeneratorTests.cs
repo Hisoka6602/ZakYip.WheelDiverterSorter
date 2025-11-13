@@ -2,6 +2,7 @@ using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests;
 

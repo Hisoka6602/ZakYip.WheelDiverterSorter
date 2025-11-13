@@ -1,4 +1,5 @@
 using LiteDB;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 
