@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
@@ -10,8 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// <remarks>
 /// 基于雷赛控制器的IO端口创建真实传感器实例
 /// </remarks>
-public class LeadshineSensorFactory : ISensorFactory
-{
+public class LeadshineSensorFactory : ISensorFactory {
     private readonly ILogger<LeadshineSensorFactory> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly IInputPort _inputPort;
@@ -28,8 +28,7 @@ public class LeadshineSensorFactory : ISensorFactory
         ILogger<LeadshineSensorFactory> logger,
         ILoggerFactory loggerFactory,
         IInputPort inputPort,
-        LeadshineSensorOptions options)
-    {
+        LeadshineSensorOptions options) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
@@ -40,18 +39,14 @@ public class LeadshineSensorFactory : ISensorFactory
     /// 创建所有配置的传感器实例
     /// </summary>
     /// <returns>传感器实例列表</returns>
-    public IEnumerable<ISensor> CreateSensors()
-    {
+    public IEnumerable<ISensor> CreateSensors() {
         var sensors = new List<ISensor>();
 
         _logger.LogInformation("开始创建雷赛传感器，共 {Count} 个配置", _options.Sensors.Count);
 
-        foreach (var config in _options.Sensors.Where(s => s.IsEnabled))
-        {
-            try
-            {
-                ISensor sensor = config.Type switch
-                {
+        foreach (var config in _options.Sensors.Where(s => s.IsEnabled)) {
+            try {
+                ISensor sensor = config.Type switch {
                     SensorType.Photoelectric => new LeadshinePhotoelectricSensor(
                         _loggerFactory.CreateLogger<LeadshinePhotoelectricSensor>(),
                         config.SensorId,
@@ -74,8 +69,7 @@ public class LeadshineSensorFactory : ISensorFactory
                     config.Type,
                     config.InputBit);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 _logger.LogError(ex, "创建雷赛传感器 {SensorId} 失败", config.SensorId);
             }
         }

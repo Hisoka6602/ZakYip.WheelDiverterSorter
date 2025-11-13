@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
 /// <summary>
@@ -7,8 +9,8 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// 用于测试和调试，模拟真实光电传感器的行为。
 /// 在生产环境中，应替换为实际的光电传感器实现，与真实硬件通信。
 /// </remarks>
-public class MockPhotoelectricSensor : MockSensorBase
-{
+public class MockPhotoelectricSensor : MockSensorBase {
+
     /// <summary>
     /// 构造函数
     /// </summary>
@@ -23,7 +25,6 @@ public class MockPhotoelectricSensor : MockSensorBase
         int maxTriggerIntervalMs = 15000,
         int minParcelPassTimeMs = 200,
         int maxParcelPassTimeMs = 500)
-        : base(sensorId, SensorType.Photoelectric, minTriggerIntervalMs, maxTriggerIntervalMs, minParcelPassTimeMs, maxParcelPassTimeMs)
-    {
+        : base(sensorId, SensorType.Photoelectric, minTriggerIntervalMs, maxTriggerIntervalMs, minParcelPassTimeMs, maxParcelPassTimeMs) {
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
+using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
@@ -10,8 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// <remarks>
 /// 提供传感器通用功能的抽象实现，子类只需指定传感器类型即可
 /// </remarks>
-public abstract class LeadshineSensorBase : ISensor
-{
+public abstract class LeadshineSensorBase : ISensor {
     private readonly ILogger _logger;
     private readonly IInputPort _inputPort;
     private readonly int _inputBit;
@@ -60,8 +60,7 @@ public abstract class LeadshineSensorBase : ISensor
         ILogger logger,
         string sensorId,
         IInputPort inputPort,
-        int inputBit)
-    {
+        int inputBit) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
@@ -72,10 +71,8 @@ public abstract class LeadshineSensorBase : ISensor
     /// <summary>
     /// 启动传感器监听
     /// </summary>
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
-        if (IsRunning)
-        {
+    public Task StartAsync(CancellationToken cancellationToken = default) {
+        if (IsRunning) {
             return Task.CompletedTask;
         }
 
@@ -93,10 +90,8 @@ public abstract class LeadshineSensorBase : ISensor
     /// <summary>
     /// 停止传感器监听
     /// </summary>
-    public async Task StopAsync()
-    {
-        if (!IsRunning)
-        {
+    public async Task StopAsync() {
+        if (!IsRunning) {
             return;
         }
 
@@ -105,14 +100,11 @@ public abstract class LeadshineSensorBase : ISensor
         _cts?.Cancel();
         IsRunning = false;
 
-        if (_monitoringTask != null)
-        {
-            try
-            {
+        if (_monitoringTask != null) {
+            try {
                 await _monitoringTask;
             }
-            catch (OperationCanceledException)
-            {
+            catch (OperationCanceledException) {
                 // 预期的取消异常
             }
         }
@@ -121,25 +113,20 @@ public abstract class LeadshineSensorBase : ISensor
     /// <summary>
     /// 监听输入端口
     /// </summary>
-    private async Task MonitorInputAsync(CancellationToken cancellationToken)
-    {
+    private async Task MonitorInputAsync(CancellationToken cancellationToken) {
         _logger.LogInformation("雷赛{SensorTypeName} {SensorId} 开始监听", SensorTypeName, SensorId);
 
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            try
-            {
+        while (!cancellationToken.IsCancellationRequested) {
+            try {
                 // 读取输入位状态
                 var currentState = await _inputPort.ReadAsync(_inputBit);
 
                 // 检测状态变化
-                if (currentState != _lastState)
-                {
+                if (currentState != _lastState) {
                     _lastState = currentState;
 
                     // 触发事件
-                    var sensorEvent = new SensorEvent
-                    {
+                    var sensorEvent = new SensorEvent {
                         SensorId = SensorId,
                         SensorType = Type,
                         TriggerTime = DateTimeOffset.UtcNow,
@@ -158,17 +145,14 @@ public abstract class LeadshineSensorBase : ISensor
                 // 短暂延迟以避免过度轮询（根据实际需求调整）
                 await Task.Delay(10, cancellationToken);
             }
-            catch (OperationCanceledException)
-            {
+            catch (OperationCanceledException) {
                 break;
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 _logger.LogError(ex, "雷赛{SensorTypeName} {SensorId} 读取失败", SensorTypeName, SensorId);
-                
+
                 // 触发错误事件
-                OnSensorError(new SensorErrorEventArgs
-                {
+                OnSensorError(new SensorErrorEventArgs {
                     SensorId = SensorId,
                     Type = Type,
                     ErrorMessage = $"读取输入位失败: {ex.Message}",
@@ -186,24 +170,21 @@ public abstract class LeadshineSensorBase : ISensor
     /// <summary>
     /// 触发传感器事件
     /// </summary>
-    protected virtual void OnSensorTriggered(SensorEvent sensorEvent)
-    {
+    protected virtual void OnSensorTriggered(SensorEvent sensorEvent) {
         SensorTriggered?.Invoke(this, sensorEvent);
     }
 
     /// <summary>
     /// 触发传感器错误事件
     /// </summary>
-    protected virtual void OnSensorError(SensorErrorEventArgs args)
-    {
+    protected virtual void OnSensorError(SensorErrorEventArgs args) {
         SensorError?.Invoke(this, args);
     }
 
     /// <summary>
     /// 释放资源
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
@@ -211,10 +192,8 @@ public abstract class LeadshineSensorBase : ISensor
     /// <summary>
     /// 释放资源
     /// </summary>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
+    protected virtual void Dispose(bool disposing) {
+        if (disposing) {
             StopAsync().GetAwaiter().GetResult();
             _cts?.Dispose();
         }

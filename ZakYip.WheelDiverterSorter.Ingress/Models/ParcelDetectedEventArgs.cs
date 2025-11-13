@@ -1,10 +1,11 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
 /// 包裹检测事件参数
 /// </summary>
-public record ParcelDetectedEventArgs
-{
+public record ParcelDetectedEventArgs {
     /// <summary>
     /// 生成的唯一包裹ID (毫秒时间戳)
     /// </summary>

@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
@@ -8,8 +9,8 @@ namespace ZakYip.WheelDiverterSorter.Ingress;
 /// <remarks>
 /// 定义传感器的基本行为，包括启动、停止和事件触发
 /// </remarks>
-public interface ISensor : IDisposable
-{
+public interface ISensor : IDisposable {
+
     /// <summary>
     /// 传感器ID
     /// </summary>

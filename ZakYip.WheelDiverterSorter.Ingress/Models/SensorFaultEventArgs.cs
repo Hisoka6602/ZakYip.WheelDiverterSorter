@@ -1,10 +1,11 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
 /// 传感器故障事件参数
 /// </summary>
-public record SensorFaultEventArgs
-{
+public record SensorFaultEventArgs {
     /// <summary>
     /// 传感器ID
     /// </summary>

@@ -1,10 +1,11 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
 /// <summary>
 /// 传感器配置
 /// </summary>
-public record SensorConfiguration
-{
+public record SensorConfiguration {
     /// <summary>
     /// 传感器ID
     /// </summary>

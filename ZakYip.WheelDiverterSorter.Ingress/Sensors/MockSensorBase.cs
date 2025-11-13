@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
@@ -8,8 +9,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// <remarks>
 /// 用于测试和调试，模拟真实传感器的行为
 /// </remarks>
-public abstract class MockSensorBase : ISensor
-{
+public abstract class MockSensorBase : ISensor {
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
 
@@ -68,13 +68,12 @@ public abstract class MockSensorBase : ISensor
     /// <param name="minParcelPassTimeMs">模拟包裹通过最小时间（毫秒）</param>
     /// <param name="maxParcelPassTimeMs">模拟包裹通过最大时间（毫秒）</param>
     protected MockSensorBase(
-        string sensorId, 
+        string sensorId,
         SensorType type,
         int minTriggerIntervalMs = 5000,
         int maxTriggerIntervalMs = 15000,
         int minParcelPassTimeMs = 200,
-        int maxParcelPassTimeMs = 500)
-    {
+        int maxParcelPassTimeMs = 500) {
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
         Type = type;
         MinTriggerIntervalMs = minTriggerIntervalMs;
@@ -86,10 +85,8 @@ public abstract class MockSensorBase : ISensor
     /// <summary>
     /// 启动传感器监听
     /// </summary>
-    public Task StartAsync(CancellationToken cancellationToken = default)
-    {
-        if (IsRunning)
-        {
+    public Task StartAsync(CancellationToken cancellationToken = default) {
+        if (IsRunning) {
             return Task.CompletedTask;
         }
 
@@ -105,24 +102,19 @@ public abstract class MockSensorBase : ISensor
     /// <summary>
     /// 停止传感器监听
     /// </summary>
-    public async Task StopAsync()
-    {
-        if (!IsRunning)
-        {
+    public async Task StopAsync() {
+        if (!IsRunning) {
             return;
         }
 
         _cts?.Cancel();
         IsRunning = false;
 
-        if (_monitoringTask != null)
-        {
-            try
-            {
+        if (_monitoringTask != null) {
+            try {
                 await _monitoringTask;
             }
-            catch (OperationCanceledException)
-            {
+            catch (OperationCanceledException) {
                 // 预期的取消异常
             }
         }
@@ -131,23 +123,19 @@ public abstract class MockSensorBase : ISensor
     /// <summary>
     /// 模拟传感器监听
     /// </summary>
-    protected virtual async Task SimulateMonitoringAsync(CancellationToken cancellationToken)
-    {
+    protected virtual async Task SimulateMonitoringAsync(CancellationToken cancellationToken) {
         var random = new Random();
 
-        while (!cancellationToken.IsCancellationRequested)
-        {
+        while (!cancellationToken.IsCancellationRequested) {
             // 模拟随机触发事件（使用配置的间隔）
             await Task.Delay(random.Next(MinTriggerIntervalMs, MaxTriggerIntervalMs), cancellationToken);
 
-            if (cancellationToken.IsCancellationRequested)
-            {
+            if (cancellationToken.IsCancellationRequested) {
                 break;
             }
 
             // 触发事件：物体遮挡
-            OnSensorTriggered(new SensorEvent
-            {
+            OnSensorTriggered(new SensorEvent {
                 SensorId = SensorId,
                 SensorType = Type,
                 TriggerTime = DateTimeOffset.UtcNow,
@@ -158,8 +146,7 @@ public abstract class MockSensorBase : ISensor
             await Task.Delay(random.Next(MinParcelPassTimeMs, MaxParcelPassTimeMs), cancellationToken);
 
             // 触发事件：遮挡解除
-            OnSensorTriggered(new SensorEvent
-            {
+            OnSensorTriggered(new SensorEvent {
                 SensorId = SensorId,
                 SensorType = Type,
                 TriggerTime = DateTimeOffset.UtcNow,
@@ -171,24 +158,21 @@ public abstract class MockSensorBase : ISensor
     /// <summary>
     /// 触发传感器事件
     /// </summary>
-    protected virtual void OnSensorTriggered(SensorEvent sensorEvent)
-    {
+    protected virtual void OnSensorTriggered(SensorEvent sensorEvent) {
         SensorTriggered?.Invoke(this, sensorEvent);
     }
 
     /// <summary>
     /// 触发传感器错误事件
     /// </summary>
-    protected virtual void OnSensorError(SensorErrorEventArgs args)
-    {
+    protected virtual void OnSensorError(SensorErrorEventArgs args) {
         SensorError?.Invoke(this, args);
     }
 
     /// <summary>
     /// 释放资源
     /// </summary>
-    public void Dispose()
-    {
+    public void Dispose() {
         Dispose(true);
         GC.SuppressFinalize(this);
     }
@@ -196,10 +180,8 @@ public abstract class MockSensorBase : ISensor
     /// <summary>
     /// 释放资源
     /// </summary>
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
+    protected virtual void Dispose(bool disposing) {
+        if (disposing) {
             StopAsync().GetAwaiter().GetResult();
             _cts?.Dispose();
         }

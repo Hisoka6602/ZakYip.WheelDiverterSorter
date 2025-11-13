@@ -1,10 +1,12 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
 /// <summary>
 /// 传感器配置选项
 /// </summary>
-public class SensorOptions
-{
+public class SensorOptions {
+
     /// <summary>
     /// 是否使用硬件传感器（false则使用模拟传感器）
     /// </summary>

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
@@ -9,8 +10,8 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// <remarks>
 /// 通过读取雷赛控制器的IO输入端口来检测包裹通过
 /// </remarks>
-public class LeadshineLaserSensor : LeadshineSensorBase
-{
+public class LeadshineLaserSensor : LeadshineSensorBase {
+
     /// <summary>
     /// 传感器类型
     /// </summary>
@@ -33,7 +34,6 @@ public class LeadshineLaserSensor : LeadshineSensorBase
         string sensorId,
         IInputPort inputPort,
         int inputBit)
-        : base(logger, sensorId, inputPort, inputBit)
-    {
+        : base(logger, sensorId, inputPort, inputBit) {
     }
 }

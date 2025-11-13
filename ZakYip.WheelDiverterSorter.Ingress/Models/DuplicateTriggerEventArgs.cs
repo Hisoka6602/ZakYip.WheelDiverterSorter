@@ -1,10 +1,11 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
 /// 重复触发异常事件参数
 /// </summary>
-public record DuplicateTriggerEventArgs
-{
+public record DuplicateTriggerEventArgs {
     /// <summary>
     /// 包裹ID
     /// </summary>

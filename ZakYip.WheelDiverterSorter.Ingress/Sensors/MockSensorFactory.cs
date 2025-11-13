@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
@@ -9,8 +10,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// <remarks>
 /// 用于创建模拟传感器实例，用于测试和调试
 /// </remarks>
-public class MockSensorFactory : ISensorFactory
-{
+public class MockSensorFactory : ISensorFactory {
     private readonly ILogger<MockSensorFactory> _logger;
     private readonly List<MockSensorConfigDto> _configs;
 
@@ -21,8 +21,7 @@ public class MockSensorFactory : ISensorFactory
     /// <param name="configs">模拟传感器配置列表</param>
     public MockSensorFactory(
         ILogger<MockSensorFactory> logger,
-        List<MockSensorConfigDto> configs)
-    {
+        List<MockSensorConfigDto> configs) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configs = configs ?? throw new ArgumentNullException(nameof(configs));
     }
@@ -31,18 +30,14 @@ public class MockSensorFactory : ISensorFactory
     /// 创建所有配置的传感器实例
     /// </summary>
     /// <returns>传感器实例列表</returns>
-    public IEnumerable<ISensor> CreateSensors()
-    {
+    public IEnumerable<ISensor> CreateSensors() {
         var sensors = new List<ISensor>();
 
         _logger.LogInformation("开始创建模拟传感器，共 {Count} 个配置", _configs.Count);
 
-        foreach (var config in _configs.Where(s => s.IsEnabled))
-        {
-            try
-            {
-                ISensor sensor = config.Type switch
-                {
+        foreach (var config in _configs.Where(s => s.IsEnabled)) {
+            try {
+                ISensor sensor = config.Type switch {
                     SensorType.Photoelectric => new MockPhotoelectricSensor(
                         config.SensorId,
                         config.MinTriggerIntervalMs,
@@ -64,8 +59,7 @@ public class MockSensorFactory : ISensorFactory
                     config.SensorId,
                     config.Type);
             }
-            catch (Exception ex)
-            {
+            catch (Exception ex) {
                 _logger.LogError(ex, "创建模拟传感器 {SensorId} 失败", config.SensorId);
             }
         }

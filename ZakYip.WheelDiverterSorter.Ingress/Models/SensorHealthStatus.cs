@@ -1,19 +1,21 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
 /// 传感器健康状态
 /// </summary>
-public class SensorHealthStatus
-{
+public class SensorHealthStatus {
+
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public required string SensorId { get; set; }
+    public string SensorId { get; set; }
 
     /// <summary>
     /// 传感器类型
     /// </summary>
-    public required SensorType Type { get; set; }
+    public SensorType Type { get; set; }
 
     /// <summary>
     /// 是否健康
