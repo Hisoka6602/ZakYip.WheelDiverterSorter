@@ -22,8 +22,10 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
         _logger = logger;
     }
 
-    public SwitchingPath? GeneratePath(string targetChuteId) {
-        if (string.IsNullOrWhiteSpace(targetChuteId)) {
+    public SwitchingPath? GeneratePath(int targetChuteId)
+    {
+        if (targetChuteId <= 0)
+        {
             return null;
         }
 
@@ -58,7 +60,8 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
     /// <summary>
     /// 清除指定格口的缓存
     /// </summary>
-    public void InvalidateCache(string targetChuteId) {
+    public void InvalidateCache(int targetChuteId)
+    {
         var cacheKey = $"path_{targetChuteId}";
         _cache.Remove(cacheKey);
         _logger.LogInformation("已清除格口缓存: {ChuteId}", targetChuteId);

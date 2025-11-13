@@ -1,7 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
-using ZakYip.WheelDiverterSorter.Host.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -43,8 +43,24 @@ public class DebugSortService
         _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", 
             sanitizedParcelId, sanitizedTargetChuteId);
 
+        // 转换字符串格口ID为整数
+        if (!ChuteIdHelper.TryParseChuteId(targetChuteId, out var numericChuteId))
+        {
+            _logger.LogWarning("无效的格口ID格式: {TargetChuteId}", sanitizedTargetChuteId);
+            return new DebugSortResponse
+            {
+                ParcelId = parcelId,
+                TargetChuteId = targetChuteId,
+                IsSuccess = false,
+                ActualChuteId = "未知",
+                Message = "格口ID格式无效",
+                FailureReason = $"无法解析格口ID: {targetChuteId}",
+                PathSegmentCount = 0
+            };
+        }
+
         // 1. 调用路径生成器生成 SwitchingPath
-        var path = _pathGenerator.GeneratePath(targetChuteId);
+        var path = _pathGenerator.GeneratePath(numericChuteId);
 
         if (path == null)
         {
@@ -76,7 +92,7 @@ public class DebugSortService
             ParcelId = parcelId,
             TargetChuteId = targetChuteId,
             IsSuccess = executionResult.IsSuccess,
-            ActualChuteId = executionResult.ActualChuteId,
+            ActualChuteId = ChuteIdHelper.FormatChuteId(executionResult.ActualChuteId),
             Message = executionResult.IsSuccess
                 ? $"分拣成功：包裹 {parcelId} 已成功分拣到格口 {executionResult.ActualChuteId}"
                 : $"分拣失败：包裹 {parcelId} 落入异常格口 {executionResult.ActualChuteId}",
