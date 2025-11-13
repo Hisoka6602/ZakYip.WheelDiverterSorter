@@ -58,3 +58,39 @@ public class DiverterResourceLock : IDiverterResourceLock, IDisposable
         _disposed = true;
     }
 }
+
+/// <summary>
+/// 写锁释放器
+/// </summary>
+file readonly struct WriteLockReleaser : IDisposable
+{
+    private readonly ReaderWriterLockSlim _lock;
+
+    public WriteLockReleaser(ReaderWriterLockSlim lockSlim)
+    {
+        _lock = lockSlim;
+    }
+
+    public readonly void Dispose()
+    {
+        _lock.ExitWriteLock();
+    }
+}
+
+/// <summary>
+/// 读锁释放器
+/// </summary>
+file readonly struct ReadLockReleaser : IDisposable
+{
+    private readonly ReaderWriterLockSlim _lock;
+
+    public ReadLockReleaser(ReaderWriterLockSlim lockSlim)
+    {
+        _lock = lockSlim;
+    }
+
+    public readonly void Dispose()
+    {
+        _lock.ExitReadLock();
+    }
+}
