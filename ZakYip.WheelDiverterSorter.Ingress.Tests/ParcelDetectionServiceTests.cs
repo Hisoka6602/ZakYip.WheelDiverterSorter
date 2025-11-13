@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;

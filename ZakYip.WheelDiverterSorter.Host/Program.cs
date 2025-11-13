@@ -196,28 +196,6 @@ app.UseSwaggerUI(options =>
 
 app.MapControllers();
 
-/// <summary>
-/// 调试分拣接口
-/// </summary>
-/// <remarks>
-/// 这是调试入口，用于手动触发包裹分拣流程，测试直线摆轮方案。
-/// 正式环境可改成由扫码触发或供包台触发。
-/// 
-/// 示例请求:
-/// 
-///     POST /api/debug/sort
-///     {
-///         "parcelId": "PKG001",
-///         "targetChuteId": "CHUTE-01"
-///     }
-/// 
-/// </remarks>
-/// <param name="request">包含包裹ID和目标格口ID的请求</param>
-/// <param name="debugService">调试服务</param>
-/// <param name="cancellationToken">取消令牌</param>
-/// <returns>包含执行结果和实际落格ID的响应</returns>
-/// <response code="200">分拣请求已处理（成功或失败）</response>
-/// <response code="400">请求参数无效</response>
 app.MapPost("/api/debug/sort", async (
     DebugSortRequest request,
     DebugSortService debugService,

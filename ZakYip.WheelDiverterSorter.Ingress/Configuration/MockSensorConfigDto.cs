@@ -10,7 +10,7 @@ public class MockSensorConfigDto {
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public string SensorId { get; set; }
+    public required string SensorId { get; set; }
 
     /// <summary>
     /// 传感器类型
