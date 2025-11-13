@@ -134,14 +134,14 @@ public class SystemConfigController : ControllerBase
             if (exceptionRoute == null)
             {
                 _logger.LogWarning("异常格口 {ExceptionChuteId} 不存在于路由配置中", 
-                    LoggingHelper.SanitizeForLogging(config.ExceptionChuteId));
+                    config.ExceptionChuteId);
                 return BadRequest(new { message = $"异常格口 {config.ExceptionChuteId} 不存在于路由配置中，请先创建对应的路由配置" });
             }
 
             if (!exceptionRoute.IsEnabled)
             {
                 _logger.LogWarning("异常格口 {ExceptionChuteId} 的路由配置未启用", 
-                    LoggingHelper.SanitizeForLogging(config.ExceptionChuteId));
+                    config.ExceptionChuteId);
                 return BadRequest(new { message = $"异常格口 {config.ExceptionChuteId} 的路由配置未启用" });
             }
 
@@ -149,7 +149,7 @@ public class SystemConfigController : ControllerBase
 
             _logger.LogInformation(
                 "系统配置已更新: ExceptionChuteId={ExceptionChuteId}, Version={Version}",
-                LoggingHelper.SanitizeForLogging(config.ExceptionChuteId),
+                config.ExceptionChuteId,
                 config.Version);
 
             // 重新获取更新后的配置

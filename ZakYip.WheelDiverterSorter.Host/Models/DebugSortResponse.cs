@@ -14,8 +14,8 @@ public class DebugSortResponse
     /// <summary>
     /// 目标格口标识
     /// </summary>
-    /// <example>CHUTE-01</example>
-    public required string TargetChuteId { get; init; }
+    /// <example>1</example>
+    public required int TargetChuteId { get; init; }
 
     /// <summary>
     /// 执行是否成功
@@ -26,8 +26,8 @@ public class DebugSortResponse
     /// <summary>
     /// 实际落格的格口标识
     /// </summary>
-    /// <example>CHUTE-01</example>
-    public required string ActualChuteId { get; init; }
+    /// <example>1</example>
+    public required int ActualChuteId { get; init; }
 
     /// <summary>
     /// 执行结果消息（中文）

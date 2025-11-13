@@ -13,7 +13,7 @@ public class SystemConfigResponse
     /// <summary>
     /// 异常格口ID
     /// </summary>
-    public string ExceptionChuteId { get; set; } = string.Empty;
+    public int ExceptionChuteId { get; set; }
 
     /// <summary>
     /// MQTT默认端口

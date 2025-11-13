@@ -228,9 +228,9 @@ app.MapPost("/api/debug/sort", async (
         return Results.BadRequest(new { message = "包裹ID不能为空" });
     }
 
-    if (string.IsNullOrWhiteSpace(request.TargetChuteId))
+    if (request.TargetChuteId <= 0)
     {
-        return Results.BadRequest(new { message = "目标格口ID不能为空" });
+        return Results.BadRequest(new { message = "目标格口ID必须大于0" });
     }
 
     var response = await debugService.ExecuteDebugSortAsync(

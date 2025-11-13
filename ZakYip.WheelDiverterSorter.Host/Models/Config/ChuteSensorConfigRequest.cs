@@ -13,9 +13,9 @@ public class ChuteSensorConfigRequest
     /// <remarks>
     /// 关联到传感器配置中的传感器标识符
     /// </remarks>
-    /// <example>SENSOR_CHUTE_A_01</example>
+    /// <example>1</example>
     [Required(ErrorMessage = "传感器ID不能为空")]
-    public required string SensorId { get; set; }
+    public required int SensorId { get; set; }
 
     /// <summary>
     /// 传感器类型 (Photoelectric/Laser)

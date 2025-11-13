@@ -17,7 +17,8 @@ public class DebugSortRequest
     /// <summary>
     /// 目标格口标识
     /// </summary>
-    /// <example>CHUTE-01</example>
+    /// <example>1</example>
     [Required(ErrorMessage = "目标格口ID不能为空")]
-    public required string TargetChuteId { get; init; }
+    [Range(1, int.MaxValue, ErrorMessage = "目标格口ID必须大于0")]
+    public required int TargetChuteId { get; init; }
 }

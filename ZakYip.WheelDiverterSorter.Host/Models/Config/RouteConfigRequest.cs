@@ -10,9 +10,9 @@ public class RouteConfigRequest
     /// <summary>
     /// 目标格口标识
     /// </summary>
-    /// <example>CHUTE-01</example>
+    /// <example>1</example>
     [Required(ErrorMessage = "格口ID不能为空")]
-    public required string ChuteId { get; set; }
+    public required int ChuteId { get; set; }
 
     /// <summary>
     /// 格口名称（可选）- Chute Name (Optional)
