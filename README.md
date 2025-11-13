@@ -38,6 +38,17 @@
 
 ## 📋 最近更新记录
 
+### 更新 4: 配置管理增强与热更新支持 (2025-11-13)
+- **枚举类型安全**：新增`SensorVendorType`和`DriverVendorType`枚举，替代魔法字符串，提升类型安全
+- **LiteDB配置存储**：驱动器、传感器、通信配置全部迁移到LiteDB，支持运行时热更新
+- **格口配置增强**：添加皮带速度、皮带长度、容差时间，支持精确的超时检测和丢包判断
+- **传感器IO配置**：每个格口配置独立的触发传感器IO，实现实时位置跟踪和动态时间计算
+- **新增API端点**：
+  - `GET/PUT/RESET /api/config/driver` - 驱动器配置管理
+  - `GET/PUT/RESET /api/config/sensor` - 传感器配置管理
+  - `GET/PUT/RESET /api/config/communication` - 通信配置管理
+- **配置验证**：所有配置增加严格验证逻辑，确保数据一致性和正确性
+
 ### 更新 1: 推送模型与类型安全改进 (2025-11-12)
 - **推送模型实现**：从请求/响应模型改为推送/回调模型，格口号由上游推送而非主动请求
 - **超时保护**：支持格口分配等待超时（默认10秒），超时后自动分配到异常格口
@@ -66,18 +77,20 @@
 
 ## 项目当前完成度
 
-**整体完成度：约 88%**
+**整体完成度：约 92%**
 
 ### ✅ 已完成的核心功能
 
 | 模块 | 完成度 | 说明 |
 |-----|--------|------|
 | 核心路径生成 | 100% | 基于格口到摆轮映射的路径生成，支持LiteDB动态配置和热更新 |
-| 配置管理系统 | 100% | RESTful API管理配置，支持热重载和验证 |
+| 配置管理系统 | 100% | 🆕 全面的LiteDB存储，所有热更新配置（驱动器、传感器、通信、路由）均支持API管理和验证 |
+| 格口配置系统 | 100% | 🆕 支持皮带速度/长度、容差时间、传感器IO配置，实现精确超时检测 |
 | 执行器层 | 100% | 模拟执行器和硬件执行器完整实现，支持配置切换 |
 | 通信层 | 100% | TCP/SignalR/MQTT/HTTP客户端全部实现，支持推送模型，与RuleEngine完整集成 |
 | 并发控制 | 100% | 摆轮资源锁、包裹队列管理、并发限流保护全部实现 |
 | 性能优化 | 95% | 基准测试、性能指标收集、缓存机制、对象池优化已完成 |
+| 类型安全 | 100% | 🆕 枚举类型替代字符串，VendorType、CommunicationMode等全面使用枚举 |
 | 调试接口 | 100% | HTTP API端点用于测试，集成Swagger文档 |
 
 ### 🚧 部分完成的功能
@@ -423,16 +436,19 @@ curl -X POST http://localhost:5000/api/debug/sort \
 
 ## 配置管理 API
 
-系统提供了完整的 RESTful API 用于动态管理格口到摆轮的路由配置，支持热更新（无需重启）。
+系统提供了完整的 RESTful API 用于动态管理所有配置，支持热更新（无需重启）。所有频繁变动的配置已从 appsettings.json 迁移到 LiteDB 数据库。
 
 ### 主要功能
 
-- ✅ **动态配置管理**: 通过 API 添加、修改、删除格口配置
+- ✅ **动态配置管理**: 通过 API 添加、修改、删除各类配置
 - ✅ **热更新支持**: 配置更改立即生效，无需重启应用
 - ✅ **数据持久化**: 使用 LiteDB 存储配置数据
 - ✅ **配置验证**: 自动验证配置的正确性和完整性
+- ✅ **类型安全**: 使用枚举类型，避免魔法字符串和数字
 
-### API 端点
+### API 端点总览
+
+#### 1️⃣ 格口路由配置
 
 | 方法 | 端点 | 说明 |
 |------|------|------|
@@ -442,26 +458,102 @@ curl -X POST http://localhost:5000/api/debug/sort \
 | PUT | `/api/config/routes/{chuteId}` | 更新路由配置（热更新） |
 | DELETE | `/api/config/routes/{chuteId}` | 删除路由配置 |
 
-### 快速示例
+#### 2️⃣ 驱动器配置 🆕
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/config/driver` | 获取驱动器配置 |
+| PUT | `/api/config/driver` | 更新驱动器配置（热更新） |
+| POST | `/api/config/driver/reset` | 重置为默认配置 |
+
+#### 3️⃣ 传感器配置 🆕
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/config/sensor` | 获取传感器配置 |
+| PUT | `/api/config/sensor` | 更新传感器配置（热更新） |
+| POST | `/api/config/sensor/reset` | 重置为默认配置 |
+
+#### 4️⃣ 通信配置 🆕
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/config/communication` | 获取通信配置 |
+| PUT | `/api/config/communication` | 更新通信配置（热更新） |
+| POST | `/api/config/communication/reset` | 重置为默认配置 |
+
+#### 5️⃣ 系统配置
+
+| 方法 | 端点 | 说明 |
+|------|------|------|
+| GET | `/api/config/system` | 获取系统配置 |
+| PUT | `/api/config/system` | 更新系统配置（热更新） |
+| POST | `/api/config/system/reset` | 重置为默认配置 |
+
+### 配置示例
+
+#### 示例 1: 创建格口配置（包含传感器IO）
 
 ```bash
-# 创建新格口配置
 curl -X POST http://localhost:5000/api/config/routes \
   -H "Content-Type: application/json" \
   -d '{
-    "chuteId": "CHUTE_D",
+    "chuteId": "CHUTE_A",
+    "chuteName": "A区01号口",
     "diverterConfigurations": [
-      {"diverterId": "D2", "targetAngle": 45, "sequenceNumber": 1},
-      {"diverterId": "D3", "targetAngle": 90, "sequenceNumber": 2}
+      {"diverterId": "D1", "targetAngle": 30, "sequenceNumber": 1},
+      {"diverterId": "D2", "targetAngle": 45, "sequenceNumber": 2}
     ],
+    "beltSpeedMeterPerSecond": 1.5,
+    "beltLengthMeter": 12.0,
+    "toleranceTimeMs": 2000,
+    "sensorConfig": {
+      "sensorId": "SENSOR_CHUTE_A_01",
+      "sensorType": "Photoelectric",
+      "inputBit": 5,
+      "isEnabled": true,
+      "debounceTimeMs": 100
+    },
     "isEnabled": true
   }'
-
-# 立即使用新配置（无需重启）
-curl -X POST http://localhost:5000/api/debug/sort \
-  -H "Content-Type: application/json" \
-  -d '{"parcelId": "PKG001", "targetChuteId": "CHUTE_D"}'
 ```
+
+#### 示例 2: 更新驱动器配置
+
+```bash
+curl -X PUT http://localhost:5000/api/config/driver \
+  -H "Content-Type: application/json" \
+  -d '{
+    "useHardwareDriver": true,
+    "vendorType": 1,
+    "leadshine": {
+      "cardNo": 0,
+      "diverters": [
+        {"diverterId": "D1", "outputStartBit": 0, "feedbackInputBit": 10},
+        {"diverterId": "D2", "outputStartBit": 2, "feedbackInputBit": 11}
+      ]
+    }
+  }'
+```
+
+#### 示例 3: 更新通信配置
+
+```bash
+curl -X PUT http://localhost:5000/api/config/communication \
+  -H "Content-Type: application/json" \
+  -d '{
+    "mode": 1,
+    "tcpServer": "192.168.1.100:8000",
+    "timeoutMs": 5000,
+    "retryCount": 3,
+    "enableAutoReconnect": true
+  }'
+```
+
+**说明**：
+- `mode`: 0=Http, 1=Tcp, 2=SignalR, 3=Mqtt
+- `vendorType`: 0=Mock, 1=Leadshine, 2=Siemens, 3=Mitsubishi, 4=Omron
+- 所有配置更新后立即生效，无需重启服务
 
 详细的 API 文档请参阅：[配置管理 API 文档](CONFIGURATION_API.md)
 
@@ -475,6 +567,28 @@ dotnet run
 默认监听端口：5000（HTTP）
 
 ## ⚠️ 当前风险与缺陷
+
+### ✅ 已解决的问题 (2025-11-13更新)
+
+#### 1. 配置热更新问题 - ✅ 已解决
+- **原问题**：驱动器、传感器、通信等配置写死在appsettings.json中，修改需要重启服务
+- **解决方案**：全部迁移到LiteDB数据库，提供API端点进行热更新
+- **影响**：✅ 现在可以在运行时动态修改配置，无需重启，大幅提升运维效率
+
+#### 2. 类型安全问题 - ✅ 已解决
+- **原问题**：VendorType使用字符串类型，容易拼写错误，缺少编译时检查
+- **解决方案**：引入`SensorVendorType`和`DriverVendorType`枚举类型
+- **影响**：✅ 编译时类型检查，避免运行时错误，代码更安全
+
+#### 3. 超时检测缺失 - ✅ 已解决
+- **原问题**：格口配置缺少容差时间，无法精确判断包裹超时或丢失
+- **解决方案**：为每个格口添加皮带速度、皮带长度、容差时间配置
+- **影响**：✅ 系统可以精确计算预期到达时间，准确检测超时和丢包
+
+#### 4. 传感器IO配置缺失 - ✅ 已解决
+- **原问题**：格口前传感器IO未配置，无法实时跟踪包裹位置
+- **解决方案**：为每个格口添加独立的传感器IO配置（ChuteSensorConfig）
+- **影响**：✅ 可以实时追踪包裹位置，动态计算到达下一格口的时间
 
 ### 🔴 高风险项（需尽快解决）
 
@@ -519,11 +633,11 @@ dotnet run
 - **影响**：可能在生产环境出现性能瓶颈
 - **建议**：进行压力测试和负载测试，验证目标吞吐量
 
-#### 7. 静态TTL设置
-- **问题**：所有路径段使用固定5000ms的TTL
-- **风险**：无法适应不同距离的摆轮节点或不同速度的输送线
-- **影响**：可能导致不必要的超时或资源浪费
-- **建议**：根据摆轮位置和输送速度动态计算TTL
+#### 7. TTL计算优化 - ⚠️ 部分改善
+- **当前状态**：格口配置已支持皮带速度、长度和容差时间，可以精确计算预期到达时间
+- **待改进**：路径段TTL仍使用固定值（5000ms），未与格口配置集成
+- **影响**：格口级别的超时检测已完善，但摆轮段级别的TTL仍需优化
+- **建议**：将格口配置的时间计算逻辑应用到路径段TTL，实现端到端的动态时间管理
 
 ### 🟢 低风险项（改进项）
 

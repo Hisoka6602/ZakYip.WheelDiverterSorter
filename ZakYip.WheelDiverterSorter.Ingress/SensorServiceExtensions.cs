@@ -36,11 +36,17 @@ public static class SensorServiceExtensions
         if (sensorOptions.UseHardwareSensor)
         {
             // 使用硬件传感器
-            switch (sensorOptions.VendorType?.ToLowerInvariant())
+            switch (sensorOptions.VendorType)
             {
-                case "leadshine":
+                case SensorVendorType.Leadshine:
                     AddLeadshineSensorServices(services, sensorOptions);
                     break;
+
+                case SensorVendorType.Siemens:
+                case SensorVendorType.Mitsubishi:
+                case SensorVendorType.Omron:
+                    throw new NotImplementedException(
+                        $"传感器厂商类型 {sensorOptions.VendorType} 尚未实现，请联系开发团队");
 
                 default:
                     throw new NotSupportedException(
