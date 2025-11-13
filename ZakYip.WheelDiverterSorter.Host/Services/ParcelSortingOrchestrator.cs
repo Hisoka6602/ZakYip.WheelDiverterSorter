@@ -109,8 +109,8 @@ public class ParcelSortingOrchestrator : IDisposable
         {
             if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
             {
-                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteNumber}", e.ParcelId, e.ChuteNumber);
-                tcs.TrySetResult(e.ChuteNumber);
+                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
+                tcs.TrySetResult(e.ChuteId);
                 _pendingAssignments.Remove(e.ParcelId);
             }
         }
@@ -197,7 +197,7 @@ public class ParcelSortingOrchestrator : IDisposable
                 using var cts = new CancellationTokenSource(timeoutMs);
                 targetChuteId = await tcs.Task.WaitAsync(cts.Token);
                 
-                _logger.LogInformation("包裹 {ParcelId} 分配到格口 {ChuteNumber}", parcelId, targetChuteId);
+                _logger.LogInformation("包裹 {ParcelId} 分配到格口 {ChuteId}", parcelId, targetChuteId);
             }
             catch (TimeoutException)
             {

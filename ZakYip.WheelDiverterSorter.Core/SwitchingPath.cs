@@ -6,9 +6,9 @@ namespace ZakYip.WheelDiverterSorter.Core;
 public record class SwitchingPath
 {
     /// <summary>
-    /// 目标格口标识
+    /// 目标格口标识（数字ID）
     /// </summary>
-    public required string TargetChuteId { get; init; }
+    public required int TargetChuteId { get; init; }
 
     /// <summary>
     /// 路径中的所有摆轮段，按顺序排列
@@ -21,7 +21,7 @@ public record class SwitchingPath
     public required DateTimeOffset GeneratedAt { get; init; }
 
     /// <summary>
-    /// 最终异常格口（Fallback/Exception Chute）标识
+    /// 最终异常格口（Fallback/Exception Chute）标识（数字ID）
     /// </summary>
     /// <remarks>
     /// <para><strong>用途：</strong>防止包裹滞留造成堵塞，与"单段TTL"配合使用。</para>
@@ -30,5 +30,5 @@ public record class SwitchingPath
     /// <para><strong>注意：</strong>如果项目中存在旧的"异常口"处理逻辑（如硬编码的异常口ID），
     /// 可以统一迁移到本字段，删除旧的实现方式。</para>
     /// </remarks>
-    public required string FallbackChuteId { get; init; }
+    public required int FallbackChuteId { get; init; }
 }

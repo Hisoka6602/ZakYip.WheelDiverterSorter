@@ -47,14 +47,14 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <summary>
     /// 根据目标格口生成摆轮路径
     /// </summary>
-    /// <param name="targetChuteId">目标格口标识</param>
+    /// <param name="targetChuteId">目标格口标识（数字ID）</param>
     /// <returns>
     /// 生成的摆轮路径，如果目标格口无法映射到任意摆轮组合则返回null。
     /// 当返回null时，包裹将走异常口处理流程。
     /// </returns>
-    public SwitchingPath? GeneratePath(string targetChuteId)
+    public SwitchingPath? GeneratePath(int targetChuteId)
     {
-        if (string.IsNullOrWhiteSpace(targetChuteId))
+        if (targetChuteId <= 0)
         {
             return null;
         }

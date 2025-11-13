@@ -59,14 +59,14 @@ public class SensorConfiguration
                 CardNo = 0,
                 Sensors = new List<HardwareSensorEntry>
                 {
-                    new() { SensorId = "SENSOR_PE_01", Type = "Photoelectric", InputBit = 0, IsEnabled = true },
-                    new() { SensorId = "SENSOR_LASER_01", Type = "Laser", InputBit = 1, IsEnabled = true }
+                    new() { SensorId = 1, SensorName = "SENSOR_PE_01", Type = "Photoelectric", InputBit = 0, IsEnabled = true },
+                    new() { SensorId = 2, SensorName = "SENSOR_LASER_01", Type = "Laser", InputBit = 1, IsEnabled = true }
                 }
             },
             MockSensors = new List<MockSensorEntry>
             {
-                new() { SensorId = "SENSOR_PE_01", Type = "Photoelectric", IsEnabled = true },
-                new() { SensorId = "SENSOR_LASER_01", Type = "Laser", IsEnabled = true }
+                new() { SensorId = 1, SensorName = "SENSOR_PE_01", Type = "Photoelectric", IsEnabled = true },
+                new() { SensorId = 2, SensorName = "SENSOR_LASER_01", Type = "Laser", IsEnabled = true }
             }
         };
     }
@@ -142,9 +142,17 @@ public class LeadshineSensorConfig
 public class HardwareSensorEntry
 {
     /// <summary>
-    /// 传感器标识符
+    /// 传感器标识符（数字ID）
     /// </summary>
-    public required string SensorId { get; set; }
+    public required int SensorId { get; set; }
+
+    /// <summary>
+    /// 传感器名称（可选）- Sensor Name (Optional)
+    /// </summary>
+    /// <remarks>
+    /// 用于显示的友好名称，例如 "SENSOR_PE_01"、"入口传感器"
+    /// </remarks>
+    public string? SensorName { get; set; }
 
     /// <summary>
     /// 传感器类型 (Photoelectric/Laser)
@@ -168,9 +176,17 @@ public class HardwareSensorEntry
 public class MockSensorEntry
 {
     /// <summary>
-    /// 传感器标识符
+    /// 传感器标识符（数字ID）
     /// </summary>
-    public required string SensorId { get; set; }
+    public required int SensorId { get; set; }
+
+    /// <summary>
+    /// 传感器名称（可选）- Sensor Name (Optional)
+    /// </summary>
+    /// <remarks>
+    /// 用于显示的友好名称，例如 "SENSOR_PE_01"、"模拟入口传感器"
+    /// </remarks>
+    public string? SensorName { get; set; }
 
     /// <summary>
     /// 传感器类型 (Photoelectric/Laser)

@@ -117,9 +117,9 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     private void OnChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
     {
         _logger.LogInformation(
-            "收到包裹 {ParcelId} 的格口分配: {ChuteNumber}",
+            "收到包裹 {ParcelId} 的格口分配: {ChuteId}",
             notification.ParcelId,
-            notification.ChuteNumber);
+            notification.ChuteId);
 
         ChuteAssignmentReceived?.Invoke(this, notification);
     }
@@ -239,7 +239,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = WellKnownChuteIds.DefaultException,
+                    ChuteId = WellKnownChuteIds.DefaultException,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到RuleEngine SignalR Hub"
                 };
@@ -266,9 +266,9 @@ public class SignalRRuleEngineClient : IRuleEngineClient
                     cts.Token);
 
                 _logger.LogInformation(
-                    "成功获取包裹 {ParcelId} 的格口号: {ChuteNumber}",
+                    "成功获取包裹 {ParcelId} 的格口号: {ChuteId}",
                     parcelId,
-                    response.ChuteNumber);
+                    response.ChuteId);
 
                 return response;
             }
@@ -289,7 +289,7 @@ public class SignalRRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = WellKnownChuteIds.DefaultException,
+            ChuteId = WellKnownChuteIds.DefaultException,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using System.Diagnostics;
@@ -21,17 +22,20 @@ public class CommunicationController : ControllerBase
 {
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly IOptions<RuleEngineConnectionOptions> _connectionOptions;
+    private readonly ICommunicationConfigurationRepository _configRepository;
     private readonly CommunicationStatsService _statsService;
     private readonly ILogger<CommunicationController> _logger;
 
     public CommunicationController(
         IRuleEngineClient ruleEngineClient,
         IOptions<RuleEngineConnectionOptions> connectionOptions,
+        ICommunicationConfigurationRepository configRepository,
         CommunicationStatsService statsService,
         ILogger<CommunicationController> logger)
     {
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
+        _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -200,6 +204,124 @@ public class CommunicationController : ControllerBase
         {
             _logger.LogError(ex, "重置统计失败 - Failed to reset statistics");
             return StatusCode(500, new { message = "重置统计失败 - Failed to reset statistics" });
+        }
+    }
+
+    /// <summary>
+    /// 获取持久化通信配置 - Get persisted communication configuration
+    /// </summary>
+    /// <returns>通信配置信息 - Communication configuration</returns>
+    /// <response code="200">成功返回配置 - Successfully returned configuration</response>
+    /// <response code="500">服务器内部错误 - Internal server error</response>
+    [HttpGet("config/persisted")]
+    [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<CommunicationConfiguration> GetPersistedConfiguration()
+    {
+        try
+        {
+            var config = _configRepository.Get();
+            return Ok(config);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取持久化通信配置失败 - Failed to get persisted communication configuration");
+            return StatusCode(500, new { message = "获取持久化通信配置失败 - Failed to get persisted communication configuration" });
+        }
+    }
+
+    /// <summary>
+    /// 更新持久化通信配置（支持热更新）- Update persisted communication configuration (supports hot reload)
+    /// </summary>
+    /// <param name="request">通信配置请求 - Communication configuration request</param>
+    /// <returns>更新后的通信配置 - Updated communication configuration</returns>
+    /// <response code="200">更新成功 - Update successful</response>
+    /// <response code="400">请求参数无效 - Invalid request parameters</response>
+    /// <response code="500">服务器内部错误 - Internal server error</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     PUT /api/communication/config/persisted
+    ///     {
+    ///         "mode": 1,
+    ///         "tcpServer": "192.168.1.100:8000",
+    ///         "timeoutMs": 5000,
+    ///         "retryCount": 3
+    ///     }
+    /// 
+    /// 通信模式: Http=0, Tcp=1, SignalR=2, Mqtt=3
+    /// 配置更新后立即生效，无需重启服务
+    /// </remarks>
+    [HttpPut("config/persisted")]
+    [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<CommunicationConfiguration> UpdatePersistedConfiguration([FromBody] CommunicationConfiguration request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效 - Invalid request parameters", errors });
+            }
+
+            // 验证配置
+            var (isValid, errorMessage) = request.Validate();
+            if (!isValid)
+            {
+                return BadRequest(new { message = errorMessage });
+            }
+
+            _configRepository.Update(request);
+
+            _logger.LogInformation(
+                "通信配置已更新 - Communication configuration updated: Mode={Mode}, Version={Version}",
+                request.Mode,
+                request.Version);
+
+            var updatedConfig = _configRepository.Get();
+            return Ok(updatedConfig);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "通信配置验证失败 - Communication configuration validation failed");
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新通信配置失败 - Failed to update communication configuration");
+            return StatusCode(500, new { message = "更新通信配置失败 - Failed to update communication configuration" });
+        }
+    }
+
+    /// <summary>
+    /// 重置持久化通信配置为默认值 - Reset persisted communication configuration to defaults
+    /// </summary>
+    /// <returns>重置后的通信配置 - Reset communication configuration</returns>
+    /// <response code="200">重置成功 - Reset successful</response>
+    /// <response code="500">服务器内部错误 - Internal server error</response>
+    [HttpPost("config/persisted/reset")]
+    [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<CommunicationConfiguration> ResetPersistedConfiguration()
+    {
+        try
+        {
+            var defaultConfig = CommunicationConfiguration.GetDefault();
+            _configRepository.Update(defaultConfig);
+
+            _logger.LogInformation("通信配置已重置为默认值 - Communication configuration reset to defaults");
+
+            var updatedConfig = _configRepository.Get();
+            return Ok(updatedConfig);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "重置通信配置失败 - Failed to reset communication configuration");
+            return StatusCode(500, new { message = "重置通信配置失败 - Failed to reset communication configuration" });
         }
     }
 }

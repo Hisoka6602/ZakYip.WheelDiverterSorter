@@ -14,9 +14,9 @@ public record ChuteAssignmentNotificationEventArgs
     public required long ParcelId { get; init; }
 
     /// <summary>
-    /// 目标格口号
+    /// 目标格口ID（数字ID）
     /// </summary>
-    public required string ChuteNumber { get; init; }
+    public required int ChuteId { get; init; }
 
     /// <summary>
     /// 通知时间

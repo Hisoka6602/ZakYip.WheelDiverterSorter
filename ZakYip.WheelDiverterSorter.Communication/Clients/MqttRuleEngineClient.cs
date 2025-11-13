@@ -238,7 +238,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
                 return new ChuteAssignmentResponse
                 {
                     ParcelId = parcelId,
-                    ChuteNumber = WellKnownChuteIds.DefaultException,
+                    ChuteId = WellKnownChuteIds.DefaultException,
                     IsSuccess = false,
                     ErrorMessage = "无法连接到MQTT Broker"
                 };
@@ -284,9 +284,9 @@ public class MqttRuleEngineClient : IRuleEngineClient
                 var response = await tcs.Task.WaitAsync(cts.Token);
 
                 _logger.LogInformation(
-                    "成功获取包裹 {ParcelId} 的格口号: {ChuteNumber}",
+                    "成功获取包裹 {ParcelId} 的格口号: {ChuteId}",
                     parcelId,
-                    response.ChuteNumber);
+                    response.ChuteId);
 
                 return response;
             }
@@ -309,7 +309,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = WellKnownChuteIds.DefaultException,
+            ChuteId = WellKnownChuteIds.DefaultException,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };
@@ -329,8 +329,8 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
             if (notification != null)
             {
-                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteNumber}", 
-                    notification.ParcelId, notification.ChuteNumber);
+                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", 
+                    notification.ParcelId, notification.ChuteId);
                 
                 // 触发事件
                 ChuteAssignmentReceived?.Invoke(this, notification);
@@ -341,7 +341,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
                     var response = new ChuteAssignmentResponse
                     {
                         ParcelId = notification.ParcelId,
-                        ChuteNumber = notification.ChuteNumber,
+                        ChuteId = notification.ChuteId,
                         IsSuccess = true,
                         ResponseTime = notification.NotificationTime
                     };

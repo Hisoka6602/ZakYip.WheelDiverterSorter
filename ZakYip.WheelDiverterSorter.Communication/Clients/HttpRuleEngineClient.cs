@@ -114,7 +114,7 @@ public class HttpRuleEngineClient : IRuleEngineClient
             var notification = new ChuteAssignmentNotificationEventArgs
             {
                 ParcelId = response.ParcelId,
-                ChuteNumber = response.ChuteNumber,
+                ChuteId = response.ChuteId,
                 NotificationTime = response.ResponseTime
             };
             ChuteAssignmentReceived?.Invoke(this, notification);
@@ -169,9 +169,9 @@ public class HttpRuleEngineClient : IRuleEngineClient
                 }
 
                 _logger.LogInformation(
-                    "成功获取包裹 {ParcelId} 的格口号: {ChuteNumber}",
+                    "成功获取包裹 {ParcelId} 的格口号: {ChuteId}",
                     parcelId,
-                    result.ChuteNumber);
+                    result.ChuteId);
 
                 return result;
             }
@@ -192,7 +192,7 @@ public class HttpRuleEngineClient : IRuleEngineClient
         return new ChuteAssignmentResponse
         {
             ParcelId = parcelId,
-            ChuteNumber = WellKnownChuteIds.DefaultException,
+            ChuteId = WellKnownChuteIds.DefaultException,
             IsSuccess = false,
             ErrorMessage = $"请求失败: {lastException?.Message}"
         };

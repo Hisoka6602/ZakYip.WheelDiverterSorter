@@ -17,13 +17,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class SystemConfigController : ControllerBase
 {
     private readonly ISystemConfigurationRepository _repository;
+    private readonly IRouteConfigurationRepository _routeRepository;
     private readonly ILogger<SystemConfigController> _logger;
 
     public SystemConfigController(
         ISystemConfigurationRepository repository,
+        IRouteConfigurationRepository routeRepository,
         ILogger<SystemConfigController> logger)
     {
         _repository = repository;
+        _routeRepository = routeRepository;
         _logger = logger;
     }
 
@@ -124,6 +127,22 @@ public class SystemConfigController : ControllerBase
             if (!isValid)
             {
                 return BadRequest(new { message = errorMessage });
+            }
+
+            // 验证异常格口是否存在于路由配置中
+            var exceptionRoute = _routeRepository.GetByChuteId(config.ExceptionChuteId);
+            if (exceptionRoute == null)
+            {
+                _logger.LogWarning("异常格口 {ExceptionChuteId} 不存在于路由配置中", 
+                    LoggingHelper.SanitizeForLogging(config.ExceptionChuteId));
+                return BadRequest(new { message = $"异常格口 {config.ExceptionChuteId} 不存在于路由配置中，请先创建对应的路由配置" });
+            }
+
+            if (!exceptionRoute.IsEnabled)
+            {
+                _logger.LogWarning("异常格口 {ExceptionChuteId} 的路由配置未启用", 
+                    LoggingHelper.SanitizeForLogging(config.ExceptionChuteId));
+                return BadRequest(new { message = $"异常格口 {config.ExceptionChuteId} 的路由配置未启用" });
             }
 
             _repository.Update(config);

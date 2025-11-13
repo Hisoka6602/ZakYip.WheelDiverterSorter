@@ -54,9 +54,9 @@ public class DriverConfiguration
                 CardNo = 0,
                 Diverters = new List<DiverterDriverEntry>
                 {
-                    new() { DiverterId = "D1", OutputStartBit = 0, FeedbackInputBit = 10 },
-                    new() { DiverterId = "D2", OutputStartBit = 2, FeedbackInputBit = 11 },
-                    new() { DiverterId = "D3", OutputStartBit = 4, FeedbackInputBit = 12 }
+                    new() { DiverterId = 1, DiverterName = "D1", OutputStartBit = 0, FeedbackInputBit = 10 },
+                    new() { DiverterId = 2, DiverterName = "D2", OutputStartBit = 2, FeedbackInputBit = 11 },
+                    new() { DiverterId = 3, DiverterName = "D3", OutputStartBit = 4, FeedbackInputBit = 12 }
                 }
             }
         };
@@ -123,9 +123,17 @@ public class LeadshineDriverConfig
 public class DiverterDriverEntry
 {
     /// <summary>
-    /// 摆轮标识符
+    /// 摆轮标识符（数字ID）
     /// </summary>
-    public required string DiverterId { get; set; }
+    public required int DiverterId { get; set; }
+
+    /// <summary>
+    /// 摆轮名称（可选）- Diverter Name (Optional)
+    /// </summary>
+    /// <remarks>
+    /// 用于显示的友好名称，例如 "D1"、"1号摆轮"
+    /// </remarks>
+    public string? DiverterName { get; set; }
 
     /// <summary>
     /// 输出起始位

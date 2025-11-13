@@ -11,15 +11,15 @@ public class ChuteRouteConfiguration
     public int Id { get; set; }
 
     /// <summary>
-    /// 目标格口标识
+    /// 目标格口标识（数字ID，与上游系统对应）
     /// </summary>
-    public required string ChuteId { get; set; }
+    public required int ChuteId { get; set; }
 
     /// <summary>
     /// 格口名称（可选）- Chute Name (Optional)
     /// </summary>
     /// <remarks>
-    /// 用于显示的友好名称，例如 "A区01号口"
+    /// 用于显示的友好名称，例如 "A区01号口"、"CHUTE-01"
     /// </remarks>
     public string? ChuteName { get; set; }
 

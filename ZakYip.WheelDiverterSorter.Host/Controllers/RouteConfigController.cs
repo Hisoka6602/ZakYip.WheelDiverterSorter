@@ -146,11 +146,18 @@ public class RouteConfigController : ControllerBase
                 return BadRequest(new { message = validation.ErrorMessage });
             }
 
-            // 检查是否已存在
+            // 检查是否已存在相同的格口ID
             var existing = _repository.GetByChuteId(request.ChuteId);
             if (existing != null)
             {
                 return Conflict(new { message = $"格口 {request.ChuteId} 的配置已存在，请使用PUT方法更新" });
+            }
+
+            // 检查是否存在重复的路由配置（相同的摆轮方向组合）
+            var duplicateRoute = CheckForDuplicateRoute(request.DiverterConfigurations);
+            if (duplicateRoute != null)
+            {
+                return Conflict(new { message = $"路由配置重复：与格口 {duplicateRoute.ChuteId} 的配置完全相同" });
             }
 
             var config = MapToConfiguration(request);
@@ -218,6 +225,13 @@ public class RouteConfigController : ControllerBase
                 return BadRequest(new { message = validation.ErrorMessage });
             }
 
+            // 检查是否存在重复的路由配置（相同的摆轮方向组合），排除当前格口
+            var duplicateRoute = CheckForDuplicateRoute(request.DiverterConfigurations, chuteId);
+            if (duplicateRoute != null)
+            {
+                return Conflict(new { message = $"路由配置重复：与格口 {duplicateRoute.ChuteId} 的配置完全相同" });
+            }
+
             // URL中的chuteId优先级高于Body中的
             request.ChuteId = chuteId;
 
@@ -274,6 +288,158 @@ public class RouteConfigController : ControllerBase
     }
 
     /// <summary>
+    /// 导出所有路由配置
+    /// </summary>
+    /// <returns>所有路由配置的JSON数据</returns>
+    /// <response code="200">导出成功</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 导出所有路由配置为JSON格式，可用于备份或迁移
+    /// </remarks>
+    [HttpGet("export")]
+    [ProducesResponseType(typeof(IEnumerable<RouteConfigResponse>), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<IEnumerable<RouteConfigResponse>> ExportRoutes()
+    {
+        try
+        {
+            var configs = _repository.GetAllEnabled();
+            var responses = configs.Select(MapToResponse);
+            _logger.LogInformation("导出路由配置成功，共 {Count} 条", configs.Count());
+            return Ok(responses);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出路由配置失败");
+            return StatusCode(500, new { message = "导出路由配置失败" });
+        }
+    }
+
+    /// <summary>
+    /// 导入路由配置
+    /// </summary>
+    /// <param name="routes">路由配置列表</param>
+    /// <returns>导入结果</returns>
+    /// <response code="200">导入成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 批量导入路由配置。如果配置已存在，将跳过该配置。
+    /// 导入过程会验证每个配置的有效性。
+    /// 
+    /// 示例请求:
+    /// 
+    ///     POST /api/config/routes/import
+    ///     [
+    ///         {
+    ///             "chuteId": "CHUTE-01",
+    ///             "diverterConfigurations": [
+    ///                 {
+    ///                     "diverterId": "DIV-001",
+    ///                     "targetDirection": 1,
+    ///                     "sequenceNumber": 1
+    ///                 }
+    ///             ],
+    ///             "isEnabled": true
+    ///         }
+    ///     ]
+    /// 
+    /// </remarks>
+    [HttpPost("import")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult ImportRoutes([FromBody] List<RouteConfigRequest> routes)
+    {
+        try
+        {
+            if (routes == null || routes.Count == 0)
+            {
+                return BadRequest(new { message = "导入的路由配置列表不能为空" });
+            }
+
+            var successCount = 0;
+            var skipCount = 0;
+            var errorCount = 0;
+            var errors = new List<string>();
+
+            foreach (var route in routes)
+            {
+                try
+                {
+                    // 验证配置
+                    if (string.IsNullOrWhiteSpace(route.ChuteId))
+                    {
+                        errors.Add($"格口ID不能为空");
+                        errorCount++;
+                        continue;
+                    }
+
+                    if (route.DiverterConfigurations == null || route.DiverterConfigurations.Count == 0)
+                    {
+                        errors.Add($"格口 {route.ChuteId}: 摆轮配置不能为空");
+                        errorCount++;
+                        continue;
+                    }
+
+                    var validation = ValidateDiverterConfigurations(route.DiverterConfigurations);
+                    if (!validation.IsValid)
+                    {
+                        errors.Add($"格口 {route.ChuteId}: {validation.ErrorMessage}");
+                        errorCount++;
+                        continue;
+                    }
+
+                    // 检查是否已存在
+                    var existing = _repository.GetByChuteId(route.ChuteId);
+                    if (existing != null)
+                    {
+                        skipCount++;
+                        continue;
+                    }
+
+                    // 检查是否存在重复的路由配置
+                    var duplicateRoute = CheckForDuplicateRoute(route.DiverterConfigurations);
+                    if (duplicateRoute != null)
+                    {
+                        errors.Add($"格口 {route.ChuteId}: 路由配置重复，与格口 {duplicateRoute.ChuteId} 的配置完全相同");
+                        errorCount++;
+                        continue;
+                    }
+
+                    var config = MapToConfiguration(route);
+                    _repository.Upsert(config);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "导入格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(route.ChuteId));
+                    errors.Add($"格口 {route.ChuteId}: {ex.Message}");
+                    errorCount++;
+                }
+            }
+
+            _logger.LogInformation(
+                "导入路由配置完成：成功 {SuccessCount} 条，跳过 {SkipCount} 条，失败 {ErrorCount} 条",
+                successCount, skipCount, errorCount);
+
+            return Ok(new
+            {
+                message = "导入完成",
+                successCount,
+                skipCount,
+                errorCount,
+                errors = errorCount > 0 ? errors : null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导入路由配置失败");
+            return StatusCode(500, new { message = "导入路由配置失败" });
+        }
+    }
+
+    /// <summary>
     /// 验证摆轮配置
     /// </summary>
     private (bool IsValid, string? ErrorMessage) ValidateDiverterConfigurations(List<DiverterConfigRequest> configs)
@@ -306,6 +472,43 @@ public class RouteConfigController : ControllerBase
         }
 
         return (true, null);
+    }
+
+    /// <summary>
+    /// 检查是否存在重复的路由配置（相同的摆轮方向组合）
+    /// </summary>
+    /// <param name="diverterConfigs">要检查的摆轮配置列表</param>
+    /// <param name="excludeChuteId">要排除的格口ID（用于更新时排除自身）</param>
+    /// <returns>如果存在重复则返回重复的配置，否则返回null</returns>
+    private ChuteRouteConfiguration? CheckForDuplicateRoute(List<DiverterConfigRequest> diverterConfigs, string? excludeChuteId = null)
+    {
+        var allConfigs = _repository.GetAllEnabled();
+        
+        // 创建当前配置的签名（按顺序的摆轮ID和方向组合）
+        var currentSignature = string.Join("|", diverterConfigs
+            .OrderBy(c => c.SequenceNumber)
+            .Select(c => $"{c.DiverterId}:{c.TargetDirection}"));
+
+        foreach (var existing in allConfigs)
+        {
+            // 排除指定的格口ID
+            if (!string.IsNullOrEmpty(excludeChuteId) && existing.ChuteId == excludeChuteId)
+            {
+                continue;
+            }
+
+            // 创建现有配置的签名
+            var existingSignature = string.Join("|", existing.DiverterConfigurations
+                .OrderBy(c => c.SequenceNumber)
+                .Select(c => $"{c.DiverterId}:{c.TargetDirection}"));
+
+            if (currentSignature == existingSignature)
+            {
+                return existing;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
