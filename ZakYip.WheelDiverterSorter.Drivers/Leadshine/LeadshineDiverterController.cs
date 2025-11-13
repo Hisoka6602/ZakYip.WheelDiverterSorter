@@ -18,7 +18,7 @@ public class LeadshineDiverterController : IDiverterController
     /// <summary>
     /// 摆轮ID
     /// </summary>
-    public string DiverterId => _config.DiverterId;
+    public string DiverterId => _config.DiverterId.ToString();
 
     /// <summary>
     /// 初始化雷赛摆轮控制器
@@ -143,25 +143,4 @@ public class LeadshineDiverterController : IDiverterController
         
         return bits;
     }
-}
-
-/// <summary>
-/// 雷赛摆轮配置
-/// </summary>
-public class LeadshineDiverterConfig
-{
-    /// <summary>
-    /// 摆轮ID
-    /// </summary>
-    public required string DiverterId { get; init; }
-
-    /// <summary>
-    /// 输出起始位（用于控制摆轮角度）
-    /// </summary>
-    public required int OutputStartBit { get; init; }
-
-    /// <summary>
-    /// 可选的反馈输入位（用于读取摆轮状态）
-    /// </summary>
-    public int? FeedbackInputBit { get; init; }
 }
