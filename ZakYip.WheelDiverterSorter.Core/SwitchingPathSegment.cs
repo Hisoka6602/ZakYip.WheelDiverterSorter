@@ -16,9 +16,9 @@ public record class SwitchingPathSegment
     public required string DiverterId { get; init; }
 
     /// <summary>
-    /// 目标摆轮角度
+    /// 目标摆轮转向方向
     /// </summary>
-    public required DiverterAngle TargetAngle { get; init; }
+    public required DiverterDirection TargetDirection { get; init; }
 
     /// <summary>
     /// 单段生存时间（毫秒），超过此时间段无效

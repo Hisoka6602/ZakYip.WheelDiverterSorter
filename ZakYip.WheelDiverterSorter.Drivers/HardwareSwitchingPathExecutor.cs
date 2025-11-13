@@ -68,8 +68,8 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 cancellationToken.ThrowIfCancellationRequested();
 
                 _logger.LogDebug(
-                    "执行段 {SequenceNumber}: 摆轮={DiverterId}, 角度={Angle}度, TTL={Ttl}ms",
-                    segment.SequenceNumber, segment.DiverterId, segment.TargetAngle, segment.TtlMilliseconds);
+                    "执行段 {SequenceNumber}: 摆轮={DiverterId}, 方向={Direction}, TTL={Ttl}ms",
+                    segment.SequenceNumber, segment.DiverterId, segment.TargetDirection, segment.TtlMilliseconds);
 
                 // 检查摆轮是否存在
                 if (!_diverters.TryGetValue(segment.DiverterId, out var diverter))
@@ -90,8 +90,11 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 bool success;
                 try
                 {
-                    // 设置摆轮角度 - 将DiverterAngle枚举转换为int
-                    success = await diverter.SetAngleAsync((int)segment.TargetAngle, cts.Token);
+                    // 将DiverterDirection转换为物理角度
+                    // 注意：具体的角度映射取决于硬件配置，这里使用通用映射
+                    // 直行=0度, 左转=45度（或根据硬件配置调整）, 右转=45度（反方向）
+                    int physicalAngle = ConvertDirectionToAngle(segment.TargetDirection);
+                    success = await diverter.SetAngleAsync(physicalAngle, cts.Token);
                 }
                 catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 {
@@ -158,5 +161,25 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 FailureReason = $"执行异常: {ex.Message}"
             };
         }
+    }
+
+    /// <summary>
+    /// 将摆轮方向转换为物理角度
+    /// </summary>
+    /// <param name="direction">摆轮转向方向</param>
+    /// <returns>物理角度（度）</returns>
+    /// <remarks>
+    /// 这里使用的是通用映射，实际部署时应根据具体硬件配置进行调整。
+    /// 可以将此方法改为从配置文件读取方向到角度的映射关系。
+    /// </remarks>
+    private static int ConvertDirectionToAngle(DiverterDirection direction)
+    {
+        return direction switch
+        {
+            DiverterDirection.Straight => 0,    // 直行：0度
+            DiverterDirection.Left => 45,       // 左转：45度（或根据硬件配置）
+            DiverterDirection.Right => 45,      // 右转：45度（反方向，具体实现取决于硬件）
+            _ => throw new ArgumentException($"不支持的摆轮方向: {direction}", nameof(direction))
+        };
     }
 }

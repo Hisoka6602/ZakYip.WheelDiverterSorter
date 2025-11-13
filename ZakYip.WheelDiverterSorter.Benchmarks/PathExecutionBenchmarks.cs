@@ -28,7 +28,7 @@ public class PathExecutionBenchmarks
                 {
                     SequenceNumber = 1,
                     DiverterId = "D1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly(),
@@ -45,14 +45,14 @@ public class PathExecutionBenchmarks
                 {
                     SequenceNumber = 1,
                     DiverterId = "D1",
-                    TargetAngle = DiverterAngle.Angle30,
+                    TargetDirection = DiverterDirection.Right,
                     TtlMilliseconds = 5000
                 },
                 new()
                 {
                     SequenceNumber = 2,
                     DiverterId = "D2",
-                    TargetAngle = DiverterAngle.Angle45,
+                    TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly(),

@@ -45,14 +45,14 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 2,
                     DiverterId = "Diverter2",
-                    TargetAngle = DiverterAngle.Angle30,
+                    TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()
@@ -66,8 +66,8 @@ public class HardwareSwitchingPathExecutorTests
         Assert.Equal("Chute01", result.ActualChuteId);
         Assert.Null(result.FailureReason);
 
-        mockDiverter1.Verify(d => d.SetAngleAsync((int)DiverterAngle.Angle0, It.IsAny<CancellationToken>()), Times.Once);
-        mockDiverter2.Verify(d => d.SetAngleAsync((int)DiverterAngle.Angle30, It.IsAny<CancellationToken>()), Times.Once);
+        mockDiverter1.Verify(d => d.SetAngleAsync(0, It.IsAny<CancellationToken>()), Times.Once);
+        mockDiverter2.Verify(d => d.SetAngleAsync(45, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "NonExistentDiverter",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()
@@ -141,7 +141,7 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()
@@ -180,7 +180,7 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()
@@ -222,7 +222,7 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()
@@ -285,21 +285,21 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 2,
                     DiverterId = "Diverter2",
-                    TargetAngle = DiverterAngle.Angle30,
+                    TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 3,
                     DiverterId = "Diverter3",
-                    TargetAngle = DiverterAngle.Angle90,
+                    TargetDirection = DiverterDirection.Right,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()
@@ -361,21 +361,21 @@ public class HardwareSwitchingPathExecutorTests
                 {
                     SequenceNumber = 1,
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 2,
                     DiverterId = "Diverter2",
-                    TargetAngle = DiverterAngle.Angle30,
+                    TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 },
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 3,
                     DiverterId = "Diverter3",
-                    TargetAngle = DiverterAngle.Angle90,
+                    TargetDirection = DiverterDirection.Right,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly()

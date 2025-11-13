@@ -1,6 +1,33 @@
 # ZakYip.WheelDiverterSorter
 
-直线摆轮分拣系统
+直线摆轮分拣系统 - 基于方向控制的包裹自动分拣解决方案
+
+## 📐 系统拓扑结构
+
+本系统采用直线拓扑结构，包裹在传送带上单向流动，通过摆轮转向实现分拣：
+
+```
+      格口B     格口D     格口F
+        ↑         ↑         ↑
+入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(默认异常口)
+  ↓     ↓         ↓         ↓
+传感器  格口A      格口C     格口E
+```
+
+### 拓扑说明
+
+- **入口传感器**：检测包裹到达，触发系统创建包裹记录
+- **摆轮D1/D2/D3**：每个摆轮前有IO传感器，确认包裹到达并触发转向动作
+- **格口A-F**：6个分拣格口，分别位于3个摆轮的左右两侧
+- **末端异常口**：包裹直行通过所有摆轮后到达，用于收集异常包裹
+
+### 转向方向定义
+
+摆轮支持三种转向方向（**不使用具体角度**）：
+
+- **直行（Straight）**：包裹继续前进到下一个摆轮
+- **左转（Left）**：包裹分流到摆轮左侧格口（图中上方）
+- **右转（Right）**：包裹分流到摆轮右侧格口（图中下方）
 
 ## ⚠️ 重要说明
 
@@ -32,11 +59,129 @@
 
 ## 项目简介
 
-本项目是一个基于直线摆轮（Wheel Diverter）的包裹自动分拣系统。通过在直线输送线上配置多个摆轮节点，实现包裹到不同格口的智能分拣。系统采用分层架构设计，支持路径规划、执行和可观测性。
+本项目是一个基于直线摆轮（Wheel Diverter）的包裹自动分拣系统。包裹通过传感器检测进入系统，在输送线上单向移动，经过配置的摆轮节点时，根据转向方向分流到目标格口。系统采用分层架构设计，支持路径规划、执行和可观测性。
+
+### 核心特点
+
+- ✅ **方向控制模式**：摆轮使用左/右/直行方向控制，不依赖具体角度
+- ✅ **传感器驱动**：入口和每个摆轮前配置IO传感器，实时跟踪包裹位置
+- ✅ **动态配置**：通过LiteDB存储配置，支持运行时热更新
+- ✅ **多协议通信**：支持TCP/SignalR/MQTT/HTTP与上游规则引擎通信
+- ✅ **推送模型**：格口分配由上游推送，支持超时保护
+
+## 🔄 系统工作流程
+
+### 完整流程（生产环境）
+
+```
+1. 包裹入口
+   ↓
+   入口传感器检测 → 创建包裹ID
+   ↓
+2. 请求格口分配
+   ↓
+   通过TCP/SignalR/MQTT向RuleEngine请求格口号
+   ↓
+   RuleEngine与DWS通信获取包裹信息
+   ↓
+   RuleEngine决策并返回目标格口ID
+   ↓
+3. 路径生成
+   ↓
+   根据目标格口ID生成摆轮转向路径
+   例如：格口E需要 [D1:直行, D2:直行, D3:右转]
+   ↓
+4. 路径执行
+   ↓
+   包裹到达D1 → D1传感器触发 → 检查路径 → D1执行直行
+   ↓
+   包裹到达D2 → D2传感器触发 → 检查路径 → D2执行直行
+   ↓
+   包裹到达D3 → D3传感器触发 → 检查路径 → D3执行右转
+   ↓
+   包裹分流到格口E
+   ↓
+5. 完成分拣
+```
+
+### 传感器工作逻辑
+
+1. **入口传感器**
+   - 检测包裹物理到达
+   - 生成唯一包裹ID（基于时间戳）
+   - 触发格口分配请求
+
+2. **摆轮前传感器（D1/D2/D3）**
+   - 确认包裹到达当前摆轮位置
+   - 更新包裹位置状态
+   - 触发摆轮执行转向动作
+   - 验证包裹是否在TTL时间内到达（超时检测）
+
+3. **传感器特性**
+   - 去抖动机制：防止传感器误触发
+   - 健康监控：实时监测传感器状态
+   - 故障检测：传感器异常时触发告警
+
+### 路径规划逻辑
+
+系统根据目标格口ID，从LiteDB配置中查找摆轮转向序列：
+
+| 目标格口 | 摆轮路径 | 说明 |
+|---------|---------|------|
+| 格口A | D1:右转 | 直接在第一个摆轮右转 |
+| 格口B | D1:左转 | 直接在第一个摆轮左转 |
+| 格口C | D1:直行 → D2:右转 | 通过D1后在D2右转 |
+| 格口D | D1:直行 → D2:左转 | 通过D1后在D2左转 |
+| 格口E | D1:直行 → D2:直行 → D3:右转 | 通过D1、D2后在D3右转 |
+| 格口F | D1:直行 → D2:直行 → D3:左转 | 通过D1、D2后在D3左转 |
+| 异常口 | D1:直行 → D2:直行 → D3:直行 | 所有摆轮直行，到达末端 |
+
+### 异常处理机制
+
+1. **格口未配置**：目标格口在配置中不存在 → 自动路由到异常口
+2. **路径执行超时**：包裹在TTL时间内未到达下一个摆轮 → 路由到异常口
+3. **摆轮控制失败**：硬件故障或通信失败 → 路由到异常口
+4. **RuleEngine连接失败**：无法获取格口分配 → 默认路由到异常口
+5. **传感器故障**：传感器异常时触发告警，包裹继续流转
+
+### 时间控制与超时检测
+
+每个格口配置包含：
+
+- **皮带速度（BeltSpeedMeterPerSecond）**：米/秒
+- **皮带长度（BeltLengthMeter）**：从上一检测点到当前格口的距离
+- **容差时间（ToleranceTimeMs）**：允许的时间误差范围
+
+系统根据这些参数计算包裹预期到达时间：
+```
+预期到达时间 = 皮带长度 / 皮带速度 ± 容差时间
+```
+
+如果包裹超过 `预期时间 + 容差时间` 仍未到达，则判定为丢包或超时。
+
+---
+
+## 项目结构
+
+- **ZakYip.WheelDiverterSorter.Core**: 核心业务逻辑，包含路径生成器、方向枚举、配置管理
+- **ZakYip.WheelDiverterSorter.Execution**: 执行层，包含路径执行器和模拟实现
+- **ZakYip.WheelDiverterSorter.Drivers**: 硬件驱动层，包含PLC控制器驱动和IO端口抽象
+- **ZakYip.WheelDiverterSorter.Ingress**: 入口管理，传感器驱动、包裹检测、健康监控
+- **ZakYip.WheelDiverterSorter.Communication**: 通信层，TCP/SignalR/MQTT/HTTP客户端
+- **ZakYip.WheelDiverterSorter.Host**: Web API主机，提供调试接口和配置管理API  
+- **ZakYip.WheelDiverterSorter.Observability**: 可观测性支持
 
 ---
 
 ## 📋 最近更新记录
+
+### 🆕 更新 5: 直线拓扑结构与方向控制重构 (2025-11-13)
+- **方向控制替代角度控制**：摆轮从角度控制（0/30/45/90度）改为方向控制（直行/左转/右转）
+- **明确拓扑结构**：定义清晰的直线拓扑，3个摆轮，6个格口（每个摆轮左右各一个格口）
+- **传感器工作逻辑**：详细说明入口传感器和摆轮前传感器的工作流程
+- **路径规划优化**：基于新拓扑结构更新默认格口配置（CHUTE_A到CHUTE_F）
+- **文档全面更新**：README.md增加完整的工作流程、时间控制、异常处理说明
+- **硬件解耦**：方向到角度转换由硬件驱动层处理，系统逻辑更清晰
 
 ### 更新 4: 配置管理增强与热更新支持 (2025-11-13)
 - **枚举类型安全**：新增`SensorVendorType`和`DriverVendorType`枚举，替代魔法字符串，提升类型安全
@@ -366,7 +511,7 @@ IO传感器感应 → 创建包裹 → 请求格口号(TCP/SignalR/MQTT) → Rul
 
 Host 层提供了一个用于调试直线摆轮方案的最小接口。
 
-**注意**：这是调试入口，正式环境可改成由扫码触发或供包台触发。
+**注意**：这是调试入口，生产环境应使用IO传感器触发包裹检测。
 
 ### API 端点
 
@@ -383,16 +528,16 @@ Host 层提供了一个用于调试直线摆轮方案的最小接口。
 
 #### 响应示例
 
-成功案例：
+成功案例（格口E）：
 ```json
 {
   "parcelId": "PKG001",
-  "targetChuteId": "CHUTE_A",
+  "targetChuteId": "CHUTE_E",
   "isSuccess": true,
-  "actualChuteId": "CHUTE_A",
-  "message": "分拣成功：包裹 PKG001 已成功分拣到格口 CHUTE_A",
+  "actualChuteId": "CHUTE_E",
+  "message": "分拣成功：包裹 PKG001 已成功分拣到格口 CHUTE_E",
   "failureReason": null,
-  "pathSegmentCount": 2
+  "pathSegmentCount": 3
 }
 ```
 
@@ -411,10 +556,18 @@ Host 层提供了一个用于调试直线摆轮方案的最小接口。
 
 ### 使用示例
 
+测试格口A（D1右转）：
 ```bash
 curl -X POST http://localhost:5000/api/debug/sort \
   -H "Content-Type: application/json" \
   -d '{"parcelId": "PKG001", "targetChuteId": "CHUTE_A"}'
+```
+
+测试格口E（D1直行→D2直行→D3右转）：
+```bash
+curl -X POST http://localhost:5000/api/debug/sort \
+  -H "Content-Type: application/json" \
+  -d '{"parcelId": "PKG002", "targetChuteId": "CHUTE_E"}'
 ```
 
 ### 工作流程
@@ -426,13 +579,77 @@ curl -X POST http://localhost:5000/api/debug/sort \
 
 ### 预配置的格口
 
-当前默认配置包含以下格口映射：
+当前默认配置包含以下6个格口（基于直线拓扑结构）：
 
-- **CHUTE_A**: 需要经过摆轮D1（30度）和摆轮D2（45度）
-- **CHUTE_B**: 需要经过摆轮D1（0度直行）
-- **CHUTE_C**: 需要经过摆轮D1（90度）和摆轮D3（30度）
+| 格口ID | 位置 | 路径配置 | 说明 |
+|--------|------|---------|------|
+| **CHUTE_A** | D1右侧 | D1:右转 | 最近的格口，包裹在第一个摆轮即分流 |
+| **CHUTE_B** | D1左侧 | D1:左转 | 第一个摆轮左侧格口 |
+| **CHUTE_C** | D2右侧 | D1:直行 → D2:右转 | 需通过D1才能到达 |
+| **CHUTE_D** | D2左侧 | D1:直行 → D2:左转 | 第二个摆轮左侧格口 |
+| **CHUTE_E** | D3右侧 | D1:直行 → D2:直行 → D3:右转 | 最远的右侧格口 |
+| **CHUTE_F** | D3左侧 | D1:直行 → D2:直行 → D3:左转 | 最远的左侧格口 |
+
+**拓扑示意图**：
+```
+      格口B     格口D     格口F
+        ↑         ↑         ↑
+入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(异常口)
+        ↓         ↓         ↓
+     格口A      格口C     格口E
+```
 
 **注意**: 这些配置存储在 LiteDB 数据库中，可以通过配置管理 API 动态修改。
+
+### 路径配置示例
+
+#### 示例 1: 格口A（简单路径）
+```json
+{
+  "chuteId": "CHUTE_A",
+  "chuteName": "格口A（D1右侧）",
+  "diverterConfigurations": [
+    {
+      "diverterId": "D1",
+      "targetDirection": "Right",
+      "sequenceNumber": 1
+    }
+  ],
+  "beltSpeedMeterPerSecond": 1.5,
+  "beltLengthMeter": 5.0,
+  "toleranceTimeMs": 2000,
+  "isEnabled": true
+}
+```
+
+#### 示例 2: 格口E（复杂路径）
+```json
+{
+  "chuteId": "CHUTE_E",
+  "chuteName": "格口E（D3右侧）",
+  "diverterConfigurations": [
+    {
+      "diverterId": "D1",
+      "targetDirection": "Straight",
+      "sequenceNumber": 1
+    },
+    {
+      "diverterId": "D2",
+      "targetDirection": "Straight",
+      "sequenceNumber": 2
+    },
+    {
+      "diverterId": "D3",
+      "targetDirection": "Right",
+      "sequenceNumber": 3
+    }
+  ],
+  "beltSpeedMeterPerSecond": 1.5,
+  "beltLengthMeter": 15.0,
+  "toleranceTimeMs": 2000,
+  "isEnabled": true
+}
+```
 
 ## 配置管理 API
 
@@ -492,31 +709,37 @@ curl -X POST http://localhost:5000/api/debug/sort \
 
 ### 配置示例
 
-#### 示例 1: 创建格口配置（包含传感器IO）
+#### 示例 1: 创建格口配置（基于方向控制）
 
 ```bash
 curl -X POST http://localhost:5000/api/config/routes \
   -H "Content-Type: application/json" \
   -d '{
-    "chuteId": "CHUTE_A",
-    "chuteName": "A区01号口",
+    "chuteId": "CHUTE_E",
+    "chuteName": "格口E（D3右侧）",
     "diverterConfigurations": [
-      {"diverterId": "D1", "targetAngle": 30, "sequenceNumber": 1},
-      {"diverterId": "D2", "targetAngle": 45, "sequenceNumber": 2}
+      {"diverterId": "D1", "targetDirection": "Straight", "sequenceNumber": 1},
+      {"diverterId": "D2", "targetDirection": "Straight", "sequenceNumber": 2},
+      {"diverterId": "D3", "targetDirection": "Right", "sequenceNumber": 3}
     ],
     "beltSpeedMeterPerSecond": 1.5,
-    "beltLengthMeter": 12.0,
+    "beltLengthMeter": 15.0,
     "toleranceTimeMs": 2000,
     "sensorConfig": {
-      "sensorId": "SENSOR_CHUTE_A_01",
+      "sensorId": "SENSOR_CHUTE_E_01",
       "sensorType": "Photoelectric",
-      "inputBit": 5,
+      "inputBit": 8,
       "isEnabled": true,
       "debounceTimeMs": 100
     },
     "isEnabled": true
   }'
 ```
+
+**说明**：
+- `targetDirection` 可选值：`"Straight"`, `"Left"`, `"Right"`
+- 格口E需要包裹通过D1和D2后，在D3右转到达
+- 传感器配置用于检测包裹到达D3位置
 
 #### 示例 2: 更新驱动器配置
 

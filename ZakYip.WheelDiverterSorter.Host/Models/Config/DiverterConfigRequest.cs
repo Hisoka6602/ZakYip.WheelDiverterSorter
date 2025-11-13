@@ -16,11 +16,11 @@ public class DiverterConfigRequest
     public required string DiverterId { get; set; }
 
     /// <summary>
-    /// 目标摆轮角度（0, 30, 45, 90）
+    /// 目标摆轮转向方向（直行、左转、右转）
     /// </summary>
-    /// <example>45</example>
-    [Required(ErrorMessage = "目标角度不能为空")]
-    public required DiverterAngle TargetAngle { get; set; }
+    /// <example>Left</example>
+    [Required(ErrorMessage = "目标方向不能为空")]
+    public required DiverterDirection TargetDirection { get; set; }
 
     /// <summary>
     /// 段的顺序号，从1开始

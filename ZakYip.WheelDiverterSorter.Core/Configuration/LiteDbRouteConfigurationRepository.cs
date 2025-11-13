@@ -114,7 +114,9 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     /// </summary>
     /// <remarks>
     /// 如果数据库为空，则插入默认的示例配置。
-    /// 这些配置与原始硬编码映射保持一致，确保向后兼容性。
+    /// 这些配置基于直线拓扑结构：
+    /// 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(默认异常口)
+    /// 每个摆轮左侧和右侧各有一个格口
     /// </remarks>
     public void InitializeDefaultData()
     {
@@ -124,61 +126,163 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
             return;
         }
 
-        // 插入默认配置，与原始硬编码映射保持一致
+        // 插入默认配置，基于直线拓扑结构
+        // 拓扑结构（从摆轮视角，上方为左侧，下方为右侧）：
+        //       格口B     格口D     格口F
+        //         ↑         ↑         ↑
+        // 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(默认异常口)
+        //         ↓         ↓         ↓
+        //      格口A      格口C     格口E
         var defaultConfigurations = new[]
         {
+            // 格口A：摆轮D1右侧
             new ChuteRouteConfiguration
             {
                 ChuteId = "CHUTE_A",
+                ChuteName = "格口A（D1右侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
                         DiverterId = "D1",
-                        TargetAngle = DiverterAngle.Angle30,
+                        TargetDirection = DiverterDirection.Right,
+                        SequenceNumber = 1
+                    }
+                },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 5.0,
+                ToleranceTimeMs = 2000,
+                IsEnabled = true
+            },
+            // 格口B：摆轮D1左侧
+            new ChuteRouteConfiguration
+            {
+                ChuteId = "CHUTE_B",
+                ChuteName = "格口B（D1左侧）",
+                DiverterConfigurations = new List<DiverterConfigurationEntry>
+                {
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D1",
+                        TargetDirection = DiverterDirection.Left,
+                        SequenceNumber = 1
+                    }
+                },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 5.0,
+                ToleranceTimeMs = 2000,
+                IsEnabled = true
+            },
+            // 格口C：摆轮D2右侧（需要D1直行通过）
+            new ChuteRouteConfiguration
+            {
+                ChuteId = "CHUTE_C",
+                ChuteName = "格口C（D2右侧）",
+                DiverterConfigurations = new List<DiverterConfigurationEntry>
+                {
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D1",
+                        TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 1
                     },
                     new DiverterConfigurationEntry
                     {
                         DiverterId = "D2",
-                        TargetAngle = DiverterAngle.Angle45,
+                        TargetDirection = DiverterDirection.Right,
                         SequenceNumber = 2
                     }
                 },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 10.0,
+                ToleranceTimeMs = 2000,
                 IsEnabled = true
             },
+            // 格口D：摆轮D2左侧（需要D1直行通过）
             new ChuteRouteConfiguration
             {
-                ChuteId = "CHUTE_B",
+                ChuteId = "CHUTE_D",
+                ChuteName = "格口D（D2左侧）",
                 DiverterConfigurations = new List<DiverterConfigurationEntry>
                 {
                     new DiverterConfigurationEntry
                     {
                         DiverterId = "D1",
-                        TargetAngle = DiverterAngle.Angle0,
-                        SequenceNumber = 1
-                    }
-                },
-                IsEnabled = true
-            },
-            new ChuteRouteConfiguration
-            {
-                ChuteId = "CHUTE_C",
-                DiverterConfigurations = new List<DiverterConfigurationEntry>
-                {
-                    new DiverterConfigurationEntry
-                    {
-                        DiverterId = "D1",
-                        TargetAngle = DiverterAngle.Angle90,
+                        TargetDirection = DiverterDirection.Straight,
                         SequenceNumber = 1
                     },
                     new DiverterConfigurationEntry
                     {
-                        DiverterId = "D3",
-                        TargetAngle = DiverterAngle.Angle30,
+                        DiverterId = "D2",
+                        TargetDirection = DiverterDirection.Left,
                         SequenceNumber = 2
                     }
                 },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 10.0,
+                ToleranceTimeMs = 2000,
+                IsEnabled = true
+            },
+            // 格口E：摆轮D3右侧（需要D1、D2直行通过）
+            new ChuteRouteConfiguration
+            {
+                ChuteId = "CHUTE_E",
+                ChuteName = "格口E（D3右侧）",
+                DiverterConfigurations = new List<DiverterConfigurationEntry>
+                {
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D1",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 1
+                    },
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D2",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 2
+                    },
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D3",
+                        TargetDirection = DiverterDirection.Right,
+                        SequenceNumber = 3
+                    }
+                },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 15.0,
+                ToleranceTimeMs = 2000,
+                IsEnabled = true
+            },
+            // 格口F：摆轮D3左侧（需要D1、D2直行通过）
+            new ChuteRouteConfiguration
+            {
+                ChuteId = "CHUTE_F",
+                ChuteName = "格口F（D3左侧）",
+                DiverterConfigurations = new List<DiverterConfigurationEntry>
+                {
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D1",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 1
+                    },
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D2",
+                        TargetDirection = DiverterDirection.Straight,
+                        SequenceNumber = 2
+                    },
+                    new DiverterConfigurationEntry
+                    {
+                        DiverterId = "D3",
+                        TargetDirection = DiverterDirection.Left,
+                        SequenceNumber = 3
+                    }
+                },
+                BeltSpeedMeterPerSecond = 1.5,
+                BeltLengthMeter = 15.0,
+                ToleranceTimeMs = 2000,
                 IsEnabled = true
             }
         };

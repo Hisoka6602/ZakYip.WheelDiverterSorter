@@ -29,13 +29,13 @@ public class DefaultSwitchingPathGeneratorTests
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 },
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter2",
-                    TargetAngle = DiverterAngle.Angle30,
+                    TargetDirection = DiverterDirection.Left,
                     SequenceNumber = 2
                 }
             }
@@ -51,10 +51,10 @@ public class DefaultSwitchingPathGeneratorTests
         Assert.Equal(chuteId, result.TargetChuteId);
         Assert.Equal(2, result.Segments.Count);
         Assert.Equal("Diverter1", result.Segments[0].DiverterId);
-        Assert.Equal(DiverterAngle.Angle0, result.Segments[0].TargetAngle);
+        Assert.Equal(DiverterDirection.Straight, result.Segments[0].TargetDirection);
         Assert.Equal(1, result.Segments[0].SequenceNumber);
         Assert.Equal("Diverter2", result.Segments[1].DiverterId);
-        Assert.Equal(DiverterAngle.Angle30, result.Segments[1].TargetAngle);
+        Assert.Equal(DiverterDirection.Left, result.Segments[1].TargetDirection);
         Assert.Equal(2, result.Segments[1].SequenceNumber);
         Assert.Equal(WellKnownChuteIds.DefaultException, result.FallbackChuteId);
     }
@@ -140,19 +140,19 @@ public class DefaultSwitchingPathGeneratorTests
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter3",
-                    TargetAngle = DiverterAngle.Angle90,
+                    TargetDirection = DiverterDirection.Right,
                     SequenceNumber = 3
                 },
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 },
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter2",
-                    TargetAngle = DiverterAngle.Angle30,
+                    TargetDirection = DiverterDirection.Left,
                     SequenceNumber = 2
                 }
             }
@@ -184,7 +184,7 @@ public class DefaultSwitchingPathGeneratorTests
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 }
             }
@@ -220,7 +220,7 @@ public class DefaultSwitchingPathGeneratorTests
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter1",
-                    TargetAngle = DiverterAngle.Angle0,
+                    TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 }
             }
@@ -240,10 +240,10 @@ public class DefaultSwitchingPathGeneratorTests
     }
 
     [Theory]
-    [InlineData(DiverterAngle.Angle0)]
-    [InlineData(DiverterAngle.Angle30)]
-    [InlineData(DiverterAngle.Angle90)]
-    public void GeneratePath_PreservesTargetAngle(DiverterAngle angle)
+    [InlineData(DiverterDirection.Straight)]
+    [InlineData(DiverterDirection.Left)]
+    [InlineData(DiverterDirection.Right)]
+    public void GeneratePath_PreservesTargetDirection(DiverterDirection direction)
     {
         // Arrange
         var chuteId = "Chute01";
@@ -255,7 +255,7 @@ public class DefaultSwitchingPathGeneratorTests
                 new DiverterConfigurationEntry
                 {
                     DiverterId = "Diverter1",
-                    TargetAngle = angle,
+                    TargetDirection = direction,
                     SequenceNumber = 1
                 }
             }
@@ -268,6 +268,6 @@ public class DefaultSwitchingPathGeneratorTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(angle, result.Segments[0].TargetAngle);
+        Assert.Equal(direction, result.Segments[0].TargetDirection);
     }
 }
