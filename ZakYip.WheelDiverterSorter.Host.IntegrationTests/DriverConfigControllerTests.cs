@@ -18,7 +18,7 @@ public class DriverConfigControllerTests : IClassFixture<CustomWebApplicationFac
     public async Task GetDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/drivers");
+        var response = await _client.GetAsync("/api/config/driver");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -29,7 +29,7 @@ public class DriverConfigControllerTests : IClassFixture<CustomWebApplicationFac
     public async Task GetDriverConfig_ReturnsJsonContent()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/drivers");
+        var response = await _client.GetAsync("/api/config/driver");
 
         // Assert
         Assert.Contains("application/json", response.Content.Headers.ContentType?.ToString() ?? "");
