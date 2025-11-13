@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj" />
+    <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Execution\ZakYip.WheelDiverterSorter.Execution.csproj" />
   </ItemGroup>
 
 </Project>
