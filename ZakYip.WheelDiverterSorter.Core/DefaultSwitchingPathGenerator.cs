@@ -94,8 +94,12 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <param name="segmentConfig">段配置</param>
     /// <returns>计算得到的TTL（毫秒）</returns>
     /// <remarks>
-    /// 计算公式：TTL = (段长度 / 段速度) * 1000 + 容差时间
-    /// 如果计算结果小于最小TTL，使用最小TTL
+    /// <para><strong>计算公式：</strong>TTL = (段长度 / 段速度) * 1000 + 容差时间</para>
+    /// <para><strong>最小值保证：</strong>如果计算结果小于最小TTL（1000ms），使用最小TTL</para>
+    /// <para><strong>容差验证：</strong>容差时间应该合理设置，确保不会与下一个包裹到达时间重叠。
+    /// 理想的容差时间应该小于包裹间隔时间的一半，以避免两个包裹的超时检测窗口重叠。</para>
+    /// <para><strong>建议配置：</strong>如果包裹间隔时间为X毫秒，容差时间应 &lt; X/2，
+    /// 例如：包裹间隔1000ms，则容差应 &lt; 500ms；包裹间隔500ms，则容差应 &lt; 250ms</para>
     /// </remarks>
     private int CalculateSegmentTtl(DiverterConfigurationEntry segmentConfig)
     {
@@ -108,5 +112,30 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         // 确保TTL不小于最小值（1秒）
         const int MinTtlMs = 1000;
         return Math.Max(calculatedTtl, MinTtlMs);
+    }
+
+    /// <summary>
+    /// 验证段配置的容差时间是否合理
+    /// </summary>
+    /// <param name="segmentConfig">段配置</param>
+    /// <param name="parcelIntervalMs">包裹间隔时间（毫秒）- 两个连续包裹之间的时间间隔</param>
+    /// <returns>验证结果：true表示容差时间合理，false表示可能导致超时窗口重叠</returns>
+    /// <remarks>
+    /// <para>为了避免相邻包裹的超时检测窗口重叠，容差时间应该满足以下条件：</para>
+    /// <para><strong>验证规则：</strong>容差时间 &lt; 包裹间隔时间 / 2</para>
+    /// <para><strong>原理：</strong>如果包裹A在时刻T到达，包裹B在时刻T+间隔到达，
+    /// 那么包裹A的超时窗口为[T-容差, T+容差]，包裹B的窗口为[T+间隔-容差, T+间隔+容差]。
+    /// 为避免重叠，需要T+容差 &lt; T+间隔-容差，即2*容差 &lt; 间隔，即容差 &lt; 间隔/2</para>
+    /// </remarks>
+    public static bool ValidateToleranceTime(DiverterConfigurationEntry segmentConfig, int parcelIntervalMs)
+    {
+        if (parcelIntervalMs <= 0)
+        {
+            throw new ArgumentException("包裹间隔时间必须大于0", nameof(parcelIntervalMs));
+        }
+
+        // 容差时间应该小于包裹间隔时间的一半
+        // 这样可以确保相邻包裹的超时检测窗口不会重叠
+        return segmentConfig.SegmentToleranceTimeMs < (parcelIntervalMs / 2.0);
     }
 }
