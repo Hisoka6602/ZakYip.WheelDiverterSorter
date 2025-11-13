@@ -30,31 +30,31 @@ public class PathGenerationBenchmarks
         // 添加测试路由配置
         var routeA = new ChuteRouteConfiguration
         {
-            ChuteId = "CHUTE_A",
+            ChuteId = 1,
             DiverterConfigurations = new List<DiverterConfigurationEntry>
             {
-                new() { DiverterId = "D1", TargetDirection = DiverterDirection.Right, SequenceNumber = 1 }
+                new() { DiverterId = 1, TargetDirection = DiverterDirection.Right, SequenceNumber = 1 }
             },
             IsEnabled = true
         };
 
         var routeB = new ChuteRouteConfiguration
         {
-            ChuteId = "CHUTE_B",
+            ChuteId = 2,
             DiverterConfigurations = new List<DiverterConfigurationEntry>
             {
-                new() { DiverterId = "D1", TargetDirection = DiverterDirection.Left, SequenceNumber = 1 }
+                new() { DiverterId = 1, TargetDirection = DiverterDirection.Left, SequenceNumber = 1 }
             },
             IsEnabled = true
         };
 
         var routeC = new ChuteRouteConfiguration
         {
-            ChuteId = "CHUTE_C",
+            ChuteId = 3,
             DiverterConfigurations = new List<DiverterConfigurationEntry>
             {
-                new() { DiverterId = "D1", TargetDirection = DiverterDirection.Straight, SequenceNumber = 1 },
-                new() { DiverterId = "D2", TargetDirection = DiverterDirection.Right, SequenceNumber = 2 }
+                new() { DiverterId = 1, TargetDirection = DiverterDirection.Straight, SequenceNumber = 1 },
+                new() { DiverterId = 2, TargetDirection = DiverterDirection.Right, SequenceNumber = 2 }
             },
             IsEnabled = true
         };
@@ -91,19 +91,19 @@ public class PathGenerationBenchmarks
     [Benchmark]
     public SwitchingPath? GeneratePath_SingleSegment()
     {
-        return _generator.GeneratePath("CHUTE_B");
+        return _generator.GeneratePath(2);
     }
 
     [Benchmark]
     public SwitchingPath? GeneratePath_TwoSegments()
     {
-        return _generator.GeneratePath("CHUTE_A");
+        return _generator.GeneratePath(1);
     }
 
     [Benchmark]
     public SwitchingPath? GeneratePath_Unknown()
     {
-        return _generator.GeneratePath("CHUTE_UNKNOWN");
+        return _generator.GeneratePath(999);
     }
 
     [Benchmark]
@@ -111,7 +111,7 @@ public class PathGenerationBenchmarks
     {
         for (int i = 0; i < 100; i++)
         {
-            var chuteId = i % 3 == 0 ? "CHUTE_A" : (i % 3 == 1 ? "CHUTE_B" : "CHUTE_C");
+            var chuteId = i % 3 == 0 ? 1 : (i % 3 == 1 ? 2 : 3);
             _generator.GeneratePath(chuteId);
         }
     }

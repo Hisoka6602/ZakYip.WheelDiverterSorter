@@ -33,7 +33,7 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         // Assert
         Assert.NotNull(config);
         Assert.Equal("system", config.ConfigName);
-        Assert.Equal("CHUTE_EXCEPTION", config.ExceptionChuteId);
+        Assert.Equal(999, config.ExceptionChuteId);
         Assert.Equal(1883, config.MqttDefaultPort);
         Assert.Equal(8888, config.TcpDefaultPort);
     }
@@ -60,7 +60,7 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         // Assert
         Assert.NotNull(config);
         Assert.Equal("system", config.ConfigName);
-        Assert.Equal("CHUTE_EXCEPTION", config.ExceptionChuteId);
+        Assert.Equal(999, config.ExceptionChuteId);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         // Arrange
         _repository.InitializeDefault();
         var newConfig = SystemConfiguration.GetDefault();
-        newConfig.ExceptionChuteId = "CUSTOM_EXCEPTION";
+        newConfig.ExceptionChuteId = 888;
         newConfig.MqttDefaultPort = 1884;
 
         // Act
@@ -77,7 +77,7 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         var updated = _repository.Get();
 
         // Assert
-        Assert.Equal("CUSTOM_EXCEPTION", updated.ExceptionChuteId);
+        Assert.Equal(888, updated.ExceptionChuteId);
         Assert.Equal(1884, updated.MqttDefaultPort);
         Assert.Equal(2, updated.Version); // Version should increment
     }
@@ -87,11 +87,11 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
     {
         // Arrange
         var invalidConfig = SystemConfiguration.GetDefault();
-        invalidConfig.ExceptionChuteId = ""; // Invalid
+        invalidConfig.ExceptionChuteId = 0; // Invalid
 
         // Act & Assert
         var exception = Assert.Throws<ArgumentException>(() => _repository.Update(invalidConfig));
-        Assert.Contains("异常格口ID不能为空", exception.Message);
+        Assert.Contains("异常格口ID必须大于0", exception.Message);
     }
 
     [Fact]
