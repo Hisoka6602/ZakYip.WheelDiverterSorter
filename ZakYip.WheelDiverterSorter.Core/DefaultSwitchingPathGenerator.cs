@@ -74,7 +74,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             {
                 SequenceNumber = index + 1,
                 DiverterId = config.DiverterId,
-                TargetAngle = config.TargetAngle,
+                TargetDirection = config.TargetDirection,
                 TtlMilliseconds = DefaultSegmentTtlMs
             })
             .ToList();

@@ -321,7 +321,7 @@ public class RouteConfigController : ControllerBase
                 .Select(d => new DiverterConfigurationEntry
                 {
                     DiverterId = d.DiverterId,
-                    TargetAngle = d.TargetAngle,
+                    TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber
                 })
                 .ToList(),
@@ -354,7 +354,7 @@ public class RouteConfigController : ControllerBase
                 .Select(d => new DiverterConfigRequest
                 {
                     DiverterId = d.DiverterId,
-                    TargetAngle = d.TargetAngle,
+                    TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber
                 })
                 .ToList(),

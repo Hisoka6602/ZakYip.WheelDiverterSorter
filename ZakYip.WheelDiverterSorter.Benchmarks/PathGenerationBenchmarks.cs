@@ -32,8 +32,7 @@ public class PathGenerationBenchmarks
             ChuteId = "CHUTE_A",
             DiverterConfigurations = new List<DiverterConfigurationEntry>
             {
-                new() { DiverterId = "D1", TargetAngle = DiverterAngle.Angle30, SequenceNumber = 1 },
-                new() { DiverterId = "D2", TargetAngle = DiverterAngle.Angle45, SequenceNumber = 2 }
+                new() { DiverterId = "D1", TargetDirection = DiverterDirection.Right, SequenceNumber = 1 }
             },
             IsEnabled = true
         };
@@ -43,7 +42,7 @@ public class PathGenerationBenchmarks
             ChuteId = "CHUTE_B",
             DiverterConfigurations = new List<DiverterConfigurationEntry>
             {
-                new() { DiverterId = "D1", TargetAngle = DiverterAngle.Angle0, SequenceNumber = 1 }
+                new() { DiverterId = "D1", TargetDirection = DiverterDirection.Left, SequenceNumber = 1 }
             },
             IsEnabled = true
         };
@@ -53,8 +52,8 @@ public class PathGenerationBenchmarks
             ChuteId = "CHUTE_C",
             DiverterConfigurations = new List<DiverterConfigurationEntry>
             {
-                new() { DiverterId = "D1", TargetAngle = DiverterAngle.Angle90, SequenceNumber = 1 },
-                new() { DiverterId = "D3", TargetAngle = DiverterAngle.Angle30, SequenceNumber = 2 }
+                new() { DiverterId = "D1", TargetDirection = DiverterDirection.Straight, SequenceNumber = 1 },
+                new() { DiverterId = "D2", TargetDirection = DiverterDirection.Right, SequenceNumber = 2 }
             },
             IsEnabled = true
         };

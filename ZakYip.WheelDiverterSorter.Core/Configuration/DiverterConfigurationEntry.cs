@@ -11,9 +11,9 @@ public class DiverterConfigurationEntry
     public required string DiverterId { get; set; }
 
     /// <summary>
-    /// 目标摆轮角度
+    /// 目标摆轮转向方向
     /// </summary>
-    public required DiverterAngle TargetAngle { get; set; }
+    public required DiverterDirection TargetDirection { get; set; }
 
     /// <summary>
     /// 段的顺序号，从1开始
