@@ -13,9 +13,9 @@ public interface IDiverterResourceLockManager
     /// <summary>
     /// 获取指定摆轮的资源锁
     /// </summary>
-    /// <param name="diverterId">摆轮ID</param>
+    /// <param name="diverterId">摆轮ID（数字ID）</param>
     /// <returns>摆轮资源锁</returns>
-    IDiverterResourceLock GetLock(string diverterId);
+    IDiverterResourceLock GetLock(int diverterId);
 }
 
 /// <summary>
@@ -23,7 +23,7 @@ public interface IDiverterResourceLockManager
 /// </summary>
 public class DiverterResourceLockManager : IDiverterResourceLockManager, IDisposable
 {
-    private readonly ConcurrentDictionary<string, DiverterResourceLock> _locks;
+    private readonly ConcurrentDictionary<int, DiverterResourceLock> _locks;
     private bool _disposed;
 
     /// <summary>
@@ -31,18 +31,18 @@ public class DiverterResourceLockManager : IDiverterResourceLockManager, IDispos
     /// </summary>
     public DiverterResourceLockManager()
     {
-        _locks = new ConcurrentDictionary<string, DiverterResourceLock>();
+        _locks = new ConcurrentDictionary<int, DiverterResourceLock>();
     }
 
     /// <inheritdoc/>
-    public IDiverterResourceLock GetLock(string diverterId)
+    public IDiverterResourceLock GetLock(int diverterId)
     {
-        if (string.IsNullOrWhiteSpace(diverterId))
+        if (diverterId <= 0)
         {
-            throw new ArgumentException("摆轮ID不能为空", nameof(diverterId));
+            throw new ArgumentException("摆轮ID必须大于0", nameof(diverterId));
         }
 
-        return _locks.GetOrAdd(diverterId, id => new DiverterResourceLock(id));
+        return _locks.GetOrAdd(diverterId, id => new DiverterResourceLock(id.ToString()));
     }
 
     /// <summary>

@@ -11,7 +11,7 @@ public record class PathExecutionResult
     public required bool IsSuccess { get; init; }
 
     /// <summary>
-    /// 实际落格的格口标识
+    /// 实际落格的格口标识（数字ID）
     /// </summary>
     /// <remarks>
     /// <para>当执行成功时，此值应等于 <see cref="SwitchingPath.TargetChuteId"/>；</para>
@@ -19,7 +19,7 @@ public record class PathExecutionResult
     /// <para>注意：如果旧代码中存在硬编码的异常口逻辑，应统一使用 
     /// <see cref="SwitchingPath.FallbackChuteId"/> 字段，删除旧的实现方式。</para>
     /// </remarks>
-    public required string ActualChuteId { get; init; }
+    public required int ActualChuteId { get; init; }
 
     /// <summary>
     /// 失败原因说明

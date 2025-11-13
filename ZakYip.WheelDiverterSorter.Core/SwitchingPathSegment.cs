@@ -11,9 +11,9 @@ public record class SwitchingPathSegment
     public required int SequenceNumber { get; init; }
 
     /// <summary>
-    /// 摆轮标识或设备ID
+    /// 摆轮标识（数字ID）
     /// </summary>
-    public required string DiverterId { get; init; }
+    public required int DiverterId { get; init; }
 
     /// <summary>
     /// 目标摆轮转向方向

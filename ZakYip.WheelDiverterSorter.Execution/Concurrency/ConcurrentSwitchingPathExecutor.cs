@@ -25,6 +25,14 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
     /// <summary>
     /// 清理日志字符串，防止日志注入
     /// </summary>
+    private static string SanitizeForLog(int input)
+    {
+        return input.ToString();
+    }
+
+    /// <summary>
+    /// 清理日志字符串，防止日志注入
+    /// </summary>
     private static string SanitizeForLog(string input)
     {
         if (string.IsNullOrEmpty(input))
