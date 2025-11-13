@@ -13,7 +13,7 @@ public class SystemConfigurationTests
 
         // Assert
         Assert.Equal("system", config.ConfigName);
-        Assert.Equal("CHUTE_EXCEPTION", config.ExceptionChuteId);
+        Assert.Equal(999, config.ExceptionChuteId);
         Assert.Equal(1883, config.MqttDefaultPort);
         Assert.Equal(8888, config.TcpDefaultPort);
         Assert.Equal(10000, config.ChuteAssignmentTimeoutMs);
@@ -39,14 +39,13 @@ public class SystemConfigurationTests
     }
 
     [Theory]
-    [InlineData("", "异常格口ID不能为空")]
-    [InlineData(null, "异常格口ID不能为空")]
-    [InlineData("   ", "异常格口ID不能为空")]
-    public void Validate_WithInvalidExceptionChuteId_ReturnsFalse(string? chuteId, string expectedError)
+    [InlineData(0, "异常格口ID必须大于0")]
+    [InlineData(-1, "异常格口ID必须大于0")]
+    public void Validate_WithInvalidExceptionChuteId_ReturnsFalse(int chuteId, string expectedError)
     {
         // Arrange
         var config = SystemConfiguration.GetDefault();
-        config.ExceptionChuteId = chuteId!;
+        config.ExceptionChuteId = chuteId;
 
         // Act
         var (isValid, errorMessage) = config.Validate();

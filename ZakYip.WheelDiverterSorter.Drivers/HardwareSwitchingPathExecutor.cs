@@ -61,7 +61,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
         {
             _logger.LogInformation(
                 "开始执行路径，目标格口: {TargetChuteId}，段数: {SegmentCount}",
-                SanitizeForLog(path.TargetChuteId), path.Segments.Count);
+                SanitizeForLog(path.TargetChuteId.ToString()), path.Segments.Count);
 
             // 按顺序执行每个路径段
             foreach (var segment in path.Segments)
@@ -73,7 +73,8 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                     segment.SequenceNumber, segment.DiverterId, segment.TargetDirection, segment.TtlMilliseconds);
 
                 // 检查摆轮是否存在
-                if (!_diverters.TryGetValue(segment.DiverterId, out var diverter))
+                var diverterIdString = segment.DiverterId.ToString();
+                if (!_diverters.TryGetValue(diverterIdString, out var diverter))
                 {
                     _logger.LogError("找不到摆轮控制器: {DiverterId}", segment.DiverterId);
                     return new PathExecutionResult
@@ -134,7 +135,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
             // 所有段执行成功
             _logger.LogInformation(
                 "路径执行成功，到达目标格口: {TargetChuteId}",
-                SanitizeForLog(path.TargetChuteId));
+                SanitizeForLog(path.TargetChuteId.ToString()));
 
             return new PathExecutionResult
             {

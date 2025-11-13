@@ -21,7 +21,7 @@ public class DefaultSwitchingPathGeneratorTests
     public void GeneratePath_WithValidChuteId_ReturnsValidPath()
     {
         // Arrange
-        var chuteId = "Chute01";
+        var chuteId = 1;
         var config = new ChuteRouteConfiguration
         {
             ChuteId = chuteId,
@@ -29,13 +29,13 @@ public class DefaultSwitchingPathGeneratorTests
             {
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 },
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter2",
+                    DiverterId = 2,
                     TargetDirection = DiverterDirection.Left,
                     SequenceNumber = 2
                 }
@@ -51,10 +51,10 @@ public class DefaultSwitchingPathGeneratorTests
         Assert.NotNull(result);
         Assert.Equal(chuteId, result.TargetChuteId);
         Assert.Equal(2, result.Segments.Count);
-        Assert.Equal("Diverter1", result.Segments[0].DiverterId);
+        Assert.Equal(1, result.Segments[0].DiverterId);
         Assert.Equal(DiverterDirection.Straight, result.Segments[0].TargetDirection);
         Assert.Equal(1, result.Segments[0].SequenceNumber);
-        Assert.Equal("Diverter2", result.Segments[1].DiverterId);
+        Assert.Equal(2, result.Segments[1].DiverterId);
         Assert.Equal(DiverterDirection.Left, result.Segments[1].TargetDirection);
         Assert.Equal(2, result.Segments[1].SequenceNumber);
         Assert.Equal(WellKnownChuteIds.DefaultException, result.FallbackChuteId);
@@ -64,40 +64,40 @@ public class DefaultSwitchingPathGeneratorTests
     public void GeneratePath_WithNullChuteId_ReturnsNull()
     {
         // Act
-        var result = _generator.GeneratePath(null!);
+        var result = _generator.GeneratePath(0);
 
         // Assert
         Assert.Null(result);
-        _mockRepository.Verify(r => r.GetByChuteId(It.IsAny<string>()), Times.Never);
+        _mockRepository.Verify(r => r.GetByChuteId(It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
     public void GeneratePath_WithEmptyChuteId_ReturnsNull()
     {
         // Act
-        var result = _generator.GeneratePath(string.Empty);
+        var result = _generator.GeneratePath(0);
 
         // Assert
         Assert.Null(result);
-        _mockRepository.Verify(r => r.GetByChuteId(It.IsAny<string>()), Times.Never);
+        _mockRepository.Verify(r => r.GetByChuteId(It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
     public void GeneratePath_WithWhitespaceChuteId_ReturnsNull()
     {
         // Act
-        var result = _generator.GeneratePath("   ");
+        var result = _generator.GeneratePath(0);
 
         // Assert
         Assert.Null(result);
-        _mockRepository.Verify(r => r.GetByChuteId(It.IsAny<string>()), Times.Never);
+        _mockRepository.Verify(r => r.GetByChuteId(It.IsAny<int>()), Times.Never);
     }
 
     [Fact]
     public void GeneratePath_WhenConfigNotFound_ReturnsNull()
     {
         // Arrange
-        var chuteId = "NonExistentChute";
+        var chuteId = 999;
         _mockRepository.Setup(r => r.GetByChuteId(chuteId)).Returns((ChuteRouteConfiguration?)null);
 
         // Act
@@ -112,7 +112,7 @@ public class DefaultSwitchingPathGeneratorTests
     public void GeneratePath_WhenConfigHasEmptyDiverters_ReturnsNull()
     {
         // Arrange
-        var chuteId = "Chute01";
+        var chuteId = 1;
         var config = new ChuteRouteConfiguration
         {
             ChuteId = chuteId,
@@ -132,7 +132,7 @@ public class DefaultSwitchingPathGeneratorTests
     public void GeneratePath_OrdersSegmentsBySequenceNumber()
     {
         // Arrange
-        var chuteId = "Chute01";
+        var chuteId = 1;
         var config = new ChuteRouteConfiguration
         {
             ChuteId = chuteId,
@@ -140,19 +140,19 @@ public class DefaultSwitchingPathGeneratorTests
             {
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter3",
+                    DiverterId = 3,
                     TargetDirection = DiverterDirection.Right,
                     SequenceNumber = 3
                 },
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 },
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter2",
+                    DiverterId = 2,
                     TargetDirection = DiverterDirection.Left,
                     SequenceNumber = 2
                 }
@@ -167,16 +167,16 @@ public class DefaultSwitchingPathGeneratorTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(3, result.Segments.Count);
-        Assert.Equal("Diverter1", result.Segments[0].DiverterId);
-        Assert.Equal("Diverter2", result.Segments[1].DiverterId);
-        Assert.Equal("Diverter3", result.Segments[2].DiverterId);
+        Assert.Equal(1, result.Segments[0].DiverterId);
+        Assert.Equal(2, result.Segments[1].DiverterId);
+        Assert.Equal(3, result.Segments[2].DiverterId);
     }
 
     [Fact]
     public void GeneratePath_SetsDefaultTtlForAllSegments()
     {
         // Arrange
-        var chuteId = "Chute01";
+        var chuteId = 1;
         var config = new ChuteRouteConfiguration
         {
             ChuteId = chuteId,
@@ -184,7 +184,7 @@ public class DefaultSwitchingPathGeneratorTests
             {
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 }
@@ -212,7 +212,7 @@ public class DefaultSwitchingPathGeneratorTests
     public void GeneratePath_SetsGeneratedAtToCurrentTime()
     {
         // Arrange
-        var chuteId = "Chute01";
+        var chuteId = 1;
         var config = new ChuteRouteConfiguration
         {
             ChuteId = chuteId,
@@ -220,7 +220,7 @@ public class DefaultSwitchingPathGeneratorTests
             {
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1
                 }
@@ -247,7 +247,7 @@ public class DefaultSwitchingPathGeneratorTests
     public void GeneratePath_PreservesTargetDirection(DiverterDirection direction)
     {
         // Arrange
-        var chuteId = "Chute01";
+        var chuteId = 1;
         var config = new ChuteRouteConfiguration
         {
             ChuteId = chuteId,
@@ -255,7 +255,7 @@ public class DefaultSwitchingPathGeneratorTests
             {
                 new DiverterConfigurationEntry
                 {
-                    DiverterId = "Diverter1",
+                    DiverterId = 1,
                     TargetDirection = direction,
                     SequenceNumber = 1
                 }

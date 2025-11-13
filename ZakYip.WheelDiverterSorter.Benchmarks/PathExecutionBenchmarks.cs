@@ -22,43 +22,43 @@ public class PathExecutionBenchmarks
 
         _singleSegmentPath = new SwitchingPath
         {
-            TargetChuteId = "CHUTE_B",
+            TargetChuteId = 2,
             Segments = new List<SwitchingPathSegment>
             {
                 new()
                 {
                     SequenceNumber = 1,
-                    DiverterId = "D1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly(),
             GeneratedAt = DateTimeOffset.UtcNow,
-            FallbackChuteId = "CHUTE_EXCEPTION"
+            FallbackChuteId = WellKnownChuteIds.DefaultException
         };
 
         _twoSegmentPath = new SwitchingPath
         {
-            TargetChuteId = "CHUTE_A",
+            TargetChuteId = 1,
             Segments = new List<SwitchingPathSegment>
             {
                 new()
                 {
                     SequenceNumber = 1,
-                    DiverterId = "D1",
+                    DiverterId = 1,
                     TargetDirection = DiverterDirection.Right,
                     TtlMilliseconds = 5000
                 },
                 new()
                 {
                     SequenceNumber = 2,
-                    DiverterId = "D2",
+                    DiverterId = 2,
                     TargetDirection = DiverterDirection.Left,
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly(),
             GeneratedAt = DateTimeOffset.UtcNow,
-            FallbackChuteId = "CHUTE_EXCEPTION"
+            FallbackChuteId = WellKnownChuteIds.DefaultException
         };
     }
 
