@@ -61,6 +61,10 @@ public static class DriverServiceExtensions
             var config = new LeadshineDiverterConfig
             {
                 DiverterId = configDto.DiverterId,
+                DiverterName = configDto.DiverterName,
+                ConnectedConveyorLengthMm = configDto.ConnectedConveyorLengthMm,
+                ConnectedConveyorSpeedMmPerSec = configDto.ConnectedConveyorSpeedMmPerSec,
+                DiverterSpeedMmPerSec = configDto.DiverterSpeedMmPerSec,
                 OutputStartBit = configDto.OutputStartBit,
                 FeedbackInputBit = configDto.FeedbackInputBit
             };
