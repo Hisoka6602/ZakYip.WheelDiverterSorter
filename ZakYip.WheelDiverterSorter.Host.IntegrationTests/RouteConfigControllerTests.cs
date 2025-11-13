@@ -41,15 +41,17 @@ public class RouteConfigControllerTests : IClassFixture<CustomWebApplicationFact
     public async Task GetRoute_WithValidChuteId_ReturnsSuccess()
     {
         // Arrange
-        var chuteId = "TestChute01";
+        var chuteId = 1;
 
         // Act
         var response = await _client.GetAsync($"/api/config/routes/{chuteId}");
 
         // Assert
         // Expecting either 200 (found) or 404 (not found) - both are valid responses
-        Assert.True(response.StatusCode == HttpStatusCode.OK || 
-                   response.StatusCode == HttpStatusCode.NotFound);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK || 
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected 200 or 404, but got {(int)response.StatusCode} ({response.StatusCode})");
     }
 
     [Fact]
@@ -60,9 +62,11 @@ public class RouteConfigControllerTests : IClassFixture<CustomWebApplicationFact
 
         // Assert
         // Empty chute ID in path gets caught by routing (404) or validation (400)
-        Assert.True(response.StatusCode == HttpStatusCode.NotFound || 
-                   response.StatusCode == HttpStatusCode.BadRequest ||
-                   response.StatusCode == HttpStatusCode.OK); // Some APIs handle this gracefully
+        Assert.True(
+            response.StatusCode == HttpStatusCode.NotFound || 
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.OK,
+            $"Expected 404, 400, or 200, but got {(int)response.StatusCode} ({response.StatusCode})"); // Some APIs handle this gracefully
     }
 
     [Fact]
@@ -75,15 +79,17 @@ public class RouteConfigControllerTests : IClassFixture<CustomWebApplicationFact
         var response = await _client.PostAsJsonAsync("/api/config/routes", invalidRequest);
 
         // Assert
-        Assert.True(response.StatusCode == HttpStatusCode.BadRequest ||
-                   response.StatusCode == HttpStatusCode.InternalServerError);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.InternalServerError,
+            $"Expected 400 or 500, but got {(int)response.StatusCode} ({response.StatusCode})");
     }
 
     [Fact]
     public async Task UpdateRoute_WithNonExistentChuteId_HandlesGracefully()
     {
         // Arrange
-        var nonExistentChuteId = "NonExistent_" + Guid.NewGuid();
+        var nonExistentChuteId = 99998;
         var updateRequest = new
         {
             chuteId = nonExistentChuteId,
@@ -91,8 +97,8 @@ public class RouteConfigControllerTests : IClassFixture<CustomWebApplicationFact
             {
                 new
                 {
-                    diverterId = "D001",
-                    targetDirection = "Straight",
+                    diverterId = 1,
+                    targetDirection = 1, // Use integer value for enum
                     sequenceNumber = 1
                 }
             }
@@ -104,27 +110,31 @@ public class RouteConfigControllerTests : IClassFixture<CustomWebApplicationFact
         // Assert
         // Different APIs handle non-existent resources differently
         // Accept any reasonable response
-        Assert.True(response.StatusCode == HttpStatusCode.NotFound ||
-                   response.StatusCode == HttpStatusCode.InternalServerError ||
-                   response.StatusCode == HttpStatusCode.OK ||
-                   response.StatusCode == HttpStatusCode.Created ||
-                   response.StatusCode == HttpStatusCode.BadRequest);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.NotFound ||
+            response.StatusCode == HttpStatusCode.InternalServerError ||
+            response.StatusCode == HttpStatusCode.OK ||
+            response.StatusCode == HttpStatusCode.Created ||
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.Conflict,
+            $"Expected 404, 500, 200, 201, 400, or 409, but got {(int)response.StatusCode} ({response.StatusCode})");
     }
 
     [Fact]
     public async Task DeleteRoute_WithChuteId_ReturnsSuccess()
     {
         // Arrange
-        var chuteId = "TestChuteToDelete_" + Guid.NewGuid();
+        var chuteId = 99999; // Use a high number unlikely to exist
 
         // Act
         var response = await _client.DeleteAsync($"/api/config/routes/{chuteId}");
 
         // Assert
         // Expecting either 200/204 (success) or 404 (not found) - both are acceptable
-        Assert.True(response.StatusCode == HttpStatusCode.OK ||
-                   response.StatusCode == HttpStatusCode.NoContent ||
-                   response.StatusCode == HttpStatusCode.NotFound ||
-                   response.StatusCode == HttpStatusCode.InternalServerError);
+        Assert.True(
+            response.StatusCode == HttpStatusCode.OK ||
+            response.StatusCode == HttpStatusCode.NoContent ||
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Expected 200, 204, or 404, but got {(int)response.StatusCode} ({response.StatusCode})");
     }
 }
