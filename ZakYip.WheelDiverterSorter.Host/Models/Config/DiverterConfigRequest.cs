@@ -12,9 +12,9 @@ public class DiverterConfigRequest {
     /// <summary>
     /// 摆轮标识或设备ID
     /// </summary>
-    /// <example>DIV-001</example>
+    /// <example>1</example>
     [Required(ErrorMessage = "摆轮ID不能为空")]
-    public string DiverterId { get; set; }
+    public int DiverterId { get; set; }
 
     /// <summary>
     /// 目标摆轮转向方向（直行、左转、右转）

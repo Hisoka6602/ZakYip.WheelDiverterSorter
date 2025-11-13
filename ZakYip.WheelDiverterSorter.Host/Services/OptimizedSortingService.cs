@@ -36,7 +36,7 @@ public class OptimizedSortingService
     /// </summary>
     public async Task<PathExecutionResult> SortParcelAsync(
         string parcelId, 
-        string targetChuteId, 
+        int targetChuteId, 
         CancellationToken cancellationToken = default)
     {
         var overallStopwatch = Stopwatch.StartNew();
@@ -63,7 +63,7 @@ public class OptimizedSortingService
                 return new PathExecutionResult
                 {
                     IsSuccess = false,
-                    ActualChuteId = "UNKNOWN",
+                    ActualChuteId = 0,
                     FailureReason = "目标格口无法映射到任何摆轮组合"
                 };
             }
@@ -111,7 +111,7 @@ public class OptimizedSortingService
             return new PathExecutionResult
             {
                 IsSuccess = false,
-                ActualChuteId = "EXCEPTION",
+                ActualChuteId = 0,
                 FailureReason = $"执行异常: {ex.Message}"
             };
         }
@@ -121,7 +121,7 @@ public class OptimizedSortingService
     /// 批量分拣（使用对象池和并行处理优化）
     /// </summary>
     public async Task<List<PathExecutionResult>> SortBatchAsync(
-        IEnumerable<(string ParcelId, string ChuteId)> parcels,
+        IEnumerable<(string ParcelId, int ChuteId)> parcels,
         CancellationToken cancellationToken = default)
     {
         var tasks = parcels

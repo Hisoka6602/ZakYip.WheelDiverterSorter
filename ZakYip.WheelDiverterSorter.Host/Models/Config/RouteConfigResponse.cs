@@ -14,8 +14,8 @@ public class RouteConfigResponse
     /// <summary>
     /// 目标格口标识
     /// </summary>
-    /// <example>CHUTE-01</example>
-    public required string ChuteId { get; set; }
+    /// <example>1</example>
+    public required int ChuteId { get; set; }
 
     /// <summary>
     /// 格口名称（可选）- Chute Name (Optional)

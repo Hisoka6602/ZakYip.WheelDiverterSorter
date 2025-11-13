@@ -61,10 +61,10 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 404)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RouteConfigResponse> GetRoute(string chuteId) {
+    public ActionResult<RouteConfigResponse> GetRoute(int chuteId) {
         try {
-            if (string.IsNullOrWhiteSpace(chuteId)) {
-                return BadRequest(new { message = "格口ID不能为空" });
+            if (chuteId <= 0) {
+                return BadRequest(new { message = "格口ID必须大于0" });
             }
 
             var config = _repository.GetByChuteId(chuteId);
@@ -75,7 +75,7 @@ public class RouteConfigController : ControllerBase {
             return Ok(MapToResponse(config));
         }
         catch (Exception ex) {
-            _logger.LogError(ex, "获取格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(chuteId));
+            _logger.LogError(ex, "获取格口 {ChuteId} 的配置失败", chuteId);
             return StatusCode(500, new { message = "获取配置失败" });
         }
     }
@@ -94,16 +94,16 @@ public class RouteConfigController : ControllerBase {
     ///
     ///     POST /api/config/routes
     ///     {
-    ///         "chuteId": "CHUTE-01",
+    ///         "chuteId": 1,
     ///         "diverterConfigurations": [
     ///             {
-    ///                 "diverterId": "DIV-001",
-    ///                 "targetAngle": 45,
+    ///                 "diverterId": 1,
+    ///                 "targetDirection": 1,
     ///                 "sequenceNumber": 1
     ///             },
     ///             {
-    ///                 "diverterId": "DIV-002",
-    ///                 "targetAngle": 30,
+    ///                 "diverterId": 2,
+    ///                 "targetDirection": 1,
     ///                 "sequenceNumber": 2
     ///             }
     ///         ],
@@ -118,8 +118,8 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<RouteConfigResponse> CreateRoute([FromBody] RouteConfigRequest request) {
         try {
-            if (string.IsNullOrWhiteSpace(request.ChuteId)) {
-                return BadRequest(new { message = "格口ID不能为空" });
+            if (request.ChuteId <= 0) {
+                return BadRequest(new { message = "格口ID必须大于0" });
             }
 
             if (request.DiverterConfigurations == null || request.DiverterConfigurations.Count == 0) {
@@ -147,11 +147,11 @@ public class RouteConfigController : ControllerBase {
             var config = MapToConfiguration(request);
             _repository.Upsert(config);
 
-            _logger.LogInformation("创建格口 {ChuteId} 的路由配置成功", LoggingHelper.SanitizeForLogging(request.ChuteId));
+            _logger.LogInformation("创建格口 {ChuteId} 的路由配置成功", request.ChuteId);
             return CreatedAtAction(nameof(GetRoute), new { chuteId = request.ChuteId }, MapToResponse(config));
         }
         catch (Exception ex) {
-            _logger.LogError(ex, "创建格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(request.ChuteId));
+            _logger.LogError(ex, "创建格口 {ChuteId} 的配置失败", request.ChuteId);
             return StatusCode(500, new { message = "创建配置失败" });
         }
     }
@@ -168,13 +168,13 @@ public class RouteConfigController : ControllerBase {
     /// <remarks>
     /// 示例请求:
     ///
-    ///     PUT /api/config/routes/CHUTE-01
+    ///     PUT /api/config/routes/1
     ///     {
-    ///         "chuteId": "CHUTE-01",
+    ///         "chuteId": 1,
     ///         "diverterConfigurations": [
     ///             {
-    ///                 "diverterId": "DIV-001",
-    ///                 "targetAngle": 90,
+    ///                 "diverterId": 1,
+    ///                 "targetDirection": 2,
     ///                 "sequenceNumber": 1
     ///             }
     ///         ],
@@ -187,10 +187,10 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(RouteConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RouteConfigResponse> UpdateRoute(string chuteId, [FromBody] RouteConfigRequest request) {
+    public ActionResult<RouteConfigResponse> UpdateRoute(int chuteId, [FromBody] RouteConfigRequest request) {
         try {
-            if (string.IsNullOrWhiteSpace(chuteId)) {
-                return BadRequest(new { message = "格口ID不能为空" });
+            if (chuteId <= 0) {
+                return BadRequest(new { message = "格口ID必须大于0" });
             }
 
             if (request.DiverterConfigurations == null || request.DiverterConfigurations.Count == 0) {
@@ -215,11 +215,11 @@ public class RouteConfigController : ControllerBase {
             var config = MapToConfiguration(request);
             _repository.Upsert(config);
 
-            _logger.LogInformation("更新格口 {ChuteId} 的路由配置成功，配置已热更新", LoggingHelper.SanitizeForLogging(chuteId));
+            _logger.LogInformation("更新格口 {ChuteId} 的路由配置成功，配置已热更新", chuteId);
             return Ok(MapToResponse(config));
         }
         catch (Exception ex) {
-            _logger.LogError(ex, "更新格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(chuteId));
+            _logger.LogError(ex, "更新格口 {ChuteId} 的配置失败", chuteId);
             return StatusCode(500, new { message = "更新配置失败" });
         }
     }
@@ -238,10 +238,10 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 404)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult DeleteRoute(string chuteId) {
+    public ActionResult DeleteRoute(int chuteId) {
         try {
-            if (string.IsNullOrWhiteSpace(chuteId)) {
-                return BadRequest(new { message = "格口ID不能为空" });
+            if (chuteId <= 0) {
+                return BadRequest(new { message = "格口ID必须大于0" });
             }
 
             var success = _repository.Delete(chuteId);
@@ -249,11 +249,11 @@ public class RouteConfigController : ControllerBase {
                 return NotFound(new { message = $"格口 {chuteId} 的配置不存在" });
             }
 
-            _logger.LogInformation("删除格口 {ChuteId} 的路由配置成功", LoggingHelper.SanitizeForLogging(chuteId));
+            _logger.LogInformation("删除格口 {ChuteId} 的路由配置成功", chuteId);
             return NoContent();
         }
         catch (Exception ex) {
-            _logger.LogError(ex, "删除格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(chuteId));
+            _logger.LogError(ex, "删除格口 {ChuteId} 的配置失败", chuteId);
             return StatusCode(500, new { message = "删除配置失败" });
         }
     }
@@ -300,10 +300,10 @@ public class RouteConfigController : ControllerBase {
     ///     POST /api/config/routes/import
     ///     [
     ///         {
-    ///             "chuteId": "CHUTE-01",
+    ///             "chuteId": 1,
     ///             "diverterConfigurations": [
     ///                 {
-    ///                     "diverterId": "DIV-001",
+    ///                     "diverterId": 1,
     ///                     "targetDirection": 1,
     ///                     "sequenceNumber": 1
     ///                 }
@@ -331,8 +331,8 @@ public class RouteConfigController : ControllerBase {
             foreach (var route in routes) {
                 try {
                     // 验证配置
-                    if (string.IsNullOrWhiteSpace(route.ChuteId)) {
-                        errors.Add($"格口ID不能为空");
+                    if (route.ChuteId <= 0) {
+                        errors.Add($"格口ID必须大于0");
                         errorCount++;
                         continue;
                     }
@@ -370,7 +370,7 @@ public class RouteConfigController : ControllerBase {
                     successCount++;
                 }
                 catch (Exception ex) {
-                    _logger.LogError(ex, "导入格口 {ChuteId} 的配置失败", LoggingHelper.SanitizeForLogging(route.ChuteId));
+                    _logger.LogError(ex, "导入格口 {ChuteId} 的配置失败", route.ChuteId);
                     errors.Add($"格口 {route.ChuteId}: {ex.Message}");
                     errorCount++;
                 }
@@ -398,9 +398,9 @@ public class RouteConfigController : ControllerBase {
     /// 验证摆轮配置
     /// </summary>
     private (bool IsValid, string? ErrorMessage) ValidateDiverterConfigurations(List<DiverterConfigRequest> configs) {
-        // 检查是否有空的DiverterId
-        if (configs.Any(c => string.IsNullOrWhiteSpace(c.DiverterId))) {
-            return (false, "摆轮ID不能为空");
+        // 检查是否有无效的DiverterId
+        if (configs.Any(c => c.DiverterId <= 0)) {
+            return (false, "摆轮ID必须大于0");
         }
 
         // 检查顺序号是否连续且从1开始
@@ -429,7 +429,7 @@ public class RouteConfigController : ControllerBase {
     /// <param name="diverterConfigs">要检查的摆轮配置列表</param>
     /// <param name="excludeChuteId">要排除的格口ID（用于更新时排除自身）</param>
     /// <returns>如果存在重复则返回重复的配置，否则返回null</returns>
-    private ChuteRouteConfiguration? CheckForDuplicateRoute(List<DiverterConfigRequest> diverterConfigs, string? excludeChuteId = null) {
+    private ChuteRouteConfiguration? CheckForDuplicateRoute(List<DiverterConfigRequest> diverterConfigs, int? excludeChuteId = null) {
         var allConfigs = _repository.GetAllEnabled();
 
         // 创建当前配置的签名（按顺序的摆轮ID和方向组合）
@@ -439,7 +439,7 @@ public class RouteConfigController : ControllerBase {
 
         foreach (var existing in allConfigs) {
             // 排除指定的格口ID
-            if (!string.IsNullOrEmpty(excludeChuteId) && existing.ChuteId == excludeChuteId) {
+            if (excludeChuteId.HasValue && existing.ChuteId == excludeChuteId.Value) {
                 continue;
             }
 

@@ -10,9 +10,10 @@ public class SystemConfigRequest
     /// <summary>
     /// 异常格口ID
     /// </summary>
-    /// <example>CHUTE_EXCEPTION</example>
+    /// <example>999</example>
     [Required(ErrorMessage = "异常格口ID不能为空")]
-    public string ExceptionChuteId { get; set; } = "CHUTE_EXCEPTION";
+    [Range(1, int.MaxValue, ErrorMessage = "异常格口ID必须大于0")]
+    public int ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
     /// MQTT默认端口

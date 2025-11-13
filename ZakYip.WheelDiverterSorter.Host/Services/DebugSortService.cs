@@ -33,28 +33,24 @@ public class DebugSortService
     /// <returns>调试分拣响应</returns>
     public async Task<DebugSortResponse> ExecuteDebugSortAsync(
         string parcelId,
-        string targetChuteId,
+        int targetChuteId,
         CancellationToken cancellationToken = default)
     {
-        // 清理输入以防止日志注入攻击
-        var sanitizedParcelId = LoggingHelper.SanitizeForLogging(parcelId);
-        var sanitizedTargetChuteId = LoggingHelper.SanitizeForLogging(targetChuteId);
-
         _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", 
-            sanitizedParcelId, sanitizedTargetChuteId);
+            parcelId, targetChuteId);
 
         // 1. 调用路径生成器生成 SwitchingPath
         var path = _pathGenerator.GeneratePath(targetChuteId);
 
         if (path == null)
         {
-            _logger.LogWarning("无法生成路径: 目标格口={TargetChuteId}", sanitizedTargetChuteId);
+            _logger.LogWarning("无法生成路径: 目标格口={TargetChuteId}", targetChuteId);
             return new DebugSortResponse
             {
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
                 IsSuccess = false,
-                ActualChuteId = "未知",
+                ActualChuteId = 0,
                 Message = "路径生成失败：目标格口无法映射到任何摆轮组合",
                 FailureReason = "目标格口未配置或不存在",
                 PathSegmentCount = 0
@@ -62,13 +58,13 @@ public class DebugSortService
         }
 
         _logger.LogInformation("路径生成成功: 段数={SegmentCount}, 目标格口={TargetChuteId}",
-            path.Segments.Count, LoggingHelper.SanitizeForLogging(path.TargetChuteId));
+            path.Segments.Count, path.TargetChuteId);
 
         // 2. 调用执行器执行路径
         var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
 
         _logger.LogInformation("路径执行完成: 成功={IsSuccess}, 实际格口={ActualChuteId}",
-            executionResult.IsSuccess, LoggingHelper.SanitizeForLogging(executionResult.ActualChuteId));
+            executionResult.IsSuccess, executionResult.ActualChuteId);
 
         // 3. 返回执行结果
         return new DebugSortResponse
