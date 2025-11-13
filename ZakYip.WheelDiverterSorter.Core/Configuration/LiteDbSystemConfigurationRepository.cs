@@ -5,7 +5,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 /// <summary>
 /// 基于LiteDB的系统配置仓储实现
 /// </summary>
-public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepository
+public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepository, IDisposable
 {
     private readonly LiteDatabase _database;
     private readonly ILiteCollection<SystemConfiguration> _collection;
@@ -18,7 +18,9 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
     /// <param name="databasePath">LiteDB数据库文件路径</param>
     public LiteDbSystemConfigurationRepository(string databasePath)
     {
-        _database = new LiteDatabase(databasePath);
+        // 使用Shared模式允许多个仓储实例共享同一个数据库文件
+        var connectionString = $"Filename={databasePath};Connection=shared";
+        _database = new LiteDatabase(connectionString);
         _collection = _database.GetCollection<SystemConfiguration>(CollectionName);
         
         // 为ConfigName字段创建唯一索引
@@ -109,5 +111,13 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
             var defaultConfig = SystemConfiguration.GetDefault();
             _collection.Insert(defaultConfig);
         }
+    }
+
+    /// <summary>
+    /// 释放数据库资源
+    /// </summary>
+    public void Dispose()
+    {
+        _database?.Dispose();
     }
 }
