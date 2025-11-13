@@ -16,8 +16,16 @@ public class SensorConfiguration
     public bool UseHardwareSensor { get; set; } = false;
 
     /// <summary>
-    /// 传感器厂商类型（枚举值：Mock=0, Leadshine=1, Siemens=2, Mitsubishi=3, Omron=4）
+    /// 传感器厂商类型
     /// </summary>
+    /// <remarks>
+    /// 可选值:
+    /// - 0: Mock (模拟传感器，用于测试)
+    /// - 1: Leadshine (雷赛传感器)
+    /// - 2: Siemens (西门子传感器)
+    /// - 3: Mitsubishi (三菱传感器)
+    /// - 4: Omron (欧姆龙传感器)
+    /// </remarks>
     public int VendorType { get; set; } = 1; // Leadshine
 
     /// <summary>

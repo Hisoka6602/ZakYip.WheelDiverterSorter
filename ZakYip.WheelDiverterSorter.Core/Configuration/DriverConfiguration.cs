@@ -16,8 +16,16 @@ public class DriverConfiguration
     public bool UseHardwareDriver { get; set; } = false;
 
     /// <summary>
-    /// 驱动器厂商类型（枚举值：Mock=0, Leadshine=1, Siemens=2, Mitsubishi=3, Omron=4）
+    /// 驱动器厂商类型
     /// </summary>
+    /// <remarks>
+    /// 可选值:
+    /// - 0: Mock (模拟驱动器，用于测试)
+    /// - 1: Leadshine (雷赛控制器)
+    /// - 2: Siemens (西门子PLC)
+    /// - 3: Mitsubishi (三菱PLC)
+    /// - 4: Omron (欧姆龙PLC)
+    /// </remarks>
     public int VendorType { get; set; } = 1; // Leadshine
 
     /// <summary>
