@@ -325,6 +325,9 @@ public class RouteConfigController : ControllerBase
                     SequenceNumber = d.SequenceNumber
                 })
                 .ToList(),
+            BeltSpeedMeterPerSecond = request.BeltSpeedMeterPerSecond,
+            BeltLengthMeter = request.BeltLengthMeter,
+            ToleranceTimeMs = request.ToleranceTimeMs,
             IsEnabled = request.IsEnabled
         };
     }
@@ -347,6 +350,9 @@ public class RouteConfigController : ControllerBase
                     SequenceNumber = d.SequenceNumber
                 })
                 .ToList(),
+            BeltSpeedMeterPerSecond = config.BeltSpeedMeterPerSecond,
+            BeltLengthMeter = config.BeltLengthMeter,
+            ToleranceTimeMs = config.ToleranceTimeMs,
             IsEnabled = config.IsEnabled,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt

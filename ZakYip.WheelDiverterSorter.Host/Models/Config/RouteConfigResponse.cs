@@ -29,6 +29,24 @@ public class RouteConfigResponse
     public required List<DiverterConfigRequest> DiverterConfigurations { get; set; }
 
     /// <summary>
+    /// 皮带速度（米/秒）- Belt Speed (m/s)
+    /// </summary>
+    /// <example>1.0</example>
+    public double BeltSpeedMeterPerSecond { get; set; }
+
+    /// <summary>
+    /// 皮带长度（米）- Belt Length (m)
+    /// </summary>
+    /// <example>10.0</example>
+    public double BeltLengthMeter { get; set; }
+
+    /// <summary>
+    /// 容差时间（毫秒）- Tolerance Time (ms)
+    /// </summary>
+    /// <example>2000</example>
+    public int ToleranceTimeMs { get; set; }
+
+    /// <summary>
     /// 是否启用
     /// </summary>
     /// <example>true</example>

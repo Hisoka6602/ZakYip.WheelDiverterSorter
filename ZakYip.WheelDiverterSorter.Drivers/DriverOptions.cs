@@ -11,6 +11,11 @@ public class DriverOptions
     public bool UseHardwareDriver { get; set; } = false;
 
     /// <summary>
+    /// 驱动器厂商类型
+    /// </summary>
+    public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
+
+    /// <summary>
     /// 雷赛控制器配置
     /// </summary>
     public LeadshineOptions Leadshine { get; set; } = new();

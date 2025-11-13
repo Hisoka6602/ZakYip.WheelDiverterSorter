@@ -13,7 +13,7 @@ public class SensorOptions
     /// <summary>
     /// 传感器厂商类型
     /// </summary>
-    public string VendorType { get; set; } = "Leadshine";
+    public SensorVendorType VendorType { get; set; } = SensorVendorType.Leadshine;
 
     /// <summary>
     /// 雷赛传感器配置

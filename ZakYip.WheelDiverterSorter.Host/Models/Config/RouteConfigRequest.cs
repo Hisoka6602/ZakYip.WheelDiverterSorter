@@ -45,6 +45,34 @@ public class RouteConfigRequest
     public required List<DiverterConfigRequest> DiverterConfigurations { get; set; }
 
     /// <summary>
+    /// 皮带速度（米/秒）- Belt Speed (m/s)
+    /// </summary>
+    /// <remarks>
+    /// 用于计算包裹到达摆轮的预期时间。默认值：1.0 m/s
+    /// </remarks>
+    /// <example>1.0</example>
+    public double BeltSpeedMeterPerSecond { get; set; } = 1.0;
+
+    /// <summary>
+    /// 皮带长度（米）- Belt Length (m)
+    /// </summary>
+    /// <remarks>
+    /// 从入口传感器到格口的总长度。默认值：10.0 m
+    /// </remarks>
+    /// <example>10.0</example>
+    public double BeltLengthMeter { get; set; } = 10.0;
+
+    /// <summary>
+    /// 容差时间（毫秒）- Tolerance Time (ms)
+    /// </summary>
+    /// <remarks>
+    /// 允许的时间误差范围，用于判断包裹是否超时到达或丢失。
+    /// 包裹实际到达时间 = 理论时间 ± 容差时间。默认值：2000 ms
+    /// </remarks>
+    /// <example>2000</example>
+    public int ToleranceTimeMs { get; set; } = 2000;
+
+    /// <summary>
     /// 是否启用此配置
     /// </summary>
     /// <example>true</example>
