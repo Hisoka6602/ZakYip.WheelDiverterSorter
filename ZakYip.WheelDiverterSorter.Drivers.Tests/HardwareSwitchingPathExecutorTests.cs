@@ -124,7 +124,7 @@ public class HardwareSwitchingPathExecutorTests
     {
         // Arrange
         var mockDiverter = new Mock<IDiverterController>();
-        mockDiverter.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter.Setup(d => d.DiverterId).Returns("1");
         mockDiverter.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
@@ -163,7 +163,7 @@ public class HardwareSwitchingPathExecutorTests
     {
         // Arrange
         var mockDiverter = new Mock<IDiverterController>();
-        mockDiverter.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter.Setup(d => d.DiverterId).Returns("1");
         mockDiverter.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
@@ -205,7 +205,7 @@ public class HardwareSwitchingPathExecutorTests
     {
         // Arrange
         var mockDiverter = new Mock<IDiverterController>();
-        mockDiverter.Setup(d => d.DiverterId).Returns("Diverter1");
+        mockDiverter.Setup(d => d.DiverterId).Returns("1");
         mockDiverter.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Hardware error"));
 
