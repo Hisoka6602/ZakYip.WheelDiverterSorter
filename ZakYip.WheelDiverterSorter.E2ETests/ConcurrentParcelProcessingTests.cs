@@ -2,6 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using System.Collections.Concurrent;
+using System.Net.Http.Json;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -36,7 +37,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -68,7 +69,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
 
         // Assert
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(It.IsAny<long>()),
+            x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.AtLeast(0)); // May vary based on actual invocations
 
         await _orchestrator.StopAsync();
@@ -204,8 +205,8 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
-            .Callback<long>(parcelId => processedParcels.Enqueue(parcelId))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Callback<long, CancellationToken>((parcelId, _) => processedParcels.Enqueue(parcelId))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient

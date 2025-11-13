@@ -79,7 +79,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(parcelId))
+            .Setup(x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -94,7 +94,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Assert
         result.Should().BeTrue();
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId),
+            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
             Times.Once);
 
         await _orchestrator.StopAsync();
@@ -112,7 +112,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -138,7 +138,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
 
         // Assert
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(It.IsAny<long>()),
+            x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
 
         await _orchestrator.StopAsync();
@@ -176,7 +176,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(parcelId))
+            .Setup(x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         Factory.MockRuleEngineClient
@@ -205,7 +205,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -222,7 +222,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
 
         // Assert - Should handle timeout gracefully
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId),
+            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
             Times.Once);
 
         await _orchestrator.StopAsync();
