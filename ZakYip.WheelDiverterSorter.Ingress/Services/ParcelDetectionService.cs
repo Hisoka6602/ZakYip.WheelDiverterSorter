@@ -127,75 +127,100 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         lock (_lockObject)
         {
-            bool isDuplicate = false;
-            double timeSinceLastTriggerMs = 0;
+            var (isDuplicate, timeSinceLastTriggerMs) = CheckForDuplicateTrigger(sensorEvent);
+            UpdateLastTriggerTime(sensorEvent);
 
-            // 检测是否为重复触发（去抖动检查）
-            if (_lastTriggerTimes.TryGetValue(sensorEvent.SensorId, out var lastTime))
-            {
-                var timeSinceLastTrigger = sensorEvent.TriggerTime - lastTime;
-                timeSinceLastTriggerMs = timeSinceLastTrigger.TotalMilliseconds;
-                
-                if (timeSinceLastTriggerMs < _options.DeduplicationWindowMs)
-                {
-                    isDuplicate = true;
-                    _logger?.LogWarning(
-                        "检测到重复触发: 传感器 {SensorId}, 距上次触发 {TimeSinceLastMs}ms",
-                        sensorEvent.SensorId,
-                        timeSinceLastTriggerMs);
-                }
-            }
-
-            _lastTriggerTimes[sensorEvent.SensorId] = sensorEvent.TriggerTime;
-
-            // 生成唯一包裹ID
             var parcelId = GenerateUniqueParcelId(sensorEvent);
-
-            // 记录包裹ID到历史记录中
             AddParcelIdToHistory(parcelId);
 
             if (isDuplicate)
             {
-                // 触发重复触发异常事件
-                var duplicateEventArgs = new DuplicateTriggerEventArgs
-                {
-                    ParcelId = parcelId,
-                    DetectedAt = sensorEvent.TriggerTime,
-                    SensorId = sensorEvent.SensorId,
-                    SensorType = sensorEvent.SensorType,
-                    TimeSinceLastTriggerMs = timeSinceLastTriggerMs,
-                    Reason = $"传感器在{_options.DeduplicationWindowMs}ms去重窗口内重复触发"
-                };
-
-                _logger?.LogWarning(
-                    "包裹 {ParcelId} 标记为重复触发异常，传感器: {SensorId}，距上次触发: {TimeSinceLastMs}ms",
-                    parcelId,
-                    sensorEvent.SensorId,
-                    timeSinceLastTriggerMs);
-
-                DuplicateTriggerDetected?.Invoke(this, duplicateEventArgs);
+                RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
             }
 
-            // 无论是否重复触发，都触发包裹检测事件（业务层决定如何处理）
-            _logger?.LogInformation(
-                "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}{DuplicateFlag}",
-                parcelId,
-                sensorEvent.SensorId,
-                sensorEvent.SensorType,
-                sensorEvent.SensorId,
-                isDuplicate ? " [重复触发]" : "");
-
-            // 触发包裹检测事件
-            var eventArgs = new ParcelDetectedEventArgs
-            {
-                ParcelId = parcelId,
-                DetectedAt = sensorEvent.TriggerTime,
-                SensorId = sensorEvent.SensorId,
-                SensorType = sensorEvent.SensorType
-            };
-
-            ParcelDetected?.Invoke(this, eventArgs);
+            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
         }
+    }
+
+    /// <summary>
+    /// 检查是否为重复触发
+    /// </summary>
+    private (bool IsDuplicate, double TimeSinceLastTriggerMs) CheckForDuplicateTrigger(SensorEvent sensorEvent)
+    {
+        if (!_lastTriggerTimes.TryGetValue(sensorEvent.SensorId, out var lastTime))
+        {
+            return (false, 0);
+        }
+
+        var timeSinceLastTrigger = sensorEvent.TriggerTime - lastTime;
+        var timeSinceLastTriggerMs = timeSinceLastTrigger.TotalMilliseconds;
+
+        if (timeSinceLastTriggerMs < _options.DeduplicationWindowMs)
+        {
+            _logger?.LogWarning(
+                "检测到重复触发: 传感器 {SensorId}, 距上次触发 {TimeSinceLastMs}ms",
+                sensorEvent.SensorId,
+                timeSinceLastTriggerMs);
+            return (true, timeSinceLastTriggerMs);
+        }
+
+        return (false, timeSinceLastTriggerMs);
+    }
+
+    /// <summary>
+    /// 更新传感器最后触发时间
+    /// </summary>
+    private void UpdateLastTriggerTime(SensorEvent sensorEvent)
+    {
+        _lastTriggerTimes[sensorEvent.SensorId] = sensorEvent.TriggerTime;
+    }
+
+    /// <summary>
+    /// 触发重复触发异常事件
+    /// </summary>
+    private void RaiseDuplicateTriggerEvent(long parcelId, SensorEvent sensorEvent, double timeSinceLastTriggerMs)
+    {
+        var duplicateEventArgs = new DuplicateTriggerEventArgs
+        {
+            ParcelId = parcelId,
+            DetectedAt = sensorEvent.TriggerTime,
+            SensorId = sensorEvent.SensorId,
+            SensorType = sensorEvent.SensorType,
+            TimeSinceLastTriggerMs = timeSinceLastTriggerMs,
+            Reason = $"传感器在{_options.DeduplicationWindowMs}ms去重窗口内重复触发"
+        };
+
+        _logger?.LogWarning(
+            "包裹 {ParcelId} 标记为重复触发异常，传感器: {SensorId}，距上次触发: {TimeSinceLastMs}ms",
+            parcelId,
+            sensorEvent.SensorId,
+            timeSinceLastTriggerMs);
+
+        DuplicateTriggerDetected?.Invoke(this, duplicateEventArgs);
+    }
+
+    /// <summary>
+    /// 触发包裹检测事件
+    /// </summary>
+    private void RaiseParcelDetectedEvent(long parcelId, SensorEvent sensorEvent, bool isDuplicate)
+    {
+        _logger?.LogInformation(
+            "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}{DuplicateFlag}",
+            parcelId,
+            sensorEvent.SensorId,
+            sensorEvent.SensorType,
+            sensorEvent.SensorId,
+            isDuplicate ? " [重复触发]" : "");
+
+        var eventArgs = new ParcelDetectedEventArgs
+        {
+            ParcelId = parcelId,
+            DetectedAt = sensorEvent.TriggerTime,
+            SensorId = sensorEvent.SensorId,
+            SensorType = sensorEvent.SensorType
+        };
+
+        ParcelDetected?.Invoke(this, eventArgs);
     }
 
     /// <summary>

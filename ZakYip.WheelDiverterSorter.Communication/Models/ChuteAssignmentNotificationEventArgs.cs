@@ -6,7 +6,7 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 /// <remarks>
 /// 当RuleEngine推送格口分配时触发此事件
 /// </remarks>
-public class ChuteAssignmentNotificationEventArgs : EventArgs
+public record ChuteAssignmentNotificationEventArgs
 {
     /// <summary>
     /// 包裹ID (毫秒时间戳)
