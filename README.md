@@ -17,6 +17,17 @@
 传感器  格口A      格口C     格口E
 ```
 
+## 🔒 EMC硬件资源分布式锁（雷赛专用）
+
+本系统支持雷赛(Leadshine) EMC硬件资源的分布式锁协调机制。当多个项目实例共享同一个EMC硬件时，分布式锁确保：
+
+- ✅ **安全重置**：在执行冷/热重置前通知所有实例
+- ✅ **协调等待**：其他实例收到通知后暂停使用EMC
+- ✅ **自动恢复**：重置完成后自动恢复所有实例
+- ✅ **多协议支持**：支持TCP、SignalR、MQTT三种通信方式
+
+详细文档：[EMC分布式锁使用指南](EMC_DISTRIBUTED_LOCK.md)
+
 ### 拓扑说明
 
 - **入口传感器**：检测包裹到达，触发系统创建包裹记录
@@ -178,7 +189,23 @@
 
 ## 📋 最近更新记录
 
-### 🆕 更新 5: 直线拓扑结构与方向控制重构 (2025-11-13)
+### 🆕 更新 6: EMC硬件资源分布式锁 (2025-11-14)
+- **EMC分布式锁机制**：为雷赛EMC硬件添加多实例协调功能
+- **三种通信协议**：支持TCP、SignalR、MQTT三种方式进行锁通信
+- **安全重置流程**：冷/热重置前通知其他实例，确保协调一致
+- **自动事件处理**：自动响应锁请求和通知，无需手动干预
+- **配置灵活**：支持启用/禁用分布式锁，兼容单实例和多实例场景
+- **新增类**：
+  - `IEmcResourceLockManager` - EMC锁管理器接口
+  - `TcpEmcResourceLockManager` - TCP协议实现
+  - `SignalREmcResourceLockManager` - SignalR协议实现
+  - `MqttEmcResourceLockManager` - MQTT协议实现
+  - `IEmcController` - EMC控制器接口
+  - `LeadshineEmcController` - 雷赛EMC控制器实现
+  - `CoordinatedEmcController` - 具有分布式锁协调能力的EMC控制器
+- **详细文档**：[EMC_DISTRIBUTED_LOCK.md](EMC_DISTRIBUTED_LOCK.md)
+
+### 更新 5: 直线拓扑结构与方向控制重构 (2025-11-13)
 - **方向控制替代角度控制**：摆轮从角度控制（0/30/45/90度）改为方向控制（直行/左转/右转）
 - **明确拓扑结构**：定义清晰的直线拓扑，3个摆轮，6个格口（每个摆轮左右各一个格口）
 - **传感器工作逻辑**：详细说明入口传感器和摆轮前传感器的工作流程
@@ -1017,10 +1044,14 @@ P5 - 长期规划，技术储备，持续关注（6个月+）
 - **ZakYip.WheelDiverterSorter.Core**: 核心业务逻辑，包含路径生成器接口和实现
 - **ZakYip.WheelDiverterSorter.Execution**: 执行层，包含路径执行器接口和模拟实现
 - **ZakYip.WheelDiverterSorter.Drivers**: 🆕 硬件驱动层，包含PLC控制器驱动和IO端口抽象
+  - **EMC分布式锁支持**：多实例协调，支持安全重置
+  - 雷赛(Leadshine)控制器驱动
+  - 西门子(Siemens) S7控制器驱动（部分实现）
 - **ZakYip.WheelDiverterSorter.Host**: Web API 主机，提供调试接口和配置管理API
 - **ZakYip.WheelDiverterSorter.Ingress**: 入口管理（✅ **已完成**：真实传感器和健康监控已实现）
 - **ZakYip.WheelDiverterSorter.Observability**: 可观测性支持（待实现）
 - **ZakYip.WheelDiverterSorter.Communication**: 通信层（✅ **已完成** 🆕：TCP/SignalR/MQTT/HTTP客户端全部实现）
+  - **EMC资源锁管理**：IEmcResourceLockManager接口及三种协议实现
 
 ## 项目运行流程
 
@@ -1919,6 +1950,7 @@ dotnet run
 
 ## 相关文档
 
+- [EMC分布式锁使用指南](EMC_DISTRIBUTED_LOCK.md) 🆕
 - [系统配置管理指南](SYSTEM_CONFIG_GUIDE.md)
 - [配置管理API文档](CONFIGURATION_API.md)
 - [API使用教程](API_USAGE_GUIDE.md)
