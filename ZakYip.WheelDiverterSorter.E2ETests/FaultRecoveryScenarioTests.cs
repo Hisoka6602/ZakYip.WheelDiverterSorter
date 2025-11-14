@@ -60,7 +60,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false); // Simulate connection failure
 
         Factory.MockRuleEngineClient
@@ -85,8 +85,6 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         // Arrange & Act - Simulate sensor failure scenario
         // In a real scenario, sensor failures would be detected by the monitoring service
         // For E2E tests, we verify the system handles missing configurations
-
-        var invalidSensorConfig = 9999;
         
         // Assert - System should handle gracefully without sensor
         // This test validates the system doesn't crash when sensors are unavailable
@@ -104,7 +102,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 await Task.Delay(10000); // Simulate timeout
@@ -173,7 +171,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false); // Always fail
 
         Factory.MockRuleEngineClient
@@ -191,7 +189,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
 
         // Assert - System should still be running
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(It.IsAny<long>()),
+            x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.Exactly(attemptCount));
 
         await _orchestrator.StopAsync();
@@ -254,7 +252,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -270,7 +268,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
 
         // Assert - Both should be processed
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId),
+            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
             Times.Exactly(2));
 
         await _orchestrator.StopAsync();

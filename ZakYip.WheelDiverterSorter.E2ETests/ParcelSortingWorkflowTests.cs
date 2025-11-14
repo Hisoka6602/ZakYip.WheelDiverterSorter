@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using System.Net.Http.Json;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Enums;
@@ -32,7 +33,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
 
         // Setup mock RuleEngine to return target chute
         Factory.MockRuleEngineClient!
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -60,7 +61,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
 
         // Assert
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId),
+            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
             Times.Once);
 
         await _orchestrator.StopAsync();
@@ -127,7 +128,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
 
         // Setup mock to simulate path generation failure scenario
         Factory.MockRuleEngineClient!
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>()))
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -155,7 +156,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
         // Assert - Should attempt to use exception chute
         // The orchestrator should handle the failure gracefully
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId),
+            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
             Times.Once);
 
         await _orchestrator.StopAsync();
