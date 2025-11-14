@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Utilities;
+using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -13,15 +15,18 @@ public class DebugSortService
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly ILogger<DebugSortService> _logger;
+    private readonly PrometheusMetrics _prometheusMetrics;
 
     public DebugSortService(
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
-        ILogger<DebugSortService> logger)
+        ILogger<DebugSortService> logger,
+        PrometheusMetrics prometheusMetrics)
     {
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _prometheusMetrics = prometheusMetrics ?? throw new ArgumentNullException(nameof(prometheusMetrics));
     }
 
     /// <summary>
@@ -36,48 +41,79 @@ public class DebugSortService
         int targetChuteId,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", 
-            parcelId, targetChuteId);
+        var overallStopwatch = Stopwatch.StartNew();
+        _prometheusMetrics.IncrementActiveRequests();
 
-        // 1. 调用路径生成器生成 SwitchingPath
-        var path = _pathGenerator.GeneratePath(targetChuteId);
-
-        if (path == null)
+        try
         {
-            _logger.LogWarning("无法生成路径: 目标格口={TargetChuteId}", targetChuteId);
+            _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", 
+                parcelId, targetChuteId);
+
+            // 1. 调用路径生成器生成 SwitchingPath
+            var pathGenStopwatch = Stopwatch.StartNew();
+            var path = _pathGenerator.GeneratePath(targetChuteId);
+            pathGenStopwatch.Stop();
+            _prometheusMetrics.RecordPathGeneration(pathGenStopwatch.Elapsed.TotalSeconds);
+
+            if (path == null)
+            {
+                _logger.LogWarning("无法生成路径: 目标格口={TargetChuteId}", targetChuteId);
+                overallStopwatch.Stop();
+                _prometheusMetrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalSeconds);
+                
+                return new DebugSortResponse
+                {
+                    ParcelId = parcelId,
+                    TargetChuteId = targetChuteId,
+                    IsSuccess = false,
+                    ActualChuteId = 0,
+                    Message = "路径生成失败：目标格口无法映射到任何摆轮组合",
+                    FailureReason = "目标格口未配置或不存在",
+                    PathSegmentCount = 0
+                };
+            }
+
+            _logger.LogInformation("路径生成成功: 段数={SegmentCount}, 目标格口={TargetChuteId}",
+                path.Segments.Count, path.TargetChuteId);
+
+            // 2. 调用执行器执行路径
+            var pathExecStopwatch = Stopwatch.StartNew();
+            var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
+            pathExecStopwatch.Stop();
+            _prometheusMetrics.RecordPathExecution(pathExecStopwatch.Elapsed.TotalSeconds);
+
+            _logger.LogInformation("路径执行完成: 成功={IsSuccess}, 实际格口={ActualChuteId}",
+                executionResult.IsSuccess, executionResult.ActualChuteId);
+
+            overallStopwatch.Stop();
+
+            // 3. Record metrics based on success/failure
+            if (executionResult.IsSuccess)
+            {
+                _prometheusMetrics.RecordSortingSuccess(overallStopwatch.Elapsed.TotalSeconds);
+            }
+            else
+            {
+                _prometheusMetrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalSeconds);
+            }
+
+            // 4. 返回执行结果
             return new DebugSortResponse
             {
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
-                IsSuccess = false,
-                ActualChuteId = 0,
-                Message = "路径生成失败：目标格口无法映射到任何摆轮组合",
-                FailureReason = "目标格口未配置或不存在",
-                PathSegmentCount = 0
+                IsSuccess = executionResult.IsSuccess,
+                ActualChuteId = executionResult.ActualChuteId,
+                Message = executionResult.IsSuccess
+                    ? $"分拣成功：包裹 {parcelId} 已成功分拣到格口 {executionResult.ActualChuteId}"
+                    : $"分拣失败：包裹 {parcelId} 落入异常格口 {executionResult.ActualChuteId}",
+                FailureReason = executionResult.FailureReason,
+                PathSegmentCount = path.Segments.Count
             };
         }
-
-        _logger.LogInformation("路径生成成功: 段数={SegmentCount}, 目标格口={TargetChuteId}",
-            path.Segments.Count, path.TargetChuteId);
-
-        // 2. 调用执行器执行路径
-        var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
-
-        _logger.LogInformation("路径执行完成: 成功={IsSuccess}, 实际格口={ActualChuteId}",
-            executionResult.IsSuccess, executionResult.ActualChuteId);
-
-        // 3. 返回执行结果
-        return new DebugSortResponse
+        finally
         {
-            ParcelId = parcelId,
-            TargetChuteId = targetChuteId,
-            IsSuccess = executionResult.IsSuccess,
-            ActualChuteId = executionResult.ActualChuteId,
-            Message = executionResult.IsSuccess
-                ? $"分拣成功：包裹 {parcelId} 已成功分拣到格口 {executionResult.ActualChuteId}"
-                : $"分拣失败：包裹 {parcelId} 落入异常格口 {executionResult.ActualChuteId}",
-            FailureReason = executionResult.FailureReason,
-            PathSegmentCount = path.Segments.Count
-        };
+            _prometheusMetrics.DecrementActiveRequests();
+        }
     }
 }
