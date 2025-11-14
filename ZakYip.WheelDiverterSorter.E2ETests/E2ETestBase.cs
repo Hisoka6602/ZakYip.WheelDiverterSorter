@@ -7,7 +7,7 @@ using ZakYip.WheelDiverterSorter.Execution;
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
 /// <summary>
-/// Base class for E2E tests with common setup and utilities
+/// E2E测试的基类，提供通用设置和工具方法
 /// </summary>
 public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
 {
@@ -15,7 +15,7 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
     protected readonly HttpClient Client;
     protected readonly IServiceScope Scope;
 
-    // Common services
+    // 通用服务
     protected readonly ISwitchingPathGenerator PathGenerator;
     protected readonly ISwitchingPathExecutor PathExecutor;
     protected readonly IRouteConfigurationRepository RouteRepository;
@@ -27,10 +27,10 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
         Client = factory.CreateClient();
         Scope = factory.Services.CreateScope();
 
-        // Reset mock invocations to ensure clean state for this test
+        // 重置模拟调用记录，确保此测试具有干净的状态
         Factory.ResetMockInvocations();
 
-        // Get common services
+        // 获取通用服务
         PathGenerator = Scope.ServiceProvider.GetRequiredService<ISwitchingPathGenerator>();
         PathExecutor = Scope.ServiceProvider.GetRequiredService<ISwitchingPathExecutor>();
         RouteRepository = Scope.ServiceProvider.GetRequiredService<IRouteConfigurationRepository>();
@@ -38,32 +38,32 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
     }
 
     /// <summary>
-    /// Helper method to setup default route configurations for testing
+    /// 为测试设置默认路由配置的辅助方法
     /// </summary>
     protected void SetupDefaultRouteConfiguration()
     {
         try
         {
-            // Clear existing configurations
+            // 清除现有配置
             var allConfigs = RouteRepository.GetAllEnabled();
             foreach (var config in allConfigs)
             {
                 RouteRepository.Delete(config.ChuteId);
             }
 
-            // Add test configurations
+            // 添加测试配置
             RouteRepository.InitializeDefaultData();
         }
         catch (Exception)
         {
-            // If initialization fails (e.g., due to duplicate keys), 
-            // data already exists and we can continue
-            // This can happen when multiple tests share the same factory/database
+            // 如果初始化失败（例如由于重复键），
+            // 数据已经存在，我们可以继续
+            // 这可能发生在多个测试共享同一个工厂/数据库时
         }
     }
 
     /// <summary>
-    /// Helper method to create a test route configuration
+    /// 创建测试路由配置的辅助方法
     /// </summary>
     protected ChuteRouteConfiguration CreateTestRouteConfig(int chuteId, params (int diverterId, Core.Enums.DiverterDirection direction, int sequence)[] diverters)
     {
