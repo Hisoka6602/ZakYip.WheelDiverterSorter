@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
@@ -42,6 +44,39 @@ public static class CommunicationServiceExtensions
         {
             var factory = sp.GetRequiredService<IRuleEngineClientFactory>();
             return factory.CreateClient();
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// 添加EMC资源锁服务
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="configuration">配置</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddEmcResourceLock(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // 绑定配置
+        var emcLockOptions = new EmcLockOptions();
+        configuration.GetSection("EmcLock").Bind(emcLockOptions);
+        services.AddSingleton(Options.Create(emcLockOptions));
+
+        // 注册各种实现
+        services.AddSingleton<TcpEmcResourceLockManager>();
+        services.AddSingleton<SignalREmcResourceLockManager>();
+        services.AddSingleton<MqttEmcResourceLockManager>();
+
+        // 注册工厂
+        services.AddSingleton<EmcResourceLockManagerFactory>();
+
+        // 注册锁管理器（使用工厂创建）
+        services.AddSingleton<IEmcResourceLockManager>(sp =>
+        {
+            var factory = sp.GetRequiredService<EmcResourceLockManagerFactory>();
+            return factory.CreateLockManager();
         });
 
         return services;
