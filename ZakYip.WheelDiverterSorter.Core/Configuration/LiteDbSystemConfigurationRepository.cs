@@ -20,7 +20,7 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
     {
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
-        _database = new LiteDatabase(connectionString);
+        _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<SystemConfiguration>(CollectionName);
         
         // 为ConfigName字段创建唯一索引

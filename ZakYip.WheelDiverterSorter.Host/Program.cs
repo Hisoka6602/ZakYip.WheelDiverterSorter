@@ -22,6 +22,9 @@ builder.Services.AddControllers()
     {
         // 配置枚举序列化为字符串，使Swagger和API调用更友好
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        
+        // 允许反序列化时接受字符串或数字（向后兼容）
+        // JsonStringEnumConverter 默认支持这种行为
     });
 
 // 添加性能监控和优化服务

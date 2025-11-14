@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 
 /// <summary>
@@ -20,13 +22,13 @@ public class SensorConfiguration
     /// </summary>
     /// <remarks>
     /// 可选值:
-    /// - 0: Mock (模拟传感器，用于测试)
-    /// - 1: Leadshine (雷赛传感器)
-    /// - 2: Siemens (西门子传感器)
-    /// - 3: Mitsubishi (三菱传感器)
-    /// - 4: Omron (欧姆龙传感器)
+    /// - Mock: 模拟传感器（用于测试）
+    /// - Leadshine: 雷赛传感器
+    /// - Siemens: 西门子传感器
+    /// - Mitsubishi: 三菱传感器
+    /// - Omron: 欧姆龙传感器
     /// </remarks>
-    public int VendorType { get; set; } = 1; // Leadshine
+    public SensorVendorType VendorType { get; set; } = SensorVendorType.Leadshine;
 
     /// <summary>
     /// 雷赛传感器配置
@@ -61,7 +63,7 @@ public class SensorConfiguration
         return new SensorConfiguration
         {
             UseHardwareSensor = false,
-            VendorType = 1, // Leadshine
+            VendorType = SensorVendorType.Leadshine,
             Leadshine = new LeadshineSensorConfig
             {
                 CardNo = 0,
@@ -84,12 +86,12 @@ public class SensorConfiguration
     /// </summary>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
-        if (VendorType < 0 || VendorType > 4)
+        if (!Enum.IsDefined(typeof(SensorVendorType), VendorType))
         {
             return (false, "传感器厂商类型无效");
         }
 
-        if (UseHardwareSensor && VendorType == 1 && Leadshine == null)
+        if (UseHardwareSensor && VendorType == SensorVendorType.Leadshine && Leadshine == null)
         {
             return (false, "使用雷赛硬件传感器时，必须配置雷赛参数");
         }

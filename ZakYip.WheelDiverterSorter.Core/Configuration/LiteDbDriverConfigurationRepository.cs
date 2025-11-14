@@ -20,7 +20,7 @@ public class LiteDbDriverConfigurationRepository : IDriverConfigurationRepositor
     /// </summary>
     public DriverConfiguration Get()
     {
-        using var db = new LiteDatabase(_connectionString);
+        using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         var collection = db.GetCollection<DriverConfiguration>(CollectionName);
         
         var config = collection.FindAll().FirstOrDefault();
@@ -53,7 +53,7 @@ public class LiteDbDriverConfigurationRepository : IDriverConfigurationRepositor
         configuration.UpdatedAt = DateTime.UtcNow;
         configuration.Version++;
 
-        using var db = new LiteDatabase(_connectionString);
+        using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         var collection = db.GetCollection<DriverConfiguration>(CollectionName);
 
         if (configuration.Id == 0)
@@ -74,7 +74,7 @@ public class LiteDbDriverConfigurationRepository : IDriverConfigurationRepositor
     /// </summary>
     public void InitializeDefault()
     {
-        using var db = new LiteDatabase(_connectionString);
+        using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         var collection = db.GetCollection<DriverConfiguration>(CollectionName);
 
         // 只有在集合为空时才初始化

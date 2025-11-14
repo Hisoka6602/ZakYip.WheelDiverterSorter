@@ -20,7 +20,7 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     {
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
-        _database = new LiteDatabase(connectionString);
+        _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<ChuteRouteConfiguration>(CollectionName);
         
         // 为ChuteId字段创建索引以提高查询性能
