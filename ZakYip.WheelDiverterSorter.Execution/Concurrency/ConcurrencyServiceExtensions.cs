@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
 
@@ -33,7 +34,16 @@ public static class ConcurrencyServiceExtensions
             var options = new ConcurrencyOptions();
             configuration.GetSection(ConcurrencyOptions.SectionName).Bind(options);
 
-            return new PriorityParcelQueue(options.ParcelQueueCapacity);
+            var innerQueue = new PriorityParcelQueue(options.ParcelQueueCapacity);
+            
+            // Try to get AlarmService and wrap with monitoring if available
+            var alarmService = sp.GetService<AlarmService>();
+            if (alarmService != null)
+            {
+                return new MonitoredParcelQueue(innerQueue, alarmService);
+            }
+            
+            return innerQueue;
         });
 
         return services;
