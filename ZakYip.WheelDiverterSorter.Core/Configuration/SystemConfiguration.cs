@@ -91,6 +91,22 @@ public class SystemConfiguration
     public bool EnableAutoReconnect { get; set; } = true;
 
     /// <summary>
+    /// 雷赛控制面板 IO 模块配置
+    /// </summary>
+    /// <remarks>
+    /// 用于配置电柜面板上的物理按键和指示灯，包括急停、启动、停止、复位按钮以及三色灯等
+    /// </remarks>
+    public LeadshineCabinetIoOptions LeadshineCabinetIo { get; set; } = new();
+
+    /// <summary>
+    /// IO 联动配置
+    /// </summary>
+    /// <remarks>
+    /// 用于配置系统在不同状态（运行/停止）下需要联动控制的 IO 端口
+    /// </remarks>
+    public IoLinkageOptions IoLinkage { get; set; } = new();
+
+    /// <summary>
     /// 配置版本号
     /// </summary>
     /// <remarks>
@@ -168,6 +184,8 @@ public class SystemConfiguration
             RetryCount = 3,
             RetryDelayMs = 1000,
             EnableAutoReconnect = true,
+            LeadshineCabinetIo = new LeadshineCabinetIoOptions(),
+            IoLinkage = new IoLinkageOptions(),
             Version = 1,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
