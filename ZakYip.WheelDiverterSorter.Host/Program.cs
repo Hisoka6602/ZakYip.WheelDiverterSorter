@@ -10,7 +10,9 @@ using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Communication;
+using ZakYip.WheelDiverterSorter.Observability;
 using Microsoft.OpenApi.Models;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +31,9 @@ builder.Services.AddMemoryCache(options =>
 });
 builder.Services.AddMetrics();
 builder.Services.AddSingleton<SorterMetrics>();
+
+// 添加Prometheus指标服务
+builder.Services.AddPrometheusMetrics();
 
 // 配置Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -189,6 +194,11 @@ builder.Services.AddSingleton<CommunicationStatsService>();
 // builder.Services.AddHostedService<ParcelSortingWorker>();
 
 var app = builder.Build();
+
+// 配置Prometheus指标中间件
+// Configure Prometheus metrics middleware
+app.UseHttpMetrics(); // 自动收集HTTP请求指标
+app.MapMetrics(); // 暴露 /metrics 端点
 
 // 配置Swagger中间件
 app.UseSwagger();
