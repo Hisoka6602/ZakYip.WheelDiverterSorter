@@ -1,8 +1,10 @@
-# Path Failure Detection and Recovery Guide
+# Path Failure Detection and Monitoring Guide
 
 ## Overview
 
-This system provides automatic detection and recovery for path execution failures in the wheel diverter sorter. When a path segment or full path execution fails, the system automatically calculates a backup path to the exception chute and handles the failure gracefully.
+This system provides **monitoring and event notification** for path execution failures in the wheel diverter sorter. When a path segment or full path execution fails, the system **logs the failure, raises events, and calculates a backup path** for reference purposes. 
+
+**Important Note**: The system does **NOT** automatically redirect or re-execute failed parcels. When a path execution fails, the parcel has already been physically routed according to the original path execution result. The backup path calculation is primarily for logging and monitoring purposes.
 
 ## Features
 
@@ -38,12 +40,12 @@ public record class PathExecutionResult
 }
 ```
 
-### 3. Backup Path Calculation (备用路径计算-异常格口)
+### 3. Backup Path Calculation (备用路径计算-异常格口，仅用于记录)
 
-When a failure is detected, the system automatically calculates a backup path to the exception chute:
+When a failure is detected, the system calculates a backup path to the exception chute **for logging and monitoring purposes only**. This backup path is **NOT automatically executed**.
 
 ```csharp
-// Automatic backup path calculation
+// Backup path calculation (for reference only, not executed)
 public interface IPathFailureHandler
 {
     SwitchingPath? CalculateBackupPath(SwitchingPath originalPath);
@@ -51,18 +53,23 @@ public interface IPathFailureHandler
 
 // Uses the FallbackChuteId from the original path
 var backupPath = _pathFailureHandler.CalculateBackupPath(originalPath);
+// Note: This path is only logged, not executed
 ```
 
-### 4. Automatic Path Switching (包裹自动切换路径)
+**Clarification**: The parcel has already been physically routed based on the execution result of the original path. The backup path calculation serves as a reference for what path *should* have been taken to route to the exception chute, but it cannot retroactively change the physical parcel routing.
 
-Path switching happens automatically in the `ParcelSortingOrchestrator`:
+### 4. Path Failure Notification (路径失败通知，非自动切换)
+
+**Important**: The system does **NOT** automatically switch or redirect parcels when a path execution fails. The term "automatic" refers only to automatic **event notification and logging**, not physical parcel redirection.
+
+What actually happens in `ParcelSortingOrchestrator`:
 
 ```csharp
 var executionResult = await _pathExecutor.ExecuteAsync(path);
 
 if (!executionResult.IsSuccess)
 {
-    // Automatically handle failure and calculate backup path
+    // Handle failure: log and raise events (NO physical redirection occurs)
     if (_pathFailureHandler != null)
     {
         _pathFailureHandler.HandlePathFailure(
@@ -71,12 +78,17 @@ if (!executionResult.IsSuccess)
             executionResult.FailureReason ?? "未知错误",
             executionResult.FailedSegment);
     }
+    // Note: The parcel has already been physically routed based on the
+    // execution result. This handler only logs the failure and raises events
+    // for monitoring purposes. It does NOT redirect the parcel.
 }
 ```
 
-### 5. Event Notifications (通知摆轮执行新路径)
+**Key Point**: By the time path execution fails, the physical parcel has already moved through the diverters according to the executed path (successful or failed segments). The failure handler cannot retroactively change the physical location of the parcel.
 
-Three types of events are available for monitoring:
+### 5. Event Notifications (事件通知，用于监控)
+
+Three types of events are available for monitoring (these are notifications only, not commands to redirect parcels):
 
 ```csharp
 // 1. Segment-level failure
@@ -149,18 +161,24 @@ var result = await executor.ExecuteAsync(path);
 // Check for failure
 if (!result.IsSuccess)
 {
-    // Handle the failure
+    // Handle the failure (logs and raises events)
     failureHandler.HandlePathFailure(
         parcelId: 12345,
         originalPath: path,
         failureReason: result.FailureReason ?? "Unknown error",
         failedSegment: result.FailedSegment);
     
-    // Calculate and use backup path if needed
+    // Calculate backup path for reference/logging only
     var backupPath = failureHandler.CalculateBackupPath(path);
     if (backupPath != null)
     {
-        await executor.ExecuteAsync(backupPath);
+        // Note: In the actual implementation, the backup path is NOT executed
+        // because the parcel has already been physically routed.
+        // You would only execute the backup path if you're implementing
+        // a NEW physical sorting flow for a NEW parcel, not for recovering
+        // an already-failed parcel.
+        
+        // await executor.ExecuteAsync(backupPath); // NOT done in practice
     }
 }
 ```
@@ -253,15 +271,46 @@ ParcelSortingOrchestrator
 - No additional database queries for failure handling
 - Minimal memory overhead (event args are small objects)
 
+## System Limitations and Design Constraints
+
+### Current Behavior
+The current system provides **monitoring and notification** of path execution failures, but does **NOT** provide automatic physical parcel redirection because:
+
+1. **Physical Reality**: Once a diverter has been activated and the parcel has moved, it cannot be retroactively redirected
+2. **Linear Topology**: Parcels move forward only through the system; there is no mechanism to reverse direction
+3. **Real-time Execution**: Path execution happens in real-time as the parcel physically moves through diverters
+
+### What the System Does
+- ✅ Detects when path segments fail during execution
+- ✅ Records failure context (which segment, reason, timing)
+- ✅ Calculates what the backup path should be (for analysis/logging)
+- ✅ Raises events for monitoring systems
+- ✅ Logs detailed failure information
+
+### What the System Does NOT Do
+- ❌ Physically redirect an already-failed parcel to a different chute
+- ❌ Automatically execute backup paths for failed parcels
+- ❌ Reverse or retry physical diverter actions after failure
+
+### Exception Handling Strategy
+When a path execution fails:
+1. The parcel physically ends up where the failed execution left it
+2. The system logs this as a failure
+3. For FUTURE parcels with the same target, the system could potentially:
+   - Route them through alternative paths (if multiple paths exist)
+   - Route them to exception chute if the original path is unreliable
+   - But this is NOT automatic redirection of already-failed parcels
+
 ## Future Enhancements
 
 Potential improvements for future versions:
 
-1. **Retry Logic**: Automatic retry before switching to backup path
+1. **Retry Logic**: For transient failures (before parcel has moved), retry the diverter action
 2. **Failure Statistics**: Track failure rates per diverter/segment
-3. **Predictive Maintenance**: Alert when failure rates exceed thresholds
-4. **Custom Backup Strategies**: Different backup paths based on failure type
-5. **Failure Recovery**: Attempt to recover failed segments before switching
+3. **Predictive Maintenance**: Alert when failure rates exceed thresholds  
+4. **Alternative Path Selection**: When failures occur, automatically route FUTURE parcels through alternative paths
+5. **Multi-Path Support**: Implement topology-based routing with multiple paths to same destination
+6. **Failure Recovery**: For certain failure types, attempt corrective actions before the parcel has passed
 
 ## Related Documentation
 
