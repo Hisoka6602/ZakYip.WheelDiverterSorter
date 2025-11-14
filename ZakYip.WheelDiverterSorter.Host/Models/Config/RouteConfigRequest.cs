@@ -26,20 +26,6 @@ public class RouteConfigRequest
     /// <summary>
     /// 摆轮配置列表，按顺序执行
     /// </summary>
-    /// <example>
-    /// [
-    ///   {
-    ///     "diverterId": "DIV-001",
-    ///     "targetAngle": 45,
-    ///     "sequenceNumber": 1
-    ///   },
-    ///   {
-    ///     "diverterId": "DIV-002",
-    ///     "targetAngle": 30,
-    ///     "sequenceNumber": 2
-    ///   }
-    /// ]
-    /// </example>
     [Required(ErrorMessage = "摆轮配置列表不能为空")]
     [MinLength(1, ErrorMessage = "至少需要一个摆轮配置")]
     public required List<DiverterConfigRequest> DiverterConfigurations { get; set; }
