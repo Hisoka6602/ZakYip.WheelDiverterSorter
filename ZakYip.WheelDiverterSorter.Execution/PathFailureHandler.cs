@@ -7,6 +7,10 @@ namespace ZakYip.WheelDiverterSorter.Execution;
 /// <summary>
 /// 路径执行失败处理器实现
 /// </summary>
+/// <remarks>
+/// 此类仅提供监控、日志记录和事件通知功能，不会自动执行备用路径。
+/// 备用路径的执行需要由外部订阅者（如ParcelSortingOrchestrator）实现。
+/// </remarks>
 public class PathFailureHandler : IPathFailureHandler
 {
     private readonly ISwitchingPathGenerator _pathGenerator;
@@ -93,18 +97,18 @@ public class PathFailureHandler : IPathFailureHandler
             ActualChuteId = originalPath.FallbackChuteId
         });
 
-        // 计算并记录备用路径切换
+        // 计算备用路径（仅用于信息通知，不会自动执行）
         var backupPath = CalculateBackupPath(originalPath);
         if (backupPath != null)
         {
             _logger.LogInformation(
-                "已计算备用路径: ParcelId={ParcelId}, 目标格口={BackupChuteId}, " +
+                "已计算备用路径（未执行）: ParcelId={ParcelId}, 目标格口={BackupChuteId}, " +
                 "路径段数={SegmentCount}",
                 parcelId,
                 backupPath.TargetChuteId,
                 backupPath.Segments.Count);
 
-            // 触发路径切换事件
+            // 触发备用路径已计算事件（注意：路径尚未执行）
             PathSwitched?.Invoke(this, new PathSwitchedEventArgs
             {
                 ParcelId = parcelId,

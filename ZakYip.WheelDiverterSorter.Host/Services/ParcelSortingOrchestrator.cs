@@ -294,7 +294,9 @@ public class ParcelSortingOrchestrator : IDisposable
                     executionResult.FailureReason,
                     executionResult.ActualChuteId);
 
-                // 处理路径执行失败
+                // 处理路径执行失败：记录日志并触发事件通知
+                // 注意：此处仅进行监控和事件通知，不会自动执行备用路径
+                // 如需自动故障恢复，需要订阅PathSwitched事件并实现相应逻辑
                 if (_pathFailureHandler != null)
                 {
                     _pathFailureHandler.HandlePathFailure(

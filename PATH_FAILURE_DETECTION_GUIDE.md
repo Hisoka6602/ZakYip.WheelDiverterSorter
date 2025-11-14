@@ -1,8 +1,10 @@
-# Path Failure Detection and Recovery Guide
+# Path Failure Detection and Monitoring Guide
 
 ## Overview
 
-This system provides automatic detection and recovery for path execution failures in the wheel diverter sorter. When a path segment or full path execution fails, the system automatically calculates a backup path to the exception chute and handles the failure gracefully.
+This system provides real-time monitoring and event notification for path execution failures in the wheel diverter sorter. When a path segment or full path execution fails, the system captures the failure context, calculates a potential backup path to the exception chute, and raises events for external handlers to take appropriate action.
+
+**Important Note**: This system provides **monitoring and event notifications only**. It does not automatically execute backup paths. External systems must subscribe to failure events and implement their own recovery logic if automatic failover is required.
 
 ## Features
 
@@ -40,10 +42,10 @@ public record class PathExecutionResult
 
 ### 3. Backup Path Calculation (备用路径计算-异常格口)
 
-When a failure is detected, the system automatically calculates a backup path to the exception chute:
+When a failure is detected, the system calculates a potential backup path to the exception chute for informational purposes:
 
 ```csharp
-// Automatic backup path calculation
+// Backup path calculation (for event notification only)
 public interface IPathFailureHandler
 {
     SwitchingPath? CalculateBackupPath(SwitchingPath originalPath);
@@ -53,16 +55,18 @@ public interface IPathFailureHandler
 var backupPath = _pathFailureHandler.CalculateBackupPath(originalPath);
 ```
 
-### 4. Automatic Path Switching (包裹自动切换路径)
+**Note**: The calculated backup path is provided in the `PathSwitched` event for monitoring purposes but is **not automatically executed** by the system.
 
-Path switching happens automatically in the `ParcelSortingOrchestrator`:
+### 4. Failure Event Notification (故障事件通知)
+
+When path execution fails, the `ParcelSortingOrchestrator` notifies registered handlers:
 
 ```csharp
 var executionResult = await _pathExecutor.ExecuteAsync(path);
 
 if (!executionResult.IsSuccess)
 {
-    // Automatically handle failure and calculate backup path
+    // Log failure and raise events (no automatic execution of backup path)
     if (_pathFailureHandler != null)
     {
         _pathFailureHandler.HandlePathFailure(
@@ -74,9 +78,11 @@ if (!executionResult.IsSuccess)
 }
 ```
 
-### 5. Event Notifications (通知摆轮执行新路径)
+**Current Behavior**: The system logs the failure and raises events. The parcel will go to wherever the failed path execution leaves it (typically the exception chute at the end of the conveyor if all diverters fail to activate).
 
-Three types of events are available for monitoring:
+### 5. Event Notifications (故障监控事件)
+
+Three types of events are available for monitoring and external handling:
 
 ```csharp
 // 1. Segment-level failure
@@ -89,14 +95,22 @@ _handler.SegmentExecutionFailed += (sender, args) =>
 _handler.PathExecutionFailed += (sender, args) => 
 {
     Console.WriteLine($"Path execution failed: {args.FailureReason}");
+    Console.WriteLine($"Parcel will go to exception chute: {args.ActualChuteId}");
 };
 
-// 3. Path switching
+// 3. Backup path calculated (informational event)
 _handler.PathSwitched += (sender, args) => 
 {
-    Console.WriteLine($"Switched from chute {args.OriginalPath.TargetChuteId} to {args.BackupPath.TargetChuteId}");
+    Console.WriteLine($"Failure detected for chute {args.OriginalPath.TargetChuteId}");
+    Console.WriteLine($"Backup path calculated to chute {args.BackupPath.TargetChuteId}");
+    Console.WriteLine($"Note: Backup path is NOT automatically executed");
+    
+    // External system can implement automatic execution here if needed:
+    // await _pathExecutor.ExecuteAsync(args.BackupPath);
 };
 ```
+
+**Important**: The `PathSwitched` event name is historical and somewhat misleading. It indicates that a backup path has been **calculated**, not that the path has been **switched** or **executed**.
 
 ### 6. Comprehensive Logging (记录路径切换日志)
 
@@ -140,7 +154,9 @@ var orchestrator = new ParcelSortingOrchestrator(
     failureHandler);  // Pass the failure handler
 ```
 
-### Manual Failure Handling
+### Manual Failure Handling and Recovery
+
+If you want to implement automatic execution of backup paths, you must do it explicitly:
 
 ```csharp
 // Execute path
@@ -149,21 +165,33 @@ var result = await executor.ExecuteAsync(path);
 // Check for failure
 if (!result.IsSuccess)
 {
-    // Handle the failure
+    // Log the failure and raise events
     failureHandler.HandlePathFailure(
         parcelId: 12345,
         originalPath: path,
         failureReason: result.FailureReason ?? "Unknown error",
         failedSegment: result.FailedSegment);
     
-    // Calculate and use backup path if needed
+    // If you want automatic recovery, explicitly execute the backup path
     var backupPath = failureHandler.CalculateBackupPath(path);
     if (backupPath != null)
     {
-        await executor.ExecuteAsync(backupPath);
+        _logger.LogInformation("Attempting recovery by executing backup path");
+        var backupResult = await executor.ExecuteAsync(backupPath);
+        
+        if (backupResult.IsSuccess)
+        {
+            _logger.LogInformation("Successfully recovered using backup path");
+        }
+        else
+        {
+            _logger.LogError("Backup path execution also failed");
+        }
     }
 }
 ```
+
+**Note**: The current `ParcelSortingOrchestrator` implementation does NOT include this automatic recovery logic.
 
 ## Configuration
 
@@ -237,14 +265,18 @@ ParcelSortingOrchestrator
     ├─ ISwitchingPathExecutor (executes path)
     │   └─ Returns PathExecutionResult with failure details
     │
-    └─ IPathFailureHandler (handles failures)
-        ├─ Raises Events:
+    └─ IPathFailureHandler (monitors failures)
+        ├─ Logs failure information
+        ├─ Calculates backup path (for informational purposes)
+        ├─ Raises Events (for external handlers):
         │   ├─ SegmentExecutionFailed
         │   ├─ PathExecutionFailed  
-        │   └─ PathSwitched
+        │   └─ PathSwitched (backup path calculated, NOT executed)
         │
-        └─ Calculates backup path to exception chute
+        └─ Does NOT execute backup path automatically
 ```
+
+**Key Point**: The `IPathFailureHandler` is a **monitoring and notification** component, not an **automatic recovery** component.
 
 ## Performance Considerations
 
@@ -253,15 +285,23 @@ ParcelSortingOrchestrator
 - No additional database queries for failure handling
 - Minimal memory overhead (event args are small objects)
 
+## Current Limitations
+
+1. **No Automatic Execution**: Backup paths are calculated but not automatically executed
+2. **No Automatic Retry**: Failed path segments are not automatically retried
+3. **No Dynamic Recovery**: System does not attempt to execute backup paths on failure
+4. **Event-Driven Only**: Recovery must be implemented by external event handlers
+
 ## Future Enhancements
 
 Potential improvements for future versions:
 
-1. **Retry Logic**: Automatic retry before switching to backup path
-2. **Failure Statistics**: Track failure rates per diverter/segment
-3. **Predictive Maintenance**: Alert when failure rates exceed thresholds
-4. **Custom Backup Strategies**: Different backup paths based on failure type
-5. **Failure Recovery**: Attempt to recover failed segments before switching
+1. **Automatic Backup Path Execution**: Implement automatic execution of calculated backup paths
+2. **Retry Logic**: Automatic retry before switching to backup path
+3. **Failure Statistics**: Track failure rates per diverter/segment
+4. **Predictive Maintenance**: Alert when failure rates exceed thresholds
+5. **Custom Backup Strategies**: Different backup paths based on failure type
+6. **Intelligent Recovery**: Attempt to recover failed segments before calculating backup paths
 
 ## Related Documentation
 
