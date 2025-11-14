@@ -189,11 +189,14 @@ public class ConcurrentSwitchingPathExecutorTests
     public async Task ExecuteAsync_SameDiverter_ExecutesSerially()
     {
         // Arrange
+        var mockExecutor = new Mock<ISwitchingPathExecutor>();
+        var lockManager = new DiverterResourceLockManager();
+        
         var path = CreateTestPath(targetChuteId: 1, diverterIds: new[] { 1 });
         var executionOrder = new List<int>();
         var executionId = 0;
 
-        _innerExecutorMock
+        mockExecutor
             .Setup(x => x.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
@@ -204,8 +207,8 @@ public class ConcurrentSwitchingPathExecutorTests
             });
 
         var executor = new ConcurrentSwitchingPathExecutor(
-            _innerExecutorMock.Object,
-            _lockManager,
+            mockExecutor.Object,
+            lockManager,
             _options,
             NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
 
@@ -347,10 +350,13 @@ public class ConcurrentSwitchingPathExecutorTests
     public async Task ExecuteAsync_HighConcurrency_MaintainsCorrectness()
     {
         // Arrange
+        var mockExecutor = new Mock<ISwitchingPathExecutor>();
+        var lockManager = new DiverterResourceLockManager();
+        
         var totalRequests = 50;
         var successCount = 0;
 
-        _innerExecutorMock
+        mockExecutor
             .Setup(x => x.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
@@ -359,8 +365,8 @@ public class ConcurrentSwitchingPathExecutorTests
             });
 
         var executor = new ConcurrentSwitchingPathExecutor(
-            _innerExecutorMock.Object,
-            _lockManager,
+            mockExecutor.Object,
+            lockManager,
             _options,
             NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
 

@@ -32,10 +32,14 @@ public class DiverterResourceLockTests
         var resourceLock = new DiverterResourceLock("D001");
 
         // Act
-        using var lockHandle = await resourceLock.AcquireWriteLockAsync();
+        var result = await Task.Run(async () =>
+        {
+            using var lockHandle = await resourceLock.AcquireWriteLockAsync();
+            return lockHandle != null;
+        });
 
         // Assert
-        Assert.NotNull(lockHandle);
+        Assert.True(result);
     }
 
     [Fact]
@@ -45,10 +49,14 @@ public class DiverterResourceLockTests
         var resourceLock = new DiverterResourceLock("D001");
 
         // Act
-        using var lockHandle = await resourceLock.AcquireReadLockAsync();
+        var result = await Task.Run(async () =>
+        {
+            using var lockHandle = await resourceLock.AcquireReadLockAsync();
+            return lockHandle != null;
+        });
 
         // Assert
-        Assert.NotNull(lockHandle);
+        Assert.True(result);
     }
 
     [Fact]
@@ -82,38 +90,23 @@ public class DiverterResourceLockTests
     {
         // Arrange
         var resourceLock = new DiverterResourceLock("D001");
-        var lockAcquired = false;
-        var lockReleased = false;
+        var executionCount = 0;
+        var maxConcurrent = 0;
 
-        // Act
-        var task1 = Task.Run(async () =>
+        // Act - try to acquire write locks concurrently
+        var tasks = Enumerable.Range(1, 3).Select(async _ =>
         {
-            using var lockHandle = await resourceLock.AcquireWriteLockAsync();
-            lockAcquired = true;
-            await Task.Delay(100); // Hold the lock for 100ms
-            lockReleased = true;
+            using var lockHandle = await Task.Run(() => resourceLock.AcquireWriteLockAsync());
+            var current = Interlocked.Increment(ref executionCount);
+            maxConcurrent = Math.Max(maxConcurrent, current);
+            await Task.Delay(50);
+            Interlocked.Decrement(ref executionCount);
         });
 
-        // Wait for first task to acquire lock
-        await Task.Delay(50);
-        Assert.True(lockAcquired);
-        Assert.False(lockReleased);
+        await Task.WhenAll(tasks);
 
-        // Try to acquire write lock from another thread
-        var task2Completed = false;
-        var task2 = Task.Run(async () =>
-        {
-            using var lockHandle = await resourceLock.AcquireWriteLockAsync();
-            task2Completed = true;
-        });
-
-        // Should not complete immediately
-        await Task.Delay(30);
-        Assert.False(task2Completed);
-
-        // Wait for both tasks to complete
-        await Task.WhenAll(task1, task2);
-        Assert.True(task2Completed);
+        // Assert - write locks should be exclusive (max concurrent = 1)
+        Assert.Equal(1, maxConcurrent);
     }
 
     // Note: Read/write lock interaction tests removed due to thread pool 
@@ -138,18 +131,23 @@ public class DiverterResourceLockTests
         var resourceLock = new DiverterResourceLock("D001");
 
         // Act - acquire and release lock using 'using' statement
-        using (await resourceLock.AcquireWriteLockAsync())
+        await Task.Run(async () =>
         {
-            // Lock is held here
-        }
-        // Lock is released here
+            using (await resourceLock.AcquireWriteLockAsync())
+            {
+                // Lock is held here
+            }
+            // Lock is released here
+        });
 
         // Assert - should be able to acquire lock again immediately
-        var canAcquireAgain = false;
-        using (await resourceLock.AcquireWriteLockAsync())
+        var canAcquireAgain = await Task.Run(async () =>
         {
-            canAcquireAgain = true;
-        }
+            using (await resourceLock.AcquireWriteLockAsync())
+            {
+                return true;
+            }
+        });
 
         Assert.True(canAcquireAgain);
     }
