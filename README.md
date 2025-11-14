@@ -387,6 +387,25 @@ dotnet run
 
 默认监听端口：5000（HTTP）
 
+### 启动完整监控栈 🆕
+
+使用Docker Compose一键启动应用、Prometheus和Grafana：
+
+```bash
+# 启动所有服务
+docker-compose -f docker-compose.monitoring.yml up -d
+
+# 访问服务
+# - 应用Swagger: http://localhost:5000/swagger
+# - Prometheus: http://localhost:9090
+# - Grafana: http://localhost:3000 (admin/admin)
+
+# 停止服务
+docker-compose -f docker-compose.monitoring.yml down
+```
+
+详细说明请参考 [Grafana监控仪表板设置指南](GRAFANA_DASHBOARD_GUIDE.md)
+
 ### 测试分拣功能
 
 ```bash
@@ -439,6 +458,9 @@ curl -X POST http://localhost:5000/api/debug/sort \
 ### 可观测性和运维
 - [Prometheus指标指南](PROMETHEUS_GUIDE.md)
 - [Prometheus实现总结](PROMETHEUS_IMPLEMENTATION_SUMMARY.md)
+- [**Grafana监控仪表板设置指南** 🆕](GRAFANA_DASHBOARD_GUIDE.md) - 完整的监控栈部署和使用指南
+- [**监控集成总结** 🆕](MONITORING_INTEGRATION_SUMMARY.md) - Prometheus和Grafana集成总结
+- [监控配置目录](monitoring/README.md) - 配置文件和快速参考
 - [告警规则](ALARM_RULES.md)
 
 ### 项目总结文档
