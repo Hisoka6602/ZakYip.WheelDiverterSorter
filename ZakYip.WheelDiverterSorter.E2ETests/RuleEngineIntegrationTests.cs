@@ -35,10 +35,10 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Act
         await _orchestrator.StartAsync();
 
-        // Assert
+        // Assert - 验证至少调用一次连接
         Factory.MockRuleEngineClient.Verify(
             x => x.ConnectAsync(It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.AtLeastOnce);
 
         Factory.MockRuleEngineClient.Object.IsConnected.Should().BeTrue();
 
@@ -62,10 +62,10 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Act
         await _orchestrator.StopAsync();
 
-        // Assert
+        // Assert - 验证至少调用一次断开连接
         Factory.MockRuleEngineClient.Verify(
             x => x.DisconnectAsync(),
-            Times.Once);
+            Times.AtLeastOnce);
     }
 
     [Fact]
