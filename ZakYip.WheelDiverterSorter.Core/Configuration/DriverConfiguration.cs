@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 
 /// <summary>
@@ -20,13 +22,13 @@ public class DriverConfiguration
     /// </summary>
     /// <remarks>
     /// 可选值:
-    /// - 0: Mock (模拟驱动器，用于测试)
-    /// - 1: Leadshine (雷赛控制器)
-    /// - 2: Siemens (西门子PLC)
-    /// - 3: Mitsubishi (三菱PLC)
-    /// - 4: Omron (欧姆龙PLC)
+    /// - Mock: 模拟驱动器（用于测试）
+    /// - Leadshine: 雷赛控制器
+    /// - Siemens: 西门子PLC
+    /// - Mitsubishi: 三菱PLC
+    /// - Omron: 欧姆龙PLC
     /// </remarks>
-    public int VendorType { get; set; } = 1; // Leadshine
+    public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
 
     /// <summary>
     /// 雷赛控制器配置
@@ -56,7 +58,7 @@ public class DriverConfiguration
         return new DriverConfiguration
         {
             UseHardwareDriver = false,
-            VendorType = 1, // Leadshine
+            VendorType = DriverVendorType.Leadshine,
             Leadshine = new LeadshineDriverConfig
             {
                 CardNo = 0,
@@ -75,12 +77,12 @@ public class DriverConfiguration
     /// </summary>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
-        if (VendorType < 0 || VendorType > 4)
+        if (!Enum.IsDefined(typeof(DriverVendorType), VendorType))
         {
             return (false, "驱动器厂商类型无效");
         }
 
-        if (UseHardwareDriver && VendorType == 1 && Leadshine == null)
+        if (UseHardwareDriver && VendorType == DriverVendorType.Leadshine && Leadshine == null)
         {
             return (false, "使用雷赛硬件驱动时，必须配置雷赛参数");
         }

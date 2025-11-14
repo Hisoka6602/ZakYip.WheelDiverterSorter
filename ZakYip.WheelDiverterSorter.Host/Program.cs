@@ -21,7 +21,11 @@ builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         // 配置枚举序列化为字符串，使Swagger和API调用更友好
-        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // allowIntegerValues: true 允许反序列化时接受数字（向后兼容）
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter(
+                namingPolicy: null, 
+                allowIntegerValues: true));
     });
 
 // 添加性能监控和优化服务

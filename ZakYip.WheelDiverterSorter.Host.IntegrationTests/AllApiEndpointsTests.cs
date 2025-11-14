@@ -41,7 +41,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode, 
             $"Expected success status code but got {response.StatusCode}");
         
-        var result = await response.Content.ReadFromJsonAsync<DebugSortResponse>();
+        var result = await response.Content.ReadFromJsonAsync<DebugSortResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(result);
         Assert.Equal(request.ParcelId, result.ParcelId);
         Assert.Equal(request.TargetChuteId, result.TargetChuteId);
@@ -78,7 +78,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var routes = await response.Content.ReadFromJsonAsync<List<RouteConfigResponse>>();
+        var routes = await response.Content.ReadFromJsonAsync<List<RouteConfigResponse>>(TestJsonOptions.GetOptions());
         Assert.NotNull(routes);
     }
 
@@ -92,7 +92,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var route = await response.Content.ReadFromJsonAsync<RouteConfigResponse>();
+        var route = await response.Content.ReadFromJsonAsync<RouteConfigResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(route);
         Assert.Equal(1, route.ChuteId);
     }
@@ -117,7 +117,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var routes = await response.Content.ReadFromJsonAsync<List<RouteConfigResponse>>();
+        var routes = await response.Content.ReadFromJsonAsync<List<RouteConfigResponse>>(TestJsonOptions.GetOptions());
         Assert.NotNull(routes);
     }
 
@@ -135,7 +135,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<DriverConfiguration>();
+        var config = await response.Content.ReadFromJsonAsync<DriverConfiguration>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -149,7 +149,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<DriverConfiguration>();
+        var config = await response.Content.ReadFromJsonAsync<DriverConfiguration>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -167,7 +167,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<SensorConfiguration>();
+        var config = await response.Content.ReadFromJsonAsync<SensorConfiguration>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -181,7 +181,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<SensorConfiguration>();
+        var config = await response.Content.ReadFromJsonAsync<SensorConfiguration>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -199,7 +199,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<SystemConfigResponse>();
+        var config = await response.Content.ReadFromJsonAsync<SystemConfigResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -213,7 +213,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var template = await response.Content.ReadFromJsonAsync<SystemConfigRequest>();
+        var template = await response.Content.ReadFromJsonAsync<SystemConfigRequest>(TestJsonOptions.GetOptions());
         Assert.NotNull(template);
     }
 
@@ -227,7 +227,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<SystemConfigResponse>();
+        var config = await response.Content.ReadFromJsonAsync<SystemConfigResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -256,7 +256,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<CommunicationConfiguration>();
+        var config = await response.Content.ReadFromJsonAsync<CommunicationConfiguration>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -270,7 +270,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var config = await response.Content.ReadFromJsonAsync<CommunicationConfiguration>();
+        var config = await response.Content.ReadFromJsonAsync<CommunicationConfiguration>(TestJsonOptions.GetOptions());
         Assert.NotNull(config);
     }
 
@@ -284,7 +284,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
         
-        var status = await response.Content.ReadFromJsonAsync<CommunicationStatusResponse>();
+        var status = await response.Content.ReadFromJsonAsync<CommunicationStatusResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(status);
         Assert.NotNull(status.Mode);
     }
@@ -310,7 +310,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         // Note: This test will always return 200 OK, but Success field may be false
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         
-        var result = await response.Content.ReadFromJsonAsync<ConnectionTestResponse>();
+        var result = await response.Content.ReadFromJsonAsync<ConnectionTestResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(result);
         // Connection may fail if RuleEngine is not running, which is expected
     }

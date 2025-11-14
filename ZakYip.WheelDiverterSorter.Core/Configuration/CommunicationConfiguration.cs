@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 
 /// <summary>
@@ -15,12 +17,12 @@ public class CommunicationConfiguration
     /// </summary>
     /// <remarks>
     /// 可选值:
-    /// - 0: Http (HTTP REST API，仅用于测试，生产环境禁用)
-    /// - 1: Tcp (TCP Socket，推荐生产环境)
-    /// - 2: SignalR (SignalR，推荐生产环境)
-    /// - 3: Mqtt (MQTT，推荐生产环境)
+    /// - Http: HTTP REST API（仅用于测试，生产环境禁用）
+    /// - Tcp: TCP Socket（推荐生产环境）
+    /// - SignalR: SignalR（推荐生产环境）
+    /// - Mqtt: MQTT（推荐生产环境）
     /// </remarks>
-    public int Mode { get; set; } = 0; // Http
+    public CommunicationMode Mode { get; set; } = CommunicationMode.Http;
 
     /// <summary>
     /// TCP服务器地址（格式：host:port）
@@ -109,7 +111,7 @@ public class CommunicationConfiguration
     {
         return new CommunicationConfiguration
         {
-            Mode = 0, // Http
+            Mode = CommunicationMode.Http,
             TcpServer = "192.168.1.100:8000",
             SignalRHub = "http://192.168.1.100:5000/sortingHub",
             MqttBroker = "mqtt://192.168.1.100:1883",
@@ -156,7 +158,7 @@ public class CommunicationConfiguration
     /// </summary>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
-        if (Mode < 0 || Mode > 3)
+        if (!Enum.IsDefined(typeof(CommunicationMode), Mode))
         {
             return (false, "通信模式无效");
         }
@@ -164,21 +166,21 @@ public class CommunicationConfiguration
         // 根据模式验证对应的配置
         switch (Mode)
         {
-            case 1: // Tcp
+            case CommunicationMode.Tcp:
                 if (string.IsNullOrWhiteSpace(TcpServer))
                 {
                     return (false, "TCP模式下，TcpServer不能为空");
                 }
                 break;
 
-            case 2: // SignalR
+            case CommunicationMode.SignalR:
                 if (string.IsNullOrWhiteSpace(SignalRHub))
                 {
                     return (false, "SignalR模式下，SignalRHub不能为空");
                 }
                 break;
 
-            case 3: // Mqtt
+            case CommunicationMode.Mqtt:
                 if (string.IsNullOrWhiteSpace(MqttBroker))
                 {
                     return (false, "MQTT模式下，MqttBroker不能为空");
@@ -189,7 +191,7 @@ public class CommunicationConfiguration
                 }
                 break;
 
-            case 0: // Http
+            case CommunicationMode.Http:
                 if (string.IsNullOrWhiteSpace(HttpApi))
                 {
                     return (false, "HTTP模式下，HttpApi不能为空");
