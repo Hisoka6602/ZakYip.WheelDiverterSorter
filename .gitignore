@@ -371,3 +371,7 @@ FodyWeavers.xsd
 *.db-shm
 *.db-wal
 Data/
+
+# Monitoring backup files
+backup/
+*.tar.gz
