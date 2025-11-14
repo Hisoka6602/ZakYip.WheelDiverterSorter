@@ -19,4 +19,16 @@ public static class ObservabilityServiceExtensions
         services.AddSingleton<PrometheusMetrics>();
         return services;
     }
+
+    /// <summary>
+    /// 添加告警服务
+    /// Add alarm service to the service collection
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddAlarmService(this IServiceCollection services)
+    {
+        services.AddSingleton<AlarmService>();
+        return services;
+    }
 }
