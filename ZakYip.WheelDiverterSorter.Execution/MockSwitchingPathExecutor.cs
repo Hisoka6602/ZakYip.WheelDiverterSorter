@@ -53,7 +53,8 @@ public class MockSwitchingPathExecutor : ISwitchingPathExecutor
             {
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
-                FailureReason = "操作被取消"
+                FailureReason = "操作被取消",
+                FailureTime = DateTimeOffset.UtcNow
             };
         }
         catch (Exception ex)
@@ -63,7 +64,8 @@ public class MockSwitchingPathExecutor : ISwitchingPathExecutor
             {
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
-                FailureReason = $"执行异常: {ex.Message}"
+                FailureReason = $"执行异常: {ex.Message}",
+                FailureTime = DateTimeOffset.UtcNow
             };
         }
     }
