@@ -1,5 +1,7 @@
 # ZakYip.WheelDiverterSorter
 
+[![.NET Build and Test](https://github.com/Hisoka6602/ZakYip.WheelDiverterSorter/actions/workflows/dotnet.yml/badge.svg)](https://github.com/Hisoka6602/ZakYip.WheelDiverterSorter/actions/workflows/dotnet.yml)
+
 直线摆轮分拣系统 - 基于方向控制的包裹自动分拣解决方案
 
 ## 📐 系统拓扑结构
@@ -394,7 +396,7 @@ P5 - 长期规划，技术储备，持续关注（6个月+）
   - 预计新增：~15个测试
 
 #### 第四阶段：CI/CD集成（P1）⏰ 预计 1-2天
-- [ ] **配置CI/CD自动测试**
+- [x] **配置CI/CD自动测试**
   - GitHub Actions：每次PR自动运行所有测试
   - 测试报告生成：XUnit报告、覆盖率报告
   - 覆盖率门槛检查：最低60%，目标80%
