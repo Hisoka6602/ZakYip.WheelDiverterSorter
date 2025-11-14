@@ -187,8 +187,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1,
-                    SegmentLengthMeter = 5.0,
-                    SegmentSpeedMeterPerSecond = 1.0,
+                    SegmentLengthMm = 5000.0,
+                    SegmentSpeedMmPerSecond = 1000.0,
                     SegmentToleranceTimeMs = 2000
                 }
             }
@@ -291,8 +291,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1,
-                    SegmentLengthMeter = 10.0,
-                    SegmentSpeedMeterPerSecond = 2.0,
+                    SegmentLengthMm = 10000.0,
+                    SegmentSpeedMmPerSecond = 2000.0,
                     SegmentToleranceTimeMs = 1000
                 },
                 new DiverterConfigurationEntry
@@ -300,8 +300,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 2,
                     TargetDirection = DiverterDirection.Right,
                     SequenceNumber = 2,
-                    SegmentLengthMeter = 5.0,
-                    SegmentSpeedMeterPerSecond = 1.5,
+                    SegmentLengthMm = 5000.0,
+                    SegmentSpeedMmPerSecond = 1500.0,
                     SegmentToleranceTimeMs = 1500
                 }
             }
@@ -336,8 +336,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1,
-                    SegmentLengthMeter = 0.1,  // Very short segment
-                    SegmentSpeedMeterPerSecond = 10.0,  // Very fast
+                    SegmentLengthMm = 100.0,  // Very short segment
+                    SegmentSpeedMmPerSecond = 10000.0,  // Very fast
                     SegmentToleranceTimeMs = 0  // No tolerance
                 }
             }
@@ -369,8 +369,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 1,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 1,
-                    SegmentLengthMeter = 5.0,
-                    SegmentSpeedMeterPerSecond = 1.0,
+                    SegmentLengthMm = 5000.0,
+                    SegmentSpeedMmPerSecond = 1000.0,
                     SegmentToleranceTimeMs = 2000
                 },
                 new DiverterConfigurationEntry
@@ -378,8 +378,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 2,
                     TargetDirection = DiverterDirection.Straight,
                     SequenceNumber = 2,
-                    SegmentLengthMeter = 8.0,
-                    SegmentSpeedMeterPerSecond = 1.5,
+                    SegmentLengthMm = 8000.0,
+                    SegmentSpeedMmPerSecond = 1500.0,
                     SegmentToleranceTimeMs = 2500
                 },
                 new DiverterConfigurationEntry
@@ -387,8 +387,8 @@ public class DefaultSwitchingPathGeneratorTests
                     DiverterId = 3,
                     TargetDirection = DiverterDirection.Right,
                     SequenceNumber = 3,
-                    SegmentLengthMeter = 6.0,
-                    SegmentSpeedMeterPerSecond = 2.0,
+                    SegmentLengthMm = 6000.0,
+                    SegmentSpeedMmPerSecond = 2000.0,
                     SegmentToleranceTimeMs = 1500
                 }
             }
@@ -427,8 +427,8 @@ public class DefaultSwitchingPathGeneratorTests
             DiverterId = 1,
             TargetDirection = DiverterDirection.Straight,
             SequenceNumber = 1,
-            SegmentLengthMeter = 5.0,
-            SegmentSpeedMeterPerSecond = 1.0,
+            SegmentLengthMm = 5000.0,
+            SegmentSpeedMmPerSecond = 1000.0,
             SegmentToleranceTimeMs = toleranceMs
         };
 

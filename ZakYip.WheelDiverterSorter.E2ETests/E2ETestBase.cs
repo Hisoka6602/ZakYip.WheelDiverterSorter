@@ -77,8 +77,8 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
                 TargetDirection = d.direction,
                 SequenceNumber = d.sequence
             }).ToList(),
-            BeltSpeedMeterPerSecond = 1.0,
-            BeltLengthMeter = 10.0,
+            BeltSpeedMmPerSecond = 1000.0,
+            BeltLengthMm = 10000.0,
             ToleranceTimeMs = 2000,
             IsEnabled = true
         };

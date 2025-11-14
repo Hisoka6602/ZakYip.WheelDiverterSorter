@@ -468,13 +468,13 @@ public class RouteConfigController : ControllerBase {
                     DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber,
-                    SegmentLengthMeter = d.SegmentLengthMeter,
-                    SegmentSpeedMeterPerSecond = d.SegmentSpeedMeterPerSecond,
+                    SegmentLengthMm = d.SegmentLengthMm,
+                    SegmentSpeedMmPerSecond = d.SegmentSpeedMmPerSecond,
                     SegmentToleranceTimeMs = d.SegmentToleranceTimeMs
                 })
                 .ToList(),
-            BeltSpeedMeterPerSecond = request.BeltSpeedMeterPerSecond,
-            BeltLengthMeter = request.BeltLengthMeter,
+            BeltSpeedMmPerSecond = request.BeltSpeedMmPerSecond,
+            BeltLengthMm = request.BeltLengthMm,
             ToleranceTimeMs = request.ToleranceTimeMs,
             SensorConfig = request.SensorConfig != null ? new ChuteSensorConfig {
                 SensorId = request.SensorConfig.SensorId,
@@ -500,13 +500,13 @@ public class RouteConfigController : ControllerBase {
                     DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber,
-                    SegmentLengthMeter = d.SegmentLengthMeter,
-                    SegmentSpeedMeterPerSecond = d.SegmentSpeedMeterPerSecond,
+                    SegmentLengthMm = d.SegmentLengthMm,
+                    SegmentSpeedMmPerSecond = d.SegmentSpeedMmPerSecond,
                     SegmentToleranceTimeMs = d.SegmentToleranceTimeMs
                 })
                 .ToList(),
-            BeltSpeedMeterPerSecond = config.BeltSpeedMeterPerSecond,
-            BeltLengthMeter = config.BeltLengthMeter,
+            BeltSpeedMmPerSecond = config.BeltSpeedMmPerSecond,
+            BeltLengthMm = config.BeltLengthMm,
             ToleranceTimeMs = config.ToleranceTimeMs,
             SensorConfig = config.SensorConfig != null ? new ChuteSensorConfigRequest {
                 SensorId = config.SensorConfig.SensorId,

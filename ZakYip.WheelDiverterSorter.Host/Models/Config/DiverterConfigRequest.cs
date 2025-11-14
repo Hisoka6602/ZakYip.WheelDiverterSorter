@@ -32,18 +32,18 @@ public class DiverterConfigRequest {
     public int SequenceNumber { get; set; }
 
     /// <summary>
-    /// 到达本摆轮的皮带段长度（米）- Segment Belt Length (m)
+    /// 到达本摆轮的皮带段长度（毫米）- Segment Belt Length (mm)
     /// </summary>
-    /// <example>5.0</example>
-    [Range(0.1, 1000, ErrorMessage = "段长度必须在0.1到1000米之间")]
-    public double SegmentLengthMeter { get; set; } = 5.0;
+    /// <example>5000.0</example>
+    [Range(100, 1000000, ErrorMessage = "段长度必须在100到1000000毫米之间")]
+    public double SegmentLengthMm { get; set; } = 5000.0;
 
     /// <summary>
-    /// 本段皮带速度（米/秒）- Segment Belt Speed (m/s)
+    /// 本段皮带速度（毫米/秒）- Segment Belt Speed (mm/s)
     /// </summary>
-    /// <example>1.5</example>
-    [Range(0.1, 10, ErrorMessage = "段速度必须在0.1到10米/秒之间")]
-    public double SegmentSpeedMeterPerSecond { get; set; } = 1.0;
+    /// <example>1500.0</example>
+    [Range(100, 10000, ErrorMessage = "段速度必须在100到10000毫米/秒之间")]
+    public double SegmentSpeedMmPerSecond { get; set; } = 1000.0;
 
     /// <summary>
     /// 本段容差时间（毫秒）- Segment Tolerance Time (ms)

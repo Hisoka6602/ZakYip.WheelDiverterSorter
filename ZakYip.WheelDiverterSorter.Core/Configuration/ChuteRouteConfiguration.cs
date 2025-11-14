@@ -29,20 +29,20 @@ public class ChuteRouteConfiguration
     public required List<DiverterConfigurationEntry> DiverterConfigurations { get; set; }
 
     /// <summary>
-    /// 皮带速度（米/秒）- Belt Speed (m/s)
+    /// 皮带速度（毫米/秒）- Belt Speed (mm/s)
     /// </summary>
     /// <remarks>
     /// 用于计算包裹到达格口的预期时间
     /// </remarks>
-    public double BeltSpeedMeterPerSecond { get; set; } = 1.0;
+    public double BeltSpeedMmPerSecond { get; set; } = 1000.0;
 
     /// <summary>
-    /// 皮带长度（米）- Belt Length (m)
+    /// 皮带长度（毫米）- Belt Length (mm)
     /// </summary>
     /// <remarks>
     /// 从上一个检测点（入口或上一个格口）到此格口的距离
     /// </remarks>
-    public double BeltLengthMeter { get; set; } = 10.0;
+    public double BeltLengthMm { get; set; } = 10000.0;
 
     /// <summary>
     /// 容差时间（毫秒）- Tolerance Time (ms)
