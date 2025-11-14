@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
@@ -136,5 +137,77 @@ public class RouteConfigControllerTests : IClassFixture<CustomWebApplicationFact
             response.StatusCode == HttpStatusCode.NoContent ||
             response.StatusCode == HttpStatusCode.NotFound,
             $"Expected 200, 204, or 404, but got {(int)response.StatusCode} ({response.StatusCode})");
+    }
+
+    [Fact]
+    public async Task GetAllRoutes_EnumsSerializedAsStrings()
+    {
+        // Act
+        var response = await _client.GetAsync("/api/config/routes");
+        var json = await response.Content.ReadAsStringAsync();
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        
+        // Parse the JSON to verify enums are serialized as strings
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        
+        // Check if there are any routes with diverter configurations
+        if (root.GetArrayLength() > 0)
+        {
+            var firstRoute = root[0];
+            if (firstRoute.TryGetProperty("diverterConfigurations", out var diverterConfigs) && 
+                diverterConfigs.GetArrayLength() > 0)
+            {
+                var firstConfig = diverterConfigs[0];
+                // TargetDirection should be a string (e.g., "Left", "Right", "Straight") not a number
+                Assert.True(firstConfig.TryGetProperty("targetDirection", out var targetDirection));
+                Assert.Equal(JsonValueKind.String, targetDirection.ValueKind);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task CreateRoute_AcceptsNumericEnumValue_ForBackwardCompatibility()
+    {
+        // Arrange - Use a unique chute ID to avoid conflicts
+        var uniqueChuteId = 88888;
+        var json = $$"""
+        {
+            "chuteId": {{uniqueChuteId}},
+            "diverterConfigurations": [
+                {
+                    "diverterId": 1,
+                    "targetDirection": 1,
+                    "sequenceNumber": 1
+                }
+            ],
+            "isEnabled": true
+        }
+        """;
+
+        var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        // Act
+        var response = await _client.PostAsJsonAsync("/api/config/routes", 
+            JsonSerializer.Deserialize<object>(json));
+
+        // Clean up - try to delete if created
+        await _client.DeleteAsync($"/api/config/routes/{uniqueChuteId}");
+
+        // Assert
+        Assert.True(
+            response.StatusCode == HttpStatusCode.Created || 
+            response.StatusCode == HttpStatusCode.Conflict,
+            $"Expected 201 or 409, but got {(int)response.StatusCode} ({response.StatusCode})");
+        
+        if (response.StatusCode == HttpStatusCode.Created)
+        {
+            // Verify response contains the enum as string (even though we sent number)
+            var responseJson = await response.Content.ReadAsStringAsync();
+            Assert.Contains("\"targetDirection\":", responseJson);
+            Assert.Contains("\"Left\"", responseJson); // 1 = Left
+        }
     }
 }
