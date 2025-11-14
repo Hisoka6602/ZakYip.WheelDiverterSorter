@@ -15,7 +15,12 @@ using Microsoft.OpenApi.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // 添加服务到容器
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // 配置枚举序列化为字符串，使Swagger和API调用更友好
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 
 // 添加性能监控和优化服务
 builder.Services.AddMemoryCache(options =>
@@ -66,6 +71,9 @@ builder.Services.AddSwaggerGen(options =>
     });
     
     options.DocInclusionPredicate((name, api) => true);
+    
+    // 配置枚举在Swagger中显示为字符串而不是数字
+    options.UseInlineDefinitionsForEnums();
 });
 
 // 配置路由数据库路径
