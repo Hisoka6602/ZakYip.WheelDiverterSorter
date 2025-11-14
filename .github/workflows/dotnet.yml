@@ -85,6 +85,18 @@ jobs:
           exit 0
         fi
     
+    - name: Upload coverage to Codecov
+      if: always()
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./TestResults/**/coverage.cobertura.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+        verbose: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+    
     - name: Add coverage comment to PR
       if: github.event_name == 'pull_request' && always()
       uses: marocchino/sticky-pull-request-comment@v2
