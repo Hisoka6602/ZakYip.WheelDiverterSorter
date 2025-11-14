@@ -31,22 +31,22 @@ public class RouteConfigRequest
     public required List<DiverterConfigRequest> DiverterConfigurations { get; set; }
 
     /// <summary>
-    /// 皮带速度（米/秒）- Belt Speed (m/s)
+    /// 皮带速度（毫米/秒）- Belt Speed (mm/s)
     /// </summary>
     /// <remarks>
-    /// 用于计算包裹到达摆轮的预期时间。默认值：1.0 m/s
+    /// 用于计算包裹到达摆轮的预期时间。默认值：1000.0 mm/s
     /// </remarks>
-    /// <example>1.0</example>
-    public double BeltSpeedMeterPerSecond { get; set; } = 1.0;
+    /// <example>1000.0</example>
+    public double BeltSpeedMmPerSecond { get; set; } = 1000.0;
 
     /// <summary>
-    /// 皮带长度（米）- Belt Length (m)
+    /// 皮带长度（毫米）- Belt Length (mm)
     /// </summary>
     /// <remarks>
-    /// 从入口传感器到格口的总长度。默认值：10.0 m
+    /// 从入口传感器到格口的总长度。默认值：10000.0 mm
     /// </remarks>
-    /// <example>10.0</example>
-    public double BeltLengthMeter { get; set; } = 10.0;
+    /// <example>10000.0</example>
+    public double BeltLengthMm { get; set; } = 10000.0;
 
     /// <summary>
     /// 容差时间（毫秒）- Tolerance Time (ms)

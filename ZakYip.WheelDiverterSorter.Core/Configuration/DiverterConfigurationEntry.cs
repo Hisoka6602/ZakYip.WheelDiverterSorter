@@ -37,20 +37,20 @@ public class DiverterConfigurationEntry
     public required int SequenceNumber { get; set; }
 
     /// <summary>
-    /// 到达本摆轮的皮带段长度（米）- Segment Belt Length (m)
+    /// 到达本摆轮的皮带段长度（毫米）- Segment Belt Length (mm)
     /// </summary>
     /// <remarks>
     /// 从上一个摆轮（或入口）到本摆轮的距离，用于计算包裹到达时间和段TTL
     /// </remarks>
-    public double SegmentLengthMeter { get; set; } = 5.0;
+    public double SegmentLengthMm { get; set; } = 5000.0;
 
     /// <summary>
-    /// 本段皮带速度（米/秒）- Segment Belt Speed (m/s)
+    /// 本段皮带速度（毫米/秒）- Segment Belt Speed (mm/s)
     /// </summary>
     /// <remarks>
     /// 本段输送带的运行速度，用于计算包裹通过本段的时间
     /// </remarks>
-    public double SegmentSpeedMeterPerSecond { get; set; } = 1.0;
+    public double SegmentSpeedMmPerSecond { get; set; } = 1000.0;
 
     /// <summary>
     /// 本段容差时间（毫秒）- Segment Tolerance Time (ms)

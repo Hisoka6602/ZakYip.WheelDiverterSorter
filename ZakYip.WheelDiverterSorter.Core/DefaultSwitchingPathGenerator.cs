@@ -104,7 +104,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     private int CalculateSegmentTtl(DiverterConfigurationEntry segmentConfig)
     {
         // 计算理论通过时间（毫秒）
-        var theoreticalTimeMs = (segmentConfig.SegmentLengthMeter / segmentConfig.SegmentSpeedMeterPerSecond) * 1000;
+        var theoreticalTimeMs = (segmentConfig.SegmentLengthMm / segmentConfig.SegmentSpeedMmPerSecond) * 1000;
         
         // 加上容差时间
         var calculatedTtl = (int)Math.Ceiling(theoreticalTimeMs) + segmentConfig.SegmentToleranceTimeMs;
