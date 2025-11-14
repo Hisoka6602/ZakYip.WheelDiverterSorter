@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core;
+
 namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
@@ -26,4 +28,17 @@ public record class PathExecutionResult
     /// 当 IsSuccess = false 时，此字段描述失败的具体原因
     /// </summary>
     public string? FailureReason { get; init; }
+
+    /// <summary>
+    /// 失败的路径段（如果执行失败）
+    /// </summary>
+    /// <remarks>
+    /// 当路径段执行失败时，此字段包含失败的段信息，用于定位失败位置
+    /// </remarks>
+    public SwitchingPathSegment? FailedSegment { get; init; }
+
+    /// <summary>
+    /// 失败时间
+    /// </summary>
+    public DateTimeOffset? FailureTime { get; init; }
 }

@@ -122,7 +122,9 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
                         {
                             IsSuccess = false,
                             ActualChuteId = path.FallbackChuteId,
-                            FailureReason = $"获取摆轮 {segment.DiverterId} 的锁超时"
+                            FailureReason = $"获取摆轮 {segment.DiverterId} 的锁超时",
+                            FailedSegment = segment,
+                            FailureTime = DateTimeOffset.UtcNow
                         };
                     }
                 }
@@ -163,7 +165,8 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
             {
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
-                FailureReason = "操作被取消"
+                FailureReason = "操作被取消",
+                FailureTime = DateTimeOffset.UtcNow
             };
         }
         catch (Exception ex)
@@ -173,7 +176,8 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
             {
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
-                FailureReason = $"执行异常: {ex.Message}"
+                FailureReason = $"执行异常: {ex.Message}",
+                FailureTime = DateTimeOffset.UtcNow
             };
         }
         finally

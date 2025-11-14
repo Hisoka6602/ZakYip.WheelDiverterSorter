@@ -28,10 +28,12 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
+    private readonly IPathFailureHandler? _pathFailureHandler;
     private readonly ILogger<ParcelSortingOrchestrator> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
+    private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly object _lockObject = new object();
     private bool _isConnected;
 
@@ -45,7 +47,8 @@ public class ParcelSortingOrchestrator : IDisposable
         ISwitchingPathExecutor pathExecutor,
         IOptions<RuleEngineConnectionOptions> options,
         ISystemConfigurationRepository systemConfigRepository,
-        ILogger<ParcelSortingOrchestrator> logger)
+        ILogger<ParcelSortingOrchestrator> logger,
+        IPathFailureHandler? pathFailureHandler = null)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -54,7 +57,9 @@ public class ParcelSortingOrchestrator : IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _pathFailureHandler = pathFailureHandler;
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
+        _parcelPaths = new Dictionary<long, SwitchingPath>();
 
         // 订阅包裹检测事件
         _parcelDetectionService.ParcelDetected += OnParcelDetected;
@@ -265,6 +270,12 @@ public class ParcelSortingOrchestrator : IDisposable
                 }
             }
 
+            // 记录包裹路径，用于失败处理
+            lock (_lockObject)
+            {
+                _parcelPaths[parcelId] = path;
+            }
+
             // 执行摆轮路径
             var executionResult = await _pathExecutor.ExecuteAsync(path);
 
@@ -282,6 +293,22 @@ public class ParcelSortingOrchestrator : IDisposable
                     parcelId,
                     executionResult.FailureReason,
                     executionResult.ActualChuteId);
+
+                // 处理路径执行失败
+                if (_pathFailureHandler != null)
+                {
+                    _pathFailureHandler.HandlePathFailure(
+                        parcelId,
+                        path,
+                        executionResult.FailureReason ?? "未知错误",
+                        executionResult.FailedSegment);
+                }
+            }
+
+            // 清理包裹路径记录
+            lock (_lockObject)
+            {
+                _parcelPaths.Remove(parcelId);
             }
         }
         catch (Exception ex)
