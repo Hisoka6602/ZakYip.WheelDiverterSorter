@@ -1,0 +1,58 @@
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability;
+
+namespace ZakYip.WheelDiverterSorter.Host.Services;
+
+/// <summary>
+/// 告警监控后台服务 / Alarm Monitoring Background Service
+/// Periodically checks alarm conditions and maintains alarm state
+/// </summary>
+public class AlarmMonitoringWorker : BackgroundService
+{
+    private readonly ILogger<AlarmMonitoringWorker> _logger;
+    private readonly AlarmService _alarmService;
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromSeconds(10);
+
+    public AlarmMonitoringWorker(
+        ILogger<AlarmMonitoringWorker> logger,
+        AlarmService alarmService)
+    {
+        _logger = logger;
+        _alarmService = alarmService;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _logger.LogInformation("告警监控服务启动 / Alarm monitoring service started");
+
+        // Report system restart alarm
+        _alarmService.ReportSystemRestart();
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                // Check RuleEngine disconnection duration
+                _alarmService.CheckRuleEngineDisconnection();
+
+                // Log active alarms count
+                var activeAlarms = _alarmService.GetActiveAlarms();
+                if (activeAlarms.Count > 0)
+                {
+                    _logger.LogWarning(
+                        "当前活跃告警数量 / Active alarms count: {Count}",
+                        activeAlarms.Count);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "告警监控检查失败 / Alarm monitoring check failed");
+            }
+
+            await Task.Delay(CheckInterval, stoppingToken);
+        }
+
+        _logger.LogInformation("告警监控服务停止 / Alarm monitoring service stopped");
+    }
+}

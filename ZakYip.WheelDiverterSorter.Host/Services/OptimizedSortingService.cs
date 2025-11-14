@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Diagnostics;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -14,6 +15,7 @@ public class OptimizedSortingService
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly SorterMetrics _metrics;
+    private readonly AlarmService? _alarmService;
     private readonly ILogger<OptimizedSortingService> _logger;
     
     // 使用ArrayPool减少数组分配
@@ -23,11 +25,13 @@ public class OptimizedSortingService
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
         SorterMetrics metrics,
-        ILogger<OptimizedSortingService> logger)
+        ILogger<OptimizedSortingService> logger,
+        AlarmService? alarmService = null)
     {
         _pathGenerator = pathGenerator;
         _pathExecutor = pathExecutor;
         _metrics = metrics;
+        _alarmService = alarmService;
         _logger = logger;
     }
 
@@ -59,6 +63,7 @@ public class OptimizedSortingService
                 
                 overallStopwatch.Stop();
                 _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
+                _alarmService?.RecordSortingFailure();
                 
                 return new PathExecutionResult
                 {
@@ -81,6 +86,7 @@ public class OptimizedSortingService
             if (result.IsSuccess)
             {
                 _metrics.RecordSortingSuccess(overallStopwatch.Elapsed.TotalMilliseconds);
+                _alarmService?.RecordSortingSuccess();
                 _logger.LogInformation(
                     "分拣成功: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
                     "总时长={TotalMs}ms (生成={GenMs}ms, 执行={ExecMs}ms)",
@@ -91,6 +97,7 @@ public class OptimizedSortingService
             else
             {
                 _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
+                _alarmService?.RecordSortingFailure();
                 _logger.LogWarning(
                     "分拣失败: ParcelId={ParcelId}, 原因={Reason}, " +
                     "总时长={TotalMs}ms",
@@ -104,6 +111,7 @@ public class OptimizedSortingService
         {
             overallStopwatch.Stop();
             _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
+            _alarmService?.RecordSortingFailure();
             
             _logger.LogError(ex, "分拣过程发生异常: ParcelId={ParcelId}, ChuteId={ChuteId}", 
                 parcelId, targetChuteId);

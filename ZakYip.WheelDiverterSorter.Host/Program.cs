@@ -35,6 +35,9 @@ builder.Services.AddSingleton<SorterMetrics>();
 // 添加Prometheus指标服务
 builder.Services.AddPrometheusMetrics();
 
+// 添加告警服务
+builder.Services.AddAlarmService();
+
 // 配置Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -192,6 +195,9 @@ builder.Services.AddSingleton<CommunicationStatsService>();
 // 取消注释以下行以启用自动传感器监听和分拣编排
 // builder.Services.AddHostedService<SensorMonitoringWorker>();
 // builder.Services.AddHostedService<ParcelSortingWorker>();
+
+// 注册告警监控后台服务
+builder.Services.AddHostedService<AlarmMonitoringWorker>();
 
 var app = builder.Build();
 

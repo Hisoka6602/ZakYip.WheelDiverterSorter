@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj" />
+    <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Observability\ZakYip.WheelDiverterSorter.Observability.csproj" />
   </ItemGroup>
 
   <ItemGroup>
