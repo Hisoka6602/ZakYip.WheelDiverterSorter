@@ -33,6 +33,31 @@
 - ✅ **多协议通信**：支持TCP/SignalR/MQTT/HTTP与上游规则引擎通信
 - ✅ **完整的异常处理机制**：包裹超时、设备异常、上游超时等自动路由到异常格口
 
+## 项目结构概览
+
+```
+.
+├── ZakYip.WheelDiverterSorter.Host/          # ASP.NET Core宿主应用，提供API与后台作业
+│   ├── Controllers/                          # API控制器，暴露配置与调试接口
+│   ├── Services/                             # 主业务服务（路由计算、监控集成等）
+│   ├── Utilities/                            # 共用工具类（如数据导入、验证）
+│   ├── Program.cs                            # 应用入口，注册依赖与中间件
+│   └── Worker.cs                             # 背景工作进程，处理分拣循环
+├── ZakYip.WheelDiverterSorter.Core/          # 核心领域模型与配置仓储抽象
+├── ZakYip.WheelDiverterSorter.Execution/     # 分拣执行管线、并发与TTL控制
+├── ZakYip.WheelDiverterSorter.Drivers/       # 硬件驱动器及模拟实现
+├── ZakYip.WheelDiverterSorter.Ingress/       # 与上游规则引擎通信的接入层
+├── ZakYip.WheelDiverterSorter.Observability/ # 指标、日志与告警集成
+├── monitoring/                               # Prometheus/Grafana配置与部署指南
+│   └── README.md                             # 监控栈部署说明（含无Docker方案）
+├── performance-tests/                        # 压力与性能测试脚本
+├── validate-monitoring.sh                    # 监控栈验证脚本（自动识别是否可用Docker）
+├── docker-compose.monitoring.yml             # 本地开发用Docker Compose编排
+└── README.md                                 # 主文档，包含运行说明与更新日志
+```
+
+> 如需更详细的子模块说明，请参考各目录下的独立文档（如 `SENSOR_IMPLEMENTATION_SUMMARY.md` 等）。
+
 ## 运行流程与逻辑
 
 ### 系统工作流程图
@@ -378,7 +403,7 @@ ZakYip.WheelDiverterSorter/
 
 ## 快速开始
 
-### 运行项目
+### 运行项目（开发环境）
 
 ```bash
 cd ZakYip.WheelDiverterSorter.Host
@@ -387,9 +412,30 @@ dotnet run
 
 默认监听端口：5000（HTTP）
 
+### 生产环境部署（无Docker）
+
+生产环境暂时不使用Docker，建议按以下步骤部署：
+
+1. **发布应用**
+   ```bash
+   dotnet publish ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSorter.Host.csproj \
+     -c Release -o out/host
+   ```
+2. **准备运行目录**：将 `out/host` 目录复制到目标服务器，并确保同级目录下存在可写的 `Data/` 文件夹用于LiteDB。
+3. **配置服务账号**：为运行账号授予`out/host`目录的读写权限，避免LiteDB无法写入。
+4. **启动服务**：
+   ```bash
+   cd /opt/sorter/out/host
+   DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 \
+     ./ZakYip.WheelDiverterSorter.Host
+   ```
+5. **可选：创建systemd服务**，将上述命令封装为后台服务并配置开机自启。
+
+监控栈（Prometheus/Grafana）可按照 [monitoring/README.md](monitoring/README.md) 中的“无Docker部署”章节完成手动安装与启动。
+
 ### 启动完整监控栈 🆕
 
-使用Docker Compose一键启动应用、Prometheus和Grafana：
+开发环境可使用Docker Compose快速启动全栈服务（生产环境请使用上文的手动部署方案）：
 
 ```bash
 # 启动所有服务
@@ -421,6 +467,16 @@ curl -X POST http://localhost:5000/api/debug/sort \
 ```
 
 ## 文档导航
+
+## 本次更新的内容
+- 新增“项目结构概览”章节，梳理核心目录与文件职责，便于快速定位代码。
+- 在快速开始章节补充生产环境无Docker部署步骤，明确手动发布、运行及监控接入方式。
+- 更新监控验证脚本 `validate-monitoring.sh`，自动识别Docker不可用场景并提供手动部署指引。
+
+## 可继续完善的内容
+- 输出 systemd、Supervisor 等进程管理示例，降低运维接入成本。
+- 为Prometheus/Grafana编写离线安装脚本或Ansible角色，自动化裸机部署流程。
+- 补充更多生产环境常见问题排查手册（如端口占用、证书部署）。
 
 ### 核心文档
 - [系统架构和关系说明](RELATIONSHIP_WITH_RULEENGINE.md)

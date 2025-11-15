@@ -22,7 +22,25 @@ monitoring/
 
 ## Quick Start / 快速开始
 
-### Using Docker Compose (Recommended) / 使用Docker Compose（推荐）
+### Production Deployment (No Docker) / 生产环境部署（无Docker）
+
+1. **Install Prometheus**
+   - Download the official tarball from [prometheus.io](https://prometheus.io/download/).
+   - Extract to `/opt/prometheus` (or another directory) and create a dedicated user `prometheus`.
+   - Copy `monitoring/prometheus/prometheus.yml` and `monitoring/prometheus/alerts.yml` to `/etc/prometheus/`.
+2. **Install Grafana**
+   - Follow the [Grafana OSS installation guide](https://grafana.com/docs/grafana/latest/setup-grafana/installation/) for your OS.
+   - Copy `monitoring/grafana/provisioning` and `monitoring/grafana/dashboards` into Grafana's provisioning directory (e.g. `/etc/grafana/`).
+3. **Start Services**
+   - Create and enable systemd units (example names: `prometheus.service`, `grafana-server.service`).
+   - Ensure the sorter 应用按照 README 中的“生产环境部署”章节启动并在 `http://<host>:5000` 暴露指标。
+4. **Verify**
+   - Prometheus targets: `http://<host>:9090/targets`
+   - Grafana health: `systemctl status grafana-server` 或访问 `http://<host>:3000`。
+
+> 📌 提示：执行 `DISABLE_DOCKER=1 ./validate-monitoring.sh` 可在无Docker环境下验证配置文件格式。
+
+### Using Docker Compose (Development) / 使用Docker Compose（开发环境）
 
 ```bash
 # From repository root
@@ -36,10 +54,6 @@ docker-compose -f docker-compose.monitoring.yml up -d
 # Prometheus:  http://localhost:9090
 # Grafana:     http://localhost:3000 (admin/admin)
 ```
-
-### Manual Setup / 手动设置
-
-See [GRAFANA_DASHBOARD_GUIDE.md](../GRAFANA_DASHBOARD_GUIDE.md) for detailed manual setup instructions.
 
 ## Configuration Files / 配置文件
 
