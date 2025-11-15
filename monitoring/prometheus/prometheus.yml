@@ -1,0 +1,65 @@
+# Prometheus Configuration for Wheel Diverter Sorter System
+# 摆轮分拣系统Prometheus配置
+
+global:
+  scrape_interval: 15s      # 全局抓取间隔 / Global scrape interval
+  evaluation_interval: 15s  # 告警规则评估间隔 / Alert rule evaluation interval
+  scrape_timeout: 10s       # 抓取超时 / Scrape timeout
+
+  # 外部标签，用于标识此Prometheus实例
+  # External labels to identify this Prometheus instance
+  external_labels:
+    cluster: 'wheel-diverter-sorter'
+    environment: 'production'
+
+# 告警管理器配置（可选）
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# 告警规则文件
+# Alert rule files
+rule_files:
+  - 'alerts.yml'
+
+# 抓取配置
+# Scrape configurations
+scrape_configs:
+  # 摆轮分拣系统应用
+  # Wheel Diverter Sorter Application
+  - job_name: 'wheel-diverter-sorter'
+    static_configs:
+      - targets: ['sorter-app:5000']  # Docker内部服务名 / Docker internal service name
+        labels:
+          service: 'sorter-api'
+          instance: 'sorter-01'
+    
+    metrics_path: '/metrics'          # 指标端点 / Metrics endpoint
+    scrape_interval: 10s              # 抓取间隔 / Scrape interval
+    scrape_timeout: 8s                # 抓取超时 / Scrape timeout
+    
+    # HTTP配置
+    # HTTP configuration
+    # scheme: http
+    # basic_auth:                     # 如需认证取消注释 / Uncomment if authentication needed
+    #   username: 'prometheus'
+    #   password: 'prometheus_password'
+
+  # Prometheus自监控
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+
+  # Node Exporter（可选，用于主机指标）
+  # Node Exporter (optional, for host metrics)
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'node-exporter'
