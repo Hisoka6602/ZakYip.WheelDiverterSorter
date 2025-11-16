@@ -110,6 +110,7 @@
 | 文档 | 说明 | 适用人群 |
 |------|------|----------|
 | [copilot-instructions.md#simulation--仿真运行目标](copilot-instructions.md#10-simulation--仿真运行目标) | 仿真运行目标、实现约束和架构指南 | 开发者、AI辅助工具 |
+| [copilot-instructions.md#仿真运行物理约束](copilot-instructions.md#104-仿真运行物理约束) | 仿真运行的物理假设和不变量约束 | 开发者、AI辅助工具 |
 
 ### 📝 其他文档
 
