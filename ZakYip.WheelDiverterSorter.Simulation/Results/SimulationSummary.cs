@@ -83,4 +83,14 @@ public class SimulationSummary
     /// 状态统计字典（用于调试和详细分析）
     /// </summary>
     public Dictionary<ParcelSimulationStatus, int> StatusStatistics { get; set; } = new();
+
+    /// <summary>
+    /// 高密度包裹总数（违反最小安全头距的包裹数量）
+    /// </summary>
+    public int DenseParcelCount { get; set; }
+
+    /// <summary>
+    /// 包裹结果列表（用于详细分析和测试断言）
+    /// </summary>
+    public List<ParcelSimulationResultEventArgs> Parcels { get; set; } = new();
 }

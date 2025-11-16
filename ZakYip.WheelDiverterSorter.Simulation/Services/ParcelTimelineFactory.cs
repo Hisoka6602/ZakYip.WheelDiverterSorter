@@ -54,8 +54,9 @@ public class ParcelTimelineFactory
     /// <param name="parcelId">包裹ID</param>
     /// <param name="path">分拣路径</param>
     /// <param name="startTime">起始时间（入口传感器触发时间）</param>
+    /// <param name="previousEntryTime">前一包裹的入口时间（用于计算头距）</param>
     /// <returns>包裹时间轴</returns>
-    public ParcelTimeline GenerateTimeline(long parcelId, SwitchingPath path, DateTimeOffset startTime)
+    public ParcelTimeline GenerateTimeline(long parcelId, SwitchingPath path, DateTimeOffset startTime, DateTimeOffset? previousEntryTime = null)
     {
         var timeline = new ParcelTimeline
         {
@@ -64,6 +65,36 @@ public class ParcelTimelineFactory
             EntryTime = startTime,
             SensorEvents = new List<SensorEvent>()
         };
+
+        // 计算与前一包裹的头距（时间和空间）
+        if (previousEntryTime.HasValue)
+        {
+            var deltaTime = startTime - previousEntryTime.Value;
+            timeline.HeadwayTime = deltaTime;
+            
+            // 基于线速估算空间间隔
+            timeline.HeadwayMm = _options.LineSpeedMmps * (decimal)deltaTime.TotalSeconds;
+
+            // 判定是否为高密度包裹
+            var isDenseByTime = _options.MinSafeHeadwayTime.HasValue 
+                && deltaTime < _options.MinSafeHeadwayTime.Value;
+            
+            var isDenseBySpace = _options.MinSafeHeadwayMm.HasValue
+                && timeline.HeadwayMm < _options.MinSafeHeadwayMm.Value;
+
+            timeline.IsDenseParcel = isDenseByTime || isDenseBySpace;
+
+            if (timeline.IsDenseParcel)
+            {
+                _logger.LogDebug(
+                    "包裹 {ParcelId} 被标记为高密度：时间间隔={TimeMs:F0}ms (阈值={MinTime}ms), 空间间隔={SpaceMm:F0}mm (阈值={MinSpace}mm)",
+                    parcelId,
+                    deltaTime.TotalMilliseconds,
+                    _options.MinSafeHeadwayTime?.TotalMilliseconds,
+                    timeline.HeadwayMm,
+                    _options.MinSafeHeadwayMm);
+            }
+        }
 
         var currentTime = startTime;
         var isDropped = false;
@@ -215,6 +246,21 @@ public class ParcelTimeline
     /// 掉包位置
     /// </summary>
     public string? DropoutLocation { get; set; }
+
+    /// <summary>
+    /// 是否为高密度包裹（违反最小安全头距）
+    /// </summary>
+    public bool IsDenseParcel { get; set; }
+
+    /// <summary>
+    /// 与前一包裹的时间间隔（头距时间）
+    /// </summary>
+    public TimeSpan? HeadwayTime { get; set; }
+
+    /// <summary>
+    /// 与前一包裹的空间间隔（头距距离，单位：mm）
+    /// </summary>
+    public decimal? HeadwayMm { get; set; }
 }
 
 /// <summary>

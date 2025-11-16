@@ -33,6 +33,7 @@ public class SimulationRunner
     private readonly Dictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
     private readonly object _lockObject = new();
     private long _misSortCount = 0;
+    private DateTimeOffset? _previousEntryTime = null;
 
     /// <summary>
     /// 构造函数
@@ -264,6 +265,17 @@ public class SimulationRunner
         {
             _metrics.RecordSimulationMisSort();
         }
+
+        // 记录高密度包裹指标
+        if (result.IsDenseParcel)
+        {
+            var scenario = "default"; // 在实际应用中可以从配置或上下文获取
+            var strategy = _options.DenseParcelStrategy.ToString();
+            var headwayTimeSeconds = result.HeadwayTime?.TotalSeconds;
+            var headwayDistanceMm = result.HeadwayMm.HasValue ? (double)result.HeadwayMm.Value : (double?)null;
+
+            _metrics.RecordSimulationDenseParcel(scenario, strategy, headwayTimeSeconds, headwayDistanceMm);
+        }
     }
 
     /// <summary>
@@ -430,8 +442,21 @@ public class SimulationRunner
                 };
             }
             
-            // 生成包裹时间轴（应用摩擦因子和掉包模拟）
-            var timeline = _timelineFactory.GenerateTimeline(parcelId, path, entryTime);
+            // 生成包裹时间轴（应用摩擦因子、掉包模拟和高密度检测）
+            DateTimeOffset? prevEntryTime;
+            lock (_lockObject)
+            {
+                prevEntryTime = _previousEntryTime;
+                _previousEntryTime = entryTime;
+            }
+            
+            var timeline = _timelineFactory.GenerateTimeline(parcelId, path, entryTime, prevEntryTime);
+            
+            // 如果是高密度包裹，根据策略处理
+            if (timeline.IsDenseParcel)
+            {
+                return ApplyDenseParcelStrategy(parcelId, targetChuteId, timeline);
+            }
             
             // 如果掉包，直接返回掉包结果
             if (timeline.IsDropped)
@@ -446,7 +471,10 @@ public class SimulationRunner
                     Status = ParcelSimulationStatus.Dropped,
                     IsDropped = true,
                     DropoutLocation = timeline.DropoutLocation,
-                    TravelTime = travelTime
+                    TravelTime = travelTime,
+                    HeadwayTime = timeline.HeadwayTime,
+                    HeadwayMm = timeline.HeadwayMm,
+                    IsDenseParcel = timeline.IsDenseParcel
                 };
             }
             
@@ -483,7 +511,10 @@ public class SimulationRunner
                 Status = status,
                 TravelTime = totalTravelTime,
                 IsTimeout = !execResult.IsSuccess,
-                FailureReason = execResult.FailureReason
+                FailureReason = execResult.FailureReason,
+                HeadwayTime = timeline.HeadwayTime,
+                HeadwayMm = timeline.HeadwayMm,
+                IsDenseParcel = timeline.IsDenseParcel
             };
         }
         finally
@@ -493,6 +524,66 @@ public class SimulationRunner
                 _pendingAssignments.Remove(parcelId);
             }
         }
+    }
+
+    /// <summary>
+    /// 应用高密度包裹策略
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <param name="timeline">包裹时间轴</param>
+    /// <returns>包裹仿真结果</returns>
+    private ParcelSimulationResultEventArgs ApplyDenseParcelStrategy(
+        long parcelId,
+        int targetChuteId,
+        ParcelTimeline timeline)
+    {
+        _logger.LogWarning(
+            "包裹 {ParcelId} 违反最小安全头距规则，应用策略: {Strategy}",
+            parcelId, _options.DenseParcelStrategy);
+
+        return _options.DenseParcelStrategy switch
+        {
+            DenseParcelStrategy.RouteToException => new ParcelSimulationResultEventArgs
+            {
+                ParcelId = parcelId,
+                TargetChuteId = targetChuteId,
+                FinalChuteId = _options.ExceptionChuteId,
+                Status = ParcelSimulationStatus.ExecutionError,
+                FailureReason = "违反最小安全头距规则，路由到异常格口",
+                HeadwayTime = timeline.HeadwayTime,
+                HeadwayMm = timeline.HeadwayMm,
+                IsDenseParcel = true
+            },
+
+            DenseParcelStrategy.MarkAsTimeout => new ParcelSimulationResultEventArgs
+            {
+                ParcelId = parcelId,
+                TargetChuteId = targetChuteId,
+                FinalChuteId = _options.ExceptionChuteId,
+                Status = ParcelSimulationStatus.Timeout,
+                FailureReason = "违反最小安全头距规则，标记为超时",
+                IsTimeout = true,
+                HeadwayTime = timeline.HeadwayTime,
+                HeadwayMm = timeline.HeadwayMm,
+                IsDenseParcel = true
+            },
+
+            DenseParcelStrategy.MarkAsDropped => new ParcelSimulationResultEventArgs
+            {
+                ParcelId = parcelId,
+                TargetChuteId = targetChuteId,
+                FinalChuteId = null,
+                Status = ParcelSimulationStatus.Dropped,
+                FailureReason = "违反最小安全头距规则，标记为掉包",
+                IsDropped = true,
+                HeadwayTime = timeline.HeadwayTime,
+                HeadwayMm = timeline.HeadwayMm,
+                IsDenseParcel = true
+            },
+
+            _ => throw new InvalidOperationException($"未知的高密度包裹策略: {_options.DenseParcelStrategy}")
+        };
     }
 
     /// <summary>
@@ -533,6 +624,9 @@ public class SimulationRunner
         {
             foreach (var (parcelId, result) in _parcelResults)
             {
+                // 添加到包裹列表
+                summary.Parcels.Add(result);
+
                 // 统计状态
                 if (!summary.StatusStatistics.ContainsKey(result.Status))
                 {
@@ -561,6 +655,12 @@ public class SimulationRunner
                     case ParcelSimulationStatus.SortedToWrongChute:
                         summary.SortedToWrongChuteCount++;
                         break;
+                }
+
+                // 统计高密度包裹
+                if (result.IsDenseParcel)
+                {
+                    summary.DenseParcelCount++;
                 }
 
                 // 统计格口
