@@ -107,6 +107,30 @@ public class SystemConfiguration
     public IoLinkageOptions IoLinkage { get; set; } = new();
 
     /// <summary>
+    /// 分拣模式
+    /// </summary>
+    /// <remarks>
+    /// 定义系统使用的分拣模式：正式分拣模式（默认）、指定落格分拣模式、循环格口落格模式
+    /// </remarks>
+    public SortingMode SortingMode { get; set; } = SortingMode.Formal;
+
+    /// <summary>
+    /// 固定格口ID（仅在指定落格分拣模式下使用）
+    /// </summary>
+    /// <remarks>
+    /// 当分拣模式为 FixedChute 时，所有包裹（异常除外）都将发送到此格口
+    /// </remarks>
+    public int? FixedChuteId { get; set; }
+
+    /// <summary>
+    /// 可用格口ID列表（仅在循环格口落格模式下使用）
+    /// </summary>
+    /// <remarks>
+    /// 当分拣模式为 RoundRobin 时，系统会按顺序循环使用这些格口
+    /// </remarks>
+    public List<int> AvailableChuteIds { get; set; } = new();
+
+    /// <summary>
     /// 配置版本号
     /// </summary>
     /// <remarks>
@@ -165,6 +189,28 @@ public class SystemConfiguration
             return (false, "重试延迟必须在100-10000毫秒之间");
         }
 
+        // 验证分拣模式相关配置
+        if (SortingMode == SortingMode.FixedChute)
+        {
+            if (!FixedChuteId.HasValue || FixedChuteId.Value <= 0)
+            {
+                return (false, "指定落格分拣模式下，固定格口ID必须配置且大于0");
+            }
+        }
+
+        if (SortingMode == SortingMode.RoundRobin)
+        {
+            if (AvailableChuteIds == null || AvailableChuteIds.Count == 0)
+            {
+                return (false, "循环格口落格模式下，必须配置至少一个可用格口");
+            }
+
+            if (AvailableChuteIds.Any(id => id <= 0))
+            {
+                return (false, "可用格口ID列表中不能包含小于等于0的值");
+            }
+        }
+
         return (true, null);
     }
 
@@ -186,6 +232,9 @@ public class SystemConfiguration
             EnableAutoReconnect = true,
             LeadshineCabinetIo = new LeadshineCabinetIoOptions(),
             IoLinkage = new IoLinkageOptions(),
+            SortingMode = SortingMode.Formal,
+            FixedChuteId = null,
+            AvailableChuteIds = new List<int>(),
             Version = 1,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow

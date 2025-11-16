@@ -36,6 +36,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly object _lockObject = new object();
     private bool _isConnected;
+    private int _roundRobinIndex = 0;
 
     /// <summary>
     /// 构造函数
@@ -174,63 +175,54 @@ public class ParcelSortingOrchestrator : IDisposable
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
-            // 步骤1: 通知RuleEngine包裹到达
-            var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
-            
-            if (!notificationSent)
-            {
-                _logger.LogError(
-                    "包裹 {ParcelId} 无法发送检测通知到RuleEngine，将发送到异常格口",
-                    parcelId);
-                await ProcessSortingAsync(parcelId, exceptionChuteId);
-                return;
-            }
-
-            // 步骤2: 等待RuleEngine推送格口分配（带超时）
             int? targetChuteId = null;
-            var tcs = new TaskCompletionSource<int>();
-            
-            lock (_lockObject)
+
+            // 根据分拣模式确定目标格口
+            switch (systemConfig.SortingMode)
             {
-                _pendingAssignments[parcelId] = tcs;
+                case SortingMode.Formal:
+                    // 正式分拣模式：从RuleEngine获取格口
+                    targetChuteId = await GetChuteFromRuleEngineAsync(parcelId, systemConfig);
+                    break;
+
+                case SortingMode.FixedChute:
+                    // 指定落格分拣模式：使用固定格口
+                    targetChuteId = systemConfig.FixedChuteId;
+                    _logger.LogInformation(
+                        "包裹 {ParcelId} 使用指定落格模式，目标格口 {ChuteId}",
+                        parcelId,
+                        targetChuteId);
+                    break;
+
+                case SortingMode.RoundRobin:
+                    // 循环格口落格模式：按顺序使用格口
+                    targetChuteId = GetNextRoundRobinChute(systemConfig);
+                    _logger.LogInformation(
+                        "包裹 {ParcelId} 使用循环落格模式，目标格口 {ChuteId}",
+                        parcelId,
+                        targetChuteId);
+                    break;
+
+                default:
+                    _logger.LogError(
+                        "未知的分拣模式 {SortingMode}，包裹 {ParcelId} 将发送到异常格口",
+                        systemConfig.SortingMode,
+                        parcelId);
+                    targetChuteId = exceptionChuteId;
+                    break;
             }
 
-            try
-            {
-                // 使用系统配置中的超时时间
-                var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
-                using var cts = new CancellationTokenSource(timeoutMs);
-                targetChuteId = await tcs.Task.WaitAsync(cts.Token);
-                
-                _logger.LogInformation("包裹 {ParcelId} 分配到格口 {ChuteId}", parcelId, targetChuteId);
-            }
-            catch (TimeoutException)
+            // 如果没有获取到有效的目标格口，使用异常格口
+            if (!targetChuteId.HasValue || targetChuteId.Value <= 0)
             {
                 _logger.LogWarning(
-                    "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将发送到异常格口",
-                    parcelId,
-                    systemConfig.ChuteAssignmentTimeoutMs);
+                    "包裹 {ParcelId} 未能确定有效的目标格口，将发送到异常格口",
+                    parcelId);
                 targetChuteId = exceptionChuteId;
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogWarning(
-                    "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将发送到异常格口",
-                    parcelId,
-                    systemConfig.ChuteAssignmentTimeoutMs);
-                targetChuteId = exceptionChuteId;
-            }
-            finally
-            {
-                // 清理待处理的分配
-                lock (_lockObject)
-                {
-                    _pendingAssignments.Remove(parcelId);
-                }
             }
 
-            // 步骤3: 执行分拣
-            await ProcessSortingAsync(parcelId, targetChuteId!.Value);
+            // 执行分拣
+            await ProcessSortingAsync(parcelId, targetChuteId.Value);
         }
         catch (Exception ex)
         {
@@ -314,6 +306,92 @@ public class ParcelSortingOrchestrator : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "执行包裹 {ParcelId} 分拣时发生异常", parcelId);
+        }
+    }
+
+    /// <summary>
+    /// 从RuleEngine获取格口分配（正式分拣模式）
+    /// </summary>
+    private async Task<int?> GetChuteFromRuleEngineAsync(long parcelId, SystemConfiguration systemConfig)
+    {
+        var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+        // 步骤1: 通知RuleEngine包裹到达
+        var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
+        
+        if (!notificationSent)
+        {
+            _logger.LogError(
+                "包裹 {ParcelId} 无法发送检测通知到RuleEngine，将返回异常格口",
+                parcelId);
+            return exceptionChuteId;
+        }
+
+        // 步骤2: 等待RuleEngine推送格口分配（带超时）
+        int? targetChuteId = null;
+        var tcs = new TaskCompletionSource<int>();
+        
+        lock (_lockObject)
+        {
+            _pendingAssignments[parcelId] = tcs;
+        }
+
+        try
+        {
+            // 使用系统配置中的超时时间
+            var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
+            using var cts = new CancellationTokenSource(timeoutMs);
+            targetChuteId = await tcs.Task.WaitAsync(cts.Token);
+            
+            _logger.LogInformation("包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}", parcelId, targetChuteId);
+            return targetChuteId;
+        }
+        catch (TimeoutException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将返回异常格口",
+                parcelId,
+                systemConfig.ChuteAssignmentTimeoutMs);
+            return exceptionChuteId;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将返回异常格口",
+                parcelId,
+                systemConfig.ChuteAssignmentTimeoutMs);
+            return exceptionChuteId;
+        }
+        finally
+        {
+            // 清理待处理的分配
+            lock (_lockObject)
+            {
+                _pendingAssignments.Remove(parcelId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取下一个循环格口（循环格口落格模式）
+    /// </summary>
+    private int GetNextRoundRobinChute(SystemConfiguration systemConfig)
+    {
+        lock (_lockObject)
+        {
+            if (systemConfig.AvailableChuteIds == null || systemConfig.AvailableChuteIds.Count == 0)
+            {
+                _logger.LogError("循环格口落格模式配置错误：没有可用格口，将使用异常格口");
+                return systemConfig.ExceptionChuteId;
+            }
+
+            // 获取当前索引的格口
+            var chuteId = systemConfig.AvailableChuteIds[_roundRobinIndex];
+
+            // 移动到下一个索引（循环）
+            _roundRobinIndex = (_roundRobinIndex + 1) % systemConfig.AvailableChuteIds.Count;
+
+            return chuteId;
         }
     }
 
