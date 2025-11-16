@@ -42,13 +42,35 @@ public record class SimulationOptions
     public long ExceptionChuteId { get; init; } = 999;
 
     /// <summary>
-    /// 是否启用随机故障注入
+    /// 是否启用随机摩擦模拟
     /// </summary>
+    public bool IsEnableRandomFriction { get; init; }
+
+    /// <summary>
+    /// 是否启用随机掉包模拟
+    /// </summary>
+    public bool IsEnableRandomDropout { get; init; }
+
+    /// <summary>
+    /// 摩擦模型配置
+    /// </summary>
+    public FrictionModelOptions FrictionModel { get; init; } = new();
+
+    /// <summary>
+    /// 掉包模型配置
+    /// </summary>
+    public DropoutModelOptions DropoutModel { get; init; } = new();
+
+    /// <summary>
+    /// 是否启用随机故障注入（已废弃，使用 FrictionModel 和 DropoutModel 代替）
+    /// </summary>
+    [Obsolete("使用 IsEnableRandomFriction 和 IsEnableRandomDropout 代替")]
     public bool IsEnableRandomFaultInjection { get; init; }
 
     /// <summary>
-    /// 故障注入概率（0.0-1.0）
+    /// 故障注入概率（已废弃，使用 DropoutModel.DropoutProbabilityPerSegment 代替）
     /// </summary>
+    [Obsolete("使用 DropoutModel.DropoutProbabilityPerSegment 代替")]
     public double FaultInjectionProbability { get; init; } = 0.0;
 
     /// <summary>

@@ -60,6 +60,7 @@ var host = Host.CreateDefaultBuilder(args)
         });
 
         // 注册仿真服务
+        services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<SimulationReportPrinter>();
         services.AddSingleton<SimulationRunner>();
     })
@@ -185,8 +186,13 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
         {
             _configurations.Clear();
             
+            // 不同格口使用不同的输送线长度（新需求：每个输送线的长度不一致）
+            var segmentLengths = new[] { 800, 1200, 1500, 900, 1100, 1300, 1000, 1400, 950, 1250 };
+            
             for (int chuteId = 1; chuteId <= 10; chuteId++)
             {
+                var segmentLength = segmentLengths[(chuteId - 1) % segmentLengths.Length];
+                
                 _configurations[chuteId] = new ChuteRouteConfiguration
                 {
                     ChuteId = chuteId,
@@ -198,13 +204,13 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
                             DiverterId = chuteId,
                             TargetDirection = DiverterDirection.Right, // 默认右转
                             SequenceNumber = 1,
-                            SegmentLengthMm = chuteId * 1000, // 每个格口间隔1米
+                            SegmentLengthMm = segmentLength, // 每个格口的输送线长度不同
                             SegmentSpeedMmPerSecond = 500,
                             SegmentToleranceTimeMs = 2000 // 2秒容差
                         }
                     },
                     BeltSpeedMmPerSecond = 500,
-                    BeltLengthMm = chuteId * 1000,
+                    BeltLengthMm = segmentLength,
                     IsEnabled = true
                 };
             }
