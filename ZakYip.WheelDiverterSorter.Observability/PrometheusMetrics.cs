@@ -386,4 +386,77 @@ public class PrometheusMetrics
         // In production, you'd query Prometheus directly
         return SimulationMisSortCounter.Value;
     }
+
+    // 仿真高密度包裹总数（按策略分类）
+    // Simulation dense parcel count by strategy
+    private static readonly Counter SimulationDenseParcelCounter = Metrics
+        .CreateCounter("simulation_dense_parcel_total",
+            "仿真高密度包裹总数（按策略分类）/ Total dense parcels in simulation by strategy",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "scenario", "strategy" }
+            });
+
+    // 仿真高密度包裹路由到异常格口总数
+    // Simulation dense parcels routed to exception chute
+    private static readonly Counter SimulationDenseParcelRoutedToExceptionCounter = Metrics
+        .CreateCounter("simulation_dense_parcel_routed_to_exception_total",
+            "仿真高密度包裹路由到异常格口总数 / Total dense parcels routed to exception chute",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "scenario" }
+            });
+
+    // 仿真高密度包裹头距分布（时间）
+    // Simulation dense parcel headway distribution (time)
+    private static readonly Histogram SimulationDenseParcelHeadwayTime = Metrics
+        .CreateHistogram("simulation_dense_parcel_headway_time_seconds",
+            "仿真高密度包裹头距分布（时间，秒）/ Dense parcel headway time distribution in seconds",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.LinearBuckets(0, 0.1, 20) // 0 to 2s in 0.1s increments
+            });
+
+    // 仿真高密度包裹头距分布（空间）
+    // Simulation dense parcel headway distribution (space)
+    private static readonly Histogram SimulationDenseParcelHeadwayDistance = Metrics
+        .CreateHistogram("simulation_dense_parcel_headway_distance_mm",
+            "仿真高密度包裹头距分布（空间，mm）/ Dense parcel headway distance distribution in mm",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.LinearBuckets(0, 50, 20) // 0 to 1000mm in 50mm increments
+            });
+
+    /// <summary>
+    /// 记录仿真高密度包裹
+    /// Record simulation dense parcel
+    /// </summary>
+    /// <param name="scenario">场景名称</param>
+    /// <param name="strategy">处理策略</param>
+    /// <param name="headwayTimeSeconds">头距时间（秒），可选</param>
+    /// <param name="headwayDistanceMm">头距距离（mm），可选</param>
+    public void RecordSimulationDenseParcel(
+        string scenario, 
+        string strategy,
+        double? headwayTimeSeconds = null,
+        double? headwayDistanceMm = null)
+    {
+        SimulationDenseParcelCounter.WithLabels(scenario, strategy).Inc();
+
+        if (headwayTimeSeconds.HasValue)
+        {
+            SimulationDenseParcelHeadwayTime.Observe(headwayTimeSeconds.Value);
+        }
+
+        if (headwayDistanceMm.HasValue)
+        {
+            SimulationDenseParcelHeadwayDistance.Observe(headwayDistanceMm.Value);
+        }
+
+        // 如果策略是路由到异常格口，也记录到专门的计数器
+        if (strategy == "RouteToException")
+        {
+            SimulationDenseParcelRoutedToExceptionCounter.WithLabels(scenario).Inc();
+        }
+    }
 }

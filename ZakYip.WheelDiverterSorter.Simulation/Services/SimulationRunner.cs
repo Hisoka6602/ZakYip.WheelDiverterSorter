@@ -265,6 +265,17 @@ public class SimulationRunner
         {
             _metrics.RecordSimulationMisSort();
         }
+
+        // 记录高密度包裹指标
+        if (result.IsDenseParcel)
+        {
+            var scenario = "default"; // 在实际应用中可以从配置或上下文获取
+            var strategy = _options.DenseParcelStrategy.ToString();
+            var headwayTimeSeconds = result.HeadwayTime?.TotalSeconds;
+            var headwayDistanceMm = result.HeadwayMm.HasValue ? (double)result.HeadwayMm.Value : (double?)null;
+
+            _metrics.RecordSimulationDenseParcel(scenario, strategy, headwayTimeSeconds, headwayDistanceMm);
+        }
     }
 
     /// <summary>
