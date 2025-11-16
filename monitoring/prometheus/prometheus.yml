@@ -56,6 +56,19 @@ scrape_configs:
         labels:
           service: 'prometheus'
 
+  # 仿真长跑模式
+  # Simulation Long-Run Mode
+  - job_name: 'simulation'
+    static_configs:
+      - targets: ['host.docker.internal:9091']  # 访问主机上的仿真程序 / Access simulation on host
+        labels:
+          service: 'simulation'
+          instance: 'sim-01'
+    
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 8s
+
   # Node Exporter（可选，用于主机指标）
   # Node Exporter (optional, for host metrics)
   # - job_name: 'node-exporter'

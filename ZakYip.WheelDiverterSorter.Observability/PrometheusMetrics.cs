@@ -320,4 +320,70 @@ public class PrometheusMetrics
     {
         ActiveRequests.Dec();
     }
+
+    // ========== 仿真专用指标 / Simulation-specific Metrics ==========
+
+    // 仿真包裹总数（按状态分类）
+    // Simulation parcel count by status
+    private static readonly Counter SimulationParcelCounter = Metrics
+        .CreateCounter("simulation_parcel_total", 
+            "仿真包裹总数（按状态分类）/ Total simulation parcels by status",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "status" }
+            });
+
+    // 仿真错分总数（应始终为 0）
+    // Simulation mis-sort count (should always be 0)
+    private static readonly Counter SimulationMisSortCounter = Metrics
+        .CreateCounter("simulation_mis_sort_total", 
+            "仿真错分总数（应始终为 0）/ Total mis-sorts in simulation (should always be 0)");
+
+    // 仿真包裹行程时间
+    // Simulation parcel travel time
+    private static readonly Histogram SimulationTravelTime = Metrics
+        .CreateHistogram("simulation_travel_time_seconds",
+            "仿真包裹行程时间（秒）/ Simulation parcel travel time in seconds",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.ExponentialBuckets(0.1, 1.5, 15) // 0.1s to ~40s
+            });
+
+    /// <summary>
+    /// 记录仿真包裹结果
+    /// Record simulation parcel result
+    /// </summary>
+    /// <param name="status">包裹状态</param>
+    /// <param name="travelTimeSeconds">行程时间（秒），可选</param>
+    public void RecordSimulationParcel(string status, double? travelTimeSeconds = null)
+    {
+        SimulationParcelCounter.WithLabels(status).Inc();
+        
+        if (travelTimeSeconds.HasValue)
+        {
+            SimulationTravelTime.Observe(travelTimeSeconds.Value);
+        }
+    }
+
+    /// <summary>
+    /// 记录仿真错分
+    /// Record simulation mis-sort (should never happen!)
+    /// </summary>
+    public void RecordSimulationMisSort()
+    {
+        SimulationMisSortCounter.Inc();
+    }
+
+    /// <summary>
+    /// 获取当前仿真错分计数
+    /// Get current simulation mis-sort count
+    /// </summary>
+    /// <returns>错分计数</returns>
+    public static double GetSimulationMisSortCount()
+    {
+        // Note: prometheus-net doesn't expose counter values directly in a clean way
+        // This is a workaround for monitoring purposes
+        // In production, you'd query Prometheus directly
+        return SimulationMisSortCounter.Value;
+    }
 }

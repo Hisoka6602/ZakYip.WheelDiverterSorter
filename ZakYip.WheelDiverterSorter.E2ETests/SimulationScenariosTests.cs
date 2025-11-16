@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
+using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
@@ -157,6 +158,9 @@ public class SimulationScenariosTests : IDisposable
         // 添加仿真服务（初始配置为空，后续通过 IOptions 覆盖）
         services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<SimulationReportPrinter>();
+        
+        // 添加 Prometheus 指标服务
+        services.AddSingleton<PrometheusMetrics>();
 
         _serviceProvider = services.BuildServiceProvider();
     }
@@ -186,6 +190,7 @@ public class SimulationScenariosTests : IDisposable
         var pathExecutor = services.GetRequiredService<ISwitchingPathExecutor>();
         var timelineFactory = services.GetRequiredService<ParcelTimelineFactory>();
         var reportPrinter = services.GetRequiredService<SimulationReportPrinter>();
+        var metrics = services.GetRequiredService<PrometheusMetrics>();
         var logger = services.GetRequiredService<ILogger<SimulationRunner>>();
 
         var runner = new SimulationRunner(
@@ -195,6 +200,7 @@ public class SimulationScenariosTests : IDisposable
             pathExecutor,
             timelineFactory,
             reportPrinter,
+            metrics,
             logger
         );
 

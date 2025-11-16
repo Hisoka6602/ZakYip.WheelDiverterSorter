@@ -82,4 +82,44 @@ public record class SimulationOptions
     /// 是否暂停等待用户按键继续
     /// </summary>
     public bool IsPauseAtEnd { get; init; } = true;
+
+    /// <summary>
+    /// 是否启用长跑模式
+    /// </summary>
+    /// <remarks>
+    /// 长跑模式用于验证高负载、摩擦抖动、随机掉包情况下系统的稳定性
+    /// </remarks>
+    public bool IsLongRunMode { get; init; }
+
+    /// <summary>
+    /// 长跑持续时间（仅在长跑模式下有效）
+    /// </summary>
+    /// <remarks>
+    /// 如果设置，仿真将在达到此持续时间后退出
+    /// </remarks>
+    public TimeSpan? LongRunDuration { get; init; }
+
+    /// <summary>
+    /// 长跑最大包裹数（仅在长跑模式下有效）
+    /// </summary>
+    /// <remarks>
+    /// 如果设置，仿真将在处理此数量的包裹后退出
+    /// </remarks>
+    public int? MaxLongRunParcels { get; init; }
+
+    /// <summary>
+    /// 指标推送间隔（秒）
+    /// </summary>
+    /// <remarks>
+    /// 在长跑模式下，每隔此时间输出一次统计信息
+    /// </remarks>
+    public int MetricsPushIntervalSeconds { get; init; } = 60;
+
+    /// <summary>
+    /// 错分时是否快速失败
+    /// </summary>
+    /// <remarks>
+    /// 如果为 true，当检测到错分时将立即退出程序（Environment.Exit(1)）
+    /// </remarks>
+    public bool FailFastOnMisSort { get; init; }
 }
