@@ -51,6 +51,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.E2ETests", "ZakYip.WheelDiverterSorter.E2ETests\ZakYip.WheelDiverterSorter.E2ETests.csproj", "{CA762DFC-2F60-411A-995E-0979EB61D300}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Simulation", "ZakYip.WheelDiverterSorter.Simulation\ZakYip.WheelDiverterSorter.Simulation.csproj", "{8695A25F-D7F9-42E5-ACBF-767D10CAA649}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -253,6 +255,18 @@ Global
 		{CA762DFC-2F60-411A-995E-0979EB61D300}.Release|x64.Build.0 = Release|Any CPU
 		{CA762DFC-2F60-411A-995E-0979EB61D300}.Release|x86.ActiveCfg = Release|Any CPU
 		{CA762DFC-2F60-411A-995E-0979EB61D300}.Release|x86.Build.0 = Release|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Debug|x64.Build.0 = Debug|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Debug|x86.Build.0 = Debug|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Release|x64.ActiveCfg = Release|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Release|x64.Build.0 = Release|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Release|x86.ActiveCfg = Release|Any CPU
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -269,6 +283,7 @@ Global
 		{92D88693-4329-49ED-8E30-AF4BACBD2678} = {6F3AA131-87AB-4390-B282-F46742711AB0}
 		{9579F985-CE93-4ADF-A0EC-D986E861EC7A} = {6F3AA131-87AB-4390-B282-F46742711AB0}
 		{A6CBC272-C997-42A5-962D-6592947F55E0} = {6F3AA131-87AB-4390-B282-F46742711AB0}
+		{8695A25F-D7F9-42E5-ACBF-767D10CAA649} = {19011A81-490F-46FC-9FBF-CC33F6F120BB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EEC8FA53-9A80-4265-A682-4E3976EFAA9A}
