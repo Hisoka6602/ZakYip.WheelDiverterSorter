@@ -49,4 +49,19 @@ public record struct ParcelSimulationResultEventArgs
     /// 失败原因（如果失败）
     /// </summary>
     public string? FailureReason { get; init; }
+
+    /// <summary>
+    /// 是否为高密度包裹（违反最小安全头距）
+    /// </summary>
+    public bool IsDenseParcel { get; init; }
+
+    /// <summary>
+    /// 与前一包裹的时间间隔（头距时间）
+    /// </summary>
+    public TimeSpan? HeadwayTime { get; init; }
+
+    /// <summary>
+    /// 与前一包裹的空间间隔（头距距离，单位：mm）
+    /// </summary>
+    public decimal? HeadwayMm { get; init; }
 }

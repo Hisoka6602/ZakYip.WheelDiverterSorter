@@ -122,4 +122,32 @@ public record class SimulationOptions
     /// 如果为 true，当检测到错分时将立即退出程序（Environment.Exit(1)）
     /// </remarks>
     public bool FailFastOnMisSort { get; init; }
+
+    /// <summary>
+    /// 最小空间安全间隔（头距，单位：mm）
+    /// </summary>
+    /// <remarks>
+    /// 用于检测高密度包裹场景。当两件包裹在入口处的空间间隔小于此值时，
+    /// 后续包裹将被视为高密度包裹，并根据 DenseParcelStrategy 进行处理。
+    /// 如果为 null，则不进行空间间隔检查。
+    /// </remarks>
+    public decimal? MinSafeHeadwayMm { get; init; }
+
+    /// <summary>
+    /// 最小时间安全间隔（单位：毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于检测高密度包裹场景。当两件包裹在入口处的时间间隔小于此值时，
+    /// 后续包裹将被视为高密度包裹，并根据 DenseParcelStrategy 进行处理。
+    /// 如果为 null，则不进行时间间隔检查。
+    /// </remarks>
+    public TimeSpan? MinSafeHeadwayTime { get; init; }
+
+    /// <summary>
+    /// 高密度包裹策略：遇到间隔过近时如何处置
+    /// </summary>
+    /// <remarks>
+    /// 默认策略为 RouteToException，将违反最小安全头距的包裹路由到异常格口。
+    /// </remarks>
+    public DenseParcelStrategy DenseParcelStrategy { get; init; } = DenseParcelStrategy.RouteToException;
 }
