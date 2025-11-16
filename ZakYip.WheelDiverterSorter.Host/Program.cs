@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
+using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
@@ -194,6 +195,11 @@ builder.Services.AddSingleton<ParcelSortingOrchestrator>();
 
 // 注册通信统计服务
 builder.Services.AddSingleton<CommunicationStatsService>();
+
+// 注册改口功能相关服务
+builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
+builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
+builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
 // 注册后台服务（可选）
 // 取消注释以下行以启用自动传感器监听和分拣编排
