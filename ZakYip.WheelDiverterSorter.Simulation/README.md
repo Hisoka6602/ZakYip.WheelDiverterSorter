@@ -8,8 +8,12 @@
 
 - **无需硬件**: 完全在内存中运行，不连接任何真实硬件设备
 - **快速验证**: 快速验证分拣逻辑和路径生成算法
-- **统计报告**: 自动生成中文统计报告，包括成功率、格口分布等
+- **摩擦模拟**: 支持随机摩擦因子，模拟包裹在传送带上的速度差异
+- **掉包模拟**: 支持包裹中途掉落场景，验证异常处理
+- **不同输送线长度**: 每个格口的输送线长度各不相同（800-1500mm）
+- **统计报告**: 自动生成详细中文统计报告，包括成功率、格口分布、行程时间等
 - **灵活配置**: 支持多种分拣模式和自定义参数
+- **"不允许错分"验证**: 自动验证 `SortedToWrongChute` 计数始终为 0
 
 ## 使用方法
 
@@ -32,8 +36,19 @@ dotnet run --project ZakYip.WheelDiverterSorter.Simulation
     "SortingMode": "RoundRobin",          // 分拣模式：Formal / FixedChute / RoundRobin
     "FixedChuteIds": [1, 2, 3, 4, 5],    // 固定格口ID列表
     "ExceptionChuteId": 999,              // 异常格口ID
-    "IsEnableRandomFaultInjection": false,// 是否启用随机故障注入
-    "FaultInjectionProbability": 0.05,    // 故障注入概率
+    "IsEnableRandomFriction": true,       // 是否启用摩擦模拟
+    "IsEnableRandomDropout": true,        // 是否启用掉包模拟
+    "FrictionModel": {
+      "MinFactor": 0.85,                  // 最小摩擦因子
+      "MaxFactor": 1.15,                  // 最大摩擦因子
+      "IsDeterministic": true,            // 是否使用确定性随机
+      "Seed": 42                          // 随机种子
+    },
+    "DropoutModel": {
+      "DropoutProbabilityPerSegment": 0.02, // 每段掉包概率
+      "AllowedSegments": null,            // 允许掉包的段（null=所有段）
+      "Seed": 123                         // 随机种子
+    },
     "IsEnableVerboseLogging": true,       // 是否启用详细日志
     "IsPauseAtEnd": true                  // 是否在结束时等待用户按键
   }
@@ -100,14 +115,22 @@ dotnet run --project ZakYip.WheelDiverterSorter.Simulation -- \
 ```
 ZakYip.WheelDiverterSorter.Simulation/
 ├── Configuration/
-│   └── SimulationOptions.cs        # 仿真配置模型
+│   ├── SimulationOptions.cs        # 仿真配置模型
+│   ├── FrictionModelOptions.cs     # 摩擦模型配置
+│   └── DropoutModelOptions.cs      # 掉包模型配置
 ├── Services/
 │   ├── SimulationRunner.cs         # 仿真运行器
+│   ├── ParcelTimelineFactory.cs    # 包裹时间轴工厂
 │   └── SimulationReportPrinter.cs  # 报告打印器
+├── Results/
+│   ├── ParcelSimulationResult.cs   # 包裹仿真结果
+│   ├── ParcelSimulationStatus.cs   # 包裹状态枚举
+│   └── SimulationSummary.cs        # 汇总统计
 ├── Scenarios/                       # 未来场景目录（待填充）
 ├── Program.cs                       # 入口程序
 ├── appsettings.Simulation.json     # 仿真配置文件
-└── appsettings.Test.json           # 测试配置文件
+├── SIMULATION_GUIDE.md             # 详细使用指南
+└── README.md                        # 本文件
 ```
 
 ## 依赖关系
@@ -135,3 +158,8 @@ ZakYip.WheelDiverterSorter.Simulation/
 - 仿真使用模拟驱动器（`MockSwitchingPathExecutor`），不进行真实的硬件通信
 - 仿真使用内存 RuleEngine 客户端（`InMemoryRuleEngineClient`），不连接真实的规则引擎
 - 所有接口均来自现有层，没有仿真专用的硬编码路径
+- **重要**: `SortedToWrongChute` 计数必须始终为 0，如果出现非零值说明系统存在严重问题
+
+## 详细文档
+
+请参阅 [SIMULATION_GUIDE.md](./SIMULATION_GUIDE.md) 获取更详细的使用指南和技术说明。
