@@ -47,6 +47,7 @@
 
 | 文档 | 说明 | 适用人群 |
 |------|------|----------|
+| [copilot-instructions.md](copilot-instructions.md) | GitHub Copilot编码规范和仿真运行指南 | 开发者、AI辅助工具 |
 | [ZakYip.WheelDiverterSorter.Drivers/README.md](ZakYip.WheelDiverterSorter.Drivers/README.md) | 硬件驱动开发文档 | 驱动开发者 |
 | [ZakYip.WheelDiverterSorter.Drivers/Leadshine/README.md](ZakYip.WheelDiverterSorter.Drivers/Leadshine/README.md) | 雷赛控制器驱动说明 | 驱动开发者 |
 | [ZakYip.WheelDiverterSorter.Drivers/Leadshine/README_EMC_LOCK.md](ZakYip.WheelDiverterSorter.Drivers/Leadshine/README_EMC_LOCK.md) | 雷赛EMC锁实现说明 | 驱动开发者 |
@@ -102,11 +103,19 @@
 |------|------|----------|
 | [CI_CD_SETUP.md](CI_CD_SETUP.md) | CI/CD设置和配置 | DevOps工程师、开发者 |
 
+### 🎮 仿真运行 (Simulation)
+
+仿真模式相关的文档和指南：
+
+| 文档 | 说明 | 适用人群 |
+|------|------|----------|
+| [copilot-instructions.md#simulation--仿真运行目标](copilot-instructions.md#10-simulation--仿真运行目标) | 仿真运行目标、实现约束和架构指南 | 开发者、AI辅助工具 |
+
 ### 📝 其他文档
 
 | 文档 | 说明 | 适用人群 |
 |------|------|----------|
-| [copilot-instructions.md](copilot-instructions.md) | GitHub Copilot使用说明 | 开发者 |
+| [copilot-instructions.md](copilot-instructions.md) | GitHub Copilot编码规范和开发指南 | 开发者 |
 
 ## 🗺️ 学习路径推荐
 

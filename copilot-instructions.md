@@ -544,8 +544,192 @@ Dictionary<string, int> mapping = new()
 - [.NET API 设计指南](https://learn.microsoft.com/en-us/dotnet/standard/design-guidelines/)
 - [C# 编码约定](https://learn.microsoft.com/en-us/dotnet/csharp/fundamentals/coding-style/coding-conventions)
 
+## 10. Simulation / 仿真运行目标
+
+### 10.1 仿真运行的目的
+
+仿真运行是为了在**不连接任何真实 PLC / IO 板卡**的情况下，验证和测试系统的完整分拣流程。仿真模式的核心特点包括：
+
+- **纯软件运行**：仅依赖 `Drivers` 层的模拟实现（Mock/Simulator）和 `Ingress` 层的"虚拟传感器事件"
+- **完整流程验证**：复用当前的三种分拣模式（`Formal` / `FixedChute` / `RoundRobin`），验证完整的分拣流程：
+  - 入口检测 → 格口分配请求 → 路径生成 → 路径执行 → 异常纠错
+- **多场景覆盖**：支持正常分拣、异常处理、超时纠错、设备故障等各类场景的仿真测试
+
+### 10.2 仿真的实现约束
+
+为保持系统架构的纯净性和可维护性，仿真实现必须遵循以下约束：
+
+#### 约束1：禁止硬编码仿真分支
+**严格禁止**在 `Core` / `Execution` / `Ingress` 等核心业务层中添加任何"仿真专用 if 分支"。
+
+❌ **不允许的做法**：
+```csharp
+// 在 PathExecutor.cs 中硬编码仿真判断
+public async Task<PathExecutionResult> ExecuteAsync(SwitchingPath path)
+{
+    if (_isSimulationMode)  // ❌ 禁止！
+    {
+        // 仿真逻辑
+        return SimulatedExecution(path);
+    }
+    else
+    {
+        // 真实硬件逻辑
+        return RealHardwareExecution(path);
+    }
+}
+```
+
+✅ **正确的做法**：
+```csharp
+// 通过依赖注入不同的实现
+public class PathExecutor : ISwitchingPathExecutor
+{
+    private readonly IDiverterDriver _driver;  // 可以是真实驱动或模拟驱动
+    
+    public PathExecutor(IDiverterDriver driver)
+    {
+        _driver = driver;  // 由 DI 容器根据配置注入
+    }
+    
+    public async Task<PathExecutionResult> ExecuteAsync(SwitchingPath path)
+    {
+        // 统一的执行逻辑，无需区分仿真或真实
+        foreach (var segment in path.Segments)
+        {
+            await _driver.SetDirectionAsync(segment.DiverterId, segment.Direction);
+        }
+    }
+}
+```
+
+**实现原则**：
+- 仿真模式和生产模式使用**完全相同的业务代码**
+- 通过 DI 容器注入不同的实现（`MockDiverterDriver` vs `LeadshineDiverterDriver`）
+- 仿真和真实环境的切换仅通过配置和依赖注入完成
+
+#### 约束2：事件载荷类型规范
+所有新建的事件载荷类型必须遵循以下规范：
+
+- 使用 `record struct` 或 `record class` 定义
+- 类型名称必须以 `EventArgs` 结尾
+- 包含 `required` 修饰的必需属性
+
+✅ **正确的事件定义示例**：
+```csharp
+// 传感器触发事件
+public readonly record struct SensorTriggeredEventArgs(
+    string SensorId,
+    string ParcelId,
+    DateTimeOffset TriggerTime
+) : IEventArgs;
+
+// 路径执行失败事件
+public record class PathExecutionFailedEventArgs
+{
+    public required string ParcelId { get; init; }
+    public required string FailureReason { get; init; }
+    public required DateTimeOffset FailureTime { get; init; }
+    public SwitchingPathSegment? FailedSegment { get; init; }
+}
+```
+
+### 10.3 与现有文档的关系
+
+仿真运行必须遵守项目中已有的架构设计和技术约束：
+
+| 相关文档 | 必须遵守的约束 |
+|---------|--------------|
+| [README.md](README.md) | 仿真必须使用相同的系统拓扑、分拣模式、异常纠错逻辑 |
+| [DYNAMIC_TTL_GUIDE.md](DYNAMIC_TTL_GUIDE.md) | 仿真中的路径段超时检测使用相同的动态TTL计算公式 |
+| [PATH_FAILURE_DETECTION_GUIDE.md](PATH_FAILURE_DETECTION_GUIDE.md) | 仿真中的异常检测和纠错机制与真实环境完全一致 |
+| [OBSERVABILITY_TESTING.md](OBSERVABILITY_TESTING.md) | 仿真运行必须产生完整的监控指标和日志，便于测试和验证 |
+| [RELATIONSHIP_WITH_RULEENGINE.md](RELATIONSHIP_WITH_RULEENGINE.md) | 仿真模式可以选择使用 Mock RuleEngine 或真实 RuleEngine |
+
+### 10.4 后续仿真相关 PR 的要求
+
+所有与仿真相关的 Pull Request 必须遵循以下原则：
+
+#### 原则1：使用现有分层结构
+- ✅ 必须使用 `Core` / `Execution` / `Drivers` / `Ingress` / `Host` / `Observability` 的分层结构
+- ✅ 不得破坏 DDD 边界，各层职责清晰：
+  - `Core`：领域模型和业务规则
+  - `Execution`：路径执行和并发控制
+  - `Drivers`：硬件抽象和模拟实现
+  - `Ingress`：传感器和上游通信
+  - `Host`：应用宿主和API
+  - `Observability`：监控指标和日志
+- ❌ 禁止创建"仿真专用层"或"仿真并行实现"
+
+#### 原则2：优先重用已有接口
+仿真实现必须优先重用系统中已有的接口和抽象：
+
+| 功能模块 | 必须重用的接口 | 说明 |
+|---------|--------------|------|
+| 路径生成 | `ISwitchingPathGenerator` | 使用相同的路径生成逻辑 |
+| 路径执行 | `ISwitchingPathExecutor` | 通过注入 Mock Driver 实现仿真 |
+| 硬件驱动 | `IDiverterDriver` | 实现 `MockDiverterDriver` 或 `SimulatorDiverterDriver` |
+| 传感器 | `ISensorDriver` | 实现 `MockSensorDriver` 提供虚拟传感器事件 |
+| 异常纠错 | `IPathFailureHandler` | 使用相同的异常处理逻辑 |
+| 监控指标 | `ISorterMetrics` | 仿真运行产生真实的监控数据 |
+
+#### 原则3：通过配置切换模式
+仿真模式和生产模式的切换必须通过配置完成，不能硬编码：
+
+```json
+// appsettings.Simulation.json 示例
+{
+  "Simulation": {
+    "Enabled": true,
+    "VirtualSensorDelayMs": 500,
+    "MockDiverterResponseTimeMs": 100
+  },
+  "Drivers": {
+    "DriverType": "Mock"  // 或 "Leadshine" / "S7"
+  },
+  "Ingress": {
+    "SensorType": "Mock"  // 或 "Leadshine" / "S7"
+  }
+}
+```
+
+#### 原则4：完整的测试覆盖
+仿真相关的 PR 必须包含：
+- 单元测试：验证 Mock 实现的正确性
+- 集成测试：验证仿真模式下的端到端流程
+- 文档更新：更新配置说明和使用指南
+
+### 10.5 仿真实现的推荐架构
+
+```
+仿真运行架构
+├── Host (应用宿主)
+│   ├── Program.cs: 根据配置注册 Mock 或真实实现
+│   └── appsettings.Simulation.json: 仿真模式配置
+├── Drivers (硬件驱动层)
+│   ├── IDiverterDriver (接口，不变)
+│   ├── MockDiverterDriver (仿真实现，新增)
+│   └── LeadshineDiverterDriver (真实实现，已有)
+├── Ingress (入口管理层)
+│   ├── ISensorDriver (接口，不变)
+│   ├── MockSensorDriver (仿真实现，新增)
+│   └── VirtualSensorEventGenerator (虚拟事件生成器，新增)
+├── Core (核心业务层，完全不变)
+│   ├── ISwitchingPathGenerator
+│   └── 路径生成、配置管理等业务逻辑
+└── Execution (执行层，完全不变)
+    ├── ISwitchingPathExecutor
+    ├── IPathFailureHandler
+    └── 并发控制、异常纠错等逻辑
+```
+
+**关键点**：
+- `Core` 和 `Execution` 层**零修改**
+- 仅在 `Drivers` 和 `Ingress` 层新增 Mock 实现
+- 通过 DI 容器根据配置切换实现
+
 ---
 
-**文档版本**: 1.0  
-**最后更新**: 2025-11-14  
+**文档版本**: 1.1  
+**最后更新**: 2025-11-16  
 **适用项目**: ZakYip.WheelDiverterSorter
