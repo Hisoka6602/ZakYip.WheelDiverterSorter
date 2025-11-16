@@ -1,8 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+using ZakYip.WheelDiverterSorter.Drivers.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;
@@ -36,14 +38,50 @@ public static class DriverServiceExtensions
                 var diverters = CreateLeadshineDiverters(sp, options.Leadshine);
                 return new HardwareSwitchingPathExecutor(logger, diverters);
             });
+
+            // 注册雷赛 IO 联动驱动
+            services.AddSingleton<IIoLinkageDriver>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<LeadshineIoLinkageDriver>>();
+                var emcController = CreateEmcController(sp, options.Leadshine.CardNo);
+                return new LeadshineIoLinkageDriver(logger, emcController);
+            });
         }
         else
         {
             // 使用模拟驱动器
             services.AddSingleton<ISwitchingPathExecutor, MockSwitchingPathExecutor>();
+
+            // 注册仿真 IO 联动驱动
+            services.AddSingleton<IIoLinkageDriver, SimulatedIoLinkageDriver>();
         }
 
+        // 注册 IO 联动协调器（不管是硬件还是仿真模式都需要）
+        services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
+
         return services;
+    }
+
+    /// <summary>
+    /// 创建雷赛 EMC 控制器
+    /// </summary>
+    private static IEmcController CreateEmcController(
+        IServiceProvider sp,
+        ushort cardNo)
+    {
+        var logger = sp.GetRequiredService<ILogger<LeadshineEmcController>>();
+        var controller = new LeadshineEmcController(logger, cardNo);
+        
+        // 初始化控制器（同步执行）
+        var initTask = controller.InitializeAsync();
+        initTask.Wait();
+        
+        if (!initTask.Result)
+        {
+            logger.LogWarning("EMC 控制器初始化失败，IO 联动功能可能无法正常工作");
+        }
+        
+        return controller;
     }
 
     /// <summary>
