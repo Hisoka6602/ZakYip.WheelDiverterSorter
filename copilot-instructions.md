@@ -646,7 +646,362 @@ public record class PathExecutionFailedEventArgs
 | [OBSERVABILITY_TESTING.md](OBSERVABILITY_TESTING.md) | 仿真运行必须产生完整的监控指标和日志，便于测试和验证 |
 | [RELATIONSHIP_WITH_RULEENGINE.md](RELATIONSHIP_WITH_RULEENGINE.md) | 仿真模式可以选择使用 Mock RuleEngine 或真实 RuleEngine |
 
-### 10.4 后续仿真相关 PR 的要求
+### 10.4 仿真运行物理约束
+
+本节定义仿真运行的物理假设和规则，确保所有仿真实现都遵循统一的物理模型，不随意创造规则。
+
+#### 10.4.1 皮带线速度约束
+
+**核心原则**：皮带线速度视为恒定的全局配置参数。
+
+- **LineSpeedMmps** 为全局配置，代表皮带线的恒定速度（单位：毫米/秒）
+- 仿真中**不得在单个包裹上随意修改物理线速**
+- 所有包裹在同一条皮带线上以相同的物理速度移动
+- 速度配置统一在系统配置中管理，不允许运行时动态调整单个包裹的速度
+
+**正确做法**：
+```csharp
+// 系统配置中定义全局皮带速度
+public class SystemConfiguration
+{
+    public double LineSpeedMmps { get; init; } = 1500.0; // 1.5 m/s = 1500 mm/s
+}
+
+// 仿真中所有包裹使用相同的全局速度
+var travelTime = distance / systemConfig.LineSpeedMmps;
+```
+
+**错误做法**：
+```csharp
+// ❌ 禁止：在单个包裹上修改速度
+var adjustedSpeed = baseSpeed * randomFactor; // 错误！
+var travelTime = distance / adjustedSpeed;
+```
+
+#### 10.4.2 包裹摩擦差异模拟
+
+**核心原则**：通过时间抖动模拟摩擦差异，而不修改物理线速。
+
+包裹与皮带之间的摩擦差异通过每段距离的"时间抖动"来模拟：
+
+```csharp
+// 有效行程时间计算公式
+effectiveTravelTime = (idealDistance / lineSpeed) × frictionFactor
+```
+
+**参数说明**：
+- `idealDistance`: 理想传输距离（毫米）
+- `lineSpeed`: 全局配置的 LineSpeedMmps（恒定值）
+- `frictionFactor`: 摩擦系数，范围为 [FrictionMin, FrictionMax]
+
+**摩擦系数**：
+- `frictionFactor` 为 `[FrictionMin, FrictionMax]` 之间的随机或预设系数
+- 默认建议范围：[0.95, 1.05]（即 ±5% 时间抖动）
+- 可通过配置调整模拟不同的包裹特性（重量、形状、表面材质等）
+
+**实现示例**：
+```csharp
+public record struct FrictionSimulationConfig
+{
+    public double FrictionMin { get; init; } = 0.95;
+    public double FrictionMax { get; init; } = 1.05;
+}
+
+// 仿真中计算有效行程时间
+var idealTime = segmentDistance / lineSpeedMmps;
+var frictionFactor = Random.Shared.NextDouble() * 
+                     (config.FrictionMax - config.FrictionMin) + 
+                     config.FrictionMin;
+var effectiveTravelTime = idealTime * frictionFactor;
+```
+
+**关键点**：
+- 物理线速始终不变
+- 仅通过时间系数模拟包裹行为差异
+- 摩擦系数可配置，支持不同仿真场景
+
+#### 10.4.3 包裹异常场景
+
+仿真中的包裹可能出现以下异常情况：
+
+##### 超时（Timeout）
+包裹在某段路径上未在 TTL（Time To Live）时间内到达下一个传感器：
+
+```csharp
+// 超时检测
+if (actualArrivalTime > expectedArrivalTime + ttl)
+{
+    // 标记为超时
+    status = ParcelStatus.Timeout;
+}
+```
+
+##### 掉落（Dropped）
+包裹在某个节点"掉出"系统，视为从皮带/设备上掉落，丧失控制：
+
+```csharp
+// 掉落场景示例
+public enum DropReason
+{
+    DiverterMalfunction,    // 摆轮故障
+    BeltSlippage,           // 皮带打滑
+    PhysicalObstacle,       // 物理障碍
+    ExcessiveSpeed          // 速度过快导致飞出
+}
+```
+
+**检测规则**：
+- 掉落检测必须基于传感器证据链缺失
+- 如果包裹在预期位置未被检测到，且超过最大容忍时间，则判定为掉落
+
+#### 10.4.4 硬约束：不得错分
+
+**最高优先级规则**：任何情况下 **不得错分**。
+
+##### 错分定义
+- 包裹被分拣到**非目标格口**且**非异常格口**
+- 包裹状态标记为 `SortedSuccess`，但实际格口与目标格口不一致
+
+##### 失败判断原则
+若无法确定包裹是否按计划进入目标格口，则**必须**视为失败：
+
+1. **路由到异常格口**：
+   ```csharp
+   // 无法确定目标时，路由到异常格口
+   if (cannotConfirmTarget)
+   {
+       targetChuteId = systemConfig.ExceptionChuteId;
+   }
+   ```
+
+2. **标记为失败状态**：
+   ```csharp
+   // 不能标记为 SortedSuccess
+   status = ParcelStatus.Dropped;    // 或
+   status = ParcelStatus.Timeout;    // 或
+   status = ParcelStatus.Error;      // 绝不是 SortedSuccess
+   ```
+
+##### 遵守的检测规则
+上述判断必须遵守：
+- [PATH_FAILURE_DETECTION_GUIDE.md](PATH_FAILURE_DETECTION_GUIDE.md) 中定义的路径失败检测规则
+- [ERROR_CORRECTION_MECHANISM.md](ERROR_CORRECTION_MECHANISM.md) 中定义的纠错与异常路由机制
+
+#### 10.4.5 仿真结果模型
+
+仿真必须提供明确的包裹最终状态枚举：
+
+```csharp
+/// <summary>
+/// 包裹最终状态枚举
+/// </summary>
+public enum ParcelFinalStatus
+{
+    /// <summary>
+    /// 成功分拣到目标格口
+    /// </summary>
+    SortedToTargetChute,
+    
+    /// <summary>
+    /// 错分到非目标格口（严重错误，不应发生）
+    /// </summary>
+    SortedToWrongChute,
+    
+    /// <summary>
+    /// 超时：未在TTL内到达传感器
+    /// </summary>
+    Timeout,
+    
+    /// <summary>
+    /// 掉落：从皮带/设备上掉落
+    /// </summary>
+    Dropped,
+    
+    /// <summary>
+    /// 错误：其他执行错误
+    /// </summary>
+    Error
+}
+```
+
+**使用示例**：
+```csharp
+public record struct SimulationResultEventArgs
+{
+    public required string ParcelId { get; init; }
+    public required ParcelFinalStatus FinalStatus { get; init; }
+    public required int TargetChuteId { get; init; }
+    public required int ActualChuteId { get; init; }
+    public string? FailureReason { get; init; }
+    public DateTimeOffset CompletionTime { get; init; }
+}
+```
+
+#### 10.4.6 不变量：传感器证据链要求
+
+仿真和测试中必须维护以下不变量：
+
+**不变量定义**：
+```
+对任何包裹，若状态为 SortedToTargetChute，则必须有完整的传感器证据链；
+若证据链缺失或 TTL 异常，则状态不得为 SortedToTargetChute，
+而应为 Timeout/Dropped/Error。
+```
+
+**传感器证据链**：
+- 包裹在每个关键节点（入口、摆轮、格口）的传感器触发记录
+- 每个触发记录包含：传感器ID、触发时间、包裹ID
+- 证据链必须连续且符合时序逻辑
+
+**验证规则**：
+```csharp
+// 伪代码：验证传感器证据链
+public bool ValidateSensorEvidenceChain(ParcelTrackingData tracking)
+{
+    // 1. 检查是否有入口传感器记录
+    if (!tracking.HasEntrySensorEvent)
+        return false;
+    
+    // 2. 检查路径上每个摆轮的传感器记录
+    foreach (var segment in tracking.Path.Segments)
+    {
+        if (!tracking.HasSensorEventAt(segment.DiverterId))
+            return false;
+            
+        // 3. 检查时序是否合理（未超过TTL）
+        if (tracking.GetArrivalTime(segment.DiverterId) > 
+            tracking.GetExpectedTime(segment.DiverterId) + segment.Ttl)
+            return false;
+    }
+    
+    // 4. 检查是否有目标格口传感器记录
+    if (!tracking.HasExitSensorEventAt(tracking.TargetChuteId))
+        return false;
+    
+    return true;
+}
+
+// 状态判定
+public ParcelFinalStatus DetermineFinalStatus(ParcelTrackingData tracking)
+{
+    if (!ValidateSensorEvidenceChain(tracking))
+    {
+        // 证据链不完整，不能标记为成功
+        if (tracking.HasTimeout)
+            return ParcelFinalStatus.Timeout;
+        else if (tracking.HasDroppedSignal)
+            return ParcelFinalStatus.Dropped;
+        else
+            return ParcelFinalStatus.Error;
+    }
+    
+    // 证据链完整，验证目标格口
+    if (tracking.ActualChuteId == tracking.TargetChuteId)
+        return ParcelFinalStatus.SortedToTargetChute;
+    else
+        return ParcelFinalStatus.SortedToWrongChute; // 严重错误
+}
+```
+
+#### 10.4.7 实现约束
+
+##### 约束1：禁止仿真专用分支
+仿真代码**不得**在 `Core` / `Execution` / `Ingress` 中引入"Simulation 专用 if 分支"。
+
+**错误示例**：
+```csharp
+// ❌ 禁止在核心业务层添加仿真分支
+public async Task<PathExecutionResult> ExecuteAsync(SwitchingPath path)
+{
+    if (_isSimulationMode)
+    {
+        return await SimulateExecution(path);
+    }
+    else
+    {
+        return await RealExecution(path);
+    }
+}
+```
+
+**正确做法**：
+- 通过依赖注入不同的实现（`IDiverterDriver` 的 Mock 实现 vs 真实实现）
+- 通过配置参数控制行为（如摩擦系数、时间抖动范围）
+- 核心业务逻辑对仿真/真实环境完全透明
+
+##### 约束2：通过注入和配置实现仿真
+仿真只能通过以下方式实现：
+
+1. **注入不同实现**：
+   ```csharp
+   // 配置仿真驱动
+   services.AddSingleton<IDiverterDriver, MockDiverterDriver>();
+   
+   // 配置真实驱动
+   services.AddSingleton<IDiverterDriver, LeadshineDiverterDriver>();
+   ```
+
+2. **配置参数**：
+   ```csharp
+   public class SimulationPhysicsConfig
+   {
+       public double LineSpeedMmps { get; init; } = 1500.0;
+       public double FrictionMin { get; init; } = 0.95;
+       public double FrictionMax { get; init; } = 1.05;
+       public double DropProbability { get; init; } = 0.001; // 0.1%
+   }
+   ```
+
+##### 约束3：事件载荷类型规范
+所有新建的事件载荷类型必须：
+
+- 使用 `record struct xxxEventArgs` 或 `record class xxxEventArgs`
+- 名称以 `EventArgs` 结尾
+- 包含必需属性使用 `required` 修饰符
+
+**正确示例**：
+```csharp
+// 使用 record struct（小型数据）
+public readonly record struct SensorTriggeredEventArgs(
+    string SensorId,
+    string ParcelId,
+    DateTimeOffset TriggerTime
+);
+
+// 使用 record class（包含可选字段或较大数据）
+public record class PathExecutionFailedEventArgs
+{
+    public required string ParcelId { get; init; }
+    public required string FailureReason { get; init; }
+    public required DateTimeOffset FailureTime { get; init; }
+    public SwitchingPathSegment? FailedSegment { get; init; }
+}
+
+// ❌ 错误示例
+public class SensorTriggered // 错误：未使用 record，未以 EventArgs 结尾
+{
+    public string SensorId { get; set; } // 错误：未使用 required 和 init
+}
+```
+
+#### 10.4.8 物理约束总结
+
+仿真运行的核心物理约束：
+
+| 约束项 | 规则 | 实现方式 |
+|-------|------|---------|
+| 皮带速度 | 全局恒定，不可单独调整 | 系统配置中的 LineSpeedMmps |
+| 摩擦模拟 | 通过时间抖动，不改变物理速度 | frictionFactor ∈ [FrictionMin, FrictionMax] |
+| 超时检测 | 基于 TTL 和实际到达时间 | actualTime > expectedTime + TTL |
+| 掉落检测 | 基于传感器证据链缺失 | 预期位置无传感器事件 |
+| 不得错分 | 无法确定目标时必须标记失败 | 路由到异常格口或标记 Timeout/Dropped/Error |
+| 证据链完整性 | SortedToTargetChute 必须有完整证据链 | 验证每个节点的传感器记录和时序 |
+| 代码纯净性 | 核心层禁止仿真专用分支 | 通过 DI 和配置实现模拟 |
+| 事件规范 | 事件载荷使用 record xxxEventArgs | 统一命名和类型约定 |
+
+这些约束确保仿真的准确性、可维护性和与真实环境的一致性。
+
+### 10.5 后续仿真相关 PR 的要求
 
 所有与仿真相关的 Pull Request 必须遵循以下原则：
 
@@ -699,7 +1054,7 @@ public record class PathExecutionFailedEventArgs
 - 集成测试：验证仿真模式下的端到端流程
 - 文档更新：更新配置说明和使用指南
 
-### 10.5 仿真实现的推荐架构
+### 10.6 仿真实现的推荐架构
 
 ```
 仿真运行架构
