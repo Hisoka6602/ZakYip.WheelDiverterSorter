@@ -75,7 +75,10 @@ public class SystemConfigController : ControllerBase
             RequestTimeoutMs = defaultConfig.RequestTimeoutMs,
             RetryCount = defaultConfig.RetryCount,
             RetryDelayMs = defaultConfig.RetryDelayMs,
-            EnableAutoReconnect = defaultConfig.EnableAutoReconnect
+            EnableAutoReconnect = defaultConfig.EnableAutoReconnect,
+            SortingMode = defaultConfig.SortingMode,
+            FixedChuteId = defaultConfig.FixedChuteId,
+            AvailableChuteIds = defaultConfig.AvailableChuteIds
         });
     }
 
@@ -213,7 +216,10 @@ public class SystemConfigController : ControllerBase
             RequestTimeoutMs = request.RequestTimeoutMs,
             RetryCount = request.RetryCount,
             RetryDelayMs = request.RetryDelayMs,
-            EnableAutoReconnect = request.EnableAutoReconnect
+            EnableAutoReconnect = request.EnableAutoReconnect,
+            SortingMode = request.SortingMode,
+            FixedChuteId = request.FixedChuteId,
+            AvailableChuteIds = request.AvailableChuteIds ?? new List<int>()
         };
     }
 
@@ -233,6 +239,9 @@ public class SystemConfigController : ControllerBase
             RetryCount = config.RetryCount,
             RetryDelayMs = config.RetryDelayMs,
             EnableAutoReconnect = config.EnableAutoReconnect,
+            SortingMode = config.SortingMode,
+            FixedChuteId = config.FixedChuteId,
+            AvailableChuteIds = config.AvailableChuteIds ?? new List<int>(),
             Version = config.Version,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
