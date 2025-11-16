@@ -28,8 +28,6 @@ public class ParcelSortingWorkflowTests : E2ETestBase
     public async Task CompleteSortingFlow_WithValidChute_ShouldSucceed()
     {
         // Arrange
-        var targetChuteId = 1;
-
         // 设置模拟RuleEngine返回目标格口
         Factory.MockRuleEngineClient!
             .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
