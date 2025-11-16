@@ -1,14 +1,18 @@
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Prometheus;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
 
@@ -59,6 +63,9 @@ var host = Host.CreateDefaultBuilder(args)
             return new InMemoryRuleEngineClient(chuteAssignmentFunc, logger);
         });
 
+        // 注册Prometheus指标服务
+        services.AddSingleton<PrometheusMetrics>();
+
         // 注册仿真服务
         services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<SimulationReportPrinter>();
@@ -82,11 +89,22 @@ var host = Host.CreateDefaultBuilder(args)
     })
     .Build();
 
+// 启动Prometheus metrics端点（后台线程）
+var options = host.Services.GetRequiredService<IOptions<SimulationOptions>>().Value;
+Task? metricsServerTask = null;
+CancellationTokenSource? metricsCts = null;
+
+if (options.IsLongRunMode)
+{
+    metricsCts = new CancellationTokenSource();
+    metricsServerTask = Task.Run(() => StartMetricsServer(metricsCts.Token), metricsCts.Token);
+    Console.WriteLine("Prometheus metrics 端点已启动: http://localhost:9091/metrics");
+}
+
 // 运行仿真
 try
 {
     var runner = host.Services.GetRequiredService<SimulationRunner>();
-    var options = host.Services.GetRequiredService<IOptions<SimulationOptions>>().Value;
     
     var statistics = await runner.RunAsync();
     
@@ -111,6 +129,46 @@ catch (Exception ex)
     Console.ReadKey();
     
     return 1;
+}
+finally
+{
+    // 停止metrics服务器
+    if (metricsCts != null)
+    {
+        metricsCts.Cancel();
+        if (metricsServerTask != null)
+        {
+            try
+            {
+                await metricsServerTask;
+            }
+            catch (OperationCanceledException)
+            {
+                // 预期的取消
+            }
+        }
+    }
+}
+
+// 启动Prometheus metrics HTTP服务器
+static void StartMetricsServer(CancellationToken cancellationToken)
+{
+    var builder = WebApplication.CreateBuilder();
+    builder.WebHost.UseUrls("http://localhost:9091");
+    builder.Logging.ClearProviders(); // 不打印metrics服务器的日志
+    
+    var app = builder.Build();
+    app.UseRouting();
+    app.MapMetrics(); // 暴露 /metrics 端点
+    
+    try
+    {
+        app.Run();
+    }
+    catch (OperationCanceledException)
+    {
+        // 预期的取消
+    }
 }
 
 // 格口分配函数工厂方法

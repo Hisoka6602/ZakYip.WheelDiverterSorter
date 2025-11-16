@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
+using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 
@@ -25,11 +26,13 @@ public class SimulationRunner
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly ParcelTimelineFactory _timelineFactory;
     private readonly SimulationReportPrinter _reportPrinter;
+    private readonly PrometheusMetrics _metrics;
     private readonly ILogger<SimulationRunner> _logger;
     
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments = new();
     private readonly Dictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
     private readonly object _lockObject = new();
+    private long _misSortCount = 0;
 
     /// <summary>
     /// 构造函数
@@ -41,6 +44,7 @@ public class SimulationRunner
         ISwitchingPathExecutor pathExecutor,
         ParcelTimelineFactory timelineFactory,
         SimulationReportPrinter reportPrinter,
+        PrometheusMetrics metrics,
         ILogger<SimulationRunner> logger)
     {
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -49,6 +53,7 @@ public class SimulationRunner
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _timelineFactory = timelineFactory ?? throw new ArgumentNullException(nameof(timelineFactory));
         _reportPrinter = reportPrinter ?? throw new ArgumentNullException(nameof(reportPrinter));
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
         // 订阅格口分配事件
@@ -75,60 +80,13 @@ public class SimulationRunner
 
         _logger.LogInformation("已连接到RuleEngine（模拟）");
 
-        // 生成并处理虚拟包裹
-        for (int i = 0; i < _options.ParcelCount; i++)
+        if (_options.IsLongRunMode)
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                _logger.LogWarning("仿真被取消");
-                break;
-            }
-
-            var parcelId = GenerateParcelId(i);
-            
-            if (_options.IsEnableVerboseLogging)
-            {
-                _logger.LogInformation("处理包裹 {Index}/{Total}，包裹ID: {ParcelId}", 
-                    i + 1, _options.ParcelCount, parcelId);
-            }
-
-            try
-            {
-                // 模拟包裹到达并处理分拣
-                var result = await ProcessParcelAsync(parcelId, startTime.AddMilliseconds(i * _options.ParcelInterval.TotalMilliseconds), cancellationToken);
-                
-                lock (_lockObject)
-                {
-                    _parcelResults[parcelId] = result;
-                }
-
-                if (_options.IsEnableVerboseLogging)
-                {
-                    var statusMsg = GetStatusMessage(result.Status);
-                    _logger.LogInformation("包裹 {ParcelId}: {Status}", parcelId, statusMsg);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "处理包裹 {ParcelId} 时发生错误", parcelId);
-                
-                lock (_lockObject)
-                {
-                    _parcelResults[parcelId] = new ParcelSimulationResultEventArgs
-                    {
-                        ParcelId = parcelId,
-                        Status = ParcelSimulationStatus.ExecutionError,
-                        FinalChuteId = _options.ExceptionChuteId,
-                        FailureReason = ex.Message
-                    };
-                }
-            }
-
-            // 等待下一个包裹到达
-            if (i < _options.ParcelCount - 1)
-            {
-                await Task.Delay(_options.ParcelInterval, cancellationToken);
-            }
+            await RunLongModeAsync(startTime, cancellationToken);
+        }
+        else
+        {
+            await RunNormalModeAsync(startTime, cancellationToken);
         }
 
         var endTime = DateTimeOffset.UtcNow;
@@ -146,6 +104,244 @@ public class SimulationRunner
         _logger.LogInformation("仿真完成");
 
         return summary;
+    }
+
+    /// <summary>
+    /// 运行正常模式（固定包裹数量）
+    /// </summary>
+    private async Task RunNormalModeAsync(DateTimeOffset startTime, CancellationToken cancellationToken)
+    {
+        for (int i = 0; i < _options.ParcelCount; i++)
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("仿真被取消");
+                break;
+            }
+
+            await ProcessSingleParcelAsync(i, startTime, cancellationToken);
+
+            // 等待下一个包裹到达
+            if (i < _options.ParcelCount - 1)
+            {
+                await Task.Delay(_options.ParcelInterval, cancellationToken);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 运行长跑模式（基于时长或最大包裹数）
+    /// </summary>
+    private async Task RunLongModeAsync(DateTimeOffset startTime, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("长跑模式启动，持续时间: {Duration}, 最大包裹数: {MaxParcels}", 
+            _options.LongRunDuration?.ToString() ?? "无限制", 
+            _options.MaxLongRunParcels?.ToString() ?? "无限制");
+
+        int parcelIndex = 0;
+        var lastMetricsTime = DateTimeOffset.UtcNow;
+        
+        // 场景切换：每1000个包裹更换一次摩擦配置（模拟不同工况）
+        int scenarioBatchSize = 1000;
+        int currentScenarioIndex = 0;
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var currentTime = DateTimeOffset.UtcNow;
+            var elapsedTime = currentTime - startTime;
+
+            // 检查是否达到持续时间限制
+            if (_options.LongRunDuration.HasValue && elapsedTime >= _options.LongRunDuration.Value)
+            {
+                _logger.LogInformation("达到长跑持续时间限制: {Duration}", _options.LongRunDuration.Value);
+                break;
+            }
+
+            // 检查是否达到最大包裹数限制
+            if (_options.MaxLongRunParcels.HasValue && parcelIndex >= _options.MaxLongRunParcels.Value)
+            {
+                _logger.LogInformation("达到长跑最大包裹数限制: {MaxParcels}", _options.MaxLongRunParcels.Value);
+                break;
+            }
+
+            // 场景切换：每批次修改摩擦模型（模拟不同工况）
+            if (parcelIndex > 0 && parcelIndex % scenarioBatchSize == 0)
+            {
+                currentScenarioIndex++;
+                _logger.LogInformation("切换场景批次 #{ScenarioIndex}，已处理 {ParcelCount} 个包裹", 
+                    currentScenarioIndex, parcelIndex);
+            }
+
+            await ProcessSingleParcelAsync(parcelIndex, startTime, cancellationToken);
+
+            // 定期输出统计信息
+            var timeSinceLastMetrics = (currentTime - lastMetricsTime).TotalSeconds;
+            if (timeSinceLastMetrics >= _options.MetricsPushIntervalSeconds)
+            {
+                PrintIntermediateStats(parcelIndex + 1, elapsedTime);
+                lastMetricsTime = currentTime;
+            }
+
+            parcelIndex++;
+
+            // 等待下一个包裹到达
+            await Task.Delay(_options.ParcelInterval, cancellationToken);
+        }
+
+        _logger.LogInformation("长跑模式结束，共处理 {TotalParcels} 个包裹", parcelIndex);
+    }
+
+    /// <summary>
+    /// 处理单个包裹（统一接口）
+    /// </summary>
+    private async Task ProcessSingleParcelAsync(int index, DateTimeOffset startTime, CancellationToken cancellationToken)
+    {
+        var parcelId = GenerateParcelId(index);
+        
+        if (_options.IsEnableVerboseLogging)
+        {
+            _logger.LogInformation("处理包裹 {Index}，包裹ID: {ParcelId}", 
+                index + 1, parcelId);
+        }
+
+        try
+        {
+            // 模拟包裹到达并处理分拣
+            var result = await ProcessParcelAsync(parcelId, startTime.AddMilliseconds(index * _options.ParcelInterval.TotalMilliseconds), cancellationToken);
+            
+            lock (_lockObject)
+            {
+                _parcelResults[parcelId] = result;
+            }
+
+            // 记录Prometheus指标
+            RecordMetrics(result);
+
+            // 检查错分并处理fail-fast
+            if (result.Status == ParcelSimulationStatus.SortedToWrongChute)
+            {
+                HandleMisSort(parcelId, result);
+            }
+
+            if (_options.IsEnableVerboseLogging)
+            {
+                var statusMsg = GetStatusMessage(result.Status);
+                _logger.LogInformation("包裹 {ParcelId}: {Status}", parcelId, statusMsg);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理包裹 {ParcelId} 时发生错误", parcelId);
+            
+            var errorResult = new ParcelSimulationResultEventArgs
+            {
+                ParcelId = parcelId,
+                Status = ParcelSimulationStatus.ExecutionError,
+                FinalChuteId = _options.ExceptionChuteId,
+                FailureReason = ex.Message
+            };
+
+            lock (_lockObject)
+            {
+                _parcelResults[parcelId] = errorResult;
+            }
+
+            RecordMetrics(errorResult);
+        }
+    }
+
+    /// <summary>
+    /// 记录Prometheus指标
+    /// </summary>
+    private void RecordMetrics(ParcelSimulationResultEventArgs result)
+    {
+        var statusLabel = result.Status.ToString();
+        var travelTimeSeconds = result.TravelTime?.TotalSeconds;
+        
+        _metrics.RecordSimulationParcel(statusLabel, travelTimeSeconds);
+
+        if (result.Status == ParcelSimulationStatus.SortedToWrongChute)
+        {
+            _metrics.RecordSimulationMisSort();
+        }
+    }
+
+    /// <summary>
+    /// 处理错分情况
+    /// </summary>
+    private void HandleMisSort(long parcelId, ParcelSimulationResultEventArgs result)
+    {
+        Interlocked.Increment(ref _misSortCount);
+        
+        // 记录ERROR日志
+        _logger.LogError("❌❌❌ 检测到错分！包裹ID: {ParcelId}, 目标格口: {Target}, 实际格口: {Actual} ❌❌❌",
+            parcelId, result.TargetChuteId, result.FinalChuteId);
+
+        // 在控制台打印醒目的中文警告
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine();
+        Console.WriteLine("╔════════════════════════════════════════════════════════════╗");
+        Console.WriteLine("║                    ⚠️  严重错误  ⚠️                        ║");
+        Console.WriteLine("╠════════════════════════════════════════════════════════════╣");
+        Console.WriteLine($"║  检测到包裹错分！                                          ║");
+        Console.WriteLine($"║  包裹ID: {parcelId,-47}║");
+        Console.WriteLine($"║  目标格口: {result.TargetChuteId,-45}║");
+        Console.WriteLine($"║  实际格口: {result.FinalChuteId,-45}║");
+        Console.WriteLine("║                                                            ║");
+        Console.WriteLine($"║  当前错分总数: {_misSortCount,-41}║");
+        Console.WriteLine("╚════════════════════════════════════════════════════════════╝");
+        Console.WriteLine();
+        Console.ResetColor();
+
+        // 如果配置了快速失败，则退出程序
+        if (_options.FailFastOnMisSort)
+        {
+            _logger.LogCritical("FailFastOnMisSort=true，程序即将退出");
+            Console.WriteLine("按 FailFastOnMisSort 配置，程序将立即退出...");
+            Environment.Exit(1);
+        }
+    }
+
+    /// <summary>
+    /// 打印中间统计信息
+    /// </summary>
+    private void PrintIntermediateStats(int parcelCount, TimeSpan elapsed)
+    {
+        int sortedCount = 0;
+        int timeoutCount = 0;
+        int droppedCount = 0;
+        int errorCount = 0;
+        int misSortCount = 0;
+
+        lock (_lockObject)
+        {
+            foreach (var result in _parcelResults.Values)
+            {
+                switch (result.Status)
+                {
+                    case ParcelSimulationStatus.SortedToTargetChute:
+                        sortedCount++;
+                        break;
+                    case ParcelSimulationStatus.Timeout:
+                        timeoutCount++;
+                        break;
+                    case ParcelSimulationStatus.Dropped:
+                        droppedCount++;
+                        break;
+                    case ParcelSimulationStatus.ExecutionError:
+                    case ParcelSimulationStatus.RuleEngineTimeout:
+                        errorCount++;
+                        break;
+                    case ParcelSimulationStatus.SortedToWrongChute:
+                        misSortCount++;
+                        break;
+                }
+            }
+        }
+
+        _logger.LogInformation(
+            "📊 [中间统计] 已运行: {Elapsed:hh\\:mm\\:ss}, 处理: {Total}, 成功: {Success}, 超时: {Timeout}, 掉包: {Dropped}, 错误: {Error}, 错分: {MisSort}",
+            elapsed, parcelCount, sortedCount, timeoutCount, droppedCount, errorCount, misSortCount);
     }
 
     /// <summary>
