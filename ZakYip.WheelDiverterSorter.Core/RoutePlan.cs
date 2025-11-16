@@ -213,7 +213,7 @@ public class RoutePlan
                 ParcelId = ParcelId,
                 OriginalChuteId = originalChuteId,
                 RequestedChuteId = requestedChuteId,
-                AppliedChuteId = null,
+                AppliedChuteId = originalChuteId, // 保持原有格口
                 Outcome = ChuteChangeOutcome.RejectedInvalidState,
                 RequestedAt = requestedAt,
                 DecidedAt = requestedAt,
@@ -240,7 +240,7 @@ public class RoutePlan
                 ParcelId = ParcelId,
                 OriginalChuteId = originalChuteId,
                 RequestedChuteId = requestedChuteId,
-                AppliedChuteId = null,
+                AppliedChuteId = originalChuteId, // 保持原有格口
                 Outcome = ChuteChangeOutcome.RejectedTooLate,
                 RequestedAt = requestedAt,
                 DecidedAt = requestedAt,

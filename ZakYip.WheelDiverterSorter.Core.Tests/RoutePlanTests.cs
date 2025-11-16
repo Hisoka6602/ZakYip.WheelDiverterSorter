@@ -121,7 +121,7 @@ public class RoutePlanTests
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.RejectedInvalidState, decision.Outcome);
-        Assert.Null(decision.AppliedChuteId);
+        Assert.Equal(10, decision.AppliedChuteId);
         Assert.Equal(10, routePlan.CurrentTargetChuteId); // Original chute
         Assert.Equal(0, routePlan.ChuteChangeCount);
     }
@@ -142,7 +142,7 @@ public class RoutePlanTests
         // Assert
         Assert.False(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.RejectedTooLate, decision.Outcome);
-        Assert.Null(decision.AppliedChuteId);
+        Assert.Equal(10, decision.AppliedChuteId);
         Assert.Equal(10, routePlan.CurrentTargetChuteId);
         Assert.Equal(0, routePlan.ChuteChangeCount);
     }
