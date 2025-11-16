@@ -1,0 +1,248 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Clients;
+using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Services;
+
+// 创建Host
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureAppConfiguration((context, config) =>
+    {
+        // 添加仿真专用配置文件
+        config.AddJsonFile("appsettings.Simulation.json", optional: false, reloadOnChange: false);
+        
+        // 支持命令行参数覆盖配置
+        config.AddCommandLine(args);
+    })
+    .ConfigureServices((context, services) =>
+    {
+        // 注册仿真配置
+        services.Configure<SimulationOptions>(context.Configuration.GetSection("Simulation"));
+
+        // 注册路由配置仓储（内存版本，用于路径生成）
+        services.AddSingleton<IRouteConfigurationRepository>(sp =>
+        {
+            var repository = new InMemoryRouteConfigurationRepository();
+            repository.InitializeDefaultData();
+            return repository;
+        });
+
+        // 注册路径生成器（使用默认实现）
+        services.AddSingleton<ISwitchingPathGenerator, DefaultSwitchingPathGenerator>();
+
+        // 注册模拟路径执行器
+        services.AddSingleton<ISwitchingPathExecutor, MockSwitchingPathExecutor>();
+
+        // 注册模拟RuleEngineClient
+        services.AddSingleton<IRuleEngineClient>(sp =>
+        {
+            var logger = sp.GetService<ILogger<InMemoryRuleEngineClient>>();
+            var options = sp.GetRequiredService<IOptions<SimulationOptions>>().Value;
+            
+            // 根据分拣模式创建不同的格口分配函数
+            Func<long, int> chuteAssignmentFunc = options.SortingMode switch
+            {
+                "FixedChute" => CreateFixedChuteAssignmentFunc(options),
+                "RoundRobin" => CreateRoundRobinAssignmentFunc(options),
+                "Formal" => CreateFormalAssignmentFunc(options),
+                _ => throw new InvalidOperationException($"不支持的分拣模式: {options.SortingMode}")
+            };
+
+            return new InMemoryRuleEngineClient(chuteAssignmentFunc, logger);
+        });
+
+        // 注册仿真服务
+        services.AddSingleton<SimulationReportPrinter>();
+        services.AddSingleton<SimulationRunner>();
+    })
+    .ConfigureLogging((context, logging) =>
+    {
+        logging.ClearProviders();
+        logging.AddConsole();
+        
+        // 根据配置设置日志级别
+        var simulationOptions = context.Configuration.GetSection("Simulation").Get<SimulationOptions>();
+        if (simulationOptions?.IsEnableVerboseLogging == true)
+        {
+            logging.SetMinimumLevel(LogLevel.Debug);
+        }
+        else
+        {
+            logging.SetMinimumLevel(LogLevel.Information);
+        }
+    })
+    .Build();
+
+// 运行仿真
+try
+{
+    var runner = host.Services.GetRequiredService<SimulationRunner>();
+    var options = host.Services.GetRequiredService<IOptions<SimulationOptions>>().Value;
+    
+    var statistics = await runner.RunAsync();
+    
+    if (options.IsPauseAtEnd)
+    {
+        Console.WriteLine();
+        Console.WriteLine("按任意键退出...");
+        Console.ReadKey();
+    }
+    
+    return 0;
+}
+catch (Exception ex)
+{
+    var logger = host.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "仿真执行失败");
+    
+    Console.WriteLine();
+    Console.WriteLine($"错误: {ex.Message}");
+    Console.WriteLine();
+    Console.WriteLine("按任意键退出...");
+    Console.ReadKey();
+    
+    return 1;
+}
+
+// 格口分配函数工厂方法
+
+static Func<long, int> CreateFixedChuteAssignmentFunc(SimulationOptions options)
+{
+    if (options.FixedChuteIds == null || options.FixedChuteIds.Count == 0)
+    {
+        throw new InvalidOperationException("FixedChute 模式需要配置 FixedChuteIds");
+    }
+
+    var chuteIds = options.FixedChuteIds.ToArray();
+    var random = new Random();
+    
+    return _ => (int)chuteIds[random.Next(chuteIds.Length)];
+}
+
+static Func<long, int> CreateRoundRobinAssignmentFunc(SimulationOptions options)
+{
+    if (options.FixedChuteIds == null || options.FixedChuteIds.Count == 0)
+    {
+        throw new InvalidOperationException("RoundRobin 模式需要配置 FixedChuteIds");
+    }
+
+    var chuteIds = options.FixedChuteIds.ToArray();
+    var index = 0;
+    var lockObj = new object();
+    
+    return _ =>
+    {
+        lock (lockObj)
+        {
+            var chuteId = (int)chuteIds[index];
+            index = (index + 1) % chuteIds.Length;
+            return chuteId;
+        }
+    };
+}
+
+static Func<long, int> CreateFormalAssignmentFunc(SimulationOptions options)
+{
+    // Formal 模式下，使用包裹ID的哈希来模拟规则引擎的决策
+    // 在实际场景中，这里会调用真实的规则引擎
+    if (options.FixedChuteIds == null || options.FixedChuteIds.Count == 0)
+    {
+        throw new InvalidOperationException("Formal 模式需要配置 FixedChuteIds 作为可用格口列表");
+    }
+
+    var chuteIds = options.FixedChuteIds.ToArray();
+    
+    return parcelId =>
+    {
+        // 使用包裹ID的哈希来决定格口
+        var hash = parcelId.GetHashCode();
+        var index = Math.Abs(hash) % chuteIds.Length;
+        return (int)chuteIds[index];
+    };
+}
+
+/// <summary>
+/// 内存路由配置仓储（用于仿真）
+/// </summary>
+internal class InMemoryRouteConfigurationRepository : IRouteConfigurationRepository
+{
+    private readonly Dictionary<int, ChuteRouteConfiguration> _configurations = new();
+    private readonly object _lockObject = new();
+
+    public void InitializeDefaultData()
+    {
+        // 添加默认的路由配置用于仿真
+        // 假设有10个格口，每个格口有相应的路由配置
+        lock (_lockObject)
+        {
+            _configurations.Clear();
+            
+            for (int chuteId = 1; chuteId <= 10; chuteId++)
+            {
+                _configurations[chuteId] = new ChuteRouteConfiguration
+                {
+                    ChuteId = chuteId,
+                    ChuteName = $"仿真格口{chuteId}",
+                    DiverterConfigurations = new List<DiverterConfigurationEntry>
+                    {
+                        new DiverterConfigurationEntry
+                        {
+                            DiverterId = chuteId,
+                            TargetDirection = DiverterDirection.Right, // 默认右转
+                            SequenceNumber = 1,
+                            SegmentLengthMm = chuteId * 1000, // 每个格口间隔1米
+                            SegmentSpeedMmPerSecond = 500,
+                            SegmentToleranceTimeMs = 2000 // 2秒容差
+                        }
+                    },
+                    BeltSpeedMmPerSecond = 500,
+                    BeltLengthMm = chuteId * 1000,
+                    IsEnabled = true
+                };
+            }
+        }
+    }
+
+    public ChuteRouteConfiguration? GetByChuteId(int chuteId)
+    {
+        lock (_lockObject)
+        {
+            return _configurations.TryGetValue(chuteId, out var config) ? config : null;
+        }
+    }
+
+    public IEnumerable<ChuteRouteConfiguration> GetAllEnabled()
+    {
+        lock (_lockObject)
+        {
+            return _configurations.Values.Where(c => c.IsEnabled).ToList();
+        }
+    }
+
+    public void Upsert(ChuteRouteConfiguration configuration)
+    {
+        lock (_lockObject)
+        {
+            _configurations[configuration.ChuteId] = configuration;
+        }
+    }
+
+    public bool Delete(int chuteId)
+    {
+        lock (_lockObject)
+        {
+            return _configurations.Remove(chuteId);
+        }
+    }
+}
+
+// 使 Program 类可访问用于集成测试（如果需要）
+public partial class Program { }
