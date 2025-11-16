@@ -249,6 +249,3 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
         }
     }
 }
-
-// 使 Program 类可访问用于集成测试（如果需要）
-public partial class Program { }

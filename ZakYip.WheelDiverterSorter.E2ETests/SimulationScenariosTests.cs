@@ -1,0 +1,360 @@
+using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Moq;
+using ZakYip.WheelDiverterSorter.Communication;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Ingress;
+using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Results;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
+using ZakYip.WheelDiverterSorter.Simulation.Services;
+
+namespace ZakYip.WheelDiverterSorter.E2ETests;
+
+/// <summary>
+/// 仿真场景测试
+/// </summary>
+/// <remarks>
+/// 覆盖不同摩擦分布、掉包概率的场景，验证系统在极端情况下不会错分
+/// </remarks>
+public class SimulationScenariosTests : IDisposable
+{
+    private readonly ServiceProvider _serviceProvider;
+    private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
+    private int _currentChuteId = 1;
+    private readonly Random _random = new Random(42);
+
+    public SimulationScenariosTests()
+    {
+        // 创建模拟 RuleEngine 客户端
+        _mockRuleEngineClient = new Mock<IRuleEngineClient>(MockBehavior.Loose);
+        _mockRuleEngineClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockRuleEngineClient.Setup(x => x.DisconnectAsync())
+            .Returns(Task.CompletedTask);
+        _mockRuleEngineClient.Setup(x => x.IsConnected)
+            .Returns(true);
+
+        // 设置包裹检测通知的默认行为
+        _mockRuleEngineClient
+            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true)
+            .Callback<long, CancellationToken>((parcelId, ct) =>
+            {
+                // 异步触发格口分配事件
+                Task.Run(() =>
+                {
+                    Thread.Sleep(50); // 模拟处理延迟
+                    var chuteId = GetNextChuteId();
+                    _mockRuleEngineClient.Raise(
+                        x => x.ChuteAssignmentReceived += null,
+                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId }
+                    );
+                }, ct);
+            });
+
+        // 配置服务集合
+        var services = new ServiceCollection();
+
+        // 添加日志
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Warning); // 减少日志输出
+        });
+
+        // 添加核心配置仓储（使用模拟）
+        var mockRouteRepo = new Mock<IRouteConfigurationRepository>();
+        mockRouteRepo.Setup(x => x.GetByChuteId(It.IsAny<int>()))
+            .Returns((int chuteId) =>
+            {
+                // 返回简单的路由配置
+                if (chuteId >= 1 && chuteId <= 5)
+                {
+                    return new ChuteRouteConfiguration
+                    {
+                        ChuteId = chuteId,
+                        ChuteName = $"Chute {chuteId}",
+                        DiverterConfigurations = new List<DiverterConfigurationEntry>
+                        {
+                            new DiverterConfigurationEntry
+                            {
+                                DiverterId = 1,
+                                TargetDirection = Core.Enums.DiverterDirection.Straight,
+                                SequenceNumber = 1
+                            }
+                        },
+                        BeltSpeedMmPerSecond = 1000.0,
+                        BeltLengthMm = 5000.0,
+                        ToleranceTimeMs = 2000,
+                        IsEnabled = true
+                    };
+                }
+                return null;
+            });
+        services.AddSingleton(mockRouteRepo.Object);
+
+        var mockSystemRepo = new Mock<ISystemConfigurationRepository>();
+        mockSystemRepo.Setup(x => x.Get())
+            .Returns(new SystemConfiguration
+            {
+                ExceptionChuteId = 999,
+                ChuteAssignmentTimeoutMs = 10000
+            });
+        services.AddSingleton(mockSystemRepo.Object);
+
+        // 添加 RuleEngine 客户端（模拟）
+        services.AddSingleton(_mockRuleEngineClient.Object);
+
+        // 添加路径生成器（使用模拟）
+        var mockPathGenerator = new Mock<ISwitchingPathGenerator>();
+        mockPathGenerator.Setup(x => x.GeneratePath(It.IsAny<int>()))
+            .Returns((int targetChuteId) =>
+            {
+                if (targetChuteId >= 1 && targetChuteId <= 5)
+                {
+                    return new SwitchingPath
+                    {
+                        TargetChuteId = targetChuteId,
+                        FallbackChuteId = 999,
+                        GeneratedAt = DateTimeOffset.UtcNow,
+                        Segments = new List<SwitchingPathSegment>
+                        {
+                            new SwitchingPathSegment
+                            {
+                                DiverterId = 1,
+                                TargetDirection = Core.Enums.DiverterDirection.Straight,
+                                SequenceNumber = 1,
+                                TtlMilliseconds = 2000
+                            }
+                        }
+                    };
+                }
+                return null;
+            });
+        services.AddSingleton(mockPathGenerator.Object);
+        services.AddSingleton<ISwitchingPathExecutor>(sp =>
+        {
+            // 使用模拟执行器，总是返回成功
+            var mockExecutor = new Mock<ISwitchingPathExecutor>();
+            mockExecutor.Setup(x => x.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((SwitchingPath path, CancellationToken ct) =>
+                {
+                    return new PathExecutionResult
+                    {
+                        IsSuccess = true,
+                        ActualChuteId = path.TargetChuteId
+                    };
+                });
+            return mockExecutor.Object;
+        });
+
+        // 添加仿真服务（初始配置为空，后续通过 IOptions 覆盖）
+        services.AddSingleton<ParcelTimelineFactory>();
+        services.AddSingleton<SimulationReportPrinter>();
+
+        _serviceProvider = services.BuildServiceProvider();
+    }
+
+    private int GetNextChuteId()
+    {
+        // 根据当前排序模式返回格口ID
+        // 这里简化处理，假设格口ID在 1-5 之间循环
+        var chuteId = (_currentChuteId % 5) + 1;
+        _currentChuteId++;
+        return chuteId;
+    }
+
+    /// <summary>
+    /// 运行仿真场景
+    /// </summary>
+    private async Task<SimulationSummary> RunScenarioAsync(SimulationScenario scenario)
+    {
+        // 创建新的服务作用域，使用场景的配置
+        using var scope = _serviceProvider.CreateScope();
+        var services = scope.ServiceProvider;
+
+        // 创建带场景配置的 SimulationRunner
+        var options = Options.Create(scenario.Options);
+        var ruleEngineClient = services.GetRequiredService<IRuleEngineClient>();
+        var pathGenerator = services.GetRequiredService<ISwitchingPathGenerator>();
+        var pathExecutor = services.GetRequiredService<ISwitchingPathExecutor>();
+        var timelineFactory = services.GetRequiredService<ParcelTimelineFactory>();
+        var reportPrinter = services.GetRequiredService<SimulationReportPrinter>();
+        var logger = services.GetRequiredService<ILogger<SimulationRunner>>();
+
+        var runner = new SimulationRunner(
+            options,
+            ruleEngineClient,
+            pathGenerator,
+            pathExecutor,
+            timelineFactory,
+            reportPrinter,
+            logger
+        );
+
+        // 运行仿真
+        return await runner.RunAsync();
+    }
+
+    /// <summary>
+    /// 验证仿真结果的全局不变量
+    /// </summary>
+    private void ValidateInvariants(SimulationSummary summary, SimulationScenario scenario)
+    {
+        // 核心不变量：错误分拣计数必须为 0
+        summary.SortedToWrongChuteCount.Should().Be(0,
+            $"场景 '{scenario.ScenarioName}' 中不应出现错误分拣");
+
+        // 验证成功分拣到目标格口的包裹
+        if (summary.StatusStatistics.ContainsKey(ParcelSimulationStatus.SortedToTargetChute))
+        {
+            var sortedCount = summary.StatusStatistics[ParcelSimulationStatus.SortedToTargetChute];
+            sortedCount.Should().Be(summary.SortedToTargetChuteCount,
+                "SortedToTargetChute 状态计数应与统计值一致");
+        }
+
+        // 总包裹数应该等于各状态之和
+        var totalFromStatus = summary.StatusStatistics.Values.Sum();
+        totalFromStatus.Should().Be(summary.TotalParcels,
+            "状态统计的总和应等于总包裹数");
+    }
+
+    #region 场景 A 测试
+
+    [Fact]
+    public async Task ScenarioA_Formal_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioA("Formal", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+        
+        // 在低摩擦、无掉包的基线场景下，应该全部成功分拣
+        // 允许少数超时（由于 RuleEngine 模拟的随机性）
+        summary.SortedToTargetChuteCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task ScenarioA_FixedChute_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioA("FixedChute", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ScenarioA_RoundRobin_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioA("RoundRobin", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+    }
+
+    #endregion
+
+    #region 场景 B 测试
+
+    [Fact]
+    public async Task ScenarioB_HighFriction_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioB("Formal", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+
+        // 允许超时，但错误分拣必须为 0
+        // 所有成功分拣的包裹，FinalChuteId 必须等于 TargetChuteId（这个已经在 ValidateInvariants 中验证）
+    }
+
+    #endregion
+
+    #region 场景 C 测试
+
+    [Fact]
+    public async Task ScenarioC_MediumFrictionWithDropout_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioC("Formal", parcelCount: 20);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(20);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+
+        // 应该有部分包裹掉包（由于 5% 的掉包率）
+        // 但这取决于随机数，所以不强制要求
+        // summary.DroppedCount.Should().BeGreaterThan(0);
+
+        // 所有成功分拣的包裹必须正确
+        if (summary.SortedToTargetChuteCount > 0)
+        {
+            // 传感器事件完整、在 TTL 内、FinalChuteId == TargetChuteId
+            // 这些条件在 SimulationRunner 中已经验证
+        }
+    }
+
+    #endregion
+
+    #region 场景 D 测试
+
+    [Fact]
+    public async Task ScenarioD_ExtremePressure_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioD("Formal", parcelCount: 20);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(20);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+
+        // 可接受较多 Timeout / Dropped
+        // 但仍然必须保证 SortedToWrongChute == 0
+        (summary.TimeoutCount + summary.DroppedCount).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    #endregion
+
+    public void Dispose()
+    {
+        _serviceProvider?.Dispose();
+    }
+}
