@@ -150,4 +150,33 @@ public record class SimulationOptions
     /// 默认策略为 RouteToException，将违反最小安全头距的包裹路由到异常格口。
     /// </remarks>
     public DenseParcelStrategy DenseParcelStrategy { get; init; } = DenseParcelStrategy.RouteToException;
+
+    /// <summary>
+    /// 是否启用上游动态改口仿真
+    /// </summary>
+    public bool IsEnableUpstreamChuteChange { get; init; }
+
+    /// <summary>
+    /// 每个包裹被发起改口请求的概率（0.0-1.0）
+    /// </summary>
+    public decimal UpstreamChuteChangeProbability { get; init; } = 0.0m;
+
+    /// <summary>
+    /// 改口请求最早可能时间（相对入口时间偏移）
+    /// </summary>
+    public TimeSpan? MinChuteChangeOffset { get; init; }
+
+    /// <summary>
+    /// 改口请求最晚可能时间（相对预计分拣完成时间偏移）
+    /// </summary>
+    public TimeSpan? MaxChuteChangeOffset { get; init; }
+
+    /// <summary>
+    /// 改口请求在"过晚"时的处理策略
+    /// </summary>
+    /// <remarks>
+    /// 如果为true，过晚的改口请求会被标记为异常；
+    /// 如果为false，仅记录日志但不影响正常流程
+    /// </remarks>
+    public bool ShouldTreatLateChangeAsException { get; init; }
 }
