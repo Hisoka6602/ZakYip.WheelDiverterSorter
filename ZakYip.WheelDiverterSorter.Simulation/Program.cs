@@ -31,6 +31,20 @@ var host = Host.CreateDefaultBuilder(args)
         // 注册仿真配置
         services.Configure<SimulationOptions>(context.Configuration.GetSection("Simulation"));
 
+        // 注册线体拓扑配置提供者
+        var topologyConfigPath = context.Configuration["Topology:ConfigPath"] ?? "simulation-config/topology.json";
+        var fullTopologyPath = Path.Combine(AppContext.BaseDirectory, topologyConfigPath);
+        
+        if (File.Exists(fullTopologyPath))
+        {
+            services.AddSingleton<ILineTopologyConfigProvider>(new JsonLineTopologyConfigProvider(fullTopologyPath));
+        }
+        else
+        {
+            // 如果找不到配置文件，使用默认配置
+            services.AddSingleton<ILineTopologyConfigProvider>(new DefaultLineTopologyConfigProvider());
+        }
+
         // 注册路由配置仓储（内存版本，用于路径生成）
         services.AddSingleton<IRouteConfigurationRepository>(sp =>
         {
