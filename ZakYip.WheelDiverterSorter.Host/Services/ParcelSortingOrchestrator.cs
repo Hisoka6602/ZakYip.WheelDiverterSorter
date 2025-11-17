@@ -32,6 +32,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly ILogger<ParcelSortingOrchestrator> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemRunStateService? _stateService;
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly object _lockObject = new object();
@@ -49,7 +50,8 @@ public class ParcelSortingOrchestrator : IDisposable
         IOptions<RuleEngineConnectionOptions> options,
         ISystemConfigurationRepository systemConfigRepository,
         ILogger<ParcelSortingOrchestrator> logger,
-        IPathFailureHandler? pathFailureHandler = null)
+        IPathFailureHandler? pathFailureHandler = null,
+        ISystemRunStateService? stateService = null)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -59,6 +61,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _pathFailureHandler = pathFailureHandler;
+        _stateService = stateService; // Optional: for state validation
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
 
@@ -171,6 +174,20 @@ public class ParcelSortingOrchestrator : IDisposable
 
         try
         {
+            // 验证系统状态（只有运行状态才能创建包裹）
+            if (_stateService != null)
+            {
+                var validationResult = _stateService.ValidateParcelCreation();
+                if (!validationResult.IsSuccess)
+                {
+                    _logger.LogWarning(
+                        "包裹 {ParcelId} 被拒绝：{ErrorMessage}",
+                        parcelId,
+                        validationResult.ErrorMessage);
+                    return;
+                }
+            }
+
             // 获取系统配置
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
