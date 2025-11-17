@@ -28,6 +28,7 @@ public class SimulationRunner
     private readonly SimulationReportPrinter _reportPrinter;
     private readonly PrometheusMetrics _metrics;
     private readonly ILogger<SimulationRunner> _logger;
+    private readonly IParcelLifecycleLogger? _lifecycleLogger;
     
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments = new();
     private readonly Dictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
@@ -46,7 +47,8 @@ public class SimulationRunner
         ParcelTimelineFactory timelineFactory,
         SimulationReportPrinter reportPrinter,
         PrometheusMetrics metrics,
-        ILogger<SimulationRunner> logger)
+        ILogger<SimulationRunner> logger,
+        IParcelLifecycleLogger? lifecycleLogger = null)
     {
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -56,6 +58,7 @@ public class SimulationRunner
         _reportPrinter = reportPrinter ?? throw new ArgumentNullException(nameof(reportPrinter));
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _lifecycleLogger = lifecycleLogger;
 
         // 订阅格口分配事件
         _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
@@ -396,6 +399,9 @@ public class SimulationRunner
                     _pendingAssignments.Remove(parcelId);
                 }
                 
+                LogParcelException(parcelId, null, "无法通知RuleEngine");
+                LogParcelCompleted(parcelId, null, null, ParcelFinalStatus.RuleEngineTimeout);
+                
                 return new ParcelSimulationResultEventArgs
                 {
                     ParcelId = parcelId,
@@ -416,6 +422,9 @@ public class SimulationRunner
             catch (OperationCanceledException)
             {
                 _logger.LogWarning("等待格口分配超时：包裹 {ParcelId}", parcelId);
+                
+                LogParcelException(parcelId, null, "等待格口分配超时");
+                LogParcelCompleted(parcelId, null, null, ParcelFinalStatus.RuleEngineTimeout);
                 
                 return new ParcelSimulationResultEventArgs
                 {
@@ -442,6 +451,9 @@ public class SimulationRunner
                 };
             }
             
+            // 记录包裹创建事件
+            LogParcelCreated(parcelId, entryTime, targetChuteId);
+
             // 生成包裹时间轴（应用摩擦因子、掉包模拟和高密度检测）
             DateTimeOffset? prevEntryTime;
             lock (_lockObject)
@@ -452,10 +464,22 @@ public class SimulationRunner
             
             var timeline = _timelineFactory.GenerateTimeline(parcelId, path, entryTime, prevEntryTime);
             
+            // 记录传感器通过事件
+            LogSensorEvents(parcelId, timeline);
+
+            // 检查传感器故障和抖动，但允许继续获取格口分配
+            // 这样可以让仿真流程完整运行，最后再标记为异常
+            var hasSensorIssue = timeline.IsSensorFault || timeline.HasJitter;
+            var sensorIssueReason = timeline.IsSensorFault ? "摆轮前传感器故障" : "传感器抖动产生重复检测";
+            
             // 如果是高密度包裹，根据策略处理
             if (timeline.IsDenseParcel)
             {
-                return ApplyDenseParcelStrategy(parcelId, targetChuteId, timeline);
+                var denseResult = ApplyDenseParcelStrategy(parcelId, targetChuteId, timeline);
+                LogParcelException(parcelId, (int?)(denseResult.FinalChuteId ?? _options.ExceptionChuteId), "高密度包裹");
+                LogParcelCompleted(parcelId, targetChuteId, (int?)(denseResult.FinalChuteId ?? _options.ExceptionChuteId), 
+                    denseResult.Status == ParcelSimulationStatus.Timeout ? ParcelFinalStatus.Timeout : ParcelFinalStatus.ExceptionRouted);
+                return denseResult;
             }
             
             // 如果掉包，直接返回掉包结果
@@ -463,7 +487,7 @@ public class SimulationRunner
             {
                 var travelTime = timeline.SensorEvents.Last().TriggerTime - entryTime;
                 
-                return new ParcelSimulationResultEventArgs
+                var result = new ParcelSimulationResultEventArgs
                 {
                     ParcelId = parcelId,
                     TargetChuteId = targetChuteId,
@@ -476,8 +500,33 @@ public class SimulationRunner
                     HeadwayMm = timeline.HeadwayMm,
                     IsDenseParcel = timeline.IsDenseParcel
                 };
+                LogParcelException(parcelId, null, "包裹掉落");
+                LogParcelCompleted(parcelId, targetChuteId, null, ParcelFinalStatus.Dropped);
+                return result;
             }
             
+            // 记录格口分配
+            LogChuteAssigned(parcelId, targetChuteId);
+
+            // 如果有传感器问题，直接路由到异常口
+            if (hasSensorIssue)
+            {
+                var result = new ParcelSimulationResultEventArgs
+                {
+                    ParcelId = parcelId,
+                    TargetChuteId = targetChuteId,
+                    FinalChuteId = _options.ExceptionChuteId,
+                    Status = ParcelSimulationStatus.SensorFault,
+                    FailureReason = sensorIssueReason,
+                    HeadwayTime = timeline.HeadwayTime,
+                    HeadwayMm = timeline.HeadwayMm,
+                    IsDenseParcel = timeline.IsDenseParcel
+                };
+                LogParcelException(parcelId, (int)_options.ExceptionChuteId, sensorIssueReason);
+                LogParcelCompleted(parcelId, targetChuteId, (int)_options.ExceptionChuteId, ParcelFinalStatus.SensorFault);
+                return result;
+            }
+
             // 执行路径
             var execResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
             
@@ -486,22 +535,31 @@ public class SimulationRunner
             
             // 判断状态
             ParcelSimulationStatus status;
+            ParcelFinalStatus finalStatus;
             if (!execResult.IsSuccess)
             {
                 status = ParcelSimulationStatus.ExecutionError;
+                finalStatus = ParcelFinalStatus.ExecutionError;
+                LogParcelException(parcelId, finalChuteId, execResult.FailureReason ?? "执行错误");
             }
             else if (finalChuteId == targetChuteId)
             {
                 status = ParcelSimulationStatus.SortedToTargetChute;
+                finalStatus = ParcelFinalStatus.Success;
             }
             else
             {
                 // 这种情况不应该发生！
                 status = ParcelSimulationStatus.SortedToWrongChute;
+                finalStatus = ParcelFinalStatus.ExecutionError;
                 _logger.LogError(
                     "包裹 {ParcelId} 错误分拣！目标={Target}, 实际={Actual}", 
                     parcelId, targetChuteId, finalChuteId);
+                LogParcelException(parcelId, finalChuteId, "错误分拣");
             }
+            
+            // 记录包裹完成
+            LogParcelCompleted(parcelId, targetChuteId, finalChuteId, finalStatus);
             
             return new ParcelSimulationResultEventArgs
             {
@@ -655,6 +713,12 @@ public class SimulationRunner
                     case ParcelSimulationStatus.SortedToWrongChute:
                         summary.SortedToWrongChuteCount++;
                         break;
+                    case ParcelSimulationStatus.SensorFault:
+                        summary.ExecutionErrorCount++; // 传感器故障计入执行错误
+                        break;
+                    case ParcelSimulationStatus.UnknownSource:
+                        summary.ExecutionErrorCount++; // 未知来源计入执行错误
+                        break;
                 }
 
                 // 统计高密度包裹
@@ -705,7 +769,85 @@ public class SimulationRunner
             ParcelSimulationStatus.ExecutionError => "执行错误",
             ParcelSimulationStatus.RuleEngineTimeout => "规则引擎超时",
             ParcelSimulationStatus.SortedToWrongChute => "错误分拣",
+            ParcelSimulationStatus.SensorFault => "传感器故障",
+            ParcelSimulationStatus.UnknownSource => "来源不明",
             _ => status.ToString()
         };
+    }
+
+    /// <summary>
+    /// 记录包裹创建事件
+    /// </summary>
+    private void LogParcelCreated(long parcelId, DateTimeOffset entryTime, int targetChuteId)
+    {
+        _lifecycleLogger?.LogCreated(new ParcelLifecycleContext
+        {
+            ParcelId = parcelId,
+            EntryTime = entryTime,
+            TargetChuteId = targetChuteId,
+            EventTime = DateTimeOffset.UtcNow,
+            IsSimulation = true
+        });
+    }
+
+    /// <summary>
+    /// 记录传感器通过事件
+    /// </summary>
+    private void LogSensorEvents(long parcelId, ParcelTimeline timeline)
+    {
+        if (_lifecycleLogger == null) return;
+
+        foreach (var sensorEvent in timeline.SensorEvents)
+        {
+            _lifecycleLogger.LogSensorPassed(new ParcelLifecycleContext
+            {
+                ParcelId = parcelId,
+                EventTime = sensorEvent.TriggerTime,
+                IsSimulation = true
+            }, sensorEvent.SensorId);
+        }
+    }
+
+    /// <summary>
+    /// 记录格口分配事件
+    /// </summary>
+    private void LogChuteAssigned(long parcelId, int chuteId)
+    {
+        _lifecycleLogger?.LogChuteAssigned(new ParcelLifecycleContext
+        {
+            ParcelId = parcelId,
+            TargetChuteId = chuteId,
+            EventTime = DateTimeOffset.UtcNow,
+            IsSimulation = true
+        }, chuteId);
+    }
+
+    /// <summary>
+    /// 记录包裹完成事件
+    /// </summary>
+    private void LogParcelCompleted(long parcelId, int? targetChuteId, int? actualChuteId, ParcelFinalStatus status)
+    {
+        _lifecycleLogger?.LogCompleted(new ParcelLifecycleContext
+        {
+            ParcelId = parcelId,
+            TargetChuteId = targetChuteId,
+            ActualChuteId = actualChuteId,
+            EventTime = DateTimeOffset.UtcNow,
+            IsSimulation = true
+        }, status);
+    }
+
+    /// <summary>
+    /// 记录异常事件
+    /// </summary>
+    private void LogParcelException(long parcelId, int? chuteId, string reason)
+    {
+        _lifecycleLogger?.LogException(new ParcelLifecycleContext
+        {
+            ParcelId = parcelId,
+            ActualChuteId = chuteId,
+            EventTime = DateTimeOffset.UtcNow,
+            IsSimulation = true
+        }, reason);
     }
 }

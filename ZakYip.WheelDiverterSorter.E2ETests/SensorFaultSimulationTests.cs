@@ -48,7 +48,8 @@ public class SensorFaultSimulationTests : IDisposable
             .ReturnsAsync((long parcelId, CancellationToken ct) =>
             {
                 var chuteId = GetNextChuteId();
-                _ = Task.Run(() =>
+                // 使用Task.Delay(0)来异步触发事件，确保事件处理器已订阅
+                _ = Task.Delay(10).ContinueWith(_ =>
                 {
                     _mockRuleEngineClient.Raise(
                         x => x.ChuteAssignmentReceived += null,
@@ -73,6 +74,12 @@ public class SensorFaultSimulationTests : IDisposable
         mockLifecycleLogger
             .Setup(x => x.LogCreated(It.IsAny<ParcelLifecycleContext>()))
             .Callback<ParcelLifecycleContext>(ctx => _lifecycleLogs.Add(ctx));
+        mockLifecycleLogger
+            .Setup(x => x.LogSensorPassed(It.IsAny<ParcelLifecycleContext>(), It.IsAny<string>()))
+            .Callback<ParcelLifecycleContext, string>((ctx, sensorName) => _lifecycleLogs.Add(ctx));
+        mockLifecycleLogger
+            .Setup(x => x.LogChuteAssigned(It.IsAny<ParcelLifecycleContext>(), It.IsAny<long>()))
+            .Callback<ParcelLifecycleContext, long>((ctx, chuteId) => _lifecycleLogs.Add(ctx));
         mockLifecycleLogger
             .Setup(x => x.LogCompleted(It.IsAny<ParcelLifecycleContext>(), It.IsAny<ParcelFinalStatus>()))
             .Callback<ParcelLifecycleContext, ParcelFinalStatus>((ctx, status) => _lifecycleLogs.Add(ctx));
@@ -167,6 +174,8 @@ public class SensorFaultSimulationTests : IDisposable
         var metrics = services.GetRequiredService<PrometheusMetrics>();
         var logger = services.GetRequiredService<ILogger<SimulationRunner>>();
 
+        var lifecycleLogger = services.GetRequiredService<IParcelLifecycleLogger>();
+
         var runner = new SimulationRunner(
             options,
             ruleEngineClient,
@@ -175,7 +184,8 @@ public class SensorFaultSimulationTests : IDisposable
             timelineFactory,
             reportPrinter,
             metrics,
-            logger);
+            logger,
+            lifecycleLogger);
 
         return await runner.RunAsync(CancellationToken.None);
     }
