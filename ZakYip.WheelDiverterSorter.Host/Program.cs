@@ -59,6 +59,9 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 
+    // 启用注解支持 - 支持 [SwaggerOperation]、[SwaggerSchema] 等注解
+    options.EnableAnnotations();
+
     // 包含XML注释
     var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
     var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFilename);
