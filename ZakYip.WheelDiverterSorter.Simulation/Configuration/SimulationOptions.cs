@@ -187,4 +187,13 @@ public record class SimulationOptions
     /// 用于仿真传感器故障和抖动场景
     /// </remarks>
     public SensorFaultOptions SensorFault { get; init; } = new();
+
+    /// <summary>
+    /// 是否启用仿真模式
+    /// </summary>
+    /// <remarks>
+    /// 当启用仿真模式时，面板按钮将触发仿真场景而非真机运行。
+    /// 确保仿真模式与真机模式互斥，避免冲突。
+    /// </remarks>
+    public bool IsSimulationEnabled { get; init; }
 }

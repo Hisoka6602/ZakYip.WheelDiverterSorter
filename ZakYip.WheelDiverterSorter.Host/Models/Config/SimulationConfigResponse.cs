@@ -121,4 +121,9 @@ public class SimulationConfigResponse
     /// 是否启用详细日志
     /// </summary>
     public bool IsEnableVerboseLogging { get; set; }
+
+    /// <summary>
+    /// 是否启用仿真模式
+    /// </summary>
+    public bool IsSimulationEnabled { get; set; }
 }
