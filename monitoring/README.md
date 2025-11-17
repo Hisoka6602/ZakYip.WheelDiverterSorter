@@ -18,7 +18,60 @@ monitoring/
 │   │       └── dashboards.yml  # Dashboard provisioning / 仪表板配置
 │   └── dashboards/
 │       └── wheel-diverter-sorter.json  # Main dashboard / 主仪表板
+├── run-scenario-e-longrun.sh   # 场景 E 启动脚本 (Linux/macOS)
+└── run-scenario-e-longrun.ps1  # 场景 E 启动脚本 (Windows)
 ```
+
+## 🎯 场景 E 长跑仿真 (PR-05) / Scenario E Long-Run Simulation
+
+场景 E 是专门为 Observability 验收设计的长时间仿真场景。
+
+**Scenario E** is a long-run simulation specifically designed for Observability acceptance testing.
+
+### 快速启动 / Quick Start
+
+**Linux/macOS:**
+```bash
+./monitoring/run-scenario-e-longrun.sh
+```
+
+**Windows PowerShell:**
+```powershell
+.\monitoring\run-scenario-e-longrun.ps1
+```
+
+**自定义参数 / Custom Parameters:**
+```bash
+# 指定包裹数量 / Specify parcel count
+PARCEL_COUNT=500 ./monitoring/run-scenario-e-longrun.sh
+
+# 指定运行时长 / Specify duration
+LONG_RUN_DURATION="00:05:00" ./monitoring/run-scenario-e-longrun.sh
+
+# 不启动监控栈 / Skip monitoring stack
+START_MONITORING=false ./monitoring/run-scenario-e-longrun.sh
+```
+
+### 场景特点 / Scenario Features
+
+- 10 台摆轮，中间长度不一致 (800mm - 1500mm)
+- 异常口在末端 (ChuteId=11)
+- 每 300ms 创建包裹，默认 1000 个
+- 单包裹从入口到异常口约 2 分钟
+- 暴露 Prometheus metrics 端点: http://localhost:9091/metrics
+
+### 验收指标 / Acceptance Metrics
+
+| 指标 | 端点查询 | 验收要求 |
+|------|---------|---------|
+| 零错分 | `simulation_mis_sort_total` | = 0 |
+| 总处理包裹 | `sorting_total_parcels` | = 创建包裹数 |
+| 成功率 | 计算自 `simulation_parcel_total` | > 85% |
+| P95 延迟 | `sorting_success_latency_seconds` | < 180s |
+
+详细文档：[ACCEPTANCE_SCENARIOS.md](../ACCEPTANCE_SCENARIOS.md)
+
+---
 
 ## Quick Start / 快速开始
 

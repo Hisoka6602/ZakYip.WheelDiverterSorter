@@ -6,6 +6,66 @@
 
 This document summarizes the implementation of long-run simulation mode to validate system stability under high load, friction variations, and random packet drops while maintaining zero mis-sorts.
 
+## PR-05 更新：场景 E 长跑仿真与 Observability 验收
+
+### 更新摘要 / Update Summary
+
+PR-05 在原有长跑仿真模式基础上，新增了**场景 E 长跑仿真**，专门用于 Observability 验收测试。
+
+**PR-05** adds **Scenario E Long-Run Simulation** on top of the existing long-run simulation mode, specifically designed for Observability acceptance testing.
+
+### 新增内容 / What's New
+
+1. **场景 E 长跑仿真入口点** (`CreateScenarioE_LongRunSimulation`)
+   - 10 台摆轮，中间长度不一致（800mm - 1500mm）
+   - 异常口在末端 (ChuteId=11)
+   - 每 300ms 创建包裹，默认 1000 个
+   - 单包裹从入口到异常口约 2 分钟
+   - 启用长跑模式和 Prometheus metrics 端点
+
+2. **新增 Prometheus 验收指标**
+   - `sorting_total_parcels`: 总处理包裹数
+   - `sorting_failed_parcels_total{reason}`: 失败包裹数（按原因分类）
+   - `sorting_success_latency_seconds`: 成功包裹延迟直方图
+   - `system_state_changes_total{from_state,to_state}`: 状态机状态切换计数
+
+3. **一键启动脚本**
+   - `monitoring/run-scenario-e-longrun.sh` (Linux/macOS)
+   - `monitoring/run-scenario-e-longrun.ps1` (Windows)
+   - 支持自定义包裹数量、运行时长、是否启动监控栈
+
+4. **完整验收文档**
+   - [ACCEPTANCE_SCENARIOS.md](ACCEPTANCE_SCENARIOS.md) - 场景 E 详细文档
+   - 包含验收标准、指标阈值、Grafana Dashboard 查询、故障排查等
+
+### 快速开始 Scenario E / Quick Start Scenario E
+
+```bash
+# 使用一键脚本启动（推荐）
+./monitoring/run-scenario-e-longrun.sh
+
+# 或手动启动
+cd ZakYip.WheelDiverterSorter.Simulation
+dotnet run -c Release -- \
+  --Simulation:IsLongRunMode=true \
+  --Simulation:ParcelCount=1000 \
+  --Simulation:ExceptionChuteId=11 \
+  --Simulation:ParcelInterval=00:00:00.300
+```
+
+### 验收标准 / Acceptance Criteria
+
+| 指标 | 验收要求 |
+|------|---------|
+| `simulation_mis_sort_total` | = 0 （零错分） |
+| 成功率 | > 85% |
+| P95 延迟 | < 180s |
+| P99 延迟 | < 200s |
+
+详细验收标准请参见 [ACCEPTANCE_SCENARIOS.md](ACCEPTANCE_SCENARIOS.md)。
+
+---
+
 ## 实施内容 / Implementation Details
 
 ### 1. SimulationOptions 扩展 / SimulationOptions Extension

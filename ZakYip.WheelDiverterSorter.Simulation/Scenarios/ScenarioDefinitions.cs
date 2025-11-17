@@ -551,4 +551,63 @@ public static class ScenarioDefinitions
             Expectations = null
         };
     }
+
+    /// <summary>
+    /// 场景 E 长跑仿真：高密度持续分拣与 Observability 验收场景
+    /// </summary>
+    /// <remarks>
+    /// PR-05 需求：
+    /// - 10 台摆轮，中间长度不一致（已在 InMemoryRouteConfigurationRepository 中配置）
+    /// - 异常口在末端（ChuteId=11）
+    /// - 每 300ms 创建包裹，总数 1000 个
+    /// - 包裹目标格口随机分布（1-10），异常口为固定 Id
+    /// - 单包裹从入口到异常口约 2 分钟
+    /// - 启用长跑模式，暴露 Prometheus metrics 端点
+    /// - 不会因为上一包未到达摆轮就暂停创建下一包
+    /// - 模拟高密度流量 + 可能无法在当前节点分拣的压力
+    /// </remarks>
+    public static SimulationScenario CreateScenarioE_LongRunSimulation(int parcelCount = 1000)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "场景E-长跑仿真-高密度持续分拣",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m, // 1 m/s = 1000 mm/s
+                ParcelInterval = TimeSpan.FromMilliseconds(300), // 每300ms创建一个包裹
+                SortingMode = "RoundRobin", // 轮询模式，目标格口在1-10之间
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L }, // 10个正常格口
+                ExceptionChuteId = 11, // 异常口在末端，ChuteId=11
+                IsEnableRandomFriction = true,
+                IsEnableRandomDropout = false, // 不启用随机掉包
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 0.95m,
+                    MaxFactor = 1.05m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                // 最小安全间隔配置：300ms 时间间隔作为阈值
+                // 这确保了高密度流量场景
+                MinSafeHeadwayMm = 300m, // 300mm 空间间隔
+                MinSafeHeadwayTime = TimeSpan.FromMilliseconds(300), // 300ms 时间间隔
+                DenseParcelStrategy = DenseParcelStrategy.RouteToException,
+                
+                // 启用长跑模式以暴露 Prometheus metrics
+                IsLongRunMode = true,
+                MetricsPushIntervalSeconds = 30, // 每30秒输出一次统计
+                FailFastOnMisSort = false,
+                
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            Expectations = null
+        };
+    }
 }
