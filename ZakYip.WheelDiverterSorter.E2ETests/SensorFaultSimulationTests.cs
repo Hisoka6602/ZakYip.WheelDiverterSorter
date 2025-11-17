@@ -49,8 +49,10 @@ public class SensorFaultSimulationTests : IDisposable
             {
                 var chuteId = GetNextChuteId();
                 // 立即触发事件（同步），确保事件处理器已订阅
+                // EventHandler<T> requires (sender, eventArgs)
                 _mockRuleEngineClient.Raise(
                     x => x.ChuteAssignmentReceived += null,
+                    _mockRuleEngineClient.Object,  // sender
                     new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId }
                 );
                 return true;
@@ -201,26 +203,22 @@ public class SensorFaultSimulationTests : IDisposable
     [Fact]
     public async Task ScenarioSF1_PreDiverterSensorFault_RouteToExceptionChute()
     {
-        // Arrange - 使用10个包裹进行测试（验证通过后可扩展到999）
-        var scenario = ScenarioDefinitions.CreateScenarioSF1("FixedChute", parcelCount: 10);
+        // Arrange - 使用999个包裹进行完整测试（根据需求）
+        var scenario = ScenarioDefinitions.CreateScenarioSF1("FixedChute", parcelCount: 999);
 
         // Act
         var summary = await RunScenarioAsync(scenario);
 
         // Assert - 验证所有包裹都因传感器故障路由到异常口
         summary.Should().NotBeNull();
-        summary.TotalParcels.Should().Be(10, "总包裹数应该是10");
-        
-        // Debug: Print actual statuses
-        var statusGroups = summary.Parcels.GroupBy(p => p.Status).Select(g => new { Status = g.Key, Count = g.Count() }).ToList();
-        var statusDebug = string.Join(", ", statusGroups.Select(g => $"{g.Status}={g.Count}"));
+        summary.TotalParcels.Should().Be(999, "总包裹数应该是999");
         
         // 所有包裹应该是传感器故障状态
         var sensorFaultParcels = summary.Parcels
             .Where(r => r.Status == ParcelSimulationStatus.SensorFault)
             .ToList();
         
-        sensorFaultParcels.Count.Should().Be(10, $"所有包裹都应该是传感器故障状态 (实际状态分布: {statusDebug})");
+        sensorFaultParcels.Count.Should().Be(999, "所有包裹都应该是传感器故障状态");
         
         // 验证所有传感器故障包裹的失败原因和最终格口
         foreach (var parcel in sensorFaultParcels)
