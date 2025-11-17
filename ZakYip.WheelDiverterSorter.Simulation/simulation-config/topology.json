@@ -1,0 +1,102 @@
+{
+  "TopologyId": "DEFAULT_LINEAR_TOPOLOGY",
+  "TopologyName": "默认直线摆轮分拣拓扑",
+  "Description": "仿真使用的标准拓扑配置，与Host保持一致",
+  "DefaultLineSpeedMmps": 500,
+  "EntrySensorId": "SENSOR_ENTRY",
+  "ExitSensorId": "SENSOR_EXIT",
+  "WheelNodes": [
+    {
+      "NodeId": "DIVERTER_A",
+      "NodeName": "摆轮节点A",
+      "PositionIndex": 0,
+      "HasLeftChute": true,
+      "HasRightChute": false,
+      "LeftChuteIds": [ "CHUTE_A1", "CHUTE_A2" ],
+      "RightChuteIds": [],
+      "SupportedSides": [ "Straight", "Left" ],
+      "Remarks": "第一个摆轮，支持直行和左转"
+    },
+    {
+      "NodeId": "DIVERTER_B",
+      "NodeName": "摆轮节点B",
+      "PositionIndex": 1,
+      "HasLeftChute": false,
+      "HasRightChute": true,
+      "LeftChuteIds": [],
+      "RightChuteIds": [ "CHUTE_B1" ],
+      "SupportedSides": [ "Straight", "Right" ],
+      "Remarks": "第二个摆轮，支持直行和右转"
+    },
+    {
+      "NodeId": "DIVERTER_C",
+      "NodeName": "摆轮节点C",
+      "PositionIndex": 2,
+      "HasLeftChute": true,
+      "HasRightChute": true,
+      "LeftChuteIds": [ "CHUTE_C1" ],
+      "RightChuteIds": [ "CHUTE_C2", "CHUTE_C3" ],
+      "SupportedSides": [ "Straight", "Left", "Right" ],
+      "Remarks": "第三个摆轮，支持所有方向"
+    }
+  ],
+  "Chutes": [
+    {
+      "ChuteId": "CHUTE_A1",
+      "ChuteName": "格口A1",
+      "IsExceptionChute": false,
+      "BoundNodeId": "DIVERTER_A",
+      "BoundDirection": "Left",
+      "IsEnabled": true
+    },
+    {
+      "ChuteId": "CHUTE_A2",
+      "ChuteName": "格口A2",
+      "IsExceptionChute": false,
+      "BoundNodeId": "DIVERTER_A",
+      "BoundDirection": "Left",
+      "IsEnabled": true
+    },
+    {
+      "ChuteId": "CHUTE_B1",
+      "ChuteName": "格口B1",
+      "IsExceptionChute": false,
+      "BoundNodeId": "DIVERTER_B",
+      "BoundDirection": "Right",
+      "IsEnabled": true
+    },
+    {
+      "ChuteId": "CHUTE_C1",
+      "ChuteName": "格口C1",
+      "IsExceptionChute": false,
+      "BoundNodeId": "DIVERTER_C",
+      "BoundDirection": "Left",
+      "IsEnabled": true
+    },
+    {
+      "ChuteId": "CHUTE_C2",
+      "ChuteName": "格口C2",
+      "IsExceptionChute": false,
+      "BoundNodeId": "DIVERTER_C",
+      "BoundDirection": "Right",
+      "IsEnabled": true
+    },
+    {
+      "ChuteId": "CHUTE_C3",
+      "ChuteName": "格口C3",
+      "IsExceptionChute": false,
+      "BoundNodeId": "DIVERTER_C",
+      "BoundDirection": "Right",
+      "IsEnabled": true
+    },
+    {
+      "ChuteId": "CHUTE_END",
+      "ChuteName": "末端/异常格口",
+      "IsExceptionChute": true,
+      "BoundNodeId": "DIVERTER_C",
+      "BoundDirection": "Straight",
+      "IsEnabled": true,
+      "Remarks": "用于接收无法分拣到目标格口的包裹"
+    }
+  ]
+}
