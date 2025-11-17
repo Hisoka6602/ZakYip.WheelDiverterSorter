@@ -46,21 +46,13 @@ public class LeadshineSensorFactory : ISensorFactory {
 
         foreach (var config in _options.Sensors.Where(s => s.IsEnabled)) {
             try {
-                ISensor sensor = config.Type switch {
-                    SensorType.Photoelectric => new LeadshinePhotoelectricSensor(
-                        _loggerFactory.CreateLogger<LeadshinePhotoelectricSensor>(),
-                        config.SensorId,
-                        _inputPort,
-                        config.InputBit),
-
-                    SensorType.Laser => new LeadshineLaserSensor(
-                        _loggerFactory.CreateLogger<LeadshineLaserSensor>(),
-                        config.SensorId,
-                        _inputPort,
-                        config.InputBit),
-
-                    _ => throw new NotSupportedException($"不支持的传感器类型: {config.Type}")
-                };
+                // 使用通用 LeadshineSensor 类替代特定类型的传感器
+                var sensor = new LeadshineSensor(
+                    _loggerFactory.CreateLogger<LeadshineSensor>(),
+                    config.SensorId,
+                    config.Type,
+                    _inputPort,
+                    config.InputBit);
 
                 sensors.Add(sensor);
                 _logger.LogInformation(

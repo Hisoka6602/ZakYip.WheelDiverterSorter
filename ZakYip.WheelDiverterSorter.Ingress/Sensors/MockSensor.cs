@@ -4,13 +4,13 @@ using ZakYip.WheelDiverterSorter.Ingress.Models;
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
 /// <summary>
-/// 模拟传感器基类
+/// 通用模拟传感器
 /// </summary>
 /// <remarks>
-/// 用于测试和调试，模拟真实传感器的行为
+/// 用于测试和调试，模拟真实传感器的行为。
+/// 此类合并了原来的 MockLaserSensor 和 MockPhotoelectricSensor 的功能。
 /// </remarks>
-[Obsolete("Use MockSensor instead. This class will be removed in a future version.")]
-public abstract class MockSensorBase : ISensor {
+public class MockSensor : ISensor {
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
 
@@ -68,7 +68,7 @@ public abstract class MockSensorBase : ISensor {
     /// <param name="maxTriggerIntervalMs">模拟触发最大间隔（毫秒）</param>
     /// <param name="minParcelPassTimeMs">模拟包裹通过最小时间（毫秒）</param>
     /// <param name="maxParcelPassTimeMs">模拟包裹通过最大时间（毫秒）</param>
-    protected MockSensorBase(
+    public MockSensor(
         string sensorId,
         SensorType type,
         int minTriggerIntervalMs = 5000,
