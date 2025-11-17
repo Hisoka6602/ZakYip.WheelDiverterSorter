@@ -9,12 +9,12 @@ namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 基于真实硬件的摆轮路径执行器
-/// 通过IDiverterController接口与实际的摆轮设备通信
+/// 通过IWheelDiverterDriver接口与实际的摆轮设备通信，不直接操作硬件细节
 /// </summary>
 public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
 {
     private readonly ILogger<HardwareSwitchingPathExecutor> _logger;
-    private readonly Dictionary<string, IDiverterController> _diverters;
+    private readonly Dictionary<string, IWheelDiverterDriver> _diverters;
     private static readonly Regex LogSanitizer = new Regex(@"[\r\n]", RegexOptions.Compiled);
 
     /// <summary>
@@ -31,10 +31,10 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
     /// 初始化硬件摆轮路径执行器
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    /// <param name="diverters">摆轮控制器字典，键为摆轮ID</param>
+    /// <param name="diverters">摆轮驱动器集合，键为摆轮ID</param>
     public HardwareSwitchingPathExecutor(
         ILogger<HardwareSwitchingPathExecutor> logger,
-        IEnumerable<IDiverterController> diverters)
+        IEnumerable<IWheelDiverterDriver> diverters)
     {
         _logger = logger;
         _diverters = diverters.ToDictionary(d => d.DiverterId, d => d);
@@ -94,11 +94,15 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 bool success;
                 try
                 {
-                    // 将DiverterDirection转换为物理角度
-                    // 注意：具体的角度映射取决于硬件配置，这里使用通用映射
-                    // 直行=0度, 左转=45度（或根据硬件配置调整）, 右转=45度（反方向）
-                    int physicalAngle = ConvertDirectionToAngle(segment.TargetDirection);
-                    success = await diverter.SetAngleAsync(physicalAngle, cts.Token);
+                    // 使用语义化驱动接口执行摆轮动作
+                    // 不再直接操作角度，而是使用业务语义方法
+                    success = segment.TargetDirection switch
+                    {
+                        DiverterDirection.Left => await diverter.TurnLeftAsync(cts.Token),
+                        DiverterDirection.Right => await diverter.TurnRightAsync(cts.Token),
+                        DiverterDirection.Straight => await diverter.PassThroughAsync(cts.Token),
+                        _ => throw new ArgumentException($"不支持的摆轮方向: {segment.TargetDirection}", nameof(segment))
+                    };
                 }
                 catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
                 {
@@ -171,25 +175,5 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 FailureTime = DateTimeOffset.UtcNow
             };
         }
-    }
-
-    /// <summary>
-    /// 将摆轮方向转换为物理角度
-    /// </summary>
-    /// <param name="direction">摆轮转向方向</param>
-    /// <returns>物理角度（度）</returns>
-    /// <remarks>
-    /// 这里使用的是通用映射，实际部署时应根据具体硬件配置进行调整。
-    /// 可以将此方法改为从配置文件读取方向到角度的映射关系。
-    /// </remarks>
-    private static int ConvertDirectionToAngle(DiverterDirection direction)
-    {
-        return direction switch
-        {
-            DiverterDirection.Straight => 0,    // 直行：0度
-            DiverterDirection.Left => 45,       // 左转：45度（或根据硬件配置）
-            DiverterDirection.Right => 45,      // 右转：45度（反方向，具体实现取决于硬件）
-            _ => throw new ArgumentException($"不支持的摆轮方向: {direction}", nameof(direction))
-        };
     }
 }
