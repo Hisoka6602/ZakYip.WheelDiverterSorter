@@ -1,3 +1,4 @@
+using ZakYip.Sorting.Core.Contracts;
 using ZakYip.Sorting.Core.Models;
 
 namespace ZakYip.Sorting.Core.Interfaces;
@@ -30,4 +31,16 @@ public interface ISortingExceptionPolicy
     /// </summary>
     /// <returns>异常路由策略</returns>
     ExceptionRoutingPolicy GetPolicy();
+
+    /// <summary>
+    /// 处理上游异常，决定如何响应
+    /// </summary>
+    /// <param name="request">原始分拣请求</param>
+    /// <param name="exception">上游抛出的异常</param>
+    /// <param name="attemptCount">已尝试次数</param>
+    /// <returns>分拣响应，可能是异常格口或重试标志</returns>
+    SortingResponse HandleUpstreamException(
+        SortingRequest request,
+        Exception exception,
+        int attemptCount);
 }
