@@ -403,13 +403,16 @@ public static class ScenarioDefinitions
     }
 
     /// <summary>
-    /// 场景 SF-1：摆轮前传感器故障
+    /// 场景 SF-1：摆轮前传感器故障（100% 确定性故障）
     /// </summary>
     /// <remarks>
-    /// - 摆轮前传感器持续不触发
-    /// - 期望：受影响的包裹被路由到异常口，状态标记为 SensorFault
+    /// - 摆轮前传感器持续不触发（100% 确定性故障，无随机概率）
+    /// - 总包裹数：999
+    /// - 所有包裹的时间线标记为 IsSensorFault = true
+    /// - 不触发摆轮前传感器事件
+    /// - 期望：所有包裹被路由到异常口，状态标记为 SensorFault
     /// </remarks>
-    public static SimulationScenario CreateScenarioSF1(string sortingMode, int parcelCount = 10)
+    public static SimulationScenario CreateScenarioSF1(string sortingMode, int parcelCount = 999)
     {
         return new SimulationScenario
         {
@@ -450,13 +453,16 @@ public static class ScenarioDefinitions
     }
 
     /// <summary>
-    /// 场景 SJ-1：传感器抖动
+    /// 场景 SJ-1：传感器抖动（高频抖动但不是所有包裹）
     /// </summary>
     /// <remarks>
     /// - 传感器短时间内多次触发
-    /// - 期望：抖动产生的重复包裹被路由到异常口
+    /// - 使用固定概率（约40%）或固定索引模式（每3个包裹抖一次）
+    /// - 发生抖动的包裹：在时间线上重复发送传感器事件，标记为 IsSensorFault = true，FailureReason = "传感器抖动产生重复检测"
+    /// - 未抖动的包裹保持正常轨迹
+    /// - 期望：至少部分包裹发生抖动，抖动的必须异常，正常的可以正常分拣
     /// </remarks>
-    public static SimulationScenario CreateScenarioSJ1(string sortingMode, int parcelCount = 10)
+    public static SimulationScenario CreateScenarioSJ1(string sortingMode, int parcelCount = 30)
     {
         return new SimulationScenario
         {
@@ -488,7 +494,7 @@ public static class ScenarioDefinitions
                     IsEnableSensorJitter = true, // 启用传感器抖动
                     JitterTriggerCount = 3, // 每次抖动触发3次
                     JitterIntervalMs = 50, // 50ms内触发
-                    JitterProbability = 1.0m // 每个包裹都会抖动（测试用）
+                    JitterProbability = 0.4m // 40%概率抖动（不是所有包裹）
                 },
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
