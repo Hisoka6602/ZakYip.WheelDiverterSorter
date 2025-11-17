@@ -401,4 +401,99 @@ public static class ScenarioDefinitions
             Expectations = null // 全局验证即可
         };
     }
+
+    /// <summary>
+    /// 场景 SF-1：摆轮前传感器故障
+    /// </summary>
+    /// <remarks>
+    /// - 摆轮前传感器持续不触发
+    /// - 期望：受影响的包裹被路由到异常口，状态标记为 SensorFault
+    /// </remarks>
+    public static SimulationScenario CreateScenarioSF1(string sortingMode, int parcelCount = 10)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = $"场景SF-1-摆轮前传感器故障-{sortingMode}",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = sortingMode,
+                FixedChuteIds = sortingMode == "FixedChute" ? new[] { 1L, 2L, 3L } : null,
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                SensorFault = new SensorFaultOptions
+                {
+                    IsPreDiverterSensorFault = true, // 启用摆轮前传感器故障
+                    FaultStartOffset = null, // 从开始就故障
+                    FaultDuration = null // 持续到结束
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 SJ-1：传感器抖动
+    /// </summary>
+    /// <remarks>
+    /// - 传感器短时间内多次触发
+    /// - 期望：抖动产生的重复包裹被路由到异常口
+    /// </remarks>
+    public static SimulationScenario CreateScenarioSJ1(string sortingMode, int parcelCount = 10)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = $"场景SJ-1-传感器抖动-{sortingMode}",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = sortingMode,
+                FixedChuteIds = sortingMode == "FixedChute" ? new[] { 1L, 2L, 3L } : null,
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                SensorFault = new SensorFaultOptions
+                {
+                    IsEnableSensorJitter = true, // 启用传感器抖动
+                    JitterTriggerCount = 3, // 每次抖动触发3次
+                    JitterIntervalMs = 50, // 50ms内触发
+                    JitterProbability = 1.0m // 每个包裹都会抖动（测试用）
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            Expectations = null
+        };
+    }
 }

@@ -1,5 +1,7 @@
 using System.Reflection;
 using Microsoft.Extensions.Caching.Memory;
+using NLog;
+using NLog.Web;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers;
@@ -15,7 +17,17 @@ using ZakYip.WheelDiverterSorter.Observability;
 using Microsoft.OpenApi.Models;
 using Prometheus;
 
-var builder = WebApplication.CreateBuilder(args);
+// Early init of NLog to allow startup and shutdown logging
+var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
+
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Configure NLog for ASP.NET Core
+    builder.Logging.ClearProviders();
+    builder.Host.UseNLog();
+
 
 // 添加服务到容器
 builder.Services.AddControllers()
@@ -42,6 +54,9 @@ builder.Services.AddPrometheusMetrics();
 
 // 添加告警服务
 builder.Services.AddAlarmService();
+
+// 添加包裹生命周期日志记录服务
+builder.Services.AddParcelLifecycleLogger();
 
 // 配置Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -264,7 +279,20 @@ app.MapPost("/api/debug/sort", async (
 .Produces<DebugSortResponse>(200)
 .Produces(400);
 
-app.Run();
+
+    app.Run();
+}
+catch (Exception exception)
+{
+    // NLog: catch setup errors
+    logger.Error(exception, "Stopped program because of exception");
+    throw;
+}
+finally
+{
+    // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
+    LogManager.Shutdown();
+}
 
 // Make Program class accessible to integration tests
 public partial class Program { }

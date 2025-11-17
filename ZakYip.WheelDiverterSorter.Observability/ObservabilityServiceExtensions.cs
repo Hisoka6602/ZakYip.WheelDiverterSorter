@@ -31,4 +31,16 @@ public static class ObservabilityServiceExtensions
         services.AddSingleton<AlarmService>();
         return services;
     }
+
+    /// <summary>
+    /// 添加包裹生命周期日志记录服务
+    /// Add parcel lifecycle logging service to the service collection
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddParcelLifecycleLogger(this IServiceCollection services)
+    {
+        services.AddSingleton<IParcelLifecycleLogger, ParcelLifecycleLogger>();
+        return services;
+    }
 }
