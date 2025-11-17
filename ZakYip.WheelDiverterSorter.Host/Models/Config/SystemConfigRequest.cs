@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.Sorting.Core.Models;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;

@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
+using ZakYip.Sorting.Core.Models;
 using Microsoft.Extensions.Options;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;

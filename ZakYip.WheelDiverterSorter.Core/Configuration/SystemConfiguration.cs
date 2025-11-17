@@ -1,4 +1,5 @@
 using LiteDB;
+using ZakYip.Sorting.Core.Models;
 
 namespace ZakYip.WheelDiverterSorter.Core.Configuration;
 

@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.Sorting.Core.Models;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 
