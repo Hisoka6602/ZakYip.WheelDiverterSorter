@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Utilities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -37,6 +38,14 @@ public class SystemConfigController : ControllerBase
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     [HttpGet]
+    [SwaggerOperation(
+        Summary = "获取当前系统配置",
+        Description = "返回系统当前的全局配置参数，包括异常处理、通信参数、分拣模式等",
+        OperationId = "GetSystemConfig",
+        Tags = new[] { "系统配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(SystemConfigResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(SystemConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<SystemConfigResponse> GetSystemConfig()
@@ -95,19 +104,34 @@ public class SystemConfigController : ControllerBase
     /// 
     ///     PUT /api/config/system
     ///     {
-    ///         "exceptionChuteId": "CHUTE_EXCEPTION",
+    ///         "exceptionChuteId": 999,
     ///         "mqttDefaultPort": 1883,
     ///         "tcpDefaultPort": 8888,
     ///         "chuteAssignmentTimeoutMs": 10000,
     ///         "requestTimeoutMs": 5000,
     ///         "retryCount": 3,
     ///         "retryDelayMs": 1000,
-    ///         "enableAutoReconnect": true
+    ///         "enableAutoReconnect": true,
+    ///         "sortingMode": "Formal"
     ///     }
     /// 
-    /// 配置更新后立即生效，无需重启服务
+    /// 配置更新后立即生效，无需重启服务。
+    /// 
+    /// 分拣模式说明：
+    /// - Formal：正式模式，根据上游RuleEngine分配的格口进行分拣
+    /// - FixedChute：固定格口模式，所有包裹分拣到指定的固定格口
+    /// - RoundRobin：循环格口模式，包裹依次分拣到可用格口列表中的格口
     /// </remarks>
     [HttpPut]
+    [SwaggerOperation(
+        Summary = "更新系统配置",
+        Description = "更新系统全局配置参数，配置会立即生效无需重启。可配置异常处理、通信参数、分拣模式等。",
+        OperationId = "UpdateSystemConfig",
+        Tags = new[] { "系统配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(SystemConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(SystemConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
