@@ -18,19 +18,32 @@ public class HardwareSwitchingPathExecutorTests
         _mockLogger = new Mock<ILogger<HardwareSwitchingPathExecutor>>();
     }
 
+    /// <summary>
+    /// 创建模拟的摆轮驱动器
+    /// </summary>
+    private static Mock<IWheelDiverterDriver> CreateMockDriver(string diverterId, bool successResult = true)
+    {
+        var mockDriver = new Mock<IWheelDiverterDriver>();
+        mockDriver.Setup(d => d.DiverterId).Returns(diverterId);
+        mockDriver.Setup(d => d.TurnLeftAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successResult);
+        mockDriver.Setup(d => d.TurnRightAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successResult);
+        mockDriver.Setup(d => d.PassThroughAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successResult);
+        mockDriver.Setup(d => d.StopAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(successResult);
+        mockDriver.Setup(d => d.GetStatusAsync())
+            .ReturnsAsync("Mock状态");
+        return mockDriver;
+    }
+
     [Fact]
     public async Task ExecuteAsync_WithValidPath_ReturnsSuccess()
     {
         // Arrange
-        var mockDiverter1 = new Mock<IDiverterController>();
-        mockDiverter1.Setup(d => d.DiverterId).Returns("1");
-        mockDiverter1.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        var mockDiverter2 = new Mock<IDiverterController>();
-        mockDiverter2.Setup(d => d.DiverterId).Returns("2");
-        mockDiverter2.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        var mockDiverter1 = CreateMockDriver("1");
+        var mockDiverter2 = CreateMockDriver("2");
 
         var executor = new HardwareSwitchingPathExecutor(
             _mockLogger.Object,
@@ -86,7 +99,7 @@ public class HardwareSwitchingPathExecutorTests
     public async Task ExecuteAsync_WhenDiverterNotFound_ReturnsFailure()
     {
         // Arrange
-        var mockDiverter1 = new Mock<IDiverterController>();
+        var mockDiverter1 = CreateMockDriver("1");
         mockDiverter1.Setup(d => d.DiverterId).Returns("1");
 
         var executor = new HardwareSwitchingPathExecutor(
@@ -123,7 +136,7 @@ public class HardwareSwitchingPathExecutorTests
     public async Task ExecuteAsync_WhenDiverterFails_ReturnsFailure()
     {
         // Arrange
-        var mockDiverter = new Mock<IDiverterController>();
+        var mockDiverter = CreateMockDriver("1");
         mockDiverter.Setup(d => d.DiverterId).Returns("1");
         mockDiverter.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -162,7 +175,7 @@ public class HardwareSwitchingPathExecutorTests
     public async Task ExecuteAsync_WhenCancelled_ReturnsFailure()
     {
         // Arrange
-        var mockDiverter = new Mock<IDiverterController>();
+        var mockDiverter = CreateMockDriver("1");
         mockDiverter.Setup(d => d.DiverterId).Returns("1");
         mockDiverter.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
@@ -204,7 +217,7 @@ public class HardwareSwitchingPathExecutorTests
     public async Task ExecuteAsync_WhenException_ReturnsFailure()
     {
         // Arrange
-        var mockDiverter = new Mock<IDiverterController>();
+        var mockDiverter = CreateMockDriver("1");
         mockDiverter.Setup(d => d.DiverterId).Returns("1");
         mockDiverter.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Hardware error"));
@@ -245,7 +258,7 @@ public class HardwareSwitchingPathExecutorTests
         // Arrange
         var executionOrder = new List<string>();
         
-        var mockDiverter1 = new Mock<IDiverterController>();
+        var mockDiverter1 = CreateMockDriver("1");
         mockDiverter1.Setup(d => d.DiverterId).Returns("1");
         mockDiverter1.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
@@ -254,7 +267,7 @@ public class HardwareSwitchingPathExecutorTests
                 return true;
             });
 
-        var mockDiverter2 = new Mock<IDiverterController>();
+        var mockDiverter2 = CreateMockDriver("1");
         mockDiverter2.Setup(d => d.DiverterId).Returns("2");
         mockDiverter2.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
@@ -263,7 +276,7 @@ public class HardwareSwitchingPathExecutorTests
                 return true;
             });
 
-        var mockDiverter3 = new Mock<IDiverterController>();
+        var mockDiverter3 = CreateMockDriver("1");
         mockDiverter3.Setup(d => d.DiverterId).Returns("3");
         mockDiverter3.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
@@ -321,7 +334,7 @@ public class HardwareSwitchingPathExecutorTests
         // Arrange
         var executionOrder = new List<string>();
 
-        var mockDiverter1 = new Mock<IDiverterController>();
+        var mockDiverter1 = CreateMockDriver("1");
         mockDiverter1.Setup(d => d.DiverterId).Returns("1");
         mockDiverter1.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
@@ -330,7 +343,7 @@ public class HardwareSwitchingPathExecutorTests
                 return true;
             });
 
-        var mockDiverter2 = new Mock<IDiverterController>();
+        var mockDiverter2 = CreateMockDriver("1");
         mockDiverter2.Setup(d => d.DiverterId).Returns("2");
         mockDiverter2.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
@@ -339,7 +352,7 @@ public class HardwareSwitchingPathExecutorTests
                 return false; // Failure
             });
 
-        var mockDiverter3 = new Mock<IDiverterController>();
+        var mockDiverter3 = CreateMockDriver("1");
         mockDiverter3.Setup(d => d.DiverterId).Returns("3");
         mockDiverter3.Setup(d => d.SetAngleAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>

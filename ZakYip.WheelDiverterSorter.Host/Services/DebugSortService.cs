@@ -2,6 +2,7 @@ using System.Diagnostics;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Models;
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Host.Utilities;
 using ZakYip.WheelDiverterSorter.Observability;
 
@@ -16,17 +17,20 @@ public class DebugSortService
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly ILogger<DebugSortService> _logger;
     private readonly PrometheusMetrics _prometheusMetrics;
+    private readonly ISystemStateManager _stateManager;
 
     public DebugSortService(
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
         ILogger<DebugSortService> logger,
-        PrometheusMetrics prometheusMetrics)
+        PrometheusMetrics prometheusMetrics,
+        ISystemStateManager stateManager)
     {
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _prometheusMetrics = prometheusMetrics ?? throw new ArgumentNullException(nameof(prometheusMetrics));
+        _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
     }
 
     /// <summary>
@@ -48,6 +52,26 @@ public class DebugSortService
         {
             _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", 
                 parcelId, targetChuteId);
+
+            // 0. 检查系统状态，只有Running状态才能投放包裹
+            var currentState = _stateManager.CurrentState;
+            if (currentState != SystemState.Running)
+            {
+                _logger.LogWarning("系统未处于运行状态，拒绝分拣请求: 当前状态={CurrentState}", currentState);
+                overallStopwatch.Stop();
+                _prometheusMetrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalSeconds);
+
+                return new DebugSortResponse
+                {
+                    ParcelId = parcelId,
+                    TargetChuteId = targetChuteId,
+                    IsSuccess = false,
+                    ActualChuteId = 0,
+                    Message = $"系统当前未处于运行状态，无法投放包裹。当前状态: {GetStateDescription(currentState)}",
+                    FailureReason = "系统状态检查失败",
+                    PathSegmentCount = 0
+                };
+            }
 
             // 1. 调用路径生成器生成 SwitchingPath
             var pathGenStopwatch = Stopwatch.StartNew();
@@ -115,5 +139,22 @@ public class DebugSortService
         {
             _prometheusMetrics.DecrementActiveRequests();
         }
+    }
+
+    /// <summary>
+    /// 获取状态的中文描述
+    /// </summary>
+    private static string GetStateDescription(SystemState state)
+    {
+        return state switch
+        {
+            SystemState.Booting => "启动中",
+            SystemState.Ready => "就绪",
+            SystemState.Running => "运行中",
+            SystemState.Paused => "暂停",
+            SystemState.Faulted => "故障",
+            SystemState.EmergencyStop => "急停",
+            _ => state.ToString()
+        };
     }
 }
