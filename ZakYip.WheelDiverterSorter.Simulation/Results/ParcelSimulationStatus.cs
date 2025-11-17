@@ -39,5 +39,21 @@ public enum ParcelSimulationStatus
     /// <remarks>
     /// 在仿真中，此状态应该始终为 0。如果出现，说明系统存在严重问题。
     /// </remarks>
-    SortedToWrongChute
+    SortedToWrongChute,
+
+    /// <summary>
+    /// 传感器故障导致无法检测包裹
+    /// </summary>
+    /// <remarks>
+    /// 当预期包裹应通过某传感器但在 TTL 内未检测到时标记为此状态
+    /// </remarks>
+    SensorFault,
+
+    /// <summary>
+    /// 未经入口传感器创建的包裹（来源不明）
+    /// </summary>
+    /// <remarks>
+    /// 包裹未通过入口传感器创建，而是从中段传感器等其他路径产生
+    /// </remarks>
+    UnknownSource
 }

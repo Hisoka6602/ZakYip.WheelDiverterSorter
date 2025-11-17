@@ -279,20 +279,7 @@ app.MapPost("/api/debug/sort", async (
 .Produces<DebugSortResponse>(200)
 .Produces(400);
 
-
-    app.Run();
-}
-catch (Exception exception)
-{
-    // NLog: catch setup errors
-    logger.Error(exception, "Stopped program because of exception");
-    throw;
-}
-finally
-{
-    // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
-    LogManager.Shutdown();
-}
+app.Run();
 
 // Make Program class accessible to integration tests
 public partial class Program { }

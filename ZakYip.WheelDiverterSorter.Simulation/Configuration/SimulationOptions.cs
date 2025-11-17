@@ -179,4 +179,12 @@ public record class SimulationOptions
     /// 如果为false，仅记录日志但不影响正常流程
     /// </remarks>
     public bool ShouldTreatLateChangeAsException { get; init; }
+
+    /// <summary>
+    /// 传感器故障仿真配置
+    /// </summary>
+    /// <remarks>
+    /// 用于仿真传感器故障和抖动场景
+    /// </remarks>
+    public SensorFaultOptions SensorFault { get; init; } = new();
 }
