@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using ZakYip.WheelDiverterSorter.Core;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -9,21 +8,21 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// </summary>
 /// <remarks>
 /// 提供仿真模式下的面板按钮模拟操作和系统运行状态控制功能。
-/// 这些端点仅用于测试/仿真，不直接操作 IO，而是调用系统运行状态服务。
+/// 这些端点仅用于测试/仿真，不直接操作 IO，而是调用系统状态管理器。
 /// </remarks>
 [ApiController]
 [Route("api/sim/panel")]
 [Produces("application/json")]
 public class SimulationPanelController : ControllerBase
 {
-    private readonly ISystemRunStateService _stateService;
+    private readonly ISystemStateManager _stateManager;
     private readonly ILogger<SimulationPanelController> _logger;
 
     public SimulationPanelController(
-        ISystemRunStateService stateService,
+        ISystemStateManager stateManager,
         ILogger<SimulationPanelController> logger)
     {
-        _stateService = stateService;
+        _stateManager = stateManager;
         _logger = logger;
     }
 
@@ -36,26 +35,26 @@ public class SimulationPanelController : ControllerBase
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 模拟电柜面板启动按钮，触发系统状态切换到 [运行] 状态。
-    /// 系统会联动启动相关 IO 端口。
     /// </remarks>
     [HttpPost("start")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public IActionResult Start()
+    public async Task<IActionResult> Start()
     {
         try
         {
-            var result = _stateService.TryHandleStart();
+            var result = await _stateManager.ChangeStateAsync(SystemState.Running);
             
-            if (result.IsSuccess)
+            if (result.Success)
             {
                 _logger.LogInformation("仿真：启动按钮已按下，系统切换到运行状态");
                 return Ok(new 
                 { 
                     success = true,
                     message = "系统已启动",
-                    currentState = _stateService.Current.ToString()
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
                 });
             }
 
@@ -64,7 +63,7 @@ public class SimulationPanelController : ControllerBase
             { 
                 success = false,
                 message = result.ErrorMessage,
-                currentState = _stateService.Current.ToString()
+                currentState = result.CurrentState.ToString()
             });
         }
         catch (Exception ex)
@@ -75,34 +74,34 @@ public class SimulationPanelController : ControllerBase
     }
 
     /// <summary>
-    /// 模拟按下停止按钮（切换系统到停止状态）
+    /// 模拟按下停止按钮（切换系统到就绪状态）
     /// </summary>
     /// <returns>操作结果</returns>
     /// <response code="200">操作成功</response>
     /// <response code="400">操作失败，例如当前状态不允许停止</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 模拟电柜面板停止按钮，触发系统状态切换到 [停止] 状态。
-    /// 系统会联动停止相关 IO 端口。
+    /// 模拟电柜面板停止按钮，触发系统状态切换到 [就绪] 状态。
     /// </remarks>
     [HttpPost("stop")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public IActionResult Stop()
+    public async Task<IActionResult> Stop()
     {
         try
         {
-            var result = _stateService.TryHandleStop();
+            var result = await _stateManager.ChangeStateAsync(SystemState.Ready);
             
-            if (result.IsSuccess)
+            if (result.Success)
             {
-                _logger.LogInformation("仿真：停止按钮已按下，系统切换到停止状态");
+                _logger.LogInformation("仿真：停止按钮已按下，系统切换到就绪状态");
                 return Ok(new 
                 { 
                     success = true,
                     message = "系统已停止",
-                    currentState = _stateService.Current.ToString()
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
                 });
             }
 
@@ -111,7 +110,7 @@ public class SimulationPanelController : ControllerBase
             { 
                 success = false,
                 message = result.ErrorMessage,
-                currentState = _stateService.Current.ToString()
+                currentState = result.CurrentState.ToString()
             });
         }
         catch (Exception ex)
@@ -136,20 +135,21 @@ public class SimulationPanelController : ControllerBase
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public IActionResult EmergencyStop()
+    public async Task<IActionResult> EmergencyStop()
     {
         try
         {
-            var result = _stateService.TryHandleEmergencyStop();
+            var result = await _stateManager.ChangeStateAsync(SystemState.EmergencyStop);
             
-            if (result.IsSuccess)
+            if (result.Success)
             {
                 _logger.LogWarning("仿真：急停按钮已按下，系统进入急停状态");
                 return Ok(new 
                 { 
                     success = true,
                     message = "系统已急停",
-                    currentState = _stateService.Current.ToString()
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
                 });
             }
 
@@ -158,7 +158,7 @@ public class SimulationPanelController : ControllerBase
             { 
                 success = false,
                 message = result.ErrorMessage,
-                currentState = _stateService.Current.ToString()
+                currentState = result.CurrentState.ToString()
             });
         }
         catch (Exception ex)
@@ -176,26 +176,27 @@ public class SimulationPanelController : ControllerBase
     /// <response code="400">操作失败，例如当前不在急停状态</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 模拟电柜面板急停复位按钮，解除急停状态，系统切换回 [停止] 状态。
+    /// 模拟电柜面板急停复位按钮，解除急停状态，系统切换回 [就绪] 状态。
     /// </remarks>
     [HttpPost("emergency-reset")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public IActionResult EmergencyReset()
+    public async Task<IActionResult> EmergencyReset()
     {
         try
         {
-            var result = _stateService.TryHandleEmergencyReset();
+            var result = await _stateManager.ChangeStateAsync(SystemState.Ready);
             
-            if (result.IsSuccess)
+            if (result.Success)
             {
                 _logger.LogInformation("仿真：急停复位按钮已按下，系统解除急停");
                 return Ok(new 
                 { 
                     success = true,
                     message = "急停已解除",
-                    currentState = _stateService.Current.ToString()
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
                 });
             }
 
@@ -204,7 +205,7 @@ public class SimulationPanelController : ControllerBase
             { 
                 success = false,
                 message = result.ErrorMessage,
-                currentState = _stateService.Current.ToString()
+                currentState = result.CurrentState.ToString()
             });
         }
         catch (Exception ex)
@@ -221,7 +222,7 @@ public class SimulationPanelController : ControllerBase
     /// <response code="200">成功返回状态</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 查询当前系统运行状态，例如：Stopped、Running、EmergencyStopped 等。
+    /// 查询当前系统运行状态。
     /// </remarks>
     [HttpGet("state")]
     [ProducesResponseType(typeof(object), 200)]
@@ -230,14 +231,14 @@ public class SimulationPanelController : ControllerBase
     {
         try
         {
-            var currentState = _stateService.Current;
-            var canCreateParcel = _stateService.ValidateParcelCreation();
+            var currentState = _stateManager.CurrentState;
+            var canCreateParcel = currentState == SystemState.Running;
 
             return Ok(new 
             { 
                 currentState = currentState.ToString(),
                 stateValue = (int)currentState,
-                canCreateParcel = canCreateParcel.IsSuccess,
+                canCreateParcel = canCreateParcel,
                 timestamp = DateTime.UtcNow
             });
         }

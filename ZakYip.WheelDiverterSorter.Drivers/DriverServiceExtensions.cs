@@ -35,8 +35,8 @@ public static class DriverServiceExtensions
             services.AddSingleton<ISwitchingPathExecutor>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<HardwareSwitchingPathExecutor>>();
-                var diverters = CreateLeadshineDiverters(sp, options.Leadshine);
-                return new HardwareSwitchingPathExecutor(logger, diverters);
+                var drivers = CreateLeadshineWheelDiverterDrivers(sp, options.Leadshine);
+                return new HardwareSwitchingPathExecutor(logger, drivers);
             });
 
             // 注册雷赛 IO 联动驱动
@@ -85,13 +85,13 @@ public static class DriverServiceExtensions
     }
 
     /// <summary>
-    /// 创建雷赛摆轮控制器列表
+    /// 创建雷赛摆轮驱动器列表（封装底层控制器）
     /// </summary>
-    private static List<IDiverterController> CreateLeadshineDiverters(
+    private static List<IWheelDiverterDriver> CreateLeadshineWheelDiverterDrivers(
         IServiceProvider sp,
         LeadshineOptions options)
     {
-        var diverters = new List<IDiverterController>();
+        var drivers = new List<IWheelDiverterDriver>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
 
         foreach (var configDto in options.Diverters)
@@ -107,11 +107,16 @@ public static class DriverServiceExtensions
                 FeedbackInputBit = configDto.FeedbackInputBit
             };
 
-            var logger = loggerFactory.CreateLogger<LeadshineDiverterController>();
-            var controller = new LeadshineDiverterController(logger, options.CardNo, config);
-            diverters.Add(controller);
+            // 创建底层控制器
+            var controllerLogger = loggerFactory.CreateLogger<LeadshineDiverterController>();
+            var controller = new LeadshineDiverterController(controllerLogger, options.CardNo, config);
+
+            // 封装为高层驱动器
+            var driverLogger = loggerFactory.CreateLogger<RelayWheelDiverterDriver>();
+            var driver = new RelayWheelDiverterDriver(driverLogger, controller);
+            drivers.Add(driver);
         }
 
-        return diverters;
+        return drivers;
     }
 }

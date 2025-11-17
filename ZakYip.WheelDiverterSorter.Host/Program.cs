@@ -191,6 +191,9 @@ builder.Services.AddSingleton<OptimizedSortingService>();
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
 
+// 注册系统状态管理服务
+builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Ready);
+
 // 注册并发控制服务
 builder.Services.AddConcurrencyControl(builder.Configuration);
 
