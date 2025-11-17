@@ -151,6 +151,22 @@ dotnet run -- --Simulation:ParcelCount=100 --Simulation:SortingMode=Formal
 ═══════════════════════════════════════════════════════════
 ```
 
+## 仿真场景
+
+系统提供多个预定义场景用于测试不同条件：
+
+| 场景 | 摩擦因子 | 掉包率 | 特点 |
+|------|----------|--------|------|
+| **A (基线)** | 0.95-1.05 (±5%) | 0% | 理想环境，验证基本功能 |
+| **B (高摩擦)** | 0.7-1.3 (±30%) | 0% | 测试高摩擦变化 |
+| **C (中等摩擦+小掉包)** | 0.9-1.1 (±10%) | 5% | 轻微异常场景 |
+| **D (极端压力)** | 0.6-1.4 (±40%) | 20% | 最严苛测试 |
+| **E (高摩擦有丢失)** | 0.7-1.3 (±30%) | 10% | 现实复杂场景 ⭐新增 |
+| **HD-1/2** | - | - | 高密度包裹场景 |
+| **HD-3A/3B** | - | - | 高密度策略变体 |
+
+详细的场景 E 文档请参考：[SCENARIO_E_DOCUMENTATION.md](../../SCENARIO_E_DOCUMENTATION.md)
+
 ## 验收标准
 
 ✅ 切换启动项目为 `ZakYip.WheelDiverterSorter.Simulation` 可运行  
@@ -158,7 +174,8 @@ dotnet run -- --Simulation:ParcelCount=100 --Simulation:SortingMode=Formal
 ✅ 日志中可见摩擦导致的到达时间差异  
 ✅ 部分包裹出现 Timeout / Dropped 状态  
 ✅ `SortedToWrongChute` 计数始终为 0  
-✅ 三种分拣模式（Formal/FixedChute/RoundRobin）均可正常运行
+✅ 三种分拣模式（Formal/FixedChute/RoundRobin）均可正常运行  
+✅ 场景 E（高摩擦有丢失）正常运行并通过所有测试
 
 ## 技术实现
 

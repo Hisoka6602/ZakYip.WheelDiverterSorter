@@ -84,6 +84,10 @@ run_test "仿真程序 - 高摩擦因子" \
 run_test "仿真程序 - 启用掉包模拟" \
     "dotnet run -- --Simulation:ParcelCount=10 --Simulation:IsEnableRandomDropout=true --Simulation:DropoutModel:DropoutProbabilityPerSegment=0.1 --Simulation:IsPauseAtEnd=false"
 
+# Test Scenario E: High friction with dropout (NEW)
+run_test "仿真程序 - 场景E: 高摩擦有丢失" \
+    "dotnet run -- --Simulation:ParcelCount=10 --Simulation:IsEnableRandomFriction=true --Simulation:IsEnableRandomDropout=true --Simulation:FrictionModel:MinFactor=0.7 --Simulation:FrictionModel:MaxFactor=1.3 --Simulation:DropoutModel:DropoutProbabilityPerSegment=0.1 --Simulation:IsPauseAtEnd=false"
+
 # Test with no friction or dropout (ideal conditions)
 run_test "仿真程序 - 理想条件 (无摩擦无掉包)" \
     "dotnet run -- --Simulation:ParcelCount=5 --Simulation:IsEnableRandomFriction=false --Simulation:IsEnableRandomDropout=false --Simulation:IsPauseAtEnd=false"

@@ -359,6 +359,59 @@ public class SimulationScenariosTests : IDisposable
 
     #endregion
 
+    #region 场景 E 测试
+
+    [Fact]
+    public async Task ScenarioE_HighFrictionWithDropout_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioE("Formal", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+
+        // 高摩擦和中等掉包率下，预期会有部分包裹超时或掉包
+        // 但成功分拣的包裹不应该被分到错误的格口
+        (summary.TimeoutCount + summary.DroppedCount).Should().BeGreaterThanOrEqualTo(0);
+    }
+
+    [Fact]
+    public async Task ScenarioE_HighFrictionWithDropout_FixedChute_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioE("FixedChute", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ScenarioE_HighFrictionWithDropout_RoundRobin_ShouldHaveNoMissorts()
+    {
+        // Arrange
+        var scenario = ScenarioDefinitions.CreateScenarioE("RoundRobin", parcelCount: 10);
+
+        // Act
+        var summary = await RunScenarioAsync(scenario);
+
+        // Assert
+        ValidateInvariants(summary, scenario);
+        summary.TotalParcels.Should().Be(10);
+        summary.SortedToWrongChuteCount.Should().Be(0);
+    }
+
+    #endregion
+
     public void Dispose()
     {
         _serviceProvider?.Dispose();

@@ -358,4 +358,47 @@ public static class ScenarioDefinitions
             Expectations = null
         };
     }
+
+    /// <summary>
+    /// 场景 E：高摩擦 + 中等掉包率
+    /// </summary>
+    /// <remarks>
+    /// - FrictionModel.MinFactor = 0.7, MaxFactor = 1.3
+    /// - DropoutProbabilityPerSegment ≈ 0.1
+    /// - 期望：部分包裹出现 Timeout / Dropped；SortedToWrongChute == 0
+    /// - 此场景用于验证系统在高摩擦和掉包同时存在时的鲁棒性
+    /// </remarks>
+    public static SimulationScenario CreateScenarioE(string sortingMode, int parcelCount = 20)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = $"场景E-高摩擦有丢失-{sortingMode}",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = sortingMode,
+                FixedChuteIds = sortingMode == "FixedChute" ? new[] { 1L, 2L, 3L } : null,
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = true,
+                IsEnableRandomDropout = true,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 0.7m,
+                    MaxFactor = 1.3m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.1m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            Expectations = null // 全局验证即可
+        };
+    }
 }
