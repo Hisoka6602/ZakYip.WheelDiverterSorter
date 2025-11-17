@@ -55,5 +55,13 @@ public enum ParcelSimulationStatus
     /// <remarks>
     /// 包裹未通过入口传感器创建，而是从中段传感器等其他路径产生
     /// </remarks>
-    UnknownSource
+    UnknownSource,
+
+    /// <summary>
+    /// 间隔过近导致无法安全分拣
+    /// </summary>
+    /// <remarks>
+    /// 包裹与前一包裹的时间或空间间隔小于安全阈值，无法在摆轮位置安全分拣，路由到异常口
+    /// </remarks>
+    TooCloseToSort
 }

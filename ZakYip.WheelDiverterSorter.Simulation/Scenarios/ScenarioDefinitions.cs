@@ -502,4 +502,53 @@ public static class ScenarioDefinitions
             Expectations = null
         };
     }
+
+    /// <summary>
+    /// 场景 LongRunDenseFlow：长时间高密度分拣仿真场景
+    /// </summary>
+    /// <remarks>
+    /// - 10 摆轮 / 21 格口（1-20 正常，21 异常口）
+    /// - 1000 个包裹，每 300ms 创建一个
+    /// - 主线不停，包裹连续上车，支持并发处理
+    /// - 间隔过近的包裹路由到异常口 (ChuteId=21)
+    /// - 从入口到异常口的物理路径约 2 分钟
+    /// - 理论同时在线包裹数约 400 个
+    /// </remarks>
+    public static SimulationScenario CreateLongRunDenseFlow(int parcelCount = 1000)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "LongRunDenseFlow-长时间高密度分拣",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m, // 1 m/s = 1000 mm/s
+                ParcelInterval = TimeSpan.FromMilliseconds(300), // 每300ms创建一个包裹
+                SortingMode = "RoundRobin", // 轮询模式，目标格口在1-20之间
+                FixedChuteIds = null,
+                ExceptionChuteId = 21, // 异常口为21号格口
+                IsEnableRandomFriction = true,
+                IsEnableRandomDropout = false, // 不启用掉包，专注于高密度场景
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 0.95m,
+                    MaxFactor = 1.05m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                // 最小安全间隔配置：300ms 时间间隔作为阈值
+                MinSafeHeadwayMm = 300m, // 300mm 空间间隔
+                MinSafeHeadwayTime = TimeSpan.FromMilliseconds(300), // 300ms 时间间隔
+                DenseParcelStrategy = DenseParcelStrategy.RouteToException,
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            Expectations = null
+        };
+    }
 }

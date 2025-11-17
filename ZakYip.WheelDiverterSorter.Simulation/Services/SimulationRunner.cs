@@ -35,6 +35,8 @@ public class SimulationRunner
     private readonly object _lockObject = new();
     private long _misSortCount = 0;
     private DateTimeOffset? _previousEntryTime = null;
+    private int _currentConcurrentParcels = 0;
+    private int _maxConcurrentParcelsObserved = 0;
 
     /// <summary>
     /// 构造函数
@@ -63,6 +65,11 @@ public class SimulationRunner
         // 订阅格口分配事件
         _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
     }
+
+    /// <summary>
+    /// 获取观察到的最大并发包裹数
+    /// </summary>
+    public int MaxConcurrentParcelsObserved => _maxConcurrentParcelsObserved;
 
     /// <summary>
     /// 运行仿真
@@ -202,6 +209,16 @@ public class SimulationRunner
     {
         var parcelId = GenerateParcelId(index);
         
+        // 追踪并发包裹数
+        var currentConcurrent = Interlocked.Increment(ref _currentConcurrentParcels);
+        lock (_lockObject)
+        {
+            if (currentConcurrent > _maxConcurrentParcelsObserved)
+            {
+                _maxConcurrentParcelsObserved = currentConcurrent;
+            }
+        }
+        
         if (_options.IsEnableVerboseLogging)
         {
             _logger.LogInformation("处理包裹 {Index}，包裹ID: {ParcelId}", 
@@ -251,6 +268,11 @@ public class SimulationRunner
             }
 
             RecordMetrics(errorResult);
+        }
+        finally
+        {
+            // 减少并发包裹计数
+            Interlocked.Decrement(ref _currentConcurrentParcels);
         }
     }
 
@@ -607,7 +629,7 @@ public class SimulationRunner
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
                 FinalChuteId = _options.ExceptionChuteId,
-                Status = ParcelSimulationStatus.ExecutionError,
+                Status = ParcelSimulationStatus.TooCloseToSort,
                 FailureReason = "违反最小安全头距规则，路由到异常格口",
                 HeadwayTime = timeline.HeadwayTime,
                 HeadwayMm = timeline.HeadwayMm,
@@ -719,6 +741,9 @@ public class SimulationRunner
                     case ParcelSimulationStatus.UnknownSource:
                         summary.ExecutionErrorCount++; // 未知来源计入执行错误
                         break;
+                    case ParcelSimulationStatus.TooCloseToSort:
+                        summary.ExecutionErrorCount++; // 间隔过近计入执行错误
+                        break;
                 }
 
                 // 统计高密度包裹
@@ -771,6 +796,7 @@ public class SimulationRunner
             ParcelSimulationStatus.SortedToWrongChute => "错误分拣",
             ParcelSimulationStatus.SensorFault => "传感器故障",
             ParcelSimulationStatus.UnknownSource => "来源不明",
+            ParcelSimulationStatus.TooCloseToSort => "间隔过近无法分拣",
             _ => status.ToString()
         };
     }
