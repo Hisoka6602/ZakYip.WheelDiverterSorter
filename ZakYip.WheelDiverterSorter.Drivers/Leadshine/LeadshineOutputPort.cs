@@ -7,7 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
 /// <summary>
 /// 雷赛控制器输出端口实现
 /// </summary>
-public class LeadshineOutputPort : IOutputPort
+public class LeadshineOutputPort : OutputPortBase
 {
     private readonly ILogger<LeadshineOutputPort> _logger;
     private readonly ushort _cardNo;
@@ -29,7 +29,7 @@ public class LeadshineOutputPort : IOutputPort
     /// <param name="bitIndex">位索引</param>
     /// <param name="value">值（true为高电平，false为低电平）</param>
     /// <returns>是否成功</returns>
-    public Task<bool> WriteAsync(int bitIndex, bool value)
+    public override Task<bool> WriteAsync(int bitIndex, bool value)
     {
         try
         {
@@ -48,24 +48,5 @@ public class LeadshineOutputPort : IOutputPort
             _logger.LogError(ex, "写入输出位 {BitIndex} 时发生异常", bitIndex);
             return Task.FromResult(false);
         }
-    }
-
-    /// <summary>
-    /// 批量写入多个输出位
-    /// </summary>
-    /// <param name="startBit">起始位索引</param>
-    /// <param name="values">要写入的值数组</param>
-    /// <returns>是否成功</returns>
-    public async Task<bool> WriteBatchAsync(int startBit, bool[] values)
-    {
-        bool allSuccess = true;
-        
-        for (int i = 0; i < values.Length; i++)
-        {
-            var success = await WriteAsync(startBit + i, values[i]);
-            allSuccess = allSuccess && success;
-        }
-
-        return allSuccess;
     }
 }

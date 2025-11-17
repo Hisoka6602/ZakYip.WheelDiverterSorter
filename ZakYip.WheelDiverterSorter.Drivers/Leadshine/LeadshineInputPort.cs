@@ -7,7 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
 /// <summary>
 /// 雷赛控制器输入端口实现
 /// </summary>
-public class LeadshineInputPort : IInputPort
+public class LeadshineInputPort : InputPortBase
 {
     private readonly ILogger<LeadshineInputPort> _logger;
     private readonly ushort _cardNo;
@@ -28,7 +28,7 @@ public class LeadshineInputPort : IInputPort
     /// </summary>
     /// <param name="bitIndex">位索引</param>
     /// <returns>位的值（true为高电平，false为低电平）</returns>
-    public Task<bool> ReadAsync(int bitIndex)
+    public override Task<bool> ReadAsync(int bitIndex)
     {
         try
         {
@@ -48,23 +48,5 @@ public class LeadshineInputPort : IInputPort
             _logger.LogError(ex, "读取输入位 {BitIndex} 时发生异常", bitIndex);
             return Task.FromResult(false);
         }
-    }
-
-    /// <summary>
-    /// 批量读取多个输入位
-    /// </summary>
-    /// <param name="startBit">起始位索引</param>
-    /// <param name="count">要读取的位数</param>
-    /// <returns>位值数组</returns>
-    public async Task<bool[]> ReadBatchAsync(int startBit, int count)
-    {
-        var results = new bool[count];
-        
-        for (int i = 0; i < count; i++)
-        {
-            results[i] = await ReadAsync(startBit + i);
-        }
-
-        return results;
     }
 }

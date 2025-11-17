@@ -9,18 +9,10 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// </summary>
 /// <remarks>
 /// 通过读取雷赛控制器的IO输入端口来检测包裹通过
+/// 此类现在是 LeadshineSensor 的别名，保持向后兼容。
 /// </remarks>
-public class LeadshineLaserSensor : LeadshineSensorBase {
-
-    /// <summary>
-    /// 传感器类型
-    /// </summary>
-    public override SensorType Type => SensorType.Laser;
-
-    /// <summary>
-    /// 传感器名称（用于日志）
-    /// </summary>
-    protected override string SensorTypeName => "激光传感器";
+[Obsolete("Use LeadshineSensor with SensorType.Laser instead. This class will be removed in a future version.")]
+public class LeadshineLaserSensor : LeadshineSensor {
 
     /// <summary>
     /// 构造函数
@@ -34,6 +26,6 @@ public class LeadshineLaserSensor : LeadshineSensorBase {
         string sensorId,
         IInputPort inputPort,
         int inputBit)
-        : base(logger, sensorId, inputPort, inputBit) {
+        : base(logger, sensorId, SensorType.Laser, inputPort, inputBit) {
     }
 }

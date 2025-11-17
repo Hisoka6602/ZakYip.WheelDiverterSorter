@@ -8,8 +8,10 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// <remarks>
 /// 用于测试和调试，模拟真实光电传感器的行为。
 /// 在生产环境中，应替换为实际的光电传感器实现，与真实硬件通信。
+/// 此类现在是 MockSensor 的别名，保持向后兼容。
 /// </remarks>
-public class MockPhotoelectricSensor : MockSensorBase {
+[Obsolete("Use MockSensor with SensorType.Photoelectric instead. This class will be removed in a future version.")]
+public class MockPhotoelectricSensor : MockSensor {
 
     /// <summary>
     /// 构造函数

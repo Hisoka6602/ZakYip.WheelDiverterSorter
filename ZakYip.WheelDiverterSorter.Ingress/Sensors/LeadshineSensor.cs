@@ -6,16 +6,17 @@ using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
 /// <summary>
-/// 雷赛（Leadshine）传感器基类
+/// 通用雷赛（Leadshine）传感器
 /// </summary>
 /// <remarks>
-/// 提供传感器通用功能的抽象实现，子类只需指定传感器类型即可
+/// 提供传感器通用功能的实现，通过构造函数参数指定传感器类型。
+/// 此类合并了原来的 LeadshineLaserSensor 和 LeadshinePhotoelectricSensor 的功能。
 /// </remarks>
-[Obsolete("Use LeadshineSensor instead. This class will be removed in a future version.")]
-public abstract class LeadshineSensorBase : ISensor {
+public class LeadshineSensor : ISensor {
     private readonly ILogger _logger;
     private readonly IInputPort _inputPort;
     private readonly int _inputBit;
+    private readonly string _sensorTypeName;
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
     private bool _lastState;
@@ -28,12 +29,7 @@ public abstract class LeadshineSensorBase : ISensor {
     /// <summary>
     /// 传感器类型
     /// </summary>
-    public abstract SensorType Type { get; }
-
-    /// <summary>
-    /// 传感器名称（用于日志）
-    /// </summary>
-    protected abstract string SensorTypeName { get; }
+    public SensorType Type { get; }
 
     /// <summary>
     /// 传感器是否正在运行
@@ -55,18 +51,28 @@ public abstract class LeadshineSensorBase : ISensor {
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="sensorId">传感器ID</param>
+    /// <param name="type">传感器类型</param>
     /// <param name="inputPort">输入端口</param>
     /// <param name="inputBit">输入位索引</param>
-    protected LeadshineSensorBase(
+    public LeadshineSensor(
         ILogger logger,
         string sensorId,
+        SensorType type,
         IInputPort inputPort,
         int inputBit) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
+        Type = type;
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _inputBit = inputBit;
         _lastState = false;
+        
+        // 根据传感器类型设置名称（用于日志）
+        _sensorTypeName = type switch {
+            SensorType.Laser => "激光传感器",
+            SensorType.Photoelectric => "光电传感器",
+            _ => "传感器"
+        };
     }
 
     /// <summary>
@@ -77,7 +83,7 @@ public abstract class LeadshineSensorBase : ISensor {
             return Task.CompletedTask;
         }
 
-        _logger.LogInformation("启动雷赛{SensorTypeName} {SensorId}，输入位 {InputBit}", SensorTypeName, SensorId, _inputBit);
+        _logger.LogInformation("启动雷赛{SensorTypeName} {SensorId}，输入位 {InputBit}", _sensorTypeName, SensorId, _inputBit);
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         IsRunning = true;
@@ -96,7 +102,7 @@ public abstract class LeadshineSensorBase : ISensor {
             return;
         }
 
-        _logger.LogInformation("停止雷赛{SensorTypeName} {SensorId}", SensorTypeName, SensorId);
+        _logger.LogInformation("停止雷赛{SensorTypeName} {SensorId}", _sensorTypeName, SensorId);
 
         _cts?.Cancel();
         IsRunning = false;
@@ -115,7 +121,7 @@ public abstract class LeadshineSensorBase : ISensor {
     /// 监听输入端口
     /// </summary>
     private async Task MonitorInputAsync(CancellationToken cancellationToken) {
-        _logger.LogInformation("雷赛{SensorTypeName} {SensorId} 开始监听", SensorTypeName, SensorId);
+        _logger.LogInformation("雷赛{SensorTypeName} {SensorId} 开始监听", _sensorTypeName, SensorId);
 
         while (!cancellationToken.IsCancellationRequested) {
             try {
@@ -138,7 +144,7 @@ public abstract class LeadshineSensorBase : ISensor {
 
                     _logger.LogDebug(
                         "雷赛{SensorTypeName} {SensorId} 状态变化: {State}",
-                        SensorTypeName,
+                        _sensorTypeName,
                         SensorId,
                         currentState ? "触发" : "解除");
                 }
@@ -150,7 +156,7 @@ public abstract class LeadshineSensorBase : ISensor {
                 break;
             }
             catch (Exception ex) {
-                _logger.LogError(ex, "雷赛{SensorTypeName} {SensorId} 读取失败", SensorTypeName, SensorId);
+                _logger.LogError(ex, "雷赛{SensorTypeName} {SensorId} 读取失败", _sensorTypeName, SensorId);
 
                 // 触发错误事件
                 OnSensorError(new SensorErrorEventArgs {
@@ -165,7 +171,7 @@ public abstract class LeadshineSensorBase : ISensor {
             }
         }
 
-        _logger.LogInformation("雷赛{SensorTypeName} {SensorId} 停止监听", SensorTypeName, SensorId);
+        _logger.LogInformation("雷赛{SensorTypeName} {SensorId} 停止监听", _sensorTypeName, SensorId);
     }
 
     /// <summary>

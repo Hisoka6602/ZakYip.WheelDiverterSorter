@@ -37,21 +37,14 @@ public class MockSensorFactory : ISensorFactory {
 
         foreach (var config in _configs.Where(s => s.IsEnabled)) {
             try {
-                ISensor sensor = config.Type switch {
-                    SensorType.Photoelectric => new MockPhotoelectricSensor(
-                        config.SensorId,
-                        config.MinTriggerIntervalMs,
-                        config.MaxTriggerIntervalMs,
-                        config.MinParcelPassTimeMs,
-                        config.MaxParcelPassTimeMs),
-                    SensorType.Laser => new MockLaserSensor(
-                        config.SensorId,
-                        config.MinTriggerIntervalMs,
-                        config.MaxTriggerIntervalMs,
-                        config.MinParcelPassTimeMs,
-                        config.MaxParcelPassTimeMs),
-                    _ => throw new NotSupportedException($"不支持的传感器类型: {config.Type}")
-                };
+                // 使用通用 MockSensor 类替代特定类型的传感器
+                var sensor = new MockSensor(
+                    config.SensorId,
+                    config.Type,
+                    config.MinTriggerIntervalMs,
+                    config.MaxTriggerIntervalMs,
+                    config.MinParcelPassTimeMs,
+                    config.MaxParcelPassTimeMs);
 
                 sensors.Add(sensor);
                 _logger.LogInformation(
