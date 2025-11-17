@@ -191,64 +191,91 @@ public class SensorFaultSimulationTests : IDisposable
     }
 
     /// <summary>
-    /// 场景 SF-1：摆轮前传感器故障测试
+    /// 场景 SF-1：摆轮前传感器故障测试（100% 确定性故障）
     /// </summary>
     /// <remarks>
-    /// 验证当摆轮前传感器持续不触发时，包裹被路由到异常口
+    /// 验证当摆轮前传感器持续不触发时，所有包裹被路由到异常口
     /// </remarks>
     [Fact]
     public async Task ScenarioSF1_PreDiverterSensorFault_RouteToExceptionChute()
     {
-        // Arrange
-        var scenario = ScenarioDefinitions.CreateScenarioSF1("FixedChute", parcelCount: 5);
+        // Arrange - 使用999个包裹进行测试
+        var scenario = ScenarioDefinitions.CreateScenarioSF1("FixedChute", parcelCount: 999);
 
         // Act
         var summary = await RunScenarioAsync(scenario);
 
-        // Assert - 验证所有包裹都被路由到异常口
+        // Assert - 验证所有包裹都因传感器故障路由到异常口
         summary.Should().NotBeNull();
-        summary.TotalParcels.Should().Be(5);
+        summary.TotalParcels.Should().Be(999, "总包裹数应该是999");
         
-        // 由于传感器故障，包裹应该超时或被标记为传感器故障
-        var faultOrTimeoutCount = summary.Parcels
-            .Count(r => r.Status == ParcelSimulationStatus.SensorFault || 
-                        r.Status == ParcelSimulationStatus.Timeout);
+        // 所有包裹应该是传感器故障状态
+        var sensorFaultParcels = summary.Parcels
+            .Where(r => r.Status == ParcelSimulationStatus.SensorFault)
+            .ToList();
         
-        faultOrTimeoutCount.Should().BeGreaterThan(0, "应该有包裹因传感器故障或超时");
+        sensorFaultParcels.Count.Should().Be(999, "所有包裹都应该是传感器故障状态");
+        
+        // 验证所有传感器故障包裹的失败原因和最终格口
+        foreach (var parcel in sensorFaultParcels)
+        {
+            parcel.FailureReason.Should().Be("摆轮前传感器故障", $"包裹 {parcel.ParcelId} 的失败原因应该是摆轮前传感器故障");
+            parcel.FinalChuteId.Should().Be(999, $"包裹 {parcel.ParcelId} 应该路由到异常格口999");
+        }
         
         // 不应该有错分
         summary.SortedToWrongChuteCount.Should().Be(0, "不应该有包裹被错误分拣");
     }
 
     /// <summary>
-    /// 场景 SJ-1：传感器抖动测试
+    /// 场景 SJ-1：传感器抖动测试（高频抖动但不是所有包裹）
     /// </summary>
     /// <remarks>
     /// 验证当传感器短时间内多次触发时，重复的包裹被识别并路由到异常口
+    /// 不要求所有包裹都异常，只要求抖动的包裹异常，正常的可以正常分拣
     /// </remarks>
     [Fact]
     public async Task ScenarioSJ1_SensorJitter_DuplicatePackagesRouteToException()
     {
-        // Arrange
-        var scenario = ScenarioDefinitions.CreateScenarioSJ1("FixedChute", parcelCount: 5);
+        // Arrange - 使用30个包裹，约40%会抖动
+        var scenario = ScenarioDefinitions.CreateScenarioSJ1("FixedChute", parcelCount: 30);
 
         // Act
         var summary = await RunScenarioAsync(scenario);
 
         // Assert
         summary.Should().NotBeNull();
-        summary.TotalParcels.Should().BeGreaterThanOrEqualTo(5);
+        summary.TotalParcels.Should().BeGreaterThanOrEqualTo(30, "总包裹数应该至少是30");
+        
+        // 验证至少存在一个传感器故障的包裹（抖动产生的）
+        var sensorFaultParcels = summary.Parcels
+            .Where(r => r.Status == ParcelSimulationStatus.SensorFault)
+            .ToList();
+        
+        sensorFaultParcels.Should().NotBeEmpty("应该存在至少一个因传感器抖动而异常的包裹");
+        
+        // 验证所有传感器故障包裹的失败原因包含"抖动"相关信息
+        foreach (var parcel in sensorFaultParcels)
+        {
+            parcel.FailureReason.Should().Contain("抖动", $"包裹 {parcel.ParcelId} 的失败原因应该包含'抖动'");
+            parcel.FinalChuteId.Should().Be(999, $"包裹 {parcel.ParcelId} 应该路由到异常格口999");
+        }
+        
+        // 验证正常包裹可以正常分拣（不要求所有包裹都异常）
+        var normalParcels = summary.Parcels
+            .Where(r => r.Status == ParcelSimulationStatus.SortedToTargetChute)
+            .ToList();
+        
+        // 可以有正常包裹，也可以没有（取决于抖动概率）
+        // 但如果有正常包裹，它们应该被正确分拣
+        foreach (var parcel in normalParcels)
+        {
+            parcel.FinalChuteId.Should().Be(parcel.TargetChuteId, 
+                $"正常包裹 {parcel.ParcelId} 应该被分拣到目标格口");
+        }
         
         // 验证没有错分
         summary.SortedToWrongChuteCount.Should().Be(0, "不应该有包裹被错误分拣");
-        
-        // 验证抖动产生的重复包裹被正确处理
-        // 注意：由于抖动，实际产生的包裹数量会大于输入的包裹数量
-        var validParcels = summary.Parcels
-            .Count(r => r.Status == ParcelSimulationStatus.SortedToTargetChute);
-        
-        // 至少应该有一些包裹被成功分拣（非抖动的）
-        validParcels.Should().BeGreaterThan(0, "应该有正常包裹被成功分拣");
     }
 
     /// <summary>
