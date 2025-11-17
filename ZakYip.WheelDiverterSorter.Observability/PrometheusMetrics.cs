@@ -459,4 +459,82 @@ public class PrometheusMetrics
             SimulationDenseParcelRoutedToExceptionCounter.WithLabels(scenario).Inc();
         }
     }
+
+    // ========== PR-05 验收指标 / PR-05 Acceptance Metrics ==========
+
+    // 总处理包裹数
+    // Total processed parcels
+    private static readonly Counter SortingTotalParcels = Metrics
+        .CreateCounter("sorting_total_parcels", 
+            "总处理包裹数 / Total number of processed parcels");
+
+    // 失败包裹数（按原因分类）
+    // Failed parcels by reason
+    private static readonly Counter SortingFailedParcelsTotal = Metrics
+        .CreateCounter("sorting_failed_parcels_total",
+            "失败包裹总数（按原因分类）/ Total number of failed parcels by reason",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "reason" }
+            });
+
+    // 成功包裹从入口传感器到落格的延迟直方图
+    // Success parcel latency from entry sensor to chute drop
+    private static readonly Histogram SortingSuccessLatencySeconds = Metrics
+        .CreateHistogram("sorting_success_latency_seconds",
+            "成功包裹从入口传感器到落格的延迟（秒）/ Success parcel latency from entry to chute drop in seconds",
+            new HistogramConfiguration
+            {
+                Buckets = Histogram.ExponentialBuckets(0.1, 1.5, 20) // 0.1s to ~400s
+            });
+
+    // 状态机状态切换计数
+    // State machine state change counter
+    private static readonly Counter SystemStateChangesTotal = Metrics
+        .CreateCounter("system_state_changes_total",
+            "状态机状态切换总数 / Total number of state machine state changes",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "from_state", "to_state" }
+            });
+
+    /// <summary>
+    /// 记录总处理包裹数
+    /// Record total processed parcels
+    /// </summary>
+    public void RecordSortingTotalParcels()
+    {
+        SortingTotalParcels.Inc();
+    }
+
+    /// <summary>
+    /// 记录失败包裹（按原因分类）
+    /// Record failed parcel by reason
+    /// </summary>
+    /// <param name="reason">失败原因：upstream_timeout, ttl_failure, topology_unreachable, sensor_fault, etc.</param>
+    public void RecordSortingFailedParcel(string reason)
+    {
+        SortingFailedParcelsTotal.WithLabels(reason).Inc();
+    }
+
+    /// <summary>
+    /// 记录成功包裹的延迟
+    /// Record success parcel latency
+    /// </summary>
+    /// <param name="latencySeconds">从入口传感器到落格的延迟（秒）</param>
+    public void RecordSortingSuccessLatency(double latencySeconds)
+    {
+        SortingSuccessLatencySeconds.Observe(latencySeconds);
+    }
+
+    /// <summary>
+    /// 记录状态机状态切换
+    /// Record state machine state change
+    /// </summary>
+    /// <param name="fromState">源状态</param>
+    /// <param name="toState">目标状态</param>
+    public void RecordSystemStateChange(string fromState, string toState)
+    {
+        SystemStateChangesTotal.WithLabels(fromState, toState).Inc();
+    }
 }

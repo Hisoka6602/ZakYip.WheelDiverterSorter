@@ -286,9 +286,36 @@ public class SimulationRunner
         
         _metrics.RecordSimulationParcel(statusLabel, travelTimeSeconds);
 
+        // PR-05: 记录总处理包裹数
+        _metrics.RecordSortingTotalParcels();
+
         if (result.Status == ParcelSimulationStatus.SortedToWrongChute)
         {
             _metrics.RecordSimulationMisSort();
+        }
+
+        // PR-05: 记录成功包裹延迟
+        if (result.Status == ParcelSimulationStatus.SortedToTargetChute && travelTimeSeconds.HasValue)
+        {
+            _metrics.RecordSortingSuccessLatency(travelTimeSeconds.Value);
+        }
+
+        // PR-05: 记录失败包裹（按原因分类）
+        if (result.Status != ParcelSimulationStatus.SortedToTargetChute)
+        {
+            var failureReason = result.Status switch
+            {
+                ParcelSimulationStatus.Timeout => "upstream_timeout",
+                ParcelSimulationStatus.Dropped => "dropped",
+                ParcelSimulationStatus.ExecutionError => "execution_error",
+                ParcelSimulationStatus.RuleEngineTimeout => "ruleengine_timeout",
+                ParcelSimulationStatus.SortedToWrongChute => "wrong_chute",
+                ParcelSimulationStatus.SensorFault => "sensor_fault",
+                ParcelSimulationStatus.TooCloseToSort => "too_close_to_sort",
+                ParcelSimulationStatus.UnknownSource => "unknown_source",
+                _ => "unknown"
+            };
+            _metrics.RecordSortingFailedParcel(failureReason);
         }
 
         // 记录高密度包裹指标
