@@ -201,6 +201,9 @@ builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>
 builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
 builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
+// 注册中段皮带 IO 联动服务
+builder.Services.AddMiddleConveyorServices(builder.Configuration);
+
 // 注册后台服务（可选）
 // 取消注释以下行以启用自动传感器监听和分拣编排
 // builder.Services.AddHostedService<SensorMonitoringWorker>();
