@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -33,6 +34,14 @@ public class RouteConfigController : ControllerBase {
     /// <response code="200">成功返回配置列表</response>
     /// <response code="500">服务器内部错误</response>
     [HttpGet]
+    [SwaggerOperation(
+        Summary = "获取所有启用的路由配置",
+        Description = "返回系统中所有已启用的格口路由配置列表，包括每个格口的摆轮序列和皮带参数",
+        OperationId = "GetAllRoutes",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置列表", typeof(IEnumerable<RouteConfigResponse>))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(IEnumerable<RouteConfigResponse>), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<IEnumerable<RouteConfigResponse>> GetAllRoutes() {
@@ -95,23 +104,47 @@ public class RouteConfigController : ControllerBase {
     ///     POST /api/config/routes
     ///     {
     ///         "chuteId": 1,
+    ///         "chuteName": "A区01号口",
     ///         "diverterConfigurations": [
     ///             {
     ///                 "diverterId": 1,
-    ///                 "targetDirection": 1,
-    ///                 "sequenceNumber": 1
+    ///                 "targetDirection": "Left",
+    ///                 "sequenceNumber": 1,
+    ///                 "segmentLengthMm": 5000.0,
+    ///                 "segmentSpeedMmPerSecond": 1000.0,
+    ///                 "segmentToleranceTimeMs": 2000
     ///             },
     ///             {
     ///                 "diverterId": 2,
-    ///                 "targetDirection": 1,
-    ///                 "sequenceNumber": 2
+    ///                 "targetDirection": "Right",
+    ///                 "sequenceNumber": 2,
+    ///                 "segmentLengthMm": 5000.0,
+    ///                 "segmentSpeedMmPerSecond": 1000.0,
+    ///                 "segmentToleranceTimeMs": 2000
     ///             }
     ///         ],
+    ///         "beltSpeedMmPerSecond": 1000.0,
+    ///         "beltLengthMm": 10000.0,
+    ///         "toleranceTimeMs": 2000,
     ///         "isEnabled": true
     ///     }
     ///
+    /// 创建路由配置时需要注意：
+    /// - 格口ID必须唯一，不能与已有配置重复
+    /// - 摆轮配置的顺序号必须从1开始连续编号
+    /// - 不允许创建完全相同的摆轮方向组合（防止路由冲突）
     /// </remarks>
     [HttpPost]
+    [SwaggerOperation(
+        Summary = "创建新的路由配置",
+        Description = "为指定格口创建新的路由配置，包括摆轮序列、皮带参数等。配置会立即生效。",
+        OperationId = "CreateRoute",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(201, "创建成功", typeof(RouteConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(409, "配置已存在")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(RouteConfigResponse), 201)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 409)]
