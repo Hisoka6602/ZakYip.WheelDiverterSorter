@@ -7,7 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.S7;
 /// <summary>
 /// S7 PLC 输入端口实现
 /// </summary>
-public class S7InputPort : IInputPort
+public class S7InputPort : InputPortBase
 {
     private readonly ILogger<S7InputPort> _logger;
     private readonly S7Connection _connection;
@@ -31,7 +31,7 @@ public class S7InputPort : IInputPort
     /// </summary>
     /// <param name="bitIndex">位索引（字节地址*8 + 位偏移）</param>
     /// <returns>位的值（true为高电平，false为低电平）</returns>
-    public async Task<bool> ReadAsync(int bitIndex)
+    public override async Task<bool> ReadAsync(int bitIndex)
     {
         try
         {
@@ -72,37 +72,33 @@ public class S7InputPort : IInputPort
     }
 
     /// <summary>
-    /// 批量读取多个输入位
+    /// 批量读取多个输入位（重写以添加日志）
     /// </summary>
     /// <param name="startBit">起始位索引</param>
     /// <param name="count">要读取的位数</param>
     /// <returns>位值数组</returns>
-    public async Task<bool[]> ReadBatchAsync(int startBit, int count)
+    public override async Task<bool[]> ReadBatchAsync(int startBit, int count)
     {
-        var results = new bool[count];
-
         try
         {
             // 确保连接已建立
             if (!await _connection.EnsureConnectedAsync())
             {
                 _logger.LogWarning("无法连接到PLC，批量读取输入位失败");
-                return results;
+                return new bool[count];
             }
 
-            // 逐个读取位值（可以优化为按字节批量读取）
-            for (int i = 0; i < count; i++)
-            {
-                results[i] = await ReadAsync(startBit + i);
-            }
+            // 使用基类的默认实现
+            var results = await base.ReadBatchAsync(startBit, count);
 
             _logger.LogTrace("批量读取 {Count} 个输入位，起始位: {StartBit}", count, startBit);
+            
+            return results;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "批量读取输入位时发生异常，起始位: {StartBit}, 数量: {Count}", startBit, count);
+            return new bool[count];
         }
-
-        return results;
     }
 }

@@ -7,7 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.S7;
 /// <summary>
 /// S7 PLC 输出端口实现
 /// </summary>
-public class S7OutputPort : IOutputPort
+public class S7OutputPort : OutputPortBase
 {
     private readonly ILogger<S7OutputPort> _logger;
     private readonly S7Connection _connection;
@@ -32,7 +32,7 @@ public class S7OutputPort : IOutputPort
     /// <param name="bitIndex">位索引（字节地址*8 + 位偏移）</param>
     /// <param name="value">值（true为高电平，false为低电平）</param>
     /// <returns>是否成功</returns>
-    public async Task<bool> WriteAsync(int bitIndex, bool value)
+    public override async Task<bool> WriteAsync(int bitIndex, bool value)
     {
         try
         {
@@ -71,15 +71,13 @@ public class S7OutputPort : IOutputPort
     }
 
     /// <summary>
-    /// 批量写入多个输出位
+    /// 批量写入多个输出位（重写以添加日志）
     /// </summary>
     /// <param name="startBit">起始位索引</param>
     /// <param name="values">要写入的值数组</param>
     /// <returns>是否成功</returns>
-    public async Task<bool> WriteBatchAsync(int startBit, bool[] values)
+    public override async Task<bool> WriteBatchAsync(int startBit, bool[] values)
     {
-        bool allSuccess = true;
-
         try
         {
             // 确保连接已建立
@@ -89,21 +87,17 @@ public class S7OutputPort : IOutputPort
                 return false;
             }
 
-            // 逐个写入位值（可以优化为按字节批量写入）
-            for (int i = 0; i < values.Length; i++)
-            {
-                var success = await WriteAsync(startBit + i, values[i]);
-                allSuccess = allSuccess && success;
-            }
+            // 使用基类的默认实现
+            var allSuccess = await base.WriteBatchAsync(startBit, values);
 
             _logger.LogTrace("批量写入 {Count} 个输出位，起始位: {StartBit}", values.Length, startBit);
+            
+            return allSuccess;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "批量写入输出位时发生异常，起始位: {StartBit}, 数量: {Count}", startBit, values.Length);
-            allSuccess = false;
+            return false;
         }
-
-        return allSuccess;
     }
 }
