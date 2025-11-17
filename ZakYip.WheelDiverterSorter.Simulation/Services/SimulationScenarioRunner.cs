@@ -12,7 +12,7 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 /// <remarks>
 /// 负责按配置运行各种仿真场景，与系统状态机集成
 /// </remarks>
-public class SimulationScenarioRunner
+public class SimulationScenarioRunner : ISimulationScenarioRunner
 {
     private readonly ILineTopologyConfigProvider _topologyProvider;
     private readonly IOptionsMonitor<SimulationOptions> _simulationOptions;
