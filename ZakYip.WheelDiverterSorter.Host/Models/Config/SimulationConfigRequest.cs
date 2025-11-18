@@ -142,4 +142,12 @@ public class SimulationConfigRequest
     /// 是否启用详细日志
     /// </summary>
     public bool IsEnableVerboseLogging { get; set; } = false;
+
+    /// <summary>
+    /// 是否启用仿真模式
+    /// </summary>
+    /// <remarks>
+    /// 当启用仿真模式时，面板按钮将触发仿真场景而非真机运行
+    /// </remarks>
+    public bool IsSimulationEnabled { get; set; } = false;
 }

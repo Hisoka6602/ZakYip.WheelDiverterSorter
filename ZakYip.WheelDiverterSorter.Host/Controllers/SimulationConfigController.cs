@@ -102,6 +102,9 @@ public class SimulationConfigController : ControllerBase
 
             _runtimeOptions = config;
 
+            // Sync to SimulationScenarioRunner for use when running scenarios
+            ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner.SetRuntimeOptions(config);
+
             _logger.LogInformation(
                 "仿真配置已更新: ParcelCount={ParcelCount}, Interval={Interval}ms",
                 config.ParcelCount,
@@ -194,7 +197,8 @@ public class SimulationConfigController : ControllerBase
                 JitterProbability = request.JitterProbability
             },
             IsEnableVerboseLogging = request.IsEnableVerboseLogging,
-            IsPauseAtEnd = false
+            IsPauseAtEnd = false,
+            IsSimulationEnabled = request.IsSimulationEnabled
         };
     }
 
@@ -226,7 +230,8 @@ public class SimulationConfigController : ControllerBase
             JitterTriggerCount = config.SensorFault.JitterTriggerCount,
             JitterIntervalMs = config.SensorFault.JitterIntervalMs,
             JitterProbability = config.SensorFault.JitterProbability,
-            IsEnableVerboseLogging = config.IsEnableVerboseLogging
+            IsEnableVerboseLogging = config.IsEnableVerboseLogging,
+            IsSimulationEnabled = config.IsSimulationEnabled
         };
     }
 

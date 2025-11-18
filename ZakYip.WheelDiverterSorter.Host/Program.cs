@@ -217,6 +217,35 @@ builder.Services.AddSingleton<ParcelSortingOrchestrator>();
 // 注册通信统计服务
 builder.Services.AddSingleton<CommunicationStatsService>();
 
+// 注册线体拓扑配置提供者
+builder.Services.AddSingleton<ILineTopologyConfigProvider>(serviceProvider =>
+{
+    var topologyPath = builder.Configuration["TopologyConfiguration:FilePath"];
+    if (!string.IsNullOrEmpty(topologyPath))
+    {
+        var fullPath = Path.IsPathRooted(topologyPath) 
+            ? topologyPath 
+            : Path.Combine(AppContext.BaseDirectory, topologyPath);
+        return new JsonLineTopologyConfigProvider(fullPath);
+    }
+    // 使用默认拓扑配置
+    return new DefaultLineTopologyConfigProvider();
+});
+
+// 注册仿真服务（用于 API 触发仿真）
+// 注意：这些服务在 Host 层也需要，用于通过 API 运行仿真场景
+if (builder.Configuration.GetValue<bool>("Simulation:EnableApiSimulation", false))
+{
+    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationRunner>();
+    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner>();
+    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.ParcelTimelineFactory>();
+    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationReportPrinter>();
+    
+    // 注册 ISimulationScenarioRunner 接口
+    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.ISimulationScenarioRunner>(
+        serviceProvider => serviceProvider.GetRequiredService<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner>());
+}
+
 // 注册改口功能相关服务
 builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
 builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
@@ -234,6 +263,16 @@ builder.Services.AddMiddleConveyorServices(builder.Configuration);
 builder.Services.AddHostedService<AlarmMonitoringWorker>();
 
 var app = builder.Build();
+
+// 注册仿真场景运行器到 SimulationController（如果已启用 API 仿真）
+if (builder.Configuration.GetValue<bool>("Simulation:EnableApiSimulation", false))
+{
+    var scenarioRunner = app.Services.GetService<ZakYip.WheelDiverterSorter.Simulation.Services.ISimulationScenarioRunner>();
+    if (scenarioRunner != null)
+    {
+        ZakYip.WheelDiverterSorter.Host.Controllers.SimulationController.RegisterScenarioRunner(scenarioRunner);
+    }
+}
 
 // 配置Prometheus指标中间件
 // Configure Prometheus metrics middleware
