@@ -11,18 +11,21 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
     private readonly IEnumerable<IDriverSelfTest> _driverTests;
     private readonly IEnumerable<IUpstreamHealthChecker> _upstreamCheckers;
     private readonly IConfigValidator _configValidator;
+    private readonly INodeHealthRegistry? _nodeHealthRegistry;
     private readonly ILogger<SystemSelfTestCoordinator> _logger;
 
     public SystemSelfTestCoordinator(
         IEnumerable<IDriverSelfTest> driverTests,
         IEnumerable<IUpstreamHealthChecker> upstreamCheckers,
         IConfigValidator configValidator,
-        ILogger<SystemSelfTestCoordinator> logger)
+        ILogger<SystemSelfTestCoordinator> logger,
+        INodeHealthRegistry? nodeHealthRegistry = null)
     {
         _driverTests = driverTests ?? throw new ArgumentNullException(nameof(driverTests));
         _upstreamCheckers = upstreamCheckers ?? throw new ArgumentNullException(nameof(upstreamCheckers));
         _configValidator = configValidator ?? throw new ArgumentNullException(nameof(configValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _nodeHealthRegistry = nodeHealthRegistry;
     }
 
     /// <inheritdoc/>
@@ -61,13 +64,33 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
                            upstreamResults.All(u => u.IsHealthy) &&
                            configResult.IsValid;
 
+            // PR-14: Convert driver health to node health and update registry
+            List<NodeHealthStatus>? nodeStatuses = null;
+            DegradationMode degradationMode = DegradationMode.None;
+            
+            if (_nodeHealthRegistry != null)
+            {
+                nodeStatuses = ConvertToNodeHealthStatuses(driverResults, startTime);
+                
+                // Update node health registry with driver statuses
+                foreach (var nodeStatus in nodeStatuses)
+                {
+                    _nodeHealthRegistry.UpdateNodeHealth(nodeStatus);
+                }
+                
+                // Get degradation mode from registry
+                degradationMode = _nodeHealthRegistry.GetDegradationMode();
+            }
+
             var report = new SystemSelfTestReport
             {
                 IsSuccess = isSuccess,
                 Drivers = driverResults.AsReadOnly(),
                 Upstreams = upstreamResults.AsReadOnly(),
                 Config = configResult,
-                PerformedAt = startTime
+                PerformedAt = startTime,
+                NodeStatuses = nodeStatuses?.AsReadOnly(),
+                DegradationMode = degradationMode
             };
 
             if (isSuccess)
@@ -76,7 +99,7 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
             }
             else
             {
-                _logger.LogWarning("系统自检失败，存在不健康的组件");
+                _logger.LogWarning("系统自检失败，存在不健康的组件。降级模式: {DegradationMode}", degradationMode);
                 LogFailedComponents(driverResults, upstreamResults, configResult);
             }
 
@@ -99,6 +122,74 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
                 },
                 PerformedAt = startTime
             };
+        }
+    }
+
+    /// <summary>
+    /// Convert driver health statuses to node health statuses
+    /// Maps driver names to node IDs (simple hash-based mapping for now)
+    /// </summary>
+    private List<NodeHealthStatus> ConvertToNodeHealthStatuses(
+        List<DriverHealthStatus> driverResults,
+        DateTimeOffset timestamp)
+    {
+        var nodeStatuses = new List<NodeHealthStatus>();
+        
+        for (int i = 0; i < driverResults.Count; i++)
+        {
+            var driver = driverResults[i];
+            
+            // Map driver to node ID (use simple index-based mapping for now)
+            // In production, this would be based on configuration mapping
+            var nodeId = GetNodeIdForDriver(driver.DriverName);
+            
+            var nodeStatus = new NodeHealthStatus
+            {
+                NodeId = nodeId,
+                NodeType = DetermineNodeType(driver.DriverName),
+                IsHealthy = driver.IsHealthy,
+                ErrorCode = driver.ErrorCode,
+                ErrorMessage = driver.ErrorMessage,
+                CheckedAt = timestamp
+            };
+            
+            nodeStatuses.Add(nodeStatus);
+        }
+        
+        return nodeStatuses;
+    }
+
+    /// <summary>
+    /// Get node ID for a driver name
+    /// Uses hash code for consistent mapping
+    /// </summary>
+    private int GetNodeIdForDriver(string driverName)
+    {
+        // Use absolute value of hash code to ensure positive node ID
+        return Math.Abs(driverName.GetHashCode() % 10000);
+    }
+
+    /// <summary>
+    /// Determine node type from driver name
+    /// </summary>
+    private string DetermineNodeType(string driverName)
+    {
+        if (driverName.Contains("Diverter", StringComparison.OrdinalIgnoreCase))
+        {
+            return "摆轮";
+        }
+        else if (driverName.Contains("Station", StringComparison.OrdinalIgnoreCase) ||
+                 driverName.Contains("基站", StringComparison.OrdinalIgnoreCase))
+        {
+            return "基站";
+        }
+        else if (driverName.Contains("IO", StringComparison.OrdinalIgnoreCase))
+        {
+            return "IO设备";
+        }
+        else
+        {
+            return "驱动器";
         }
     }
 

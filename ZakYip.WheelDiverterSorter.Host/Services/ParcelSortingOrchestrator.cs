@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Tracing;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
@@ -43,6 +44,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly CongestionDataCollector? _congestionCollector;
     private readonly PrometheusMetrics? _metrics;
     private readonly IParcelTraceSink? _traceSink;
+    private readonly PathHealthChecker? _pathHealthChecker;
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly object _lockObject = new object();
@@ -66,7 +68,8 @@ public class ParcelSortingOrchestrator : IDisposable
         IOverloadHandlingPolicy? overloadPolicy = null,
         CongestionDataCollector? congestionCollector = null,
         PrometheusMetrics? metrics = null,
-        IParcelTraceSink? traceSink = null)
+        IParcelTraceSink? traceSink = null,
+        PathHealthChecker? pathHealthChecker = null)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -82,6 +85,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _congestionCollector = congestionCollector; // Optional: for congestion data collection (PR-08B)
         _metrics = metrics; // Optional: for metrics collection (PR-08B)
         _traceSink = traceSink; // Optional: for parcel trace logging (PR-10)
+        _pathHealthChecker = pathHealthChecker; // Optional: for node health checking (PR-14)
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
 
@@ -415,6 +419,50 @@ public class ParcelSortingOrchestrator : IDisposable
                     _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
                     _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
                     return;
+                }
+            }
+
+            // PR-14: 节点健康检查 - 检查路径是否经过不健康的节点
+            if (_pathHealthChecker != null && path != null && !isOverloadException)
+            {
+                var pathHealthResult = _pathHealthChecker.ValidatePath(path);
+                
+                if (!pathHealthResult.IsHealthy)
+                {
+                    var unhealthyNodeList = string.Join(", ", pathHealthResult.UnhealthyNodeIds);
+                    
+                    _logger.LogWarning(
+                        "包裹 {ParcelId} 的路径经过不健康节点 [{UnhealthyNodes}]，将重定向到异常格口",
+                        parcelId,
+                        unhealthyNodeList);
+
+                    // PR-10: 记录节点降级决策事件
+                    await WriteTraceAsync(new ParcelTraceEventArgs
+                    {
+                        ItemId = parcelId,
+                        BarCode = null,
+                        OccurredAt = DateTimeOffset.UtcNow,
+                        Stage = "OverloadDecision",
+                        Source = "NodeHealthCheck",
+                        Details = $"Reason=NodeDegraded, UnhealthyNodes=[{unhealthyNodeList}], OriginalTargetChute={targetChuteId}"
+                    });
+
+                    // 记录节点降级指标
+                    _metrics?.RecordOverloadParcel("NodeDegraded");
+
+                    // 重新生成到异常格口的路径
+                    targetChuteId = exceptionChuteId;
+                    path = _pathGenerator.GeneratePath(targetChuteId);
+
+                    if (path == null)
+                    {
+                        _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成（节点降级），分拣失败", parcelId);
+                        _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                        return;
+                    }
+
+                    // 标记为节点降级异常
+                    isOverloadException = true;
                 }
             }
 
