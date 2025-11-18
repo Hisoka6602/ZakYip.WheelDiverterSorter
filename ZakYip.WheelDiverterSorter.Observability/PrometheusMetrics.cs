@@ -781,6 +781,44 @@ public class PrometheusMetrics
     {
         SystemSelfTestFailuresTotal.Inc();
     }
+
+    // ========== PR-14: 节点降级指标 / Node Degradation Metrics ==========
+
+    /// <summary>
+    /// 降级节点总数
+    /// Total number of degraded nodes
+    /// </summary>
+    private static readonly Gauge DegradedNodesTotal = Metrics
+        .CreateGauge("sorting_degraded_nodes_total",
+            "降级节点总数 / Total number of degraded nodes");
+
+    /// <summary>
+    /// 降级模式 (0=None, 1=NodeDegraded, 2=LineDegraded)
+    /// Degradation mode gauge
+    /// </summary>
+    private static readonly Gauge DegradedModeGauge = Metrics
+        .CreateGauge("sorting_degraded_mode",
+            "降级模式 (0=正常, 1=节点降级, 2=线体降级) / Degradation mode (0=None, 1=NodeDegraded, 2=LineDegraded)");
+
+    /// <summary>
+    /// 设置降级节点总数
+    /// Set total degraded nodes count
+    /// </summary>
+    /// <param name="count">降级节点数量</param>
+    public void SetDegradedNodesTotal(int count)
+    {
+        DegradedNodesTotal.Set(count);
+    }
+
+    /// <summary>
+    /// 设置降级模式
+    /// Set degradation mode
+    /// </summary>
+    /// <param name="mode">降级模式 (0=None, 1=NodeDegraded, 2=LineDegraded)</param>
+    public void SetDegradedMode(int mode)
+    {
+        DegradedModeGauge.Set(mode);
+    }
 }
 
 
