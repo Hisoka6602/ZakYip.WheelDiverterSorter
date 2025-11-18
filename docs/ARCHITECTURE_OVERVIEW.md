@@ -20,8 +20,8 @@ This project is a Wheel Diverter Sorter control system that uses a layered archi
 │          Execution Layer                │  ← 执行层（Business Logic）
 ├─────────────────────────────────────────┤
 │            Core Layer                   │  ← 核心域模型（Domain Model）
-├─────────────────────────────────────────┤
-│          Sorting.Core                   │  ← 通用分拣领域
+│  - Sorting (分拣领域)                    │
+│  - LineModel (摆轮物理模型)              │
 └─────────────────────────────────────────┘
 ```
 
@@ -36,12 +36,26 @@ This project is a Wheel Diverter Sorter control system that uses a layered archi
 - 配置模型和枚举定义
 - **不依赖**任何上层项目（Host, Infrastructure, Simulation, Tools）
 
-**关键命名空间：**
+**目录结构：**
+- `Sorting/`: 分拣领域模型（原 ZakYip.Sorting.Core）
+  - 包裹分拣抽象、策略接口、超载处理等
+  - 命名空间保持 `ZakYip.Sorting.Core.*` 以最小化变更
+- `LineModel/`: 摆轮线体物理模型
+  - 拓扑结构、节点定义、路径生成等
+  - 命名空间为 `ZakYip.WheelDiverterSorter.Core.*`
+
+**关键命名空间（LineModel）：**
 - `ZakYip.WheelDiverterSorter.Core`: 核心领域类型
 - `ZakYip.WheelDiverterSorter.Core.Events`: 领域事件载荷
 - `ZakYip.WheelDiverterSorter.Core.Enums`: 枚举定义
 - `ZakYip.WheelDiverterSorter.Core.Configuration`: 配置模型
 - `ZakYip.WheelDiverterSorter.Core.Runtime.Health`: 健康检查相关
+
+**关键命名空间（Sorting）：**
+- `ZakYip.Sorting.Core.Overload`: 超载处理策略
+- `ZakYip.Sorting.Core.Interfaces`: 分拣决策接口
+- `ZakYip.Sorting.Core.Models`: 分拣模型
+- `ZakYip.Sorting.Core.Runtime`: 运行时拥塞检测
 
 **关键类型：**
 - `SwitchingPath`: 摆轮路径
@@ -49,6 +63,7 @@ This project is a Wheel Diverter Sorter control system that uses a layered archi
 - `DiverterNode`: 摆轮节点
 - `ISwitchingPathGenerator`: 路径生成器接口
 - `IRoutePlanRepository`: 路由计划仓储接口
+- `IOverloadHandlingPolicy`: 超载处理策略接口
 
 #### 2. Execution Layer (ZakYip.WheelDiverterSorter.Execution)
 
