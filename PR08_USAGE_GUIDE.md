@@ -300,6 +300,124 @@ Console.WriteLine($"危险阈值: {capacity.DangerousThresholdParcelsPerMinute:F
 }
 ```
 
+## Grafana 监控仪表盘
+
+### 访问仪表盘
+
+1. 启动 Grafana：
+   ```bash
+   docker-compose -f docker-compose.monitoring.yml up -d grafana
+   ```
+
+2. 访问地址：http://localhost:3000
+
+3. 查找仪表盘：`WheelDiverterSorter - Capacity & Congestion`
+
+### 仪表盘说明
+
+#### 关键指标卡片
+
+- **🚦 当前拥堵等级**：显示系统当前拥堵状态（正常/警告/严重）
+- **📊 在途包裹数**：当前系统中正在处理的包裹数量
+- **⏱️ 平均分拣延迟**：包裹从进入到完成分拣的平均时间
+- **🎯 推荐产能**：系统建议的安全产能区间（包裹/分钟）
+
+#### 时间序列图表
+
+1. **拥堵等级时间序列**
+   - 显示拥堵等级随时间的变化
+   - 用于识别拥堵模式和趋势
+
+2. **处理速率 vs 推荐产能**
+   - 实际处理速率（包裹/分钟）
+   - 推荐产能（包裹/分钟）
+   - 帮助判断是否超过系统承载能力
+
+3. **超载包裹统计**
+   - 按原因分类的超载包裹趋势
+   - 原因包括：超时、窗口不足、容量超载、拥堵等
+   - 堆叠显示各类超载原因的占比
+
+4. **成功/异常/超载堆叠图**
+   - 成功分拣的包裹数
+   - 一般异常的包裹数
+   - 超载异常的包裹数
+   - 柱状图显示便于对比
+
+#### Prometheus 查询示例
+
+```promql
+# 当前拥堵等级
+sorting_congestion_level
+
+# 实际处理速率（包裹/分钟）
+rate(sorter_parcel_throughput_total[1m]) * 60
+
+# 推荐产能
+sorting_capacity_recommended_parcels_per_minute
+
+# 在途包裹数
+sorting_inflight_parcels
+
+# 平均延迟
+sorting_average_latency_ms
+
+# 超载包裹速率（按原因）
+rate(sorting_overload_parcels_total{reason="Timeout"}[5m]) * 60
+rate(sorting_overload_parcels_total{reason="WindowMiss"}[5m]) * 60
+rate(sorting_overload_parcels_total{reason="CapacityExceeded"}[5m]) * 60
+```
+
+### 告警建议
+
+可以基于以下条件设置 Grafana 告警：
+
+1. **严重拥堵**：`sorting_congestion_level >= 2`
+2. **在途包裹过多**：`sorting_inflight_parcels > 100`
+3. **平均延迟过高**：`sorting_average_latency_ms > 10000`
+4. **超载包裹增多**：`rate(sorting_overload_parcels_total[5m]) > 5`
+
+## Host API 配置接口
+
+### 获取超载策略配置
+
+```bash
+curl http://localhost:5000/api/config/overload-policy
+```
+
+响应示例：
+```json
+{
+  "enabled": true,
+  "forceExceptionOnSevere": true,
+  "forceExceptionOnOverCapacity": false,
+  "forceExceptionOnTimeout": true,
+  "forceExceptionOnWindowMiss": false,
+  "maxInFlightParcels": 120,
+  "minRequiredTtlMs": 500,
+  "minArrivalWindowMs": 200
+}
+```
+
+### 更新超载策略配置
+
+```bash
+curl -X PUT http://localhost:5000/api/config/overload-policy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "forceExceptionOnSevere": true,
+    "forceExceptionOnOverCapacity": false,
+    "forceExceptionOnTimeout": true,
+    "forceExceptionOnWindowMiss": false,
+    "maxInFlightParcels": 150,
+    "minRequiredTtlMs": 600,
+    "minArrivalWindowMs": 250
+  }'
+```
+
+配置更新后立即生效，无需重启服务。
+
 ## 注意事项
 
 1. **不做上游节流**：系统不会阻止用户放包，只能被动处理
@@ -310,8 +428,8 @@ Console.WriteLine($"危险阈值: {capacity.DangerousThresholdParcelsPerMinute:F
 
 ## 后续扩展
 
-- [ ] 集成到 Host 层，提供 API 接口管理超载策略配置
-- [ ] 在 Execution 层实际应用超载策略
-- [ ] 完善 Grafana 仪表盘展示
+- [x] 集成到 Host 层，提供 API 接口管理超载策略配置
+- [x] 在 Execution 层实际应用超载策略
+- [x] 完善 Grafana 仪表盘展示
 - [ ] 添加更多产能测试场景
 - [ ] 支持回流策略（如果拓扑支持）
