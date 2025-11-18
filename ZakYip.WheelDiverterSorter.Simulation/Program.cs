@@ -15,6 +15,14 @@ using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
+using ZakYip.WheelDiverterSorter.Simulation.Demo;
+
+// 检查是否运行策略实验演示 / Check if running strategy experiment demo
+if (args.Length > 0 && args[0] == "strategy-experiment-demo")
+{
+    await StrategyExperimentDemo.RunDemoAsync();
+    return 0;
+}
 
 // 创建Host
 var host = Host.CreateDefaultBuilder(args)

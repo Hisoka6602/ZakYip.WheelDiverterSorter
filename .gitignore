@@ -374,4 +374,4 @@ Data/
 
 # Monitoring backup files
 backup/
-*.tar.gz
+*.tar.gzreports/
