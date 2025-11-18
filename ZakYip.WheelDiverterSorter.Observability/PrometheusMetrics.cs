@@ -819,6 +819,44 @@ public class PrometheusMetrics
     {
         DegradedModeGauge.Set(mode);
     }
+
+    // ========== PR-15: 告警指标 / Alert Metrics ==========
+
+    /// <summary>
+    /// 告警总数（按严重程度和代码分类）
+    /// Total alerts by severity and code
+    /// </summary>
+    private static readonly Counter AlertsTotal = Metrics
+        .CreateCounter("sorting_alerts_total",
+            "告警总数（按严重程度和代码分类）/ Total number of alerts by severity and code",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "severity", "code" }
+            });
+
+    /// <summary>
+    /// 最近一次告警时间（Unix时间戳）
+    /// Last alert timestamp
+    /// </summary>
+    private static readonly Gauge LastAlertTimestamp = Metrics
+        .CreateGauge("sorting_last_alert_timestamp",
+            "最近一次告警时间（Unix时间戳）/ Last alert timestamp (Unix)",
+            new GaugeConfiguration
+            {
+                LabelNames = new[] { "severity", "code" }
+            });
+
+    /// <summary>
+    /// 记录告警事件
+    /// Record alert event
+    /// </summary>
+    /// <param name="severity">告警严重程度 / Alert severity</param>
+    /// <param name="code">告警代码 / Alert code</param>
+    public void RecordAlert(string severity, string code)
+    {
+        AlertsTotal.WithLabels(severity, code).Inc();
+        LastAlertTimestamp.WithLabels(severity, code).Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    }
 }
 
 
