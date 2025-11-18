@@ -730,6 +730,57 @@ public class PrometheusMetrics
     {
         AverageLatencyGauge.Set(latencyMs);
     }
+
+    // ========== PR-09: 系统健康与自检指标 / System Health and Self-Test Metrics ==========
+
+    /// <summary>
+    /// 系统状态 (0=Booting, 1=Ready, 2=Running, 3=Paused, 4=Faulted, 5=EmergencyStop)
+    /// </summary>
+    private static readonly Gauge SystemStateGauge = Metrics
+        .CreateGauge("system_state", 
+            "系统状态 (0=Booting, 1=Ready, 2=Running, 3=Paused, 4=Faulted, 5=EmergencyStop) / System state");
+
+    /// <summary>
+    /// 最近一次自检成功时间（Unix时间戳）
+    /// </summary>
+    private static readonly Gauge SystemSelfTestLastSuccessTimestamp = Metrics
+        .CreateGauge("system_selftest_last_success_timestamp",
+            "最近一次自检成功时间（Unix时间戳）/ Last successful self-test timestamp (Unix)");
+
+    /// <summary>
+    /// 自检失败总次数
+    /// </summary>
+    private static readonly Counter SystemSelfTestFailuresTotal = Metrics
+        .CreateCounter("system_selftest_failures_total",
+            "自检失败总次数 / Total number of self-test failures");
+
+    /// <summary>
+    /// 设置系统状态
+    /// Set system state
+    /// </summary>
+    /// <param name="state">系统状态枚举值</param>
+    public void SetSystemState(int state)
+    {
+        SystemStateGauge.Set(state);
+    }
+
+    /// <summary>
+    /// 记录自检成功
+    /// Record successful self-test
+    /// </summary>
+    public void RecordSelfTestSuccess()
+    {
+        SystemSelfTestLastSuccessTimestamp.Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    }
+
+    /// <summary>
+    /// 记录自检失败
+    /// Record self-test failure
+    /// </summary>
+    public void RecordSelfTestFailure()
+    {
+        SystemSelfTestFailuresTotal.Inc();
+    }
 }
 
 
