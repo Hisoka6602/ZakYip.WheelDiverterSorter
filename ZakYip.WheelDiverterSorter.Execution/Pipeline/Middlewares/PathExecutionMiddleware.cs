@@ -78,6 +78,8 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                     {
                         ItemId = context.ParcelId,
                         BarCode = context.Barcode,
+                        TargetChuteId = context.TargetChuteId,
+                        ActualChuteId = executionResult.ActualChuteId,
                         OccurredAt = DateTimeOffset.UtcNow,
                         Stage = "ExceptionDiverted",
                         Source = "Execution",
@@ -90,6 +92,8 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                     {
                         ItemId = context.ParcelId,
                         BarCode = context.Barcode,
+                        TargetChuteId = context.TargetChuteId,
+                        ActualChuteId = executionResult.ActualChuteId,
                         OccurredAt = DateTimeOffset.UtcNow,
                         Stage = "Diverted",
                         Source = "Execution",
@@ -111,6 +115,8 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                 {
                     ItemId = context.ParcelId,
                     BarCode = context.Barcode,
+                    TargetChuteId = context.TargetChuteId,
+                    ActualChuteId = executionResult.ActualChuteId,
                     OccurredAt = DateTimeOffset.UtcNow,
                     Stage = "ExceptionDiverted",
                     Source = "Execution",
@@ -146,6 +152,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
             {
                 ItemId = context.ParcelId,
                 BarCode = context.Barcode,
+                TargetChuteId = context.TargetChuteId,
                 OccurredAt = DateTimeOffset.UtcNow,
                 Stage = "ExceptionDiverted",
                 Source = "Execution",
