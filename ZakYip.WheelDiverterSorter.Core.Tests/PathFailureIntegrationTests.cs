@@ -58,10 +58,10 @@ public class PathFailureIntegrationTests
         Assert.False(result.IsSuccess);
         Assert.Equal(exceptionChuteId, result.ActualChuteId);
         Assert.NotNull(capturedFailureEvent);
-        Assert.Equal(parcelId, capturedFailureEvent.ParcelId);
-        Assert.Equal(path, capturedFailureEvent.OriginalPath);
+        Assert.Equal(parcelId, capturedFailureEvent.Value.ParcelId);
+        Assert.Equal(path, capturedFailureEvent.Value.OriginalPath);
         Assert.NotNull(capturedSwitchEvent);
-        Assert.Equal(backupPath, capturedSwitchEvent.BackupPath);
+        Assert.Equal(backupPath, capturedSwitchEvent.Value.BackupPath);
     }
     
     [Fact]
@@ -103,9 +103,9 @@ public class PathFailureIntegrationTests
         
         // Assert
         Assert.NotNull(capturedSegmentFailureEvent);
-        Assert.Equal(parcelId, capturedSegmentFailureEvent.ParcelId);
-        Assert.Equal(result.FailedSegment, capturedSegmentFailureEvent.FailedSegment);
-        Assert.Equal(targetChuteId, capturedSegmentFailureEvent.OriginalTargetChuteId);
+        Assert.Equal(parcelId, capturedSegmentFailureEvent.Value.ParcelId);
+        Assert.Equal(result.FailedSegment, capturedSegmentFailureEvent.Value.FailedSegment);
+        Assert.Equal(targetChuteId, capturedSegmentFailureEvent.Value.OriginalTargetChuteId);
     }
     
     [Fact]

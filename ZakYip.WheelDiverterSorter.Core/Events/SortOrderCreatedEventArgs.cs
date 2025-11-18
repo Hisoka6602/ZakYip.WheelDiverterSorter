@@ -5,7 +5,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Events;
 /// <summary>
 /// 分拣指令创建事件载荷，当系统为包裹生成分拣指令时触发
 /// </summary>
-public record SortOrderCreatedEventArgs
+public readonly record struct SortOrderCreatedEventArgs
 {
     /// <summary>
     /// 包裹标识

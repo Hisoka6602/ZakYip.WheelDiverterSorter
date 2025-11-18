@@ -5,7 +5,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Events;
 /// <summary>
 /// 路径段执行失败事件参数
 /// </summary>
-public class PathSegmentExecutionFailedEventArgs : EventArgs
+public readonly record struct PathSegmentExecutionFailedEventArgs
 {
     /// <summary>
     /// 包裹标识

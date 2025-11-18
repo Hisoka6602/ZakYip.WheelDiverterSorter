@@ -5,7 +5,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Events;
 /// <summary>
 /// 路径切换事件参数
 /// </summary>
-public class PathSwitchedEventArgs : EventArgs
+public readonly record struct PathSwitchedEventArgs
 {
     /// <summary>
     /// 包裹标识

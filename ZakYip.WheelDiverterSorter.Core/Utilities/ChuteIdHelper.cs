@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace ZakYip.WheelDiverterSorter.Core.Utilities;
 
 /// <summary>
@@ -48,6 +50,7 @@ public static class ChuteIdHelper
     /// </summary>
     /// <param name="chuteId">字符串格口ID</param>
     /// <returns>转换后的整数ID，如果失败则返回null</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static int? ParseChuteId(string? chuteId)
     {
         return TryParseChuteId(chuteId, out var result) ? result : null;
@@ -58,6 +61,7 @@ public static class ChuteIdHelper
     /// </summary>
     /// <param name="chuteId">整数格口ID</param>
     /// <returns>字符串格式的格口ID</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static string FormatChuteId(int chuteId)
     {
         return chuteId.ToString();
