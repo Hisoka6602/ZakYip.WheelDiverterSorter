@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -12,18 +13,40 @@ public static class SystemStateServiceExtensions
     /// 添加系统状态管理服务
     /// </summary>
     /// <param name="services">服务集合</param>
-    /// <param name="initialState">初始状态（默认为Ready）</param>
+    /// <param name="initialState">初始状态（默认为Ready，如果启用自检则为Booting）</param>
+    /// <param name="enableSelfTest">是否启用启动自检（默认false，保持向后兼容）</param>
     /// <returns>服务集合</returns>
     public static IServiceCollection AddSystemStateManagement(
         this IServiceCollection services,
-        SystemState initialState = SystemState.Ready)
+        SystemState initialState = SystemState.Ready,
+        bool enableSelfTest = false)
     {
-        // 注册系统状态管理器为单例
-        services.AddSingleton<ISystemStateManager>(sp =>
+        if (enableSelfTest)
         {
-            var logger = sp.GetRequiredService<ILogger<SystemStateManager>>();
-            return new SystemStateManager(logger, initialState);
-        });
+            // 启用自检模式：注册SystemStateManager和装饰器
+            services.AddSingleton<SystemStateManager>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<SystemStateManager>>();
+                return new SystemStateManager(logger, SystemState.Booting);
+            });
+
+            services.AddSingleton<ISystemStateManager>(sp =>
+            {
+                var inner = sp.GetRequiredService<SystemStateManager>();
+                var coordinator = sp.GetService<ISelfTestCoordinator>();
+                var logger = sp.GetRequiredService<ILogger<SystemStateManagerWithBoot>>();
+                return new SystemStateManagerWithBoot(inner, coordinator, logger);
+            });
+        }
+        else
+        {
+            // 传统模式：直接注册SystemStateManager（向后兼容）
+            services.AddSingleton<ISystemStateManager>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<SystemStateManager>>();
+                return new SystemStateManager(logger, initialState);
+            });
+        }
 
         return services;
     }

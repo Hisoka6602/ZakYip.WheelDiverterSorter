@@ -50,6 +50,21 @@ public interface ISystemStateManager
     /// <param name="count">获取最近的转移记录数量</param>
     /// <returns>状态转移历史记录</returns>
     IReadOnlyList<StateTransitionRecord> GetTransitionHistory(int count = 10);
+
+    /// <summary>
+    /// 执行系统启动自检
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>自检报告</returns>
+    /// <remarks>
+    /// 将系统状态设为Booting，执行自检协调器，根据结果切换到Ready或Faulted状态。
+    /// </remarks>
+    Task<ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport> BootAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 获取最近一次自检报告
+    /// </summary>
+    ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport? LastSelfTestReport { get; }
 }
 
 /// <summary>

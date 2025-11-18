@@ -191,8 +191,22 @@ builder.Services.AddSingleton<OptimizedSortingService>();
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
 
-// 注册系统状态管理服务
-builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Ready);
+// 注册健康检查和自检服务（PR-09）
+// 默认启用自检功能，可通过配置禁用
+var enableHealthCheck = builder.Configuration.GetValue<bool>("HealthCheck:Enabled", true);
+if (enableHealthCheck)
+{
+    builder.Services.AddHealthCheckServices();
+    // 注册系统状态管理服务（带自检）
+    builder.Services.AddSystemStateManagement(
+        ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Booting, 
+        enableSelfTest: true);
+}
+else
+{
+    // 注册系统状态管理服务（不带自检，向后兼容）
+    builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Ready);
+}
 
 // 注册并发控制服务
 builder.Services.AddConcurrencyControl(builder.Configuration);
