@@ -3,7 +3,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Events;
 /// <summary>
 /// 包裹扫描事件载荷，当包裹通过扫描器时触发
 /// </summary>
-public record ParcelScannedEventArgs
+public readonly record struct ParcelScannedEventArgs
 {
     /// <summary>
     /// 包裹条码

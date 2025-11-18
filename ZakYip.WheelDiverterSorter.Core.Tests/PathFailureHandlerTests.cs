@@ -57,11 +57,11 @@ public class PathFailureHandlerTests
 
         // Assert
         Assert.NotNull(raisedEventArgs);
-        Assert.Equal(parcelId, raisedEventArgs.ParcelId);
-        Assert.Equal(segment, raisedEventArgs.FailedSegment);
-        Assert.Equal(path.TargetChuteId, raisedEventArgs.OriginalTargetChuteId);
-        Assert.Equal(failureReason, raisedEventArgs.FailureReason);
-        Assert.Equal(segment.DiverterId, raisedEventArgs.FailurePosition);
+        Assert.Equal(parcelId, raisedEventArgs.Value.ParcelId);
+        Assert.Equal(segment, raisedEventArgs.Value.FailedSegment);
+        Assert.Equal(path.TargetChuteId, raisedEventArgs.Value.OriginalTargetChuteId);
+        Assert.Equal(failureReason, raisedEventArgs.Value.FailureReason);
+        Assert.Equal(segment.DiverterId, raisedEventArgs.Value.FailurePosition);
     }
 
     [Fact]
@@ -81,11 +81,11 @@ public class PathFailureHandlerTests
 
         // Assert
         Assert.NotNull(raisedEventArgs);
-        Assert.Equal(parcelId, raisedEventArgs.ParcelId);
-        Assert.Equal(path, raisedEventArgs.OriginalPath);
-        Assert.Equal(segment, raisedEventArgs.FailedSegment);
-        Assert.Equal(failureReason, raisedEventArgs.FailureReason);
-        Assert.Equal(path.FallbackChuteId, raisedEventArgs.ActualChuteId);
+        Assert.Equal(parcelId, raisedEventArgs.Value.ParcelId);
+        Assert.Equal(path, raisedEventArgs.Value.OriginalPath);
+        Assert.Equal(segment, raisedEventArgs.Value.FailedSegment);
+        Assert.Equal(failureReason, raisedEventArgs.Value.FailureReason);
+        Assert.Equal(path.FallbackChuteId, raisedEventArgs.Value.ActualChuteId);
     }
 
     [Fact]
@@ -104,11 +104,11 @@ public class PathFailureHandlerTests
 
         // Assert
         Assert.NotNull(raisedEventArgs);
-        Assert.Equal(parcelId, raisedEventArgs.ParcelId);
-        Assert.Equal(path, raisedEventArgs.OriginalPath);
-        Assert.Null(raisedEventArgs.FailedSegment);
-        Assert.Equal(failureReason, raisedEventArgs.FailureReason);
-        Assert.Equal(path.FallbackChuteId, raisedEventArgs.ActualChuteId);
+        Assert.Equal(parcelId, raisedEventArgs.Value.ParcelId);
+        Assert.Equal(path, raisedEventArgs.Value.OriginalPath);
+        Assert.Null(raisedEventArgs.Value.FailedSegment);
+        Assert.Equal(failureReason, raisedEventArgs.Value.FailureReason);
+        Assert.Equal(path.FallbackChuteId, raisedEventArgs.Value.ActualChuteId);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class PathFailureHandlerTests
 
         // Assert
         Assert.NotNull(raisedEventArgs);
-        Assert.Equal(segment, raisedEventArgs.FailedSegment);
+        Assert.Equal(segment, raisedEventArgs.Value.FailedSegment);
     }
 
     [Fact]
@@ -152,10 +152,10 @@ public class PathFailureHandlerTests
 
         // Assert
         Assert.NotNull(raisedEventArgs);
-        Assert.Equal(parcelId, raisedEventArgs.ParcelId);
-        Assert.Equal(path, raisedEventArgs.OriginalPath);
-        Assert.Equal(backupPath, raisedEventArgs.BackupPath);
-        Assert.Equal(failureReason, raisedEventArgs.SwitchReason);
+        Assert.Equal(parcelId, raisedEventArgs.Value.ParcelId);
+        Assert.Equal(path, raisedEventArgs.Value.OriginalPath);
+        Assert.Equal(backupPath, raisedEventArgs.Value.BackupPath);
+        Assert.Equal(failureReason, raisedEventArgs.Value.SwitchReason);
     }
 
     [Fact]
