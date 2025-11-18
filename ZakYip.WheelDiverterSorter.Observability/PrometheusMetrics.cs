@@ -537,4 +537,56 @@ public class PrometheusMetrics
     {
         SystemStateChangesTotal.WithLabels(fromState, toState).Inc();
     }
+
+    // ========== PR-07 路径失败与重规划指标 / PR-07 Path Failure and Rerouting Metrics ==========
+
+    // 路径失败总数（按原因分类）
+    // Path failures by reason
+    private static readonly Counter PathFailuresTotal = Metrics
+        .CreateCounter("sorting_path_failures_total",
+            "路径失败总数（按原因分类）/ Total number of path failures by reason",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "reason" }
+            });
+
+    // 路径重规划总数
+    // Path reroutes total
+    private static readonly Counter PathReroutesTotal = Metrics
+        .CreateCounter("sorting_path_reroutes_total",
+            "路径重规划总数 / Total number of path reroutes");
+
+    // 重规划成功总数
+    // Reroute success total
+    private static readonly Counter RerouteSuccessTotal = Metrics
+        .CreateCounter("sorting_reroute_success_total",
+            "通过重规划成功进入正常格口的总数 / Total number of successful reroutes to normal chute");
+
+    /// <summary>
+    /// 记录路径失败（按原因分类）
+    /// Record path failure by reason
+    /// </summary>
+    /// <param name="reason">失败原因：SensorTimeout, UnexpectedDirection, UpstreamBlocked, PhysicalConstraint, etc.</param>
+    public void RecordPathFailure(string reason)
+    {
+        PathFailuresTotal.WithLabels(reason).Inc();
+    }
+
+    /// <summary>
+    /// 记录路径重规划尝试
+    /// Record path reroute attempt
+    /// </summary>
+    public void RecordPathReroute()
+    {
+        PathReroutesTotal.Inc();
+    }
+
+    /// <summary>
+    /// 记录重规划成功
+    /// Record reroute success
+    /// </summary>
+    public void RecordRerouteSuccess()
+    {
+        RerouteSuccessTotal.Inc();
+    }
 }
