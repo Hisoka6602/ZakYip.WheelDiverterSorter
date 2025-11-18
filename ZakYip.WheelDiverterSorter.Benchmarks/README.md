@@ -46,6 +46,42 @@ dotnet run -c Release --filter *GeneratePath_SingleSegment*
 - `ExecutePath_TwoSegments`: 执行两段路径
 - `ExecutePath_Batch10`: 批量执行10个路径
 
+### OverloadPolicyBenchmarks
+
+测试超载策略评估性能：
+
+- `Evaluate_Normal`: 正常场景评估
+- `Evaluate_Moderate`: 预警拥堵场景评估
+- `Evaluate_Severe`: 严重拥堵场景评估
+- `Evaluate_OverCapacity`: 超容量场景评估
+- `Evaluate_Timeout`: 超时场景评估
+- `Evaluate_Batch100`: 批量评估100次
+- `Evaluate_Batch1000`: 批量评估1000次（高频场景）
+- `CreatePolicy`: 策略创建开销测试
+
+### HighLoadBenchmarks
+
+测试高负载场景性能（500-1000包裹/分钟）：
+
+- `Load_500ParcelsPerMinute`: 模拟500包裹/分钟
+- `Load_1000ParcelsPerMinute`: 模拟1000包裹/分钟
+- `Load_PeakLoad_1500ParcelsPerMinute`: 峰值负载
+- `EndToEnd_500ParcelsPerMinute`: 端到端性能测试
+- `ConcurrentExecution_HighLoad`: 高并发执行测试
+- `BatchPathGeneration_*`: 批量路径生成测试
+- `MixedLoad_GenerationAndExecution`: 混合负载测试
+
+### PerformanceBottleneckBenchmarks
+
+性能瓶颈分析基准测试：
+
+- **数据库访问**: `DatabaseRead_*`, `DatabaseWrite_*`
+- **路径生成**: `PathGeneration_*`
+- **路径执行**: `PathExecution_*`
+- **内存分配**: `MemoryAllocation_*`
+- **端到端**: `EndToEnd_*`
+- **错误处理**: `ErrorHandling_*`
+
 ## 理解基准测试结果
 
 BenchmarkDotNet 会输出以下指标：
