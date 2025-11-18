@@ -1,0 +1,4 @@
+ProfileName,Description,TotalParcels,SuccessParcels,ExceptionParcels,SuccessRatio,ExceptionRatio,OverloadEvents,AvgLatencyMs,MaxLatencyMs
+Baseline,基线策略（生产默认配置）,500,476,24,0.9537,0.0463,38,525.00,1304.00
+AggressiveOverload,更激进的超载策略（更低阈值，更早触发异常）,500,483,17,0.9672,0.0328,74,380.00,1421.00
+Conservative,更保守的策略（更高阈值，更少触发异常）,500,458,42,0.9177,0.0823,77,398.00,1556.00
