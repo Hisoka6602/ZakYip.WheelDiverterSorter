@@ -21,7 +21,6 @@
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Ingress\ZakYip.WheelDiverterSorter.Ingress.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Observability\ZakYip.WheelDiverterSorter.Observability.csproj" />
-    <ProjectReference Include="..\ZakYip.Sorting.Core\ZakYip.Sorting.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

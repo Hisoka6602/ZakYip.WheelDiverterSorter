@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj" />
-    <ProjectReference Include="..\..\ZakYip.Sorting.Core\ZakYip.Sorting.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
