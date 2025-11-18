@@ -317,7 +317,47 @@ if (!executionResult.IsSuccess)
 - ✅ **完整日志**：记录失败原因、位置、时间等详细信息
 - ✅ **事件通知**：通过事件机制通知监控系统
 
+## 系统健康与自检
+
+系统提供标准化的健康检查端点和启动自检管线，用于验证系统组件的健康状态。
+
+### 健康检查端点
+
+#### `/healthz` - 进程级健康检查
+- **用途**：用于Kubernetes/负载均衡器的存活检查
+- **返回**：简单的健康状态（Healthy/Unhealthy）
+- **特点**：轻量级，不依赖驱动自检结果
+
+#### `/health/line` - 线体级健康检查
+- **用途**：详细的系统健康状态查询
+- **返回**：完整的自检报告（驱动器、上游系统、配置）
+- **HTTP状态码**：
+  - `200 OK`：系统Ready/Running且自检成功
+  - `503 ServiceUnavailable`：系统Faulted/EmergencyStop或自检失败
+
+### 启动自检内容
+
+系统启动时自动执行以下检查：
+
+1. **驱动器自检**：检查摆轮驱动器、IO板等关键设备
+2. **上游系统检查**：验证RuleEngine等上游连接
+3. **配置验证**：检查系统配置、拓扑配置的有效性
+
+自检结果影响系统状态：
+- 成功 → 系统进入`Ready`状态
+- 失败 → 系统进入`Faulted`状态，记录详细错误信息
+
+### Prometheus指标
+
+系统暴露以下健康指标：
+- `system_state`：当前系统状态
+- `system_selftest_last_success_timestamp`：最近一次自检成功时间
+- `system_selftest_failures_total`：自检失败总次数
+
+详细文档：[PR09_HEALTHCHECK_AND_SELFTEST_GUIDE.md](./PR09_HEALTHCHECK_AND_SELFTEST_GUIDE.md)
+
 ## 系统架构
+
 
 ```
 ZakYip.WheelDiverterSorter/
