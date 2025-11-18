@@ -222,6 +222,9 @@ builder.Services.AddConcurrencyControl(builder.Configuration);
 // 装饰现有的路径执行器，添加并发控制功能
 builder.Services.DecorateWithConcurrencyControl();
 
+// PR-14: 注册节点健康服务
+builder.Services.AddNodeHealthServices();
+
 builder.Services.AddSingleton<DebugSortService>();
 
 // 注册传感器服务（使用工厂模式，支持多厂商）
