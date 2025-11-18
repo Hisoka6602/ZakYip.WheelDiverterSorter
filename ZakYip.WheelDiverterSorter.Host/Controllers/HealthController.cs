@@ -1,4 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
 
@@ -14,15 +17,24 @@ public class HealthController : ControllerBase
     private readonly ISystemStateManager _stateManager;
     private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<HealthController> _logger;
+    private readonly ISystemConfigurationRepository? _systemConfigRepository;
+    private readonly DiagnosticsOptions? _diagnosticsOptions;
+    private readonly AlertHistoryService? _alertHistoryService;
 
     public HealthController(
         ISystemStateManager stateManager,
         ILogger<HealthController> logger,
-        PrometheusMetrics? metrics = null)
+        PrometheusMetrics? metrics = null,
+        ISystemConfigurationRepository? systemConfigRepository = null,
+        IOptions<DiagnosticsOptions>? diagnosticsOptions = null,
+        AlertHistoryService? alertHistoryService = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _metrics = metrics;
+        _systemConfigRepository = systemConfigRepository;
+        _diagnosticsOptions = diagnosticsOptions?.Value;
+        _alertHistoryService = alertHistoryService;
     }
 
     /// <summary>
@@ -131,7 +143,18 @@ public class HealthController : ControllerBase
                 } : null,
                 DegradationMode = degradationMode,
                 DegradedNodesCount = degradedNodes?.Count ?? 0,
-                DegradedNodes = degradedNodes
+                DegradedNodes = degradedNodes,
+                // PR-23: 新增诊断和告警信息
+                DiagnosticsLevel = _diagnosticsOptions?.Level.ToString() ?? "Basic",
+                ConfigVersion = _systemConfigRepository?.Get()?.ConfigName, // 使用ConfigName作为版本标识
+                RecentCriticalAlerts = _alertHistoryService?.GetRecentCriticalAlerts(5)
+                    .Select(a => new AlertSummary
+                    {
+                        AlertCode = a.AlertCode,
+                        Severity = a.Severity.ToString(),
+                        Message = a.Message,
+                        RaisedAt = a.RaisedAt
+                    }).ToList()
             };
 
             // 判断HTTP状态码
@@ -220,6 +243,15 @@ public class LineHealthResponse
 
     /// <summary>降级节点列表摘要（PR-14：节点级降级）</summary>
     public List<NodeHealthInfo>? DegradedNodes { get; init; }
+
+    /// <summary>当前诊断级别（PR-23：可观测性）</summary>
+    public string? DiagnosticsLevel { get; init; }
+
+    /// <summary>配置版本号（PR-23：可观测性）</summary>
+    public string? ConfigVersion { get; init; }
+
+    /// <summary>最近Critical告警摘要（PR-23：可观测性）</summary>
+    public List<AlertSummary>? RecentCriticalAlerts { get; init; }
 }
 
 /// <summary>
@@ -278,4 +310,15 @@ public class NodeHealthInfo
     public string? ErrorCode { get; init; }
     public string? ErrorMessage { get; init; }
     public DateTimeOffset CheckedAt { get; init; }
+}
+
+/// <summary>
+/// 告警摘要信息（PR-23：可观测性）
+/// </summary>
+public class AlertSummary
+{
+    public required string AlertCode { get; init; }
+    public required string Severity { get; init; }
+    public required string Message { get; init; }
+    public DateTimeOffset RaisedAt { get; init; }
 }
