@@ -484,6 +484,214 @@ public class ConfigurationController : ControllerBase
     }
 
     #endregion
+
+    #region 放包节流配置
+
+    /// <summary>
+    /// 获取放包节流配置
+    /// </summary>
+    /// <returns>放包节流配置</returns>
+    /// <response code="200">成功返回节流配置</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("release-throttle")]
+    [SwaggerOperation(
+        Summary = "获取放包节流配置",
+        Description = "返回当前的拥堵检测与放包节流配置",
+        OperationId = "GetReleaseThrottle",
+        Tags = new[] { "配置管理" }
+    )]
+    [SwaggerResponse(200, "成功返回节流配置", typeof(ReleaseThrottleConfigResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(ReleaseThrottleConfigResponse), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<ReleaseThrottleConfigResponse> GetReleaseThrottle()
+    {
+        try
+        {
+            var config = _systemConfigRepository.Get();
+            return Ok(new ReleaseThrottleConfigResponse
+            {
+                WarningThresholdLatencyMs = config.ThrottleWarningLatencyMs,
+                SevereThresholdLatencyMs = config.ThrottleSevereLatencyMs,
+                WarningThresholdSuccessRate = config.ThrottleWarningSuccessRate,
+                SevereThresholdSuccessRate = config.ThrottleSevereSuccessRate,
+                WarningThresholdInFlightParcels = config.ThrottleWarningInFlightParcels,
+                SevereThresholdInFlightParcels = config.ThrottleSevereInFlightParcels,
+                NormalReleaseIntervalMs = config.ThrottleNormalIntervalMs,
+                WarningReleaseIntervalMs = config.ThrottleWarningIntervalMs,
+                SevereReleaseIntervalMs = config.ThrottleSevereIntervalMs,
+                ShouldPauseOnSevere = config.ThrottleShouldPauseOnSevere,
+                EnableThrottling = config.ThrottleEnabled,
+                MetricsTimeWindowSeconds = config.ThrottleMetricsWindowSeconds
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取放包节流配置失败");
+            return StatusCode(500, new { message = "获取放包节流配置失败" });
+        }
+    }
+
+    /// <summary>
+    /// 更新放包节流配置
+    /// </summary>
+    /// <param name="request">放包节流配置请求</param>
+    /// <returns>更新后的节流配置</returns>
+    /// <response code="200">更新成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     PUT /api/config/release-throttle
+    ///     {
+    ///         "warningThresholdLatencyMs": 5000,
+    ///         "severeThresholdLatencyMs": 10000,
+    ///         "warningThresholdSuccessRate": 0.9,
+    ///         "severeThresholdSuccessRate": 0.7,
+    ///         "warningThresholdInFlightParcels": 50,
+    ///         "severeThresholdInFlightParcels": 100,
+    ///         "normalReleaseIntervalMs": 300,
+    ///         "warningReleaseIntervalMs": 500,
+    ///         "severeReleaseIntervalMs": 1000,
+    ///         "shouldPauseOnSevere": false,
+    ///         "enableThrottling": true,
+    ///         "metricsTimeWindowSeconds": 60
+    ///     }
+    /// 
+    /// 配置说明：
+    /// - 拥堵检测基于三个维度：延迟、成功率、在途包裹数
+    /// - 任一维度达到阈值即触发相应拥堵级别
+    /// - 根据拥堵级别动态调整放包间隔
+    /// - 可配置严重拥堵时是否暂停放包
+    /// </remarks>
+    [HttpPut("release-throttle")]
+    [SwaggerOperation(
+        Summary = "更新放包节流配置",
+        Description = "更新拥堵检测与放包节流配置，配置立即生效",
+        OperationId = "UpdateReleaseThrottle",
+        Tags = new[] { "配置管理" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(ReleaseThrottleConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(ReleaseThrottleConfigResponse), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<ReleaseThrottleConfigResponse> UpdateReleaseThrottle([FromBody] ReleaseThrottleConfigRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效", errors });
+            }
+
+            // 验证延迟阈值
+            if (request.WarningThresholdLatencyMs < 1000 || request.WarningThresholdLatencyMs > 60000)
+            {
+                return BadRequest(new { message = "警告延迟阈值必须在1000-60000毫秒之间" });
+            }
+
+            if (request.SevereThresholdLatencyMs < request.WarningThresholdLatencyMs || request.SevereThresholdLatencyMs > 120000)
+            {
+                return BadRequest(new { message = "严重延迟阈值必须大于警告阈值且不超过120000毫秒" });
+            }
+
+            // 验证成功率阈值
+            if (request.WarningThresholdSuccessRate < 0.5 || request.WarningThresholdSuccessRate > 1.0)
+            {
+                return BadRequest(new { message = "警告成功率阈值必须在0.5-1.0之间" });
+            }
+
+            if (request.SevereThresholdSuccessRate < 0.0 || request.SevereThresholdSuccessRate > request.WarningThresholdSuccessRate)
+            {
+                return BadRequest(new { message = "严重成功率阈值必须小于警告阈值且不低于0.0" });
+            }
+
+            // 验证在途包裹数阈值
+            if (request.WarningThresholdInFlightParcels < 10 || request.WarningThresholdInFlightParcels > 1000)
+            {
+                return BadRequest(new { message = "警告在途包裹数阈值必须在10-1000之间" });
+            }
+
+            if (request.SevereThresholdInFlightParcels < request.WarningThresholdInFlightParcels || request.SevereThresholdInFlightParcels > 2000)
+            {
+                return BadRequest(new { message = "严重在途包裹数阈值必须大于警告阈值且不超过2000" });
+            }
+
+            // 验证放包间隔
+            if (request.NormalReleaseIntervalMs < 100 || request.NormalReleaseIntervalMs > 5000)
+            {
+                return BadRequest(new { message = "正常放包间隔必须在100-5000毫秒之间" });
+            }
+
+            if (request.WarningReleaseIntervalMs < request.NormalReleaseIntervalMs || request.WarningReleaseIntervalMs > 10000)
+            {
+                return BadRequest(new { message = "警告放包间隔必须大于正常间隔且不超过10000毫秒" });
+            }
+
+            if (request.SevereReleaseIntervalMs < request.WarningReleaseIntervalMs || request.SevereReleaseIntervalMs > 30000)
+            {
+                return BadRequest(new { message = "严重放包间隔必须大于警告间隔且不超过30000毫秒" });
+            }
+
+            // 验证指标时间窗口
+            if (request.MetricsTimeWindowSeconds < 10 || request.MetricsTimeWindowSeconds > 600)
+            {
+                return BadRequest(new { message = "指标时间窗口必须在10-600秒之间" });
+            }
+
+            // 获取当前配置并更新
+            var config = _systemConfigRepository.Get();
+            config.ThrottleWarningLatencyMs = request.WarningThresholdLatencyMs;
+            config.ThrottleSevereLatencyMs = request.SevereThresholdLatencyMs;
+            config.ThrottleWarningSuccessRate = request.WarningThresholdSuccessRate;
+            config.ThrottleSevereSuccessRate = request.SevereThresholdSuccessRate;
+            config.ThrottleWarningInFlightParcels = request.WarningThresholdInFlightParcels;
+            config.ThrottleSevereInFlightParcels = request.SevereThresholdInFlightParcels;
+            config.ThrottleNormalIntervalMs = request.NormalReleaseIntervalMs;
+            config.ThrottleWarningIntervalMs = request.WarningReleaseIntervalMs;
+            config.ThrottleSevereIntervalMs = request.SevereReleaseIntervalMs;
+            config.ThrottleShouldPauseOnSevere = request.ShouldPauseOnSevere;
+            config.ThrottleEnabled = request.EnableThrottling;
+            config.ThrottleMetricsWindowSeconds = request.MetricsTimeWindowSeconds;
+            config.UpdatedAt = DateTime.UtcNow;
+
+            _systemConfigRepository.Update(config);
+
+            _logger.LogInformation(
+                "放包节流配置已更新: EnableThrottling={EnableThrottling}, NormalInterval={NormalInterval}ms",
+                request.EnableThrottling,
+                request.NormalReleaseIntervalMs);
+
+            return Ok(new ReleaseThrottleConfigResponse
+            {
+                WarningThresholdLatencyMs = config.ThrottleWarningLatencyMs,
+                SevereThresholdLatencyMs = config.ThrottleSevereLatencyMs,
+                WarningThresholdSuccessRate = config.ThrottleWarningSuccessRate,
+                SevereThresholdSuccessRate = config.ThrottleSevereSuccessRate,
+                WarningThresholdInFlightParcels = config.ThrottleWarningInFlightParcels,
+                SevereThresholdInFlightParcels = config.ThrottleSevereInFlightParcels,
+                NormalReleaseIntervalMs = config.ThrottleNormalIntervalMs,
+                WarningReleaseIntervalMs = config.ThrottleWarningIntervalMs,
+                SevereReleaseIntervalMs = config.ThrottleSevereIntervalMs,
+                ShouldPauseOnSevere = config.ThrottleShouldPauseOnSevere,
+                EnableThrottling = config.ThrottleEnabled,
+                MetricsTimeWindowSeconds = config.ThrottleMetricsWindowSeconds
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新放包节流配置失败");
+            return StatusCode(500, new { message = "更新放包节流配置失败" });
+        }
+    }
+
+    #endregion
 }
 
 /// <summary>

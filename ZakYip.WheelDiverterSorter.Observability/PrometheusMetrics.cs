@@ -589,4 +589,82 @@ public class PrometheusMetrics
     {
         RerouteSuccessTotal.Inc();
     }
+
+    // ========== PR-08: 拥堵检测与背压控制指标 / Congestion Detection and Throttling Metrics ==========
+
+    /// <summary>
+    /// 拥堵级别 (0=Normal, 1=Warning, 2=Severe)
+    /// Congestion level gauge
+    /// </summary>
+    private static readonly Gauge CongestionLevelGauge = Metrics
+        .CreateGauge("sorting_congestion_level", 
+            "拥堵级别 (0=正常, 1=警告, 2=严重) / Congestion level (0=Normal, 1=Warning, 2=Severe)");
+
+    /// <summary>
+    /// 当前放包间隔（毫秒）
+    /// Current release interval in milliseconds
+    /// </summary>
+    private static readonly Gauge ReleaseIntervalGauge = Metrics
+        .CreateGauge("sorting_release_interval_ms",
+            "当前放包间隔（毫秒）/ Current release interval in milliseconds");
+
+    /// <summary>
+    /// 节流事件总数
+    /// Total number of throttle events
+    /// </summary>
+    private static readonly Counter ThrottleEventsCounter = Metrics
+        .CreateCounter("sorting_throttle_events_total",
+            "节流/暂停事件总数 / Total number of throttle/pause events",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "action" } // "throttle", "pause", "resume"
+            });
+
+    /// <summary>
+    /// 当前在途包裹数
+    /// Current number of in-flight parcels
+    /// </summary>
+    private static readonly Gauge InFlightParcelsGauge = Metrics
+        .CreateGauge("sorting_inflight_parcels",
+            "当前在途包裹数（已进入但未完成分拣）/ Current number of in-flight parcels (entered but not sorted)");
+
+    /// <summary>
+    /// 设置拥堵级别
+    /// Set congestion level
+    /// </summary>
+    /// <param name="level">拥堵级别 (0=Normal, 1=Warning, 2=Severe)</param>
+    public void SetCongestionLevel(int level)
+    {
+        CongestionLevelGauge.Set(level);
+    }
+
+    /// <summary>
+    /// 设置当前放包间隔
+    /// Set current release interval
+    /// </summary>
+    /// <param name="intervalMs">放包间隔（毫秒）</param>
+    public void SetReleaseInterval(int intervalMs)
+    {
+        ReleaseIntervalGauge.Set(intervalMs);
+    }
+
+    /// <summary>
+    /// 记录节流事件
+    /// Record throttle event
+    /// </summary>
+    /// <param name="action">动作类型：throttle/pause/resume</param>
+    public void RecordThrottleEvent(string action)
+    {
+        ThrottleEventsCounter.WithLabels(action).Inc();
+    }
+
+    /// <summary>
+    /// 设置当前在途包裹数
+    /// Set current in-flight parcels count
+    /// </summary>
+    /// <param name="count">在途包裹数</param>
+    public void SetInFlightParcels(int count)
+    {
+        InFlightParcelsGauge.Set(count);
+    }
 }

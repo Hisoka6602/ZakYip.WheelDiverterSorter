@@ -131,6 +131,68 @@ public class SystemConfiguration
     /// </remarks>
     public List<int> AvailableChuteIds { get; set; } = new();
 
+    // ========== PR-08: 拥堵检测与背压控制配置 / Congestion Detection and Throttling Config ==========
+
+    /// <summary>
+    /// 启用节流功能
+    /// </summary>
+    public bool ThrottleEnabled { get; set; } = true;
+
+    /// <summary>
+    /// 警告级别延迟阈值（毫秒）
+    /// </summary>
+    public int ThrottleWarningLatencyMs { get; set; } = 5000;
+
+    /// <summary>
+    /// 严重级别延迟阈值（毫秒）
+    /// </summary>
+    public int ThrottleSevereLatencyMs { get; set; } = 10000;
+
+    /// <summary>
+    /// 警告级别成功率阈值（0.0-1.0）
+    /// </summary>
+    public double ThrottleWarningSuccessRate { get; set; } = 0.9;
+
+    /// <summary>
+    /// 严重级别成功率阈值（0.0-1.0）
+    /// </summary>
+    public double ThrottleSevereSuccessRate { get; set; } = 0.7;
+
+    /// <summary>
+    /// 警告级别在途包裹数阈值
+    /// </summary>
+    public int ThrottleWarningInFlightParcels { get; set; } = 50;
+
+    /// <summary>
+    /// 严重级别在途包裹数阈值
+    /// </summary>
+    public int ThrottleSevereInFlightParcels { get; set; } = 100;
+
+    /// <summary>
+    /// 正常状态下的放包间隔（毫秒）
+    /// </summary>
+    public int ThrottleNormalIntervalMs { get; set; } = 300;
+
+    /// <summary>
+    /// 警告状态下的放包间隔（毫秒）
+    /// </summary>
+    public int ThrottleWarningIntervalMs { get; set; } = 500;
+
+    /// <summary>
+    /// 严重状态下的放包间隔（毫秒）
+    /// </summary>
+    public int ThrottleSevereIntervalMs { get; set; } = 1000;
+
+    /// <summary>
+    /// 是否在严重拥堵时暂停放包
+    /// </summary>
+    public bool ThrottleShouldPauseOnSevere { get; set; } = false;
+
+    /// <summary>
+    /// 指标采样时间窗口（秒）
+    /// </summary>
+    public int ThrottleMetricsWindowSeconds { get; set; } = 60;
+
     /// <summary>
     /// 配置版本号
     /// </summary>
