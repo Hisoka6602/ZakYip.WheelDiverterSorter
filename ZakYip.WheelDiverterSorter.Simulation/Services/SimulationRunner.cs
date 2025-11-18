@@ -9,6 +9,8 @@ using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
+using ZakYip.Sorting.Core.Interfaces;
+using ZakYip.Sorting.Core.Models;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 
@@ -29,6 +31,9 @@ public class SimulationRunner
     private readonly PrometheusMetrics _metrics;
     private readonly ILogger<SimulationRunner> _logger;
     private readonly IParcelLifecycleLogger? _lifecycleLogger;
+    private readonly ICongestionDetector? _congestionDetector;
+    private readonly IReleaseThrottlePolicy? _throttlePolicy;
+    private readonly CongestionMetricsCollector? _metricsCollector;
     
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments = new();
     private readonly Dictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
@@ -37,6 +42,8 @@ public class SimulationRunner
     private DateTimeOffset? _previousEntryTime = null;
     private int _currentConcurrentParcels = 0;
     private int _maxConcurrentParcelsObserved = 0;
+    private CongestionLevel _currentCongestionLevel = CongestionLevel.Normal;
+    private int _currentReleaseIntervalMs = 300;
 
     /// <summary>
     /// 构造函数
@@ -50,7 +57,10 @@ public class SimulationRunner
         SimulationReportPrinter reportPrinter,
         PrometheusMetrics metrics,
         ILogger<SimulationRunner> logger,
-        IParcelLifecycleLogger? lifecycleLogger = null)
+        IParcelLifecycleLogger? lifecycleLogger = null,
+        ICongestionDetector? congestionDetector = null,
+        IReleaseThrottlePolicy? throttlePolicy = null,
+        ReleaseThrottleConfiguration? throttleConfig = null)
     {
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -61,6 +71,18 @@ public class SimulationRunner
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _lifecycleLogger = lifecycleLogger;
+        _congestionDetector = congestionDetector;
+        _throttlePolicy = throttlePolicy;
+
+        // 初始化指标收集器（如果启用了节流功能）
+        if (_congestionDetector != null && _throttlePolicy != null && throttleConfig != null)
+        {
+            _metricsCollector = new CongestionMetricsCollector(
+                TimeSpan.FromSeconds(throttleConfig.MetricsTimeWindowSeconds));
+            _currentReleaseIntervalMs = throttleConfig.NormalReleaseIntervalMs;
+            
+            _logger.LogInformation("拥堵检测与节流功能已启用");
+        }
 
         // 订阅格口分配事件
         _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
@@ -130,12 +152,40 @@ public class SimulationRunner
                 break;
             }
 
+            // 检查是否需要暂停
+            if (_throttlePolicy != null && _congestionDetector != null && _metricsCollector != null)
+            {
+                var metrics = _metricsCollector.GetCurrentMetrics();
+                var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
+                
+                while (_throttlePolicy.IsPaused(congestionLevel))
+                {
+                    if (congestionLevel != _currentCongestionLevel)
+                    {
+                        _logger.LogWarning("系统拥堵严重，暂停放包。在途包裹数: {InFlight}", metrics.InFlightParcels);
+                        _metrics.RecordThrottleEvent("pause");
+                        UpdateCongestionMetrics(congestionLevel);
+                    }
+                    
+                    await Task.Delay(1000, cancellationToken);
+                    metrics = _metricsCollector.GetCurrentMetrics();
+                    congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
+                }
+                
+                if (_currentCongestionLevel == CongestionLevel.Severe && congestionLevel != CongestionLevel.Severe)
+                {
+                    _logger.LogInformation("拥堵缓解，恢复放包");
+                    _metrics.RecordThrottleEvent("resume");
+                }
+            }
+
             await ProcessSingleParcelAsync(i, startTime, cancellationToken);
 
-            // 等待下一个包裹到达
+            // 等待下一个包裹到达 - 使用动态间隔
             if (i < _options.ParcelCount - 1)
             {
-                await Task.Delay(_options.ParcelInterval, cancellationToken);
+                var interval = GetCurrentReleaseInterval();
+                await Task.Delay(interval, cancellationToken);
             }
         }
     }
@@ -195,8 +245,37 @@ public class SimulationRunner
 
             parcelIndex++;
 
-            // 等待下一个包裹到达
-            await Task.Delay(_options.ParcelInterval, cancellationToken);
+            // 等待下一个包裹到达 - 使用动态间隔
+            var interval = GetCurrentReleaseInterval();
+            
+            // 检查是否需要暂停
+            if (_throttlePolicy != null && _congestionDetector != null && _metricsCollector != null)
+            {
+                var metrics = _metricsCollector.GetCurrentMetrics();
+                var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
+                
+                while (_throttlePolicy.IsPaused(congestionLevel))
+                {
+                    if (congestionLevel != _currentCongestionLevel)
+                    {
+                        _logger.LogWarning("系统拥堵严重，暂停放包。在途包裹数: {InFlight}", metrics.InFlightParcels);
+                        _metrics.RecordThrottleEvent("pause");
+                        UpdateCongestionMetrics(congestionLevel);
+                    }
+                    
+                    await Task.Delay(1000, cancellationToken);
+                    metrics = _metricsCollector.GetCurrentMetrics();
+                    congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
+                }
+                
+                if (_currentCongestionLevel == CongestionLevel.Severe && congestionLevel != CongestionLevel.Severe)
+                {
+                    _logger.LogInformation("拥堵缓解，恢复放包");
+                    _metrics.RecordThrottleEvent("resume");
+                }
+            }
+            
+            await Task.Delay(interval, cancellationToken);
         }
 
         _logger.LogInformation("长跑模式结束，共处理 {TotalParcels} 个包裹", parcelIndex);
@@ -209,6 +288,9 @@ public class SimulationRunner
     {
         var parcelId = GenerateParcelId(index);
         
+        // 记录包裹开始（用于拥堵检测）
+        _metricsCollector?.RecordParcelStarted();
+        
         // 追踪并发包裹数
         var currentConcurrent = Interlocked.Increment(ref _currentConcurrentParcels);
         lock (_lockObject)
@@ -219,16 +301,34 @@ public class SimulationRunner
             }
         }
         
+        // 更新在途包裹数指标
+        _metrics.SetInFlightParcels(currentConcurrent);
+        
+        // 更新拥堵级别（如果启用了节流）
+        if (_congestionDetector != null && _metricsCollector != null && _throttlePolicy != null)
+        {
+            UpdateCongestionLevel();
+        }
+        
         if (_options.IsEnableVerboseLogging)
         {
             _logger.LogInformation("处理包裹 {Index}，包裹ID: {ParcelId}", 
                 index + 1, parcelId);
         }
 
+        var processingStartTime = DateTimeOffset.UtcNow;
+
         try
         {
             // 模拟包裹到达并处理分拣
             var result = await ProcessParcelAsync(parcelId, startTime.AddMilliseconds(index * _options.ParcelInterval.TotalMilliseconds), cancellationToken);
+            
+            var processingEndTime = DateTimeOffset.UtcNow;
+            var latencyMs = (processingEndTime - processingStartTime).TotalMilliseconds;
+            var isSuccess = result.Status == ParcelSimulationStatus.SortedToTargetChute;
+            
+            // 记录包裹完成（用于拥堵检测）
+            _metricsCollector?.RecordParcelCompleted(isSuccess, latencyMs);
             
             lock (_lockObject)
             {
@@ -254,6 +354,12 @@ public class SimulationRunner
         {
             _logger.LogError(ex, "处理包裹 {ParcelId} 时发生错误", parcelId);
             
+            var processingEndTime = DateTimeOffset.UtcNow;
+            var latencyMs = (processingEndTime - processingStartTime).TotalMilliseconds;
+            
+            // 记录包裹完成（失败）
+            _metricsCollector?.RecordParcelCompleted(false, latencyMs);
+            
             var errorResult = new ParcelSimulationResultEventArgs
             {
                 ParcelId = parcelId,
@@ -272,7 +378,8 @@ public class SimulationRunner
         finally
         {
             // 减少并发包裹计数
-            Interlocked.Decrement(ref _currentConcurrentParcels);
+            var newConcurrent = Interlocked.Decrement(ref _currentConcurrentParcels);
+            _metrics.SetInFlightParcels(newConcurrent);
         }
     }
 
@@ -902,5 +1009,62 @@ public class SimulationRunner
             EventTime = DateTimeOffset.UtcNow,
             IsSimulation = true
         }, reason);
+    }
+
+    /// <summary>
+    /// 获取当前放包间隔
+    /// </summary>
+    private TimeSpan GetCurrentReleaseInterval()
+    {
+        if (_throttlePolicy == null || _congestionDetector == null || _metricsCollector == null)
+        {
+            return _options.ParcelInterval;
+        }
+
+        var metrics = _metricsCollector.GetCurrentMetrics();
+        var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
+        var intervalMs = _throttlePolicy.GetReleaseIntervalMs(congestionLevel);
+        
+        if (intervalMs != _currentReleaseIntervalMs)
+        {
+            _logger.LogInformation("放包间隔已调整: {OldInterval}ms -> {NewInterval}ms (拥堵级别: {Level})",
+                _currentReleaseIntervalMs, intervalMs, congestionLevel);
+            _currentReleaseIntervalMs = intervalMs;
+            _metrics.SetReleaseInterval(intervalMs);
+            _metrics.RecordThrottleEvent("throttle");
+        }
+
+        return TimeSpan.FromMilliseconds(intervalMs);
+    }
+
+    /// <summary>
+    /// 更新拥堵级别
+    /// </summary>
+    private void UpdateCongestionLevel()
+    {
+        if (_congestionDetector == null || _metricsCollector == null)
+        {
+            return;
+        }
+
+        var metrics = _metricsCollector.GetCurrentMetrics();
+        var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
+        
+        if (congestionLevel != _currentCongestionLevel)
+        {
+            UpdateCongestionMetrics(congestionLevel);
+        }
+    }
+
+    /// <summary>
+    /// 更新拥堵指标并记录
+    /// </summary>
+    private void UpdateCongestionMetrics(CongestionLevel newLevel)
+    {
+        var oldLevel = _currentCongestionLevel;
+        _currentCongestionLevel = newLevel;
+        _metrics.SetCongestionLevel((int)newLevel);
+        
+        _logger.LogInformation("拥堵级别变化: {OldLevel} -> {NewLevel}", oldLevel, newLevel);
     }
 }
