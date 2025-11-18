@@ -7,7 +7,10 @@ using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
+using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.Sorting.Core.Models;
+using ZakYip.Sorting.Core.Runtime;
+using ZakYip.Sorting.Core.Overload;
 using Microsoft.Extensions.Options;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -34,6 +37,10 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ISystemRunStateService? _stateService;
+    private readonly ICongestionDetector? _congestionDetector;
+    private readonly IOverloadHandlingPolicy? _overloadPolicy;
+    private readonly CongestionDataCollector? _congestionCollector;
+    private readonly PrometheusMetrics? _metrics;
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly object _lockObject = new object();
@@ -52,7 +59,11 @@ public class ParcelSortingOrchestrator : IDisposable
         ISystemConfigurationRepository systemConfigRepository,
         ILogger<ParcelSortingOrchestrator> logger,
         IPathFailureHandler? pathFailureHandler = null,
-        ISystemRunStateService? stateService = null)
+        ISystemRunStateService? stateService = null,
+        ICongestionDetector? congestionDetector = null,
+        IOverloadHandlingPolicy? overloadPolicy = null,
+        CongestionDataCollector? congestionCollector = null,
+        PrometheusMetrics? metrics = null)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -63,6 +74,10 @@ public class ParcelSortingOrchestrator : IDisposable
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _pathFailureHandler = pathFailureHandler;
         _stateService = stateService; // Optional: for state validation
+        _congestionDetector = congestionDetector; // Optional: for congestion detection (PR-08B)
+        _overloadPolicy = overloadPolicy; // Optional: for overload handling (PR-08B)
+        _congestionCollector = congestionCollector; // Optional: for congestion data collection (PR-08B)
+        _metrics = metrics; // Optional: for metrics collection (PR-08B)
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
 
@@ -142,6 +157,9 @@ public class ParcelSortingOrchestrator : IDisposable
 
         try
         {
+            // PR-08B: 记录包裹进入系统
+            _congestionCollector?.RecordParcelEntry(parcelId, DateTime.UtcNow);
+
             // 获取异常格口ID
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
@@ -157,7 +175,7 @@ public class ParcelSortingOrchestrator : IDisposable
             }
 
             // 直接将包裹发送到异常格口，不等待RuleEngine响应
-            await ProcessSortingAsync(parcelId, exceptionChuteId);
+            await ProcessSortingAsync(parcelId, exceptionChuteId, isOverloadException: false);
         }
         catch (Exception ex)
         {
@@ -189,9 +207,69 @@ public class ParcelSortingOrchestrator : IDisposable
                 }
             }
 
+            // PR-08B: 记录包裹进入系统
+            _congestionCollector?.RecordParcelEntry(parcelId, DateTime.UtcNow);
+
             // 获取系统配置
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+            // PR-08B: 入口拥堵检测与超载判断
+            if (_congestionDetector != null && _overloadPolicy != null && _congestionCollector != null)
+            {
+                // 收集当前拥堵快照
+                var snapshot = _congestionCollector.CollectSnapshot();
+                
+                // 检测拥堵等级
+                var congestionLevel = _congestionDetector.Detect(in snapshot);
+                
+                // 更新拥堵等级指标
+                _metrics?.SetCongestionLevel((int)congestionLevel);
+                _metrics?.SetInFlightParcels(snapshot.InFlightParcels);
+                _metrics?.SetAverageLatency(snapshot.AverageLatencyMs);
+
+                // 构造超载上下文
+                var overloadContext = new OverloadContext
+                {
+                    ParcelId = parcelId.ToString(),
+                    TargetChuteId = 0, // 尚未分配目标格口
+                    CurrentLineSpeed = 1000m, // 1 m/s = 1000 mm/s，可从配置读取
+                    CurrentPosition = "Entry",
+                    EstimatedArrivalWindowMs = 10000, // 预估10秒窗口，实际应计算
+                    CurrentCongestionLevel = congestionLevel,
+                    RemainingTtlMs = 30000, // 预估30秒TTL，实际应计算
+                    InFlightParcels = snapshot.InFlightParcels
+                };
+
+                // 评估是否需要超载处置
+                var overloadDecision = _overloadPolicy.Evaluate(in overloadContext);
+
+                if (overloadDecision.ShouldForceException)
+                {
+                    // 超载：直接路由到异常口
+                    _logger.LogWarning(
+                        "包裹 {ParcelId} 触发超载策略，直接发送到异常格口。原因：{Reason}，拥堵等级：{CongestionLevel}",
+                        parcelId,
+                        overloadDecision.Reason,
+                        congestionLevel);
+
+                    // 记录超载包裹指标
+                    var reason = DetermineOverloadReason(overloadDecision.Reason);
+                    _metrics?.RecordOverloadParcel(reason);
+
+                    // 直接发送到异常格口
+                    await ProcessSortingAsync(parcelId, exceptionChuteId, isOverloadException: true);
+                    return;
+                }
+
+                if (overloadDecision.ShouldMarkAsOverflow)
+                {
+                    _logger.LogInformation(
+                        "包裹 {ParcelId} 标记为潜在超载风险。原因：{Reason}",
+                        parcelId,
+                        overloadDecision.Reason);
+                }
+            }
 
             int? targetChuteId = null;
 
@@ -240,7 +318,7 @@ public class ParcelSortingOrchestrator : IDisposable
             }
 
             // 执行分拣
-            await ProcessSortingAsync(parcelId, targetChuteId.Value);
+            await ProcessSortingAsync(parcelId, targetChuteId.Value, isOverloadException: false);
         }
         catch (Exception ex)
         {
@@ -249,9 +327,42 @@ public class ParcelSortingOrchestrator : IDisposable
     }
 
     /// <summary>
+    /// 根据超载决策原因确定指标原因标签
+    /// </summary>
+    private string DetermineOverloadReason(string? decisionReason)
+    {
+        if (string.IsNullOrEmpty(decisionReason))
+        {
+            return "Unknown";
+        }
+
+        if (decisionReason.Contains("TTL") || decisionReason.Contains("超时") || decisionReason.Contains("Timeout"))
+        {
+            return "Timeout";
+        }
+
+        if (decisionReason.Contains("窗口") || decisionReason.Contains("Window"))
+        {
+            return "WindowMiss";
+        }
+
+        if (decisionReason.Contains("在途") || decisionReason.Contains("InFlight") || decisionReason.Contains("Capacity"))
+        {
+            return "CapacityExceeded";
+        }
+
+        if (decisionReason.Contains("拥堵") || decisionReason.Contains("Congestion"))
+        {
+            return "Congestion";
+        }
+
+        return "Other";
+    }
+
+    /// <summary>
     /// 执行分拣流程
     /// </summary>
-    private async Task ProcessSortingAsync(long parcelId, int targetChuteId)
+    private async Task ProcessSortingAsync(long parcelId, int targetChuteId, bool isOverloadException = false)
     {
         try
         {
@@ -276,6 +387,7 @@ public class ParcelSortingOrchestrator : IDisposable
                 if (path == null)
                 {
                     _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
+                    _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
                     return;
                 }
             }
@@ -292,9 +404,13 @@ public class ParcelSortingOrchestrator : IDisposable
             if (executionResult.IsSuccess)
             {
                 _logger.LogInformation(
-                    "包裹 {ParcelId} 成功分拣到格口 {ActualChuteId}",
+                    "包裹 {ParcelId} 成功分拣到格口 {ActualChuteId}{OverloadFlag}",
                     parcelId,
-                    executionResult.ActualChuteId);
+                    executionResult.ActualChuteId,
+                    isOverloadException ? " [超载异常]" : "");
+                
+                // PR-08B: 记录包裹完成
+                _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, true);
             }
             else
             {
@@ -303,6 +419,9 @@ public class ParcelSortingOrchestrator : IDisposable
                     parcelId,
                     executionResult.FailureReason,
                     executionResult.ActualChuteId);
+
+                // PR-08B: 记录包裹完成（失败）
+                _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
 
                 // 处理路径执行失败
                 if (_pathFailureHandler != null)
@@ -324,6 +443,7 @@ public class ParcelSortingOrchestrator : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "执行包裹 {ParcelId} 分拣时发生异常", parcelId);
+            _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
         }
     }
 
