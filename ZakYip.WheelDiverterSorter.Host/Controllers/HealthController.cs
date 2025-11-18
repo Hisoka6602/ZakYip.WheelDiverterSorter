@@ -83,6 +83,21 @@ public class HealthController : ControllerBase
             var currentState = _stateManager.CurrentState;
             var lastReport = _stateManager.LastSelfTestReport;
 
+            // Extract degradation information from self-test report
+            var degradationMode = lastReport?.DegradationMode.ToString() ?? "None";
+            var degradedNodes = lastReport?.NodeStatuses?
+                .Where(n => !n.IsHealthy)
+                .Select(n => new NodeHealthInfo
+                {
+                    NodeId = n.NodeId,
+                    NodeType = n.NodeType,
+                    IsHealthy = n.IsHealthy,
+                    ErrorCode = n.ErrorCode,
+                    ErrorMessage = n.ErrorMessage,
+                    CheckedAt = n.CheckedAt
+                })
+                .ToList();
+
             var response = new LineHealthResponse
             {
                 SystemState = currentState.ToString(),
@@ -113,7 +128,10 @@ public class HealthController : ControllerBase
                 {
                     CurrentCongestionLevel = GetCongestionLevelDescription(currentState),
                     RecommendedCapacityParcelsPerMinute = null // 可从metrics读取，暂不实现
-                } : null
+                } : null,
+                DegradationMode = degradationMode,
+                DegradedNodesCount = degradedNodes?.Count ?? 0,
+                DegradedNodes = degradedNodes
             };
 
             // 判断HTTP状态码
@@ -193,6 +211,15 @@ public class LineHealthResponse
 
     /// <summary>系统概要信息（可选）</summary>
     public SystemSummary? Summary { get; init; }
+
+    /// <summary>降级模式（PR-14：节点级降级）</summary>
+    public string? DegradationMode { get; init; }
+
+    /// <summary>降级节点数量（PR-14：节点级降级）</summary>
+    public int? DegradedNodesCount { get; init; }
+
+    /// <summary>降级节点列表摘要（PR-14：节点级降级）</summary>
+    public List<NodeHealthInfo>? DegradedNodes { get; init; }
 }
 
 /// <summary>
@@ -238,4 +265,17 @@ public class SystemSummary
 
     /// <summary>推荐产能（包裹/分钟）</summary>
     public double? RecommendedCapacityParcelsPerMinute { get; init; }
+}
+
+/// <summary>
+/// 节点健康信息（PR-14：节点级降级）
+/// </summary>
+public class NodeHealthInfo
+{
+    public int NodeId { get; init; }
+    public string? NodeType { get; init; }
+    public bool IsHealthy { get; init; }
+    public string? ErrorCode { get; init; }
+    public string? ErrorMessage { get; init; }
+    public DateTimeOffset CheckedAt { get; init; }
 }

@@ -26,6 +26,24 @@ public readonly record struct OverloadDecision
     public string? Reason { get; init; }
 
     /// <summary>
+    /// 超载原因枚举（PR-14：用于更结构化的原因记录）
+    /// Overload reason enum for structured tracking
+    /// </summary>
+    public OverloadReason ReasonCode { get; init; }
+
+    /// <summary>
+    /// 默认构造函数
+    /// </summary>
+    public OverloadDecision()
+    {
+        ShouldForceException = false;
+        ShouldMarkAsOverflow = false;
+        ShouldPreferRecirculation = false;
+        Reason = null;
+        ReasonCode = OverloadReason.None;
+    }
+
+    /// <summary>
     /// 创建一个"继续正常分拣"的决策。
     /// </summary>
     public static OverloadDecision ContinueNormal() => new()
@@ -33,28 +51,31 @@ public readonly record struct OverloadDecision
         ShouldForceException = false,
         ShouldMarkAsOverflow = false,
         ShouldPreferRecirculation = false,
-        Reason = "正常"
+        Reason = "正常",
+        ReasonCode = OverloadReason.None
     };
 
     /// <summary>
     /// 创建一个"强制异常口"的决策。
     /// </summary>
-    public static OverloadDecision ForceException(string reason) => new()
+    public static OverloadDecision ForceException(string reason, OverloadReason reasonCode = OverloadReason.Other) => new()
     {
         ShouldForceException = true,
         ShouldMarkAsOverflow = true,
         ShouldPreferRecirculation = false,
-        Reason = reason
+        Reason = reason,
+        ReasonCode = reasonCode
     };
 
     /// <summary>
     /// 创建一个"仅打标记"的决策。
     /// </summary>
-    public static OverloadDecision MarkOnly(string reason) => new()
+    public static OverloadDecision MarkOnly(string reason, OverloadReason reasonCode = OverloadReason.Other) => new()
     {
         ShouldForceException = false,
         ShouldMarkAsOverflow = true,
         ShouldPreferRecirculation = false,
-        Reason = reason
+        Reason = reason,
+        ReasonCode = reasonCode
     };
 }

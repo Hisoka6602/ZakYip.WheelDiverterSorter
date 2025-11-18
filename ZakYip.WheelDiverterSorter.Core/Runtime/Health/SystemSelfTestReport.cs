@@ -29,4 +29,16 @@ public record SystemSelfTestReport
     /// 自检执行时间
     /// </summary>
     public required DateTimeOffset PerformedAt { get; init; }
+
+    /// <summary>
+    /// 节点健康状态列表（PR-14：节点级降级）
+    /// Node health statuses for individual components
+    /// </summary>
+    public IReadOnlyList<NodeHealthStatus>? NodeStatuses { get; init; }
+
+    /// <summary>
+    /// 当前降级模式（PR-14：节点级降级）
+    /// Current degradation mode
+    /// </summary>
+    public DegradationMode DegradationMode { get; init; } = DegradationMode.None;
 }
