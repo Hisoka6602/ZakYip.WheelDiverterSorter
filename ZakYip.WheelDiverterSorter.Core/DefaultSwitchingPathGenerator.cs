@@ -138,4 +138,36 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         // 这样可以确保相邻包裹的超时检测窗口不会重叠
         return segmentConfig.SegmentToleranceTimeMs < (parcelIntervalMs / 2.0);
     }
+
+    /// <summary>
+    /// 评估路径是否能在时间预算内完成
+    /// </summary>
+    /// <param name="path">待评估的路径</param>
+    /// <param name="currentLineSpeedMmPerSecond">当前线速（毫米/秒）</param>
+    /// <param name="availableTimeBudgetMs">可用时间预算（毫秒）</param>
+    /// <returns>如果路径能在时间预算内完成返回true，否则返回false</returns>
+    /// <remarks>
+    /// 此方法用于在路径规划阶段进行二次超载检查，判断包裹是否能在剩余TTL内完成路径。
+    /// </remarks>
+    public static bool CanCompleteRouteInTime(
+        SwitchingPath path,
+        decimal currentLineSpeedMmPerSecond,
+        double availableTimeBudgetMs)
+    {
+        if (path == null || path.Segments == null || path.Segments.Count == 0)
+        {
+            return false;
+        }
+
+        if (currentLineSpeedMmPerSecond <= 0)
+        {
+            return false;
+        }
+
+        // 计算所有段的总TTL（包含容差）
+        double totalRequiredTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+
+        // 判断可用时间是否足够
+        return totalRequiredTimeMs <= availableTimeBudgetMs;
+    }
 }

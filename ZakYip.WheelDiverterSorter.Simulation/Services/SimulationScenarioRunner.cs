@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
+using ZakYip.WheelDiverterSorter.Simulation.Results;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 
@@ -116,6 +117,67 @@ public class SimulationScenarioRunner : ISimulationScenarioRunner
         catch (Exception ex)
         {
             _logger.LogError(ex, "场景 E 仿真执行失败");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 运行任意仿真场景
+    /// </summary>
+    /// <param name="options">仿真配置选项</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>仿真结果摘要</returns>
+    public async Task<SimulationSummary> RunScenarioAsync(SimulationOptions options, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "准备运行仿真场景: 包裹数={ParcelCount}, 间隔={IntervalMs}ms",
+                options.ParcelCount,
+                options.ParcelInterval.TotalMilliseconds);
+
+            // 验证配置
+            if (options.ParcelCount <= 0)
+            {
+                throw new InvalidOperationException("包裹数量必须大于 0");
+            }
+
+            if (options.ParcelInterval.TotalMilliseconds <= 0)
+            {
+                throw new InvalidOperationException("包裹间隔必须大于 0");
+            }
+
+            // 设置运行时配置
+            SetRuntimeOptions(options);
+
+            try
+            {
+                // 运行仿真
+                var summary = await _simulationRunner.RunAsync(cancellationToken);
+                
+                _logger.LogInformation(
+                    "仿真场景完成: 成功率={SuccessRate:P2}, 总包裹={Total}, 成功={Success}, 超时={Timeout}",
+                    summary.SuccessRate,
+                    summary.TotalParcels,
+                    summary.SortedToTargetChuteCount,
+                    summary.TimeoutCount);
+
+                return summary;
+            }
+            finally
+            {
+                // 清理运行时配置
+                SetRuntimeOptions(null);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("仿真场景被取消");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "仿真场景执行失败");
             throw;
         }
     }

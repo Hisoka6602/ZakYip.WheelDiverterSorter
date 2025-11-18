@@ -392,6 +392,68 @@ public class ParcelSortingOrchestrator : IDisposable
                 }
             }
 
+            // PR-08C: 路径规划阶段的二次超载检查
+            if (!isOverloadException && _overloadPolicy != null && _congestionCollector != null && path != null)
+            {
+                // 计算路径所需的总时间（毫秒）
+                double totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+                
+                // 预估剩余时间（简化估算：假设30秒总TTL，减去已使用时间）
+                const double EstimatedTotalTtlMs = 30000;
+                double estimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
+                double remainingTtlMs = EstimatedTotalTtlMs - estimatedElapsedMs;
+
+                // 构造路由超载上下文
+                var snapshot = _congestionCollector.CollectSnapshot();
+                var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? ZakYip.Sorting.Core.Runtime.CongestionLevel.Normal;
+                
+                var routeOverloadContext = new OverloadContext
+                {
+                    ParcelId = parcelId.ToString(),
+                    TargetChuteId = targetChuteId,
+                    CurrentLineSpeed = 1000m, // 1 m/s = 1000 mm/s
+                    CurrentPosition = "PathPlanning",
+                    EstimatedArrivalWindowMs = remainingTtlMs,
+                    CurrentCongestionLevel = congestionLevel,
+                    RemainingTtlMs = remainingTtlMs,
+                    InFlightParcels = snapshot.InFlightParcels
+                };
+
+                // 检查路径是否能在剩余时间内完成
+                if (totalRouteTimeMs > remainingTtlMs)
+                {
+                    // 路由时间预算不足，调用超载策略
+                    var routeDecision = _overloadPolicy.Evaluate(in routeOverloadContext);
+                    
+                    if (routeDecision.ShouldForceException)
+                    {
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 路径规划阶段检测到超载：路径需要 {RequiredMs}ms，但剩余时间仅 {RemainingMs}ms，决策：{Decision}",
+                            parcelId,
+                            totalRouteTimeMs,
+                            remainingTtlMs,
+                            routeDecision.Reason);
+
+                        // 记录路由超载指标
+                        _metrics?.RecordOverloadParcel("RouteOverload");
+
+                        // 重新生成到异常格口的路径
+                        targetChuteId = exceptionChuteId;
+                        path = _pathGenerator.GeneratePath(targetChuteId);
+
+                        if (path == null)
+                        {
+                            _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
+                            _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                            return;
+                        }
+
+                        // 标记为超载异常
+                        isOverloadException = true;
+                    }
+                }
+            }
+
             // 记录包裹路径，用于失败处理
             lock (_lockObject)
             {

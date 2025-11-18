@@ -416,6 +416,151 @@ curl -X PUT http://localhost:5000/api/config/overload-policy \
   }'
 ```
 
+## 运行容量测试
+
+### 概述
+
+容量测试通过在不同放包间隔下运行仿真，自动评估系统的安全产能区间和危险阈值。
+
+### 使用 CapacityTestingRunner
+
+```csharp
+using ZakYip.WheelDiverterSorter.Simulation.Services;
+using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.Sorting.Core.Policies;
+
+// 准备依赖
+var scenarioRunner = serviceProvider.GetRequiredService<ISimulationScenarioRunner>();
+var capacityEstimator = new SimpleCapacityEstimator(new CapacityEstimationThresholds
+{
+    MinSuccessRate = 0.95,
+    MaxAcceptableLatencyMs = 3000,
+    MaxExceptionRate = 0.05
+});
+var logger = serviceProvider.GetRequiredService<ILogger<CapacityTestingRunner>>();
+var metrics = serviceProvider.GetService<PrometheusMetrics>();
+
+var capacityTester = new CapacityTestingRunner(
+    scenarioRunner,
+    capacityEstimator,
+    logger,
+    metrics);
+
+// 配置基础仿真选项
+var baseOptions = new SimulationOptions
+{
+    ParcelCount = 100,  // 每个间隔测试100个包裹
+    SortingMode = SortingMode.RoundRobin,
+    IsEnableVerboseLogging = false,
+    IsPauseAtEnd = false
+};
+
+// 定义测试间隔（毫秒）
+var testIntervals = new[] { 1000, 800, 600, 400, 300, 250, 200 };
+
+// 运行产能测试
+var results = await capacityTester.RunCapacityTestAsync(
+    baseOptions,
+    testIntervals,
+    parcelsPerTest: 100,
+    cancellationToken);
+
+// 查看结果
+Console.WriteLine($"安全产能区间: {results.EstimationResult.SafeMinParcelsPerMinute:F0} - {results.EstimationResult.SafeMaxParcelsPerMinute:F0} 包裹/分钟");
+Console.WriteLine($"危险阈值: {results.EstimationResult.DangerousThresholdParcelsPerMinute:F0} 包裹/分钟");
+Console.WriteLine($"置信度: {results.EstimationResult.Confidence:P0}");
+```
+
+### 产能测试报告示例
+
+运行容量测试后，会自动输出中文产能评估报告：
+
+```
+=== 产能测试评估报告 ===
+测试数据点数: 7
+安全产能区间: 60 - 100 包裹/分钟
+危险阈值: 120 包裹/分钟
+置信度: 70%
+=== 各间隔测试结果 ===
+间隔 1000ms (60.0 包裹/分钟): 成功率=98.00%, 异常率=2.00%, 平均延迟=1500ms
+间隔 800ms (75.0 包裹/分钟): 成功率=97.00%, 异常率=3.00%, 平均延迟=2000ms
+间隔 600ms (100.0 包裹/分钟): 成功率=96.00%, 异常率=4.00%, 平均延迟=2500ms
+间隔 400ms (150.0 包裹/分钟): 成功率=88.00%, 异常率=12.00%, 平均延迟=4500ms
+间隔 300ms (200.0 包裹/分钟): 成功率=75.00%, 异常率=25.00%, 平均延迟=6000ms
+间隔 250ms (240.0 包裹/分钟): 成功率=65.00%, 异常率=35.00%, 平均延迟=8000ms
+间隔 200ms (300.0 包裹/分钟): 成功率=50.00%, 异常率=50.00%, 平均延迟=10000ms
+=== 报告结束 ===
+```
+
+### 推荐产能指标自动更新
+
+容量测试完成后，会自动更新 Prometheus 指标：
+
+```
+sorting_capacity_recommended_parcels_per_minute = 100
+```
+
+### 解读容量测试结果
+
+1. **安全产能区间**：建议在此区间内运行，成功率高、延迟低、异常率低
+2. **危险阈值**：超过此阈值后，系统性能显著下降，成功率低于预期
+3. **置信度**：基于测试数据点数量，数据越多置信度越高
+4. **各间隔结果**：
+   - 成功率 ≥ 95% = 正常运行
+   - 平均延迟 ≤ 3000ms = 正常运行
+   - 异常率 ≤ 5% = 正常运行
+
+### 推荐使用场景
+
+- **系统上线前**：评估系统最大吞吐能力
+- **拓扑变更后**：重新评估产能是否受影响
+- **性能优化后**：验证优化效果
+- **定期基准测试**：监控系统性能退化
+
+## 路径规划阶段超载检查（PR-08C 新增）
+
+### 概述
+
+在生成路径后，系统会计算路径所需总时间，并与剩余TTL比较。如果路径理论上无法在时间内完成，将触发二次超载检查。
+
+### 工作原理
+
+```
+1. 生成包裹到目标格口的路径
+2. 计算路径总时间 = Σ(各段TTL)
+3. 估算剩余TTL
+4. 如果路径时间 > 剩余TTL：
+   - 构造路由超载上下文
+   - 调用 IOverloadHandlingPolicy.Evaluate
+   - 如果决策为强制异常：
+     * 重新生成到异常格口的路径
+     * 记录 sorting_overload_parcels_total{reason="RouteOverload"}
+     * 记录日志
+```
+
+### 监控指标
+
+路由超载触发时，会记录 Prometheus 指标：
+
+```
+sorting_overload_parcels_total{reason="RouteOverload"}
+```
+
+### 日志示例
+
+```
+包裹 12345 路径规划阶段检测到超载：路径需要 8000ms，但剩余时间仅 5000ms，决策：强制异常口
+```
+
+### 配置建议
+
+如果经常触发路由超载，可以：
+
+1. 调整超载策略配置，放宽 `MinRequiredTtlMs` 阈值
+2. 优化路径规划，减少不必要的段
+3. 提高线速，减少路径时间
+4. 增加格口数量，缩短路径长度
+
 配置更新后立即生效，无需重启服务。
 
 ## 注意事项
