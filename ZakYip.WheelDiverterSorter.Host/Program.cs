@@ -58,6 +58,14 @@ builder.Services.AddAlarmService();
 // 添加包裹生命周期日志记录服务
 builder.Services.AddParcelLifecycleLogger();
 
+// PR-10: 添加包裹追踪日志服务
+builder.Services.AddParcelTraceLogging();
+
+// PR-10: 添加日志清理服务
+builder.Services.Configure<ZakYip.WheelDiverterSorter.Observability.Tracing.LogCleanupOptions>(
+    builder.Configuration.GetSection(ZakYip.WheelDiverterSorter.Observability.Tracing.LogCleanupOptions.SectionName));
+builder.Services.AddLogCleanup();
+
 // 配置Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
