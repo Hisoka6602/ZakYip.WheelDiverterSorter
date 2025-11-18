@@ -140,6 +140,36 @@ public class PrometheusMetrics
     private static readonly Gauge ActiveRequests = Metrics
         .CreateGauge("sorter_active_requests", "当前活跃的分拣请求数 / Number of currently active sorting requests");
 
+    // PR-08: 超载包裹计数器（新增）
+    // PR-08: Overload parcels counter (new)
+    
+    /// <summary>
+    /// 超载包裹计数器（带原因标签）
+    /// </summary>
+    private static readonly Counter OverloadParcelsCounter = Metrics
+        .CreateCounter("sorting_overload_parcels_total", 
+            "超载包裹总数 / Total number of overload parcels",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "reason" }
+            });
+
+    /// <summary>
+    /// 推荐产能指标（包裹/分钟）
+    /// </summary>
+    private static readonly Gauge RecommendedCapacityGauge = Metrics
+        .CreateGauge("sorting_capacity_recommended_parcels_per_minute", 
+            "推荐安全产能（包裹/分钟）/ Recommended safe capacity (parcels per minute)");
+
+    /// <summary>
+    /// 平均分拣延迟（毫秒）
+    /// </summary>
+    private static readonly Gauge AverageLatencyGauge = Metrics
+        .CreateGauge("sorting_average_latency_ms", "平均分拣延迟（毫秒）/ Average sorting latency in milliseconds");
+
+
+
+
     /// <summary>
     /// 记录分拣成功
     /// Record a successful sorting operation
@@ -667,4 +697,39 @@ public class PrometheusMetrics
     {
         InFlightParcelsGauge.Set(count);
     }
+
+    // PR-08: 超载指标方法（新增）
+    // PR-08: Overload metrics methods (new)
+
+    /// <summary>
+    /// 记录超载包裹
+    /// Record overload parcel
+    /// </summary>
+    /// <param name="reason">超载原因，如 "Timeout", "WindowMiss", "CapacityExceeded"</param>
+    public void RecordOverloadParcel(string reason)
+    {
+        OverloadParcelsCounter.WithLabels(reason).Inc();
+    }
+
+    /// <summary>
+    /// 设置推荐产能
+    /// Set recommended capacity
+    /// </summary>
+    /// <param name="parcelsPerMinute">推荐的包裹/分钟</param>
+    public void SetRecommendedCapacity(double parcelsPerMinute)
+    {
+        RecommendedCapacityGauge.Set(parcelsPerMinute);
+    }
+
+    /// <summary>
+    /// 设置平均延迟
+    /// Set average latency
+    /// </summary>
+    /// <param name="latencyMs">平均延迟（毫秒）</param>
+    public void SetAverageLatency(double latencyMs)
+    {
+        AverageLatencyGauge.Set(latencyMs);
+    }
 }
+
+

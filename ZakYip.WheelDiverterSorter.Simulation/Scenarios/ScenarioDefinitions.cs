@@ -610,4 +610,52 @@ public static class ScenarioDefinitions
             Expectations = null
         };
     }
+
+    /// <summary>
+    /// 场景 PR08-CapacityTest：产能测试基础场景
+    /// </summary>
+    /// <remarks>
+    /// PR-08 需求：
+    /// - 用于产能测试的基础场景配置
+    /// - 将使用不同的放包间隔（1000, 800, 600, 400, 300, 250, 200, 150 ms）运行多次
+    /// - 每次测试运行 100 个包裹
+    /// - 收集成功率、延迟、异常率等数据
+    /// - 用于估算系统的安全产能区间
+    /// </remarks>
+    public static SimulationScenario CreateCapacityTestBaseScenario(int parcelCount = 100)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "场景PR08-产能测试基础场景",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m, // 1 m/s = 1000 mm/s
+                ParcelInterval = TimeSpan.FromMilliseconds(500), // 默认值，将被测试覆盖
+                SortingMode = "RoundRobin", // 轮询模式
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L }, // 10个正常格口
+                ExceptionChuteId = 11, // 异常口在末端
+                IsEnableRandomFriction = true,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 0.95m,
+                    MaxFactor = 1.05m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                MinSafeHeadwayMm = 300m,
+                MinSafeHeadwayTime = TimeSpan.FromMilliseconds(300),
+                DenseParcelStrategy = DenseParcelStrategy.RouteToException,
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            Expectations = null
+        };
+    }
 }
