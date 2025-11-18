@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Tracing;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
@@ -41,6 +42,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly IOverloadHandlingPolicy? _overloadPolicy;
     private readonly CongestionDataCollector? _congestionCollector;
     private readonly PrometheusMetrics? _metrics;
+    private readonly IParcelTraceSink? _traceSink;
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly object _lockObject = new object();
@@ -63,7 +65,8 @@ public class ParcelSortingOrchestrator : IDisposable
         ICongestionDetector? congestionDetector = null,
         IOverloadHandlingPolicy? overloadPolicy = null,
         CongestionDataCollector? congestionCollector = null,
-        PrometheusMetrics? metrics = null)
+        PrometheusMetrics? metrics = null,
+        IParcelTraceSink? traceSink = null)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -78,6 +81,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _overloadPolicy = overloadPolicy; // Optional: for overload handling (PR-08B)
         _congestionCollector = congestionCollector; // Optional: for congestion data collection (PR-08B)
         _metrics = metrics; // Optional: for metrics collection (PR-08B)
+        _traceSink = traceSink; // Optional: for parcel trace logging (PR-10)
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
 
@@ -193,6 +197,17 @@ public class ParcelSortingOrchestrator : IDisposable
 
         try
         {
+            // PR-10: 记录包裹创建事件
+            await WriteTraceAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = DateTimeOffset.UtcNow,
+                Stage = "Created",
+                Source = "Ingress",
+                Details = $"传感器检测到包裹"
+            });
+
             // 验证系统状态（只有运行状态才能创建包裹）
             if (_stateService != null)
             {
@@ -252,6 +267,17 @@ public class ParcelSortingOrchestrator : IDisposable
                         parcelId,
                         overloadDecision.Reason,
                         congestionLevel);
+
+                    // PR-10: 记录超载决策事件
+                    await WriteTraceAsync(new ParcelTraceEventArgs
+                    {
+                        ItemId = parcelId,
+                        BarCode = null,
+                        OccurredAt = DateTimeOffset.UtcNow,
+                        Stage = "OverloadDecision",
+                        Source = "OverloadPolicy",
+                        Details = $"Reason=EntryOverload, CongestionLevel={congestionLevel}, Decision={overloadDecision.Reason}"
+                    });
 
                     // 记录超载包裹指标
                     var reason = DetermineOverloadReason(overloadDecision.Reason);
@@ -397,6 +423,17 @@ public class ParcelSortingOrchestrator : IDisposable
             {
                 // 计算路径所需的总时间（毫秒）
                 double totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+
+                // PR-10: 记录路径规划完成事件
+                await WriteTraceAsync(new ParcelTraceEventArgs
+                {
+                    ItemId = parcelId,
+                    BarCode = null,
+                    OccurredAt = DateTimeOffset.UtcNow,
+                    Stage = "RoutePlanned",
+                    Source = "Execution",
+                    Details = $"TargetChuteId={targetChuteId}, SegmentCount={path.Segments.Count}, EstimatedTimeMs={totalRouteTimeMs:F0}"
+                });
                 
                 // 预估剩余时间（简化估算：假设30秒总TTL，减去已使用时间）
                 const double EstimatedTotalTtlMs = 30000;
@@ -434,6 +471,17 @@ public class ParcelSortingOrchestrator : IDisposable
                             remainingTtlMs,
                             routeDecision.Reason);
 
+                        // PR-10: 记录路由超载决策事件
+                        await WriteTraceAsync(new ParcelTraceEventArgs
+                        {
+                            ItemId = parcelId,
+                            BarCode = null,
+                            OccurredAt = DateTimeOffset.UtcNow,
+                            Stage = "OverloadDecision",
+                            Source = "OverloadPolicy",
+                            Details = $"Reason=RouteOverload, CongestionLevel={congestionLevel}, RequiredMs={totalRouteTimeMs:F0}, RemainingMs={remainingTtlMs:F0}"
+                        });
+
                         // 记录路由超载指标
                         _metrics?.RecordOverloadParcel("RouteOverload");
 
@@ -470,6 +518,32 @@ public class ParcelSortingOrchestrator : IDisposable
                     parcelId,
                     executionResult.ActualChuteId,
                     isOverloadException ? " [超载异常]" : "");
+
+                // PR-10: 记录成功落格事件
+                if (isOverloadException)
+                {
+                    await WriteTraceAsync(new ParcelTraceEventArgs
+                    {
+                        ItemId = parcelId,
+                        BarCode = null,
+                        OccurredAt = DateTimeOffset.UtcNow,
+                        Stage = "ExceptionDiverted",
+                        Source = "Execution",
+                        Details = $"ChuteId={executionResult.ActualChuteId}, Reason=Overload"
+                    });
+                }
+                else
+                {
+                    await WriteTraceAsync(new ParcelTraceEventArgs
+                    {
+                        ItemId = parcelId,
+                        BarCode = null,
+                        OccurredAt = DateTimeOffset.UtcNow,
+                        Stage = "Diverted",
+                        Source = "Execution",
+                        Details = $"ChuteId={executionResult.ActualChuteId}, TargetChuteId={targetChuteId}"
+                    });
+                }
                 
                 // PR-08B: 记录包裹完成
                 _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, true);
@@ -481,6 +555,17 @@ public class ParcelSortingOrchestrator : IDisposable
                     parcelId,
                     executionResult.FailureReason,
                     executionResult.ActualChuteId);
+
+                // PR-10: 记录异常落格事件
+                await WriteTraceAsync(new ParcelTraceEventArgs
+                {
+                    ItemId = parcelId,
+                    BarCode = null,
+                    OccurredAt = DateTimeOffset.UtcNow,
+                    Stage = "ExceptionDiverted",
+                    Source = "Execution",
+                    Details = $"ChuteId={executionResult.ActualChuteId}, Reason={executionResult.FailureReason}"
+                });
 
                 // PR-08B: 记录包裹完成（失败）
                 _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
@@ -540,10 +625,24 @@ public class ParcelSortingOrchestrator : IDisposable
         {
             // 使用系统配置中的超时时间
             var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
+            var startTime = DateTime.UtcNow;
             using var cts = new CancellationTokenSource(timeoutMs);
             targetChuteId = await tcs.Task.WaitAsync(cts.Token);
+            var elapsedMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
             
             _logger.LogInformation("包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}", parcelId, targetChuteId);
+
+            // PR-10: 记录上游分配事件
+            await WriteTraceAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = DateTimeOffset.UtcNow,
+                Stage = "UpstreamAssigned",
+                Source = "Upstream",
+                Details = $"ChuteId={targetChuteId}, LatencyMs={elapsedMs:F0}, Status=Success"
+            });
+
             return targetChuteId;
         }
         catch (TimeoutException)
@@ -592,6 +691,17 @@ public class ParcelSortingOrchestrator : IDisposable
             _roundRobinIndex = (_roundRobinIndex + 1) % systemConfig.AvailableChuteIds.Count;
 
             return chuteId;
+        }
+    }
+
+    /// <summary>
+    /// 写入包裹追踪日志
+    /// </summary>
+    private async ValueTask WriteTraceAsync(ParcelTraceEventArgs eventArgs)
+    {
+        if (_traceSink != null)
+        {
+            await _traceSink.WriteAsync(eventArgs);
         }
     }
 
