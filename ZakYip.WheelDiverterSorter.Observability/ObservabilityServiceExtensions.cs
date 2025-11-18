@@ -1,4 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using ZakYip.WheelDiverterSorter.Core.Tracing;
+using ZakYip.WheelDiverterSorter.Observability.Tracing;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -41,6 +44,31 @@ public static class ObservabilityServiceExtensions
     public static IServiceCollection AddParcelLifecycleLogger(this IServiceCollection services)
     {
         services.AddSingleton<IParcelLifecycleLogger, ParcelLifecycleLogger>();
+        return services;
+    }
+
+    /// <summary>
+    /// 添加包裹追踪日志服务
+    /// Add parcel trace logging service to the service collection
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddParcelTraceLogging(this IServiceCollection services)
+    {
+        services.AddSingleton<IParcelTraceSink, FileBasedParcelTraceSink>();
+        return services;
+    }
+
+    /// <summary>
+    /// 添加日志清理服务
+    /// Add log cleanup service to the service collection
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddLogCleanup(this IServiceCollection services)
+    {
+        services.AddSingleton<ILogCleanupPolicy, DefaultLogCleanupPolicy>();
+        services.AddHostedService<LogCleanupHostedService>();
         return services;
     }
 }
