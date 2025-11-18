@@ -270,4 +270,155 @@ public class ReportWriter
             return "全部";
         }
     }
+
+    /// <summary>
+    /// 写入告警报表
+    /// Write alert report
+    /// </summary>
+    public void WriteAlertReport(List<AlertLogRecord> alerts, DateTimeOffset? fromTime, DateTimeOffset? toTime)
+    {
+        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+        
+        // 按严重程度分组统计
+        var bySeverity = alerts.GroupBy(a => a.Severity)
+            .Select(g => new { Severity = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        // 按告警代码分组统计
+        var byAlertCode = alerts.GroupBy(a => a.AlertCode)
+            .Select(g => new { AlertCode = g.Key, Count = g.Count() })
+            .OrderByDescending(x => x.Count)
+            .ToList();
+
+        // 写入告警统计 CSV
+        WriteAlertStatisticsCsv(bySeverity, byAlertCode, timestamp);
+
+        // 写入告警详情 CSV
+        WriteAlertDetailCsv(alerts, timestamp);
+
+        // 写入告警 Markdown 报表
+        WriteAlertMarkdown(alerts, bySeverity, byAlertCode, timestamp, fromTime, toTime);
+
+        Console.WriteLine($"\n📢 告警报表已生成：");
+        Console.WriteLine($"   - alerts-statistics-{timestamp}.csv");
+        Console.WriteLine($"   - alerts-detail-{timestamp}.csv");
+        Console.WriteLine($"   - alerts-report-{timestamp}.md");
+    }
+
+    /// <summary>
+    /// 写入告警统计 CSV
+    /// </summary>
+    private void WriteAlertStatisticsCsv(
+        IEnumerable<object> bySeverity, 
+        IEnumerable<object> byAlertCode, 
+        string timestamp)
+    {
+        var fileName = Path.Combine(_outputDirectory, $"alerts-statistics-{timestamp}.csv");
+        var sb = new StringBuilder();
+
+        sb.AppendLine("## 按严重程度统计");
+        sb.AppendLine("Severity,Count");
+        foreach (dynamic item in bySeverity)
+        {
+            sb.AppendLine($"{item.Severity},{item.Count}");
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("## 按告警代码统计");
+        sb.AppendLine("AlertCode,Count");
+        foreach (dynamic item in byAlertCode)
+        {
+            sb.AppendLine($"{item.AlertCode},{item.Count}");
+        }
+
+        File.WriteAllText(fileName, sb.ToString(), Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// 写入告警详情 CSV
+    /// </summary>
+    private void WriteAlertDetailCsv(List<AlertLogRecord> alerts, string timestamp)
+    {
+        var fileName = Path.Combine(_outputDirectory, $"alerts-detail-{timestamp}.csv");
+        var sb = new StringBuilder();
+
+        sb.AppendLine("RaisedAt,Severity,AlertCode,Message");
+        foreach (var alert in alerts.OrderBy(a => a.RaisedAt))
+        {
+            var message = alert.Message.Replace("\"", "\"\"").Replace(",", ";");
+            sb.AppendLine($"{alert.RaisedAt:O},{alert.Severity},{alert.AlertCode},\"{message}\"");
+        }
+
+        File.WriteAllText(fileName, sb.ToString(), Encoding.UTF8);
+    }
+
+    /// <summary>
+    /// 写入告警 Markdown 报表
+    /// </summary>
+    private void WriteAlertMarkdown(
+        List<AlertLogRecord> alerts,
+        IEnumerable<object> bySeverity,
+        IEnumerable<object> byAlertCode,
+        string timestamp,
+        DateTimeOffset? fromTime,
+        DateTimeOffset? toTime)
+    {
+        var fileName = Path.Combine(_outputDirectory, $"alerts-report-{timestamp}.md");
+        var sb = new StringBuilder();
+
+        sb.AppendLine("# 告警分析报表");
+        sb.AppendLine();
+        sb.AppendLine($"**生成时间**：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine();
+        sb.AppendLine($"**统计范围**：{BuildTimeRangeString(fromTime, toTime)}");
+        sb.AppendLine();
+        sb.AppendLine($"**告警总数**：{alerts.Count}");
+        sb.AppendLine();
+
+        // 按严重程度统计
+        sb.AppendLine("## 按严重程度统计");
+        sb.AppendLine();
+        sb.AppendLine("| 严重程度 | 数量 |");
+        sb.AppendLine("|---------|------|");
+        foreach (dynamic item in bySeverity)
+        {
+            sb.AppendLine($"| {item.Severity} | {item.Count} |");
+        }
+        sb.AppendLine();
+
+        // 按告警代码统计（Top 20）
+        sb.AppendLine("## 按告警代码统计（Top 20）");
+        sb.AppendLine();
+        sb.AppendLine("| 告警代码 | 数量 |");
+        sb.AppendLine("|---------|------|");
+        var codeList = byAlertCode.Cast<dynamic>().Take(20);
+        foreach (dynamic item in codeList)
+        {
+            sb.AppendLine($"| {item.AlertCode} | {item.Count} |");
+        }
+        sb.AppendLine();
+
+        // 最近的 Critical 告警（Top 10）
+        var recentCritical = alerts
+            .Where(a => a.Severity == "Critical")
+            .OrderByDescending(a => a.RaisedAt)
+            .Take(10)
+            .ToList();
+
+        if (recentCritical.Count > 0)
+        {
+            sb.AppendLine("## 最近的 Critical 告警（Top 10）");
+            sb.AppendLine();
+            sb.AppendLine("| 时间 | 告警代码 | 消息 |");
+            sb.AppendLine("|------|---------|------|");
+            foreach (var alert in recentCritical)
+            {
+                var message = alert.Message.Replace("|", "\\|");
+                sb.AppendLine($"| {alert.RaisedAt:yyyy-MM-dd HH:mm:ss} | {alert.AlertCode} | {message} |");
+            }
+        }
+
+        File.WriteAllText(fileName, sb.ToString(), Encoding.UTF8);
+    }
 }

@@ -168,4 +168,160 @@ public static class LogParser
 
         return false;
     }
+
+    /// <summary>
+    /// 扫描日志目录并查找指定日期范围内的 alert 日志文件
+    /// Scan log directory and find alert log files within the specified date range
+    /// </summary>
+    public static List<string> ScanAlertLogFiles(
+        string logDirectory,
+        DateOnly? fromDate = null,
+        DateOnly? toDate = null)
+    {
+        if (!Directory.Exists(logDirectory))
+        {
+            Console.WriteLine($"⚠️ 警告：日志目录不存在：{logDirectory}");
+            return new List<string>();
+        }
+
+        var pattern = "alerts-*.log";
+        var allFiles = Directory.GetFiles(logDirectory, pattern, SearchOption.TopDirectoryOnly);
+
+        // 如果没有指定日期范围，返回所有文件
+        if (!fromDate.HasValue && !toDate.HasValue)
+        {
+            return allFiles.OrderBy(f => f).ToList();
+        }
+
+        var filteredFiles = new List<string>();
+
+        foreach (var file in allFiles)
+        {
+            var fileName = Path.GetFileNameWithoutExtension(file);
+            // 尝试从文件名解析日期：alerts-YYYYMMDD
+            if (TryParseAlertDateFromFileName(fileName, out var fileDate))
+            {
+                if (fromDate.HasValue && fileDate < fromDate.Value)
+                {
+                    continue;
+                }
+                if (toDate.HasValue && fileDate > toDate.Value)
+                {
+                    continue;
+                }
+                filteredFiles.Add(file);
+            }
+            else
+            {
+                // 无法解析日期的文件也包含进来
+                filteredFiles.Add(file);
+            }
+        }
+
+        return filteredFiles.OrderBy(f => f).ToList();
+    }
+
+    /// <summary>
+    /// 解析告警日志文件
+    /// Parse alert log files
+    /// </summary>
+    public static List<AlertLogRecord> ParseAlertLogFiles(
+        IEnumerable<string> logFiles,
+        DateTimeOffset? fromTime = null,
+        DateTimeOffset? toTime = null)
+    {
+        var records = new List<AlertLogRecord>();
+        int totalLines = 0;
+        int skippedLines = 0;
+
+        foreach (var logFile in logFiles)
+        {
+            if (!File.Exists(logFile))
+            {
+                Console.WriteLine($"⚠️ 警告：告警日志文件不存在：{logFile}");
+                continue;
+            }
+
+            Console.WriteLine($"📖 正在读取告警日志：{logFile}");
+
+            try
+            {
+                foreach (var line in File.ReadLines(logFile))
+                {
+                    totalLines++;
+                    
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        var record = JsonSerializer.Deserialize<AlertLogRecord>(line, JsonOptions);
+                        
+                        // 过滤时间范围
+                        if (fromTime.HasValue && record.RaisedAt < fromTime.Value)
+                        {
+                            continue;
+                        }
+                        if (toTime.HasValue && record.RaisedAt > toTime.Value)
+                        {
+                            continue;
+                        }
+
+                        records.Add(record);
+                    }
+                    catch (JsonException ex)
+                    {
+                        skippedLines++;
+                        if (skippedLines <= 10)
+                        {
+                            Console.WriteLine($"⚠️ 警告：告警日志第 {totalLines} 行解析失败：{ex.Message}");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"⚠️ 警告：读取告警文件 {logFile} 时出错：{ex.Message}");
+            }
+        }
+
+        Console.WriteLine($"✅ 告警日志解析完成：总行数 {totalLines}，跳过 {skippedLines} 行，有效记录 {records.Count} 条");
+        
+        return records;
+    }
+
+    /// <summary>
+    /// 从告警文件名中解析日期（格式：alerts-YYYYMMDD）
+    /// Parse date from alert file name
+    /// </summary>
+    private static bool TryParseAlertDateFromFileName(string fileName, out DateOnly date)
+    {
+        date = default;
+
+        // 文件名格式：alerts-YYYYMMDD
+        var parts = fileName.Split('-');
+        if (parts.Length >= 2)
+        {
+            var datePart = parts[1]; // YYYYMMDD
+            if (datePart.Length == 8 && int.TryParse(datePart, out _))
+            {
+                try
+                {
+                    var year = int.Parse(datePart.Substring(0, 4));
+                    var month = int.Parse(datePart.Substring(4, 2));
+                    var day = int.Parse(datePart.Substring(6, 2));
+                    date = new DateOnly(year, month, day);
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        return false;
+    }
 }

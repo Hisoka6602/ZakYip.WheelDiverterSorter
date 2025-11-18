@@ -71,10 +71,11 @@ public sealed class OverloadEvaluationMiddleware : ISortingPipelineMiddleware
                 {
                     ItemId = context.ParcelId,
                     BarCode = context.Barcode,
+                    TargetChuteId = context.TargetChuteId,
                     OccurredAt = DateTimeOffset.UtcNow,
-                    Stage = "OverloadDecision",
+                    Stage = "OverloadEvaluated",
                     Source = "OverloadPolicy",
-                    Details = $"Reason=EntryOverload, CongestionLevel={congestionLevel}, Decision={overloadDecision.Value.Reason}"
+                    Details = $"Reason={overloadDecision.Value.Reason}, CongestionLevel={congestionLevel}, ForceException=true"
                 });
 
                 context.ShouldForceException = true;

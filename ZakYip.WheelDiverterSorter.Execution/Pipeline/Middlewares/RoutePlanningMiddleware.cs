@@ -93,8 +93,9 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
                     {
                         ItemId = context.ParcelId,
                         BarCode = context.Barcode,
+                        TargetChuteId = context.TargetChuteId,
                         OccurredAt = DateTimeOffset.UtcNow,
-                        Stage = "OverloadDecision",
+                        Stage = "OverloadEvaluated",
                         Source = "NodeHealthCheck",
                         Details = $"Reason=NodeDegraded, UnhealthyNodes=[{unhealthyNodeList}], OriginalTargetChute={context.TargetChuteId}"
                     });
@@ -126,6 +127,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
             {
                 ItemId = context.ParcelId,
                 BarCode = context.Barcode,
+                TargetChuteId = context.TargetChuteId,
                 OccurredAt = DateTimeOffset.UtcNow,
                 Stage = "RoutePlanned",
                 Source = "Execution",

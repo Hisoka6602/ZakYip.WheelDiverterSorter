@@ -20,6 +20,16 @@ public readonly record struct ParcelTraceEventArgs
     public string? BarCode { get; init; }
 
     /// <summary>
+    /// 目标格口ID（可选）
+    /// </summary>
+    public long? TargetChuteId { get; init; }
+
+    /// <summary>
+    /// 实际落格ID（若已知，可选）
+    /// </summary>
+    public long? ActualChuteId { get; init; }
+
+    /// <summary>
     /// 事件发生时间（UTC）
     /// </summary>
     public DateTimeOffset OccurredAt { get; init; }
