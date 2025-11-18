@@ -1,4 +1,5 @@
 ﻿using ZakYip.WheelDiverterSorter.Tools.Reporting.Analyzers;
+using ZakYip.WheelDiverterSorter.Tools.Reporting.Models;
 using ZakYip.WheelDiverterSorter.Tools.Reporting.Writers;
 
 namespace ZakYip.WheelDiverterSorter.Tools.Reporting;
@@ -170,14 +171,16 @@ class Program
         DateOnly? toDate = config.ToTime.HasValue ? DateOnly.FromDateTime(config.ToTime.Value.DateTime) : null;
         
         var logFiles = LogParser.ScanTraceLogFiles(config.LogDirectory, fromDate, toDate);
+        var alertFiles = LogParser.ScanAlertLogFiles(config.LogDirectory, fromDate, toDate);
         
-        if (logFiles.Count == 0)
+        if (logFiles.Count == 0 && alertFiles.Count == 0)
         {
             Console.WriteLine("⚠️ 未找到任何日志文件");
             return;
         }
 
-        Console.WriteLine($"✅ 找到 {logFiles.Count} 个日志文件");
+        Console.WriteLine($"✅ 找到 {logFiles.Count} 个包裹追踪日志文件");
+        Console.WriteLine($"✅ 找到 {alertFiles.Count} 个告警日志文件");
         Console.WriteLine();
 
         // 解析日志
@@ -191,6 +194,15 @@ class Program
         }
 
         Console.WriteLine();
+
+        // 解析告警日志
+        var alertRecords = new List<AlertLogRecord>();
+        if (alertFiles.Count > 0)
+        {
+            Console.WriteLine("📖 正在解析告警日志...");
+            alertRecords = LogParser.ParseAlertLogFiles(alertFiles, config.FromTime, config.ToTime);
+            Console.WriteLine();
+        }
 
         // 分析统计
         Console.WriteLine("📊 正在分析统计...");
@@ -208,6 +220,12 @@ class Program
         Console.WriteLine("📝 正在生成报表...");
         var writer = new ReportWriter(config.OutputDirectory);
         writer.WriteReports(result, config.FromTime, config.ToTime);
+        
+        // 如果有告警记录，生成告警报表
+        if (alertRecords.Count > 0)
+        {
+            writer.WriteAlertReport(alertRecords, config.FromTime, config.ToTime);
+        }
 
         // 汇总信息
         var totalParcels = result.TimeBuckets.Sum(s => s.TotalParcels);
@@ -224,6 +242,7 @@ class Program
         Console.WriteLine($"总包裹数：{totalParcels:N0}");
         Console.WriteLine($"异常包裹数：{totalExceptions:N0}");
         Console.WriteLine($"超载事件数：{totalOverloads:N0}");
+        Console.WriteLine($"告警事件数：{alertRecords.Count:N0}");
         Console.WriteLine($"异常比例：{exceptionRatio:P2}");
         Console.WriteLine($"超载比例：{overloadRatio:P2}");
         Console.WriteLine("========================================");
