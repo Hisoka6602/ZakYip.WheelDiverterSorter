@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;

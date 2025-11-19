@@ -2,6 +2,8 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -65,7 +67,7 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
     /// <summary>
     /// 创建测试路由配置的辅助方法
     /// </summary>
-    protected ChuteRouteConfiguration CreateTestRouteConfig(int chuteId, params (int diverterId, Core.Enums.DiverterDirection direction, int sequence)[] diverters)
+    protected ChuteRouteConfiguration CreateTestRouteConfig(int chuteId, params (int diverterId, DiverterDirection direction, int sequence)[] diverters)
     {
         var config = new ChuteRouteConfiguration
         {
