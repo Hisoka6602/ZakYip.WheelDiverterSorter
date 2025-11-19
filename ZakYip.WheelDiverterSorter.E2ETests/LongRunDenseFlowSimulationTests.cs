@@ -5,8 +5,11 @@ using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability;
@@ -96,7 +99,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
                             new DiverterConfigurationEntry
                             {
                                 DiverterId = chuteId <= 10 ? chuteId : 10, // 模拟 10 台摆轮
-                                TargetDirection = Core.Enums.DiverterDirection.Straight,
+                                TargetDirection = DiverterDirection.Straight,
                                 SequenceNumber = 1
                             }
                         },

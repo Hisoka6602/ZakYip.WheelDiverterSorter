@@ -5,8 +5,11 @@ using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability;
@@ -86,7 +89,7 @@ public class SimulationScenariosTests : IDisposable
                             new DiverterConfigurationEntry
                             {
                                 DiverterId = 1,
-                                TargetDirection = Core.Enums.DiverterDirection.Straight,
+                                TargetDirection = DiverterDirection.Straight,
                                 SequenceNumber = 1
                             }
                         },
@@ -129,7 +132,7 @@ public class SimulationScenariosTests : IDisposable
                             new SwitchingPathSegment
                             {
                                 DiverterId = 1,
-                                TargetDirection = Core.Enums.DiverterDirection.Straight,
+                                TargetDirection = DiverterDirection.Straight,
                                 SequenceNumber = 1,
                                 TtlMilliseconds = 2000
                             }
