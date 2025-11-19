@@ -54,4 +54,23 @@ public class SimulatedVendorDriverFactory : IVendorDriverFactory
         
         return new SimulatedConveyorSegmentDriver(mapping, logger);
     }
+
+    public IReadOnlyList<IWheelDiverterActuator> CreateWheelDiverterActuators()
+    {
+        // 创建模拟的摆轮执行器
+        // 默认创建5个摆轮用于测试
+        var actuators = new List<IWheelDiverterActuator>();
+        for (int i = 1; i <= 5; i++)
+        {
+            var logger = _loggerFactory.CreateLogger<SimulatedWheelDiverterActuator>();
+            actuators.Add(new SimulatedWheelDiverterActuator($"D{i}", logger));
+        }
+        return actuators;
+    }
+
+    public ISensorInputReader? CreateSensorInputReader()
+    {
+        var logger = _loggerFactory.CreateLogger<SimulatedSensorInputReader>();
+        return new SimulatedSensorInputReader(logger);
+    }
 }

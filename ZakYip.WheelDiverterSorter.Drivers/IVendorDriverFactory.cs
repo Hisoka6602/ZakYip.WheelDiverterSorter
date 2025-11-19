@@ -38,4 +38,16 @@ public interface IVendorDriverFactory
     /// <param name="segmentId">传送带段ID</param>
     /// <returns>传送带段驱动器实例，如果不支持则返回null</returns>
     IConveyorSegmentDriver? CreateConveyorSegmentDriver(string segmentId);
+
+    /// <summary>
+    /// 创建摆轮执行器列表（基于硬件抽象）
+    /// </summary>
+    /// <returns>摆轮执行器列表</returns>
+    IReadOnlyList<IWheelDiverterActuator> CreateWheelDiverterActuators();
+
+    /// <summary>
+    /// 创建传感器输入读取器
+    /// </summary>
+    /// <returns>传感器输入读取器实例，如果不支持则返回null</returns>
+    ISensorInputReader? CreateSensorInputReader();
 }
