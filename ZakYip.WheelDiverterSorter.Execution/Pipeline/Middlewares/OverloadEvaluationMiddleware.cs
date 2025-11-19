@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using CongestionLevel = ZakYip.WheelDiverterSorter.Core.Sorting.Runtime.CongestionLevel;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -81,7 +82,7 @@ public sealed class OverloadEvaluationMiddleware : ISortingPipelineMiddleware
 
                 context.ShouldForceException = true;
                 context.ExceptionReason = overloadDecision.Value.Reason ?? "Overload";
-                context.ExceptionType = "Overload";
+                context.ExceptionType = ExceptionType.Overload;
             }
             else if (overloadDecision?.ShouldMarkAsOverflow == true)
             {

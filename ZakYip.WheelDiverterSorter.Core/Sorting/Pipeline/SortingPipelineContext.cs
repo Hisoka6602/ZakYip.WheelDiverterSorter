@@ -1,5 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 
@@ -61,9 +62,9 @@ public sealed class SortingPipelineContext
     public string? ExceptionReason { get; set; }
 
     /// <summary>
-    /// 异常类型（Overload/PathFailure/NodeDegraded/UpstreamTimeout/Unknown）
+    /// 异常类型
     /// </summary>
-    public string? ExceptionType { get; set; }
+    public ExceptionType? ExceptionType { get; set; }
 
     /// <summary>
     /// 是否成功完成分拣

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
@@ -82,7 +83,7 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
 
                 context.ShouldForceException = true;
                 context.ExceptionReason = result.ErrorMessage ?? "UpstreamAssignmentFailed";
-                context.ExceptionType = "UpstreamTimeout";
+                context.ExceptionType = ExceptionType.UpstreamTimeout;
 
                 await WriteTraceAsync(new ParcelTraceEventArgs
                 {
@@ -103,7 +104,7 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
             _logger?.LogError(ex, "包裹 {ParcelId} 上游分配异常", context.ParcelId);
             context.ShouldForceException = true;
             context.ExceptionReason = $"UpstreamAssignmentException: {ex.Message}";
-            context.ExceptionType = "UpstreamTimeout";
+            context.ExceptionType = ExceptionType.UpstreamTimeout;
 
             await WriteTraceAsync(new ParcelTraceEventArgs
             {

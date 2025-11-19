@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -66,7 +67,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
             if (executionResult.IsSuccess)
             {
                 context.IsSuccess = true;
-                var isOverloadException = context.ShouldForceException && context.ExceptionType == "Overload";
+                var isOverloadException = context.ShouldForceException && context.ExceptionType == ExceptionType.Overload;
 
                 _logger?.LogInformation("包裹 {ParcelId} 成功分拣到格口 {ActualChuteId}{OverloadFlag}", 
                     context.ParcelId, executionResult.ActualChuteId, isOverloadException ? " [超载异常]" : "");

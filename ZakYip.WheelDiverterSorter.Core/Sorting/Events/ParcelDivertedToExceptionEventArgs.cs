@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
@@ -31,9 +33,9 @@ public readonly record struct ParcelDivertedToExceptionEventArgs
     public int? OriginalTargetChuteId { get; init; }
 
     /// <summary>
-    /// 异常类型（Overload/PathFailure/NodeDegraded/UpstreamTimeout/Unknown）
+    /// 异常类型
     /// </summary>
-    public string ExceptionType { get; init; }
+    public ExceptionType ExceptionType { get; init; }
 
     /// <summary>
     /// 分拣总耗时（毫秒）
