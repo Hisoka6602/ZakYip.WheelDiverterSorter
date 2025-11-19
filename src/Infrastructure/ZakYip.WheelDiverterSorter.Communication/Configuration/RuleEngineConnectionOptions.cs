@@ -63,6 +63,30 @@ public class RuleEngineConnectionOptions
     public bool EnableAutoReconnect { get; set; } = true;
 
     /// <summary>
+    /// 客户端模式下的初始退避延迟（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于客户端模式的连接重试，起始延迟200ms，每次翻倍增长
+    /// </remarks>
+    public int InitialBackoffMs { get; set; } = 200;
+
+    /// <summary>
+    /// 客户端模式下的最大退避延迟（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 硬编码上限为 2000ms (2秒)。即使配置更大值，实现上也会 cap 到 2000ms
+    /// </remarks>
+    public int MaxBackoffMs { get; set; } = 2000;
+
+    /// <summary>
+    /// 客户端模式下是否启用无限重试
+    /// </summary>
+    /// <remarks>
+    /// 默认 true。客户端模式下连接失败会无限重试，不会自动停止
+    /// </remarks>
+    public bool EnableInfiniteRetry { get; set; } = true;
+
+    /// <summary>
     /// 客户端模式下的最大退避时间（秒）
     /// </summary>
     /// <remarks>

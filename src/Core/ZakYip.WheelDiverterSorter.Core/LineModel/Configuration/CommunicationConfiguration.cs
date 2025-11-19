@@ -25,6 +25,15 @@ public class CommunicationConfiguration
     public CommunicationMode Mode { get; set; } = CommunicationMode.Http;
 
     /// <summary>
+    /// 连接模式（客户端或服务端）
+    /// </summary>
+    /// <remarks>
+    /// - Client: 本程序作为客户端，主动连接 RuleEngine
+    /// - Server: 本程序作为服务端，监听上游连接
+    /// </remarks>
+    public ConnectionMode ConnectionMode { get; set; } = ConnectionMode.Client;
+
+    /// <summary>
     /// TCP服务器地址（格式：host:port）
     /// </summary>
     public string? TcpServer { get; set; }
@@ -70,6 +79,30 @@ public class CommunicationConfiguration
     public bool EnableAutoReconnect { get; set; } = true;
 
     /// <summary>
+    /// 客户端模式下的初始退避延迟（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于客户端模式的连接重试，起始延迟200ms，每次翻倍增长
+    /// </remarks>
+    public int InitialBackoffMs { get; set; } = 200;
+
+    /// <summary>
+    /// 客户端模式下的最大退避延迟（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 硬编码上限为 2000ms (2秒)。即使配置更大值，实现上也会 cap 到 2000ms
+    /// </remarks>
+    public int MaxBackoffMs { get; set; } = 2000;
+
+    /// <summary>
+    /// 客户端模式下是否启用无限重试
+    /// </summary>
+    /// <remarks>
+    /// 默认 true。客户端模式下连接失败会无限重试，不会自动停止
+    /// </remarks>
+    public bool EnableInfiniteRetry { get; set; } = true;
+
+    /// <summary>
     /// TCP相关配置
     /// </summary>
     public TcpConfig Tcp { get; set; } = new();
@@ -112,6 +145,7 @@ public class CommunicationConfiguration
         return new CommunicationConfiguration
         {
             Mode = CommunicationMode.Http,
+            ConnectionMode = ConnectionMode.Client,
             TcpServer = "192.168.1.100:8000",
             SignalRHub = "http://192.168.1.100:5000/sortingHub",
             MqttBroker = "mqtt://192.168.1.100:1883",
@@ -121,6 +155,9 @@ public class CommunicationConfiguration
             RetryCount = 3,
             RetryDelayMs = 1000,
             EnableAutoReconnect = true,
+            InitialBackoffMs = 200,
+            MaxBackoffMs = 2000,
+            EnableInfiniteRetry = true,
             Tcp = new TcpConfig
             {
                 ReceiveBufferSize = 8192,
