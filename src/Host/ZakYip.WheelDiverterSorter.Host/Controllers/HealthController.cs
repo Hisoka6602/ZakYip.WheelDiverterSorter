@@ -31,7 +31,7 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// 进程级健康检查端点
+    /// 进程级健康检查端点（Kubernetes liveness probe）
     /// </summary>
     /// <returns>简单的健康状态</returns>
     /// <response code="200">进程健康</response>
@@ -42,8 +42,9 @@ public class HealthController : ControllerBase
     /// 只要进程能够响应请求，就认为是健康的。
     /// </remarks>
     [HttpGet("healthz")]
+    [HttpGet("health/live")]
     [SwaggerOperation(
-        Summary = "进程级健康检查",
+        Summary = "进程级健康检查（Liveness）",
         Description = "用于容器编排平台的存活检查，只要进程能响应就返回健康状态",
         OperationId = "GetProcessHealth",
         Tags = new[] { "健康检查" }
@@ -81,51 +82,43 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// 线体级健康检查端点
+    /// 启动阶段健康检查端点（Kubernetes startup probe）
     /// </summary>
-    /// <returns>详细的系统健康状态</returns>
-    /// <response code="200">线体健康且自检成功</response>
-    /// <response code="503">线体故障或自检失败</response>
+    /// <returns>启动状态</returns>
+    /// <response code="200">启动完成</response>
+    /// <response code="503">仍在启动中</response>
     /// <remarks>
-    /// 用于容器编排平台的就绪检查（readiness probe）。
-    /// 返回详细的自检结果，包括驱动器、上游系统、配置等状态。
-    /// 
-    /// 状态码说明：
-    /// - 200 OK: 系统状态为Ready/Running且自检成功
-    /// - 503 ServiceUnavailable: 系统状态为Faulted/EmergencyStop或自检失败
-    /// 
-    /// 响应包含：
-    /// - 系统当前状态（SystemState）
-    /// - 自检是否成功（IsSelfTestSuccess）
-    /// - 驱动器健康状态列表
-    /// - 上游系统连接状态
-    /// - 配置有效性检查
-    /// - 降级模式和降级节点信息（如有）
-    /// - 近期Critical告警摘要
+    /// 用于Kubernetes启动探测（startup probe）。
+    /// 检查系统是否已完成初始化和自检，进入Ready或Running状态。
     /// </remarks>
-    [HttpGet("health/line")]
+    [HttpGet("health/startup")]
     [SwaggerOperation(
-        Summary = "线体级健康检查",
-        Description = "返回详细的自检结果，包括驱动器、上游系统、配置等健康状态，用于就绪检查",
-        OperationId = "GetLineHealth",
+        Summary = "启动阶段健康检查（Startup）",
+        Description = "检查系统是否已完成初始化，用于Kubernetes startup probe",
+        OperationId = "GetStartupHealth",
         Tags = new[] { "健康检查" }
     )]
-    [SwaggerResponse(200, "线体健康且自检成功", typeof(LineHealthResponse))]
-    [SwaggerResponse(503, "线体故障或自检失败", typeof(LineHealthResponse))]
-    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status503ServiceUnavailable)]
-    public async Task<IActionResult> GetLineHealth()
+    [SwaggerResponse(200, "启动完成", typeof(ProcessHealthResponse))]
+    [SwaggerResponse(503, "仍在启动中", typeof(ProcessHealthResponse))]
+    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status503ServiceUnavailable)]
+    public IActionResult GetStartupHealth()
     {
         try
         {
-            // 使用 IHealthStatusProvider 获取健康快照
-            var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
+            var currentState = _stateManager.CurrentState;
+            
+            // 启动检查：系统不在Booting状态即认为启动完成
+            var isStartupComplete = currentState != SystemState.Booting;
+            
+            var response = new ProcessHealthResponse
+            {
+                Status = isStartupComplete ? "Healthy" : "Starting",
+                Reason = isStartupComplete ? null : "系统正在启动中",
+                Timestamp = DateTimeOffset.UtcNow
+            };
 
-            // 映射到响应DTO
-            var response = MapSnapshotToResponse(snapshot);
-
-            // 判断HTTP状态码
-            if (snapshot.IsLineAvailable && snapshot.IsSelfTestSuccess)
+            if (isStartupComplete)
             {
                 return Ok(response);
             }
@@ -136,7 +129,85 @@ public class HealthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "线体健康检查失败");
+            _logger.LogError(ex, "启动健康检查失败");
+            var response = new ProcessHealthResponse
+            {
+                Status = "Unhealthy",
+                Reason = "启动检查失败",
+                Timestamp = DateTimeOffset.UtcNow
+            };
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
+        }
+    }
+
+    /// <summary>
+    /// 就绪状态健康检查端点（Kubernetes readiness probe）
+    /// </summary>
+    /// <returns>详细的系统健康状态</returns>
+    /// <response code="200">系统就绪，可接收流量</response>
+    /// <response code="503">系统未就绪</response>
+    /// <remarks>
+    /// 用于容器编排平台的就绪检查（readiness probe）。
+    /// 返回详细的健康检查结果，包括：
+    /// 
+    /// 关键模块健康状态：
+    /// - RuleEngine 连接状态（push模型）
+    /// - TTL 调度线程状态（TODO: 待实现）
+    /// - 驱动器健康状态
+    /// - 传感器健康状态
+    /// - 系统状态（Ready/Running/Faulted等）
+    /// - 自检结果
+    /// - 降级模式和降级节点信息
+    /// - 近期Critical告警统计
+    /// 
+    /// 状态码说明：
+    /// - 200 OK: 系统状态为Ready/Running且所有关键模块健康
+    /// - 503 ServiceUnavailable: 系统故障或关键模块不健康
+    /// </remarks>
+    [HttpGet("health/ready")]
+    [SwaggerOperation(
+        Summary = "就绪状态健康检查（Readiness）",
+        Description = "返回详细的健康检查结果，包括RuleEngine连接、TTL调度、驱动器等关键模块状态",
+        OperationId = "GetReadinessHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "系统就绪", typeof(LineHealthResponse))]
+    [SwaggerResponse(503, "系统未就绪", typeof(LineHealthResponse))]
+    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> GetReadinessHealth()
+    {
+        try
+        {
+            // 使用 IHealthStatusProvider 获取健康快照
+            var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
+
+            // 映射到响应DTO
+            var response = MapSnapshotToResponse(snapshot);
+
+            // 判断HTTP状态码：检查所有关键模块
+            var isReady = snapshot.IsLineAvailable && snapshot.IsSelfTestSuccess;
+            
+            // 检查 RuleEngine 连接状态
+            var ruleEngineHealthy = snapshot.Upstreams?.All(u => u.IsHealthy) ?? true;
+            
+            // 检查驱动器状态
+            var driversHealthy = snapshot.Drivers?.All(d => d.IsHealthy) ?? true;
+            
+            isReady = isReady && ruleEngineHealthy && driversHealthy;
+
+            if (isReady)
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "就绪状态健康检查失败");
             var response = new LineHealthResponse
             {
                 SystemState = "Unknown",
@@ -145,6 +216,32 @@ public class HealthController : ControllerBase
             };
             return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }
+    }
+
+    /// <summary>
+    /// 线体级健康检查端点（向后兼容）
+    /// </summary>
+    /// <returns>详细的系统健康状态</returns>
+    /// <response code="200">线体健康且自检成功</response>
+    /// <response code="503">线体故障或自检失败</response>
+    /// <remarks>
+    /// 此端点保持向后兼容性。建议使用 /health/ready 端点。
+    /// </remarks>
+    [HttpGet("health/line")]
+    [SwaggerOperation(
+        Summary = "线体级健康检查（向后兼容）",
+        Description = "返回详细的自检结果，建议使用 /health/ready 端点",
+        OperationId = "GetLineHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "线体健康且自检成功", typeof(LineHealthResponse))]
+    [SwaggerResponse(503, "线体故障或自检失败", typeof(LineHealthResponse))]
+    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status503ServiceUnavailable)]
+    public Task<IActionResult> GetLineHealth()
+    {
+        // 重定向到新的 ready 端点
+        return GetReadinessHealth();
     }
 
     private static LineHealthResponse MapSnapshotToResponse(LineHealthSnapshot snapshot)

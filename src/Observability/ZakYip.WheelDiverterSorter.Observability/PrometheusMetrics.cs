@@ -857,6 +857,118 @@ public class PrometheusMetrics
         AlertsTotal.WithLabels(severity, code).Inc();
         LastAlertTimestamp.WithLabels(severity, code).Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
     }
+
+    // ========== PR-34: 健康检查指标 / Health Check Metrics ==========
+
+    /// <summary>
+    /// 健康检查状态 (1=健康, 0=不健康)
+    /// Health check status gauge
+    /// </summary>
+    private static readonly Gauge HealthCheckStatus = Metrics
+        .CreateGauge("health_check_status",
+            "健康检查状态 (1=健康, 0=不健康) / Health check status (1=healthy, 0=unhealthy)",
+            new GaugeConfiguration
+            {
+                LabelNames = new[] { "check_type" } // live, startup, ready
+            });
+
+    /// <summary>
+    /// RuleEngine连接健康状态 (1=健康, 0=不健康)
+    /// RuleEngine connection health status
+    /// </summary>
+    private static readonly Gauge RuleEngineConnectionHealth = Metrics
+        .CreateGauge("ruleengine_connection_health",
+            "RuleEngine连接健康状态 (1=健康, 0=不健康) / RuleEngine connection health (1=healthy, 0=unhealthy)",
+            new GaugeConfiguration
+            {
+                LabelNames = new[] { "connection_type" }
+            });
+
+    /// <summary>
+    /// TTL调度器健康状态 (1=健康, 0=不健康)
+    /// TTL scheduler health status
+    /// </summary>
+    private static readonly Gauge TtlSchedulerHealth = Metrics
+        .CreateGauge("ttl_scheduler_health",
+            "TTL调度器健康状态 (1=健康, 0=不健康) / TTL scheduler health (1=healthy, 0=unhealthy)");
+
+    /// <summary>
+    /// 驱动器健康状态 (1=健康, 0=不健康)
+    /// Driver health status
+    /// </summary>
+    private static readonly Gauge DriverHealthStatus = Metrics
+        .CreateGauge("driver_health_status",
+            "驱动器健康状态 (1=健康, 0=不健康) / Driver health status (1=healthy, 0=unhealthy)",
+            new GaugeConfiguration
+            {
+                LabelNames = new[] { "driver_name" }
+            });
+
+    /// <summary>
+    /// 上游系统健康状态 (1=健康, 0=不健康)
+    /// Upstream system health status
+    /// </summary>
+    private static readonly Gauge UpstreamHealthStatus = Metrics
+        .CreateGauge("upstream_health_status",
+            "上游系统健康状态 (1=健康, 0=不健康) / Upstream health status (1=healthy, 0=unhealthy)",
+            new GaugeConfiguration
+            {
+                LabelNames = new[] { "endpoint_name" }
+            });
+
+    /// <summary>
+    /// 设置健康检查状态
+    /// Set health check status
+    /// </summary>
+    /// <param name="checkType">检查类型：live, startup, ready</param>
+    /// <param name="isHealthy">是否健康</param>
+    public void SetHealthCheckStatus(string checkType, bool isHealthy)
+    {
+        HealthCheckStatus.WithLabels(checkType).Set(isHealthy ? 1 : 0);
+    }
+
+    /// <summary>
+    /// 设置RuleEngine连接健康状态
+    /// Set RuleEngine connection health
+    /// </summary>
+    /// <param name="connectionType">连接类型</param>
+    /// <param name="isHealthy">是否健康</param>
+    public void SetRuleEngineConnectionHealth(string connectionType, bool isHealthy)
+    {
+        RuleEngineConnectionHealth.WithLabels(connectionType).Set(isHealthy ? 1 : 0);
+    }
+
+    /// <summary>
+    /// 设置TTL调度器健康状态
+    /// Set TTL scheduler health
+    /// </summary>
+    /// <param name="isHealthy">是否健康</param>
+    public void SetTtlSchedulerHealth(bool isHealthy)
+    {
+        TtlSchedulerHealth.Set(isHealthy ? 1 : 0);
+    }
+
+    /// <summary>
+    /// 设置驱动器健康状态
+    /// Set driver health status
+    /// </summary>
+    /// <param name="driverName">驱动器名称</param>
+    /// <param name="isHealthy">是否健康</param>
+    public void SetDriverHealthStatus(string driverName, bool isHealthy)
+    {
+        DriverHealthStatus.WithLabels(driverName).Set(isHealthy ? 1 : 0);
+    }
+
+    /// <summary>
+    /// 设置上游系统健康状态
+    /// Set upstream system health status
+    /// </summary>
+    /// <param name="endpointName">端点名称</param>
+    /// <param name="isHealthy">是否健康</param>
+    public void SetUpstreamHealthStatus(string endpointName, bool isHealthy)
+    {
+        UpstreamHealthStatus.WithLabels(endpointName).Set(isHealthy ? 1 : 0);
+    }
 }
 
 

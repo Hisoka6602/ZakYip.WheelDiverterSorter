@@ -87,6 +87,30 @@ rate(sorter_ruleengine_messages_sent_total[5m])
 rate(sorter_sensor_errors_total[5m])
 ```
 
+### 健康检查指标 / Health Check Metrics
+
+- `health_check_status{check_type}` - 健康检查状态 / Health check status (1=healthy, 0=unhealthy)
+  - check_type: `live`, `startup`, `ready`
+- `ruleengine_connection_health{connection_type}` - RuleEngine连接健康状态 / RuleEngine connection health (1=healthy, 0=unhealthy)
+- `ttl_scheduler_health` - TTL调度器健康状态 / TTL scheduler health (1=healthy, 0=unhealthy)
+- `driver_health_status{driver_name}` - 驱动器健康状态 / Driver health status (1=healthy, 0=unhealthy)
+- `upstream_health_status{endpoint_name}` - 上游系统健康状态 / Upstream health status (1=healthy, 0=unhealthy)
+
+**就绪状态检查 / Readiness Check:**
+```promql
+health_check_status{check_type="ready"}
+```
+
+**RuleEngine连接健康 / RuleEngine Connection Health:**
+```promql
+ruleengine_connection_health{connection_type="Default"}
+```
+
+**所有驱动器健康 / All Drivers Healthy:**
+```promql
+min(driver_health_status) == 1
+```
+
 ## Prometheus配置 / Prometheus Configuration
 
 在Prometheus配置文件（`prometheus.yml`）中添加以下配置：
@@ -198,6 +222,47 @@ groups:
         for: 1m
         labels:
           severity: critical
+        annotations:
+          summary: "传感器故障 / Sensor fault"
+          description: "传感器 {{ $labels.sensor_id }} (类型: {{ $labels.sensor_type }}) 发生故障 / Sensor {{ $labels.sensor_id }} (type: {{ $labels.sensor_type }}) is faulty"
+
+      # PR-34: 健康检查告警 / Health check alerts
+      - alert: SystemNotReady
+        expr: health_check_status{check_type="ready"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "系统未就绪 / System not ready"
+          description: "系统健康检查失败，无法接收流量 / System health check failed, cannot receive traffic"
+
+      - alert: RuleEngineConnectionUnhealthy
+        expr: ruleengine_connection_health == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RuleEngine连接不健康 / RuleEngine connection unhealthy"
+          description: "RuleEngine连接 {{ $labels.connection_type }} 健康检查失败 / RuleEngine connection {{ $labels.connection_type }} health check failed"
+
+      - alert: DriverUnhealthy
+        expr: driver_health_status == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "驱动器不健康 / Driver unhealthy"
+          description: "驱动器 {{ $labels.driver_name }} 健康检查失败 / Driver {{ $labels.driver_name }} health check failed"
+
+      - alert: TtlSchedulerUnhealthy
+        expr: ttl_scheduler_health == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "TTL调度器不健康 / TTL scheduler unhealthy"
+          description: "TTL调度线程异常，包裹超时检测可能失效 / TTL scheduler thread abnormal, parcel timeout detection may fail"
+```
         annotations:
           summary: "传感器故障 / Sensor fault"
           description: "传感器 {{ $labels.sensor_id }} ({{ $labels.sensor_type }}) 故障 / Sensor {{ $labels.sensor_id }} ({{ $labels.sensor_type }}) is faulty"
