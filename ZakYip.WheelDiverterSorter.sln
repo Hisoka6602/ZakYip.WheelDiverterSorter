@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36603.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Core", "ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj", "{863DB3C6-F770-4E03-A230-E1732942BC92}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Core", "src\Core\ZakYip.WheelDiverterSorter.Core\ZakYip.WheelDiverterSorter.Core.csproj", "{863DB3C6-F770-4E03-A230-E1732942BC92}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
 EndProject
@@ -15,49 +15,49 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Host", "Host", "{19011A81-4
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Observability", "Observability", "{63208A51-CFB4-49A3-B079-21F3B7C1BCCE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Execution", "ZakYip.WheelDiverterSorter.Execution\ZakYip.WheelDiverterSorter.Execution.csproj", "{3951C9F4-6D6F-4C16-B621-44AEB8825377}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Execution", "src\Execution\ZakYip.WheelDiverterSorter.Execution\ZakYip.WheelDiverterSorter.Execution.csproj", "{3951C9F4-6D6F-4C16-B621-44AEB8825377}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Ingress", "ZakYip.WheelDiverterSorter.Ingress\ZakYip.WheelDiverterSorter.Ingress.csproj", "{648DB50C-714C-46EC-8425-97D874682D91}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Ingress", "src\Ingress\ZakYip.WheelDiverterSorter.Ingress\ZakYip.WheelDiverterSorter.Ingress.csproj", "{648DB50C-714C-46EC-8425-97D874682D91}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Host", "ZakYip.WheelDiverterSorter.Host\ZakYip.WheelDiverterSorter.Host.csproj", "{7D79EB9B-F064-4464-BE1F-85453067D526}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Host", "src\Host\ZakYip.WheelDiverterSorter.Host\ZakYip.WheelDiverterSorter.Host.csproj", "{7D79EB9B-F064-4464-BE1F-85453067D526}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Observability", "ZakYip.WheelDiverterSorter.Observability\ZakYip.WheelDiverterSorter.Observability.csproj", "{25973B27-6BCF-4E45-B976-5C93534CA276}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Observability", "src\Observability\ZakYip.WheelDiverterSorter.Observability\ZakYip.WheelDiverterSorter.Observability.csproj", "{25973B27-6BCF-4E45-B976-5C93534CA276}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Drivers", "ZakYip.WheelDiverterSorter.Drivers\ZakYip.WheelDiverterSorter.Drivers.csproj", "{DD5310AB-D34B-457D-AD4E-E73E8A27878D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Drivers", "src\Drivers\ZakYip.WheelDiverterSorter.Drivers\ZakYip.WheelDiverterSorter.Drivers.csproj", "{DD5310AB-D34B-457D-AD4E-E73E8A27878D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Core.Tests", "ZakYip.WheelDiverterSorter.Core.Tests\ZakYip.WheelDiverterSorter.Core.Tests.csproj", "{5459F5FE-CB1F-4D30-8D3D-9DB679ADB9AF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Core.Tests", "tests\ZakYip.WheelDiverterSorter.Core.Tests\ZakYip.WheelDiverterSorter.Core.Tests.csproj", "{5459F5FE-CB1F-4D30-8D3D-9DB679ADB9AF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Drivers.Tests", "ZakYip.WheelDiverterSorter.Drivers.Tests\ZakYip.WheelDiverterSorter.Drivers.Tests.csproj", "{92D88693-4329-49ED-8E30-AF4BACBD2678}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Drivers.Tests", "tests\ZakYip.WheelDiverterSorter.Drivers.Tests\ZakYip.WheelDiverterSorter.Drivers.Tests.csproj", "{92D88693-4329-49ED-8E30-AF4BACBD2678}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Benchmarks", "ZakYip.WheelDiverterSorter.Benchmarks\ZakYip.WheelDiverterSorter.Benchmarks.csproj", "{6A3F2B03-4A14-4A19-9847-9225B7AC5607}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Benchmarks", "tests\ZakYip.WheelDiverterSorter.Benchmarks\ZakYip.WheelDiverterSorter.Benchmarks.csproj", "{6A3F2B03-4A14-4A19-9847-9225B7AC5607}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Ingress.Tests", "ZakYip.WheelDiverterSorter.Ingress.Tests\ZakYip.WheelDiverterSorter.Ingress.Tests.csproj", "{9579F985-CE93-4ADF-A0EC-D986E861EC7A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Ingress.Tests", "tests\ZakYip.WheelDiverterSorter.Ingress.Tests\ZakYip.WheelDiverterSorter.Ingress.Tests.csproj", "{9579F985-CE93-4ADF-A0EC-D986E861EC7A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Host.IntegrationTests", "ZakYip.WheelDiverterSorter.Host.IntegrationTests\ZakYip.WheelDiverterSorter.Host.IntegrationTests.csproj", "{A6CBC272-C997-42A5-962D-6592947F55E0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Host.IntegrationTests", "tests\ZakYip.WheelDiverterSorter.Host.IntegrationTests\ZakYip.WheelDiverterSorter.Host.IntegrationTests.csproj", "{A6CBC272-C997-42A5-962D-6592947F55E0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{6F3AA131-87AB-4390-B282-F46742711AB0}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Drivers", "Drivers", "{1AA6F1D6-2781-4FCF-8577-47C72EA31F5D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication.Tests", "ZakYip.WheelDiverterSorter.Communication.Tests\ZakYip.WheelDiverterSorter.Communication.Tests.csproj", "{FB8C77B9-F520-4EA5-852B-4B84BC61E807}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication.Tests", "tests\ZakYip.WheelDiverterSorter.Communication.Tests\ZakYip.WheelDiverterSorter.Communication.Tests.csproj", "{FB8C77B9-F520-4EA5-852B-4B84BC61E807}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Infrastructure", "Infrastructure", "{D54CD29C-2BEE-446A-A3F9-C72B2DB82339}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Observability.Tests", "ZakYip.WheelDiverterSorter.Observability.Tests\ZakYip.WheelDiverterSorter.Observability.Tests.csproj", "{38A00945-EF58-4F7F-B2DF-219A01B5307A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Observability.Tests", "tests\ZakYip.WheelDiverterSorter.Observability.Tests\ZakYip.WheelDiverterSorter.Observability.Tests.csproj", "{38A00945-EF58-4F7F-B2DF-219A01B5307A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Execution.Tests", "ZakYip.WheelDiverterSorter.Execution.Tests\ZakYip.WheelDiverterSorter.Execution.Tests.csproj", "{C8878993-F142-48B4-91AA-94D2F2A395D2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Execution.Tests", "tests\ZakYip.WheelDiverterSorter.Execution.Tests\ZakYip.WheelDiverterSorter.Execution.Tests.csproj", "{C8878993-F142-48B4-91AA-94D2F2A395D2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.E2ETests", "ZakYip.WheelDiverterSorter.E2ETests\ZakYip.WheelDiverterSorter.E2ETests.csproj", "{CA762DFC-2F60-411A-995E-0979EB61D300}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.E2ETests", "tests\ZakYip.WheelDiverterSorter.E2ETests\ZakYip.WheelDiverterSorter.E2ETests.csproj", "{CA762DFC-2F60-411A-995E-0979EB61D300}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Simulation", "ZakYip.WheelDiverterSorter.Simulation\ZakYip.WheelDiverterSorter.Simulation.csproj", "{8695A25F-D7F9-42E5-ACBF-767D10CAA649}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Simulation", "src\Simulation\ZakYip.WheelDiverterSorter.Simulation\ZakYip.WheelDiverterSorter.Simulation.csproj", "{8695A25F-D7F9-42E5-ACBF-767D10CAA649}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tools", "Tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simulation", "Simulation", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Tools.Reporting", "Tools\ZakYip.WheelDiverterSorter.Tools.Reporting\ZakYip.WheelDiverterSorter.Tools.Reporting.csproj", "{7386804D-315B-4AD5-9C77-0ADDDC20B06B}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Tools.Reporting", "tools\ZakYip.WheelDiverterSorter.Tools.Reporting\ZakYip.WheelDiverterSorter.Tools.Reporting.csproj", "{7386804D-315B-4AD5-9C77-0ADDDC20B06B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication", "ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj", "{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication", "src\Infrastructure\ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj", "{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
