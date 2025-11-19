@@ -9,6 +9,59 @@ This document describes the observability testing implementation for the ZakYip 
 - **Test Framework**: xUnit
 - **Total Tests**: 17 (all passing ✅)
 
+## Health Check Endpoints (PR-34)
+
+### Standardized Endpoints
+
+The system implements standard Kubernetes health check endpoints:
+
+#### 1. Liveness Probe - `/health/live` and `/healthz`
+- **Purpose**: Checks if the process is alive and can respond to requests
+- **Returns 200**: Process is alive
+- **Returns 503**: Process is dead or unresponsive
+- **Use case**: Container orchestration liveness probes
+
+#### 2. Startup Probe - `/health/startup`
+- **Purpose**: Checks if the application has completed initialization
+- **Returns 200**: System has finished startup (not in Booting state)
+- **Returns 503**: System is still starting up
+- **Use case**: Container orchestration startup probes
+
+#### 3. Readiness Probe - `/health/ready`
+- **Purpose**: Checks if the system is ready to accept traffic
+- **Returns 200**: All critical modules are healthy
+- **Returns 503**: One or more critical modules are unhealthy
+- **Checks**:
+  - System state (Ready/Running)
+  - Self-test results
+  - RuleEngine connection status
+  - Driver health status
+  - TTL scheduler status (TODO)
+  - Sensor health (via driver status)
+- **Use case**: Container orchestration readiness probes, load balancer health checks
+
+#### 4. Legacy Endpoint - `/health/line`
+- **Purpose**: Backward compatibility
+- **Behavior**: Redirects to `/health/ready`
+
+### Health Check Metrics (PR-34)
+
+The following Prometheus metrics are exposed for health monitoring:
+
+- `health_check_status{check_type}` - Overall health status (1=healthy, 0=unhealthy)
+  - Labels: `live`, `startup`, `ready`
+- `ruleengine_connection_health{connection_type}` - RuleEngine connection health
+- `ttl_scheduler_health` - TTL scheduler thread health
+- `driver_health_status{driver_name}` - Individual driver health status
+- `upstream_health_status{endpoint_name}` - Upstream system health status
+
+### Alert Integration
+
+Health status changes trigger alerts through the unified `IAlertSink` interface:
+- `FileAlertSink` - Writes alerts to files
+- `LogAlertSink` - Logs alerts
+- `AlertHistoryService` - Maintains alert history for API queries
+
 ## Test Categories
 
 ### 1. 指标收集测试 (Metrics Collection Testing)
