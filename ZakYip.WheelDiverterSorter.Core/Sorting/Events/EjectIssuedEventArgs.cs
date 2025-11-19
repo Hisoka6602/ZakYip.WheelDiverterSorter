@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
 /// 吐件指令发出事件载荷，当系统向摆轮发出实际吐件指令时触发

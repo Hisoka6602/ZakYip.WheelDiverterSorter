@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace ZakYip.WheelDiverterSorter.Core.Utilities;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 
 /// <summary>
 /// 格口ID转换辅助类

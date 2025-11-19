@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Communication;
+namespace ZakYip.WheelDiverterSorter.Communication.Models;
 
 /// <summary>
 /// 包裹检测通知

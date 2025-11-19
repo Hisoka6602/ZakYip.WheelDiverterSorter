@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;

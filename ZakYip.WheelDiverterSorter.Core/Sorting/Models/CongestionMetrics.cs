@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 /// <summary>
 /// 拥堵指标

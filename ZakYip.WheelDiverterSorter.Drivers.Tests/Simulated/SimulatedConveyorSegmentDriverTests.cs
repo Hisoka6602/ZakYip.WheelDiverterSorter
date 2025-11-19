@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Simulated;

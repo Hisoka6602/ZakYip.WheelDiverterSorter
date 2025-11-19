@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Contracts;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 
 /// <summary>
 /// 分拣请求

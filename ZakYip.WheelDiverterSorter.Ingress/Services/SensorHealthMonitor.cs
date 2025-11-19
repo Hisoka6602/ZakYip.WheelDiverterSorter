@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;

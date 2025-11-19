@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Core;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress.Models;

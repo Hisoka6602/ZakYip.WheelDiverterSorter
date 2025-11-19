@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.Sorting.Core.Contracts;
-using ZakYip.Sorting.Core.Exceptions;
-using ZakYip.Sorting.Core.Interfaces;
-using ZakYip.Sorting.Core.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
-namespace ZakYip.Sorting.Core.Policies;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 /// <summary>
 /// 默认分拣异常策略实现

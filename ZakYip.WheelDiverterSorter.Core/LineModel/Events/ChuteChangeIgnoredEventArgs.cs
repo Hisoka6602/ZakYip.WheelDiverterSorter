@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
 /// <summary>
 /// 改口被忽略/拒绝事件参数。

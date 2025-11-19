@@ -1,7 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core;
-using ZakYip.WheelDiverterSorter.Core.Events;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 

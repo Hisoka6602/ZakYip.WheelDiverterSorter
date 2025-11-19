@@ -1,6 +1,6 @@
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
-namespace ZakYip.Sorting.Core.Policies;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 /// <summary>
 /// 基于阈值的拥堵检测器实现。

@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 /// <summary>
 /// 异常路由策略

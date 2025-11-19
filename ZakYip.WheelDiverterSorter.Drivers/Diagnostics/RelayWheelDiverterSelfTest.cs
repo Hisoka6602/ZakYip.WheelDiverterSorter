@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Diagnostics;

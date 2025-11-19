@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Exceptions;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 
 /// <summary>
 /// 上游服务不可用异常

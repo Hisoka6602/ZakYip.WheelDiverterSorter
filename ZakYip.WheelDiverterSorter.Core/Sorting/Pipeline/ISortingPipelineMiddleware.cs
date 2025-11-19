@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Pipeline;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 
 /// <summary>
 /// 分拣流水线中间件接口

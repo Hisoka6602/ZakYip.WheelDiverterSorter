@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 /// <summary>
 /// 信号塔通道枚举（三色灯与蜂鸣器）。

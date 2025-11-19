@@ -1,6 +1,6 @@
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
-namespace ZakYip.Sorting.Core.Policies;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 /// <summary>
 /// 简单产能估算器实现：基于成功率和延迟计算安全产能区间。

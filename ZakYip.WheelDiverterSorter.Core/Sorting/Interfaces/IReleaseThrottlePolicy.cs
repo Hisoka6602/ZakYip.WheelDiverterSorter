@@ -1,6 +1,6 @@
-using ZakYip.Sorting.Core.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
-namespace ZakYip.Sorting.Core.Interfaces;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 
 /// <summary>
 /// 放包节流策略接口

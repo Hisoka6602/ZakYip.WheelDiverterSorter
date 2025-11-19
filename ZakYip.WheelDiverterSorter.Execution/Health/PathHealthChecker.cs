@@ -1,5 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core;
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Health;
 

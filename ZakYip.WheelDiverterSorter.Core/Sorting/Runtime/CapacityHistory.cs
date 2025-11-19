@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Runtime;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 /// <summary>
 /// 产能历史数据：用于ICapacityEstimator根据历史测试数据估算安全产能区间。

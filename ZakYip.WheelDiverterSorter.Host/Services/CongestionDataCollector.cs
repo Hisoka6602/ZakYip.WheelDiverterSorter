@@ -1,4 +1,4 @@
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.Sorting.Core.Runtime;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 /// <summary>
 /// 线体拥堵等级。

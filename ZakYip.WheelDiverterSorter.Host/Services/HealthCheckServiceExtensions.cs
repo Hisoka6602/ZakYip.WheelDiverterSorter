@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Communication.Health;
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 

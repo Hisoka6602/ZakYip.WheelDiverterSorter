@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.Sorting.Core.Pipeline;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Tracing;
 

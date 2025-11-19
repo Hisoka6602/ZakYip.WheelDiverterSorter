@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Tracing;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 
 /// <summary>
 /// 单件分拣审计日志写入接口

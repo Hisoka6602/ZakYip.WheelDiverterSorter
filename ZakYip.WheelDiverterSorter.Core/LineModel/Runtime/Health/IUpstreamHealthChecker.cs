@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
-namespace ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 /// <summary>
 /// 上游系统健康检查接口

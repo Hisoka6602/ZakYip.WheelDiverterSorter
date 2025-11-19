@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Tracing;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 
 /// <summary>
 /// 包裹分拣审计事件参数

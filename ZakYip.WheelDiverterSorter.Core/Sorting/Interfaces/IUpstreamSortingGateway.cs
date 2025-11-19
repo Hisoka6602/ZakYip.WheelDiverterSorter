@@ -1,6 +1,6 @@
-using ZakYip.Sorting.Core.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 
-namespace ZakYip.Sorting.Core.Interfaces;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 
 /// <summary>
 /// 上游分拣网关接口

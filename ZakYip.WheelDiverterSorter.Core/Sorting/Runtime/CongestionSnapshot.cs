@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Runtime;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 /// <summary>
 /// 拥堵检测快照：用于ICongestionDetector评估当前拥堵状况。

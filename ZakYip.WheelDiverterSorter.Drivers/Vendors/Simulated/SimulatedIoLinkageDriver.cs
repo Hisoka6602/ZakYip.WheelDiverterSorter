@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;

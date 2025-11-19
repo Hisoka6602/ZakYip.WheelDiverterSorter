@@ -1,6 +1,6 @@
 using Xunit;
-using ZakYip.Sorting.Core.Runtime;
-using ZakYip.Sorting.Core.Policies;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests.ThrottleTests;
 

@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Runtime;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 /// <summary>
 /// 拥堵检测器：基于实时指标推断当前拥堵等级。

@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
-using ZakYip.Sorting.Core.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream.Http;
 

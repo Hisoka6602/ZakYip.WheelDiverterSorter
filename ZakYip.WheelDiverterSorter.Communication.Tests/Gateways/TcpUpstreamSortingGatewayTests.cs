@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using ZakYip.Sorting.Core.Contracts;
-using ZakYip.Sorting.Core.Exceptions;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;

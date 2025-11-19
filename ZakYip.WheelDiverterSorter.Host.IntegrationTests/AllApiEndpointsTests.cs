@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using Xunit;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;

@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 
-namespace ZakYip.Sorting.Core.Pipeline;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 
 /// <summary>
 /// 分拣流水线上下文
