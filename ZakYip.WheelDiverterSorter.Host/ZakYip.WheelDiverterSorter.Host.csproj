@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -30,7 +30,6 @@
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Drivers\ZakYip.WheelDiverterSorter.Drivers.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Execution\ZakYip.WheelDiverterSorter.Execution.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Ingress\ZakYip.WheelDiverterSorter.Ingress.csproj" />
-    <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Observability\ZakYip.WheelDiverterSorter.Observability.csproj" />
     <ProjectReference Include="..\ZakYip.WheelDiverterSorter.Simulation\ZakYip.WheelDiverterSorter.Simulation.csproj" />
   </ItemGroup>
