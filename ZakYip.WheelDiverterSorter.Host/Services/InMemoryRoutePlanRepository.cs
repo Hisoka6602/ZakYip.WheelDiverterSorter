@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 

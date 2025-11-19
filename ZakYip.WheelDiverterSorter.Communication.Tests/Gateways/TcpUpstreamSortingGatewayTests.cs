@@ -7,7 +7,9 @@ using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Gateways;
+using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Gateways;
 
@@ -27,7 +29,7 @@ public class TcpUpstreamSortingGatewayTests
         _mockLogger = new Mock<ILogger<TcpUpstreamSortingGateway>>();
         _options = new RuleEngineConnectionOptions
         {
-            Mode = Core.Enums.CommunicationMode.Tcp,
+            Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:5000",
             TimeoutMs = 5000,
             RetryCount = 3

@@ -3,6 +3,7 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Xunit;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Tests;

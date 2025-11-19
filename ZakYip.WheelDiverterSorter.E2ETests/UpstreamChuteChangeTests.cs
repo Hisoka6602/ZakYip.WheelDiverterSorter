@@ -1,6 +1,7 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Execution;
 using Microsoft.Extensions.Logging;

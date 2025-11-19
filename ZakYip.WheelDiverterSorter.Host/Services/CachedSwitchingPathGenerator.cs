@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
