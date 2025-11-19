@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
-using ZakYip.WheelDiverterSorter.Core.Tracing;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream;
 

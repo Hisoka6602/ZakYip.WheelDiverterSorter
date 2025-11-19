@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using csLTDMC;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 

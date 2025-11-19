@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Events;

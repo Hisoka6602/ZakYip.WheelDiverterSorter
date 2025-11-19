@@ -1,9 +1,9 @@
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Tracing;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Ingress;

@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 

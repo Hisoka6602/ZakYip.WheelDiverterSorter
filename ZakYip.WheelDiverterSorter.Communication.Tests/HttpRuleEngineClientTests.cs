@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 

@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Communication.Models;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 

@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using Swashbuckle.AspNetCore.Annotations;

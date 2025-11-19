@@ -1,5 +1,5 @@
 using Xunit;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests;

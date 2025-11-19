@@ -2,7 +2,7 @@ using System.Reflection;
 using Microsoft.Extensions.Caching.Memory;
 using NLog;
 using NLog.Web;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Execution;

@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Health;
