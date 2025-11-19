@@ -1,10 +1,11 @@
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 异常趋势检测器实现 / Anomaly Trend Detector Implementation
@@ -16,12 +17,14 @@ public class AnomalyDetector : IAnomalyDetector
 
     // 时间窗口内的数据缓存
     private readonly object _lock = new();
+
     private readonly Queue<SortingRecord> _sortingRecords = new();
     private readonly Queue<OverloadRecord> _overloadRecords = new();
     private readonly Queue<DateTimeOffset> _upstreamTimeouts = new();
 
     // 配置参数（可通过配置文件或构造函数注入）
     private readonly TimeSpan _monitoringWindow = TimeSpan.FromMinutes(5);
+
     private readonly double _exceptionChuteRatioThreshold = 0.15; // 15%
     private readonly double _overloadSpikeThreshold = 2.0; // 2x increase
     private readonly double _upstreamTimeoutRatioThreshold = 0.10; // 10%
@@ -29,6 +32,7 @@ public class AnomalyDetector : IAnomalyDetector
 
     // 上一次告警时间（防止重复告警）
     private DateTimeOffset? _lastExceptionRatioAlert;
+
     private DateTimeOffset? _lastOverloadSpikeAlert;
     private DateTimeOffset? _lastUpstreamTimeoutAlert;
     private readonly TimeSpan _alertCooldown = TimeSpan.FromMinutes(10);
@@ -110,6 +114,7 @@ public class AnomalyDetector : IAnomalyDetector
 
     private async Task CheckExceptionChuteRatioAsync(CancellationToken cancellationToken)
     {
+        await Task.Yield();
         lock (_lock)
         {
             var now = DateTimeOffset.UtcNow;
@@ -128,7 +133,7 @@ public class AnomalyDetector : IAnomalyDetector
             if (exceptionRatio > _exceptionChuteRatioThreshold)
             {
                 // Check cooldown
-                if (_lastExceptionRatioAlert.HasValue && 
+                if (_lastExceptionRatioAlert.HasValue &&
                     (now - _lastExceptionRatioAlert.Value) < _alertCooldown)
                 {
                     return; // Still in cooldown period
@@ -164,6 +169,7 @@ public class AnomalyDetector : IAnomalyDetector
 
     private async Task CheckOverloadSpikeAsync(CancellationToken cancellationToken)
     {
+        await Task.Yield();
         lock (_lock)
         {
             var now = DateTimeOffset.UtcNow;
@@ -202,7 +208,7 @@ public class AnomalyDetector : IAnomalyDetector
             if (spikeRatio >= _overloadSpikeThreshold)
             {
                 // Check cooldown
-                if (_lastOverloadSpikeAlert.HasValue && 
+                if (_lastOverloadSpikeAlert.HasValue &&
                     (now - _lastOverloadSpikeAlert.Value) < _alertCooldown)
                 {
                     return; // Still in cooldown period
@@ -238,6 +244,7 @@ public class AnomalyDetector : IAnomalyDetector
 
     private async Task CheckUpstreamTimeoutRatioAsync(CancellationToken cancellationToken)
     {
+        await Task.Yield();
         lock (_lock)
         {
             var now = DateTimeOffset.UtcNow;
@@ -256,7 +263,7 @@ public class AnomalyDetector : IAnomalyDetector
             if (timeoutRatio > _upstreamTimeoutRatioThreshold)
             {
                 // Check cooldown
-                if (_lastUpstreamTimeoutAlert.HasValue && 
+                if (_lastUpstreamTimeoutAlert.HasValue &&
                     (now - _lastUpstreamTimeoutAlert.Value) < _alertCooldown)
                 {
                     return; // Still in cooldown period

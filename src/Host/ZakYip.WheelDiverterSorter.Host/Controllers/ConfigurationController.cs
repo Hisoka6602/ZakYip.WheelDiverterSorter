@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
-using ZakYip.WheelDiverterSorter.Host.Models;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Host.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -92,6 +92,7 @@ public class ConfigurationController : ControllerBase
     [ProducesResponseType(typeof(object), 501)]
     public async Task<ActionResult<LineTopologyConfig>> UpdateTopology([FromBody] LineTopologyConfig config)
     {
+        await Task.Yield();
         try
         {
             if (!ModelState.IsValid)
@@ -108,12 +109,12 @@ public class ConfigurationController : ControllerBase
                 return BadRequest(new { message = "拓扑ID不能为空" });
             }
 
-            if (config.WheelNodes == null || config.WheelNodes.Count == 0)
+            if (config.WheelNodes.Count == 0)
             {
                 return BadRequest(new { message = "摆轮节点列表不能为空" });
             }
 
-            if (config.Chutes == null || config.Chutes.Count == 0)
+            if (config.Chutes.Count == 0)
             {
                 return BadRequest(new { message = "格口列表不能为空" });
             }
@@ -128,7 +129,7 @@ public class ConfigurationController : ControllerBase
         }
     }
 
-    #endregion
+    #endregion 线体拓扑配置
 
     #region 分拣模式配置
 
@@ -178,13 +179,13 @@ public class ConfigurationController : ControllerBase
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
-    /// 
+    ///
     ///     PUT /api/config/sorting-mode
     ///     {
     ///         "sortingMode": "RoundRobin",
     ///         "availableChuteIds": [1, 2, 3, 4, 5]
     ///     }
-    /// 
+    ///
     /// 分拣模式说明：
     /// - Formal：正式模式，根据上游RuleEngine分配的格口进行分拣
     /// - FixedChute：固定格口模式，所有包裹分拣到指定的固定格口，需设置fixedChuteId
@@ -264,7 +265,7 @@ public class ConfigurationController : ControllerBase
         }
     }
 
-    #endregion
+    #endregion 分拣模式配置
 
     #region 异常策略配置
 
@@ -318,7 +319,7 @@ public class ConfigurationController : ControllerBase
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
-    /// 
+    ///
     ///     PUT /api/config/exception-policy
     ///     {
     ///         "exceptionChuteId": 999,
@@ -329,7 +330,7 @@ public class ConfigurationController : ControllerBase
     ///         "useExceptionOnTopologyUnreachable": true,
     ///         "useExceptionOnTtlFailure": true
     ///     }
-    /// 
+    ///
     /// 配置更新后立即生效，无需重启服务。
     /// </remarks>
     [HttpPut("exception-policy")]
@@ -402,7 +403,7 @@ public class ConfigurationController : ControllerBase
         }
     }
 
-    #endregion
+    #endregion 异常策略配置
 
     #region 仿真场景配置
 
@@ -432,8 +433,8 @@ public class ConfigurationController : ControllerBase
         try
         {
             _logger.LogInformation("获取仿真场景配置，请使用 /api/config/simulation 端点");
-            return Ok(new 
-            { 
+            return Ok(new
+            {
                 message = "请使用 GET /api/config/simulation 获取仿真配置",
                 redirectUrl = "/api/config/simulation"
             });
@@ -471,8 +472,8 @@ public class ConfigurationController : ControllerBase
         try
         {
             _logger.LogInformation("更新仿真场景配置，请使用 /api/config/simulation 端点");
-            return Ok(new 
-            { 
+            return Ok(new
+            {
                 message = "请使用 PUT /api/config/simulation 更新仿真配置",
                 redirectUrl = "/api/config/simulation"
             });
@@ -484,7 +485,7 @@ public class ConfigurationController : ControllerBase
         }
     }
 
-    #endregion
+    #endregion 仿真场景配置
 
     #region 放包节流配置
 
@@ -543,7 +544,7 @@ public class ConfigurationController : ControllerBase
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
-    /// 
+    ///
     ///     PUT /api/config/release-throttle
     ///     {
     ///         "warningThresholdLatencyMs": 5000,
@@ -559,7 +560,7 @@ public class ConfigurationController : ControllerBase
     ///         "enableThrottling": true,
     ///         "metricsTimeWindowSeconds": 60
     ///     }
-    /// 
+    ///
     /// 配置说明：
     /// - 拥堵检测基于三个维度：延迟、成功率、在途包裹数
     /// - 任一维度达到阈值即触发相应拥堵级别
@@ -692,7 +693,7 @@ public class ConfigurationController : ControllerBase
         }
     }
 
-    #endregion
+    #endregion 放包节流配置
 }
 
 /// <summary>

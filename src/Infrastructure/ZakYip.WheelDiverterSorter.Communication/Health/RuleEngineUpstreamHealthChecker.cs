@@ -29,6 +29,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
     /// <inheritdoc/>
     public async Task<UpstreamHealthStatus> CheckAsync(CancellationToken cancellationToken = default)
     {
+        await Task.Yield();
         try
         {
             _logger.LogInformation("开始检查上游连接: {EndpointName}", EndpointName);
@@ -47,7 +48,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
 
             // 检查连接状态
             var isConnected = _client.IsConnected;
-            
+
             if (!isConnected)
             {
                 _logger.LogWarning("上游连接未建立: {EndpointName}", EndpointName);
