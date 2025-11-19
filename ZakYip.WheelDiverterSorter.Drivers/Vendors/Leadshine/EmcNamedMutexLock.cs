@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine
 {
     /// <summary>
     /// 基于命名互斥锁（Named Mutex）实现的 EMC 资源分布式锁。

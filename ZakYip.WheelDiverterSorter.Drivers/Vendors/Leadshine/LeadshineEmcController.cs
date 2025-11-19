@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using csLTDMC;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛EMC控制器实现

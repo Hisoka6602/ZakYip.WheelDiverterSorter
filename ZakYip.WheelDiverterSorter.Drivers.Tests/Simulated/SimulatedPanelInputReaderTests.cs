@@ -1,6 +1,6 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Drivers.Simulated;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Simulated;
 

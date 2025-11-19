@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Drivers.S7;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
 /// <summary>
 /// S7 摆轮配置

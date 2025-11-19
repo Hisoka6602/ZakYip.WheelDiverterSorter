@@ -4,7 +4,7 @@ using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛（EMC）中段皮带段驱动实现。

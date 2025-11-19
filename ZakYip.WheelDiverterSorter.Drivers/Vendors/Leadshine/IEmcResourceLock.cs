@@ -2,7 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine
 {
     /// <summary>
     /// 定义 EMC 硬件资源分布式锁的接口。

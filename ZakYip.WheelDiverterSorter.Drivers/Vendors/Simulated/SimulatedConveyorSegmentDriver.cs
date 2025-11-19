@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Simulated;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 /// <summary>
 /// 仿真中段皮带段驱动。

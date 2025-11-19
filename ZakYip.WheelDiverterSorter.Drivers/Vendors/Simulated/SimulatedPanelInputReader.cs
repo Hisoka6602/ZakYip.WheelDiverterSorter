@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Simulated;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 /// <summary>
 /// 仿真面板输入读取器。
