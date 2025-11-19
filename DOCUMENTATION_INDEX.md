@@ -103,12 +103,19 @@
 |------|------|----------|
 | [CI_CD_SETUP.md](CI_CD_SETUP.md) | CI/CD设置和配置 | DevOps工程师、开发者 |
 
-### 🎮 仿真运行 (Simulation)
+### 🎮 仿真运行与场景测试 (Simulation & Scenario Testing)
 
 仿真模式相关的文档和指南：
 
 | 文档 | 说明 | 适用人群 |
 |------|------|----------|
+| [LONG_RUN_SIMULATION_IMPLEMENTATION.md](LONG_RUN_SIMULATION_IMPLEMENTATION.md) | 长跑仿真模式实施总结 | 测试工程师、开发者 |
+| [HIGH_LOAD_PERFORMANCE_TESTING.md](HIGH_LOAD_PERFORMANCE_TESTING.md) | 高负载性能测试指南（500-1000包裹/分钟） | 性能工程师、测试工程师 |
+| [SCENARIO_E_DOCUMENTATION.md](SCENARIO_E_DOCUMENTATION.md) | 场景 E：高摩擦有丢失 | 测试工程师 |
+| [SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md](SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md) | 场景 F：高密度流量 + 上游连接抖动 🆕 | 测试工程师、运维人员 |
+| [SCENARIO_G_MULTI_VENDOR_MIXED.md](SCENARIO_G_MULTI_VENDOR_MIXED.md) | 场景 G：多厂商混合驱动仿真 🆕 | 架构师、开发者 |
+| [SCENARIO_H_LONG_RUN_STABILITY.md](SCENARIO_H_LONG_RUN_STABILITY.md) | 场景 H：长时间运行稳定性（增强版）🆕 | 性能工程师、运维人员 |
+| [SENSOR_FAULT_SIMULATION_IMPLEMENTATION.md](SENSOR_FAULT_SIMULATION_IMPLEMENTATION.md) | 传感器故障仿真实施总结 | 测试工程师、开发者 |
 | [copilot-instructions.md#simulation--仿真运行目标](copilot-instructions.md#10-simulation--仿真运行目标) | 仿真运行目标、实现约束和架构指南 | 开发者、AI辅助工具 |
 | [copilot-instructions.md#仿真运行物理约束](copilot-instructions.md#104-仿真运行物理约束) | 仿真运行的物理假设和不变量约束 | 开发者、AI辅助工具 |
 
@@ -150,12 +157,31 @@
 2. 阅读所有技术文档
 3. 阅读 [DEFECT_ANALYSIS_REPORT.md](DEFECT_ANALYSIS_REPORT.md) - 了解系统缺陷
 4. 阅读所有项目总结文档
-5. 制定系统优化和演进计划
+5. 阅读 [SCENARIO_G_MULTI_VENDOR_MIXED.md](SCENARIO_G_MULTI_VENDOR_MIXED.md) - 理解多厂商架构设计
+6. 制定系统优化和演进计划
+
+### 仿真测试路径 🆕
+
+1. 阅读 [README.md](README.md) - 了解系统基本概念
+2. 阅读 [LONG_RUN_SIMULATION_IMPLEMENTATION.md](LONG_RUN_SIMULATION_IMPLEMENTATION.md) - 理解仿真框架
+3. 阅读 [SCENARIO_E_DOCUMENTATION.md](SCENARIO_E_DOCUMENTATION.md) - 学习基础场景（场景 E）
+4. 阅读 [SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md](SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md) - 高密度 + 上游抖动测试
+5. 阅读 [SCENARIO_G_MULTI_VENDOR_MIXED.md](SCENARIO_G_MULTI_VENDOR_MIXED.md) - 多厂商混合测试
+6. 阅读 [SCENARIO_H_LONG_RUN_STABILITY.md](SCENARIO_H_LONG_RUN_STABILITY.md) - 长时间稳定性测试
+7. 阅读 [HIGH_LOAD_PERFORMANCE_TESTING.md](HIGH_LOAD_PERFORMANCE_TESTING.md) - 性能测试工具和方法
+8. 运行实际仿真场景，分析结果
 
 ## 📌 文档更新说明
 
-- **文档版本：** v1.0
-- **最后更新：** 2025-11-14
+- **文档版本：** v1.1 🆕
+- **最后更新：** 2025-11-19
+- **本次更新内容（PR-39）：**
+  - 新增场景 F：高密度流量 + 上游连接抖动
+  - 新增场景 G：多厂商混合驱动仿真
+  - 新增场景 H：长时间运行稳定性（增强版）
+  - 新增"仿真测试学习路径"
+  - 更新快速查找索引，新增"仿真相关"分类
+  - 更新按角色查找，补充测试/性能/运维/硬件工程师的仿真场景链接
 - **维护规则：**
   - 每次添加新文档时，必须在此索引中添加对应条目
   - 每次重大功能更新时，应更新相关文档
@@ -170,16 +196,18 @@
 - **开发相关**：查看"技术文档"和"开发文档"分类
 - **运维相关**：查看"配置文档"和"可观测性和运维"分类
 - **测试相关**：查看"测试和质量保证"分类
+- **仿真相关**：查看"仿真运行与场景测试"分类 🆕
 - **故障排查**：参考 [PATH_FAILURE_DETECTION_GUIDE.md](PATH_FAILURE_DETECTION_GUIDE.md) 和 [DEFECT_ANALYSIS_REPORT.md](DEFECT_ANALYSIS_REPORT.md)
 
 ### 按角色查找
 
 - **项目经理**：核心文档 + 项目总结文档
-- **架构师**：核心文档 + 技术文档 + 开发文档
+- **架构师**：核心文档 + 技术文档 + 开发文档 + 场景 G（多厂商架构）
 - **开发者**：技术文档 + 开发文档 + 测试文档
-- **测试工程师**：测试和质量保证分类
-- **运维人员**：配置文档 + 可观测性和运维分类
-- **硬件工程师**：硬件驱动配置 + 驱动开发文档
+- **测试工程师**：测试和质量保证分类 + 仿真场景文档（F/G/H）🆕
+- **性能工程师**：高负载测试 + 场景 F（高密度）+ 场景 H（长跑稳定性）🆕
+- **运维人员**：配置文档 + 可观测性和运维分类 + 场景 F/H（稳定性监控）🆕
+- **硬件工程师**：硬件驱动配置 + 驱动开发文档 + 场景 G（多厂商）🆕
 
 ## 📧 反馈和贡献
 
