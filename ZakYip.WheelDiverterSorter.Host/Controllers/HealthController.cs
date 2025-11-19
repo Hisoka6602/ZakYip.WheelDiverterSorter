@@ -4,12 +4,16 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
 /// 健康检查API控制器
 /// </summary>
+/// <remarks>
+/// 提供进程级和线体级的健康检查端点，支持Kubernetes等容器编排平台的健康探测
+/// </remarks>
 [ApiController]
 [Route("")]
 public class HealthController : ControllerBase
@@ -41,11 +45,22 @@ public class HealthController : ControllerBase
     /// 进程级健康检查端点
     /// </summary>
     /// <returns>简单的健康状态</returns>
+    /// <response code="200">进程健康</response>
+    /// <response code="503">进程不健康</response>
     /// <remarks>
-    /// 用于Kubernetes/负载均衡器的存活检查。
+    /// 用于Kubernetes/负载均衡器的存活检查（liveness probe）。
     /// 只依赖进程与基础依赖存活，不依赖驱动自检结果。
+    /// 只要进程能够响应请求，就认为是健康的。
     /// </remarks>
     [HttpGet("healthz")]
+    [SwaggerOperation(
+        Summary = "进程级健康检查",
+        Description = "用于容器编排平台的存活检查，只要进程能响应就返回健康状态",
+        OperationId = "GetProcessHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "进程健康", typeof(ProcessHealthResponse))]
+    [SwaggerResponse(503, "进程不健康", typeof(ProcessHealthResponse))]
     [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status503ServiceUnavailable)]
     public IActionResult GetProcessHealth()
@@ -80,12 +95,34 @@ public class HealthController : ControllerBase
     /// 线体级健康检查端点
     /// </summary>
     /// <returns>详细的系统健康状态</returns>
+    /// <response code="200">线体健康且自检成功</response>
+    /// <response code="503">线体故障或自检失败</response>
     /// <remarks>
+    /// 用于容器编排平台的就绪检查（readiness probe）。
     /// 返回详细的自检结果，包括驱动器、上游系统、配置等状态。
-    /// 200 OK: 系统Ready/Running且自检成功
-    /// 503 ServiceUnavailable: 系统Faulted/EmergencyStop或自检失败
+    /// 
+    /// 状态码说明：
+    /// - 200 OK: 系统状态为Ready/Running且自检成功
+    /// - 503 ServiceUnavailable: 系统状态为Faulted/EmergencyStop或自检失败
+    /// 
+    /// 响应包含：
+    /// - 系统当前状态（SystemState）
+    /// - 自检是否成功（IsSelfTestSuccess）
+    /// - 驱动器健康状态列表
+    /// - 上游系统连接状态
+    /// - 配置有效性检查
+    /// - 降级模式和降级节点信息（如有）
+    /// - 近期Critical告警摘要
     /// </remarks>
     [HttpGet("health/line")]
+    [SwaggerOperation(
+        Summary = "线体级健康检查",
+        Description = "返回详细的自检结果，包括驱动器、上游系统、配置等健康状态，用于就绪检查",
+        OperationId = "GetLineHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "线体健康且自检成功", typeof(LineHealthResponse))]
+    [SwaggerResponse(503, "线体故障或自检失败", typeof(LineHealthResponse))]
     [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status503ServiceUnavailable)]
     public IActionResult GetLineHealth()

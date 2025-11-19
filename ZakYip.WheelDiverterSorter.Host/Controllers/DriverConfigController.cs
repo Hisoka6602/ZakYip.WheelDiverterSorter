@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Utilities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -9,7 +10,8 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 驱动器配置管理API控制器
 /// </summary>
 /// <remarks>
-/// 提供驱动器配置的查询和更新功能，支持热更新
+/// 提供驱动器配置的查询和更新功能，支持热更新。
+/// 可配置是否使用硬件驱动器、选择厂商类型、配置各厂商的特定参数等。
 /// </remarks>
 [ApiController]
 [Route("api/config/driver")]
@@ -30,10 +32,18 @@ public class DriverConfigController : ControllerBase
     /// <summary>
     /// 获取驱动器配置
     /// </summary>
-    /// <returns>驱动器配置信息</returns>
+    /// <returns>当前驱动器配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     [HttpGet]
+    [SwaggerOperation(
+        Summary = "获取驱动器配置",
+        Description = "返回当前系统的驱动器配置，包括是否使用硬件驱动、厂商类型和厂商特定参数",
+        OperationId = "GetDriverConfig",
+        Tags = new[] { "驱动器配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(DriverConfiguration))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(DriverConfiguration), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<DriverConfiguration> GetDriverConfig()
@@ -53,7 +63,7 @@ public class DriverConfigController : ControllerBase
     /// <summary>
     /// 更新驱动器配置（支持热更新）
     /// </summary>
-    /// <param name="request">驱动器配置请求</param>
+    /// <param name="request">驱动器配置请求，包含使用硬件/模拟驱动的选择、厂商类型和厂商特定参数</param>
     /// <returns>更新后的驱动器配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
@@ -77,9 +87,25 @@ public class DriverConfigController : ControllerBase
     ///         }
     ///     }
     /// 
-    /// 配置更新后立即生效，无需重启服务（注意：运行中的分拣任务不受影响）
+    /// 配置更新后立即生效，无需重启服务。
+    /// 注意：正在运行中的分拣任务不受影响，只对新的分拣任务生效。
+    /// 
+    /// 支持的厂商类型（vendorType）：
+    /// - 0: Simulated（模拟驱动器）
+    /// - 1: Leadshine（雷赛驱动器）
+    /// - 2: Advantech（研华驱动器）
+    /// - 3: Beckhoff（倍福驱动器）
     /// </remarks>
     [HttpPut]
+    [SwaggerOperation(
+        Summary = "更新驱动器配置",
+        Description = "更新系统驱动器配置，配置立即生效无需重启。支持配置硬件/模拟驱动器切换、厂商选择和厂商特定参数",
+        OperationId = "UpdateDriverConfig",
+        Tags = new[] { "驱动器配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(DriverConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
