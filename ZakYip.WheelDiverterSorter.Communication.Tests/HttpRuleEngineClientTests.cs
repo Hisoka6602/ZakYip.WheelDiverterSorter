@@ -112,7 +112,7 @@ public class HttpRuleEngineClientTests
     }
 
     [Fact]
-    public async Task NotifyParcelDetectedAsync_WithInvalidParcelId_ReturnsFalse()
+    public async Task NotifyParcelDetectedAsync_WithInvalidParcelId_ThrowsArgumentException()
     {
         // Arrange
         var options = new RuleEngineConnectionOptions
@@ -121,13 +121,9 @@ public class HttpRuleEngineClientTests
         };
         using var client = new HttpRuleEngineClient(_loggerMock.Object, options);
 
-        // Act
-        var result1 = await client.NotifyParcelDetectedAsync(0);
-        var result2 = await client.NotifyParcelDetectedAsync(-1);
-
-        // Assert - NotifyParcelDetectedAsync catches exceptions and returns false
-        Assert.False(result1);
-        Assert.False(result2);
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyParcelDetectedAsync(0));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyParcelDetectedAsync(-1));
     }
 
     [Fact]
