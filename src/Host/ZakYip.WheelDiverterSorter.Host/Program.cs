@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using Microsoft.OpenApi.Models;
 using Prometheus;
 
@@ -42,6 +43,9 @@ builder.Services.AddControllers()
                 namingPolicy: null, 
                 allowIntegerValues: true));
     });
+
+// PR-37: 添加基础设施服务（安全执行器、系统时钟、日志去重）
+builder.Services.AddInfrastructureServices();
 
 // 添加性能监控和优化服务
 builder.Services.AddMemoryCache(options =>

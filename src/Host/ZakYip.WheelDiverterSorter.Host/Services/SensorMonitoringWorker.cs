@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -16,13 +17,16 @@ public class SensorMonitoringWorker : BackgroundService
 {
     private readonly IParcelDetectionService _parcelDetectionService;
     private readonly ILogger<SensorMonitoringWorker> _logger;
+    private readonly ISafeExecutionService _safeExecutor;
 
     public SensorMonitoringWorker(
         IParcelDetectionService parcelDetectionService,
-        ILogger<SensorMonitoringWorker> logger)
+        ILogger<SensorMonitoringWorker> logger,
+        ISafeExecutionService safeExecutor)
     {
         _parcelDetectionService = parcelDetectionService;
         _logger = logger;
+        _safeExecutor = safeExecutor;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -32,23 +36,20 @@ public class SensorMonitoringWorker : BackgroundService
         // 订阅包裹检测事件
         _parcelDetectionService.ParcelDetected += OnParcelDetected;
 
-        try
-        {
-            // 启动包裹检测服务
-            await _parcelDetectionService.StartAsync(stoppingToken);
+        await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                // 启动包裹检测服务
+                await _parcelDetectionService.StartAsync(stoppingToken);
 
-            // 保持运行直到取消
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("传感器监听服务正在停止");
-        }
-        finally
-        {
-            _parcelDetectionService.ParcelDetected -= OnParcelDetected;
-            await _parcelDetectionService.StopAsync();
-        }
+                // 保持运行直到取消
+                await Task.Delay(Timeout.Infinite, stoppingToken);
+            },
+            "SensorMonitoring",
+            stoppingToken);
+
+        _parcelDetectionService.ParcelDetected -= OnParcelDetected;
+        await _parcelDetectionService.StopAsync();
     }
 
     /// <summary>

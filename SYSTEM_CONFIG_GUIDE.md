@@ -271,6 +271,66 @@ curl -X PUT http://localhost:5000/api/config/system \
 2. 确保所有必填字段都已提供
 3. 检查 JSON 格式是否正确
 
+## 系统时间说明（PR-37 基础设施规范）
+
+### 本地时间统一原则
+
+**系统内部所有业务时间使用本地时间（Local Time），不再使用 UTC 时间作为业务时间。**
+
+这包括但不限于：
+- 包裹创建时间、落格时间、分拣完成时间
+- 自检和健康检查记录的"最后一次成功时间"
+- Prometheus 指标中的时间戳（如最后更新时间）
+- 日志记录中的时间戳
+- 告警事件的发生时间
+
+### 实现方式
+
+系统通过 `ISystemClock` 抽象提供统一的时间访问：
+
+```csharp
+public interface ISystemClock
+{
+    DateTime LocalNow { get; }           // 当前本地时间
+    DateTimeOffset LocalNowOffset { get; } // 带时区偏移的本地时间
+    DateTime UtcNow { get; }             // UTC 时间（仅用于与外部系统交互时的时间转换）
+}
+```
+
+### 时区处理
+
+- **业务日志和指标**：统一使用系统本地时区，便于运维人员查看和理解
+- **外部系统交互**：仅在与外部系统（如 RuleEngine）交互时，如需要，可使用 UTC 或指定时区
+- **时间展示**：如果指标/日志需要以其它时区展示，会在相关文档中单独注明
+
+### 配置说明
+
+无需额外配置，系统自动使用服务器的本地时区。如需调整服务器时区，请使用操作系统命令：
+
+**Linux:**
+```bash
+# 查看当前时区
+timedatectl
+
+# 设置时区（例如：Asia/Shanghai）
+sudo timedatectl set-timezone Asia/Shanghai
+```
+
+**Windows:**
+```powershell
+# 查看当前时区
+tzutil /g
+
+# 设置时区（例如：China Standard Time）
+tzutil /s "China Standard Time"
+```
+
+### 注意事项
+
+1. **避免混用**：在业务代码中不要直接使用 `DateTime.UtcNow`，应通过 `ISystemClock.LocalNow` 获取时间
+2. **日志时区**：NLog 等日志框架配置中确保使用本地时间格式
+3. **数据库存储**：如果包裹数据需要持久化，建议存储 `DateTimeOffset` 类型以保留时区信息
+
 ## 参考资料
 
 - [路由配置管理](CONFIGURATION_API.md)

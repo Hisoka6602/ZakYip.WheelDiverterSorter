@@ -1,5 +1,7 @@
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
+
 /// <summary>
 /// 包裹分拣后台工作服务
 /// </summary>
@@ -11,16 +13,19 @@ public class ParcelSortingWorker : BackgroundService
 {
     private readonly ParcelSortingOrchestrator _orchestrator;
     private readonly ILogger<ParcelSortingWorker> _logger;
+    private readonly ISafeExecutionService _safeExecutor;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     public ParcelSortingWorker(
         ParcelSortingOrchestrator orchestrator,
-        ILogger<ParcelSortingWorker> logger)
+        ILogger<ParcelSortingWorker> logger,
+        ISafeExecutionService safeExecutor)
     {
         _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
     }
 
     /// <summary>
@@ -30,27 +35,19 @@ public class ParcelSortingWorker : BackgroundService
     {
         _logger.LogInformation("包裹分拣后台服务正在启动...");
 
-        try
-        {
-            // 启动编排服务
-            await _orchestrator.StartAsync(stoppingToken);
+        await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                // 启动编排服务
+                await _orchestrator.StartAsync(stoppingToken);
 
-            // 保持运行直到取消
-            await Task.Delay(Timeout.Infinite, stoppingToken);
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogInformation("包裹分拣后台服务正在停止...");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "包裹分拣后台服务发生异常");
-            throw;
-        }
-        finally
-        {
-            // 停止编排服务
-            await _orchestrator.StopAsync();
-        }
+                // 保持运行直到取消
+                await Task.Delay(Timeout.Infinite, stoppingToken);
+            },
+            "ParcelSortingOrchestrator",
+            stoppingToken);
+
+        // 停止编排服务
+        await _orchestrator.StopAsync();
     }
 }
