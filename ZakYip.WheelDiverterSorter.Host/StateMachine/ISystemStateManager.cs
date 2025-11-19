@@ -59,12 +59,12 @@ public interface ISystemStateManager
     /// <remarks>
     /// 将系统状态设为Booting，执行自检协调器，根据结果切换到Ready或Faulted状态。
     /// </remarks>
-    Task<ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport> BootAsync(CancellationToken cancellationToken = default);
+    Task<ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport> BootAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取最近一次自检报告
     /// </summary>
-    ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport? LastSelfTestReport { get; }
+    ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport? LastSelfTestReport { get; }
 }
 
 /// <summary>
