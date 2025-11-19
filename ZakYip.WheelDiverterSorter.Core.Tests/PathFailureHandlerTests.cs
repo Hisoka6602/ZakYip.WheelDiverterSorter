@@ -6,7 +6,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Events;
 
-namespace ZakYip.WheelDiverterSorter.Core.Tests;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
 /// <summary>
 /// 路径失败处理器测试

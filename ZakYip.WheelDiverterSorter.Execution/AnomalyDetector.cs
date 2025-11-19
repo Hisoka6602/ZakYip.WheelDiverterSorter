@@ -3,7 +3,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 异常趋势检测器实现 / Anomaly Trend Detector Implementation

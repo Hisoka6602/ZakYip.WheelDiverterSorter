@@ -5,7 +5,8 @@ using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛厂商驱动工厂

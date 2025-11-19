@@ -5,7 +5,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 
-namespace ZakYip.WheelDiverterSorter.Benchmarks;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Benchmarks;
 
 /// <summary>
 /// 性能瓶颈分析基准测试

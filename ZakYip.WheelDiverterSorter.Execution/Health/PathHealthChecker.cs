@@ -1,7 +1,8 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
-namespace ZakYip.WheelDiverterSorter.Execution.Health;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution.Health;
 
 /// <summary>
 /// 路径健康检查器 - 验证路径中的所有节点是否健康

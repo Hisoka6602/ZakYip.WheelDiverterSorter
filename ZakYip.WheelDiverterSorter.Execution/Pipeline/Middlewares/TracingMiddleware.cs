@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
-using ZakYip.WheelDiverterSorter.Core.Tracing;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 

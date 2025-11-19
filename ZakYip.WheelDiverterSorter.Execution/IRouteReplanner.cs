@@ -1,6 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 路径重规划接口，用于在包裹执行过程中更新目标格口和路径。

@@ -1,6 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
-namespace ZakYip.WheelDiverterSorter.Execution.Events;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution.Events;
 
 /// <summary>
 /// 路径执行失败事件参数

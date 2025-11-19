@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 

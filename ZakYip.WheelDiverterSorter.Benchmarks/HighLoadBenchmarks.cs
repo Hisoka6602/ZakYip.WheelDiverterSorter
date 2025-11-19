@@ -4,7 +4,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 
-namespace ZakYip.WheelDiverterSorter.Benchmarks;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Benchmarks;
 
 /// <summary>
 /// 高负载场景性能基准测试 (500-1000包裹/分钟)

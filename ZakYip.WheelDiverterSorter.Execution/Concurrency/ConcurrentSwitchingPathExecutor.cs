@@ -3,7 +3,8 @@ using Microsoft.Extensions.Options;
 using System.Text.RegularExpressions;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
-namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
 
 /// <summary>
 /// 带并发控制的摆轮路径执行器
