@@ -1,11 +1,12 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 /// <summary>
 /// 模拟厂商驱动工厂

@@ -3,7 +3,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
-namespace ZakYip.WheelDiverterSorter.Core.Tests;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
 public class RoutePlanTests
 {
