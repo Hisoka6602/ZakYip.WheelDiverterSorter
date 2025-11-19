@@ -227,6 +227,165 @@ public class SystemConfigController : ControllerBase
     }
 
     /// <summary>
+    /// 获取当前分拣模式配置
+    /// </summary>
+    /// <returns>当前分拣模式配置信息</returns>
+    /// <response code="200">成功返回分拣模式配置</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回当前系统的分拣模式及相关配置参数。
+    /// 
+    /// 分拣模式说明：
+    /// - Formal：正式分拣模式（默认），由上游 Sorting.RuleEngine 给出格口分配
+    /// - FixedChute：指定落格分拣模式，可设置固定格口落格（异常除外），每次都只在指定的格口ID落格
+    /// - RoundRobin：循环格口落格模式，包裹依次分拣到可用格口列表中的格口
+    /// </remarks>
+    [HttpGet("sorting-mode")]
+    [SwaggerOperation(
+        Summary = "获取当前分拣模式",
+        Description = "返回系统当前的分拣模式配置，包括模式类型和相关参数",
+        OperationId = "GetSortingMode",
+        Tags = new[] { "系统配置" }
+    )]
+    [SwaggerResponse(200, "成功返回分拣模式配置", typeof(SortingModeResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(SortingModeResponse), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<SortingModeResponse> GetSortingMode()
+    {
+        try
+        {
+            var config = _repository.Get();
+            return Ok(new SortingModeResponse
+            {
+                SortingMode = config.SortingMode,
+                FixedChuteId = config.FixedChuteId,
+                AvailableChuteIds = config.AvailableChuteIds ?? new List<int>()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取分拣模式配置失败");
+            return StatusCode(500, new { message = "获取分拣模式配置失败" });
+        }
+    }
+
+    /// <summary>
+    /// 更新分拣模式配置
+    /// </summary>
+    /// <param name="request">分拣模式配置请求</param>
+    /// <returns>更新后的分拣模式配置</returns>
+    /// <response code="200">更新成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 更新系统的分拣模式配置，配置会立即生效无需重启。
+    /// 
+    /// 分拣模式说明：
+    /// - Formal：正式分拣模式（默认），由上游 Sorting.RuleEngine 给出格口分配
+    /// - FixedChute：指定落格分拣模式，需要设置 FixedChuteId，所有包裹（异常除外）都将发送到此格口
+    /// - RoundRobin：循环格口落格模式，需要设置 AvailableChuteIds，系统会按顺序循环使用这些格口
+    /// 
+    /// 示例请求（正式分拣模式）：
+    /// 
+    ///     PUT /api/config/system/sorting-mode
+    ///     {
+    ///         "sortingMode": "Formal"
+    ///     }
+    /// 
+    /// 示例请求（固定格口模式）：
+    /// 
+    ///     PUT /api/config/system/sorting-mode
+    ///     {
+    ///         "sortingMode": "FixedChute",
+    ///         "fixedChuteId": 1
+    ///     }
+    /// 
+    /// 示例请求（循环格口模式）：
+    /// 
+    ///     PUT /api/config/system/sorting-mode
+    ///     {
+    ///         "sortingMode": "RoundRobin",
+    ///         "availableChuteIds": [1, 2, 3, 4, 5, 6]
+    ///     }
+    /// </remarks>
+    [HttpPut("sorting-mode")]
+    [SwaggerOperation(
+        Summary = "更新分拣模式配置",
+        Description = "更新系统的分拣模式配置，配置会立即生效无需重启",
+        OperationId = "UpdateSortingMode",
+        Tags = new[] { "系统配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(SortingModeResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(SortingModeResponse), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<SortingModeResponse> UpdateSortingMode([FromBody] SortingModeRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效", errors });
+            }
+
+            // 验证分拣模式值
+            if (!Enum.IsDefined(typeof(SortingMode), request.SortingMode))
+            {
+                return BadRequest(new { message = "分拣模式值无效，仅支持：Formal（正常）、FixedChute（指定落格）、RoundRobin（循环落格）" });
+            }
+
+            // 获取当前配置
+            var config = _repository.Get();
+
+            // 更新分拣模式相关字段
+            config.SortingMode = request.SortingMode;
+            config.FixedChuteId = request.FixedChuteId;
+            config.AvailableChuteIds = request.AvailableChuteIds ?? new List<int>();
+
+            // 验证配置
+            var (isValid, errorMessage) = config.Validate();
+            if (!isValid)
+            {
+                return BadRequest(new { message = errorMessage });
+            }
+
+            // 更新配置
+            _repository.Update(config);
+
+            _logger.LogInformation(
+                "分拣模式已更新: SortingMode={SortingMode}, FixedChuteId={FixedChuteId}, AvailableChuteIds={AvailableChuteIds}",
+                config.SortingMode,
+                config.FixedChuteId,
+                string.Join(",", config.AvailableChuteIds));
+
+            // 重新获取更新后的配置
+            var updatedConfig = _repository.Get();
+            return Ok(new SortingModeResponse
+            {
+                SortingMode = updatedConfig.SortingMode,
+                FixedChuteId = updatedConfig.FixedChuteId,
+                AvailableChuteIds = updatedConfig.AvailableChuteIds ?? new List<int>()
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "分拣模式配置验证失败");
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新分拣模式配置失败");
+            return StatusCode(500, new { message = "更新分拣模式配置失败" });
+        }
+    }
+
+    /// <summary>
     /// 将请求模型映射到配置模型
     /// </summary>
     private SystemConfiguration MapToConfiguration(SystemConfigRequest request)
