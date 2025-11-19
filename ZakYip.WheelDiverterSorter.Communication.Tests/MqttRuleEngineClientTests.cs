@@ -146,46 +146,6 @@ public class MqttRuleEngineClientTests
     }
 
     [Fact]
-    public async Task RequestChuteAssignmentAsync_WithInvalidParcelId_ThrowsArgumentException()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            MqttBroker = "mqtt://localhost:1883"
-        };
-        using var client = new MqttRuleEngineClient(_loggerMock.Object, options);
-
-        // Act & Assert
-#pragma warning disable CS0618
-        await Assert.ThrowsAsync<ArgumentException>(() => client.RequestChuteAssignmentAsync(0));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.RequestChuteAssignmentAsync(-1));
-#pragma warning restore CS0618
-    }
-
-    [Fact]
-    public async Task RequestChuteAssignmentAsync_WhenNotConnected_ReturnsErrorResponse()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            MqttBroker = "mqtt://localhost:19999"
-        };
-        using var client = new MqttRuleEngineClient(_loggerMock.Object, options);
-        var parcelId = 123456789L;
-
-        // Act
-#pragma warning disable CS0618
-        var response = await client.RequestChuteAssignmentAsync(parcelId, new CancellationTokenSource(1000).Token);
-#pragma warning restore CS0618
-
-        // Assert
-        Assert.NotNull(response);
-        Assert.False(response.IsSuccess);
-        Assert.Equal(WellKnownChuteIds.DefaultException, response.ChuteId);
-        Assert.Equal(parcelId, response.ParcelId);
-    }
-
-    [Fact]
     public void ChuteAssignmentReceived_EventCanBeSubscribed()
     {
         // Arrange

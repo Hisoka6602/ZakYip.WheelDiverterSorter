@@ -112,48 +112,6 @@ public class HttpRuleEngineClientTests
     }
 
     [Fact]
-    public async Task RequestChuteAssignmentAsync_WithInvalidParcelId_ThrowsArgumentException()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            HttpApi = "http://localhost:5000/api/chute"
-        };
-        using var client = new HttpRuleEngineClient(_loggerMock.Object, options);
-
-        // Act & Assert
-#pragma warning disable CS0618
-        await Assert.ThrowsAsync<ArgumentException>(() => client.RequestChuteAssignmentAsync(0));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.RequestChuteAssignmentAsync(-1));
-#pragma warning restore CS0618
-    }
-
-    [Fact]
-    public async Task RequestChuteAssignmentAsync_WithInvalidUrl_ReturnsErrorResponse()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            HttpApi = "http://localhost:19999/api/chute",
-            TimeoutMs = 1000,
-            RetryCount = 0
-        };
-        using var client = new HttpRuleEngineClient(_loggerMock.Object, options);
-        var parcelId = 123456789L;
-
-        // Act
-#pragma warning disable CS0618
-        var response = await client.RequestChuteAssignmentAsync(parcelId);
-#pragma warning restore CS0618
-
-        // Assert
-        Assert.NotNull(response);
-        Assert.False(response.IsSuccess);
-        Assert.Equal(WellKnownChuteIds.DefaultException, response.ChuteId);
-        Assert.Equal(parcelId, response.ParcelId);
-    }
-
-    [Fact]
     public async Task NotifyParcelDetectedAsync_WithInvalidParcelId_ReturnsFalse()
     {
         // Arrange

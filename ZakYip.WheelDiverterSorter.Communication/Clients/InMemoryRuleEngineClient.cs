@@ -111,40 +111,6 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 请求包裹的格口号（已废弃，保留用于兼容性）
-    /// </summary>
-    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
-    public Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
-        long parcelId,
-        CancellationToken cancellationToken = default)
-    {
-        if (_isDisposed)
-        {
-            throw new ObjectDisposedException(nameof(InMemoryRuleEngineClient));
-        }
-
-        if (!_isConnected)
-        {
-            return Task.FromResult(new ChuteAssignmentResponse
-            {
-                ParcelId = parcelId,
-                ChuteId = 0,
-                IsSuccess = false,
-                ErrorMessage = "客户端未连接"
-            });
-        }
-
-        var chuteId = _chuteAssignmentFunc(parcelId);
-
-        return Task.FromResult(new ChuteAssignmentResponse
-        {
-            ParcelId = parcelId,
-            ChuteId = chuteId,
-            IsSuccess = true
-        });
-    }
-
-    /// <summary>
     /// 释放资源
     /// </summary>
     public void Dispose()
