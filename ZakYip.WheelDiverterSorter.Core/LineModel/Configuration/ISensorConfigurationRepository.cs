@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 传感器配置仓储接口

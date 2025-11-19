@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Overload;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 /// <summary>
 /// 策略配置 Profile，用于仿真中对比不同 Overload / 路由参数组合。

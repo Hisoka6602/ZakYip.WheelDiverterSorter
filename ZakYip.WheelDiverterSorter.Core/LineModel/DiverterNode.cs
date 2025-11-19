@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 表示摆轮分拣系统中的单个摆轮节点

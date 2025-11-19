@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.Sorting.Core.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 /// <summary>
 /// 分拣模式枚举

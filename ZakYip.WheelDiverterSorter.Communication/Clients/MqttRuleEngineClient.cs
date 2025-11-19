@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Communication.Models;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -5,7 +6,7 @@ using MQTTnet;
 using MQTTnet.Client;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 

@@ -1,4 +1,5 @@
-namespace ZakYip.WheelDiverterSorter.Communication;
+using ZakYip.WheelDiverterSorter.Communication.Models;
+namespace ZakYip.WheelDiverterSorter.Communication.Models;
 
 /// <summary>
 /// 格口分配通知事件参数

@@ -4,7 +4,7 @@ using Moq;
 using System.Collections.Concurrent;
 using System.Net.Http.Json;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Services;
 

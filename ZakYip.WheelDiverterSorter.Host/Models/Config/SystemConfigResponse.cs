@@ -1,5 +1,5 @@
-using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.Sorting.Core.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 

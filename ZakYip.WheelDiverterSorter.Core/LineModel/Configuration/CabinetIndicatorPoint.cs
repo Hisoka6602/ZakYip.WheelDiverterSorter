@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 控制面板指示灯点位配置。

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 中段皮带 IO 联动配置选项。

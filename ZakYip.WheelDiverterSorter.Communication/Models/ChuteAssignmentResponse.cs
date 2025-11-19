@@ -1,4 +1,5 @@
-namespace ZakYip.WheelDiverterSorter.Communication;
+using ZakYip.WheelDiverterSorter.Communication.Models;
+namespace ZakYip.WheelDiverterSorter.Communication.Models;
 
 /// <summary>
 /// 包裹格口分配响应

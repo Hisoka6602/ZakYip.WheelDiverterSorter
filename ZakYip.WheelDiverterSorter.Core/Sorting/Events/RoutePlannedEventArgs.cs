@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
 /// 路径规划完成事件载荷，当系统为包裹生成摆轮路径时触发

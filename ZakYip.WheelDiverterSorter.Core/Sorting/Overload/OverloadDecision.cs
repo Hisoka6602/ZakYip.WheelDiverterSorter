@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Overload;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 /// <summary>
 /// 超载决策：策略对包裹的处置决定。

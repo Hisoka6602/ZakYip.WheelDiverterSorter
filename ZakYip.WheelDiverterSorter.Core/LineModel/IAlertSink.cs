@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Events;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 告警接收器接口 / Alert Sink Interface

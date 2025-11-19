@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 /// <summary>
 /// 降级模式枚举

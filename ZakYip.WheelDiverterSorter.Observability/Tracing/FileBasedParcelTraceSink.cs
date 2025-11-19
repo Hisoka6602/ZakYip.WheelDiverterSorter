@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Tracing;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tracing;
 

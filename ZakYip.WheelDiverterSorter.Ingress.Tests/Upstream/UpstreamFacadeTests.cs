@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
-using ZakYip.Sorting.Core.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream.Configuration;
 

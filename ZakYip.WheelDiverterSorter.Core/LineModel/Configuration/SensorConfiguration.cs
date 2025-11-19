@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 传感器配置（存储在LiteDB中，支持热更新）

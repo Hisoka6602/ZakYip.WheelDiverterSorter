@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.Sorting.Core.Overload;
-using ZakYip.Sorting.Core.Pipeline;
-using ZakYip.Sorting.Core.Runtime;
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Tracing;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;

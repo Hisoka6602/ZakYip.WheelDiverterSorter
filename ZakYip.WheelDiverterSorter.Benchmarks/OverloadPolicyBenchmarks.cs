@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
-using ZakYip.Sorting.Core.Overload;
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 namespace ZakYip.WheelDiverterSorter.Benchmarks;
 

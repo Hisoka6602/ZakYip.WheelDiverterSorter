@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.Sorting.Core.Overload;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 /// <summary>
 /// 超载原因枚举

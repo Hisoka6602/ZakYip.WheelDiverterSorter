@@ -1,5 +1,5 @@
 using Xunit;
-using ZakYip.Sorting.Core.Pipeline;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Execution.Pipeline;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Tests.Pipeline;

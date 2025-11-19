@@ -1,4 +1,4 @@
-using ZakYip.Sorting.Core.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Strategies;
 

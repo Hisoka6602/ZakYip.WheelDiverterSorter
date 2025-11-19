@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 
 namespace ZakYip.WheelDiverterSorter.Execution;

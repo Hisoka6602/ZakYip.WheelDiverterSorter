@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using Microsoft.Extensions.Caching.Memory;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.Sorting.Core.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;

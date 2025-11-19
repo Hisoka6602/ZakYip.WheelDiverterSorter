@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 

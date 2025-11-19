@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 /// <summary>
 /// 放包节流配置

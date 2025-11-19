@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Overload;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 /// <summary>
 /// 超载处置策略：当理论上无法在剩余路程内完成分拣时，决定如何处理包裹。

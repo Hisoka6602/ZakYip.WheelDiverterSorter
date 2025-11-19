@@ -1,7 +1,7 @@
 using System.Text.Json;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 基于JSON文件的线体拓扑配置提供者

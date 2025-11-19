@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 

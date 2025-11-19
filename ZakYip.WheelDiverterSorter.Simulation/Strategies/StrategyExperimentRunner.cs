@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.Sorting.Core.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Simulation.Strategies.Reports;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Strategies;

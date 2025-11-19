@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Runtime;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
 /// <summary>
 /// 产能估算器：根据历史数据估算安全产能区间。

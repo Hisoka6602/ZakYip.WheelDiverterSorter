@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
 /// <summary>
 /// 包裹扫描事件载荷，当包裹通过扫描器时触发

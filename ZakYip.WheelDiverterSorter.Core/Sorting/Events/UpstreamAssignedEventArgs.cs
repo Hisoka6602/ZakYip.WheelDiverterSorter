@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
 /// 上游分配事件载荷，当上游系统（RuleEngine）分配目标格口时触发

@@ -1,6 +1,6 @@
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 基于LiteDB的传感器配置仓储实现

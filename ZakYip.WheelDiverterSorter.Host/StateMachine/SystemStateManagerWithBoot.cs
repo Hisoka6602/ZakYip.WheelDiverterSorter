@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 
 namespace ZakYip.WheelDiverterSorter.Host.StateMachine;

@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 信号塔单个通道的状态。

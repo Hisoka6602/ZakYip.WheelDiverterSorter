@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 表示一条输送段的只读模型

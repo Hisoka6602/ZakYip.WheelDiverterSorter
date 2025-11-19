@@ -1,4 +1,4 @@
-using ZakYip.Sorting.Core.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Upstream;
 

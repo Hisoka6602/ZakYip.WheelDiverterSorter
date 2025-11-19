@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
 /// <summary>
 /// 分拣指令创建事件载荷，当系统为包裹生成分拣指令时触发

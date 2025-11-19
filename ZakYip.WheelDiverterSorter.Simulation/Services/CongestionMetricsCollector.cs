@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using ZakYip.Sorting.Core.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 

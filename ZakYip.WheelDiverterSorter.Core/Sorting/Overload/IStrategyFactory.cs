@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Overload;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 /// <summary>
 /// 策略实例工厂，根据 StrategyProfile 创建 Overload / 路由策略实例。

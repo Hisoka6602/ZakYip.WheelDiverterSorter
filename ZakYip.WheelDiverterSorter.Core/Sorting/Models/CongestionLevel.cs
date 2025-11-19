@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.Sorting.Core.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 /// <summary>
 /// 拥堵级别枚举

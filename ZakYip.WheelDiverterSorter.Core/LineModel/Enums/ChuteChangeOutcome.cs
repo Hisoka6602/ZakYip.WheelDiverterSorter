@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 /// <summary>
 /// 改口请求的决策结果。

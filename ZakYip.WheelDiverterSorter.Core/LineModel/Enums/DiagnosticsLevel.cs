@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 /// <summary>
 /// 诊断级别 / Diagnostics Level

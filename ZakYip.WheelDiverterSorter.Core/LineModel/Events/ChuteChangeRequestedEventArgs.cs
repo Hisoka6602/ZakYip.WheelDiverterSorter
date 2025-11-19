@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
 /// <summary>
 /// 改口请求事件参数。

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.Sorting.Core.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 

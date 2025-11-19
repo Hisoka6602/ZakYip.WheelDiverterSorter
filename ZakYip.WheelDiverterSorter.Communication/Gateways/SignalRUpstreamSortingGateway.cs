@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.Sorting.Core.Contracts;
-using ZakYip.Sorting.Core.Exceptions;
-using ZakYip.Sorting.Core.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 

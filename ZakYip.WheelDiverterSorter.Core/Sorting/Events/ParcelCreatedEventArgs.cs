@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
 /// 包裹创建事件载荷，当入口光电检测到包裹时触发

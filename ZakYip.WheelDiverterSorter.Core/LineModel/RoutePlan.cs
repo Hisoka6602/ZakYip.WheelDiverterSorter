@@ -1,7 +1,7 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Core.Events;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 路由计划聚合根，负责管理包裹的分拣路由生命周期。

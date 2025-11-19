@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// 路由配置仓储接口，负责管理格口到摆轮的映射关系

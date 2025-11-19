@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Host.Controllers;
+namespace ZakYip.WheelDiverterSorter.Host.Models;
 
 /// <summary>
 /// 放包节流配置请求模型

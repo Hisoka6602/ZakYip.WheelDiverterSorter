@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
-using ZakYip.WheelDiverterSorter.Core;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Benchmarks;

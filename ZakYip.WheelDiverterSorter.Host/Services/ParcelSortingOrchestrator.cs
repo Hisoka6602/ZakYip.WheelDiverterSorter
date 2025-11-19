@@ -1,18 +1,18 @@
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core;
-using ZakYip.WheelDiverterSorter.Core.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Tracing;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.Sorting.Core.Models;
-using ZakYip.Sorting.Core.Runtime;
-using ZakYip.Sorting.Core.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using Microsoft.Extensions.Options;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;

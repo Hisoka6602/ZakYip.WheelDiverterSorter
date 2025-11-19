@@ -1,7 +1,7 @@
-using ZakYip.Sorting.Core.Interfaces;
-using ZakYip.Sorting.Core.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
-namespace ZakYip.Sorting.Core.Policies;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 /// <summary>
 /// 默认放包节流策略

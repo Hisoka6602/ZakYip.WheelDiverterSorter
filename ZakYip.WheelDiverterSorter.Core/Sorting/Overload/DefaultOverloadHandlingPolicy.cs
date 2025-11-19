@@ -1,6 +1,6 @@
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
-namespace ZakYip.Sorting.Core.Overload;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 
 /// <summary>
 /// 默认超载处置策略实现。

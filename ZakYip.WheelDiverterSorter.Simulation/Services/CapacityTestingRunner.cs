@@ -1,4 +1,4 @@
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;

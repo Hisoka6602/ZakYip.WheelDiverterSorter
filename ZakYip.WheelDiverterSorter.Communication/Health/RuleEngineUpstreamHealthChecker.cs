@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Health;
 

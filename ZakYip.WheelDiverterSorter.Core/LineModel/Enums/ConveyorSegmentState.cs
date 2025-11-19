@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 /// <summary>
 /// 中段皮带运行状态枚举。

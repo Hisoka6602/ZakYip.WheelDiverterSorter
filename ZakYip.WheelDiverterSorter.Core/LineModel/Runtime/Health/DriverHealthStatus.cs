@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Runtime.Health;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 /// <summary>
 /// 驱动器健康状态

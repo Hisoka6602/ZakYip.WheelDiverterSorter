@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 摆轮路径生成器接口，负责根据目标格口生成摆轮指令序列

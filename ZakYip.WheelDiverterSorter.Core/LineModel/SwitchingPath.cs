@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
 
 /// <summary>
 /// 表示从入口到目标格口的完整摆轮路径

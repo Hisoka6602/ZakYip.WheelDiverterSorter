@@ -1,6 +1,6 @@
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.Configuration;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
 /// LiteDB BsonMapper 配置助手类

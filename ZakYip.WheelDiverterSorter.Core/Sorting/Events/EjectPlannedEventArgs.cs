@@ -1,4 +1,4 @@
-namespace ZakYip.Sorting.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
 /// 吐件计划事件载荷，当系统决定在某个节点吐件时触发

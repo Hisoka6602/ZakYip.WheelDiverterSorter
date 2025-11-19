@@ -1,6 +1,6 @@
-using ZakYip.Sorting.Core.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 
-namespace ZakYip.Sorting.Core.Events;
+namespace ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 
 /// <summary>
 /// 超载评估事件载荷，当超载策略评估包裹时触发

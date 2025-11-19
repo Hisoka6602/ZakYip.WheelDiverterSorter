@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Utilities;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 
 /// <summary>
 /// 日志相关的工具类
