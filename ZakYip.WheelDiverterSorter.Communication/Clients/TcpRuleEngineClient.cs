@@ -23,11 +23,12 @@ public class TcpRuleEngineClient : IRuleEngineClient
     private TcpClient? _client;
     private NetworkStream? _stream;
     private bool _isConnected;
+    private bool _disposed;
 
     /// <summary>
     /// 客户端是否已连接
     /// </summary>
-    public bool IsConnected => _isConnected && _client?.Connected == true;
+    public bool IsConnected => !_disposed && _isConnected && _client?.Connected == true;
 
     /// <summary>
     /// 格口分配通知事件
@@ -49,9 +50,35 @@ public class TcpRuleEngineClient : IRuleEngineClient
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options ?? throw new ArgumentNullException(nameof(options));
 
+        // 验证 TCP 服务器地址格式
         if (string.IsNullOrWhiteSpace(_options.TcpServer))
         {
             throw new ArgumentException("TCP服务器地址不能为空", nameof(options));
+        }
+
+        // 验证地址格式：必须是 "host:port" 格式
+        var parts = _options.TcpServer.Split(':');
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[0]) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            throw new ArgumentException($"无效的TCP服务器地址格式，必须为 'host:port' 格式: {_options.TcpServer}", nameof(options));
+        }
+
+        // 验证端口号
+        if (!int.TryParse(parts[1], out var port) || port <= 0 || port > 65535)
+        {
+            throw new ArgumentException($"无效的端口号: {parts[1]}", nameof(options));
+        }
+
+        // 验证超时时间
+        if (_options.TimeoutMs <= 0)
+        {
+            throw new ArgumentException($"超时时间必须大于0: {_options.TimeoutMs}ms", nameof(options));
+        }
+
+        // 验证重试次数
+        if (_options.RetryCount < 0)
+        {
+            throw new ArgumentException($"重试次数不能为负数: {_options.RetryCount}", nameof(options));
         }
     }
 
@@ -60,6 +87,11 @@ public class TcpRuleEngineClient : IRuleEngineClient
     /// </summary>
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(TcpRuleEngineClient));
+        }
+
         if (IsConnected)
         {
             return true;
@@ -115,6 +147,11 @@ public class TcpRuleEngineClient : IRuleEngineClient
     /// </summary>
     public Task DisconnectAsync()
     {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(TcpRuleEngineClient));
+        }
+
         try
         {
             _stream?.Close();
@@ -235,7 +272,24 @@ public class TcpRuleEngineClient : IRuleEngineClient
     /// </summary>
     public void Dispose()
     {
-        DisconnectAsync().GetAwaiter().GetResult();
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+
+        try
+        {
+            _stream?.Close();
+            _client?.Close();
+            _isConnected = false;
+        }
+        catch
+        {
+            // 忽略dispose过程中的异常
+        }
+
         _stream?.Dispose();
         _client?.Dispose();
     }
