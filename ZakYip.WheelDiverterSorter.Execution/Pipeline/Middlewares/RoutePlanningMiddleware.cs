@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution.Health;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -70,7 +71,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
 
                 context.ShouldForceException = true;
                 context.ExceptionReason = "NoPathToTargetChute";
-                context.ExceptionType = "PathFailure";
+                context.ExceptionType = ExceptionType.PathFailure;
                 context.TargetChuteId = exceptionChuteId;
             }
 
@@ -113,7 +114,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
 
                     context.ShouldForceException = true;
                     context.ExceptionReason = $"NodeDegraded: {unhealthyNodeList}";
-                    context.ExceptionType = "NodeDegraded";
+                    context.ExceptionType = Core.Sorting.Models.ExceptionType.NodeDegraded;
                     context.TargetChuteId = exceptionChuteId;
                     context.PlannedPath = path;
                     totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
@@ -145,7 +146,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
             _logger?.LogError(ex, "包裹 {ParcelId} 路径规划失败", context.ParcelId);
             context.ShouldForceException = true;
             context.ExceptionReason = $"RoutePlanningError: {ex.Message}";
-            context.ExceptionType = "PathFailure";
+            context.ExceptionType = ExceptionType.PathFailure;
 
             // 尝试继续执行（如果有路径）
             if (context.PlannedPath != null)

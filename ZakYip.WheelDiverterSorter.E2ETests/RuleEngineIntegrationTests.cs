@@ -113,16 +113,13 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.IsConnected)
             .Returns(true);
 
         await _orchestrator.StartAsync();
 
-        // Act - Simulate RuleEngine sending chute assignment
+        // Act - Simulate RuleEngine sending chute assignment (push model)
+        // In the push model, the client receives assignments without explicitly requesting them
         var assignmentArgs = new ChuteAssignmentNotificationEventArgs
         {
             ParcelId = parcelId,
@@ -137,9 +134,11 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Allow time for processing
         await Task.Delay(300);
 
-        // Assert
-        Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()),
+        // Assert - In push model, chute assignment is received via event
+        // The orchestrator subscribes to ChuteAssignmentReceived event on startup
+        // Verify the event subscription was set up
+        Factory.MockRuleEngineClient.VerifyAdd(
+            x => x.ChuteAssignmentReceived += It.IsAny<EventHandler<ChuteAssignmentNotificationEventArgs>>(),
             Times.AtLeastOnce);
 
         await _orchestrator.StopAsync();

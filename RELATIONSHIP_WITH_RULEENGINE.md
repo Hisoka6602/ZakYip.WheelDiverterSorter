@@ -278,11 +278,13 @@ WheelDiverterSorter → HTTP POST → RuleEngine API
 ### 阶段2：格口决策（RuleEngine.Core）
 
 ```
-步骤3: WheelDiverterSorter请求格口号
-→ 通过TCP/SignalR/MQTT发送包裹ID
-→ Message: { ParcelId: "PKG001" }
+步骤3: WheelDiverterSorter 通知 RuleEngine 包裹已检测（推送模型）
+→ 通过TCP/SignalR/MQTT调用 NotifyParcelDetectedAsync(parcelId)
+→ Message: { ParcelId: "PKG001", DetectedAt: "2025-11-19T12:00:00Z" }
+→ **注意**：这是一个通知调用，不等待返回格口号
+→ WheelDiverterSorter 开始等待 RuleEngine 推送结果（启动 TTL 计时器）
 
-步骤4: RuleEngine接收请求，查询DWS第三方API
+步骤4: RuleEngine接收通知，查询DWS第三方API
 → 根据包裹ID查询DWS系统
 → 获取包裹详细信息：
    - Barcode: "1234567890"
@@ -299,9 +301,17 @@ WheelDiverterSorter → HTTP POST → RuleEngine API
 → 选择优先级最高的匹配规则
 → 决定目标格口
 
-步骤7: RuleEngine返回格口号
-→ 通过TCP/SignalR/MQTT返回结果
-→ Response: { ParcelId: "PKG001", ChuteNumber: "CHUTE_A" }
+步骤7: RuleEngine **主动推送**格口号（推送模型）
+→ 通过TCP/SignalR/MQTT **推送**结果到 WheelDiverterSorter
+→ Message: { ParcelId: "PKG001", ChuteNumber: "CHUTE_A" }
+→ WheelDiverterSorter 接收推送 → 完成格口分配 → 停止 TTL 计时器
+
+**超时处理（TTL机制）：**
+→ 如果 RuleEngine 在 TTL 时间内（默认10秒）未推送结果
+→ WheelDiverterSorter 自动触发超时处理：
+   - 异常类型：`UpstreamTimeout`
+   - 路由目标：异常格口（配置中的 ExceptionChuteId）
+   - 异常原因：等待上游结果超时
 ```
 
 ### 阶段3：摆轮执行（WheelDiverterSorter）

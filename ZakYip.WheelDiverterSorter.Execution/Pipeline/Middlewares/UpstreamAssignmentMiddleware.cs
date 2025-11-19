@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -47,7 +48,7 @@ public sealed class UpstreamAssignmentMiddleware : ISortingPipelineMiddleware
                 _logger?.LogWarning("包裹 {ParcelId} 未能确定有效的目标格口", context.ParcelId);
                 context.ShouldForceException = true;
                 context.ExceptionReason = "NoValidTargetChute";
-                context.ExceptionType = "UpstreamTimeout";
+                context.ExceptionType = ExceptionType.UpstreamTimeout;
             }
             else
             {
@@ -77,7 +78,7 @@ public sealed class UpstreamAssignmentMiddleware : ISortingPipelineMiddleware
             _logger?.LogError(ex, "包裹 {ParcelId} 上游分配失败", context.ParcelId);
             context.ShouldForceException = true;
             context.ExceptionReason = $"UpstreamAssignmentError: {ex.Message}";
-            context.ExceptionType = "UpstreamTimeout";
+            context.ExceptionType = ExceptionType.UpstreamTimeout;
 
             // 继续执行后续中间件
             await next(context);

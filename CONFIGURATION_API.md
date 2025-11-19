@@ -390,6 +390,146 @@ curl -X PUT http://localhost:5000/api/config/system/sorting-mode \
 - `RoundRobin` 模式必须提供至少一个 `availableChuteIds`，且所有格口 ID 必须大于 0
 - 分拣模式配置立即生效，无需重启服务
 
+## 异常路由策略配置 API
+
+### 1. 获取异常路由策略
+
+**请求:**
+```http
+GET /api/config/exception-policy
+```
+
+**响应:**
+```json
+{
+  "exceptionChuteId": 999,
+  "upstreamTimeoutMs": 10000,
+  "retryOnTimeout": false,
+  "retryCount": 0,
+  "retryDelayMs": 1000,
+  "useExceptionOnTopologyUnreachable": true,
+  "useExceptionOnTtlFailure": true
+}
+```
+
+**字段说明:**
+- `exceptionChuteId`: 异常格口ID，当包裹无法正常分拣时路由到此格口
+- `upstreamTimeoutMs`: **等待上游 RuleEngine 推送结果的超时时间（毫秒）**
+  - 默认值：10000 (10秒)
+  - 取值范围：1000-60000 (1-60秒)
+  - **此配置支持热更新**：修改后立即对新包裹生效
+- `retryOnTimeout`: 超时后是否重试
+- `retryCount`: 重试次数
+- `retryDelayMs`: 重试延迟（毫秒）
+- `useExceptionOnTopologyUnreachable`: 拓扑不可达时是否使用异常格口
+- `useExceptionOnTtlFailure`: TTL失败时是否使用异常格口
+
+**示例:**
+```bash
+curl -X GET http://localhost:5000/api/config/exception-policy
+```
+
+### 2. 更新异常路由策略（热更新）
+
+**请求:**
+```http
+PUT /api/config/exception-policy
+Content-Type: application/json
+```
+
+**请求体:**
+```json
+{
+  "exceptionChuteId": 999,
+  "upstreamTimeoutMs": 15000,
+  "retryOnTimeout": false,
+  "retryCount": 0,
+  "retryDelayMs": 1000,
+  "useExceptionOnTopologyUnreachable": true,
+  "useExceptionOnTtlFailure": true
+}
+```
+
+**示例:**
+```bash
+curl -X PUT http://localhost:5000/api/config/exception-policy \
+  -H "Content-Type: application/json" \
+  -d '{
+    "exceptionChuteId": 999,
+    "upstreamTimeoutMs": 15000,
+    "retryOnTimeout": false,
+    "retryCount": 0,
+    "retryDelayMs": 1000,
+    "useExceptionOnTopologyUnreachable": true,
+    "useExceptionOnTtlFailure": true
+  }'
+```
+
+**响应:**
+- **200 OK**: 配置更新成功，立即生效（热更新）
+- **400 Bad Request**: 请求参数无效
+  - `upstreamTimeoutMs` 必须在 1000-60000 范围内
+  - `exceptionChuteId` 必须大于 0
+- **500 Internal Server Error**: 服务器内部错误
+
+**热更新特性说明:**
+
+配置更新后**立即生效**，无需重启应用：
+
+1. **上游超时时间 (upstreamTimeoutMs)**:
+   - ✅ 修改后立即生效
+   - ✅ 新进入系统的包裹使用新的超时时间
+   - ⚠️ 正在等待上游响应的包裹继续使用旧的超时时间
+   - 策略：**只对新包裹生效**（保证已在处理中的包裹不受影响）
+
+2. **异常格口 (exceptionChuteId)**:
+   - ✅ 修改后立即生效
+   - ✅ 所有超时/失败的包裹立即路由到新的异常格口
+
+### 异常类型枚举
+
+系统定义了以下异常类型（`ExceptionType` 枚举）：
+
+| 枚举值 | 值 | 说明 | 触发场景 |
+|--------|---|------|----------|
+| `Unknown` | 0 | 未知异常 | 未分类的错误 |
+| **`UpstreamTimeout`** | 1 | **上游超时** | **RuleEngine 未在 TTL 时间内响应** |
+| `PathFailure` | 2 | 路径失败 | 执行路径时发生错误 |
+| `NodeDegraded` | 3 | 节点降级 | 路径经过不健康节点 |
+| `Overload` | 4 | 系统过载 | 系统拥堵超出处理能力 |
+| `TopologyUnreachable` | 5 | 拓扑不可达 | 无可用路径到达目标格口 |
+| `TtlFailure` | 6 | TTL失败 | 包裹在系统中停留时间过长 |
+| `SensorFault` | 7 | 传感器故障 | 传感器检测异常 |
+| `ConfigurationError` | 8 | 配置错误 | 配置无效或缺失 |
+
+### 上游超时工作流程
+
+**推送模型下的超时处理：**
+
+1. **包裹检测**：IO传感器检测到包裹 → 系统创建包裹记录
+2. **通知上游**：系统通过 `NotifyParcelDetectedAsync()` 通知 RuleEngine
+3. **启动计时器**：开始等待上游推送结果，最长等待 `upstreamTimeoutMs`
+4. **接收推送**：
+   - ✅ **在 TTL 内收到推送** → 使用推送的格口号进行分拣
+   - ❌ **超过 TTL 无推送** → 触发 `UpstreamTimeout` 异常 → 路由到异常格口
+
+**验证示例：**
+
+```bash
+# 1. 设置较短的超时时间（5秒）
+curl -X PUT http://localhost:5000/api/config/exception-policy \
+  -H "Content-Type: application/json" \
+  -d '{"exceptionChuteId": 999, "upstreamTimeoutMs": 5000}'
+
+# 2. 模拟包裹检测（如果 RuleEngine 未在 5 秒内推送）
+# → 包裹将自动路由到格口 999，异常类型为 UpstreamTimeout
+
+# 3. 调整为正常超时时间（10秒）
+curl -X PUT http://localhost:5000/api/config/exception-policy \
+  -H "Content-Type: application/json" \
+  -d '{"exceptionChuteId": 999, "upstreamTimeoutMs": 10000}'
+```
+
 ## 注意事项
 
 1. **备份数据**: 在修改生产环境配置前，建议备份数据库文件
