@@ -553,6 +553,14 @@ public class ParcelSortingOrchestrator : IDisposable
                 }
             }
 
+            // 最终校验：确保路径不为空
+            if (path == null)
+            {
+                _logger.LogError("包裹 {ParcelId} 路径为空，无法执行分拣", parcelId);
+                _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                return;
+            }
+
             // 记录包裹路径，用于失败处理
             lock (_lockObject)
             {
