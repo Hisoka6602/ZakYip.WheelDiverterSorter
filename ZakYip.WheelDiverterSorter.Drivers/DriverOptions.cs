@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;
 
@@ -13,9 +14,14 @@ public class DriverOptions
     public bool UseHardwareDriver { get; set; } = false;
 
     /// <summary>
-    /// 驱动器厂商类型
+    /// 驱动器厂商类型（旧版，保留向后兼容）
     /// </summary>
     public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
+
+    /// <summary>
+    /// 厂商标识符（新版，推荐使用）
+    /// </summary>
+    public VendorId? VendorId { get; set; }
 
     /// <summary>
     /// 雷赛控制器配置

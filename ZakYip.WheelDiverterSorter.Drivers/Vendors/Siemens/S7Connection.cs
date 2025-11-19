@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using S7.Net;
 using System.Net.Sockets;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.S7;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
 /// <summary>
 /// S7 PLC连接管理器，负责连接管理和自动重连

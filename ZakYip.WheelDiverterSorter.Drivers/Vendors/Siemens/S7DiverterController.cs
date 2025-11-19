@@ -1,39 +1,38 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
-using csLTDMC;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
 /// <summary>
-/// 基于雷赛（Leadshine）运动控制器的摆轮控制器实现
-/// 使用IO输出端口控制摆轮角度
+/// 基于S7 PLC的摆轮控制器实现
+/// 使用数据块(DB)的位输出控制摆轮角度
 /// </summary>
-public class LeadshineDiverterController : IDiverterController
+public class S7DiverterController : IDiverterController
 {
-    private readonly ILogger<LeadshineDiverterController> _logger;
-    private readonly ushort _cardNo;
-    private readonly LeadshineDiverterConfig _config;
+    private readonly ILogger<S7DiverterController> _logger;
+    private readonly S7OutputPort _outputPort;
+    private readonly S7DiverterConfig _config;
     private int _currentAngle;
 
     /// <summary>
     /// 摆轮ID
     /// </summary>
-    public string DiverterId => _config.DiverterId.ToString();
+    public string DiverterId => _config.DiverterId;
 
     /// <summary>
-    /// 初始化雷赛摆轮控制器
+    /// 初始化S7摆轮控制器
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    /// <param name="cardNo">控制器卡号</param>
+    /// <param name="outputPort">输出端口</param>
     /// <param name="config">摆轮配置</param>
-    public LeadshineDiverterController(
-        ILogger<LeadshineDiverterController> logger,
-        ushort cardNo,
-        LeadshineDiverterConfig config)
+    public S7DiverterController(
+        ILogger<S7DiverterController> logger,
+        S7OutputPort outputPort,
+        S7DiverterConfig config)
     {
-        _logger = logger;
-        _cardNo = cardNo;
-        _config = config;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _outputPort = outputPort ?? throw new ArgumentNullException(nameof(outputPort));
+        _config = config ?? throw new ArgumentNullException(nameof(config));
         _currentAngle = 0;
     }
 
@@ -49,16 +48,19 @@ public class LeadshineDiverterController : IDiverterController
         {
             _logger.LogInformation("设置摆轮 {DiverterId} 角度为 {Angle}度", DiverterId, angle);
 
-            // 根据角度映射到对应的输出端口组合
+            // 根据角度映射到对应的输出位组合
             var outputBits = MapAngleToOutputBits(angle);
-            
+
+            // 计算绝对位索引（字节地址 * 8 + 位偏移）
+            int baseBitIndex = _config.OutputStartByte * 8 + _config.OutputStartBit;
+
             // 写入输出端口
-            foreach (var (bitIndex, value) in outputBits)
+            foreach (var (bitOffset, value) in outputBits)
             {
-                var result = LTDMC.dmc_write_outbit(_cardNo, (ushort)bitIndex, (ushort)(value ? 1 : 0));
-                if (result != 0)
+                var success = await _outputPort.WriteAsync(baseBitIndex + bitOffset, value);
+                if (!success)
                 {
-                    _logger.LogError("写入输出位 {BitIndex} 失败，错误码: {ErrorCode}", bitIndex, result);
+                    _logger.LogError("写入输出位 {BitIndex} 失败", baseBitIndex + bitOffset);
                     return false;
                 }
             }
@@ -99,48 +101,45 @@ public class LeadshineDiverterController : IDiverterController
 
     /// <summary>
     /// 将角度映射到输出位组合
-    /// 这是一个简化的示例，实际应用中需要根据硬件接线配置
+    /// 使用二进制编码方式，与Leadshine驱动器保持一致
     /// </summary>
     /// <param name="angle">目标角度</param>
-    /// <returns>输出位索引和值的列表</returns>
-    private List<(int bitIndex, bool value)> MapAngleToOutputBits(int angle)
+    /// <returns>位偏移和值的列表</returns>
+    private List<(int bitOffset, bool value)> MapAngleToOutputBits(int angle)
     {
         var bits = new List<(int, bool)>();
-        
-        // 根据配置的起始输出位和角度计算输出组合
-        // 这里使用二进制编码方式：
+
+        // 使用二进制编码方式：
         // 0度 = 00 (bit0=0, bit1=0)
         // 30度 = 01 (bit0=1, bit1=0)
         // 45度 = 10 (bit0=0, bit1=1)
         // 90度 = 11 (bit0=1, bit1=1)
-        
-        int startBit = _config.OutputStartBit;
-        
+
         switch (angle)
         {
             case 0:
-                bits.Add((startBit, false));
-                bits.Add((startBit + 1, false));
+                bits.Add((0, false));
+                bits.Add((1, false));
                 break;
             case 30:
-                bits.Add((startBit, true));
-                bits.Add((startBit + 1, false));
+                bits.Add((0, true));
+                bits.Add((1, false));
                 break;
             case 45:
-                bits.Add((startBit, false));
-                bits.Add((startBit + 1, true));
+                bits.Add((0, false));
+                bits.Add((1, true));
                 break;
             case 90:
-                bits.Add((startBit, true));
-                bits.Add((startBit + 1, true));
+                bits.Add((0, true));
+                bits.Add((1, true));
                 break;
             default:
                 _logger.LogWarning("不支持的角度 {Angle}，使用0度", angle);
-                bits.Add((startBit, false));
-                bits.Add((startBit + 1, false));
+                bits.Add((0, false));
+                bits.Add((1, false));
                 break;
         }
-        
+
         return bits;
     }
 }

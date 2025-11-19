@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using S7.Net;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.S7;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
 /// <summary>
 /// S7 PLC 输入端口实现

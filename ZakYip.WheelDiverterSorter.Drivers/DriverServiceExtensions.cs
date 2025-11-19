@@ -2,9 +2,10 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core;
+using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
-using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
-using ZakYip.WheelDiverterSorter.Drivers.Simulated;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;
@@ -29,22 +30,48 @@ public static class DriverServiceExtensions
         configuration.GetSection("Driver").Bind(options);
         services.AddSingleton(options);
 
+        // 注册厂商驱动工厂
+        services.AddSingleton<IVendorDriverFactory>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            
+            if (options.UseHardwareDriver)
+            {
+                // 根据配置的 VendorId 创建对应的工厂
+                // 如果配置中没有 VendorId，默认使用 Leadshine（向后兼容）
+                var vendorId = options.VendorId ?? VendorId.Leadshine;
+                
+                return vendorId switch
+                {
+                    VendorId.Leadshine => new LeadshineVendorDriverFactory(loggerFactory, options.Leadshine),
+                    VendorId.Simulated => new SimulatedVendorDriverFactory(loggerFactory),
+                    _ => throw new NotSupportedException($"厂商 {vendorId} 尚未实现驱动工厂")
+                };
+            }
+            else
+            {
+                // 使用模拟驱动器
+                return new SimulatedVendorDriverFactory(loggerFactory);
+            }
+        });
+
+        // 使用工厂创建驱动实例
         if (options.UseHardwareDriver)
         {
             // 使用硬件驱动器
             services.AddSingleton<ISwitchingPathExecutor>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<HardwareSwitchingPathExecutor>>();
-                var drivers = CreateLeadshineWheelDiverterDrivers(sp, options.Leadshine);
+                var factory = sp.GetRequiredService<IVendorDriverFactory>();
+                var drivers = factory.CreateWheelDiverterDrivers();
                 return new HardwareSwitchingPathExecutor(logger, drivers);
             });
 
-            // 注册雷赛 IO 联动驱动
+            // 注册 IO 联动驱动
             services.AddSingleton<IIoLinkageDriver>(sp =>
             {
-                var logger = sp.GetRequiredService<ILogger<LeadshineIoLinkageDriver>>();
-                var emcController = CreateEmcController(sp, options.Leadshine.CardNo);
-                return new LeadshineIoLinkageDriver(logger, emcController);
+                var factory = sp.GetRequiredService<IVendorDriverFactory>();
+                return factory.CreateIoLinkageDriver();
             });
         }
         else
@@ -53,70 +80,16 @@ public static class DriverServiceExtensions
             services.AddSingleton<ISwitchingPathExecutor, MockSwitchingPathExecutor>();
 
             // 注册仿真 IO 联动驱动
-            services.AddSingleton<IIoLinkageDriver, SimulatedIoLinkageDriver>();
+            services.AddSingleton<IIoLinkageDriver>(sp =>
+            {
+                var factory = sp.GetRequiredService<IVendorDriverFactory>();
+                return factory.CreateIoLinkageDriver();
+            });
         }
 
         // 注册 IO 联动协调器（不管是硬件还是仿真模式都需要）
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
 
         return services;
-    }
-
-    /// <summary>
-    /// 创建雷赛 EMC 控制器
-    /// </summary>
-    private static IEmcController CreateEmcController(
-        IServiceProvider sp,
-        ushort cardNo)
-    {
-        var logger = sp.GetRequiredService<ILogger<LeadshineEmcController>>();
-        var controller = new LeadshineEmcController(logger, cardNo);
-        
-        // 初始化控制器（同步执行）
-        var initTask = controller.InitializeAsync();
-        initTask.Wait();
-        
-        if (!initTask.Result)
-        {
-            logger.LogWarning("EMC 控制器初始化失败，IO 联动功能可能无法正常工作");
-        }
-        
-        return controller;
-    }
-
-    /// <summary>
-    /// 创建雷赛摆轮驱动器列表（封装底层控制器）
-    /// </summary>
-    private static List<IWheelDiverterDriver> CreateLeadshineWheelDiverterDrivers(
-        IServiceProvider sp,
-        LeadshineOptions options)
-    {
-        var drivers = new List<IWheelDiverterDriver>();
-        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-
-        foreach (var configDto in options.Diverters)
-        {
-            var config = new LeadshineDiverterConfig
-            {
-                DiverterId = configDto.DiverterId,
-                DiverterName = configDto.DiverterName,
-                ConnectedConveyorLengthMm = configDto.ConnectedConveyorLengthMm,
-                ConnectedConveyorSpeedMmPerSec = configDto.ConnectedConveyorSpeedMmPerSec,
-                DiverterSpeedMmPerSec = configDto.DiverterSpeedMmPerSec,
-                OutputStartBit = configDto.OutputStartBit,
-                FeedbackInputBit = configDto.FeedbackInputBit
-            };
-
-            // 创建底层控制器
-            var controllerLogger = loggerFactory.CreateLogger<LeadshineDiverterController>();
-            var controller = new LeadshineDiverterController(controllerLogger, options.CardNo, config);
-
-            // 封装为高层驱动器
-            var driverLogger = loggerFactory.CreateLogger<RelayWheelDiverterDriver>();
-            var driver = new RelayWheelDiverterDriver(driverLogger, controller);
-            drivers.Add(driver);
-        }
-
-        return drivers;
     }
 }

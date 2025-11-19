@@ -3,9 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core;
 using ZakYip.WheelDiverterSorter.Core.Configuration;
+using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
-using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
-using ZakYip.WheelDiverterSorter.Drivers.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -85,25 +84,38 @@ public static class MiddleConveyorServiceExtensions
     {
         var segments = new List<IConveyorSegment>();
 
+        // 获取厂商驱动工厂
+        var factory = serviceProvider.GetService<IVendorDriverFactory>();
+
         foreach (var mapping in mappings)
         {
-            IConveyorSegmentDriver driver;
+            IConveyorSegmentDriver? driver = null;
 
-            if (isSimulation)
+            if (factory != null)
             {
-                // 创建仿真驱动
-                driver = new SimulatedConveyorSegmentDriver(
-                    mapping,
-                    serviceProvider.GetRequiredService<ILogger<SimulatedConveyorSegmentDriver>>());
+                // 使用工厂创建驱动
+                driver = factory.CreateConveyorSegmentDriver(mapping.SegmentKey);
             }
-            else
+
+            // 如果工厂不支持或未提供，回退到直接创建
+            if (driver == null)
             {
-                // 创建硬件驱动（雷赛）
-                var emcController = serviceProvider.GetRequiredService<IEmcController>();
-                driver = new LeadshineConveyorSegmentDriver(
-                    mapping,
-                    emcController,
-                    serviceProvider.GetRequiredService<ILogger<LeadshineConveyorSegmentDriver>>());
+                if (isSimulation)
+                {
+                    // 创建仿真驱动
+                    driver = new Drivers.Vendors.Simulated.SimulatedConveyorSegmentDriver(
+                        mapping,
+                        serviceProvider.GetRequiredService<ILogger<Drivers.Vendors.Simulated.SimulatedConveyorSegmentDriver>>());
+                }
+                else
+                {
+                    // 创建硬件驱动（雷赛）
+                    var emcController = serviceProvider.GetRequiredService<IEmcController>();
+                    driver = new Drivers.Vendors.Leadshine.LeadshineConveyorSegmentDriver(
+                        mapping,
+                        emcController,
+                        serviceProvider.GetRequiredService<ILogger<Drivers.Vendors.Leadshine.LeadshineConveyorSegmentDriver>>());
+                }
             }
 
             // 创建 ConveyorSegment

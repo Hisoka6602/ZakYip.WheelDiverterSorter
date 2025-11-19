@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛摆轮配置

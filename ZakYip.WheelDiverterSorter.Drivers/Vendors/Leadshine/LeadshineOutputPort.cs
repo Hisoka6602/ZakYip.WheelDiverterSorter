@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using csLTDMC;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛控制器输出端口实现

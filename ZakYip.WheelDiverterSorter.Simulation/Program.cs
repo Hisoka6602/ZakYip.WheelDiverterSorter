@@ -69,7 +69,7 @@ var host = Host.CreateDefaultBuilder(args)
 
         // 注册 IO 联动服务（仿真模式）
         services.AddSingleton<ZakYip.WheelDiverterSorter.Drivers.Abstractions.IIoLinkageDriver, 
-            ZakYip.WheelDiverterSorter.Drivers.Simulated.SimulatedIoLinkageDriver>();
+            ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated.SimulatedIoLinkageDriver>();
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
 
         // 注册模拟RuleEngineClient

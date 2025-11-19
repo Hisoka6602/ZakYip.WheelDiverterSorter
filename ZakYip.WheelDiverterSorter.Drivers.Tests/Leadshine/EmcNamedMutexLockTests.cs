@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Leadshine;
 

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Drivers.S7;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.S7;
 

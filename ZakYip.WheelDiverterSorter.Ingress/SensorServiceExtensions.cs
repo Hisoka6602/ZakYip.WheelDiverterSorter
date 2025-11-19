@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Ingress.Sensors;
-using ZakYip.WheelDiverterSorter.Drivers.Leadshine;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
