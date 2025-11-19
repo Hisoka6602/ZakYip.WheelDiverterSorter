@@ -1,9 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Runtime.Health;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -19,26 +17,17 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class HealthController : ControllerBase
 {
     private readonly ISystemStateManager _stateManager;
-    private readonly PrometheusMetrics? _metrics;
+    private readonly IHealthStatusProvider _healthStatusProvider;
     private readonly ILogger<HealthController> _logger;
-    private readonly ISystemConfigurationRepository? _systemConfigRepository;
-    private readonly DiagnosticsOptions? _diagnosticsOptions;
-    private readonly AlertHistoryService? _alertHistoryService;
 
     public HealthController(
         ISystemStateManager stateManager,
-        ILogger<HealthController> logger,
-        PrometheusMetrics? metrics = null,
-        ISystemConfigurationRepository? systemConfigRepository = null,
-        IOptions<DiagnosticsOptions>? diagnosticsOptions = null,
-        AlertHistoryService? alertHistoryService = null)
+        IHealthStatusProvider healthStatusProvider,
+        ILogger<HealthController> logger)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
+        _healthStatusProvider = healthStatusProvider ?? throw new ArgumentNullException(nameof(healthStatusProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _metrics = metrics;
-        _systemConfigRepository = systemConfigRepository;
-        _diagnosticsOptions = diagnosticsOptions?.Value;
-        _alertHistoryService = alertHistoryService;
     }
 
     /// <summary>
@@ -125,80 +114,18 @@ public class HealthController : ControllerBase
     [SwaggerResponse(503, "线体故障或自检失败", typeof(LineHealthResponse))]
     [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status503ServiceUnavailable)]
-    public IActionResult GetLineHealth()
+    public async Task<IActionResult> GetLineHealth()
     {
         try
         {
-            var currentState = _stateManager.CurrentState;
-            var lastReport = _stateManager.LastSelfTestReport;
+            // 使用 IHealthStatusProvider 获取健康快照
+            var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
 
-            // Extract degradation information from self-test report
-            var degradationMode = lastReport?.DegradationMode.ToString() ?? "None";
-            var degradedNodes = lastReport?.NodeStatuses?
-                .Where(n => !n.IsHealthy)
-                .Select(n => new NodeHealthInfo
-                {
-                    NodeId = n.NodeId,
-                    NodeType = n.NodeType,
-                    IsHealthy = n.IsHealthy,
-                    ErrorCode = n.ErrorCode,
-                    ErrorMessage = n.ErrorMessage,
-                    CheckedAt = n.CheckedAt
-                })
-                .ToList();
-
-            var response = new LineHealthResponse
-            {
-                SystemState = currentState.ToString(),
-                IsSelfTestSuccess = lastReport?.IsSuccess ?? false,
-                LastSelfTestAt = lastReport?.PerformedAt,
-                Drivers = lastReport?.Drivers?.Select(d => new DriverHealthInfo
-                {
-                    DriverName = d.DriverName,
-                    IsHealthy = d.IsHealthy,
-                    ErrorCode = d.ErrorCode,
-                    ErrorMessage = d.ErrorMessage,
-                    CheckedAt = d.CheckedAt
-                }).ToList(),
-                Upstreams = lastReport?.Upstreams?.Select(u => new UpstreamHealthInfo
-                {
-                    EndpointName = u.EndpointName,
-                    IsHealthy = u.IsHealthy,
-                    ErrorCode = u.ErrorCode,
-                    ErrorMessage = u.ErrorMessage,
-                    CheckedAt = u.CheckedAt
-                }).ToList(),
-                Config = lastReport?.Config != null ? new ConfigHealthInfo
-                {
-                    IsValid = lastReport.Config.IsValid,
-                    ErrorMessage = lastReport.Config.ErrorMessage
-                } : null,
-                Summary = _metrics != null ? new SystemSummary
-                {
-                    CurrentCongestionLevel = GetCongestionLevelDescription(currentState),
-                    RecommendedCapacityParcelsPerMinute = null // 可从metrics读取，暂不实现
-                } : null,
-                DegradationMode = degradationMode,
-                DegradedNodesCount = degradedNodes?.Count ?? 0,
-                DegradedNodes = degradedNodes,
-                // PR-23: 新增诊断和告警信息
-                DiagnosticsLevel = _diagnosticsOptions?.Level.ToString() ?? "Basic",
-                ConfigVersion = _systemConfigRepository?.Get()?.ConfigName, // 使用ConfigName作为版本标识
-                RecentCriticalAlerts = _alertHistoryService?.GetRecentCriticalAlerts(5)
-                    .Select(a => new AlertSummary
-                    {
-                        AlertCode = a.AlertCode,
-                        Severity = a.Severity.ToString(),
-                        Message = a.Message,
-                        RaisedAt = a.RaisedAt
-                    }).ToList()
-            };
+            // 映射到响应DTO
+            var response = MapSnapshotToResponse(snapshot);
 
             // 判断HTTP状态码
-            var isHealthy = (currentState == SystemState.Ready || currentState == SystemState.Running) &&
-                           (lastReport?.IsSuccess ?? true);
-
-            if (isHealthy)
+            if (snapshot.IsLineAvailable && snapshot.IsSelfTestSuccess)
             {
                 return Ok(response);
             }
@@ -218,6 +145,56 @@ public class HealthController : ControllerBase
             };
             return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }
+    }
+
+    private static LineHealthResponse MapSnapshotToResponse(LineHealthSnapshot snapshot)
+    {
+        return new LineHealthResponse
+        {
+            SystemState = snapshot.SystemState,
+            IsSelfTestSuccess = snapshot.IsSelfTestSuccess,
+            LastSelfTestAt = snapshot.LastSelfTestAt,
+            Drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
+            {
+                DriverName = d.DriverName,
+                IsHealthy = d.IsHealthy,
+                ErrorCode = d.ErrorCode,
+                ErrorMessage = d.ErrorMessage,
+                CheckedAt = d.CheckedAt
+            }).ToList(),
+            Upstreams = snapshot.Upstreams?.Select(u => new UpstreamHealthInfo
+            {
+                EndpointName = u.EndpointName,
+                IsHealthy = u.IsHealthy,
+                ErrorCode = u.ErrorCode,
+                ErrorMessage = u.ErrorMessage,
+                CheckedAt = u.CheckedAt
+            }).ToList(),
+            Config = snapshot.Config != null ? new ConfigHealthInfo
+            {
+                IsValid = snapshot.Config.IsValid,
+                ErrorMessage = snapshot.Config.ErrorMessage
+            } : null,
+            Summary = new SystemSummary
+            {
+                CurrentCongestionLevel = snapshot.CurrentCongestionLevel,
+                RecommendedCapacityParcelsPerMinute = null
+            },
+            DegradationMode = snapshot.DegradationMode,
+            DegradedNodesCount = snapshot.DegradedNodesCount,
+            DegradedNodes = snapshot.DegradedNodes?.Select(n => new NodeHealthInfo
+            {
+                NodeId = n.NodeId,
+                NodeType = n.NodeType,
+                IsHealthy = n.IsHealthy,
+                ErrorCode = n.ErrorCode,
+                ErrorMessage = n.ErrorMessage,
+                CheckedAt = n.CheckedAt
+            }).ToList(),
+            DiagnosticsLevel = snapshot.DiagnosticsLevel,
+            ConfigVersion = snapshot.ConfigVersion,
+            RecentCriticalAlerts = null // 可以从 AlertHistoryService 获取，但快照中已有计数
+        };
     }
 
     private static string? GetCongestionLevelDescription(SystemState state)

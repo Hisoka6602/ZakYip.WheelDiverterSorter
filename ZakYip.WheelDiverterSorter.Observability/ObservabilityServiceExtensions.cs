@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
 
@@ -32,6 +33,24 @@ public static class ObservabilityServiceExtensions
     public static IServiceCollection AddAlarmService(this IServiceCollection services)
     {
         services.AddSingleton<AlarmService>();
+        return services;
+    }
+
+    /// <summary>
+    /// 添加告警接收器（IAlertSink）
+    /// Add alert sinks to the service collection
+    /// 默认注册 FileAlertSink、LogAlertSink 和 AlertHistoryService
+    /// Registers FileAlertSink, LogAlertSink and AlertHistoryService by default
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddAlertSinks(this IServiceCollection services)
+    {
+        // 注册所有 IAlertSink 实现
+        services.AddSingleton<IAlertSink, FileAlertSink>();
+        services.AddSingleton<IAlertSink, LogAlertSink>();
+        services.AddSingleton<AlertHistoryService>(); // 单独注册以便可以直接注入
+        services.AddSingleton<IAlertSink>(sp => sp.GetRequiredService<AlertHistoryService>()); // 同时注册为 IAlertSink
         return services;
     }
 

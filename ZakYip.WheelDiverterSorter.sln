@@ -57,6 +57,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Simulation", "Simulation", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Tools.Reporting", "Tools\ZakYip.WheelDiverterSorter.Tools.Reporting\ZakYip.WheelDiverterSorter.Tools.Reporting.csproj", "{7386804D-315B-4AD5-9C77-0ADDDC20B06B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication", "ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj", "{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -271,6 +273,18 @@ Global
 		{7386804D-315B-4AD5-9C77-0ADDDC20B06B}.Release|x64.Build.0 = Release|Any CPU
 		{7386804D-315B-4AD5-9C77-0ADDDC20B06B}.Release|x86.ActiveCfg = Release|Any CPU
 		{7386804D-315B-4AD5-9C77-0ADDDC20B06B}.Release|x86.Build.0 = Release|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Debug|x64.Build.0 = Debug|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Debug|x86.Build.0 = Debug|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x64.ActiveCfg = Release|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x64.Build.0 = Release|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x86.ActiveCfg = Release|Any CPU
+		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
