@@ -47,7 +47,7 @@ public class SimulatedVendorDriverFactory : IVendorDriverFactory
         var logger = _loggerFactory.CreateLogger<SimulatedConveyorSegmentDriver>();
         
         // 创建一个默认的 mapping 配置
-        var mapping = new Core.Configuration.ConveyorIoMapping
+        var mapping = new ConveyorIoMapping
         {
             SegmentKey = segmentId,
             DisplayName = $"Simulated-{segmentId}",
