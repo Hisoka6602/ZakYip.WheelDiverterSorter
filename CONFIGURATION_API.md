@@ -303,9 +303,98 @@ curl -X POST http://localhost:5000/api/debug/sort \
 | 409 Conflict | 配置已存在（创建时） |
 | 500 Internal Server Error | 服务器内部错误 |
 
+## 分拣模式配置 API
+
+### 1. 获取当前分拣模式配置
+
+**请求:**
+```http
+GET /api/config/system/sorting-mode
+```
+
+**响应:**
+```json
+{
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": []
+}
+```
+
+**分拣模式说明:**
+- `Formal`: 正式分拣模式（默认），由上游 Sorting.RuleEngine 给出格口分配
+- `FixedChute`: 指定落格分拣模式，所有包裹（异常除外）都将发送到指定的固定格口
+- `RoundRobin`: 循环格口落格模式，包裹依次分拣到可用格口列表中的格口
+
+**示例:**
+```bash
+curl -X GET http://localhost:5000/api/config/system/sorting-mode
+```
+
+### 2. 更新分拣模式配置
+
+**请求:**
+```http
+PUT /api/config/system/sorting-mode
+Content-Type: application/json
+```
+
+**示例 1: 设置为正式分拣模式**
+```json
+{
+  "sortingMode": "Formal"
+}
+```
+
+```bash
+curl -X PUT http://localhost:5000/api/config/system/sorting-mode \
+  -H "Content-Type: application/json" \
+  -d '{"sortingMode": "Formal"}'
+```
+
+**示例 2: 设置为固定格口模式**
+```json
+{
+  "sortingMode": "FixedChute",
+  "fixedChuteId": 1
+}
+```
+
+```bash
+curl -X PUT http://localhost:5000/api/config/system/sorting-mode \
+  -H "Content-Type: application/json" \
+  -d '{"sortingMode": "FixedChute", "fixedChuteId": 1}'
+```
+
+**示例 3: 设置为循环格口模式**
+```json
+{
+  "sortingMode": "RoundRobin",
+  "availableChuteIds": [1, 2, 3, 4, 5, 6]
+}
+```
+
+```bash
+curl -X PUT http://localhost:5000/api/config/system/sorting-mode \
+  -H "Content-Type: application/json" \
+  -d '{"sortingMode": "RoundRobin", "availableChuteIds": [1, 2, 3, 4, 5, 6]}'
+```
+
+**响应:**
+- **200 OK**: 配置更新成功
+- **400 Bad Request**: 请求参数无效（如：FixedChute 模式未提供 fixedChuteId，RoundRobin 模式未提供 availableChuteIds）
+- **500 Internal Server Error**: 服务器内部错误
+
+**验证规则:**
+- `FixedChute` 模式必须提供 `fixedChuteId` 且大于 0
+- `RoundRobin` 模式必须提供至少一个 `availableChuteIds`，且所有格口 ID 必须大于 0
+- 分拣模式配置立即生效，无需重启服务
+
 ## 注意事项
 
 1. **备份数据**: 在修改生产环境配置前，建议备份数据库文件
 2. **测试变更**: 建议在测试环境先验证配置更改
 3. **顺序号**: 确保摆轮顺序号正确，这直接影响包裹的分拣路径
 4. **角度选择**: 根据实际物理布局选择正确的摆轮角度
+5. **默认分拣模式**: 系统启动时默认使用正式分拣模式（Formal），除非通过 API 修改
+6. **分拣模式切换**: 分拣模式可以随时切换，配置会立即生效
