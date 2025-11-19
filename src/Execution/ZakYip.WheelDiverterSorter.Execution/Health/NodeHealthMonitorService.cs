@@ -2,6 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Health;
 
@@ -14,15 +15,18 @@ public class NodeHealthMonitorService : BackgroundService
     private readonly INodeHealthRegistry _nodeHealthRegistry;
     private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<NodeHealthMonitorService> _logger;
+    private readonly ISafeExecutionService _safeExecutor;
     private readonly TimeSpan _updateInterval = TimeSpan.FromSeconds(10);
 
     public NodeHealthMonitorService(
         INodeHealthRegistry nodeHealthRegistry,
         ILogger<NodeHealthMonitorService> logger,
+        ISafeExecutionService safeExecutor,
         PrometheusMetrics? metrics = null)
     {
         _nodeHealthRegistry = nodeHealthRegistry ?? throw new ArgumentNullException(nameof(nodeHealthRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _metrics = metrics;
 
         // Subscribe to node health changes
@@ -35,21 +39,14 @@ public class NodeHealthMonitorService : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                UpdateMetrics();
-                await Task.Delay(_updateInterval, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when service is stopping
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "节点健康监控更新失败");
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            }
+            await _safeExecutor.ExecuteAsync(
+                async () =>
+                {
+                    UpdateMetrics();
+                    await Task.Delay(_updateInterval, stoppingToken);
+                },
+                "NodeHealthMonitoring",
+                stoppingToken);
         }
 
         _logger.LogInformation("节点健康监控服务已停止");

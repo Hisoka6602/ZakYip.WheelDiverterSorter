@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tracing;
 
@@ -15,6 +16,7 @@ public class LogCleanupHostedService : IHostedService, IDisposable
     private readonly ILogger<LogCleanupHostedService> _logger;
     private readonly ILogCleanupPolicy _cleanupPolicy;
     private readonly LogCleanupOptions _options;
+    private readonly ISafeExecutionService _safeExecutor;
     private Timer? _timer;
 
     /// <summary>
@@ -23,11 +25,13 @@ public class LogCleanupHostedService : IHostedService, IDisposable
     public LogCleanupHostedService(
         ILogger<LogCleanupHostedService> logger,
         ILogCleanupPolicy cleanupPolicy,
-        IOptions<LogCleanupOptions> options)
+        IOptions<LogCleanupOptions> options,
+        ISafeExecutionService safeExecutor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cleanupPolicy = cleanupPolicy ?? throw new ArgumentNullException(nameof(cleanupPolicy));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
     }
 
     /// <summary>
@@ -40,14 +44,10 @@ public class LogCleanupHostedService : IHostedService, IDisposable
         // 立即执行一次清理（但不等待）
         _ = Task.Run(async () =>
         {
-            try
-            {
-                await _cleanupPolicy.CleanupAsync(cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "日志清理任务执行失败");
-            }
+            await _safeExecutor.ExecuteAsync(
+                () => _cleanupPolicy.CleanupAsync(cancellationToken),
+                "LogCleanup",
+                cancellationToken);
         }, cancellationToken);
 
         // 设置定时器，定期执行清理
@@ -55,14 +55,9 @@ public class LogCleanupHostedService : IHostedService, IDisposable
         _timer = new Timer(
             callback: async _ =>
             {
-                try
-                {
-                    await _cleanupPolicy.CleanupAsync(CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "定时日志清理任务执行失败");
-                }
+                await _safeExecutor.ExecuteAsync(
+                    () => _cleanupPolicy.CleanupAsync(CancellationToken.None),
+                    "LogCleanup");
             },
             state: null,
             dueTime: (int)intervalMs,
