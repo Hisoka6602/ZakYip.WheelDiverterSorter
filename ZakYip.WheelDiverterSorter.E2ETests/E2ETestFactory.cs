@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -12,7 +14,18 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </summary>
 public class E2ETestFactory : WebApplicationFactory<Program>
 {
+    private VendorId _vendorId = VendorId.Simulated;
+    
     public Mock<IRuleEngineClient>? MockRuleEngineClient { get; private set; }
+
+    /// <summary>
+    /// 设置要使用的厂商驱动
+    /// </summary>
+    /// <param name="vendorId">厂商ID</param>
+    public void SetVendorId(VendorId vendorId)
+    {
+        _vendorId = vendorId;
+    }
 
     /// <summary>
     /// 重置模拟调用记录，确保测试之间互不干扰
@@ -24,6 +37,18 @@ public class E2ETestFactory : WebApplicationFactory<Program>
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
+        // 配置厂商驱动选择
+        builder.ConfigureAppConfiguration((context, config) =>
+        {
+            // 添加内存配置来覆盖厂商设置
+            var vendorConfig = new Dictionary<string, string>
+            {
+                ["Driver:UseHardwareDriver"] = (_vendorId != VendorId.Simulated).ToString(),
+                ["Driver:VendorId"] = _vendorId.ToString()
+            };
+            config.AddInMemoryCollection(vendorConfig!);
+        });
+
         builder.ConfigureServices(services =>
         {
             // 移除现有的RuleEngine客户端（如果已注册）

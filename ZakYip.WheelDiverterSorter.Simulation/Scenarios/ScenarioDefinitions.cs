@@ -658,4 +658,185 @@ public static class ScenarioDefinitions
             Expectations = null
         };
     }
+
+    /// <summary>
+    /// 场景 PR27-Normal：正常分拣场景（厂商无关）
+    /// </summary>
+    /// <remarks>
+    /// PR-27 标准场景：正常分拣，无故障注入
+    /// - 用于验证不同厂商驱动的基本功能
+    /// - 50个包裹，均匀间隔
+    /// - 无摩擦差异，无掉包，无故障
+    /// - 期望：100% 成功分拣到目标格口
+    /// </remarks>
+    public static SimulationScenario CreatePR27NormalSorting(int parcelCount = 50)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "PR27-正常分拣场景",
+            Description = "厂商无关的正常分拣验证场景，用于回归测试",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated, // 默认模拟，可通过配置切换
+            Topology = new SimulationTopology
+            {
+                DiverterCount = 5,
+                ChuteCount = 5,
+                TotalLineLengthMm = 10000
+            },
+            ParcelGeneration = new ParcelGenerationConfig
+            {
+                Mode = ParcelGenerationMode.UniformInterval,
+                RandomSeed = 42
+            },
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 PR27-UpstreamDelay：上游延迟场景（厂商无关）
+    /// </summary>
+    /// <remarks>
+    /// PR-27 标准场景：模拟上游RuleEngine响应延迟
+    /// - 用于验证厂商驱动在上游延迟时的处理
+    /// - 30个包裹
+    /// - 注入上游延迟（100-300ms）
+    /// - 期望：部分包裹可能超时，但不应错分
+    /// </remarks>
+    public static SimulationScenario CreatePR27UpstreamDelay(int parcelCount = 30)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "PR27-上游延迟场景",
+            Description = "厂商无关的上游延迟验证场景，测试系统在上游响应延迟时的行为",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            Topology = new SimulationTopology
+            {
+                DiverterCount = 5,
+                ChuteCount = 5,
+                TotalLineLengthMm = 10000
+            },
+            ParcelGeneration = new ParcelGenerationConfig
+            {
+                Mode = ParcelGenerationMode.UniformInterval,
+                RandomSeed = 42
+            },
+            FaultInjection = new FaultInjectionConfig
+            {
+                InjectUpstreamDelay = true,
+                UpstreamDelayRangeMs = (100, 300)
+            },
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 PR27-NodeFailure：节点故障场景（厂商无关）
+    /// </summary>
+    /// <remarks>
+    /// PR-27 标准场景：模拟摆轮节点故障
+    /// - 用于验证厂商驱动的故障恢复能力
+    /// - 40个包裹
+    /// - 摆轮2和摆轮4发生故障
+    /// - 期望：受影响包裹路由到异常格口，其他包裹正常分拣
+    /// </remarks>
+    public static SimulationScenario CreatePR27NodeFailure(int parcelCount = 40)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "PR27-节点故障场景",
+            Description = "厂商无关的节点故障验证场景，测试摆轮故障时的系统行为",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            Topology = new SimulationTopology
+            {
+                DiverterCount = 5,
+                ChuteCount = 5,
+                TotalLineLengthMm = 10000
+            },
+            ParcelGeneration = new ParcelGenerationConfig
+            {
+                Mode = ParcelGenerationMode.UniformInterval,
+                RandomSeed = 42
+            },
+            FaultInjection = new FaultInjectionConfig
+            {
+                InjectNodeFailure = true,
+                FailedDiverterIds = new[] { 2, 4 } // 摆轮2和4故障
+            },
+            Expectations = null
+        };
+    }
 }
