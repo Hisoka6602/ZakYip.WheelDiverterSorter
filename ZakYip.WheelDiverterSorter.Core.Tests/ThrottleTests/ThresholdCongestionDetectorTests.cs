@@ -26,7 +26,7 @@ public class ThresholdCongestionDetectorTests
     [Fact]
     public void DetectCongestionLevel_NullMetrics_ReturnsNormal()
     {
-        var level = _detector.DetectCongestionLevel(null);
+        var level = _detector.DetectCongestionLevel(null!);
         Assert.Equal(CongestionLevel.Normal, level);
     }
 
