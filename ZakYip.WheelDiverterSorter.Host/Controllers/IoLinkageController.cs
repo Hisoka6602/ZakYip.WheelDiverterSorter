@@ -4,14 +4,16 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// IO 联动配置管理 API 控制器
+/// IO 联动配置管理API控制器
 /// </summary>
 /// <remarks>
-/// 提供 IO 联动配置的查询、更新和手动触发功能
+/// 提供中段皮带等设备的IO联动配置管理功能。
+/// IO联动用于根据系统运行状态自动控制外部设备的IO点位。
 /// </remarks>
 [ApiController]
 [Route("api/config/io-linkage")]
@@ -36,12 +38,20 @@ public class IoLinkageController : ControllerBase
     }
 
     /// <summary>
-    /// 获取 IO 联动配置
+    /// 获取IO联动配置
     /// </summary>
-    /// <returns>IO 联动配置信息</returns>
+    /// <returns>IO联动配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     [HttpGet]
+    [SwaggerOperation(
+        Summary = "获取IO联动配置",
+        Description = "返回当前的IO联动配置，包括启用状态、运行/停止时的IO点位设置等",
+        OperationId = "GetIoLinkageConfig",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(IoLinkageConfigResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(IoLinkageConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<IoLinkageConfigResponse> GetIoLinkageConfig()
@@ -59,10 +69,10 @@ public class IoLinkageController : ControllerBase
     }
 
     /// <summary>
-    /// 更新 IO 联动配置（支持热更新）
+    /// 更新IO联动配置（支持热更新）
     /// </summary>
-    /// <param name="request">IO 联动配置请求</param>
-    /// <returns>更新后的 IO 联动配置</returns>
+    /// <param name="request">IO联动配置请求，包含启用状态和运行/停止时的IO点位设置</param>
+    /// <returns>更新后的IO联动配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
@@ -82,9 +92,23 @@ public class IoLinkageController : ControllerBase
     ///         ]
     ///     }
     /// 
-    /// 配置更新后立即生效，无需重启服务
+    /// IO电平说明：
+    /// - ActiveLow：低电平有效（输出0时设备工作）
+    /// - ActiveHigh：高电平有效（输出1时设备工作）
+    /// 
+    /// 配置更新后立即生效，无需重启服务。
+    /// 系统运行时自动应用runningStateIos，停止时应用stoppedStateIos。
     /// </remarks>
     [HttpPut]
+    [SwaggerOperation(
+        Summary = "更新IO联动配置",
+        Description = "更新IO联动配置，配置立即生效。根据系统运行状态自动控制IO点位输出",
+        OperationId = "UpdateIoLinkageConfig",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(IoLinkageConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(IoLinkageConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
@@ -127,21 +151,35 @@ public class IoLinkageController : ControllerBase
     }
 
     /// <summary>
-    /// 手动触发 IO 联动
+    /// 手动触发IO联动
     /// </summary>
-    /// <param name="systemState">目标系统状态</param>
+    /// <param name="systemState">目标系统状态，支持的值：Running（运行）、Stopped（停止）、Standby（待机）</param>
     /// <returns>触发结果</returns>
     /// <response code="200">触发成功</response>
-    /// <response code="400">参数无效或 IO 联动未启用</response>
+    /// <response code="400">参数无效或IO联动未启用</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     POST /api/io-linkage/trigger?systemState=Running
+    ///     POST /api/config/io-linkage/trigger?systemState=Running
     /// 
-    /// 允许的系统状态: Running, Stopped, Standby
+    /// 系统状态说明：
+    /// - Running：系统运行状态，应用运行时IO配置
+    /// - Stopped：系统停止状态，应用停止时IO配置
+    /// - Standby：系统待机状态
+    /// 
+    /// 此接口用于测试或手动控制IO联动，通常由系统状态机自动触发。
     /// </remarks>
     [HttpPost("trigger")]
+    [SwaggerOperation(
+        Summary = "手动触发IO联动",
+        Description = "根据指定的系统状态手动触发IO联动，应用对应的IO点位配置",
+        OperationId = "TriggerIoLinkage",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "触发成功", typeof(object))]
+    [SwaggerResponse(400, "参数无效或IO联动未启用")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
