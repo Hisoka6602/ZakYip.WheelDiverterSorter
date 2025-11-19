@@ -16,7 +16,7 @@ public class SystemStateManager : ISystemStateManager
     private SystemState _currentState;
     private readonly List<StateTransitionRecord> _transitionHistory = new();
     private const int MaxHistorySize = 100;
-    private ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport? _lastSelfTestReport;
+    private ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport? _lastSelfTestReport;
 
     /// <inheritdoc/>
     public SystemState CurrentState
@@ -31,7 +31,7 @@ public class SystemStateManager : ISystemStateManager
     }
 
     /// <inheritdoc/>
-    public ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport? LastSelfTestReport
+    public ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport? LastSelfTestReport
     {
         get
         {
@@ -236,7 +236,7 @@ public class SystemStateManager : ISystemStateManager
     }
 
     /// <inheritdoc/>
-    public async Task<ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport> BootAsync(CancellationToken cancellationToken = default)
+    public async Task<ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport> BootAsync(CancellationToken cancellationToken = default)
     {
         // 注意：BootAsync需要ISelfTestCoordinator依赖
         // 由于这是一个可选的循环依赖，我们通过构造函数注入解决
@@ -249,12 +249,12 @@ public class SystemStateManager : ISystemStateManager
         }
 
         // 创建一个默认的成功报告
-        var report = new ZakYip.WheelDiverterSorter.Core.Runtime.Health.SystemSelfTestReport
+        var report = new ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport
         {
             IsSuccess = true,
-            Drivers = new List<ZakYip.WheelDiverterSorter.Core.Runtime.Health.DriverHealthStatus>().AsReadOnly(),
-            Upstreams = new List<ZakYip.WheelDiverterSorter.Core.Runtime.Health.UpstreamHealthStatus>().AsReadOnly(),
-            Config = new ZakYip.WheelDiverterSorter.Core.Runtime.Health.ConfigHealthStatus { IsValid = true },
+            Drivers = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.DriverHealthStatus>().AsReadOnly(),
+            Upstreams = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.UpstreamHealthStatus>().AsReadOnly(),
+            Config = new ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.ConfigHealthStatus { IsValid = true },
             PerformedAt = DateTimeOffset.UtcNow
         };
 
