@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Communication.Models;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 
@@ -61,38 +62,68 @@ public class SignalRUpstreamSortingGateway : IUpstreamSortingGateway
                 }
             }
 
-            // 调用底层 SignalR 客户端（使用已废弃的方法，但这是当前唯一的同步接口）
-            #pragma warning disable CS0618
-            var response = await _signalRClient.RequestChuteAssignmentAsync(
-                request.ParcelId,
-                cancellationToken);
-            #pragma warning restore CS0618
-
-            // 转换响应
-            if (response == null)
+            // 使用 TaskCompletionSource 等待事件响应
+            var tcs = new TaskCompletionSource<SortingResponse>();
+            
+            // 订阅事件处理响应
+            EventHandler<ChuteAssignmentNotificationEventArgs>? handler = null;
+            handler = (sender, eventArgs) =>
             {
-                throw new InvalidResponseException("上游返回空响应");
-            }
-
-            if (!response.IsSuccess)
-            {
-                _logger.LogWarning(
-                    "上游返回失败响应: ParcelId={ParcelId}, Error={Error}",
-                    request.ParcelId,
-                    response.ErrorMessage);
-            }
-
-            return new SortingResponse
-            {
-                ParcelId = response.ParcelId,
-                TargetChuteId = response.ChuteId,
-                IsSuccess = response.IsSuccess,
-                IsException = !response.IsSuccess,
-                ReasonCode = response.IsSuccess ? "SUCCESS" : "UPSTREAM_ERROR",
-                ErrorMessage = response.ErrorMessage,
-                ResponseTime = response.ResponseTime,
-                Source = "SignalRUpstreamGateway"
+                if (eventArgs.ParcelId == request.ParcelId)
+                {
+                    _signalRClient.ChuteAssignmentReceived -= handler;
+                    
+                    var response = new SortingResponse
+                    {
+                        ParcelId = eventArgs.ParcelId,
+                        TargetChuteId = eventArgs.ChuteId,
+                        IsSuccess = true,
+                        IsException = false,
+                        ReasonCode = "SUCCESS",
+                        ResponseTime = eventArgs.NotificationTime,
+                        Source = "SignalRUpstreamGateway"
+                    };
+                    
+                    tcs.TrySetResult(response);
+                }
             };
+            
+            _signalRClient.ChuteAssignmentReceived += handler;
+
+            try
+            {
+                // 发送通知
+                var notified = await _signalRClient.NotifyParcelDetectedAsync(
+                    request.ParcelId,
+                    cancellationToken);
+
+                if (!notified)
+                {
+                    _signalRClient.ChuteAssignmentReceived -= handler;
+                    throw new UpstreamUnavailableException("发送包裹通知失败");
+                }
+
+                // 等待响应（带超时）
+                using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCts.CancelAfter(_options.TimeoutMs);
+                
+                var response = await tcs.Task.WaitAsync(timeoutCts.Token);
+
+                if (!response.IsSuccess)
+                {
+                    _logger.LogWarning(
+                        "上游返回失败响应: ParcelId={ParcelId}, Error={Error}",
+                        request.ParcelId,
+                        response.ErrorMessage);
+                }
+
+                return response;
+            }
+            catch
+            {
+                _signalRClient.ChuteAssignmentReceived -= handler;
+                throw;
+            }
         }
         catch (OperationCanceledException)
         {

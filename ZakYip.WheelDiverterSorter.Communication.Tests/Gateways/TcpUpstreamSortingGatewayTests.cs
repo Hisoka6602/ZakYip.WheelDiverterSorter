@@ -51,21 +51,22 @@ public class TcpUpstreamSortingGatewayTests
             Barcode = "TEST001"
         };
 
-        var expectedResponse = new ChuteAssignmentResponse
-        {
-            ParcelId = 123456789,
-            ChuteId = 5,
-            IsSuccess = true,
-            ResponseTime = DateTimeOffset.UtcNow
-        };
-
         _mockClient.Setup(x => x.IsConnected).Returns(true);
-        #pragma warning disable CS0618
-        _mockClient.Setup(x => x.RequestChuteAssignmentAsync(
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expectedResponse);
-        #pragma warning restore CS0618
+            .Callback<long, CancellationToken>((parcelId, ct) =>
+            {
+                // Simulate the event being raised
+                var eventArgs = new ChuteAssignmentNotificationEventArgs
+                {
+                    ParcelId = parcelId,
+                    ChuteId = 5,
+                    NotificationTime = DateTimeOffset.UtcNow
+                };
+                _mockClient.Raise(x => x.ChuteAssignmentReceived += null, _mockClient.Object, eventArgs);
+            })
+            .ReturnsAsync(true);
 
         // Act
         var result = await _gateway.RequestSortingAsync(request);
@@ -95,17 +96,21 @@ public class TcpUpstreamSortingGatewayTests
         _mockClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        #pragma warning disable CS0618
-        _mockClient.Setup(x => x.RequestChuteAssignmentAsync(
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ChuteAssignmentResponse
+            .Callback<long, CancellationToken>((parcelId, ct) =>
             {
-                ParcelId = 123456789,
-                ChuteId = 1,
-                IsSuccess = true
-            });
-        #pragma warning restore CS0618
+                // Simulate the event being raised
+                var eventArgs = new ChuteAssignmentNotificationEventArgs
+                {
+                    ParcelId = parcelId,
+                    ChuteId = 1,
+                    NotificationTime = DateTimeOffset.UtcNow
+                };
+                _mockClient.Raise(x => x.ChuteAssignmentReceived += null, _mockClient.Object, eventArgs);
+            })
+            .ReturnsAsync(true);
 
         // Act
         var result = await _gateway.RequestSortingAsync(request);
@@ -134,7 +139,7 @@ public class TcpUpstreamSortingGatewayTests
     }
 
     [Fact]
-    public async Task RequestSortingAsync_WhenResponseIsNull_ThrowsInvalidResponseException()
+    public async Task RequestSortingAsync_WhenNotifyFails_ThrowsUpstreamUnavailableException()
     {
         // Arrange
         var request = new SortingRequest
@@ -143,15 +148,13 @@ public class TcpUpstreamSortingGatewayTests
         };
 
         _mockClient.Setup(x => x.IsConnected).Returns(true);
-        #pragma warning disable CS0618
-        _mockClient.Setup(x => x.RequestChuteAssignmentAsync(
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ChuteAssignmentResponse)null!);
-        #pragma warning restore CS0618
+            .ReturnsAsync(false);
 
         // Act & Assert
-        await Assert.ThrowsAsync<InvalidResponseException>(
+        await Assert.ThrowsAsync<UpstreamUnavailableException>(
             () => _gateway.RequestSortingAsync(request));
     }
 
@@ -165,12 +168,10 @@ public class TcpUpstreamSortingGatewayTests
         };
 
         _mockClient.Setup(x => x.IsConnected).Returns(true);
-        #pragma warning disable CS0618
-        _mockClient.Setup(x => x.RequestChuteAssignmentAsync(
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
-        #pragma warning restore CS0618
 
         // Act & Assert
         await Assert.ThrowsAsync<UpstreamUnavailableException>(

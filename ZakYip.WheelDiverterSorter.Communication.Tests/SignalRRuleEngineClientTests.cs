@@ -154,50 +154,6 @@ public class SignalRRuleEngineClientTests
     }
 
     [Fact]
-    public async Task RequestChuteAssignmentAsync_WithInvalidParcelId_ThrowsArgumentException()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            SignalRHub = "http://localhost:5000/sorterhub"
-        };
-        using var client = new SignalRRuleEngineClient(_loggerMock.Object, options);
-
-        // Act & Assert
-#pragma warning disable CS0618
-        await Assert.ThrowsAsync<ArgumentException>(() => client.RequestChuteAssignmentAsync(0));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.RequestChuteAssignmentAsync(-1));
-#pragma warning restore CS0618
-    }
-
-    [Fact]
-    public async Task RequestChuteAssignmentAsync_WhenNotConnected_ReturnsErrorResponse()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            SignalRHub = "http://localhost:19999/invalidhub",
-            SignalR = new SignalROptions
-            {
-                HandshakeTimeout = 1
-            }
-        };
-        using var client = new SignalRRuleEngineClient(_loggerMock.Object, options);
-        var parcelId = 123456789L;
-
-        // Act
-#pragma warning disable CS0618
-        var response = await client.RequestChuteAssignmentAsync(parcelId);
-#pragma warning restore CS0618
-
-        // Assert
-        Assert.NotNull(response);
-        Assert.False(response.IsSuccess);
-        Assert.Equal(WellKnownChuteIds.DefaultException, response.ChuteId);
-        Assert.Equal(parcelId, response.ParcelId);
-    }
-
-    [Fact]
     public void ChuteAssignmentReceived_EventCanBeSubscribed()
     {
         // Arrange

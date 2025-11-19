@@ -29,7 +29,6 @@ public class MqttRuleEngineClient : IRuleEngineClient
     private IMqttClient? _mqttClient;
     private readonly string _detectionTopic;
     private readonly string _assignmentTopic;
-    private readonly Dictionary<long, TaskCompletionSource<ChuteAssignmentResponse>> _pendingRequests;
 
     /// <summary>
     /// 客户端是否已连接
@@ -60,7 +59,6 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
         _detectionTopic = $"{_options.MqttTopic}/detection";
         _assignmentTopic = $"{_options.MqttTopic}/assignment";
-        _pendingRequests = new Dictionary<long, TaskCompletionSource<ChuteAssignmentResponse>>();
 
         InitializeMqttClient();
     }
@@ -219,105 +217,6 @@ public class MqttRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 请求包裹的格口号（已废弃，保留用于兼容性）
-    /// </summary>
-    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
-    public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
-        long parcelId,
-        CancellationToken cancellationToken = default)
-    {
-        if (parcelId <= 0)
-        {
-            throw new ArgumentException("包裹ID必须为正数", nameof(parcelId));
-        }
-
-        // 尝试连接（如果未连接）
-        if (!IsConnected)
-        {
-            var connected = await ConnectAsync(cancellationToken);
-            if (!connected)
-            {
-                return new ChuteAssignmentResponse
-                {
-                    ParcelId = parcelId,
-                    ChuteId = WellKnownChuteIds.DefaultException,
-                    IsSuccess = false,
-                    ErrorMessage = "无法连接到MQTT Broker"
-                };
-            }
-        }
-
-        var retryCount = 0;
-        Exception? lastException = null;
-
-        while (retryCount <= _options.RetryCount)
-        {
-            try
-            {
-                _logger.LogDebug("向RuleEngine请求包裹 {ParcelId} 的格口号（第{Retry}次尝试）", parcelId, retryCount + 1);
-
-                // 创建任务完成源
-                var tcs = new TaskCompletionSource<ChuteAssignmentResponse>();
-                _pendingRequests[parcelId] = tcs;
-
-                // 构造并发布请求消息（向后兼容，使用detection主题）
-                var request = new ChuteAssignmentRequest { ParcelId = parcelId };
-                var requestJson = JsonSerializer.Serialize(request);
-                
-                var qosLevel = _options.Mqtt.QualityOfServiceLevel switch
-                {
-                    0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
-                    2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
-                    _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
-                };
-
-                var message = new MqttApplicationMessageBuilder()
-                    .WithTopic(_detectionTopic)
-                    .WithPayload(requestJson)
-                    .WithQualityOfServiceLevel(qosLevel)
-                    .Build();
-
-                await _mqttClient!.PublishAsync(message, cancellationToken);
-
-                // 等待响应（带超时）
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(_options.TimeoutMs);
-
-                var response = await tcs.Task.WaitAsync(cts.Token);
-
-                _logger.LogInformation(
-                    "成功获取包裹 {ParcelId} 的格口号: {ChuteId}",
-                    parcelId,
-                    response.ChuteId);
-
-                return response;
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                lastException = ex;
-                _logger.LogWarning(ex, "请求格口号失败（第{Retry}次尝试）", retryCount + 1);
-
-                _pendingRequests.Remove(parcelId);
-
-                retryCount++;
-                if (retryCount <= _options.RetryCount)
-                {
-                    await Task.Delay(_options.RetryDelayMs, cancellationToken);
-                }
-            }
-        }
-
-        _logger.LogError(lastException, "请求格口号失败，已达到最大重试次数");
-        return new ChuteAssignmentResponse
-        {
-            ParcelId = parcelId,
-            ChuteId = WellKnownChuteIds.DefaultException,
-            IsSuccess = false,
-            ErrorMessage = $"请求失败: {lastException?.Message}"
-        };
-    }
-
-    /// <summary>
     /// 处理接收到的MQTT消息
     /// </summary>
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
@@ -336,20 +235,6 @@ public class MqttRuleEngineClient : IRuleEngineClient
                 
                 // 触发事件
                 ChuteAssignmentReceived?.Invoke(this, notification);
-
-                // 如果有待处理的请求（向后兼容）
-                if (_pendingRequests.TryGetValue(notification.ParcelId, out var tcs))
-                {
-                    var response = new ChuteAssignmentResponse
-                    {
-                        ParcelId = notification.ParcelId,
-                        ChuteId = notification.ChuteId,
-                        IsSuccess = true,
-                        ResponseTime = notification.NotificationTime
-                    };
-                    tcs.SetResult(response);
-                    _pendingRequests.Remove(notification.ParcelId);
-                }
             }
         }
         catch (Exception ex)

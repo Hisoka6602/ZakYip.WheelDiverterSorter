@@ -48,19 +48,4 @@ public interface IRuleEngineClient : IDisposable
     Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 请求包裹的格口号（保留用于兼容性，不推荐使用）
-    /// </summary>
-    /// <param name="parcelId">包裹ID (毫秒时间戳)</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>格口分配响应</returns>
-    /// <remarks>
-    /// ⚠️ 已废弃：此方法使用请求/响应模型，不符合新的推送模型架构。
-    /// 请使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件。
-    /// </remarks>
-    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
-    Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
-        long parcelId,
-        CancellationToken cancellationToken = default);
 }

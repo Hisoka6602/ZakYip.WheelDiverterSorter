@@ -99,42 +99,9 @@ public class HttpRuleEngineClient : IRuleEngineClient
     /// 通知RuleEngine包裹已到达
     /// </summary>
     /// <remarks>
-    /// HTTP客户端使用请求/响应模型，此方法将调用RequestChuteAssignmentAsync
-    /// 并通过ChuteAssignmentReceived事件返回结果
+    /// HTTP客户端使用请求/响应模型的内部实现来模拟推送模型
     /// </remarks>
     public async Task<bool> NotifyParcelDetectedAsync(
-        long parcelId,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            #pragma warning disable CS0618 // 类型或成员已过时
-            var response = await RequestChuteAssignmentAsync(parcelId, cancellationToken);
-            #pragma warning restore CS0618
-            
-            // 触发事件
-            var notification = new ChuteAssignmentNotificationEventArgs
-            {
-                ParcelId = response.ParcelId,
-                ChuteId = response.ChuteId,
-                NotificationTime = response.ResponseTime
-            };
-            ChuteAssignmentReceived?.Invoke(this, notification);
-            
-            return response.IsSuccess;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "通知包裹检测失败: {ParcelId}", parcelId);
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// 请求包裹的格口号（已废弃，保留用于兼容性）
-    /// </summary>
-    [Obsolete("使用NotifyParcelDetectedAsync配合ChuteAssignmentReceived事件代替")]
-    public async Task<ChuteAssignmentResponse> RequestChuteAssignmentAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
     {
@@ -175,7 +142,16 @@ public class HttpRuleEngineClient : IRuleEngineClient
                     parcelId,
                     result.ChuteId);
 
-                return result;
+                // 触发事件
+                var notification = new ChuteAssignmentNotificationEventArgs
+                {
+                    ParcelId = result.ParcelId,
+                    ChuteId = result.ChuteId,
+                    NotificationTime = result.ResponseTime
+                };
+                ChuteAssignmentReceived?.Invoke(this, notification);
+
+                return result.IsSuccess;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
@@ -191,13 +167,7 @@ public class HttpRuleEngineClient : IRuleEngineClient
         }
 
         _logger.LogError(lastException, "请求格口号失败，已达到最大重试次数");
-        return new ChuteAssignmentResponse
-        {
-            ParcelId = parcelId,
-            ChuteId = WellKnownChuteIds.DefaultException,
-            IsSuccess = false,
-            ErrorMessage = $"请求失败: {lastException?.Message}"
-        };
+        return false;
     }
 
     /// <summary>
