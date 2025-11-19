@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 

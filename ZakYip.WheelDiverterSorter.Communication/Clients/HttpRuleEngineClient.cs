@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 

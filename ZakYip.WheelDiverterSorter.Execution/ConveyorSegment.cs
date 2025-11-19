@@ -2,7 +2,8 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 中段皮带段实现。

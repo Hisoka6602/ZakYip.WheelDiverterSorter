@@ -4,7 +4,8 @@ using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
-namespace ZakYip.WheelDiverterSorter.Communication.Tests;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
 /// <summary>
 /// MQTT客户端测试：发布、订阅、QoS级别

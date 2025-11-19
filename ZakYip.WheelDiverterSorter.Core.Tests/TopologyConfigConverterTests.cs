@@ -3,7 +3,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Core.Tests;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
 public class TopologyConfigConverterTests
 {

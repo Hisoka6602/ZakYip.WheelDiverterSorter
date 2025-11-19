@@ -2,7 +2,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
-namespace ZakYip.WheelDiverterSorter.Drivers;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 厂商驱动工厂接口

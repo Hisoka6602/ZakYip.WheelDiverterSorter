@@ -4,7 +4,8 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
-namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛（EMC）中段皮带段驱动实现。

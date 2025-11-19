@@ -1,6 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 按顺序执行摆轮路径段的执行器接口

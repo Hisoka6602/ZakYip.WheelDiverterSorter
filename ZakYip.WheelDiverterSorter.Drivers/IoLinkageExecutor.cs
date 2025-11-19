@@ -4,7 +4,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
-namespace ZakYip.WheelDiverterSorter.Drivers;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 默认 IO 联动执行器实现。

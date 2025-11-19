@@ -1,7 +1,8 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Execution.Events;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 路径执行失败处理器接口
