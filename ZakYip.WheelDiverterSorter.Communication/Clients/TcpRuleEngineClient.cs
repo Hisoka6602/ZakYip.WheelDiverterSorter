@@ -20,6 +20,7 @@ public class TcpRuleEngineClient : IRuleEngineClient
 {
     private readonly ILogger<TcpRuleEngineClient> _logger;
     private readonly RuleEngineConnectionOptions _options;
+    private readonly SemaphoreSlim _connectionLock = new SemaphoreSlim(1, 1);
     private TcpClient? _client;
     private NetworkStream? _stream;
     private bool _isConnected;
@@ -92,13 +93,22 @@ public class TcpRuleEngineClient : IRuleEngineClient
             throw new ObjectDisposedException(nameof(TcpRuleEngineClient));
         }
 
+        // 快速检查，避免不必要的锁等待
         if (IsConnected)
         {
             return true;
         }
 
+        // 使用锁保护连接过程，防止并发连接
+        await _connectionLock.WaitAsync(cancellationToken);
         try
         {
+            // 双重检查，可能在等待锁时已被其他线程连接
+            if (IsConnected)
+            {
+                return true;
+            }
+
             var parts = _options.TcpServer!.Split(':');
             if (parts.Length != 2 || !int.TryParse(parts[1], out var port))
             {
@@ -139,6 +149,10 @@ public class TcpRuleEngineClient : IRuleEngineClient
             _logger.LogError(ex, "连接到RuleEngine TCP服务器失败");
             _isConnected = false;
             return false;
+        }
+        finally
+        {
+            _connectionLock.Release();
         }
     }
 
@@ -292,5 +306,6 @@ public class TcpRuleEngineClient : IRuleEngineClient
 
         _stream?.Dispose();
         _client?.Dispose();
+        _connectionLock?.Dispose();
     }
 }
