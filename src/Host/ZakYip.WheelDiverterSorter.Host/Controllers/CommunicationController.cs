@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -17,6 +18,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// <remarks>
 /// 提供与上游RuleEngine的通信配置管理、连接测试和状态监控功能。
 /// 支持多种通信协议：TCP、HTTP、SignalR、MQTT。
+/// 支持客户端/服务端模式和重试策略配置。
 /// </remarks>
 [ApiController]
 [Route("api/communication")]
@@ -27,18 +29,21 @@ public class CommunicationController : ControllerBase {
     private readonly ICommunicationConfigurationRepository _configRepository;
     private readonly CommunicationStatsService _statsService;
     private readonly ILogger<CommunicationController> _logger;
+    private readonly ISystemClock _systemClock;
 
     public CommunicationController(
         IRuleEngineClient ruleEngineClient,
         IOptions<RuleEngineConnectionOptions> connectionOptions,
         ICommunicationConfigurationRepository configRepository,
         CommunicationStatsService statsService,
-        ILogger<CommunicationController> logger) {
+        ILogger<CommunicationController> logger,
+        ISystemClock systemClock) {
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -99,7 +104,7 @@ public class CommunicationController : ControllerBase {
     [ProducesResponseType(typeof(object), 500)]
     public async Task<ActionResult<ConnectionTestResponse>> TestConnection(CancellationToken cancellationToken = default) {
         var sw = Stopwatch.StartNew();
-        var testedAt = DateTimeOffset.UtcNow;
+        var testedAt = _systemClock.LocalNowOffset;
 
         try {
             _logger.LogInformation("开始测试通信连接 - Starting communication connection test");
@@ -228,7 +233,7 @@ public class CommunicationController : ControllerBase {
         try {
             _statsService.Reset();
             _logger.LogInformation("通信统计已重置 - Communication statistics reset");
-            return Ok(new { message = "统计计数器已重置 - Statistics counters reset", resetAt = DateTimeOffset.UtcNow });
+            return Ok(new { message = "统计计数器已重置 - Statistics counters reset", resetAt = _systemClock.LocalNowOffset });
         }
         catch (Exception ex) {
             _logger.LogError(ex, "重置统计失败 - Failed to reset statistics");
