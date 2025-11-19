@@ -55,6 +55,9 @@ builder.Services.AddPrometheusMetrics();
 // 添加告警服务
 builder.Services.AddAlarmService();
 
+// PR-33: 添加告警接收器（IAlertSink）
+builder.Services.AddAlertSinks();
+
 // 添加包裹生命周期日志记录服务
 builder.Services.AddParcelLifecycleLogger();
 
@@ -218,6 +221,10 @@ else
     // 注册系统状态管理服务（不带自检，向后兼容）
     builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Ready);
 }
+
+// PR-33: 注册健康状态提供器
+builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Observability.Runtime.Health.IHealthStatusProvider, 
+    ZakYip.WheelDiverterSorter.Host.Health.HostHealthStatusProvider>();
 
 // 注册并发控制服务
 builder.Services.AddConcurrencyControl(builder.Configuration);
