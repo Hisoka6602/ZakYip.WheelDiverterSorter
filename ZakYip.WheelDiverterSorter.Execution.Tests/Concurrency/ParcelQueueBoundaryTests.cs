@@ -296,7 +296,8 @@ public class ParcelQueueBoundaryTests
         cts.Cancel();
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => 
+        // TaskCanceledException inherits from OperationCanceledException
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => 
             queue.DequeueAsync(cts.Token));
     }
 
@@ -316,7 +317,8 @@ public class ParcelQueueBoundaryTests
         };
 
         // Act & Assert
-        await Assert.ThrowsAsync<OperationCanceledException>(() => 
+        // TaskCanceledException inherits from OperationCanceledException
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => 
             queue.EnqueueAsync(item, cts.Token));
     }
 
