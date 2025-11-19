@@ -664,7 +664,186 @@ curl -X POST http://localhost:5000/api/debug/sort \
 
 ## 文档导航
 
-## 本次更新的内容（2025-11-16）
+### 完整文档索引
+查看 [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) 获取完整的文档分类和导航。
+
+## 系统硬性规则（强制约定）
+
+本系统在架构设计和实施中遵循以下硬性规则，所有开发必须严格遵守：
+
+### 1. 本地时间统一原则 🕒
+
+**规则**：系统内部所有业务时间统一使用**本地时间**（`DateTime.Now` 或 `ISystemClock.LocalNow`），不使用 UTC 时间。
+
+**原因**：
+- 运维人员需要直观的本地时间进行故障排查
+- 日志、指标、数据库记录都使用本地时间，便于关联分析
+- 避免时区转换导致的混乱和错误
+
+**实施**（基于 PR-37）：
+- ✅ 使用 `ISystemClock` 接口抽象时间获取（便于测试）
+- ✅ 包裹创建时间、落格时间、日志时间戳统一使用本地时间
+- ✅ 仅在与外部系统交互且对方要求 UTC 时才使用 `ISystemClock.UtcNow`
+
+**相关文档**：[SYSTEM_CONFIG_GUIDE.md - 系统时间说明](SYSTEM_CONFIG_GUIDE.md)
+
+### 2. 客户端无限重连 + 2秒最大退避 🔄
+
+**规则**：与上游系统（RuleEngine）的 TCP/SignalR/MQTT 连接，采用**客户端模式无限重试**，最大退避时间**硬编码为 2 秒**。
+
+**原因**：
+- 保证系统在上游暂时不可用时能够自动恢复
+- 防止过长的退避时间影响业务恢复速度
+- 2秒是经过权衡的合理上限（既不会刷屏，又能快速重连）
+
+**实施**（基于 PR-38）：
+- ✅ 使用 `UpstreamConnectionManager` 管理连接生命周期
+- ✅ 指数退避策略：200ms → 400ms → 800ms → 1600ms → 2000ms（最大）
+- ✅ 连接失败时，当前包裹自动路由到异常格口（不会阻塞系统）
+- ✅ 发送失败不自动重试，直接记录日志并走异常处理流程
+
+**配置示例**：
+```json
+{
+  "connectionMode": "Client",
+  "enableInfiniteRetry": true,
+  "initialBackoffMs": 200,
+  "maxBackoffMs": 2000  // 硬编码上限，配置更大值也无效
+}
+```
+
+**相关文档**：[PR38_IMPLEMENTATION_SUMMARY.md](PR38_IMPLEMENTATION_SUMMARY.md)
+
+### 3. SafeExecutor 异常保护 🛡️
+
+**规则**：所有后台服务（`BackgroundService`）的主循环必须使用 `ISafeExecutionService` 包裹，确保未捕获异常不会导致进程崩溃。
+
+**原因**：
+- 后台服务抛出未捕获异常会导致整个 Host 进程崩溃
+- 生产环境需要高可用性，单个服务异常不应影响其他服务
+- 统一的异常处理可以提供一致的日志和监控
+
+**实施**（基于 PR-37）：
+- ✅ 所有 `BackgroundService` 的 `ExecuteAsync` 使用 `SafeExecutor`
+- ✅ 异常被捕获后只记录日志，不向上抛出
+- ✅ 日志包含操作名称、本地时间、异常类型和消息
+
+**示例**：
+```csharp
+protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+{
+    await _safeExecutor.ExecuteAsync(
+        async () =>
+        {
+            // 你的业务逻辑
+        },
+        operationName: "PackageSortingLoop",
+        cancellationToken: stoppingToken
+    );
+}
+```
+
+**相关文档**：[PR37_IMPLEMENTATION_SUMMARY.md](PR37_IMPLEMENTATION_SUMMARY.md)
+
+### 4. 日志去重机制 📝
+
+**规则**：使用 `ILogDeduplicator` 对高频日志进行去重，默认 **1 秒时间窗口**内相同的日志只记录一次。
+
+**原因**：
+- 避免连接失败、设备异常等重复日志刷屏
+- 防止磁盘空间被日志耗尽
+- 保持日志可读性，便于快速定位问题
+
+**实施**（基于 PR-37）：
+- ✅ 高频错误日志（连接失败、设备通信失败）使用日志去重
+- ✅ 去重键由日志级别、消息和异常类型组成
+- ✅ 1秒窗口内重复日志被抑制
+- ✅ 自动清理过期条目，内存占用可控
+
+**示例**：
+```csharp
+if (_logDeduplicator.ShouldLog(LogLevel.Error, errorMessage, exceptionType))
+{
+    _logger.LogError(ex, errorMessage);
+    _logDeduplicator.RecordLog(LogLevel.Error, errorMessage, exceptionType);
+}
+```
+
+**相关文档**：[PR37_IMPLEMENTATION_SUMMARY.md](PR37_IMPLEMENTATION_SUMMARY.md)
+
+### 5. 配置统一走 API 🔧
+
+**规则**：所有系统配置的增删改查必须通过**配置管理 API** 进行，不允许直接修改数据库或配置文件（生产环境）。
+
+**原因**：
+- 配置变更需要验证（格式、范围、业务规则）
+- 统一的 API 可以记录操作审计日志
+- 支持配置热更新，无需重启服务
+- 防止手动修改导致的配置错误
+
+**实施**：
+- ✅ 提供完整的配置管理 API（系统配置、通信配置、路由配置等）
+- ✅ 所有配置 DTO 包含 DataAnnotations 验证
+- ✅ API 返回详细的验证错误信息
+- ✅ 配置变更自动更新版本号和时间戳
+
+**API 端点示例**：
+```bash
+# 获取系统配置
+GET /api/config/system
+
+# 更新系统配置
+PUT /api/config/system
+Content-Type: application/json
+{
+  "sortingMode": "Formal",
+  "exceptionChuteId": 999,
+  "chuteAssignmentTimeoutMs": 10000
+}
+
+# 获取通信配置
+GET /api/communication/config/persisted
+
+# 更新通信配置（热更新）
+PUT /api/communication/config/persisted
+```
+
+**相关文档**：[CONFIGURATION_API.md](CONFIGURATION_API.md)
+
+### 6. 零错分不变量 ✅
+
+**规则**：系统在任何异常情况下，**必须保证不会将包裹分拣到错误的格口**（`SortedToWrongChute` 计数必须始终为 0）。
+
+**原因**：
+- 错分比不分拣更严重（客户收到错误货物）
+- 系统的核心价值在于分拣准确性
+- 异常包裹应统一路由到异常格口，而非随机格口
+
+**实施**：
+- ✅ 任何路径执行失败立即路由到异常格口（`FallbackChuteId`）
+- ✅ 所有异常场景都有明确的异常处理流程
+- ✅ 单元测试和仿真测试强制验证零错分
+- ✅ 监控指标持续跟踪 `sorting_mis_sort_total`（必须为0）
+
+**相关文档**：[PATH_FAILURE_DETECTION_GUIDE.md](PATH_FAILURE_DETECTION_GUIDE.md)
+
+---
+
+**重要提示**：以上规则是系统架构的核心约束，违反这些规则可能导致系统不稳定、数据不一致或业务错误。所有 PR 必须遵守这些规则，Code Review 时会重点检查。
+
+## 本次更新的内容（2025-11-19）
+
+### PR-39: Execution/Drivers 抽象优化 + 复杂仿真场景 + 文档导航整理 🎯
+
+- ✅ **Drivers 架构审查完成**：驱动接口契约清晰，按厂商组织，支持零侵入扩展
+- ✅ **Execution 层依赖审查**：只依赖接口，不依赖具体实现，不直接引用上游细节
+- ✅ **新增系统硬性规则章节**：明确本地时间、无限重连、SafeExecutor、日志去重、配置 API、零错分六大核心规则
+- ⏳ **新增场景 F**：高密度流量 + 上游连接抖动（500-1000件/分钟，验证重连逻辑）
+- ⏳ **新增场景 G**：多厂商混合驱动仿真（验证接口抽象能力）
+- ⏳ **新增场景 H**：长时间运行稳定性增强（2-4小时，监控 SafeExecutor、日志量、内存、CPU）
+- ✅ **文档导航优化**：更新 DOCUMENTATION_INDEX.md，新增分类索引
+
+## 上次更新的内容（2025-11-16）
 
 ### 文档全面更新与规划优化 🎯
 - ✅ **未来优化方向全面重写**：基于项目实际状态（95%完成度）进行完整重构
