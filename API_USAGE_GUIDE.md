@@ -433,7 +433,169 @@ baseUrl = http://localhost:5000
 - 邮箱：support@example.com
 - 项目地址：https://github.com/Hisoka6602/ZakYip.WheelDiverterSorter
 
+## 分拣模式配置
+
+系统支持三种分拣模式，可以通过 API 动态切换，配置立即生效无需重启。
+
+### 分拣模式说明
+
+1. **正式分拣模式 (Formal)** - 默认模式
+   - 由上游 Sorting.RuleEngine 给出格口分配
+   - 适用于正常生产环境
+   - 系统启动时默认使用此模式
+
+2. **指定落格分拣模式 (FixedChute)**
+   - 所有包裹（异常除外）都将发送到指定的固定格口
+   - 适用于测试或特殊场景
+   - 需要配置 `fixedChuteId` 参数
+
+3. **循环格口落格模式 (RoundRobin)**
+   - 包裹依次分拣到可用格口列表中的格口
+   - 适用于负载均衡或测试场景
+   - 需要配置 `availableChuteIds` 参数
+
+### 1. 获取当前分拣模式
+
+**请求：**
+```bash
+GET /api/config/system/sorting-mode
+```
+
+**响应示例：**
+```json
+{
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": []
+}
+```
+
+**使用curl：**
+```bash
+curl -X GET "http://localhost:5000/api/config/system/sorting-mode"
+```
+
+### 2. 切换到正式分拣模式
+
+**请求：**
+```bash
+PUT /api/config/system/sorting-mode
+Content-Type: application/json
+```
+
+**请求体：**
+```json
+{
+  "sortingMode": "Formal"
+}
+```
+
+**使用curl：**
+```bash
+curl -X PUT "http://localhost:5000/api/config/system/sorting-mode" \
+  -H "Content-Type: application/json" \
+  -d '{"sortingMode": "Formal"}'
+```
+
+**响应：**
+```json
+{
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": []
+}
+```
+
+### 3. 切换到指定落格模式
+
+**请求体：**
+```json
+{
+  "sortingMode": "FixedChute",
+  "fixedChuteId": 1
+}
+```
+
+**使用curl：**
+```bash
+curl -X PUT "http://localhost:5000/api/config/system/sorting-mode" \
+  -H "Content-Type: application/json" \
+  -d '{"sortingMode": "FixedChute", "fixedChuteId": 1}'
+```
+
+**响应：**
+```json
+{
+  "sortingMode": "FixedChute",
+  "fixedChuteId": 1,
+  "availableChuteIds": []
+}
+```
+
+**注意：** `fixedChuteId` 必须是已在路由配置中存在的格口ID，否则会返回 400 错误。
+
+### 4. 切换到循环格口模式
+
+**请求体：**
+```json
+{
+  "sortingMode": "RoundRobin",
+  "availableChuteIds": [1, 2, 3, 4, 5, 6]
+}
+```
+
+**使用curl：**
+```bash
+curl -X PUT "http://localhost:5000/api/config/system/sorting-mode" \
+  -H "Content-Type: application/json" \
+  -d '{"sortingMode": "RoundRobin", "availableChuteIds": [1, 2, 3, 4, 5, 6]}'
+```
+
+**响应：**
+```json
+{
+  "sortingMode": "RoundRobin",
+  "fixedChuteId": null,
+  "availableChuteIds": [1, 2, 3, 4, 5, 6]
+}
+```
+
+### 常见错误
+
+#### FixedChute 模式未提供格口ID
+```json
+{
+  "message": "指定落格分拣模式下，固定格口ID必须配置且大于0"
+}
+```
+
+**解决方法：** 在请求中添加 `fixedChuteId` 参数
+
+#### RoundRobin 模式未提供格口列表
+```json
+{
+  "message": "循环格口落格模式下，必须配置至少一个可用格口"
+}
+```
+
+**解决方法：** 在请求中添加 `availableChuteIds` 数组参数
+
+#### 无效的分拣模式值
+```json
+{
+  "message": "分拣模式值无效，仅支持：Formal（正常）、FixedChute（指定落格）、RoundRobin（循环落格）"
+}
+```
+
+**解决方法：** 检查 `sortingMode` 参数值是否正确
+
 ## 更新日志
+
+### v1.1.0 (2025-11-19)
+- ✨ 新增分拣模式配置 API
+- ✨ 支持三种分拣模式：正式、指定落格、循环格口
+- ✨ 增强 PanelSimulation 仿真模式安全保护
+- 🔒 仿真端点在非仿真模式下返回明确错误，不再抛出异常
 
 ### v1.0.0 (2025-11-12)
 - ✨ 初始版本

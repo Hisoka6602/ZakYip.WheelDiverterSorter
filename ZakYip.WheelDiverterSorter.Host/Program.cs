@@ -199,6 +199,9 @@ builder.Services.AddSingleton<OptimizedSortingService>();
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
 
+// 注册仿真模式提供者（用于判断当前是否为仿真模式）
+builder.Services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
+
 // 注册健康检查和自检服务（PR-09）
 // 默认启用自检功能，可通过配置禁用
 var enableHealthCheck = builder.Configuration.GetValue<bool>("HealthCheck:Enabled", true);

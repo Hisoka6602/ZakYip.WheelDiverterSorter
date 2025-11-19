@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Host.Services;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -20,20 +21,23 @@ public class PanelSimulationController : ControllerBase
 {
     private readonly IPanelInputReader _panelInputReader;
     private readonly ISignalTowerOutput _signalTowerOutput;
+    private readonly ISimulationModeProvider _simulationModeProvider;
     private readonly ILogger<PanelSimulationController> _logger;
 
     public PanelSimulationController(
         IPanelInputReader panelInputReader,
         ISignalTowerOutput signalTowerOutput,
+        ISimulationModeProvider simulationModeProvider,
         ILogger<PanelSimulationController> logger)
     {
         _panelInputReader = panelInputReader;
         _signalTowerOutput = signalTowerOutput;
+        _simulationModeProvider = simulationModeProvider;
         _logger = logger;
     }
 
     /// <summary>
-    /// 模拟按下指定按钮
+    /// 模拟按下指定按钮（仅在仿真模式下可用）
     /// </summary>
     /// <param name="buttonType">按钮类型，支持的值：Start（启动）、Stop（停止）、Emergency（急停）、Reset（复位）</param>
     /// <returns>操作结果</returns>
@@ -41,6 +45,7 @@ public class PanelSimulationController : ControllerBase
     /// <response code="400">按钮类型无效或未启用仿真模式</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
+    /// 仅在仿真模式下可用，在实际设备模式下调用会返回错误。
     /// 仅在使用模拟驱动器（SimulatedPanelInputReader）时有效。
     /// 使用硬件驱动器时此API将返回400错误。
     /// 
@@ -50,8 +55,8 @@ public class PanelSimulationController : ControllerBase
     /// </remarks>
     [HttpPost("press")]
     [SwaggerOperation(
-        Summary = "模拟按下面板按钮",
-        Description = "仿真模式下模拟按下指定的面板按钮，用于测试按钮响应逻辑",
+        Summary = "模拟按下面板按钮（仅在仿真模式下可用）",
+        Description = "仿真模式下模拟按下指定的面板按钮，用于测试按钮响应逻辑。在实际设备模式下调用会返回错误。",
         OperationId = "PressButton",
         Tags = new[] { "面板仿真" }
     )]
@@ -63,6 +68,12 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public IActionResult PressButton([FromQuery] PanelButtonType buttonType)
     {
+        if (!_simulationModeProvider.IsSimulationMode())
+        {
+            _logger.LogWarning("非仿真模式下尝试调用 PressButton 接口");
+            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+        }
+
         if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
         {
             simulatedReader.SimulatePressButton(buttonType);
@@ -74,7 +85,7 @@ public class PanelSimulationController : ControllerBase
     }
 
     /// <summary>
-    /// 模拟释放指定按钮
+    /// 模拟释放指定按钮（仅在仿真模式下可用）
     /// </summary>
     /// <param name="buttonType">按钮类型，支持的值：Start（启动）、Stop（停止）、Emergency（急停）、Reset（复位）</param>
     /// <returns>操作结果</returns>
@@ -82,12 +93,13 @@ public class PanelSimulationController : ControllerBase
     /// <response code="400">按钮类型无效或未启用仿真模式</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
+    /// 仅在仿真模式下可用，在实际设备模式下调用会返回错误。
     /// 仿真模式下模拟释放按钮，通常与press配合使用模拟完整的按钮按下-释放过程
     /// </remarks>
     [HttpPost("release")]
     [SwaggerOperation(
-        Summary = "模拟释放面板按钮",
-        Description = "仿真模式下模拟释放指定的面板按钮，用于完成按钮按下-释放的完整测试流程",
+        Summary = "模拟释放面板按钮（仅在仿真模式下可用）",
+        Description = "仿真模式下模拟释放指定的面板按钮，用于完成按钮按下-释放的完整测试流程。在实际设备模式下调用会返回错误。",
         OperationId = "ReleaseButton",
         Tags = new[] { "面板仿真" }
     )]
@@ -99,6 +111,12 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public IActionResult ReleaseButton([FromQuery] PanelButtonType buttonType)
     {
+        if (!_simulationModeProvider.IsSimulationMode())
+        {
+            _logger.LogWarning("非仿真模式下尝试调用 ReleaseButton 接口");
+            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+        }
+
         if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
         {
             simulatedReader.SimulateReleaseButton(buttonType);
@@ -156,15 +174,25 @@ public class PanelSimulationController : ControllerBase
     }
 
     /// <summary>
-    /// 重置所有按钮状态。
+    /// 重置所有按钮状态（仅在仿真模式下可用）
     /// </summary>
+    /// <returns>操作结果</returns>
     /// <response code="200">操作成功</response>
     /// <response code="400">未启用仿真模式</response>
+    /// <remarks>
+    /// 仅在仿真模式下可用，在实际设备模式下调用会返回错误。
+    /// </remarks>
     [HttpPost("reset")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult ResetAllButtons()
     {
+        if (!_simulationModeProvider.IsSimulationMode())
+        {
+            _logger.LogWarning("非仿真模式下尝试调用 ResetAllButtons 接口");
+            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+        }
+
         if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
         {
             simulatedReader.ResetAllButtons();
@@ -176,15 +204,25 @@ public class PanelSimulationController : ControllerBase
     }
 
     /// <summary>
-    /// 获取信号塔状态变更历史（仅在仿真模式下可用）。
+    /// 获取信号塔状态变更历史（仅在仿真模式下可用）
     /// </summary>
+    /// <returns>状态变更历史</returns>
     /// <response code="200">返回状态变更历史</response>
     /// <response code="400">未启用仿真模式</response>
+    /// <remarks>
+    /// 仅在仿真模式下可用，在实际设备模式下调用会返回错误。
+    /// </remarks>
     [HttpGet("signal-tower/history")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult GetSignalTowerHistory()
     {
+        if (!_simulationModeProvider.IsSimulationMode())
+        {
+            _logger.LogWarning("非仿真模式下尝试调用 GetSignalTowerHistory 接口");
+            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+        }
+
         if (_signalTowerOutput is SimulatedSignalTowerOutput simulatedOutput)
         {
             var history = simulatedOutput.GetStateChangeHistory();
