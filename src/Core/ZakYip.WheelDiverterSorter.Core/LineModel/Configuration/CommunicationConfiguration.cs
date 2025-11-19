@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
@@ -22,6 +23,7 @@ public class CommunicationConfiguration
     /// - SignalR: SignalR（推荐生产环境）
     /// - Mqtt: MQTT（推荐生产环境）
     /// </remarks>
+    [Required(ErrorMessage = "通信模式不能为空")]
     public CommunicationMode Mode { get; set; } = CommunicationMode.Http;
 
     /// <summary>
@@ -31,6 +33,7 @@ public class CommunicationConfiguration
     /// - Client: 本程序作为客户端，主动连接 RuleEngine
     /// - Server: 本程序作为服务端，监听上游连接
     /// </remarks>
+    [Required(ErrorMessage = "连接模式不能为空")]
     public ConnectionMode ConnectionMode { get; set; } = ConnectionMode.Client;
 
     /// <summary>
@@ -51,6 +54,8 @@ public class CommunicationConfiguration
     /// <summary>
     /// MQTT主题
     /// </summary>
+    [Required(ErrorMessage = "MQTT主题不能为空")]
+    [StringLength(200, ErrorMessage = "MQTT主题长度不能超过200个字符")]
     public string MqttTopic { get; set; } = "sorting/chute/assignment";
 
     /// <summary>
@@ -61,16 +66,19 @@ public class CommunicationConfiguration
     /// <summary>
     /// 请求超时时间（毫秒）
     /// </summary>
+    [Range(1000, 60000, ErrorMessage = "请求超时时间必须在1000-60000毫秒之间")]
     public int TimeoutMs { get; set; } = 5000;
 
     /// <summary>
     /// 重试次数
     /// </summary>
+    [Range(0, 10, ErrorMessage = "重试次数必须在0-10之间")]
     public int RetryCount { get; set; } = 3;
 
     /// <summary>
     /// 重试延迟（毫秒）
     /// </summary>
+    [Range(100, 10000, ErrorMessage = "重试延迟必须在100-10000毫秒之间")]
     public int RetryDelayMs { get; set; } = 1000;
 
     /// <summary>
@@ -84,6 +92,7 @@ public class CommunicationConfiguration
     /// <remarks>
     /// 用于客户端模式的连接重试，起始延迟200ms，每次翻倍增长
     /// </remarks>
+    [Range(100, 5000, ErrorMessage = "初始退避延迟必须在100-5000毫秒之间")]
     public int InitialBackoffMs { get; set; } = 200;
 
     /// <summary>
@@ -92,6 +101,7 @@ public class CommunicationConfiguration
     /// <remarks>
     /// 硬编码上限为 2000ms (2秒)。即使配置更大值，实现上也会 cap 到 2000ms
     /// </remarks>
+    [Range(1000, 10000, ErrorMessage = "最大退避延迟必须在1000-10000毫秒之间（实现上限制为2000ms）")]
     public int MaxBackoffMs { get; set; } = 2000;
 
     /// <summary>
