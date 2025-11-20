@@ -34,6 +34,13 @@ public class SystemStateManagerWithBoot : ISystemStateManager
     public SystemSelfTestReport? LastSelfTestReport => _inner.LastSelfTestReport;
 
     /// <inheritdoc/>
+    public BootstrapStageInfo? CurrentBootstrapStage => _inner.CurrentBootstrapStage;
+
+    /// <inheritdoc/>
+    public IReadOnlyList<BootstrapStageInfo> GetBootstrapHistory(int count = 10)
+        => _inner.GetBootstrapHistory(count);
+
+    /// <inheritdoc/>
     public Task<StateChangeResult> ChangeStateAsync(SystemState targetState, CancellationToken cancellationToken = default)
         => _inner.ChangeStateAsync(targetState, cancellationToken);
 

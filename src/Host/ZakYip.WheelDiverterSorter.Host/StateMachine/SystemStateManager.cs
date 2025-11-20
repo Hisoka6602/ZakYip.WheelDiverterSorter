@@ -18,6 +18,10 @@ public class SystemStateManager : ISystemStateManager
     private const int MaxHistorySize = 100;
     private ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport? _lastSelfTestReport;
 
+    // PR-40: 启动阶段追踪
+    private BootstrapStageInfo? _currentBootstrapStage;
+    private readonly List<BootstrapStageInfo> _bootstrapHistory = new();
+
     /// <inheritdoc/>
     public SystemState CurrentState
     {
@@ -39,6 +43,30 @@ public class SystemStateManager : ISystemStateManager
             {
                 return _lastSelfTestReport;
             }
+        }
+    }
+
+    /// <inheritdoc/>
+    public BootstrapStageInfo? CurrentBootstrapStage
+    {
+        get
+        {
+            lock (_lock)
+            {
+                return _currentBootstrapStage;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public IReadOnlyList<BootstrapStageInfo> GetBootstrapHistory(int count = 10)
+    {
+        lock (_lock)
+        {
+            return _bootstrapHistory
+                .TakeLast(Math.Min(count, _bootstrapHistory.Count))
+                .ToList()
+                .AsReadOnly();
         }
     }
 
@@ -248,6 +276,12 @@ public class SystemStateManager : ISystemStateManager
             _currentState = SystemState.Booting;
         }
 
+        // PR-40: 模拟启动过程各个阶段
+        await SimulateBootstrapStageAsync(BootstrapStage.Bootstrapping, "配置加载和依赖注入装配完成", cancellationToken);
+        await SimulateBootstrapStageAsync(BootstrapStage.DriversInitializing, "驱动握手和自检完成", cancellationToken);
+        await SimulateBootstrapStageAsync(BootstrapStage.CommunicationConnecting, "与 RuleEngine 建立连接", cancellationToken);
+        await SimulateBootstrapStageAsync(BootstrapStage.HealthChecking, "核心模块就绪性检查", cancellationToken);
+
         // 创建一个默认的成功报告
         var report = new ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport
         {
@@ -264,8 +298,41 @@ public class SystemStateManager : ISystemStateManager
             _currentState = SystemState.Ready;
         }
 
+        await SimulateBootstrapStageAsync(BootstrapStage.HealthStable, "所有核心模块 Ready，可接单", cancellationToken);
+
         await Task.CompletedTask;
         return report;
+    }
+
+    /// <summary>
+    /// 记录启动阶段
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 用于启动过程仿真和诊断
+    /// </remarks>
+    private async Task SimulateBootstrapStageAsync(BootstrapStage stage, string message, CancellationToken cancellationToken)
+    {
+        var stageInfo = new BootstrapStageInfo
+        {
+            Stage = stage,
+            EnteredAt = DateTimeOffset.UtcNow,
+            Message = message,
+            IsSuccess = true
+        };
+
+        lock (_lock)
+        {
+            _currentBootstrapStage = stageInfo;
+            _bootstrapHistory.Add(stageInfo);
+
+            if (_bootstrapHistory.Count > MaxHistorySize)
+            {
+                _bootstrapHistory.RemoveAt(0);
+            }
+        }
+
+        _logger.LogInformation("启动阶段: {Stage} - {Message}", stage, message);
+        await Task.Delay(50, cancellationToken); // 模拟每个阶段的处理时间
     }
 }
 
