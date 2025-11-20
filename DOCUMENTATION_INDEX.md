@@ -67,7 +67,8 @@
 | [TESTING_STRATEGY.md](TESTING_STRATEGY.md) | 测试策略和项目组织完整指南 🆕 | 测试工程师、开发者 |
 | [TESTING.md](TESTING.md) | 测试文档和策略 | 测试工程师、开发者 |
 | [TESTING_IMPLEMENTATION_STATUS.md](TESTING_IMPLEMENTATION_STATUS.md) | 测试实施状态报告 | 项目经理、测试工程师 |
-| [E2E_TESTING_SUMMARY.md](E2E_TESTING_SUMMARY.md) | 端到端测试总结 | 测试工程师 |
+| [E2E_TESTING_SUMMARY.md](E2E_TESTING_SUMMARY.md) | 端到端测试总结（包含35个测试场景） | 测试工程师 |
+| [PR41_E2E_SIMULATION_SUMMARY.md](PR41_E2E_SIMULATION_SUMMARY.md) | **PR-41: 电柜面板启动→分拣落格端到端仿真环境** 🆕 | 测试工程师、开发者 |
 | [OBSERVABILITY_TESTING.md](OBSERVABILITY_TESTING.md) | 可观测性测试 | 测试工程师、运维人员 |
 | [API_TESTING_AND_CODECOV_COMPLETION_REPORT.md](API_TESTING_AND_CODECOV_COMPLETION_REPORT.md) | API测试和代码覆盖率完成报告 | 项目经理、测试工程师 |
 | [performance-tests/README.md](performance-tests/README.md) | 性能测试文档 | 性能工程师 |
@@ -165,18 +166,25 @@
 
 1. 阅读 [README.md](README.md) - 了解系统基本概念
 2. 阅读 [LONG_RUN_SIMULATION_IMPLEMENTATION.md](LONG_RUN_SIMULATION_IMPLEMENTATION.md) - 理解仿真框架
-3. 阅读 [SCENARIO_E_DOCUMENTATION.md](SCENARIO_E_DOCUMENTATION.md) - 学习基础场景（场景 E）
-4. 阅读 [SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md](SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md) - 高密度 + 上游抖动测试
-5. 阅读 [SCENARIO_G_MULTI_VENDOR_MIXED.md](SCENARIO_G_MULTI_VENDOR_MIXED.md) - 多厂商混合测试
-6. 阅读 [SCENARIO_H_LONG_RUN_STABILITY.md](SCENARIO_H_LONG_RUN_STABILITY.md) - 长时间稳定性测试
-7. 阅读 [HIGH_LOAD_PERFORMANCE_TESTING.md](HIGH_LOAD_PERFORMANCE_TESTING.md) - 性能测试工具和方法
-8. 运行实际仿真场景，分析结果
+3. 阅读 [PR41_E2E_SIMULATION_SUMMARY.md](PR41_E2E_SIMULATION_SUMMARY.md) - 学习端到端仿真测试（从配置到分拣）🆕
+4. 阅读 [SCENARIO_E_DOCUMENTATION.md](SCENARIO_E_DOCUMENTATION.md) - 学习基础场景（场景 E）
+5. 阅读 [SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md](SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md) - 高密度 + 上游抖动测试
+6. 阅读 [SCENARIO_G_MULTI_VENDOR_MIXED.md](SCENARIO_G_MULTI_VENDOR_MIXED.md) - 多厂商混合测试
+7. 阅读 [SCENARIO_H_LONG_RUN_STABILITY.md](SCENARIO_H_LONG_RUN_STABILITY.md) - 长时间稳定性测试
+8. 阅读 [HIGH_LOAD_PERFORMANCE_TESTING.md](HIGH_LOAD_PERFORMANCE_TESTING.md) - 性能测试工具和方法
+9. 运行实际仿真场景，分析结果
 
 ## 📌 文档更新说明
 
-- **文档版本：** v1.2 🆕
+- **文档版本：** v1.3 🆕
 - **最后更新：** 2025-11-20
-- **本次更新内容（PR-39）：**
+- **本次更新内容（PR-41）：**
+  - 新增 PR41_E2E_SIMULATION_SUMMARY.md - 电柜面板启动→分拣落格端到端仿真环境
+  - 新增 PanelStartupToSortingE2ETests - 3个端到端仿真场景
+  - 新增 InMemoryLogCollector - 日志级别验证工具
+  - 更新 E2E_TESTING_SUMMARY.md - 添加Panel E2E测试信息
+  - 所有测试通过：3/3场景，零Error日志
+- **上次更新内容（PR-39）：**
   - 新增 TESTING_STRATEGY.md - 完整测试策略和项目组织文档
   - 新增驱动异常处理测试（DriverExceptionHandlingTests）
   - 新增启动仿真测试（StartupSimulationTests）
