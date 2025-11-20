@@ -13,31 +13,31 @@ public class ChaosInjectionOptions
     /// 是否启用混沌测试（默认禁用）
     /// Enable chaos testing (default disabled)
     /// </summary>
-    public bool Enabled { get; set; } = false;
+    public bool Enabled { get; init; } = false;
 
     /// <summary>
     /// 通讯层配置
     /// Communication layer configuration
     /// </summary>
-    public ChaosLayerOptions Communication { get; set; } = new();
+    public ChaosLayerOptions Communication { get; init; } = new();
 
     /// <summary>
     /// 驱动层配置
     /// Driver layer configuration
     /// </summary>
-    public ChaosLayerOptions Driver { get; set; } = new();
+    public ChaosLayerOptions Driver { get; init; } = new();
 
     /// <summary>
     /// IO层配置
     /// IO layer configuration
     /// </summary>
-    public ChaosLayerOptions Io { get; set; } = new();
+    public ChaosLayerOptions Io { get; init; } = new();
 
     /// <summary>
     /// 随机种子（用于可重现的测试）
     /// Random seed for reproducible tests
     /// </summary>
-    public int? Seed { get; set; }
+    public int? Seed { get; init; }
 }
 
 /// <summary>
@@ -50,37 +50,37 @@ public class ChaosLayerOptions
     /// 异常注入概率（0.0 - 1.0）
     /// Exception injection probability (0.0 - 1.0)
     /// </summary>
-    public double ExceptionProbability { get; set; } = 0.05;
+    public double ExceptionProbability { get; init; } = 0.05;
 
     /// <summary>
     /// 延迟注入概率（0.0 - 1.0）
     /// Delay injection probability (0.0 - 1.0)
     /// </summary>
-    public double DelayProbability { get; set; } = 0.1;
+    public double DelayProbability { get; init; } = 0.1;
 
     /// <summary>
     /// 最小延迟（毫秒）
     /// Minimum delay in milliseconds
     /// </summary>
-    public int MinDelayMs { get; set; } = 100;
+    public int MinDelayMs { get; init; } = 100;
 
     /// <summary>
     /// 最大延迟（毫秒）
     /// Maximum delay in milliseconds
     /// </summary>
-    public int MaxDelayMs { get; set; } = 2000;
+    public int MaxDelayMs { get; init; } = 2000;
 
     /// <summary>
     /// 断连注入概率（0.0 - 1.0）
     /// Disconnect injection probability (0.0 - 1.0)
     /// </summary>
-    public double DisconnectProbability { get; set; } = 0.02;
+    public double DisconnectProbability { get; init; } = 0.02;
 
     /// <summary>
     /// 掉点/失联注入概率（0.0 - 1.0）
     /// Dropout injection probability (0.0 - 1.0)
     /// </summary>
-    public double DropoutProbability { get; set; } = 0.03;
+    public double DropoutProbability { get; init; } = 0.03;
 }
 
 /// <summary>

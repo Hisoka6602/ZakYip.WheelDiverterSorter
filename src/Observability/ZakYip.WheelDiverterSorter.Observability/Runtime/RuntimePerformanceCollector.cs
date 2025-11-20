@@ -40,7 +40,11 @@ public class RuntimePerformanceCollector : BackgroundService
         _lastGen0Count = GC.CollectionCount(0);
         _lastGen1Count = GC.CollectionCount(1);
         _lastGen2Count = GC.CollectionCount(2);
+        
+        _lastLogTime = DateTime.UtcNow;
     }
+
+    private DateTime _lastLogTime = DateTime.MinValue;
 
     /// <summary>
     /// 执行性能指标收集
@@ -131,7 +135,7 @@ public class RuntimePerformanceCollector : BackgroundService
             _lastGen2Count = currentGen2;
 
             // Log summary periodically (every minute)
-            if (DateTime.UtcNow.Second < _collectionInterval.TotalSeconds)
+            if ((DateTime.UtcNow - _lastLogTime).TotalSeconds >= 60)
             {
                 _logger.LogDebug(
                     "Performance: CPU={CpuUsage:F2}%, Memory={MemoryMB:F2}MB, WorkingSet={WorkingSetMB:F2}MB, " +
@@ -143,6 +147,8 @@ public class RuntimePerformanceCollector : BackgroundService
                     currentGen0,
                     currentGen1,
                     currentGen2);
+                
+                _lastLogTime = DateTime.UtcNow;
             }
         }
         catch (Exception ex)
