@@ -969,6 +969,190 @@ public class PrometheusMetrics
     {
         UpstreamHealthStatus.WithLabels(endpointName).Set(isHealthy ? 1 : 0);
     }
+
+    // ========== PR-41: 性能基线与指标化 / Performance Baseline and Metrics ==========
+
+    /// <summary>
+    /// 包裹端到端处理时延（从进入系统到分拣完成）
+    /// End-to-end parcel processing latency (from entry to completion)
+    /// </summary>
+    private static readonly Histogram ParcelEndToEndLatency = Metrics
+        .CreateHistogram("sorter_parcel_e2e_latency_seconds",
+            "包裹端到端处理时延（秒）/ Parcel end-to-end processing latency in seconds",
+            new HistogramConfiguration
+            {
+                // Buckets designed to capture P50, P95, P99 effectively
+                // From 100ms to ~400 seconds
+                Buckets = Histogram.ExponentialBuckets(0.1, 1.5, 25)
+            });
+
+    /// <summary>
+    /// 执行循环耗时（每个执行周期的时长）
+    /// Execution loop duration (duration of each execution cycle)
+    /// </summary>
+    private static readonly Histogram ExecutionLoopDuration = Metrics
+        .CreateHistogram("sorter_execution_loop_duration_seconds",
+            "执行循环耗时（秒）/ Execution loop duration in seconds",
+            new HistogramConfiguration
+            {
+                // Buckets from 1ms to ~10 seconds for loop measurements
+                Buckets = Histogram.ExponentialBuckets(0.001, 2, 15)
+            });
+
+    /// <summary>
+    /// GC回收计数（按代分类）
+    /// GC collection count by generation
+    /// </summary>
+    private static readonly Counter GcCollectionCounter = Metrics
+        .CreateCounter("sorter_gc_collection_total",
+            "GC回收总数（按代分类）/ Total GC collections by generation",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "generation" } // "gen0", "gen1", "gen2"
+            });
+
+    /// <summary>
+    /// CPU使用率（百分比）
+    /// CPU usage percentage
+    /// </summary>
+    private static readonly Gauge CpuUsageGauge = Metrics
+        .CreateGauge("sorter_cpu_usage_percent",
+            "CPU使用率（百分比）/ CPU usage percentage");
+
+    /// <summary>
+    /// 内存使用量（字节）
+    /// Memory usage in bytes
+    /// </summary>
+    private static readonly Gauge MemoryUsageGauge = Metrics
+        .CreateGauge("sorter_memory_usage_bytes",
+            "内存使用量（字节）/ Memory usage in bytes");
+
+    /// <summary>
+    /// 工作集内存（字节）
+    /// Working set memory in bytes
+    /// </summary>
+    private static readonly Gauge WorkingSetGauge = Metrics
+        .CreateGauge("sorter_working_set_bytes",
+            "工作集内存（字节）/ Working set memory in bytes");
+
+    /// <summary>
+    /// 托管堆内存（字节）
+    /// Managed heap memory in bytes
+    /// </summary>
+    private static readonly Gauge ManagedHeapGauge = Metrics
+        .CreateGauge("sorter_managed_heap_bytes",
+            "托管堆内存（字节）/ Managed heap memory in bytes");
+
+    /// <summary>
+    /// 混沌测试活跃状态
+    /// Chaos testing active status
+    /// </summary>
+    private static readonly Gauge ChaosTestingActive = Metrics
+        .CreateGauge("sorter_chaos_testing_active",
+            "混沌测试活跃状态 (1=启用, 0=禁用) / Chaos testing active status (1=enabled, 0=disabled)");
+
+    /// <summary>
+    /// 混沌注入事件计数
+    /// Chaos injection event counter
+    /// </summary>
+    private static readonly Counter ChaosInjectionCounter = Metrics
+        .CreateCounter("sorter_chaos_injection_total",
+            "混沌注入事件总数（按类型和层级分类）/ Total chaos injection events by type and layer",
+            new CounterConfiguration
+            {
+                LabelNames = new[] { "layer", "type" } // layer: "communication", "driver", "io"; type: "delay", "exception", "disconnect"
+            });
+
+    /// <summary>
+    /// 记录包裹端到端处理时延
+    /// Record parcel end-to-end processing latency
+    /// </summary>
+    /// <param name="latencySeconds">处理时延（秒）</param>
+    public void RecordParcelEndToEndLatency(double latencySeconds)
+    {
+        ParcelEndToEndLatency.Observe(latencySeconds);
+    }
+
+    /// <summary>
+    /// 记录执行循环耗时
+    /// Record execution loop duration
+    /// </summary>
+    /// <param name="durationSeconds">循环耗时（秒）</param>
+    public void RecordExecutionLoopDuration(double durationSeconds)
+    {
+        ExecutionLoopDuration.Observe(durationSeconds);
+    }
+
+    /// <summary>
+    /// 记录GC回收
+    /// Record GC collection
+    /// </summary>
+    /// <param name="generation">GC代数：gen0, gen1, gen2</param>
+    public void RecordGcCollection(string generation)
+    {
+        GcCollectionCounter.WithLabels(generation).Inc();
+    }
+
+    /// <summary>
+    /// 设置CPU使用率
+    /// Set CPU usage percentage
+    /// </summary>
+    /// <param name="usagePercent">CPU使用率（百分比）</param>
+    public void SetCpuUsage(double usagePercent)
+    {
+        CpuUsageGauge.Set(usagePercent);
+    }
+
+    /// <summary>
+    /// 设置内存使用量
+    /// Set memory usage
+    /// </summary>
+    /// <param name="usageBytes">内存使用量（字节）</param>
+    public void SetMemoryUsage(long usageBytes)
+    {
+        MemoryUsageGauge.Set(usageBytes);
+    }
+
+    /// <summary>
+    /// 设置工作集内存
+    /// Set working set memory
+    /// </summary>
+    /// <param name="workingSetBytes">工作集内存（字节）</param>
+    public void SetWorkingSet(long workingSetBytes)
+    {
+        WorkingSetGauge.Set(workingSetBytes);
+    }
+
+    /// <summary>
+    /// 设置托管堆内存
+    /// Set managed heap memory
+    /// </summary>
+    /// <param name="heapBytes">托管堆内存（字节）</param>
+    public void SetManagedHeap(long heapBytes)
+    {
+        ManagedHeapGauge.Set(heapBytes);
+    }
+
+    /// <summary>
+    /// 设置混沌测试状态
+    /// Set chaos testing status
+    /// </summary>
+    /// <param name="isActive">是否启用混沌测试</param>
+    public void SetChaosTestingActive(bool isActive)
+    {
+        ChaosTestingActive.Set(isActive ? 1 : 0);
+    }
+
+    /// <summary>
+    /// 记录混沌注入事件
+    /// Record chaos injection event
+    /// </summary>
+    /// <param name="layer">注入层级：communication, driver, io</param>
+    /// <param name="type">注入类型：delay, exception, disconnect, dropout</param>
+    public void RecordChaosInjection(string layer, string type)
+    {
+        ChaosInjectionCounter.WithLabels(layer, type).Inc();
+    }
 }
 
 
