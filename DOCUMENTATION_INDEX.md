@@ -64,6 +64,7 @@
 
 | 文档 | 说明 | 适用人群 |
 |------|------|----------|
+| [TESTING_STRATEGY.md](TESTING_STRATEGY.md) | 测试策略和项目组织完整指南 🆕 | 测试工程师、开发者 |
 | [TESTING.md](TESTING.md) | 测试文档和策略 | 测试工程师、开发者 |
 | [TESTING_IMPLEMENTATION_STATUS.md](TESTING_IMPLEMENTATION_STATUS.md) | 测试实施状态报告 | 项目经理、测试工程师 |
 | [E2E_TESTING_SUMMARY.md](E2E_TESTING_SUMMARY.md) | 端到端测试总结 | 测试工程师 |
@@ -173,15 +174,16 @@
 
 ## 📌 文档更新说明
 
-- **文档版本：** v1.1 🆕
-- **最后更新：** 2025-11-19
+- **文档版本：** v1.2 🆕
+- **最后更新：** 2025-11-20
 - **本次更新内容（PR-39）：**
-  - 新增场景 F：高密度流量 + 上游连接抖动
-  - 新增场景 G：多厂商混合驱动仿真
-  - 新增场景 H：长时间运行稳定性（增强版）
-  - 新增"仿真测试学习路径"
-  - 更新快速查找索引，新增"仿真相关"分类
-  - 更新按角色查找，补充测试/性能/运维/硬件工程师的仿真场景链接
+  - 新增 TESTING_STRATEGY.md - 完整测试策略和项目组织文档
+  - 新增驱动异常处理测试（DriverExceptionHandlingTests）
+  - 新增启动仿真测试（StartupSimulationTests）
+  - 新增 IO 复杂仿真测试（IoSimulationTests）
+  - 新增多包裹管线测试（MultiParcelPipelineTests）
+  - 更新测试文档索引
+  - 测试覆盖率目标：80%+
 - **维护规则：**
   - 每次添加新文档时，必须在此索引中添加对应条目
   - 每次重大功能更新时，应更新相关文档
