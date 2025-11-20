@@ -184,4 +184,20 @@ public record class SimulationOptions
     /// 确保仿真模式与真机模式互斥，避免冲突。
     /// </remarks>
     public bool IsSimulationEnabled { get; init; }
+
+    /// <summary>
+    /// 是否启用混沌测试
+    /// </summary>
+    /// <remarks>
+    /// PR-41: 启用混沌测试以验证系统在随机故障下的韧性
+    /// </remarks>
+    public bool IsEnableChaosTest { get; init; }
+
+    /// <summary>
+    /// 混沌测试配置文件名称
+    /// </summary>
+    /// <remarks>
+    /// PR-41: 可选值 "Mild", "Moderate", "Heavy", "Disabled"
+    /// </remarks>
+    public string ChaosProfile { get; init; } = "Disabled";
 }
