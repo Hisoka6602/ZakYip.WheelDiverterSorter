@@ -50,9 +50,22 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
+    private readonly Dictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels for Parcel-First validation
     private readonly object _lockObject = new object();
     private bool _isConnected;
     private int _roundRobinIndex = 0;
+
+    /// <summary>
+    /// PR-42: 包裹创建记录（用于 Parcel-First 语义验证）
+    /// </summary>
+    private class ParcelCreationRecord
+    {
+        public long ParcelId { get; init; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset? UpstreamRequestSentAt { get; set; }
+        public DateTimeOffset? UpstreamReplyReceivedAt { get; set; }
+        public DateTimeOffset? RouteBoundAt { get; set; }
+    }
 
     /// <summary>
     /// 构造函数
@@ -91,6 +104,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _pathHealthChecker = pathHealthChecker; // Optional: for node health checking (PR-14)
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
+        _createdParcels = new Dictionary<long, ParcelCreationRecord>(); // PR-42: Track created parcels
 
         // 订阅包裹检测事件
         _parcelDetectionService.ParcelDetected += OnParcelDetected;
@@ -143,9 +157,38 @@ public class ParcelSortingOrchestrator : IDisposable
     {
         lock (_lockObject)
         {
+            // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
+            if (!_createdParcels.ContainsKey(e.ParcelId))
+            {
+                _logger.LogError(
+                    "[PR-42 Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
+                    "本地不存在此包裹实体。响应已丢弃，不创建幽灵包裹。",
+                    e.ParcelId,
+                    e.ChuteId);
+                return; // 不处理未知包裹的路由响应
+            }
+
+            // 记录上游响应接收时间
+            _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = DateTimeOffset.UtcNow;
+            
             if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
             {
                 _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
+                
+                // 记录路由绑定时间
+                _createdParcels[e.ParcelId].RouteBoundAt = DateTimeOffset.UtcNow;
+                
+                // PR-42: 记录路由绑定完成的 Trace 日志
+                _logger.LogTrace(
+                    "[PR-42 Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                    "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
+                    e.ParcelId,
+                    e.ChuteId,
+                    _createdParcels[e.ParcelId].CreatedAt,
+                    _createdParcels[e.ParcelId].UpstreamRequestSentAt,
+                    _createdParcels[e.ParcelId].UpstreamReplyReceivedAt,
+                    _createdParcels[e.ParcelId].RouteBoundAt);
+                
                 tcs.TrySetResult(e.ChuteId);
                 _pendingAssignments.Remove(e.ParcelId);
             }
@@ -168,6 +211,17 @@ public class ParcelSortingOrchestrator : IDisposable
 
         try
         {
+            // PR-42: Parcel-First - 本地创建包裹实体（即使是重复触发异常也需要创建实体）
+            var createdAt = DateTimeOffset.UtcNow;
+            lock (_lockObject)
+            {
+                _createdParcels[parcelId] = new ParcelCreationRecord
+                {
+                    ParcelId = parcelId,
+                    CreatedAt = createdAt
+                };
+            }
+            
             // PR-08B: 记录包裹进入系统
             _congestionCollector?.RecordParcelEntry(parcelId, DateTime.UtcNow);
 
@@ -191,6 +245,12 @@ public class ParcelSortingOrchestrator : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "处理重复触发异常包裹 {ParcelId} 时发生错误", parcelId);
+            
+            // 清理包裹记录（PR-42）
+            lock (_lockObject)
+            {
+                _createdParcels.Remove(parcelId);
+            }
         }
     }
 
@@ -204,12 +264,30 @@ public class ParcelSortingOrchestrator : IDisposable
 
         try
         {
+            // PR-42: Parcel-First - 本地创建包裹实体并记录创建时间
+            var createdAt = DateTimeOffset.UtcNow;
+            lock (_lockObject)
+            {
+                _createdParcels[parcelId] = new ParcelCreationRecord
+                {
+                    ParcelId = parcelId,
+                    CreatedAt = createdAt
+                };
+            }
+            
+            // PR-42: 记录本地包裹创建的 Trace 日志
+            _logger.LogTrace(
+                "[PR-42 Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
+                parcelId,
+                createdAt,
+                e.SensorId);
+
             // PR-10: 记录包裹创建事件
             await WriteTraceAsync(new ParcelTraceEventArgs
             {
                 ItemId = parcelId,
                 BarCode = null,
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = createdAt,
                 Stage = "Created",
                 Source = "Ingress",
                 Details = $"传感器检测到包裹"
@@ -225,6 +303,12 @@ public class ParcelSortingOrchestrator : IDisposable
                         "包裹 {ParcelId} 被拒绝：{ErrorMessage}",
                         parcelId,
                         validationResult.ErrorMessage);
+                    
+                    // 清理创建记录
+                    lock (_lockObject)
+                    {
+                        _createdParcels.Remove(parcelId);
+                    }
                     return;
                 }
             }
@@ -640,16 +724,23 @@ public class ParcelSortingOrchestrator : IDisposable
                 }
             }
 
-            // 清理包裹路径记录
+            // 清理包裹路径记录和创建记录（PR-42）
             lock (_lockObject)
             {
                 _parcelPaths.Remove(parcelId);
+                _createdParcels.Remove(parcelId); // PR-42: 清理包裹创建记录
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "执行包裹 {ParcelId} 分拣时发生异常", parcelId);
             _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+            
+            // 清理包裹记录（PR-42）
+            lock (_lockObject)
+            {
+                _createdParcels.Remove(parcelId);
+            }
         }
     }
 
@@ -660,7 +751,37 @@ public class ParcelSortingOrchestrator : IDisposable
     {
         var exceptionChuteId = systemConfig.ExceptionChuteId;
 
+        // PR-42: Invariant 1 - 上游请求必须引用已存在的本地包裹
+        lock (_lockObject)
+        {
+            if (!_createdParcels.ContainsKey(parcelId))
+            {
+                _logger.LogError(
+                    "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游请求。" +
+                    "请求已阻止，不发送到上游。包裹将被路由到异常格口。",
+                    parcelId);
+                return exceptionChuteId;
+            }
+        }
+
         // 步骤1: 通知RuleEngine包裹到达
+        var upstreamRequestSentAt = DateTimeOffset.UtcNow;
+        
+        // 记录上游请求发送时间（PR-42）
+        lock (_lockObject)
+        {
+            if (_createdParcels.ContainsKey(parcelId))
+            {
+                _createdParcels[parcelId].UpstreamRequestSentAt = upstreamRequestSentAt;
+            }
+        }
+        
+        // PR-42: 记录发送上游路由请求的 Trace 日志
+        _logger.LogTrace(
+            "[PR-42 Parcel-First] 发送上游路由请求: ParcelId={ParcelId}, RequestSentAt={SentAt:o}",
+            parcelId,
+            upstreamRequestSentAt);
+        
         var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
         
         if (!notificationSent)
