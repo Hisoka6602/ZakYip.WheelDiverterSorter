@@ -873,6 +873,86 @@ PUT /api/communication/config/persisted
 - 补充更多生产环境常见问题排查手册（如端口占用、证书部署）
 - 为新增的分拣模式添加单元测试和集成测试
 
+## 测试与仿真 / Testing & Simulation 🆕
+
+### 测试项目组织 / Test Project Organization
+
+本项目包含 9 个测试项目，覆盖从单元测试到端到端测试的完整测试金字塔：
+
+- **Core.Tests**: 核心领域模型和并发控制测试
+- **Drivers.Tests**: 硬件驱动接口和异常处理测试（含 SafeExecutor 包裹）
+- **Execution.Tests**: 分拣执行管线和多包裹并发测试
+- **Ingress.Tests**: 传感器管理和 IO 仿真测试
+- **Communication.Tests**: 上游通信和重连策略测试
+- **Observability.Tests**: 日志去重、安全执行、健康检查测试
+- **Host.IntegrationTests**: Host 层集成测试和启动仿真
+- **E2ETests**: 端到端场景测试
+- **Benchmarks**: 性能基准测试
+
+### 运行测试 / Run Tests
+
+```bash
+# 运行所有测试
+dotnet test
+
+# 运行特定项目测试
+dotnet test tests/ZakYip.WheelDiverterSorter.Drivers.Tests
+dotnet test tests/ZakYip.WheelDiverterSorter.Execution.Tests
+
+# 生成代码覆盖率报告
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
+```
+
+### PR-39 新增测试重点 / PR-39 New Test Focus
+
+#### 1. 驱动异常处理测试（DriverExceptionHandlingTests）
+- 驱动抛异常时 SafeExecutor 正确捕获和记录
+- 多驱动同时失败场景
+- EMC 连接丢失恢复
+- IO 端口读写失败处理
+
+#### 2. 启动过程仿真（StartupSimulationTests）
+- **冷启动场景**: 设备逐步上线，健康状态从 Unhealthy → Healthy
+- **启动失败重试**: 指数退避策略（200ms → 2000ms 最大）
+- **健康检查转换**: 验证系统启动过程中的状态转换
+- **日志去重**: 重复启动错误只记录一次
+
+#### 3. IO 复杂仿真（IoSimulationTests）
+- **传感器抖动**: 模拟传感器快速闪动，验证去抖逻辑
+- **IO 配置错误**: 检测错误的 IO 端口映射
+- **高负载并发 IO**: 1000+ 并发 IO 操作无死锁
+- **多摆轮同时控制**: 验证不同摆轮的 IO 控制互不干扰
+
+#### 4. 多包裹管线测试（MultiParcelPipelineTests）
+- 多包裹并发处理（100+ 包裹同时执行）
+- 不同路径同时执行无冲突
+- 包裹状态机转换（Ingress → Routing → Execution → Completed）
+- 异常包裹隔离（一个包裹失败不影响其他）
+
+### 代码覆盖率目标 / Coverage Goals
+
+- **当前基线**: ~70% (PR-38 后)
+- **PR-39 目标**: ≥ 80%
+- **长期目标**: 85%+
+
+重点覆盖：
+- Execution 层: 85%+（路径执行、并发控制）
+- Drivers 层: 80%+（驱动接口、异常处理）
+- Host 层: 70%+（启动流程、API）
+
+### 仿真场景 / Simulation Scenarios
+
+参考现有仿真场景文档：
+- [场景 E: 高摩擦有丢失](SCENARIO_E_DOCUMENTATION.md)
+- [场景 F: 高密度 + 上游抖动](SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md)
+- [场景 G: 多厂商混合](SCENARIO_G_MULTI_VENDOR_MIXED.md)
+- [场景 H: 长时间稳定性](SCENARIO_H_LONG_RUN_STABILITY.md)
+
+### 详细测试策略
+
+完整的测试策略、项目组织和覆盖率分析，请参考：
+- **[测试策略文档](TESTING_STRATEGY.md)** - 9 个测试项目说明、测试类型、运行指南、最佳实践
+
 ### 核心文档
 - [系统架构和关系说明](RELATIONSHIP_WITH_RULEENGINE.md)
 - [系统范围明确说明](SYSTEM_SCOPE_CLARIFICATION.md)
@@ -900,6 +980,7 @@ PUT /api/communication/config/persisted
 - [性能优化总结](PERFORMANCE_OPTIMIZATION.md)
 
 ### 测试和质量保证
+- [**测试策略文档** 🆕](TESTING_STRATEGY.md) - 完整测试项目组织、覆盖率目标和运行指南
 - [测试文档](TESTING.md)
 - [测试实施状态](TESTING_IMPLEMENTATION_STATUS.md)
 - [E2E测试总结](E2E_TESTING_SUMMARY.md)
