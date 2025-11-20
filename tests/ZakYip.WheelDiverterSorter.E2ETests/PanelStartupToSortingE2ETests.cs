@@ -24,6 +24,13 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </summary>
 public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>, IDisposable
 {
+    // 测试超时常量
+    private const int ColdStartDelayMs = 3000;      // 冷启动等待时间
+    private const int SortingDelayMs = 1000;        // 分拣处理等待时间
+    private const int UpstreamDelayMs = 3000;       // 上游响应延迟（小于超时）
+    private const int UpstreamDelayBufferMs = 2000; // 等待延迟完成的缓冲时间
+    private const int UpstreamTimeoutMs = 10000;    // 默认上游超时时间
+
     private readonly PanelE2ETestFactory _factory;
     private readonly HttpClient _client;
     private readonly IServiceScope _scope;
@@ -108,7 +115,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _output.WriteLine("\n【步骤2】冷启动与自检");
         
         // 等待系统完成冷启动和自检
-        await Task.Delay(3000); // 给系统足够时间完成启动
+        await Task.Delay(ColdStartDelayMs); // 给系统足够时间完成启动
 
         // 检查健康状态（允许503因为测试环境可能未完全配置）
         var healthResponse = await _client.GetAsync("/health/line");
@@ -185,7 +192,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         var sortResponse = await _client.PostAsJsonAsync("/api/debug/sort", sortRequest);
         
         // 给系统时间完成分拣
-        await Task.Delay(1000);
+        await Task.Delay(SortingDelayMs);
 
         // 验证分拣过程无Error日志
         var sortingErrors = _logCollector.GetLogs(LogLevel.Error);
@@ -242,25 +249,33 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // 配置上游延迟响应（但不超时）
         long testParcelId = 100002;
         int targetChuteId = 2;
-        int delayMs = 3000; // 3秒延迟，小于默认10秒超时
+        int delayMs = UpstreamDelayMs; // 3秒延迟，小于默认10秒超时
 
         _factory.MockRuleEngineClient!
             .Setup(x => x.NotifyParcelDetectedAsync(testParcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        // 启动异步任务模拟延迟推送
-        _ = Task.Run(async () =>
+        // 启动异步任务模拟延迟推送（捕获异常以确保测试可靠性）
+        var delayedPushTask = Task.Run(async () =>
         {
-            await Task.Delay(delayMs);
-            _factory.MockRuleEngineClient
-                .Raise(x => x.ChuteAssignmentReceived += null,
-                    _factory.MockRuleEngineClient.Object,
-                    new ChuteAssignmentNotificationEventArgs 
-                    { 
-                        ParcelId = testParcelId, 
-                        ChuteId = targetChuteId 
-                    });
-            _output.WriteLine($"✓ 延迟{delayMs}ms后推送格口分配");
+            try
+            {
+                await Task.Delay(delayMs);
+                _factory.MockRuleEngineClient
+                    .Raise(x => x.ChuteAssignmentReceived += null,
+                        _factory.MockRuleEngineClient.Object,
+                        new ChuteAssignmentNotificationEventArgs 
+                        { 
+                            ParcelId = testParcelId, 
+                            ChuteId = targetChuteId 
+                        });
+                _output.WriteLine($"✓ 延迟{delayMs}ms后推送格口分配");
+            }
+            catch (Exception ex)
+            {
+                _output.WriteLine($"❌ 延迟推送失败: {ex.Message}");
+                throw;
+            }
         });
 
         // 触发分拣
@@ -268,7 +283,10 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         await _client.PostAsJsonAsync("/api/debug/sort", sortRequest);
 
         // 等待足够时间让延迟响应完成
-        await Task.Delay(delayMs + 2000);
+        await Task.Delay(delayMs + UpstreamDelayBufferMs);
+        
+        // 确保延迟推送任务完成
+        await delayedPushTask;
 
         // 验证：未误触发异常格口/超时逻辑
         var errors = _logCollector.GetLogs(LogLevel.Error);
@@ -305,7 +323,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _output.WriteLine("✓ 路由配置完成");
 
         // 等待冷启动完成（增加等待时间）
-        await Task.Delay(2000);
+        await Task.Delay(ColdStartDelayMs / 2); // 减半以节省测试时间
         var healthResponse = await _client.GetAsync("/health/line");
         if (!healthResponse.IsSuccessStatusCode)
         {
@@ -351,7 +369,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         var sortRequest = new { parcelId = firstParcelId, targetChuteId = targetChuteId };
         var sortResponse = await _client.PostAsJsonAsync("/api/debug/sort", sortRequest);
 
-        await Task.Delay(1000);
+        await Task.Delay(SortingDelayMs);
 
         // 严格验证：第一个包裹不允许有任何错误
         var errors = _logCollector.GetLogs(LogLevel.Error);
@@ -402,26 +420,36 @@ public class PanelE2ETestFactory : E2ETestFactory
 /// </summary>
 public class InMemoryLogCollector : ILoggerProvider
 {
-    private readonly ConcurrentBag<LogEntry> _logs = new();
+    private readonly List<LogEntry> _logs = new();
+    private readonly object _lock = new();
 
     public ILogger CreateLogger(string categoryName)
     {
-        return new InMemoryLogger(categoryName, _logs);
+        return new InMemoryLogger(categoryName, _logs, _lock);
     }
 
     public void Clear()
     {
-        _logs.Clear();
+        lock (_lock)
+        {
+            _logs.Clear();
+        }
     }
 
     public List<LogEntry> GetLogs(LogLevel level)
     {
-        return _logs.Where(x => x.Level == level).ToList();
+        lock (_lock)
+        {
+            return _logs.Where(x => x.Level == level).ToList();
+        }
     }
 
     public List<LogEntry> GetAllLogs()
     {
-        return _logs.ToList();
+        lock (_lock)
+        {
+            return _logs.ToList();
+        }
     }
 
     public void Dispose()
@@ -432,12 +460,14 @@ public class InMemoryLogCollector : ILoggerProvider
     private class InMemoryLogger : ILogger
     {
         private readonly string _categoryName;
-        private readonly ConcurrentBag<LogEntry> _logs;
+        private readonly List<LogEntry> _logs;
+        private readonly object _lock;
 
-        public InMemoryLogger(string categoryName, ConcurrentBag<LogEntry> logs)
+        public InMemoryLogger(string categoryName, List<LogEntry> logs, object lockObj)
         {
             _categoryName = categoryName;
             _logs = logs;
+            _lock = lockObj;
         }
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull
@@ -453,14 +483,17 @@ public class InMemoryLogCollector : ILoggerProvider
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
         {
             var message = formatter(state, exception);
-            _logs.Add(new LogEntry
+            lock (_lock)
             {
-                Level = logLevel,
-                CategoryName = _categoryName,
-                Message = message,
-                Exception = exception,
-                Timestamp = DateTimeOffset.UtcNow
-            });
+                _logs.Add(new LogEntry
+                {
+                    Level = logLevel,
+                    CategoryName = _categoryName,
+                    Message = message,
+                    Exception = exception,
+                    Timestamp = DateTimeOffset.UtcNow
+                });
+            }
         }
     }
 }
