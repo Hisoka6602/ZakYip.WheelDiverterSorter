@@ -69,8 +69,9 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // ===== 场景1：单包裹正常分拣 =====
         // 步骤：配置IO → 冷启动 → Start → 上游正常分配 → 单包裹通过 → 正确落格
         // 断言：无Error日志、分拣结果正确、状态机与Panel表现符合文档
+        // PR-42: 增加 Parcel-First 语义验证
 
-        _output.WriteLine("=== 场景1：单包裹正常分拣 - 完整E2E流程 ===");
+        _output.WriteLine("=== 场景1：单包裹正常分拣 - 完整E2E流程（含 Parcel-First 验证）===");
 
         // ===== 步骤1: 通过API配置启动IO与Panel映射 =====
         _output.WriteLine("\n【步骤1】通过API配置IO与Panel映射");
@@ -211,7 +212,16 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // 最终验证：整个流程无Error日志
         var allErrors = _logCollector.GetLogs(LogLevel.Error);
         allErrors.Should().BeEmpty("整个E2E流程不允许有任何Error日志");
-        _output.WriteLine($"\n✅ 场景1完成：无Error日志，分拣成功");
+
+        // ===== PR-42: Parcel-First 语义验证 =====
+        _output.WriteLine("\n【步骤7】PR-42: Parcel-First 语义验证");
+        
+        var validator = new ParcelTraceValidator(_logCollector, _output);
+        // 注意：此测试使用 Debug API，会绕过正常的 ParcelDetectionService 流程
+        // 因此设置 isDebugMode=true 以允许部分验证跳过
+        validator.ValidateParcelFirstSemantics(testParcelId, isDebugMode: true);
+
+        _output.WriteLine($"\n✅ 场景1完成：无Error日志，分拣成功，Parcel-First 语义正确");
     }
 
     [Fact]
@@ -220,8 +230,9 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // ===== 场景2：轻微延迟的上游响应 =====
         // 上游分配路由时加入轻微延迟（小于超时时间）
         // 期望：系统仍然在上游响应后正确分拣
+        // PR-42: 验证即使延迟也符合 Parcel-First 语义
 
-        _output.WriteLine("=== 场景2：轻微延迟的上游响应 ===");
+        _output.WriteLine("=== 场景2：轻微延迟的上游响应（含 Parcel-First 验证）===");
 
         _logCollector.Clear();
 
@@ -293,7 +304,12 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         errors.Should().BeEmpty("延迟响应不应触发Error日志");
         _output.WriteLine("✓ 系统正确处理延迟响应，未触发超时");
 
-        _output.WriteLine("\n✅ 场景2完成：延迟响应处理正确");
+        // PR-42: Parcel-First 语义验证
+        _output.WriteLine("\n【PR-42 验证】Parcel-First 语义（延迟场景）");
+        var validator = new ParcelTraceValidator(_logCollector, _output);
+        validator.ValidateParcelFirstSemantics(testParcelId, isDebugMode: true);
+
+        _output.WriteLine("\n✅ 场景2完成：延迟响应处理正确，Parcel-First 语义正确");
     }
 
     [Fact]
@@ -303,8 +319,9 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // 典型生产需求：冷启动后第一个包裹就是"系统健康验证样本"
         // 要求：冷启动完成后按下Start，插入第一个包裹，路由正常，落格正常
         // 期间不允许发生任何与IO/路径相关的错误告警
+        // PR-42: 验证第一个包裹也符合 Parcel-First 语义
 
-        _output.WriteLine("=== 场景3：启动后第一次包裹（暖机验证）===");
+        _output.WriteLine("=== 场景3：启动后第一次包裹（暖机验证 + Parcel-First 验证）===");
 
         _logCollector.Clear();
 
@@ -380,7 +397,12 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // 对于暖机验证，我们要求Warning也应该最小化
         _output.WriteLine($"⚠ Warning数量: {warnings.Count}");
 
-        _output.WriteLine("\n✅ 场景3完成：第一个包裹暖机验证通过");
+        // PR-42: Parcel-First 语义验证
+        _output.WriteLine("\n【PR-42 验证】Parcel-First 语义（暖机场景）");
+        var validator = new ParcelTraceValidator(_logCollector, _output);
+        validator.ValidateParcelFirstSemantics(firstParcelId, isDebugMode: true);
+
+        _output.WriteLine("\n✅ 场景3完成：第一个包裹暖机验证通过，Parcel-First 语义正确");
     }
 
     public void Dispose()
