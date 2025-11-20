@@ -46,7 +46,7 @@ This PR successfully addresses all requirements from the problem statement regar
 
 ---
 
-## Test Coverage: 32 Scenarios
+## Test Coverage: 35 Scenarios
 
 ### ParcelSortingWorkflowTests (7 tests)
 Complete end-to-end sorting validation
@@ -85,6 +85,32 @@ Fault tolerance and recovery
 - Invalid configurations
 - Duplicate triggers
 
+### **PanelStartupToSortingE2ETests (3 tests) ✅ NEW**
+**PR-41: Panel Startup to Sorting End-to-End Simulation**
+
+Complete workflow from API configuration to parcel sorting:
+- **Scenario 1**: Single parcel normal sorting
+  - API configuration → Cold start → Start button → Upstream assignment → Sorting
+  - ✅ Zero Error logs
+  - ✅ State machine consistency
+- **Scenario 2**: Delayed upstream response
+  - 3-second delay (under 10-second timeout)
+  - ✅ Correct handling without timeout
+  - ✅ No exception chute fallback
+- **Scenario 3**: First parcel after startup (warm-up validation)
+  - Cold start → Start → Immediate first parcel
+  - ✅ Zero errors for production health check
+  - ✅ Minimal warnings
+
+**Key Features:**
+- InMemoryLogCollector for log level validation
+- PanelE2ETestFactory with Mock RuleEngine
+- Reuses existing Panel/State Machine/Cold Start implementations
+- Follows PANEL_BUTTON_STATE_MACHINE_IMPLEMENTATION.md
+- Complies with HARDWARE_DRIVER_CONFIG.md constraints
+
+**Documentation:** `PR41_E2E_SIMULATION_SUMMARY.md`
+
 ---
 
 ## Validation Results
@@ -120,8 +146,8 @@ Fault tolerance and recovery
 |--------|--------|----------|
 | Bug Fixes | 1 | ✅ 1 |
 | E2E Test Project | 1 | ✅ 1 |
-| Test Suites | 4 | ✅ 4 |
-| Test Scenarios | 20+ | ✅ 32 |
+| Test Suites | 4 | ✅ 5 |
+| Test Scenarios | 20+ | ✅ 35 |
 | Security Vulnerabilities | 0 | ✅ 0 |
 | Build Errors | 0 | ✅ 0 |
 
@@ -131,12 +157,22 @@ Fault tolerance and recovery
 
 1. Apply mock setup fixes from E2ETests/README.md
 2. Verify all E2E tests pass
-3. Integrate into CI/CD pipeline
-4. Add coverage reporting
+3. **Enhance PR-41 Panel E2E Tests:**
+   - Add Parcel Trace validation
+   - Add IO configuration mapping verification
+   - Add coverage report generation
+4. Integrate into CI/CD pipeline
+5. Add coverage reporting
 
 ---
 
-**Date:** 2025-01-13  
-**Total Changes:** 19 files (11 modified, 8 created)  
-**Test Coverage Added:** 32 test scenarios  
+**Date:** 2025-01-13 (Updated: 2025-11-20)  
+**Total Changes:** 20 files (11 modified, 9 created)  
+**Test Coverage Added:** 35 test scenarios  
 **Security Status:** ✅ Clean (0 vulnerabilities)
+
+**Latest Addition (PR-41):** Panel Startup to Sorting E2E Simulation
+- 3 comprehensive end-to-end scenarios
+- Complete workflow from API configuration to parcel sorting
+- Zero error log strict validation
+- See `PR41_E2E_SIMULATION_SUMMARY.md` for details
