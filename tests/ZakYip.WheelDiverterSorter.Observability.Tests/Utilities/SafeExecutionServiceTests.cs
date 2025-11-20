@@ -200,4 +200,98 @@ public class SafeExecutionServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() => 
             _service.ExecuteAsync(action, ""));
     }
+
+    [Fact]
+    public async Task ExecuteAsync_OperationCanceledException_WithoutCancelledToken_LogsAsError()
+    {
+        // Arrange
+        // Token is NOT cancelled, but action throws OperationCanceledException
+        var cts = new CancellationTokenSource();
+        Func<Task> action = () => throw new OperationCanceledException("Unexpected cancellation");
+
+        // Act
+        var result = await _service.ExecuteAsync(action, "TestOperation", cts.Token);
+
+        // Assert
+        Assert.False(result);
+        
+        // Should be logged as error, not information, because token was not cancelled
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("TestOperation")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithReturnValue_Cancelled_ReturnsDefaultValue()
+    {
+        // Arrange
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+        Func<Task<int>> action = () => throw new OperationCanceledException();
+
+        // Act
+        var result = await _service.ExecuteAsync(action, "TestOperation", defaultValue: 99, cts.Token);
+
+        // Assert
+        Assert.Equal(99, result);
+        
+        // Verify that cancellation was logged as information
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("cancelled")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithReturnValue_OperationCanceledException_WithoutCancelledToken_ReturnsDefaultValue()
+    {
+        // Arrange
+        // Token is NOT cancelled, but action throws OperationCanceledException
+        var cts = new CancellationTokenSource();
+        Func<Task<int>> action = () => throw new OperationCanceledException("Unexpected cancellation");
+
+        // Act
+        var result = await _service.ExecuteAsync(action, "TestOperation", defaultValue: 42, cts.Token);
+
+        // Assert
+        Assert.Equal(42, result);
+        
+        // Should be logged as error, not information, because token was not cancelled
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("TestOperation")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithReturnValue_NullAction_ThrowsArgumentNullException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentNullException>(() => 
+            _service.ExecuteAsync((Func<Task<int>>)null!, "TestOperation", defaultValue: 0));
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithReturnValue_EmptyOperationName_ThrowsArgumentException()
+    {
+        // Arrange
+        Func<Task<int>> action = () => Task.FromResult(42);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(() => 
+            _service.ExecuteAsync(action, "", defaultValue: 0));
+    }
 }

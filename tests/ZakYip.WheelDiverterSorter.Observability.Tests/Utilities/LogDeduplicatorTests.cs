@@ -170,6 +170,167 @@ public class LogDeduplicatorTests
         Assert.False(result); // Still within 1 second of second record
     }
 
+    [Fact]
+    public void LogDeduplicator_WithInMemoryLogger_OnlyWritesOnceWithinWindow()
+    {
+        // Arrange
+        var clock = new TestSystemClock(new DateTime(2024, 1, 1, 12, 0, 0));
+        var deduplicator = new LogDeduplicator(clock, windowDurationSeconds: 1);
+        var logger = new InMemoryLogger();
+
+        // Act - attempt to log same message 5 times within 1 second
+        for (int i = 0; i < 5; i++)
+        {
+            if (deduplicator.ShouldLog(LogLevel.Error, "Repeated error", "TestException"))
+            {
+                logger.LogError("Repeated error");
+                deduplicator.RecordLog(LogLevel.Error, "Repeated error", "TestException");
+            }
+            clock.AdvanceTime(TimeSpan.FromMilliseconds(100)); // Total 500ms
+        }
+
+        // Assert - should only have logged once
+        Assert.Equal(1, logger.ErrorCount);
+    }
+
+    [Fact]
+    public void LogDeduplicator_WithInMemoryLogger_WritesAgainAfterWindow()
+    {
+        // Arrange
+        var clock = new TestSystemClock(new DateTime(2024, 1, 1, 12, 0, 0));
+        var deduplicator = new LogDeduplicator(clock, windowDurationSeconds: 1);
+        var logger = new InMemoryLogger();
+
+        // First log
+        if (deduplicator.ShouldLog(LogLevel.Error, "Repeated error"))
+        {
+            logger.LogError("Repeated error");
+            deduplicator.RecordLog(LogLevel.Error, "Repeated error");
+        }
+
+        // Advance time beyond window
+        clock.AdvanceTime(TimeSpan.FromSeconds(1.5));
+
+        // Act - log again after window
+        if (deduplicator.ShouldLog(LogLevel.Error, "Repeated error"))
+        {
+            logger.LogError("Repeated error");
+            deduplicator.RecordLog(LogLevel.Error, "Repeated error");
+        }
+
+        // Assert - should have logged twice
+        Assert.Equal(2, logger.ErrorCount);
+    }
+
+    [Fact]
+    public void LogDeduplicator_DifferentMessages_NotDeduplicated()
+    {
+        // Arrange
+        var clock = new TestSystemClock(new DateTime(2024, 1, 1, 12, 0, 0));
+        var deduplicator = new LogDeduplicator(clock);
+        var logger = new InMemoryLogger();
+
+        // Act - log different messages
+        var messages = new[] { "Error 1", "Error 2", "Error 3" };
+        foreach (var message in messages)
+        {
+            if (deduplicator.ShouldLog(LogLevel.Error, message))
+            {
+                logger.LogError(message);
+                deduplicator.RecordLog(LogLevel.Error, message);
+            }
+        }
+
+        // Assert - all three should be logged
+        Assert.Equal(3, logger.ErrorCount);
+    }
+
+    [Fact]
+    public void LogDeduplicator_DifferentExceptionTypes_NotDeduplicated()
+    {
+        // Arrange
+        var clock = new TestSystemClock(new DateTime(2024, 1, 1, 12, 0, 0));
+        var deduplicator = new LogDeduplicator(clock);
+        var logger = new InMemoryLogger();
+
+        // Act - log same message but different exception types
+        var exceptionTypes = new[] { "ArgumentException", "InvalidOperationException", "NullReferenceException" };
+        foreach (var exType in exceptionTypes)
+        {
+            if (deduplicator.ShouldLog(LogLevel.Error, "Same message", exType))
+            {
+                logger.LogError("Same message");
+                deduplicator.RecordLog(LogLevel.Error, "Same message", exType);
+            }
+        }
+
+        // Assert - all three should be logged (different exception types)
+        Assert.Equal(3, logger.ErrorCount);
+    }
+
+    [Fact]
+    public void LogDeduplicator_ConcurrentAccess_ThreadSafe()
+    {
+        // Arrange
+        var clock = new LocalSystemClock(); // Use real clock for concurrency test
+        var deduplicator = new LogDeduplicator(clock, windowDurationSeconds: 2);
+        var logger = new InMemoryLogger();
+        var tasks = new List<Task>();
+        
+        // Act - multiple threads try to log the same message concurrently
+        for (int i = 0; i < 10; i++)
+        {
+            tasks.Add(Task.Run(() =>
+            {
+                for (int j = 0; j < 100; j++)
+                {
+                    if (deduplicator.ShouldLog(LogLevel.Error, "Concurrent error"))
+                    {
+                        logger.LogError("Concurrent error");
+                        deduplicator.RecordLog(LogLevel.Error, "Concurrent error");
+                    }
+                }
+            }));
+        }
+
+        Task.WaitAll(tasks.ToArray());
+
+        // Assert - should have significantly fewer logs than 1000 due to deduplication
+        // With 2 second window and threads running concurrently, we expect very few logs
+        Assert.True(logger.ErrorCount < 100, 
+            $"Expected fewer than 100 logs due to deduplication, but got {logger.ErrorCount}");
+        Assert.True(logger.ErrorCount >= 1, 
+            "Expected at least 1 log to have been written");
+    }
+
+    [Fact]
+    public void LogDeduplicator_CleanupUnderHighLoad_NoExceptions()
+    {
+        // Arrange
+        var clock = new TestSystemClock(new DateTime(2024, 1, 1, 12, 0, 0));
+        var deduplicator = new LogDeduplicator(clock, windowDurationSeconds: 1);
+
+        // Act - add over 1000 unique entries to trigger cleanup
+        for (int i = 0; i < 1500; i++)
+        {
+            var message = $"Unique message {i}";
+            if (deduplicator.ShouldLog(LogLevel.Error, message))
+            {
+                deduplicator.RecordLog(LogLevel.Error, message);
+            }
+            
+            // Advance time slightly to make some entries old
+            if (i % 100 == 0)
+            {
+                clock.AdvanceTime(TimeSpan.FromMilliseconds(200));
+            }
+        }
+
+        // Assert - should complete without exceptions
+        // Verify that deduplication still works after cleanup
+        Assert.False(deduplicator.ShouldLog(LogLevel.Error, "Unique message 1400"));
+    }
+
     /// <summary>
     /// Test helper for system clock with controllable time
     /// </summary>
@@ -189,6 +350,56 @@ public class LogDeduplicatorTests
         public void AdvanceTime(TimeSpan duration)
         {
             _currentTime = _currentTime.Add(duration);
+        }
+    }
+
+    /// <summary>
+    /// In-memory logger for testing log deduplication
+    /// </summary>
+    private class InMemoryLogger
+    {
+        private int _errorCount;
+        private int _warningCount;
+        private int _informationCount;
+        private readonly object _lock = new();
+
+        public int ErrorCount
+        {
+            get { lock (_lock) return _errorCount; }
+        }
+
+        public int WarningCount
+        {
+            get { lock (_lock) return _warningCount; }
+        }
+
+        public int InformationCount
+        {
+            get { lock (_lock) return _informationCount; }
+        }
+
+        public void LogError(string message)
+        {
+            lock (_lock)
+            {
+                _errorCount++;
+            }
+        }
+
+        public void LogWarning(string message)
+        {
+            lock (_lock)
+            {
+                _warningCount++;
+            }
+        }
+
+        public void LogInformation(string message)
+        {
+            lock (_lock)
+            {
+                _informationCount++;
+            }
         }
     }
 }
