@@ -65,6 +65,24 @@ public interface ISystemStateManager
     /// 获取最近一次自检报告
     /// </summary>
     ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport? LastSelfTestReport { get; }
+
+    /// <summary>
+    /// 获取当前启动阶段信息
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 支持启动过程高级仿真，提供启动阶段的只读视图
+    /// </remarks>
+    BootstrapStageInfo? CurrentBootstrapStage { get; }
+
+    /// <summary>
+    /// 获取启动阶段历史
+    /// </summary>
+    /// <param name="count">获取最近的阶段记录数量</param>
+    /// <returns>启动阶段历史记录</returns>
+    /// <remarks>
+    /// PR-40: 用于启动过程仿真和诊断
+    /// </remarks>
+    IReadOnlyList<BootstrapStageInfo> GetBootstrapHistory(int count = 10);
 }
 
 /// <summary>

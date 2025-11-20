@@ -5,6 +5,7 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
 /// </summary>
 /// <remarks>
 /// 用于仿真传感器故障和抖动场景
+/// PR-40: 增强 IO 行为模型，支持理想模式和混沌模式
 /// </remarks>
 public sealed record class SensorFaultOptions
 {
@@ -63,4 +64,59 @@ public sealed record class SensorFaultOptions
     /// 每个包裹触发传感器时发生抖动的概率，默认0表示不随机抖动
     /// </remarks>
     public decimal JitterProbability { get; init; } = 0.0m;
+
+    /// <summary>
+    /// IO 行为模式
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 支持理想模式和混沌模式
+    /// </remarks>
+    public IoBehaviorMode BehaviorMode { get; init; } = IoBehaviorMode.Ideal;
+
+    /// <summary>
+    /// 传感器延迟范围（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 混沌模式下，传感器响应的随机延迟范围
+    /// </remarks>
+    public (int Min, int Max)? SensorDelayRangeMs { get; init; }
+
+    /// <summary>
+    /// 传感器丢失概率（0.0-1.0）
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 混沌模式下，传感器事件偶发丢失的概率
+    /// </remarks>
+    public decimal SensorLossProbability { get; init; } = 0.0m;
+
+    /// <summary>
+    /// 是否启用去抖策略
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 用于验证去抖逻辑的有效性
+    /// </remarks>
+    public bool IsEnableDebouncing { get; init; } = true;
+
+    /// <summary>
+    /// 去抖时间窗口（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// PR-40: 在此时间窗口内的连续触发将被视为单次触发
+    /// </remarks>
+    public int DebounceWindowMs { get; init; } = 100;
+}
+
+/// <summary>
+/// IO 行为模式
+/// </summary>
+/// <remarks>
+/// PR-40: 定义 IO 层的仿真模式
+/// </remarks>
+public enum IoBehaviorMode
+{
+    /// <summary>理想模式：无抖动、无丢包、无延迟</summary>
+    Ideal = 0,
+
+    /// <summary>混沌模式：带抖动、随机延迟、偶发丢失</summary>
+    Chaos = 1
 }

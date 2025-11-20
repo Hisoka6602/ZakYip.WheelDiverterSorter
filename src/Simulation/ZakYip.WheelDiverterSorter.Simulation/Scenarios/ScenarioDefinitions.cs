@@ -839,4 +839,333 @@ public static class ScenarioDefinitions
             Expectations = null
         };
     }
+
+    // ========================
+    // PR-40: 启动过程仿真场景
+    // ========================
+
+    /// <summary>
+    /// 场景 STARTUP-ColdStart：冷启动仿真场景
+    /// </summary>
+    /// <remarks>
+    /// PR-40 需求：模拟系统冷启动过程
+    /// - 所有驱动初始假定为"未就绪"，依次按设定时间切换为 Ready
+    /// - 上游连接初始不可用，延迟一定时间后可用
+    /// - 验证：健康检查端点在整个冷启动过程中的状态演进符合预期
+    /// - 验证：启动过程中收到的包裹请求全部走安全降级
+    /// </remarks>
+    public static SimulationScenario CreateStartupColdStart(int parcelCount = 10)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "STARTUP-ColdStart-冷启动仿真",
+            Description = "模拟系统冷启动过程，验证启动阶段的健康状态演进和包裹降级处理",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(1000), // 较长间隔，便于观察启动过程
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            FaultInjection = new FaultInjectionConfig
+            {
+                InjectUpstreamDelay = true,
+                UpstreamDelayRangeMs = (1000, 2000) // 模拟上游初始不可用
+            },
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 STARTUP-Failure：启动失败仿真场景
+    /// </summary>
+    /// <remarks>
+    /// PR-40 需求：模拟启动失败情况
+    /// - 某个关键驱动初始化失败
+    /// - 通讯配置错误导致永远连不上上游
+    /// - 验证：系统不崩溃，仍然能对外暴露清晰的"不可用/降级"健康状态
+    /// - 验证：日志遵守去重规则，不刷屏
+    /// </remarks>
+    public static SimulationScenario CreateStartupFailure(int parcelCount = 5)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "STARTUP-Failure-启动失败仿真",
+            Description = "模拟启动过程中驱动或通讯失败，验证系统降级行为和健康状态报告",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(1000),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            FaultInjection = new FaultInjectionConfig
+            {
+                InjectNodeFailure = true,
+                FailedDiverterIds = new[] { 1 }, // 第一个摆轮故障
+                InjectUpstreamDelay = true,
+                UpstreamDelayRangeMs = (5000, 10000) // 严重延迟，模拟无法连接
+            },
+            Expectations = null
+        };
+    }
+
+    // ========================
+    // PR-40: IO 高复杂度仿真场景
+    // ========================
+
+    /// <summary>
+    /// 场景 IO-SensorJitter：传感器抖动仿真场景
+    /// </summary>
+    /// <remarks>
+    /// PR-40 需求：模拟传感器高频抖动
+    /// - 关键传感器在短时间内高频抖动（50-100ms 内连续高低切换多次）
+    /// - 可开启/关闭去抖策略
+    /// - 验证：启用去抖时，最终计算出来的事件次数符合预期
+    /// - 验证：未启用去抖时，可以清楚地看到错误行为
+    /// </remarks>
+    public static SimulationScenario CreateIoSensorJitter(int parcelCount = 30, bool enableDebouncing = true)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = $"IO-SensorJitter-传感器抖动-去抖{(enableDebouncing ? "启用" : "禁用")}",
+            Description = "模拟传感器高频抖动，验证去抖策略的有效性",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(500),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                SensorFault = new SensorFaultOptions
+                {
+                    IsEnableSensorJitter = true,
+                    JitterTriggerCount = 5, // 每次抖动触发5次
+                    JitterIntervalMs = 80, // 80ms内触发
+                    JitterProbability = 0.5m, // 50%概率抖动
+                    IsEnableDebouncing = enableDebouncing,
+                    DebounceWindowMs = 100
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 IO-ChaosMode：IO 混沌模式仿真场景
+    /// </summary>
+    /// <remarks>
+    /// PR-40 需求：模拟 IO 层混沌行为
+    /// - 带抖动、随机延迟、偶发丢失
+    /// - 验证系统在不理想 IO 条件下的鲁棒性
+    /// </remarks>
+    public static SimulationScenario CreateIoChaosMode(int parcelCount = 50)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "IO-ChaosMode-混沌模式仿真",
+            Description = "模拟 IO 层混沌行为（抖动、延迟、丢失），验证系统鲁棒性",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(400),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = true,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 0.95m,
+                    MaxFactor = 1.05m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                SensorFault = new SensorFaultOptions
+                {
+                    BehaviorMode = IoBehaviorMode.Chaos,
+                    IsEnableSensorJitter = true,
+                    JitterTriggerCount = 3,
+                    JitterIntervalMs = 50,
+                    JitterProbability = 0.2m,
+                    SensorDelayRangeMs = (10, 100),
+                    SensorLossProbability = 0.05m,
+                    IsEnableDebouncing = true,
+                    DebounceWindowMs = 100
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 IO-StressTest：IO 压力测试场景
+    /// </summary>
+    /// <remarks>
+    /// PR-40 需求：构造满负荷 IO 压力场景
+    /// - 多条线同时有包裹，多路传感器频繁触发
+    /// - 摆轮/输出 IO 高频切换
+    /// - 验证：线程安全集合和锁策略在高压下没有死锁
+    /// - 验证：控制循环仍能保持在目标周期之内
+    /// - 验证：总体 CPU 与内存占用在可控范围
+    /// </remarks>
+    public static SimulationScenario CreateIoStressTest(int parcelCount = 200)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "IO-StressTest-IO压力测试",
+            Description = "满负荷 IO 压力测试，验证线程安全和性能",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(150), // 高密度
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = true,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 0.95m,
+                    MaxFactor = 1.05m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                MinSafeHeadwayMm = 200m,
+                MinSafeHeadwayTime = TimeSpan.FromMilliseconds(200),
+                DenseParcelStrategy = DenseParcelStrategy.RouteToException,
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            Topology = new SimulationTopology
+            {
+                DiverterCount = 10,
+                ChuteCount = 10,
+                TotalLineLengthMm = 20000
+            },
+            Expectations = null
+        };
+    }
+
+    /// <summary>
+    /// 场景 IO-ConfigError：IO 配置错误仿真场景
+    /// </summary>
+    /// <remarks>
+    /// PR-40 需求：模拟 IO 配置错误
+    /// - IO 映射表中，把某个传感器错误映射到另一个通道
+    /// - 输出口与物理端子不一致
+    /// - 验证：系统走安全降级路径，不会继续错误落格
+    /// </remarks>
+    public static SimulationScenario CreateIoConfigError(int parcelCount = 20)
+    {
+        return new SimulationScenario
+        {
+            ScenarioName = "IO-ConfigError-IO配置错误仿真",
+            Description = "模拟 IO 配置错误，验证系统降级行为",
+            Options = new SimulationOptions
+            {
+                ParcelCount = parcelCount,
+                LineSpeedMmps = 1000m,
+                ParcelInterval = TimeSpan.FromMilliseconds(600),
+                SortingMode = "RoundRobin",
+                FixedChuteIds = new[] { 1L, 2L, 3L },
+                ExceptionChuteId = 999,
+                IsEnableRandomFriction = false,
+                IsEnableRandomDropout = false,
+                FrictionModel = new FrictionModelOptions
+                {
+                    MinFactor = 1.0m,
+                    MaxFactor = 1.0m,
+                    IsDeterministic = true,
+                    Seed = 42
+                },
+                DropoutModel = new DropoutModelOptions
+                {
+                    DropoutProbabilityPerSegment = 0.0m,
+                    Seed = 42
+                },
+                IsEnableVerboseLogging = false,
+                IsPauseAtEnd = false
+            },
+            VendorId = Core.Hardware.VendorId.Simulated,
+            FaultInjection = new FaultInjectionConfig
+            {
+                InjectSensorFailure = true,
+                SensorFailureProbability = 0.3m // 30% 概率传感器读取错误
+            },
+            Expectations = null
+        };
+    }
 }
