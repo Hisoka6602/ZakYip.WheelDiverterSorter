@@ -26,6 +26,7 @@ using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
+using ZakYip.WheelDiverterSorter.E2ETests.Helpers;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -185,7 +186,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
         var simConfigResponse = await _client.PutAsJsonAsync("/api/config/simulation", simulationConfigRequest);
         simConfigResponse.StatusCode.Should().Be(HttpStatusCode.OK, "仿真配置应该成功");
 
-        var simConfig = await simConfigResponse.Content.ReadFromJsonAsync<SimulationConfigResponse>();
+        var simConfig = await simConfigResponse.Content.ReadJsonAsync<SimulationConfigResponse>();
         simConfig.Should().NotBeNull();
         simConfig!.ParcelCount.Should().Be(parcelCount);
         simConfig.ExceptionChuteId.Should().Be(21);
@@ -194,21 +195,21 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
         var systemConfigResponse = await _client.GetAsync("/api/config/system");
         systemConfigResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var systemConfig = await systemConfigResponse.Content.ReadFromJsonAsync<SystemConfigResponse>();
+        var systemConfig = await systemConfigResponse.Content.ReadJsonAsync<SystemConfigResponse>();
         systemConfig.Should().NotBeNull();
 
         // ====== 步骤 3: 通过 API 检查系统状态 ======
         var stateBeforeStart = await _client.GetAsync("/api/sim/panel/state");
         stateBeforeStart.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var stateBefore = await stateBeforeStart.Content.ReadFromJsonAsync<JsonElement>();
+        var stateBefore = await stateBeforeStart.Content.ReadJsonAsync<JsonElement>();
         stateBefore.GetProperty("currentState").GetString().Should().NotBeNullOrEmpty();
 
         // ====== 步骤 4: 通过 API 模拟面板启动按钮 ======
         var startResponse = await _client.PostAsync("/api/sim/panel/start", null);
         startResponse.StatusCode.Should().Be(HttpStatusCode.OK, "面板启动应该成功");
 
-        var startResult = await startResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var startResult = await startResponse.Content.ReadJsonAsync<JsonElement>();
         startResult.GetProperty("success").GetBoolean().Should().BeTrue();
         startResult.GetProperty("currentState").GetString().Should().Be("Running");
 
@@ -271,7 +272,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
         var stopResponse = await _client.PostAsync("/api/sim/panel/stop", null);
         stopResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var stopResult = await stopResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var stopResult = await stopResponse.Content.ReadJsonAsync<JsonElement>();
         stopResult.GetProperty("success").GetBoolean().Should().BeTrue();
     }
 
@@ -287,7 +288,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var config = await response.Content.ReadFromJsonAsync<SimulationConfigResponse>();
+        var config = await response.Content.ReadJsonAsync<SimulationConfigResponse>();
         config.Should().NotBeNull();
     }
 
@@ -303,7 +304,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var state = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var state = await response.Content.ReadJsonAsync<JsonElement>();
         state.GetProperty("currentState").GetString().Should().NotBeNullOrEmpty();
     }
 
@@ -319,7 +320,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var status = await response.Content.ReadFromJsonAsync<SimulationStatus>();
+        var status = await response.Content.ReadJsonAsync<SimulationStatus>();
         status.Should().NotBeNull();
     }
 

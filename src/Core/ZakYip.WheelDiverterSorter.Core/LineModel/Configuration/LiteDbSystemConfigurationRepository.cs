@@ -71,7 +71,8 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
 
         // 确保ConfigName为system
         configuration.ConfigName = SystemConfigName;
-        configuration.UpdatedAt = DateTime.UtcNow;
+        // UpdatedAt 由调用者设置（通过 ISystemClock.LocalNow）
+        // configuration.UpdatedAt 应该在调用此方法前已由调用者设置
 
         // 查找现有配置
         var existing = _collection
@@ -98,7 +99,8 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
     /// <summary>
     /// 初始化默认配置
     /// </summary>
-    public void InitializeDefault()
+    /// <param name="currentTime">当前本地时间（可选，用于设置 CreatedAt 和 UpdatedAt）</param>
+    public void InitializeDefault(DateTime? currentTime = null)
     {
         // 检查是否已有配置
         var existing = _collection
@@ -109,6 +111,10 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
         if (existing == null)
         {
             var defaultConfig = SystemConfiguration.GetDefault();
+            // 如果提供了当前时间，则使用；否则使用 DateTime.Now（兼容旧代码）
+            var now = currentTime ?? DateTime.Now;
+            defaultConfig.CreatedAt = now;
+            defaultConfig.UpdatedAt = now;
             _collection.Insert(defaultConfig);
         }
     }

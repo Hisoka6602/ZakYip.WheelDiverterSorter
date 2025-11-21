@@ -202,14 +202,20 @@ public class SystemConfiguration
     public int Version { get; set; } = 1;
 
     /// <summary>
-    /// 创建时间（UTC）
+    /// 创建时间（本地时间）
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    /// <remarks>
+    /// 由仓储在创建时通过 ISystemClock.LocalNow 设置，使用本地时间存储
+    /// </remarks>
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>
-    /// 更新时间（UTC）
+    /// 更新时间（本地时间）
     /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    /// <remarks>
+    /// 由仓储在更新时通过 ISystemClock.LocalNow 设置，使用本地时间存储
+    /// </remarks>
+    public DateTime UpdatedAt { get; set; }
 
     /// <summary>
     /// 验证配置参数的有效性
@@ -298,9 +304,8 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<int>(),
-            Version = 1,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            Version = 1
+            // CreatedAt 和 UpdatedAt 由仓储在插入时通过 ISystemClock.LocalNow 设置
         };
     }
 }

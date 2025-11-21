@@ -147,9 +147,10 @@ builder.Services.AddSingleton<IRouteConfigurationRepository>(serviceProvider =>
 // 注册系统配置仓储为单例
 builder.Services.AddSingleton<ISystemConfigurationRepository>(serviceProvider =>
 {
+    var clock = serviceProvider.GetRequiredService<ISystemClock>();
     var repository = new LiteDbSystemConfigurationRepository(fullDatabasePath);
-    // 初始化默认配置
-    repository.InitializeDefault();
+    // 初始化默认配置，使用本地时间
+    repository.InitializeDefault(clock.LocalNow);
     return repository;
 });
 
