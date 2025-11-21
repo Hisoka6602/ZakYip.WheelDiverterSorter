@@ -120,6 +120,57 @@ public class MyWorker : BackgroundService
 }
 ```
 
+### 1.5 枚举位置规范 ✅
+**所有 Core 项目的枚举必须放在 Core/Enums 目录**
+
+- [ ] ✅ **必须**将所有枚举放在 `Core/Enums` 目录下
+- [ ] ✅ **必须**按类别创建子目录（Hardware, Sensors, Communication, IoBinding, Sorting, System, Routing, Conveyor）
+- [ ] ❌ **不允许**在其他目录中定义新枚举
+- [ ] ❌ **不允许**将枚举嵌入在其他类文件中
+
+**目录结构**:
+```
+Core/Enums/
+├── Hardware/        # 硬件相关枚举
+├── Sensors/         # 传感器相关枚举
+├── Communication/   # 通讯相关枚举
+├── IoBinding/       # IO绑定相关枚举
+├── Sorting/         # 分拣相关枚举
+├── System/          # 系统相关枚举
+├── Routing/         # 路由相关枚举
+└── Conveyor/        # 输送相关枚举
+```
+
+**示例**:
+```csharp
+// ✅ 正确：在 Core/Enums/Hardware/DiverterDirection.cs
+namespace ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+
+public enum DiverterDirection
+{
+    Straight = 0,
+    Left = 1,
+    Right = 2
+}
+
+// ❌ 错误：在其他目录定义枚举
+namespace ZakYip.WheelDiverterSorter.Core.LineModel;
+
+public enum SomeEnum  // 不允许！
+{
+    // ...
+}
+
+// ❌ 错误：嵌入在类文件中
+public class MyClass
+{
+    public enum MyEnum  // 不允许！应提取到独立文件
+    {
+        // ...
+    }
+}
+```
+
 ---
 
 ## 2. 推荐性检查项（强烈建议）
