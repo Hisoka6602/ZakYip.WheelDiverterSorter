@@ -664,6 +664,17 @@ curl -X POST http://localhost:5000/api/debug/sort \
 
 ## 文档导航
 
+### 🚀 开发必读
+
+开始贡献代码前，请务必阅读以下文档：
+
+- **[编码规范 (Coding Guidelines)](docs/CODING_GUIDELINES.md)** - C# 编码标准和最佳实践
+- **[架构原则 (Architecture Principles)](docs/ARCHITECTURE_PRINCIPLES.md)** - 核心架构原则和设计约束
+- **[Copilot 约束说明 (Copilot Instructions)](.github/copilot-instructions.md)** - GitHub Copilot 必须遵守的规则
+- **[PR 模板 (Pull Request Template)](.github/PULL_REQUEST_TEMPLATE.md)** - 提交 PR 的检查清单
+
+**重要**: 违反这些规范和原则的 PR 不得合并到主分支。
+
 ### 完整文档索引
 查看 [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) 获取完整的文档分类和导航。
 
