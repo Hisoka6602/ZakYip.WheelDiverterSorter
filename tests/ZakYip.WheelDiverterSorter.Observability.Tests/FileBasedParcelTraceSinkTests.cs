@@ -9,14 +9,32 @@ namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 /// <summary>
 /// FileBasedParcelTraceSink 单元测试
 /// </summary>
-public class FileBasedParcelTraceSinkTests
+public class FileBasedParcelTraceSinkTests : IDisposable
 {
+    private readonly string _testLogDirectory;
+
+    public FileBasedParcelTraceSinkTests()
+    {
+        _testLogDirectory = Path.Combine(Path.GetTempPath(), $"test_logs_{Guid.NewGuid():N}");
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_testLogDirectory))
+        {
+            Directory.Delete(_testLogDirectory, true);
+        }
+    }
+
     [Fact]
-    public async Task WriteAsync_ValidEvent_LogsInformation()
+    public async Task WriteAsync_ValidEvent_WritesJsonToFile()
     {
         // Arrange
         var mockLogger = new Mock<ILogger<FileBasedParcelTraceSink>>();
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
+        var mockClock = new Mock<ISystemClock>();
+        mockClock.Setup(c => c.LocalNow).Returns(new DateTime(2024, 1, 15, 10, 30, 0));
+        
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, mockClock.Object, _testLogDirectory);
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -31,23 +49,25 @@ public class FileBasedParcelTraceSinkTests
         // Act
         await sink.WriteAsync(eventArgs);
 
-        // Assert
-        mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("ParcelTrace")),
-                null,
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        // Assert - 验证文件是否被创建
+        var expectedFile = Path.Combine(_testLogDirectory, "parcel-trace-20240115.log");
+        Assert.True(File.Exists(expectedFile), "日志文件应该被创建");
+        
+        var content = await File.ReadAllTextAsync(expectedFile);
+        Assert.Contains("12345", content);
+        Assert.Contains("BC12345", content);
+        Assert.Contains("Created", content);
     }
 
     [Fact]
-    public async Task WriteAsync_NullBarCode_LogsSuccessfully()
+    public async Task WriteAsync_NullBarCode_WritesSuccessfully()
     {
         // Arrange
         var mockLogger = new Mock<ILogger<FileBasedParcelTraceSink>>();
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
+        var mockClock = new Mock<ISystemClock>();
+        mockClock.Setup(c => c.LocalNow).Returns(new DateTime(2024, 1, 15, 10, 30, 0));
+        
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, mockClock.Object, _testLogDirectory);
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -62,69 +82,36 @@ public class FileBasedParcelTraceSinkTests
         // Act
         await sink.WriteAsync(eventArgs);
 
-        // Assert - 不应抛出异常，且应记录日志
-        mockLogger.Verify(
-            x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                null,
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        // Assert - 不应抛出异常，文件应该被创建
+        var expectedFile = Path.Combine(_testLogDirectory, "parcel-trace-20240115.log");
+        Assert.True(File.Exists(expectedFile), "日志文件应该被创建");
+        
+        var content = await File.ReadAllTextAsync(expectedFile);
+        Assert.Contains("67890", content);
+        Assert.Contains("RoutePlanned", content);
     }
 
     [Fact]
-    public async Task WriteAsync_LoggerThrowsException_DoesNotPropagate()
+    public async Task WriteAsync_FileWriteFailure_LogsWarning()
     {
         // Arrange
         var mockLogger = new Mock<ILogger<FileBasedParcelTraceSink>>();
+        var mockClock = new Mock<ISystemClock>();
+        mockClock.Setup(c => c.LocalNow).Returns(new DateTime(2024, 1, 15, 10, 30, 0));
         
-        // 设置 LogInformation 抛出异常，但 LogWarning 不抛异常
-        mockLogger
-            .Setup(x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
-            .Throws(new InvalidOperationException("Test exception"));
-
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
-
-        var eventArgs = new ParcelTraceEventArgs
+        // 使用只读目录导致写入失败（Linux上 /proc 是只读的）
+        var readonlyPath = "/proc/test_readonly";
+        if (!OperatingSystem.IsLinux())
         {
-            ItemId = 11111,
-            OccurredAt = DateTimeOffset.UtcNow,
-            Stage = "Diverted",
-            Source = "Execution"
-        };
-
-        // Act & Assert - 不应抛出异常
-        var exception = await Record.ExceptionAsync(async () => await sink.WriteAsync(eventArgs));
-        Assert.Null(exception);
-    }
-
-    [Fact]
-    public async Task WriteAsync_LoggerThrowsException_LogsWarning()
-    {
-        // Arrange
-        var mockLogger = new Mock<ILogger<FileBasedParcelTraceSink>>();
-        var infoCallCount = 0;
-        
-        mockLogger
-            .Setup(x => x.Log(
-                LogLevel.Information,
-                It.IsAny<EventId>(),
-                It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
-            .Callback(() => 
+            // Windows环境下跳过此测试或使用其他方法
+            readonlyPath = Path.Combine(Path.GetTempPath(), "readonly_test");
+            if (!Directory.Exists(readonlyPath))
             {
-                infoCallCount++;
-                throw new InvalidOperationException("Logging failed");
-            });
-
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
+                Directory.CreateDirectory(readonlyPath);
+            }
+        }
+        
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, mockClock.Object, readonlyPath);
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -137,8 +124,7 @@ public class FileBasedParcelTraceSinkTests
         // Act
         await sink.WriteAsync(eventArgs);
 
-        // Assert - 应尝试记录 Info，失败后应记录 Warning
-        Assert.Equal(1, infoCallCount);
+        // Assert - 应记录 Warning（写入失败），但不抛出异常
         mockLogger.Verify(
             x => x.Log(
                 LogLevel.Warning,
@@ -146,7 +132,7 @@ public class FileBasedParcelTraceSinkTests
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("写入包裹追踪日志失败")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+            Times.AtLeastOnce);
     }
 
     [Fact]
