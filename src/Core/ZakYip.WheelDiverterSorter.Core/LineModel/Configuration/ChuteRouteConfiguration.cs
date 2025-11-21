@@ -62,14 +62,20 @@ public class ChuteRouteConfiguration
     public ChuteSensorConfig? SensorConfig { get; set; }
 
     /// <summary>
-    /// 配置创建时间
+    /// 配置创建时间（本地时间）
     /// </summary>
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    /// <remarks>
+    /// 由仓储在创建时通过 ISystemClock.LocalNow 设置
+    /// </remarks>
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>
-    /// 配置最后更新时间
+    /// 配置最后更新时间（本地时间）
     /// </summary>
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    /// <remarks>
+    /// 由仓储在更新时通过 ISystemClock.LocalNow 设置
+    /// </remarks>
+    public DateTime UpdatedAt { get; set; }
 
     /// <summary>
     /// 是否启用此配置

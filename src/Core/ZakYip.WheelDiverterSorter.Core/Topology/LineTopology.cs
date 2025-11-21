@@ -56,12 +56,12 @@ public record class LineTopology
     /// <summary>
     /// 创建时间
     /// </summary>
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; init; }
 
     /// <summary>
     /// 最后更新时间
     /// </summary>
-    public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; init; }
 
     /// <summary>
     /// 获取异常格口

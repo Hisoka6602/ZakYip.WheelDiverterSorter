@@ -20,8 +20,9 @@ public interface ISystemConfigurationRepository
     /// <summary>
     /// 初始化默认配置
     /// </summary>
+    /// <param name="currentTime">当前本地时间（可选，用于设置 CreatedAt 和 UpdatedAt）</param>
     /// <remarks>
     /// 如果数据库中没有配置，则插入默认配置
     /// </remarks>
-    void InitializeDefault();
+    void InitializeDefault(DateTime? currentTime = null);
 }

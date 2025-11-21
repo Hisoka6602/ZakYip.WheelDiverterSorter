@@ -51,12 +51,12 @@ public record class IoBindingProfile
     /// <summary>
     /// 创建时间
     /// </summary>
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; init; }
 
     /// <summary>
     /// 最后更新时间
     /// </summary>
-    public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; init; }
 
     /// <summary>
     /// 根据逻辑名称查找传感器绑定
