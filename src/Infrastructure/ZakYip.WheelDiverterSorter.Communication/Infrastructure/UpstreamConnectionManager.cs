@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -17,13 +17,13 @@ namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDisposable
 {
     private const int HardMaxBackoffMs = 2000; // 硬编码上限 2 秒 / Hard-coded max 2 seconds
-    
+
     private readonly ILogger<UpstreamConnectionManager> _logger;
     private readonly ISystemClock _systemClock;
     private readonly ILogDeduplicator _logDeduplicator;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly IRuleEngineClient _client;
-    
+
     private RuleEngineConnectionOptions _currentOptions;
     private Task? _connectionTask;
     private CancellationTokenSource? _cts;
@@ -51,22 +51,23 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
 
-    public async Task StartAsync(CancellationToken cancellationToken = default)
+    public Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_currentOptions.ConnectionMode != ConnectionMode.Client)
         {
             _logger.LogInformation(
                 "[{LocalTime}] Server mode detected, connection manager will not start reconnection loop",
                 _systemClock.LocalNow);
-            return;
+            return Task.CompletedTask;
         }
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _connectionTask = Task.Run(() => ConnectionLoopAsync(_cts.Token), _cts.Token);
-        
+
         _logger.LogInformation(
             "[{LocalTime}] Upstream connection manager started in client mode",
             _systemClock.LocalNow);
+        return Task.CompletedTask;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -74,7 +75,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         if (_cts != null)
         {
             _cts.Cancel();
-            
+
             if (_connectionTask != null)
             {
                 try
@@ -110,7 +111,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                 options.Mode,
                 options.ConnectionMode,
                 GetServerAddress(options));
-            
+
             // 如果当前在运行，触发重新连接
             // If currently running, trigger reconnection
             if (_connectionTask != null && !_connectionTask.IsCompleted)
@@ -131,7 +132,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
     private async Task ConnectionLoopAsync(CancellationToken cancellationToken)
     {
         var currentBackoffMs = _currentOptions.InitialBackoffMs;
-        
+
         while (!cancellationToken.IsCancellationRequested)
         {
             await _safeExecutor.ExecuteAsync(async () =>
@@ -155,16 +156,16 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                     // 尝试连接
                     // Attempt to connect
                     await ConnectAsync(options, cancellationToken).ConfigureAwait(false);
-                    
+
                     if (!_isConnected)
                     {
                         SetConnectionState(true, null);
                     }
-                    
+
                     // 连接成功，重置退避时间
                     // Connection successful, reset backoff
                     currentBackoffMs = options.InitialBackoffMs;
-                    
+
                     // 保持连接，直到断开或取消
                     // Maintain connection until disconnected or cancelled
                     while (!cancellationToken.IsCancellationRequested && _isConnected)
@@ -191,7 +192,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                             currentBackoffMs);
                         _logDeduplicator.RecordLog(LogLevel.Warning, logKey, ex.GetType().Name);
                     }
-                    
+
                     if (_isConnected)
                     {
                         SetConnectionState(false, ex.Message);
@@ -200,7 +201,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                     // 应用退避策略
                     // Apply backoff strategy
                     await Task.Delay(currentBackoffMs, cancellationToken).ConfigureAwait(false);
-                    
+
                     // 指数增长，但限制在硬编码的最大值
                     // Exponential growth, but cap at hard-coded max
                     currentBackoffMs = Math.Min(currentBackoffMs * 2, Math.Min(options.MaxBackoffMs, HardMaxBackoffMs));
@@ -225,17 +226,17 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         // This should call actual connection logic
         // 为了简化，这里假设 IRuleEngineClient 有连接方法
         // For simplicity, assume IRuleEngineClient has connect method
-        
+
         // 注意：实际的连接逻辑应该在 IRuleEngineClient 的具体实现中
         // Note: Actual connection logic should be in concrete implementation of IRuleEngineClient
-        
+
         await Task.CompletedTask; // Placeholder
     }
 
     private void SetConnectionState(bool isConnected, string? errorMessage)
     {
         _isConnected = isConnected;
-        
+
         ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs
         {
             IsConnected = isConnected,
