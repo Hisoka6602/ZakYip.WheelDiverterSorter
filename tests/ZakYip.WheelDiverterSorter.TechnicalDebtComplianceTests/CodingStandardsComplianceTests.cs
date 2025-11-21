@@ -18,6 +18,16 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class CodingStandardsComplianceTests
 {
+    private static string GetSolutionRoot()
+    {
+        var currentDir = Directory.GetCurrentDirectory();
+        while (currentDir != null && !File.Exists(Path.Combine(currentDir, "ZakYip.WheelDiverterSorter.sln")))
+        {
+            currentDir = Directory.GetParent(currentDir)?.FullName;
+        }
+        return currentDir ?? Directory.GetCurrentDirectory();
+    }
+
     [Fact]
     public void AllProjectsShouldEnableNullableReferenceTypes()
     {
@@ -395,7 +405,9 @@ public class CodingStandardsComplianceTests
             foreach (var violation in violations)
             {
                 var fileName = Path.GetFileName(violation);
-                var relativePath = violation.Replace(Path.GetDirectoryName(Path.GetDirectoryName(violation)) ?? "", "...");
+                // More robust relative path calculation
+                var solutionRoot = GetSolutionRoot();
+                var relativePath = Path.GetRelativePath(solutionRoot, violation);
                 report.AppendLine($"  ❌ {fileName}");
                 report.AppendLine($"     {relativePath}");
             }
@@ -435,8 +447,8 @@ public class CodingStandardsComplianceTests
                 if (line.StartsWith("//") || line.StartsWith("*") || line.StartsWith("///"))
                     continue;
                     
-                // 检测枚举定义
-                if (Regex.IsMatch(line, @"\benum\s+\w+"))
+                // 检测枚举定义 (improved: check if not inside string literal)
+                if (Regex.IsMatch(line, @"\benum\s+\w+") && !line.Contains("\"enum"))
                 {
                     enumMatches.Add(i + 1);
                 }
@@ -444,8 +456,11 @@ public class CodingStandardsComplianceTests
             
             if (enumMatches.Any())
             {
-                var normalizedPath = file.Replace("\\", "/");
-                var isInCorrectLocation = normalizedPath.Contains("src/Core/ZakYip.WheelDiverterSorter.Core/Enums/");
+                // More robust path validation
+                var fileDir = Path.GetDirectoryName(file) ?? "";
+                var normalizedDir = fileDir.Replace("\\", "/");
+                var expectedDir = "src/Core/ZakYip.WheelDiverterSorter.Core/Enums";
+                var isInCorrectLocation = normalizedDir.EndsWith(expectedDir);
                 
                 // 检查是否在正确的目录
                 if (!isInCorrectLocation)
