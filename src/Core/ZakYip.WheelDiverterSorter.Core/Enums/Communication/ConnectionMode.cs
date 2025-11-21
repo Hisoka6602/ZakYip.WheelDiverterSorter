@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 /// <summary>
 /// 连接模式（客户端或服务端）

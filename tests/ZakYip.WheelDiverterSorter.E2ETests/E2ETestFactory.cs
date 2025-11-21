@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Core.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

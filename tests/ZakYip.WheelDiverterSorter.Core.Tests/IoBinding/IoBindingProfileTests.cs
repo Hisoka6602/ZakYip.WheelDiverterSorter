@@ -1,5 +1,7 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
+using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests.IoBinding;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 /// <summary>
 /// 分拣模式枚举

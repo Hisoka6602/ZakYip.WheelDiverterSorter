@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 /// <summary>
 /// 告警严重程度 / Alert Severity Level

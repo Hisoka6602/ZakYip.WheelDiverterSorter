@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios;

@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 /// <summary>
 /// 系统运行状态枚举。

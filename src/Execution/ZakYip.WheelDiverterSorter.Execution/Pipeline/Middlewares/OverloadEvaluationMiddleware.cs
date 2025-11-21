@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
-using CongestionLevel = ZakYip.WheelDiverterSorter.Core.Sorting.Runtime.CongestionLevel;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 

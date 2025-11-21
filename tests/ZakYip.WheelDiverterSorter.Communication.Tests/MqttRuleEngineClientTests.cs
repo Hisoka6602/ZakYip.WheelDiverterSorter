@@ -3,9 +3,25 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
+using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;namespace ZakYip.WheelDiverterSorter.Communication.Tests;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
+using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 /// <summary>
 /// MQTT客户端测试：发布、订阅、QoS级别

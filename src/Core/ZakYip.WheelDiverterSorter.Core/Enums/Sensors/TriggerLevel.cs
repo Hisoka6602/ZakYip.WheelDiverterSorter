@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
 
 /// <summary>
 /// IO 触发电平配置。
