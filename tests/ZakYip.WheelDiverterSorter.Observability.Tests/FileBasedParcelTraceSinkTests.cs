@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -15,7 +16,7 @@ public class FileBasedParcelTraceSinkTests
     {
         // Arrange
         var mockLogger = new Mock<ILogger<FileBasedParcelTraceSink>>();
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object);
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -46,7 +47,7 @@ public class FileBasedParcelTraceSinkTests
     {
         // Arrange
         var mockLogger = new Mock<ILogger<FileBasedParcelTraceSink>>();
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object);
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -88,7 +89,7 @@ public class FileBasedParcelTraceSinkTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
             .Throws(new InvalidOperationException("Test exception"));
 
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object);
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -123,7 +124,7 @@ public class FileBasedParcelTraceSinkTests
                 throw new InvalidOperationException("Logging failed");
             });
 
-        var sink = new FileBasedParcelTraceSink(mockLogger.Object);
+        var sink = new FileBasedParcelTraceSink(mockLogger.Object, Mock.Of<ISystemClock>());
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -152,6 +153,6 @@ public class FileBasedParcelTraceSinkTests
     public void Constructor_NullLogger_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new FileBasedParcelTraceSink(null!));
+        Assert.Throws<ArgumentNullException>(() => new FileBasedParcelTraceSink(null!, Mock.Of<ISystemClock>()));
     }
 }

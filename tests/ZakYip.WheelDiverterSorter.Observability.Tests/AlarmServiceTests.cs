@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -9,11 +10,14 @@ public class AlarmServiceTests
 {
     private readonly AlarmService _alarmService;
     private readonly Mock<ILogger<AlarmService>> _mockLogger;
+    private readonly Mock<ISystemClock> _mockClock;
 
     public AlarmServiceTests()
     {
         _mockLogger = new Mock<ILogger<AlarmService>>();
-        _alarmService = new AlarmService(_mockLogger.Object);
+        _mockClock = new Mock<ISystemClock>();
+        _mockClock.Setup(c => c.LocalNow).Returns(DateTime.Now);
+        _alarmService = new AlarmService(_mockLogger.Object, _mockClock.Object);
     }
 
     [Fact]
