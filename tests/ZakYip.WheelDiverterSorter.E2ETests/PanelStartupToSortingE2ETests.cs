@@ -14,6 +14,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -64,6 +65,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     }
 
     [Fact]
+    [SimulationScenario("Panel_Startup_SingleParcel_Normal")]
     public async Task Scenario1_SingleParcelNormalSorting_FullE2EWorkflow()
     {
         // ===== 场景1：单包裹正常分拣 =====

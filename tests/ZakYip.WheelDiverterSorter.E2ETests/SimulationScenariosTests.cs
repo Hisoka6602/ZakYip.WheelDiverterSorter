@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability;
@@ -237,6 +238,7 @@ public class SimulationScenariosTests : IDisposable
     #region 场景 A 测试
 
     [Fact]
+    [SimulationScenario("ScenarioA_Formal_Baseline")]
     public async Task ScenarioA_Formal_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -256,6 +258,7 @@ public class SimulationScenariosTests : IDisposable
     }
 
     [Fact]
+    [SimulationScenario("ScenarioA_FixedChute")]
     public async Task ScenarioA_FixedChute_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -271,6 +274,7 @@ public class SimulationScenariosTests : IDisposable
     }
 
     [Fact]
+    [SimulationScenario("ScenarioA_RoundRobin")]
     public async Task ScenarioA_RoundRobin_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -290,6 +294,7 @@ public class SimulationScenariosTests : IDisposable
     #region 场景 B 测试
 
     [Fact]
+    [SimulationScenario("ScenarioB_HighFriction_Formal")]
     public async Task ScenarioB_HighFriction_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -312,6 +317,7 @@ public class SimulationScenariosTests : IDisposable
     #region 场景 C 测试
 
     [Fact]
+    [SimulationScenario("ScenarioC_MediumFrictionWithDropout_Formal")]
     public async Task ScenarioC_MediumFrictionWithDropout_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -342,6 +348,7 @@ public class SimulationScenariosTests : IDisposable
     #region 场景 D 测试
 
     [Fact]
+    [SimulationScenario("ScenarioD_ExtremePressure_Formal")]
     public async Task ScenarioD_ExtremePressure_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -365,6 +372,7 @@ public class SimulationScenariosTests : IDisposable
     #region 场景 E 测试
 
     [Fact]
+    [SimulationScenario("ScenarioE_HighFrictionWithDropout_Formal")]
     public async Task ScenarioE_HighFrictionWithDropout_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -384,6 +392,7 @@ public class SimulationScenariosTests : IDisposable
     }
 
     [Fact]
+    [SimulationScenario("ScenarioE_HighFrictionWithDropout_FixedChute")]
     public async Task ScenarioE_HighFrictionWithDropout_FixedChute_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -399,6 +408,7 @@ public class SimulationScenariosTests : IDisposable
     }
 
     [Fact]
+    [SimulationScenario("ScenarioE_HighFrictionWithDropout_RoundRobin")]
     public async Task ScenarioE_HighFrictionWithDropout_RoundRobin_ShouldHaveNoMissorts()
     {
         // Arrange
