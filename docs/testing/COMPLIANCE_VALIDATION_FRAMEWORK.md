@@ -90,12 +90,64 @@ This document describes the design, implementation, and usage of the Technical D
 
 **当前状态**: ✅ 文档与实际状态一致
 
+### 6. 无意义文件名检测 (Meaningless Filename Detection) **[硬性要求]**
+
+**规则**: 项目中不能存在类似 Class1.cs 这样没有意义的文件名
+
+**测试**:
+- `ShouldNotHaveMeaninglessFileNames` - 强制检测无意义文件名
+
+**检测模式**:
+- `Class\d+\.cs` - Class1.cs, Class2.cs 等
+- `Test\d+\.cs` - Test1.cs, Test2.cs 等
+- `File\d+\.cs` - File1.cs, File2.cs 等
+- `NewFile\d*\.cs` - NewFile.cs, NewFile1.cs 等
+- `Untitled\d*\.cs` - Untitled.cs, Untitled1.cs 等
+- `Temp\d*\.cs` - Temp.cs, Temp1.cs 等
+
+**当前状态**: ✅ 0 个违规
+- 测试通过
+- 项目中没有无意义的文件名
+
+**重要性**: 这是硬性要求，任何无意义文件名都会导致测试失败
+
+### 7. 枚举位置规范 (Enum Location Compliance) **[硬性要求]**
+
+**规则**: 
+1. 所有枚举必须放在 `src/Core/ZakYip.WheelDiverterSorter.Core/Enums/` 目录下
+2. 每个文件只能包含一个枚举定义
+3. 文件名应与枚举名称一致
+
+**测试**:
+- `AllEnumsShouldBeInCoreEnumsDirectory` - 强制检测枚举位置
+
+**当前状态**: ⚠️ 41 个枚举不在正确位置
+- 违规包括:
+  - Observability 层: ParcelFinalStatus, AlarmLevel, AlarmType (3 个)
+  - Communication 层: EmcLockNotificationType (1 个)
+  - Core 其他目录: SensorBinding, ActuatorBinding, IoPointDescriptor, VendorId (4 个)
+  - Core/LineModel/Enums: DriverVendorType, ConnectionMode, SensorType 等 (已在 Core 但不在 Enums 目录)
+  - Simulation 层: ParcelSimulationStatus, DenseParcelStrategy 等 (4 个)
+  - Host 层: SystemState, BootstrapStage (2 个)
+  - Drivers 层: S7Options (1 个)
+- 测试失败（预期行为 - 需要移动枚举）
+
+**重要性**: 这是硬性要求，整合在代码审查中
+
+**修复步骤**:
+1. 创建 `src/Core/ZakYip.WheelDiverterSorter.Core/Enums/` 目录（如果不存在）
+2. 将所有枚举文件移动到该目录
+3. 更新所有引用这些枚举的 using 语句
+4. 确保每个文件只包含一个枚举
+5. 测试将自动通过
+
 ## 测试行为验证 (Test Behavior Verification)
 
 ### 场景 1: 存在技术债务（当前基线）
 
 **预期行为**: 
 - DateTime 违规测试失败，显示清晰错误消息
+- 枚举位置测试失败，显示需要移动的枚举列表
 - 错误消息包含文件路径、行号、代码片段
 - 提供修复建议
 
@@ -106,9 +158,16 @@ Failed: ShouldNotUseDirectDateTimeNowInSourceCode
 📄 src/Host/ZakYip.WheelDiverterSorter.Host/Services/ParcelSortingOrchestrator.cs
    Line 176: DateTimeOffset.UtcNow (Error)
    _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = DateTimeOffset.UtcNow;
+
+Failed: AllEnumsShouldBeInCoreEnumsDirectory
+发现枚举定义不符合规范:
+⚠️ 41 个枚举不在正确的目录 (src/Core/ZakYip.WheelDiverterSorter.Core/Enums/)
+  ❌ ParcelFinalStatus.cs
+  ❌ AlarmLevel.cs
+  ...
 💡 修复建议:
 1. 将 DateTime.Now → ISystemClock.LocalNow
-2. 将 DateTime.UtcNow → ISystemClock.LocalNow
+2. 将所有枚举移动到 Core/Enums 目录
 ...
 ```
 
@@ -116,7 +175,7 @@ Failed: ShouldNotUseDirectDateTimeNowInSourceCode
 
 **预期行为**: 
 - 所有测试通过
-- 14/14 tests passing
+- 16/16 tests passing
 
 **验证方式**: 
 - 白名单文件（LocalSystemClock.cs）正确被忽略 ✅
@@ -185,6 +244,12 @@ dotnet test --filter "FullyQualifiedName~SafeExecutionCoverageTests"
 
 # 线程安全集合
 dotnet test --filter "FullyQualifiedName~ThreadSafeCollectionTests"
+
+# 无意义文件名检测
+dotnet test --filter "FullyQualifiedName~ShouldNotHaveMeaninglessFileNames"
+
+# 枚举位置规范
+dotnet test --filter "FullyQualifiedName~AllEnumsShouldBeInCoreEnumsDirectory"
 ```
 
 **查看详细报告**:
@@ -380,13 +445,15 @@ private readonly List<string> _items = new();
 | DateTime 违规 | 155 | 0 |
 | SafeExecution 覆盖率 | 100% | 100% |
 | 线程安全集合问题 | 11 | 0 |
-| 测试通过率 | 85.7% (12/14) | 100% (14/14) |
+| **无意义文件名** | **0** ✅ | **0** |
+| **枚举位置违规** | **41** ⚠️ | **0** |
+| 测试通过率 | 81.3% (13/16) | 100% (16/16) |
 | 编译警告 | 0 | 0 |
 | 编译错误 | 0 | 0 |
 
 ### 修复后期望 (Expected After Remediation)
 
-所有 14 个测试全部通过，代码库完全符合技术规范。
+所有 16 个测试全部通过，代码库完全符合技术规范（包括新增的硬性要求）。
 
 ## 维护指南 (Maintenance Guide)
 

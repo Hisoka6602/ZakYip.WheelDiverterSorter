@@ -61,6 +61,47 @@ This test project implements an automated technical debt detection and guardrail
 
 **测试类**: `DocumentationConsistencyTests`
 
+### 5. 无意义文件名检测 (Meaningless Filename Detection) **[硬性要求]**
+
+**目的**: 防止项目中存在类似 Class1.cs 这样没有意义的文件名
+
+**检测内容**:
+- ❌ 禁止 `Class\d+\.cs` 格式（如 Class1.cs, Class2.cs）
+- ❌ 禁止 `Test\d+\.cs` 格式（如 Test1.cs, Test2.cs）
+- ❌ 禁止 `File\d+\.cs` 格式（如 File1.cs, File2.cs）
+- ❌ 禁止 `NewFile\d*\.cs` 格式（如 NewFile.cs, NewFile1.cs）
+- ❌ 禁止 `Untitled\d*\.cs` 格式（如 Untitled.cs）
+- ❌ 禁止 `Temp\d*\.cs` 格式（如 Temp.cs, Temp1.cs）
+
+**当前状态**: ✅ **0 个违规** - 项目中没有无意义文件名
+
+**测试类**: `CodingStandardsComplianceTests.ShouldNotHaveMeaninglessFileNames`
+
+**重要性**: 这是硬性要求，任何违规都会导致测试失败并阻止 PR 合并
+
+### 6. 枚举位置规范 (Enum Location Compliance) **[硬性要求]**
+
+**目的**: 确保所有枚举集中管理，便于维护
+
+**检测内容**:
+- ✅ 所有枚举必须在 `src/Core/ZakYip.WheelDiverterSorter.Core/Enums/` 目录
+- ✅ 每个文件只包含一个枚举定义
+- ✅ 文件名与枚举名称一致
+
+**当前状态**: ⚠️ **41 个枚举** 不在正确位置，需要移动
+
+**违规示例**:
+- `Observability` 层: ParcelFinalStatus, AlarmLevel, AlarmType
+- `Communication` 层: EmcLockNotificationType
+- `Core` 其他目录: SensorBinding, ActuatorBinding, IoPointDescriptor
+- `Simulation` 层: ParcelSimulationStatus, DenseParcelStrategy
+- `Host` 层: SystemState, BootstrapStage
+- 等等...
+
+**测试类**: `CodingStandardsComplianceTests.AllEnumsShouldBeInCoreEnumsDirectory`
+
+**重要性**: 这是硬性要求，整合在代码审查中
+
 ## 如何使用 (How to Use)
 
 ### 本地开发 (Local Development)
