@@ -353,6 +353,96 @@ public class CodingStandardsComplianceTests
 
         Assert.True(true, "Coding standards compliance documented");
     }
+
+    [Fact]
+    public void AllEnumsShouldBeInCoreEnumsDirectory()
+    {
+        var violations = new List<string>();
+        var multipleEnumsInFile = new List<string>();
+        var sourceFiles = Utilities.CodeScanner.GetAllSourceFiles("src");
+        
+        // 期望的枚举目录路径
+        var expectedEnumPath = Path.Combine("src", "Core", "ZakYip.WheelDiverterSorter.Core", "Enums");
+        
+        foreach (var file in sourceFiles)
+        {
+            var content = File.ReadAllText(file);
+            var lines = File.ReadAllLines(file);
+            
+            // 查找枚举定义（排除注释）
+            var enumMatches = new List<int>();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                // 跳过注释行
+                if (line.StartsWith("//") || line.StartsWith("*") || line.StartsWith("///"))
+                    continue;
+                    
+                // 检测枚举定义
+                if (Regex.IsMatch(line, @"\benum\s+\w+"))
+                {
+                    enumMatches.Add(i + 1);
+                }
+            }
+            
+            if (enumMatches.Any())
+            {
+                var normalizedPath = file.Replace("\\", "/");
+                var isInCorrectLocation = normalizedPath.Contains("src/Core/ZakYip.WheelDiverterSorter.Core/Enums/");
+                
+                // 检查是否在正确的目录
+                if (!isInCorrectLocation)
+                {
+                    violations.Add($"{Path.GetFileName(file)} - {file}");
+                }
+                
+                // 检查是否一个文件包含多个枚举
+                if (enumMatches.Count > 1)
+                {
+                    multipleEnumsInFile.Add($"{Path.GetFileName(file)} - 包含 {enumMatches.Count} 个枚举");
+                }
+            }
+        }
+
+        if (violations.Any() || multipleEnumsInFile.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine("\n❌ 发现枚举定义不符合规范:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            if (violations.Any())
+            {
+                report.AppendLine($"\n⚠️ {violations.Count} 个枚举不在正确的目录 (src/Core/ZakYip.WheelDiverterSorter.Core/Enums/):");
+                foreach (var violation in violations.Take(20))
+                {
+                    report.AppendLine($"  ❌ {violation}");
+                }
+                if (violations.Count > 20)
+                {
+                    report.AppendLine($"  ... 还有 {violations.Count - 20} 个枚举");
+                }
+            }
+            
+            if (multipleEnumsInFile.Any())
+            {
+                report.AppendLine($"\n⚠️ {multipleEnumsInFile.Count} 个文件包含多个枚举（应该一个文件一个枚举）:");
+                foreach (var violation in multipleEnumsInFile)
+                {
+                    report.AppendLine($"  ❌ {violation}");
+                }
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 在 src/Core/ZakYip.WheelDiverterSorter.Core/ 下创建 Enums 目录（如果不存在）");
+            report.AppendLine("  2. 将所有枚举文件移动到 Enums 目录下");
+            report.AppendLine("  3. 确保每个文件只包含一个枚举定义");
+            report.AppendLine("  4. 文件名应与枚举名称一致（例如: SensorType.cs 包含 SensorType 枚举）");
+            report.AppendLine($"\n期望位置: {expectedEnumPath}");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
 }
 
 /// <summary>
