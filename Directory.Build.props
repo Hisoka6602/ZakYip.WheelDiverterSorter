@@ -15,4 +15,15 @@
       xUnit1031
     </NoWarn>
   </PropertyGroup>
+
+  <!-- 集成 Meziantou.Analyzer 和自定义分析器 -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' != 'ZakYip.WheelDiverterSorter.Analyzers'">
+    <!-- Meziantou.Analyzer - 成熟的 C# 最佳实践分析器 -->
+    <PackageReference Include="Meziantou.Analyzer" Version="2.0.163" PrivateAssets="all" />
+    
+    <!-- 自定义 ZakYip 分析器 -->
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src\Analyzers\ZakYip.WheelDiverterSorter.Analyzers\ZakYip.WheelDiverterSorter.Analyzers.csproj" 
+                      OutputItemType="Analyzer" 
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
 </Project>
