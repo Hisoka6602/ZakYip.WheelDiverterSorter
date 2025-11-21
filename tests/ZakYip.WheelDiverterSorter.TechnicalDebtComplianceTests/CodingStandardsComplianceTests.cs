@@ -18,6 +18,16 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class CodingStandardsComplianceTests
 {
+    private static string GetSolutionRoot()
+    {
+        var currentDir = Directory.GetCurrentDirectory();
+        while (currentDir != null && !File.Exists(Path.Combine(currentDir, "ZakYip.WheelDiverterSorter.sln")))
+        {
+            currentDir = Directory.GetParent(currentDir)?.FullName;
+        }
+        return currentDir ?? Directory.GetCurrentDirectory();
+    }
+
     [Fact]
     public void AllProjectsShouldEnableNullableReferenceTypes()
     {
@@ -352,6 +362,158 @@ public class CodingStandardsComplianceTests
         Console.WriteLine($"\n📄 详细报告已保存到: {reportPath}");
 
         Assert.True(true, "Coding standards compliance documented");
+    }
+
+    [Fact]
+    public void ShouldNotHaveMeaninglessFileNames()
+    {
+        var violations = new List<string>();
+        var sourceFiles = Utilities.CodeScanner.GetAllSourceFiles("src");
+        
+        // 常见的无意义文件名模式
+        var meaninglessPatterns = new[]
+        {
+            @"^Class\d+\.cs$",        // Class1.cs, Class2.cs, etc.
+            @"^Test\d+\.cs$",         // Test1.cs, Test2.cs, etc.
+            @"^File\d+\.cs$",         // File1.cs, File2.cs, etc.
+            @"^NewFile\d*\.cs$",      // NewFile.cs, NewFile1.cs, etc.
+            @"^Untitled\d*\.cs$",     // Untitled.cs, Untitled1.cs, etc.
+            @"^Temp\d*\.cs$",         // Temp.cs, Temp1.cs, etc.
+            @"^temp\d*\.cs$",         // temp.cs, temp1.cs, etc.
+        };
+
+        foreach (var file in sourceFiles)
+        {
+            var fileName = Path.GetFileName(file);
+            
+            foreach (var pattern in meaninglessPatterns)
+            {
+                if (Regex.IsMatch(fileName, pattern))
+                {
+                    violations.Add(file);
+                    break;
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n❌ 发现 {violations.Count} 个无意义的文件名:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var violation in violations)
+            {
+                var fileName = Path.GetFileName(violation);
+                // More robust relative path calculation
+                var solutionRoot = GetSolutionRoot();
+                var relativePath = Path.GetRelativePath(solutionRoot, violation);
+                report.AppendLine($"  ❌ {fileName}");
+                report.AppendLine($"     {relativePath}");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 将文件重命名为有意义的名称，反映其用途或包含的类型");
+            report.AppendLine("  2. 例如: Class1.cs → UserService.cs");
+            report.AppendLine("  3. 例如: Temp.cs → TemporaryDataHolder.cs");
+            report.AppendLine("  4. 如果文件不再需要，删除它");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    [Fact]
+    public void AllEnumsShouldBeInCoreEnumsDirectory()
+    {
+        var violations = new List<string>();
+        var multipleEnumsInFile = new List<string>();
+        var sourceFiles = Utilities.CodeScanner.GetAllSourceFiles("src");
+        
+        // 期望的枚举目录路径
+        var expectedEnumPath = Path.Combine("src", "Core", "ZakYip.WheelDiverterSorter.Core", "Enums");
+        
+        foreach (var file in sourceFiles)
+        {
+            var content = File.ReadAllText(file);
+            var lines = File.ReadAllLines(file);
+            
+            // 查找枚举定义（排除注释）
+            var enumMatches = new List<int>();
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                // 跳过注释行
+                if (line.StartsWith("//") || line.StartsWith("*") || line.StartsWith("///"))
+                    continue;
+                    
+                // 检测枚举定义 (improved: check if not inside string literal)
+                if (Regex.IsMatch(line, @"\benum\s+\w+") && !line.Contains("\"enum"))
+                {
+                    enumMatches.Add(i + 1);
+                }
+            }
+            
+            if (enumMatches.Any())
+            {
+                // More robust path validation
+                var fileDir = Path.GetDirectoryName(file) ?? "";
+                var normalizedDir = fileDir.Replace("\\", "/");
+                var expectedDir = "src/Core/ZakYip.WheelDiverterSorter.Core/Enums";
+                var isInCorrectLocation = normalizedDir.EndsWith(expectedDir);
+                
+                // 检查是否在正确的目录
+                if (!isInCorrectLocation)
+                {
+                    violations.Add($"{Path.GetFileName(file)} - {file}");
+                }
+                
+                // 检查是否一个文件包含多个枚举
+                if (enumMatches.Count > 1)
+                {
+                    multipleEnumsInFile.Add($"{Path.GetFileName(file)} - 包含 {enumMatches.Count} 个枚举");
+                }
+            }
+        }
+
+        if (violations.Any() || multipleEnumsInFile.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine("\n❌ 发现枚举定义不符合规范:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            if (violations.Any())
+            {
+                report.AppendLine($"\n⚠️ {violations.Count} 个枚举不在正确的目录 (src/Core/ZakYip.WheelDiverterSorter.Core/Enums/):");
+                foreach (var violation in violations.Take(20))
+                {
+                    report.AppendLine($"  ❌ {violation}");
+                }
+                if (violations.Count > 20)
+                {
+                    report.AppendLine($"  ... 还有 {violations.Count - 20} 个枚举");
+                }
+            }
+            
+            if (multipleEnumsInFile.Any())
+            {
+                report.AppendLine($"\n⚠️ {multipleEnumsInFile.Count} 个文件包含多个枚举（应该一个文件一个枚举）:");
+                foreach (var violation in multipleEnumsInFile)
+                {
+                    report.AppendLine($"  ❌ {violation}");
+                }
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 在 src/Core/ZakYip.WheelDiverterSorter.Core/ 下创建 Enums 目录（如果不存在）");
+            report.AppendLine("  2. 将所有枚举文件移动到 Enums 目录下");
+            report.AppendLine("  3. 确保每个文件只包含一个枚举定义");
+            report.AppendLine("  4. 文件名应与枚举名称一致（例如: SensorType.cs 包含 SensorType 枚举）");
+            report.AppendLine($"\n期望位置: {expectedEnumPath}");
+            
+            Assert.Fail(report.ToString());
+        }
     }
 }
 
