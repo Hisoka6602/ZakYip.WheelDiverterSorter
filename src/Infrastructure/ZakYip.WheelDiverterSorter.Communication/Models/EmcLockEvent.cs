@@ -26,9 +26,9 @@ public class EmcLockEvent
     public ushort CardNo { get; set; }
     
     /// <summary>
-    /// 时间戳
+    /// 时间戳（本地时间，由创建者通过ISystemClock设置）
     /// </summary>
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; set; }
     
     /// <summary>
     /// 额外消息
