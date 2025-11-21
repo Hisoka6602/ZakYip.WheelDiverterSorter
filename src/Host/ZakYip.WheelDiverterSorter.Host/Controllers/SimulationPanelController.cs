@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -16,13 +17,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class SimulationPanelController : ControllerBase
 {
     private readonly ISystemStateManager _stateManager;
+    private readonly ISystemClock _clock;
     private readonly ILogger<SimulationPanelController> _logger;
 
     public SimulationPanelController(
         ISystemStateManager stateManager,
+        ISystemClock clock,
         ILogger<SimulationPanelController> logger)
     {
         _stateManager = stateManager;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -239,7 +243,7 @@ public class SimulationPanelController : ControllerBase
                 currentState = currentState.ToString(),
                 stateValue = (int)currentState,
                 canCreateParcel = canCreateParcel,
-                timestamp = DateTime.UtcNow
+                timestamp = _clock.LocalNow
             });
         }
         catch (Exception ex)

@@ -36,8 +36,9 @@ public class StrategyExperimentDemo
         // 创建策略工厂
         var strategyFactory = new DefaultStrategyFactory(factoryLogger);
 
-        // 创建实验运行器
-        var experimentRunner = new StrategyExperimentRunner(strategyFactory, runnerLogger);
+        // 创建时钟和实验运行器
+        var clock = new ZakYip.WheelDiverterSorter.Observability.Utilities.LocalSystemClock();
+        var experimentRunner = new StrategyExperimentRunner(strategyFactory, runnerLogger, clock);
 
         // 定义实验配置
         var config = CreateDemoExperimentConfig();

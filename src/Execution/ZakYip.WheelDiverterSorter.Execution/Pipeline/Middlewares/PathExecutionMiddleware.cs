@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
@@ -49,7 +50,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
         {
             _logger?.LogError("包裹 {ParcelId} 没有规划路径，无法执行", context.ParcelId);
             context.IsSuccess = false;
-            _completionDelegate?.Invoke(context.ParcelId, DateTime.UtcNow, false);
+            _completionDelegate?.Invoke(context.ParcelId, _clock.LocalNow, false);
             return;
         }
 
@@ -102,7 +103,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                     });
                 }
 
-                _completionDelegate?.Invoke(context.ParcelId, DateTime.UtcNow, true);
+                _completionDelegate?.Invoke(context.ParcelId, _clock.LocalNow, true);
             }
             else
             {
@@ -124,7 +125,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                     Details = $"ChuteId={executionResult.ActualChuteId}, Reason={executionResult.FailureReason}"
                 });
 
-                _completionDelegate?.Invoke(context.ParcelId, DateTime.UtcNow, false);
+                _completionDelegate?.Invoke(context.ParcelId, _clock.LocalNow, false);
 
                 // 处理路径执行失败
                 if (_pathFailureHandler != null)
@@ -146,7 +147,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
         {
             _logger?.LogError(ex, "包裹 {ParcelId} 执行路径时发生异常", context.ParcelId);
             context.IsSuccess = false;
-            _completionDelegate?.Invoke(context.ParcelId, DateTime.UtcNow, false);
+            _completionDelegate?.Invoke(context.ParcelId, _clock.LocalNow, false);
 
             // 记录异常
             await WriteTraceAsync(new ParcelTraceEventArgs

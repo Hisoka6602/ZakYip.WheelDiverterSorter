@@ -3,6 +3,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -19,15 +20,18 @@ public class ConfigurationController : ControllerBase
 {
     private readonly ILineTopologyConfigProvider _topologyProvider;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemClock _clock;
     private readonly ILogger<ConfigurationController> _logger;
 
     public ConfigurationController(
         ILineTopologyConfigProvider topologyProvider,
         ISystemConfigurationRepository systemConfigRepository,
+        ISystemClock clock,
         ILogger<ConfigurationController> logger)
     {
         _topologyProvider = topologyProvider;
         _systemConfigRepository = systemConfigRepository;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -252,7 +256,7 @@ public class ConfigurationController : ControllerBase
             config.ChuteAssignmentTimeoutMs = policy.UpstreamTimeoutMs;
             config.RetryCount = policy.RetryOnTimeout ? policy.RetryCount : 0;
             config.RetryDelayMs = policy.RetryDelayMs;
-            config.UpdatedAt = DateTime.UtcNow;
+            config.UpdatedAt = _clock.LocalNow;
 
             _systemConfigRepository.Update(config);
 
@@ -449,7 +453,7 @@ public class ConfigurationController : ControllerBase
             config.ThrottleShouldPauseOnSevere = request.ShouldPauseOnSevere;
             config.ThrottleEnabled = request.EnableThrottling;
             config.ThrottleMetricsWindowSeconds = request.MetricsTimeWindowSeconds;
-            config.UpdatedAt = DateTime.UtcNow;
+            config.UpdatedAt = _clock.LocalNow;
 
             _systemConfigRepository.Update(config);
 

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;

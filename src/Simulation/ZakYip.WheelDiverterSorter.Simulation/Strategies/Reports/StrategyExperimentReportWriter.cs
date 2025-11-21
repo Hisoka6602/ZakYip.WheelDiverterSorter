@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Strategies.Reports;
 
@@ -9,6 +10,12 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Strategies.Reports;
 /// </summary>
 public class StrategyExperimentReportWriter
 {
+    private readonly ISystemClock _clock;
+
+    public StrategyExperimentReportWriter(ISystemClock clock)
+    {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+    }
     /// <summary>
     /// 写入 CSV 格式报表
     /// Write CSV format report
@@ -58,7 +65,7 @@ public class StrategyExperimentReportWriter
         md.AppendLine("# 策略对比实验报告");
         md.AppendLine("# Strategy Comparison Experiment Report");
         md.AppendLine();
-        md.AppendLine($"生成时间 / Generated at: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        md.AppendLine($"生成时间 / Generated at: {_clock.LocalNow:yyyy-MM-dd HH:mm:ss}");
         md.AppendLine();
         
         md.AppendLine("## 整体对比 / Overall Comparison");
