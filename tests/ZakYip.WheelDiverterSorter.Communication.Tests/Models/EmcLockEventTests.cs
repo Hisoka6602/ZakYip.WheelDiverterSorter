@@ -20,7 +20,8 @@ public class EmcLockEventTests
         Assert.Equal(string.Empty, lockEvent.InstanceId);
         Assert.Equal(EmcLockNotificationType.RequestLock, lockEvent.NotificationType);
         Assert.Equal((ushort)0, lockEvent.CardNo);
-        Assert.InRange(lockEvent.Timestamp, DateTime.UtcNow.AddSeconds(-1), DateTime.UtcNow.AddSeconds(1));
+        // Timestamp 不再有默认值，应该是默认DateTime值
+        Assert.Equal(default(DateTime), lockEvent.Timestamp);
         Assert.Null(lockEvent.Message);
         Assert.Equal(5000, lockEvent.TimeoutMs);
     }

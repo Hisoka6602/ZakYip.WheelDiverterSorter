@@ -49,6 +49,11 @@ public class DefaultLogCleanupPolicyTests : IDisposable
     {
         // Arrange
         var mockLogger = new Mock<ILogger<DefaultLogCleanupPolicy>>();
+        var mockClock = new Mock<ISystemClock>();
+        var now = DateTime.UtcNow;
+        mockClock.Setup(c => c.UtcNow).Returns(now);
+        mockClock.Setup(c => c.LocalNow).Returns(now.ToLocalTime());
+        
         var options = Options.Create(new LogCleanupOptions
         {
             LogDirectory = _testLogDirectory,
@@ -64,9 +69,9 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         File.WriteAllText(newFile, "new log content");
         
         // 设置旧文件的修改时间为 100 天前
-        File.SetLastWriteTimeUtc(oldFile, DateTime.UtcNow.AddDays(-100));
+        File.SetLastWriteTimeUtc(oldFile, now.AddDays(-100));
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, mockClock.Object, options);
 
         // Act
         await policy.CleanupAsync();
@@ -81,6 +86,11 @@ public class DefaultLogCleanupPolicyTests : IDisposable
     {
         // Arrange
         var mockLogger = new Mock<ILogger<DefaultLogCleanupPolicy>>();
+        var mockClock = new Mock<ISystemClock>();
+        var now = DateTime.UtcNow;
+        mockClock.Setup(c => c.UtcNow).Returns(now);
+        mockClock.Setup(c => c.LocalNow).Returns(now.ToLocalTime());
+        
         var options = Options.Create(new LogCleanupOptions
         {
             LogDirectory = _testLogDirectory,
@@ -99,11 +109,11 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         File.WriteAllText(file3, content);
 
         // 设置不同的修改时间
-        File.SetLastWriteTimeUtc(file1, DateTime.UtcNow.AddDays(-3));
-        File.SetLastWriteTimeUtc(file2, DateTime.UtcNow.AddDays(-2));
-        File.SetLastWriteTimeUtc(file3, DateTime.UtcNow.AddDays(-1));
+        File.SetLastWriteTimeUtc(file1, now.AddDays(-3));
+        File.SetLastWriteTimeUtc(file2, now.AddDays(-2));
+        File.SetLastWriteTimeUtc(file3, now.AddDays(-1));
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, mockClock.Object, options);
 
         // Act
         await policy.CleanupAsync();

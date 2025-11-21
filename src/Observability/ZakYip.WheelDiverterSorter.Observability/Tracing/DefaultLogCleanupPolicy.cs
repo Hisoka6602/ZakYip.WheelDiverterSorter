@@ -54,7 +54,8 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
 
             var deletedCount = 0;
             long deletedSize = 0;
-            var cutoffDate = _clock.LocalNow.AddDays(-_options.RetentionDays);
+            // 使用UTC时间进行比较，因为file.LastWriteTimeUtc是UTC
+            var cutoffDateUtc = _clock.UtcNow.AddDays(-_options.RetentionDays);
 
             // 第一步：删除超过保留天数的文件
             foreach (var file in logFiles.ToList())
@@ -62,7 +63,7 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
                 if (cancellationToken.IsCancellationRequested)
                     break;
 
-                if (file.LastWriteTimeUtc < cutoffDate)
+                if (file.LastWriteTimeUtc < cutoffDateUtc)
                 {
                     try
                     {

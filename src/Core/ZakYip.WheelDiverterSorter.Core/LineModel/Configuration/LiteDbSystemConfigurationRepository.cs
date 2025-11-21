@@ -1,5 +1,4 @@
 using LiteDB;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -112,8 +111,8 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
         if (existing == null)
         {
             var defaultConfig = SystemConfiguration.GetDefault();
-            // 如果提供了当前时间，则使用；否则使用 _clock.LocalNow（兼容旧代码）
-            var now = currentTime ?? _clock.LocalNow;
+            // 如果提供了当前时间，则使用；否则使用 DateTime.UtcNow 作为持久化时间戳
+            var now = currentTime ?? DateTime.UtcNow;
             defaultConfig.CreatedAt = now;
             defaultConfig.UpdatedAt = now;
             _collection.Insert(defaultConfig);
