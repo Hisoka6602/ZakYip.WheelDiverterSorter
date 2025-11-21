@@ -1,7 +1,7 @@
 // This file is maintained for backward compatibility.
-// The enum has been moved to ZakYip.WheelDiverterSorter.Core.LineModel.Enums namespace.
+// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Sensors namespace.
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
-// Re-export the enum from Core.LineModel.Enums for backward compatibility
-using SensorType = ZakYip.WheelDiverterSorter.Core.LineModel.Enums.SensorType;
+// Re-export the enum from Core.Enums.Sensors for backward compatibility
+using SensorType = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.SensorType;

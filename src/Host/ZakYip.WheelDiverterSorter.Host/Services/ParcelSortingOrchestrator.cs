@@ -35,6 +35,12 @@ namespace ZakYip.WheelDiverterSorter.Host.Services;
 /// </remarks>
 public class ParcelSortingOrchestrator : IDisposable
 {
+    // 性能估算常量 - 用于超载检测和路径规划
+    private const decimal DefaultLineSpeedMmps = 1000m; // 1 m/s = 1000 mm/s，可从配置读取
+    private const double EstimatedTotalTtlMs = 30000; // 预估30秒TTL，实际应从配置计算
+    private const double EstimatedArrivalWindowMs = 10000; // 预估10秒窗口，实际应计算
+    private const double EstimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
+
     private readonly IParcelDetectionService _parcelDetectionService;
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
@@ -344,11 +350,11 @@ public class ParcelSortingOrchestrator : IDisposable
                 {
                     ParcelId = parcelId.ToString(),
                     TargetChuteId = 0, // 尚未分配目标格口
-                    CurrentLineSpeed = 1000m, // 1 m/s = 1000 mm/s，可从配置读取
+                    CurrentLineSpeed = DefaultLineSpeedMmps,
                     CurrentPosition = "Entry",
-                    EstimatedArrivalWindowMs = 10000, // 预估10秒窗口，实际应计算
+                    EstimatedArrivalWindowMs = EstimatedArrivalWindowMs,
                     CurrentCongestionLevel = congestionLevel,
-                    RemainingTtlMs = 30000, // 预估30秒TTL，实际应计算
+                    RemainingTtlMs = EstimatedTotalTtlMs,
                     InFlightParcels = snapshot.InFlightParcels
                 };
 
@@ -576,19 +582,17 @@ public class ParcelSortingOrchestrator : IDisposable
                 });
                 
                 // 预估剩余时间（简化估算：假设30秒总TTL，减去已使用时间）
-                const double EstimatedTotalTtlMs = 30000;
-                double estimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
-                double remainingTtlMs = EstimatedTotalTtlMs - estimatedElapsedMs;
+                double remainingTtlMs = EstimatedTotalTtlMs - EstimatedElapsedMs;
 
                 // 构造路由超载上下文
                 var snapshot = _congestionCollector.CollectSnapshot();
-                var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? ZakYip.WheelDiverterSorter.Core.Sorting.Runtime.CongestionLevel.Normal;
+                var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? CongestionLevel.Normal;
                 
                 var routeOverloadContext = new OverloadContext
                 {
                     ParcelId = parcelId.ToString(),
                     TargetChuteId = targetChuteId,
-                    CurrentLineSpeed = 1000m, // 1 m/s = 1000 mm/s
+                    CurrentLineSpeed = DefaultLineSpeedMmps,
                     CurrentPosition = "PathPlanning",
                     EstimatedArrivalWindowMs = remainingTtlMs,
                     CurrentCongestionLevel = congestionLevel,
