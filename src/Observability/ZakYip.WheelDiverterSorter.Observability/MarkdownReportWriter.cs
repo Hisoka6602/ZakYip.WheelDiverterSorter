@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -9,16 +10,19 @@ namespace ZakYip.WheelDiverterSorter.Observability;
 public class MarkdownReportWriter : ISimulationReportWriter
 {
     private readonly ILogger<MarkdownReportWriter> _logger;
+    private readonly ISystemClock _clock;
     private readonly string _outputDirectory;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     /// <param name="outputDirectory">输出目录，默认为 logs/simulation</param>
-    public MarkdownReportWriter(ILogger<MarkdownReportWriter> logger, string? outputDirectory = null)
+    public MarkdownReportWriter(ILogger<MarkdownReportWriter> logger, ISystemClock clock, string? outputDirectory = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _outputDirectory = outputDirectory ?? Path.Combine("logs", "simulation");
     }
 
@@ -33,8 +37,8 @@ public class MarkdownReportWriter : ISimulationReportWriter
         // 确保输出目录存在
         Directory.CreateDirectory(_outputDirectory);
 
-        // 生成文件名
-        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        // 生成文件名（使用本地时间）
+        var timestamp = _clock.LocalNow.ToString("yyyyMMdd_HHmmss");
         var fileName = $"{scenarioName}_{timestamp}.md";
         var filePath = Path.Combine(_outputDirectory, fileName);
 
@@ -46,7 +50,7 @@ public class MarkdownReportWriter : ISimulationReportWriter
         // 标题
         sb.AppendLine($"# 仿真场景报告：{scenarioName}");
         sb.AppendLine();
-        sb.AppendLine($"**生成时间**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"**生成时间**: {_clock.LocalNow:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine();
 
         // 场景摘要

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Runtime;
 
@@ -15,6 +16,8 @@ public class RuntimePerformanceCollector : BackgroundService
 {
     private readonly PrometheusMetrics _metrics;
     private readonly ILogger<RuntimePerformanceCollector> _logger;
+    private readonly ISystemClock _clock;
+    private readonly ISafeExecutionService _safeExecutor;
     private readonly TimeSpan _collectionInterval;
     private int _lastGen0Count;
     private int _lastGen1Count;
@@ -26,14 +29,20 @@ public class RuntimePerformanceCollector : BackgroundService
     /// </summary>
     /// <param name="metrics">Prometheus指标服务</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
+    /// <param name="safeExecutor">安全执行服务</param>
     /// <param name="collectionIntervalSeconds">收集间隔（秒），默认10秒</param>
     public RuntimePerformanceCollector(
         PrometheusMetrics metrics, 
         ILogger<RuntimePerformanceCollector> logger,
+        ISystemClock clock,
+        ISafeExecutionService safeExecutor,
         int collectionIntervalSeconds = 10)
     {
         _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _collectionInterval = TimeSpan.FromSeconds(collectionIntervalSeconds);
         
         // Initialize GC counts
@@ -41,7 +50,7 @@ public class RuntimePerformanceCollector : BackgroundService
         _lastGen1Count = GC.CollectionCount(1);
         _lastGen2Count = GC.CollectionCount(2);
         
-        _lastLogTime = DateTime.UtcNow;
+        _lastLogTime = _clock.LocalNow;
     }
 
     private DateTime _lastLogTime = DateTime.MinValue;
@@ -52,27 +61,34 @@ public class RuntimePerformanceCollector : BackgroundService
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("RuntimePerformanceCollector started with collection interval: {Interval}", _collectionInterval);
+        await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                _logger.LogInformation("RuntimePerformanceCollector started with collection interval: {Interval}", _collectionInterval);
 
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
-            {
-                await Task.Delay(_collectionInterval, stoppingToken);
-                CollectMetrics();
+                while (!stoppingToken.IsCancellationRequested)
+                {
+                    try
+                    {
+                    await Task.Delay(_collectionInterval, stoppingToken);
+                    CollectMetrics();
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when stopping
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error collecting runtime performance metrics");
+                }
             }
-            catch (OperationCanceledException)
-            {
-                // Expected when stopping
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error collecting runtime performance metrics");
-            }
-        }
 
-        _logger.LogInformation("RuntimePerformanceCollector stopped");
+            _logger.LogInformation("RuntimePerformanceCollector stopped");
+            },
+            operationName: "RuntimePerformanceCollectorLoop",
+            cancellationToken: stoppingToken
+        );
     }
 
     /// <summary>
@@ -134,8 +150,8 @@ public class RuntimePerformanceCollector : BackgroundService
             _lastGen1Count = currentGen1;
             _lastGen2Count = currentGen2;
 
-            // Log summary periodically (every minute)
-            if ((DateTime.UtcNow - _lastLogTime).TotalSeconds >= 60)
+            // Log summary periodically (every minute) - using local time for business logging
+            if ((_clock.LocalNow - _lastLogTime).TotalSeconds >= 60)
             {
                 _logger.LogDebug(
                     "Performance: CPU={CpuUsage:F2}%, Memory={MemoryMB:F2}MB, WorkingSet={WorkingSetMB:F2}MB, " +
@@ -148,7 +164,7 @@ public class RuntimePerformanceCollector : BackgroundService
                     currentGen1,
                     currentGen2);
                 
-                _lastLogTime = DateTime.UtcNow;
+                _lastLogTime = _clock.LocalNow;
             }
         }
         catch (Exception ex)
@@ -172,7 +188,7 @@ public class RuntimePerformanceCollector : BackgroundService
     {
         try
         {
-            var currentTime = DateTime.UtcNow;
+            var currentTime = _clock.LocalNow;
             var currentTotalProcessorTime = process.TotalProcessorTime;
 
             if (_lastCpuCheck == DateTime.MinValue)

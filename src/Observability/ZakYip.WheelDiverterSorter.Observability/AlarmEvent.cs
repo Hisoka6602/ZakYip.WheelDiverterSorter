@@ -26,9 +26,9 @@ public class AlarmEvent
     public Dictionary<string, object> Details { get; set; } = new();
 
     /// <summary>
-    /// 触发时间 / Trigger time
+    /// 触发时间 / Trigger time (本地时间，由创建者通过ISystemClock设置)
     /// </summary>
-    public DateTime TriggeredAt { get; set; } = DateTime.UtcNow;
+    public DateTime TriggeredAt { get; set; }
 
     /// <summary>
     /// 是否已确认 / Whether acknowledged
