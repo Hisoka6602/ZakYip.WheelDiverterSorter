@@ -59,6 +59,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Communication", "src\Infrastructure\ZakYip.WheelDiverterSorter.Communication\ZakYip.WheelDiverterSorter.Communication.csproj", "{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Analyzers", "Analyzers", "{FF259D05-2E14-DC0F-2A34-9764A5D9A6BC}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Analyzers", "src\Analyzers\ZakYip.WheelDiverterSorter.Analyzers\ZakYip.WheelDiverterSorter.Analyzers.csproj", "{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats", "tools\ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats\ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats.csproj", "{CD00D341-BFE6-4378-B18B-9C4104D20232}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -285,6 +293,30 @@ Global
 		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x64.Build.0 = Release|Any CPU
 		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x86.ActiveCfg = Release|Any CPU
 		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4}.Release|x86.Build.0 = Release|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Debug|x64.Build.0 = Debug|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Debug|x86.Build.0 = Debug|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Release|x64.ActiveCfg = Release|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Release|x64.Build.0 = Release|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Release|x86.ActiveCfg = Release|Any CPU
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F}.Release|x86.Build.0 = Release|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Debug|x64.Build.0 = Debug|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Debug|x86.Build.0 = Debug|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Release|x64.ActiveCfg = Release|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Release|x64.Build.0 = Release|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Release|x86.ActiveCfg = Release|Any CPU
+		{CD00D341-BFE6-4378-B18B-9C4104D20232}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -308,6 +340,9 @@ Global
 		{8695A25F-D7F9-42E5-ACBF-767D10CAA649} = {A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
 		{7386804D-315B-4AD5-9C77-0ADDDC20B06B} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{2F38BF47-EA6A-4A69-AC26-891FA87B55C4} = {D54CD29C-2BEE-446A-A3F9-C72B2DB82339}
+		{FF259D05-2E14-DC0F-2A34-9764A5D9A6BC} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{4CA4A229-7D65-43C9-B305-BE8290D5BE0F} = {FF259D05-2E14-DC0F-2A34-9764A5D9A6BC}
+		{CD00D341-BFE6-4378-B18B-9C4104D20232} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {EEC8FA53-9A80-4265-A682-4E3976EFAA9A}
