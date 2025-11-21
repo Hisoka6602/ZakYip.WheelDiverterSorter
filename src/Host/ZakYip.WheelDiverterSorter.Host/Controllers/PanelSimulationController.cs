@@ -69,20 +69,28 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public IActionResult PressButton([FromQuery] PanelButtonType buttonType)
     {
-        if (!_simulationModeProvider.IsSimulationMode())
+        try
         {
-            _logger.LogWarning("非仿真模式下尝试调用 PressButton 接口");
-            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
-        }
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 PressButton 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
 
-        if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            {
+                simulatedReader.SimulatePressButton(buttonType);
+                _logger.LogInformation("仿真：按下按钮 {ButtonType}", buttonType);
+                return Ok(new { message = $"已模拟按下按钮: {buttonType}", buttonType });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
         {
-            simulatedReader.SimulatePressButton(buttonType);
-            _logger.LogInformation("仿真：按下按钮 {ButtonType}", buttonType);
-            return Ok(new { message = $"已模拟按下按钮: {buttonType}", buttonType });
+            _logger.LogError(ex, "模拟按下按钮失败");
+            return BadRequest(new { error = "操作失败", details = ex.Message });
         }
-
-        return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
     }
 
     /// <summary>
@@ -112,20 +120,28 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public IActionResult ReleaseButton([FromQuery] PanelButtonType buttonType)
     {
-        if (!_simulationModeProvider.IsSimulationMode())
+        try
         {
-            _logger.LogWarning("非仿真模式下尝试调用 ReleaseButton 接口");
-            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
-        }
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 ReleaseButton 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
 
-        if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            {
+                simulatedReader.SimulateReleaseButton(buttonType);
+                _logger.LogInformation("仿真：释放按钮 {ButtonType}", buttonType);
+                return Ok(new { message = $"已模拟释放按钮: {buttonType}", buttonType });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
         {
-            simulatedReader.SimulateReleaseButton(buttonType);
-            _logger.LogInformation("仿真：释放按钮 {ButtonType}", buttonType);
-            return Ok(new { message = $"已模拟释放按钮: {buttonType}", buttonType });
+            _logger.LogError(ex, "模拟释放按钮失败");
+            return BadRequest(new { error = "操作失败", details = ex.Message });
         }
-
-        return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
     }
 
     /// <summary>
@@ -152,26 +168,34 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetPanelState()
     {
-        var buttonStates = await _panelInputReader.ReadAllButtonStatesAsync();
-        var signalStates = await _signalTowerOutput.GetAllChannelStatesAsync();
-
-        return Ok(new
+        try
         {
-            buttons = buttonStates.Select(kvp => new
+            var buttonStates = await _panelInputReader.ReadAllButtonStatesAsync();
+            var signalStates = await _signalTowerOutput.GetAllChannelStatesAsync();
+
+            return Ok(new
             {
-                buttonType = kvp.Key.ToString(),
-                isPressed = kvp.Value.IsPressed,
-                lastChangedAt = kvp.Value.LastChangedAt,
-                pressedDurationMs = kvp.Value.PressedDurationMs
-            }),
-            signalTower = signalStates.Select(kvp => new
-            {
-                channel = kvp.Key.ToString(),
-                isActive = kvp.Value.IsActive,
-                isBlinking = kvp.Value.IsBlinking,
-                blinkIntervalMs = kvp.Value.BlinkIntervalMs
-            })
-        });
+                buttons = buttonStates.Select(kvp => new
+                {
+                    buttonType = kvp.Key.ToString(),
+                    isPressed = kvp.Value.IsPressed,
+                    lastChangedAt = kvp.Value.LastChangedAt,
+                    pressedDurationMs = kvp.Value.PressedDurationMs
+                }),
+                signalTower = signalStates.Select(kvp => new
+                {
+                    channel = kvp.Key.ToString(),
+                    isActive = kvp.Value.IsActive,
+                    isBlinking = kvp.Value.IsBlinking,
+                    blinkIntervalMs = kvp.Value.BlinkIntervalMs
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取面板状态失败");
+            return BadRequest(new { error = "获取面板状态失败", details = ex.Message });
+        }
     }
 
     /// <summary>
@@ -188,20 +212,28 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult ResetAllButtons()
     {
-        if (!_simulationModeProvider.IsSimulationMode())
+        try
         {
-            _logger.LogWarning("非仿真模式下尝试调用 ResetAllButtons 接口");
-            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
-        }
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 ResetAllButtons 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
 
-        if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            {
+                simulatedReader.ResetAllButtons();
+                _logger.LogInformation("仿真：重置所有按钮状态");
+                return Ok(new { message = "已重置所有按钮状态" });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
         {
-            simulatedReader.ResetAllButtons();
-            _logger.LogInformation("仿真：重置所有按钮状态");
-            return Ok(new { message = "已重置所有按钮状态" });
+            _logger.LogError(ex, "重置按钮状态失败");
+            return BadRequest(new { error = "操作失败", details = ex.Message });
         }
-
-        return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
     }
 
     /// <summary>
@@ -218,28 +250,36 @@ public class PanelSimulationController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public IActionResult GetSignalTowerHistory()
     {
-        if (!_simulationModeProvider.IsSimulationMode())
+        try
         {
-            _logger.LogWarning("非仿真模式下尝试调用 GetSignalTowerHistory 接口");
-            return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
-        }
-
-        if (_signalTowerOutput is SimulatedSignalTowerOutput simulatedOutput)
-        {
-            var history = simulatedOutput.GetStateChangeHistory();
-            return Ok(new
+            if (!_simulationModeProvider.IsSimulationMode())
             {
-                count = history.Count,
-                changes = history.Select(change => new
-                {
-                    channel = change.State.Channel.ToString(),
-                    isActive = change.State.IsActive,
-                    isBlinking = change.State.IsBlinking,
-                    changedAt = change.ChangedAt
-                })
-            });
-        }
+                _logger.LogWarning("非仿真模式下尝试调用 GetSignalTowerHistory 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
 
-        return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+            if (_signalTowerOutput is SimulatedSignalTowerOutput simulatedOutput)
+            {
+                var history = simulatedOutput.GetStateChangeHistory();
+                return Ok(new
+                {
+                    count = history.Count,
+                    changes = history.Select(change => new
+                    {
+                        channel = change.State.Channel.ToString(),
+                        isActive = change.State.IsActive,
+                        isBlinking = change.State.IsBlinking,
+                        changedAt = change.ChangedAt
+                    })
+                });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取信号塔历史失败");
+            return BadRequest(new { error = "操作失败", details = ex.Message });
+        }
     }
 }
