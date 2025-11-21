@@ -32,11 +32,12 @@ public class DocumentationConsistencyTests
         // SafeExecution 检查
         var backgroundServices = Utilities.CodeScanner.FindBackgroundServices();
         var withoutSafe = backgroundServices.Where(s => !s.HasSafeExecution).ToList();
+        var withSafe = backgroundServices.Count - withoutSafe.Count;
         report.AppendLine($"\n### SafeExecution Coverage");
         report.AppendLine($"- **Total BackgroundServices**: {backgroundServices.Count}");
         report.AppendLine($"- **Without SafeExecution**: {withoutSafe.Count}");
-        report.AppendLine($"- **Coverage**: {(backgroundServices.Count > 0 ? (backgroundServices.Count - withoutSafe.Count) * 100.0 / backgroundServices.Count : 0):F1}%");
-        report.AppendLine($"- **Actual State**: {backgroundServices.Count}/{backgroundServices.Count} services wrapped (100%)");
+        report.AppendLine($"- **Coverage**: {(backgroundServices.Count > 0 ? withSafe * 100.0 / backgroundServices.Count : 0):F1}%");
+        report.AppendLine($"- **Actual State**: {withSafe}/{backgroundServices.Count} services wrapped");
         report.AppendLine($"- **Status**: {(withoutSafe.Count > 0 ? "⚠️ Not all services wrapped" : "✅ Fully covered")}");
         
         // 线程安全集合检查

@@ -428,7 +428,7 @@ A: **不可以**。这些测试是代码质量的护栏，必须通过才能合�
 A: 查看测试输出或生成的报告文件（在 `/tmp/` 目录）。报告会明确指出文件路径和行号。
 
 ### Q: 所有 UTC 时间使用都必须删除吗？
-A: **是的**。根据最新规范，整个项目任何地方都不能使用 UTC 时间。所有时间必须使用 `ISystemClock.LocalNow` 或 `ISystemClock.LocalNowOffset`。
+A: **业务逻辑中不能使用 UTC 时间**。所有业务时间戳、用户可见时间、日志记录时间必须使用 `ISystemClock.LocalNow` 或 `ISystemClock.LocalNowOffset`。特殊场景（如与外部系统 API 通讯、性能指标上报）如果协议明确要求 UTC，应该有清晰的注释说明并经过审查。
 
 ### Q: 如果我的集合确实是单线程使用怎么办？
 A: 在字段声明前添加 `[SingleThreadedOnly]` 特性标记，测试将会忽略该字段。
