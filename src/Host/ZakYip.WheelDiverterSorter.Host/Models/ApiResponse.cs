@@ -53,20 +53,6 @@ public class ApiResponse<T>
     }
 
     /// <summary>
-    /// 创建成功响应（无数据）
-    /// </summary>
-    public static ApiResponse<T> Ok(string message = "操作成功 - Operation successful")
-    {
-        return new ApiResponse<T>
-        {
-            Success = true,
-            Code = "Ok",
-            Message = message,
-            Data = default
-        };
-    }
-
-    /// <summary>
     /// 创建错误响应
     /// </summary>
     public static ApiResponse<T> Error(string code, string message, T? data = default)
@@ -123,78 +109,3 @@ public class ApiResponse<T>
     }
 }
 
-/// <summary>
-/// 无数据负载的API响应
-/// </summary>
-public class ApiResponse : ApiResponse<object>
-{
-    /// <summary>
-    /// 创建成功响应（无数据）
-    /// </summary>
-    public new static ApiResponse Ok(string message = "操作成功 - Operation successful")
-    {
-        return new ApiResponse
-        {
-            Success = true,
-            Code = "Ok",
-            Message = message,
-            Data = null
-        };
-    }
-
-    /// <summary>
-    /// 创建错误响应（无数据）
-    /// </summary>
-    public new static ApiResponse Error(string code, string message)
-    {
-        return new ApiResponse
-        {
-            Success = false,
-            Code = code,
-            Message = message,
-            Data = null
-        };
-    }
-
-    /// <summary>
-    /// 创建参数验证错误响应（无数据）
-    /// </summary>
-    public new static ApiResponse BadRequest(string message = "请求参数无效 - Invalid request parameters")
-    {
-        return new ApiResponse
-        {
-            Success = false,
-            Code = "BadRequest",
-            Message = message,
-            Data = null
-        };
-    }
-
-    /// <summary>
-    /// 创建未找到错误响应（无数据）
-    /// </summary>
-    public new static ApiResponse NotFound(string message = "未找到资源 - Resource not found")
-    {
-        return new ApiResponse
-        {
-            Success = false,
-            Code = "NotFound",
-            Message = message,
-            Data = null
-        };
-    }
-
-    /// <summary>
-    /// 创建服务器错误响应（无数据）
-    /// </summary>
-    public new static ApiResponse ServerError(string message = "服务器内部错误 - Internal server error")
-    {
-        return new ApiResponse
-        {
-            Success = false,
-            Code = "ServerError",
-            Message = message,
-            Data = null
-        };
-    }
-}

@@ -134,17 +134,19 @@ public class ConfigurationController : ControllerBase
     #region 分拣模式配置
 
     /// <summary>
-    /// 获取当前分拣模式
+    /// 获取当前分拣模式（已废弃，请使用 GET /api/config/system/sorting-mode）
     /// </summary>
     /// <returns>分拣模式配置</returns>
     /// <response code="200">成功返回分拣模式</response>
     /// <response code="500">服务器内部错误</response>
+    [Obsolete("此端点已废弃，请使用 GET /api/config/system/sorting-mode")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpGet("sorting-mode")]
     [SwaggerOperation(
-        Summary = "获取当前分拣模式",
-        Description = "返回系统当前使用的分拣模式（Formal/FixedChute/RoundRobin）",
-        OperationId = "GetSortingMode",
-        Tags = new[] { "配置管理" }
+        Summary = "获取当前分拣模式（已废弃）",
+        Description = "此端点已废弃，请使用 GET /api/config/system/sorting-mode",
+        OperationId = "GetSortingMode_Obsolete",
+        Tags = new[] { "配置管理（已废弃）" }
     )]
     [SwaggerResponse(200, "成功返回分拣模式", typeof(SortingModeResponse))]
     [SwaggerResponse(500, "服务器内部错误")]
@@ -170,7 +172,7 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// 更新分拣模式
+    /// 更新分拣模式（已废弃，请使用 PUT /api/config/system/sorting-mode）
     /// </summary>
     /// <param name="request">分拣模式配置请求</param>
     /// <returns>更新后的分拣模式</returns>
@@ -178,25 +180,16 @@ public class ConfigurationController : ControllerBase
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求:
-    ///
-    ///     PUT /api/config/sorting-mode
-    ///     {
-    ///         "sortingMode": "RoundRobin",
-    ///         "availableChuteIds": [1, 2, 3, 4, 5]
-    ///     }
-    ///
-    /// 分拣模式说明：
-    /// - Formal：正式模式，根据上游RuleEngine分配的格口进行分拣
-    /// - FixedChute：固定格口模式，所有包裹分拣到指定的固定格口，需设置fixedChuteId
-    /// - RoundRobin：循环格口模式，包裹依次分拣到可用格口列表中的格口，需设置availableChuteIds
+    /// 此端点已废弃，请使用 PUT /api/config/system/sorting-mode
     /// </remarks>
+    [Obsolete("此端点已废弃，请使用 PUT /api/config/system/sorting-mode")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpPut("sorting-mode")]
     [SwaggerOperation(
-        Summary = "更新分拣模式",
-        Description = "更新系统分拣模式，配置立即生效",
-        OperationId = "UpdateSortingMode",
-        Tags = new[] { "配置管理" }
+        Summary = "更新分拣模式（已废弃）",
+        Description = "此端点已废弃，请使用 PUT /api/config/system/sorting-mode",
+        OperationId = "UpdateSortingMode_Obsolete",
+        Tags = new[] { "配置管理（已废弃）" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(SortingModeResponse))]
     [SwaggerResponse(400, "请求参数无效")]
@@ -408,21 +401,22 @@ public class ConfigurationController : ControllerBase
     #region 仿真场景配置
 
     /// <summary>
-    /// 获取仿真场景配置
+    /// 获取仿真场景配置（已废弃，请使用 GET /api/config/simulation）
     /// </summary>
-    /// <returns>仿真场景配置</returns>
-    /// <response code="200">成功返回仿真配置</response>
+    /// <returns>重定向提示</returns>
+    /// <response code="200">成功返回重定向提示</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 返回当前的仿真场景配置，包括包裹数量、间隔时间、分拣模式等参数。
-    /// 实际配置由 SimulationConfigController 管理，此接口提供统一访问入口。
+    /// 此端点已废弃，仿真配置请直接使用 GET /api/config/simulation
     /// </remarks>
+    [Obsolete("此端点已废弃，请使用 GET /api/config/simulation")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpGet("simulation-scenario")]
     [SwaggerOperation(
-        Summary = "获取仿真场景配置",
-        Description = "返回当前的仿真场景配置参数",
-        OperationId = "GetSimulationScenario",
-        Tags = new[] { "配置管理" }
+        Summary = "获取仿真场景配置（已废弃）",
+        Description = "此端点已废弃，请使用 GET /api/config/simulation",
+        OperationId = "GetSimulationScenario_Obsolete",
+        Tags = new[] { "配置管理（已废弃）" }
     )]
     [SwaggerResponse(200, "成功返回仿真配置")]
     [SwaggerResponse(500, "服务器内部错误")]
@@ -447,21 +441,22 @@ public class ConfigurationController : ControllerBase
     }
 
     /// <summary>
-    /// 更新仿真场景配置
+    /// 更新仿真场景配置（已废弃，请使用 PUT /api/config/simulation）
     /// </summary>
-    /// <returns>更新结果</returns>
+    /// <returns>重定向提示</returns>
     /// <response code="200">提示使用正确的端点</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 仿真配置的更新请使用 PUT /api/config/simulation 端点。
-    /// 此接口提供统一的配置管理入口导航。
+    /// 此端点已废弃，仿真配置更新请直接使用 PUT /api/config/simulation
     /// </remarks>
+    [Obsolete("此端点已废弃，请使用 PUT /api/config/simulation")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     [HttpPut("simulation-scenario")]
     [SwaggerOperation(
-        Summary = "更新仿真场景配置",
-        Description = "更新仿真场景配置（请使用 /api/config/simulation 端点）",
-        OperationId = "UpdateSimulationScenario",
-        Tags = new[] { "配置管理" }
+        Summary = "更新仿真场景配置（已废弃）",
+        Description = "此端点已废弃，请使用 PUT /api/config/simulation",
+        OperationId = "UpdateSimulationScenario_Obsolete",
+        Tags = new[] { "配置管理（已废弃）" }
     )]
     [SwaggerResponse(200, "提示使用正确的端点")]
     [SwaggerResponse(500, "服务器内部错误")]
