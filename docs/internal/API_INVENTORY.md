@@ -94,7 +94,20 @@
 
 **Notes**: Good structure, keep as-is under config
 
-#### 1.8 OverloadPolicyController (`/api/config`)
+#### 1.8 PanelConfigController (`/api/config/panel`) - **NEW PR-XX**
+| Method | Path | Purpose | DTO | Used By |
+|--------|------|---------|-----|---------|
+| GET | `/api/config/panel` | 获取面板配置 | PanelConfigResponse | 前端/测试 |
+| PUT | `/api/config/panel` | 更新面板配置 | PanelConfigRequest | 前端/测试 |
+| POST | `/api/config/panel/reset` | 重置为默认配置 | PanelConfigResponse | 前端/测试 |
+| GET | `/api/config/panel/template` | 获取配置模板 | PanelConfigRequest | 前端/测试 |
+
+**Notes**: 
+- **NEW**: Added in PR-XX for panel configuration management
+- Provides API for configuring panel button behavior, polling, and debounce settings
+- Related docs: `docs/guides/面板配置与仿真API使用指南.md`
+
+#### 1.9 OverloadPolicyController (`/api/config`)
 | Method | Path | Purpose | DTO | Used By |
 |--------|------|---------|-----|---------|
 | GET | `/api/config/overload-policy` | 获取超载策略配置 | OverloadPolicyDto | 前端/脚本 |
@@ -102,7 +115,7 @@
 
 **Notes**: Should be merged into SystemConfigController or ConfigurationController
 
-#### 1.9 CommunicationController (`/api/communication`)
+#### 1.10 CommunicationController (`/api/communication`)
 | Method | Path | Purpose | DTO | Used By |
 |--------|------|---------|-----|---------|
 | GET | `/api/communication/config` | 获取通信配置 | RuleEngineConnectionOptions | 前端/脚本 |
