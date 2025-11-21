@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,11 +13,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// <summary>
     /// Gets the JsonSerializerOptions configured for the application (with enum string conversion)
     /// </summary>
-    public static JsonSerializerOptions JsonSerializerOptions { get; } = new JsonSerializerOptions
-    {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter(namingPolicy: null, allowIntegerValues: true) }
-    };
+    public static JsonSerializerOptions JsonSerializerOptions => TestJsonOptions.GetOptions();
 
     protected override IHost CreateHost(IHostBuilder builder)
     {

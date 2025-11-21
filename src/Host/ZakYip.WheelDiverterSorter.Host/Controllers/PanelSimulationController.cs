@@ -89,7 +89,7 @@ public class PanelSimulationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "模拟按下按钮失败");
-            return BadRequest(new { error = "操作失败", details = ex.Message });
+            return BadRequest(new { error = "操作失败，请查看日志获取详细信息" });
         }
     }
 
@@ -140,7 +140,7 @@ public class PanelSimulationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "模拟释放按钮失败");
-            return BadRequest(new { error = "操作失败", details = ex.Message });
+            return BadRequest(new { error = "操作失败，请查看日志获取详细信息" });
         }
     }
 
@@ -194,7 +194,7 @@ public class PanelSimulationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取面板状态失败");
-            return BadRequest(new { error = "获取面板状态失败", details = ex.Message });
+            return BadRequest(new { error = "获取面板状态失败，请查看日志获取详细信息" });
         }
     }
 
@@ -232,7 +232,7 @@ public class PanelSimulationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "重置按钮状态失败");
-            return BadRequest(new { error = "操作失败", details = ex.Message });
+            return BadRequest(new { error = "操作失败，请查看日志获取详细信息" });
         }
     }
 
@@ -279,7 +279,7 @@ public class PanelSimulationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取信号塔历史失败");
-            return BadRequest(new { error = "操作失败", details = ex.Message });
+            return BadRequest(new { error = "操作失败，请查看日志获取详细信息" });
         }
     }
 }
