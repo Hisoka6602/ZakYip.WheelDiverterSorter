@@ -39,6 +39,10 @@ dotnet_separate_import_directive_groups = false
 # Code quality rules
 dotnet_code_quality_unused_parameters = all:warning
 
+# Note: DateTime.Now and DateTime.UtcNow usage detection
+# Currently relies on code review and documentation enforcement
+# Future enhancement: Add custom Roslyn analyzer for automated detection
+
 # Naming conventions
 dotnet_naming_rule.interface_should_be_begins_with_i.severity = warning
 dotnet_naming_rule.interface_should_be_begins_with_i.symbols = interface
