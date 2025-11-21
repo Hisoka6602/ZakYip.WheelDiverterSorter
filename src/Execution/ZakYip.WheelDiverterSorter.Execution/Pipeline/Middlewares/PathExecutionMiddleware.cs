@@ -22,18 +22,21 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
     private readonly ParcelCompletionDelegate? _completionDelegate;
     private readonly IParcelTraceSink? _traceSink;
     private readonly ILogger<PathExecutionMiddleware>? _logger;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     public PathExecutionMiddleware(
         ISwitchingPathExecutor pathExecutor,
+        ISystemClock clock,
         IPathFailureHandler? pathFailureHandler = null,
         ParcelCompletionDelegate? completionDelegate = null,
         IParcelTraceSink? traceSink = null,
         ILogger<PathExecutionMiddleware>? logger = null)
     {
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _pathFailureHandler = pathFailureHandler;
         _completionDelegate = completionDelegate;
         _traceSink = traceSink;

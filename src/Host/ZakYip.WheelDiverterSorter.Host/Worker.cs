@@ -2,8 +2,7 @@ namespace ZakYip.WheelDiverterSorter.Host
 {
     public class Worker : BackgroundService
     {
-        private readonly ISafeExecutionService _safeExecutor;
-    private readonly ILogger<Worker> _logger;
+        private readonly ILogger<Worker> _logger;
 
         public Worker(ILogger<Worker> logger)
         {
