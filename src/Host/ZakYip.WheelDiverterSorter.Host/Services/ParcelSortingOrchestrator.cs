@@ -582,7 +582,7 @@ public class ParcelSortingOrchestrator : IDisposable
 
                 // 构造路由超载上下文
                 var snapshot = _congestionCollector.CollectSnapshot();
-                var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? ZakYip.WheelDiverterSorter.Core.Sorting.Runtime.CongestionLevel.Normal;
+                var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? ZakYip.WheelDiverterSorter.Core.Enums.Sorting.CongestionLevel.Normal;
                 
                 var routeOverloadContext = new OverloadContext
                 {
