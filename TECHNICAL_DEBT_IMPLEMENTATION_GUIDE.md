@@ -1,5 +1,15 @@
 # Technical Debt Elimination Implementation Guide
 
+## Status: Phase 1 Complete ✅
+
+**Phase 1 PR Status**: 
+- ✅ Build Green (0 errors, 0 warnings)
+- ✅ DateTime Standardization: 20/76 usages fixed (26%)
+- ✅ SafeExecution: 1/9 BackgroundServices wrapped (11%)
+- ⏳ Remaining: ~56 DateTime usages, 8 BackgroundServices, thread safety analysis, test fixes
+
+**See `PR_SCOPE_ASSESSMENT.md` for detailed breakdown of completed and remaining work.**
+
 ## Overview
 This document provides a comprehensive guide for completing the technical debt elimination work outlined in PR. This is a massive undertaking that touches 70+ DateTime usages, 85+ thread safety issues, SafeExecution coverage, and test fixes across the entire codebase.
 
@@ -23,6 +33,42 @@ According to the problem statement:
 - Verified `ISystemClock` is registered as singleton in `InfrastructureServiceExtensions`
 - Verified `ISafeExecutionService` is registered and available
 - Both are properly injected via DI
+
+### 3. DateTime Standardization - Observability Layer (✅ DONE - Phase 1 PR)
+**7 Files Fixed:**
+- ✅ `MarkdownReportWriter.cs` - Inject ISystemClock, use LocalNow for timestamps
+- ✅ `RuntimePerformanceCollector.cs` - Inject ISystemClock + ISafeExecutionService, wrapped with SafeExecution
+- ✅ `AlarmService.cs` - Inject ISystemClock, all DateTime.UtcNow → LocalNow
+- ✅ `AlarmEvent.cs` - Remove default initializer, set Timestamp in TriggerAlarm
+- ✅ `FileAlertSink.cs` - Inject ISystemClock, use LocalNow for filenames
+- ✅ `FileBasedParcelTraceSink.cs` - Inject ISystemClock, use LocalNow
+- ✅ `DefaultLogCleanupPolicy.cs` - Inject ISystemClock, use LocalNow
+
+**Impact**: ~15 DateTime usages fixed (20% of total)
+
+### 4. DateTime Standardization - Core Repository Layer (✅ DONE - Phase 1 PR)
+**4 Repositories Updated:**
+- ✅ `LiteDbRouteConfigurationRepository.cs` - Removed DateTime.UtcNow, UpdatedAt set by caller
+- ✅ `LiteDbSensorConfigurationRepository.cs` - Removed DateTime.UtcNow, UpdatedAt set by caller
+- ✅ `LiteDbDriverConfigurationRepository.cs` - Removed DateTime.UtcNow, UpdatedAt set by caller
+- ✅ `LiteDbCommunicationConfigurationRepository.cs` - Removed DateTime.UtcNow, UpdatedAt set by caller
+
+**Architecture Compliance**: ✅ Followed architecture decision: _"Repository 不直接依赖 ISystemClock，时间戳由上层 Service 使用 ISystemClock 设置"_
+
+**Impact**: ~5 DateTime usages fixed (7% of total)
+
+### 5. SafeExecution Integration - Started (✅ PARTIAL - Phase 1 PR)
+**1 BackgroundService Wrapped:**
+- ✅ `RuntimePerformanceCollector.cs` - ExecuteAsync wrapped with ISafeExecutionService
+
+**Impact**: 1 of 9 BackgroundServices (11%)
+
+### 6. Test Compilation Fixes (✅ DONE - Phase 1 PR)
+**9 Test Files Updated** to pass ISystemClock to services:
+- ✅ All AlarmService test instantiations updated
+- ✅ All FileAlertSink, FileBasedParcelTraceSink, DefaultLogCleanupPolicy test calls fixed
+- ✅ All MarkdownReportWriter E2E test calls fixed
+- **Result**: Build is green with 0 errors ✅
 
 ## Remaining Work
 
