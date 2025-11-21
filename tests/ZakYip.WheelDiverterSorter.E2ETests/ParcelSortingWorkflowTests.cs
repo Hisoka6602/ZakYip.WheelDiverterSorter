@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
+using ZakYip.WheelDiverterSorter.E2ETests.Helpers;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -171,7 +172,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
         response.Should().NotBeNull();
         response.IsSuccessStatusCode.Should().BeTrue();
 
-        var result = await response.Content.ReadFromJsonAsync<Dictionary<string, object>>();
+        var result = await response.Content.ReadJsonAsync<Dictionary<string, object>>();
         result.Should().NotBeNull();
         result.Should().ContainKey("parcelId");
         result.Should().ContainKey("isSuccess");
