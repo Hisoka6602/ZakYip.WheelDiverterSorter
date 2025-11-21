@@ -49,13 +49,13 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
 
             var logFiles = Directory.GetFiles(logDir, "*.log", SearchOption.AllDirectories)
                 .Select(path => new FileInfo(path))
-                .OrderBy(f => f.LastWriteTimeUtc)
+                .OrderBy(f => f.LastWriteTime)
                 .ToList();
 
             var deletedCount = 0;
             long deletedSize = 0;
-            // 使用UTC时间进行比较，因为file.LastWriteTimeUtc是UTC
-            var cutoffDateUtc = _clock.UtcNow.AddDays(-_options.RetentionDays);
+            // 使用本地时间进行比较
+            var cutoffDate = _clock.LocalNow.AddDays(-_options.RetentionDays);
 
             // 第一步：删除超过保留天数的文件
             foreach (var file in logFiles.ToList())
@@ -63,7 +63,7 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
                 if (cancellationToken.IsCancellationRequested)
                     break;
 
-                if (file.LastWriteTimeUtc < cutoffDateUtc)
+                if (file.LastWriteTime < cutoffDate)
                 {
                     try
                     {
@@ -74,7 +74,7 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
                         logFiles.Remove(file);
 
                         _logger.LogInformation("删除过期日志文件: {FileName}, 修改时间: {LastWriteTime}, 大小: {Size} bytes",
-                            file.Name, file.LastWriteTimeUtc, size);
+                            file.Name, file.LastWriteTime, size);
                     }
                     catch (Exception ex)
                     {
