@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace ZakYip.WheelDiverterSorter.Core.Hardware;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 /// <summary>
 /// 厂商标识符枚举

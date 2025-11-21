@@ -1,6 +1,11 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using System.ComponentModel.DataAnnotations;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;

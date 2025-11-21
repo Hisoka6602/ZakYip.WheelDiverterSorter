@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
+
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 
 /// <summary>

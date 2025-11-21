@@ -1,7 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Utilities;
 using Swashbuckle.AspNetCore.Annotations;

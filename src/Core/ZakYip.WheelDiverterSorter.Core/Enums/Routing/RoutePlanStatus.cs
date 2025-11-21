@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
+namespace ZakYip.WheelDiverterSorter.Core.Enums.Routing;
 
 /// <summary>
 /// 分拣路由计划生命周期状态。

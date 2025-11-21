@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
@@ -59,19 +60,19 @@ public class LogAlertSink : IAlertSink
             // Use different log levels based on severity
             switch (alertEvent.Severity)
             {
-                case Core.LineModel.Enums.AlertSeverity.Critical:
+                case AlertSeverity.Critical:
                     _logger.LogCritical(
                         "[ALERT-CRITICAL] {AlertCode}: {Message}", 
                         alertEvent.AlertCode, 
                         alertEvent.Message);
                     break;
-                case Core.LineModel.Enums.AlertSeverity.Warning:
+                case AlertSeverity.Warning:
                     _logger.LogWarning(
                         "[ALERT-WARNING] {AlertCode}: {Message}", 
                         alertEvent.AlertCode, 
                         alertEvent.Message);
                     break;
-                case Core.LineModel.Enums.AlertSeverity.Info:
+                case AlertSeverity.Info:
                     _logger.LogInformation(
                         "[ALERT-INFO] {AlertCode}: {Message}", 
                         alertEvent.AlertCode, 

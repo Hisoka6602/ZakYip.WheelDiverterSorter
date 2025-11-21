@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -114,7 +115,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
 
                     context.ShouldForceException = true;
                     context.ExceptionReason = $"NodeDegraded: {unhealthyNodeList}";
-                    context.ExceptionType = Core.Sorting.Models.ExceptionType.NodeDegraded;
+                    context.ExceptionType = ExceptionType.NodeDegraded;
                     context.TargetChuteId = exceptionChuteId;
                     context.PlannedPath = path;
                     totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);

@@ -1,30 +1,6 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
+
 namespace ZakYip.WheelDiverterSorter.Core.IoBinding;
-
-/// <summary>
-/// IO点位类型
-/// </summary>
-public enum IoPointType
-{
-    /// <summary>
-    /// 数字输入
-    /// </summary>
-    DigitalInput,
-
-    /// <summary>
-    /// 数字输出
-    /// </summary>
-    DigitalOutput,
-
-    /// <summary>
-    /// 模拟输入
-    /// </summary>
-    AnalogInput,
-
-    /// <summary>
-    /// 模拟输出
-    /// </summary>
-    AnalogOutput
-}
 
 /// <summary>
 /// IO点位描述符 - 描述逻辑IO点的抽象信息
