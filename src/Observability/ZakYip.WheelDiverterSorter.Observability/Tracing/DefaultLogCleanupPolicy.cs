@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tracing;
 
@@ -13,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Observability.Tracing;
 public class DefaultLogCleanupPolicy : ILogCleanupPolicy
 {
     private readonly ILogger<DefaultLogCleanupPolicy> _logger;
+    private readonly ISystemClock _clock;
     private readonly LogCleanupOptions _options;
 
     /// <summary>
@@ -20,9 +22,11 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
     /// </summary>
     public DefaultLogCleanupPolicy(
         ILogger<DefaultLogCleanupPolicy> logger,
+        ISystemClock clock,
         IOptions<LogCleanupOptions> options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
     }
 
@@ -50,7 +54,7 @@ public class DefaultLogCleanupPolicy : ILogCleanupPolicy
 
             var deletedCount = 0;
             long deletedSize = 0;
-            var cutoffDate = DateTime.UtcNow.AddDays(-_options.RetentionDays);
+            var cutoffDate = _clock.LocalNow.AddDays(-_options.RetentionDays);
 
             // 第一步：删除超过保留天数的文件
             foreach (var file in logFiles.ToList())

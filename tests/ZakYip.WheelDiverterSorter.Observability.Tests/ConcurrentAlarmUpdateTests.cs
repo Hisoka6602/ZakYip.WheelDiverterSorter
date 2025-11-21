@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -22,7 +23,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentSortingSuccess_UpdatesCountersSafely()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 10;
         const int operationsPerThread = 100;
         var tasks = new Task[threadCount];
@@ -55,7 +56,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentSortingFailure_UpdatesCountersSafely()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 10;
         const int operationsPerThread = 10;
         var tasks = new Task[threadCount];
@@ -87,7 +88,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentMixedSortingOperations_MaintainsConsistency()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 20;
         const int operationsPerThread = 50;
         var tasks = new Task[threadCount];
@@ -128,7 +129,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentQueueLengthUpdates_HandlesLastValueCorrectly()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 100;
         var tasks = new Task[threadCount];
 
@@ -155,7 +156,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentDiverterFaultReports_HandlesMultipleDiverters()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int diverterCount = 20;
         var tasks = new Task[diverterCount];
 
@@ -181,7 +182,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentSameDiverterFaultReports_CreatesOnlyOneAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 10;
         var tasks = new Task[threadCount];
 
@@ -209,7 +210,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentFaultReportAndClear_HandlesRaceCondition()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int iterations = 100;
         var reportTasks = new Task[iterations];
         var clearTasks = new Task[iterations];
@@ -238,7 +239,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentAlarmAcknowledgement_HandlesMultipleThreads()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Create some alarms first
         for (int i = 0; i < 10; i++)
@@ -271,7 +272,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentGetActiveAlarms_ReturnsConsistentSnapshot()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 10;
         var getTasks = new Task<IReadOnlyList<AlarmEvent>>[threadCount];
 
@@ -301,7 +302,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentResetStatistics_MaintainsConsistency()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 10;
         var tasks = new Task[threadCount];
 
@@ -336,7 +337,7 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentRuleEngineDisconnectionChecks_DoesNotCreateDuplicateAlarms()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         alarmService.ReportRuleEngineDisconnection("tcp");
         
         // Use reflection to set disconnection time to simulate 2 minutes ago
@@ -376,7 +377,7 @@ public class ConcurrentAlarmUpdateTests
     public void HighConcurrencyStressTest_MaintainsSystemStability()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         const int threadCount = 50;
         const int operationsPerThread = 100;
         var tasks = new Task[threadCount];

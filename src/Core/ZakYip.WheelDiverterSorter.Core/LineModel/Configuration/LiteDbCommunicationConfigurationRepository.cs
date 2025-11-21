@@ -50,7 +50,8 @@ public class LiteDbCommunicationConfigurationRepository : ICommunicationConfigur
             throw new ArgumentException(errorMessage);
         }
 
-        configuration.UpdatedAt = DateTime.UtcNow;
+        // UpdatedAt 由调用者设置（通过 ISystemClock.LocalNow）
+        // configuration.UpdatedAt 应该在调用此方法前已由调用者设置
         configuration.Version++;
 
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());

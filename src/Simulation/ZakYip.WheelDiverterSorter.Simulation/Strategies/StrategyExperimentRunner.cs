@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Simulation.Strategies.Reports;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Strategies;
 
@@ -20,6 +21,7 @@ public class StrategyExperimentRunner
 {
     private readonly IStrategyFactory _strategyFactory;
     private readonly ILogger<StrategyExperimentRunner> _logger;
+    private readonly ISystemClock _clock;
     private readonly StrategyExperimentReportWriter _reportWriter;
 
     /// <summary>
@@ -28,11 +30,13 @@ public class StrategyExperimentRunner
     /// </summary>
     public StrategyExperimentRunner(
         IStrategyFactory strategyFactory,
-        ILogger<StrategyExperimentRunner> logger)
+        ILogger<StrategyExperimentRunner> logger,
+        ISystemClock clock)
     {
         _strategyFactory = strategyFactory ?? throw new ArgumentNullException(nameof(strategyFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _reportWriter = new StrategyExperimentReportWriter();
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _reportWriter = new StrategyExperimentReportWriter(_clock);
     }
 
     /// <summary>
@@ -173,7 +177,7 @@ public class StrategyExperimentRunner
     {
         try
         {
-            var timestamp = DateTime.Now.ToString("yyyy-MM-dd-HHmmss");
+            var timestamp = _clock.LocalNow.ToString("yyyy-MM-dd-HHmmss");
             var csvPath = Path.Combine(outputDirectory, $"strategy-experiment-{timestamp}.csv");
             var mdPath = Path.Combine(outputDirectory, $"strategy-experiment-{timestamp}.md");
 

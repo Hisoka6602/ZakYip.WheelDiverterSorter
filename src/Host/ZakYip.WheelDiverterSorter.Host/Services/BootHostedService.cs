@@ -12,6 +12,7 @@ public class BootHostedService : IHostedService
 {
     private readonly ISystemStateManager _stateManager;
     private readonly PrometheusMetrics? _metrics;
+    private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<BootHostedService> _logger;
 
     public BootHostedService(

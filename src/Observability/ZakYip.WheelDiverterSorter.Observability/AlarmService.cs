@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -9,6 +10,7 @@ namespace ZakYip.WheelDiverterSorter.Observability;
 public class AlarmService
 {
     private readonly ILogger<AlarmService> _logger;
+    private readonly ISystemClock _clock;
     private readonly List<AlarmEvent> _activeAlarms = new();
     private readonly object _lock = new();
 
@@ -27,10 +29,11 @@ public class AlarmService
     private const int QueueBacklogThreshold = 50; // 50 parcels
     private static readonly TimeSpan RuleEngineDisconnectionThreshold = TimeSpan.FromMinutes(1);
 
-    public AlarmService(ILogger<AlarmService> logger)
+    public AlarmService(ILogger<AlarmService> logger, ISystemClock clock)
     {
         _logger = logger;
-        _systemStartTime = DateTime.UtcNow;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _systemStartTime = _clock.LocalNow;
     }
 
     /// <summary>
@@ -80,7 +83,7 @@ public class AlarmService
         {
             if (!_diverterFaults.ContainsKey(diverterId))
             {
-                _diverterFaults[diverterId] = DateTime.UtcNow;
+                _diverterFaults[diverterId] = _clock.LocalNow;
                 TriggerAlarm(new AlarmEvent
                 {
                     Type = AlarmType.DiverterFault,
@@ -117,7 +120,7 @@ public class AlarmService
         {
             if (!_sensorFaults.ContainsKey(sensorId))
             {
-                _sensorFaults[sensorId] = DateTime.UtcNow;
+                _sensorFaults[sensorId] = _clock.LocalNow;
                 TriggerAlarm(new AlarmEvent
                 {
                     Type = AlarmType.SensorFault,
@@ -154,7 +157,7 @@ public class AlarmService
         {
             if (!_ruleEngineDisconnections.ContainsKey(connectionType))
             {
-                _ruleEngineDisconnections[connectionType] = DateTime.UtcNow;
+                _ruleEngineDisconnections[connectionType] = _clock.LocalNow;
                 _lastRuleEngineConnected = null;
             }
         }
@@ -168,7 +171,7 @@ public class AlarmService
         lock (_lock)
         {
             _ruleEngineDisconnections.Remove(connectionType);
-            _lastRuleEngineConnected = DateTime.UtcNow;
+            _lastRuleEngineConnected = _clock.LocalNow;
             ClearAlarm(AlarmType.RuleEngineDisconnected, connectionType);
         }
     }
@@ -182,7 +185,7 @@ public class AlarmService
         {
             foreach (var kvp in _ruleEngineDisconnections.ToList())
             {
-                var disconnectionDuration = DateTime.UtcNow - kvp.Value;
+                var disconnectionDuration = _clock.LocalNow - kvp.Value;
                 if (disconnectionDuration > RuleEngineDisconnectionThreshold)
                 {
                     // Check if alarm already exists
@@ -222,7 +225,7 @@ public class AlarmService
             Message = "系统重启 / System restarted",
             Details = new Dictionary<string, object>
             {
-                { "startTime", _systemStartTime ?? DateTime.UtcNow }
+                { "startTime", _systemStartTime ?? _clock.LocalNow }
             }
         });
     }
@@ -238,7 +241,7 @@ public class AlarmService
             if (existingAlarm != null)
             {
                 existingAlarm.IsAcknowledged = true;
-                existingAlarm.AcknowledgedAt = DateTime.UtcNow;
+                existingAlarm.AcknowledgedAt = _clock.LocalNow;
             }
         }
     }
@@ -319,6 +322,12 @@ public class AlarmService
 
     private void TriggerAlarm(AlarmEvent alarm)
     {
+        // Set triggered time using local time
+        if (alarm.TriggeredAt == default)
+        {
+            alarm.TriggeredAt = _clock.LocalNow;
+        }
+        
         lock (_lock)
         {
             _activeAlarms.Add(alarm);

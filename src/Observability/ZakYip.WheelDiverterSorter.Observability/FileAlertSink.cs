@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -17,6 +18,7 @@ namespace ZakYip.WheelDiverterSorter.Observability;
 public class FileAlertSink : IAlertSink
 {
     private readonly ILogger<FileAlertSink> _logger;
+    private readonly ISystemClock _clock;
     private readonly string _logDirectory;
     private readonly JsonSerializerOptions _jsonOptions;
 
@@ -24,10 +26,12 @@ public class FileAlertSink : IAlertSink
     /// 构造函数
     /// </summary>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     /// <param name="logDirectory">日志目录，默认为 "logs"</param>
-    public FileAlertSink(ILogger<FileAlertSink> logger, string logDirectory = "logs")
+    public FileAlertSink(ILogger<FileAlertSink> logger, ISystemClock clock, string logDirectory = "logs")
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logDirectory = logDirectory;
         _jsonOptions = new JsonSerializerOptions
         {
@@ -50,7 +54,8 @@ public class FileAlertSink : IAlertSink
     {
         try
         {
-            var fileName = $"alerts-{DateTime.UtcNow:yyyyMMdd}.log";
+            // 使用本地时间生成日期文件名
+            var fileName = $"alerts-{_clock.LocalNow:yyyyMMdd}.log";
             var filePath = Path.Combine(_logDirectory, fileName);
 
             // 序列化为 JSON

@@ -4,6 +4,7 @@ using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Tests.Concurrency;
 
@@ -223,7 +224,7 @@ public class ParcelQueueBoundaryTests
         // Arrange
         var innerQueue = new PriorityParcelQueue();
         var loggerMock = new Mock<ILogger<AlarmService>>();
-        var alarmService = new AlarmService(loggerMock.Object);
+        var alarmService = new AlarmService(loggerMock.Object, Mock.Of<ISystemClock>());
         var monitoredQueue = new MonitoredParcelQueue(innerQueue, alarmService);
 
         // Act - Add many items to trigger alarm

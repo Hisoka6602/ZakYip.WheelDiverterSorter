@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -24,7 +25,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_ExactlyAtThreshold_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - Create exactly 5% failure rate (1 failure, 19 successes = 20 total, 5% exact)
         for (int i = 0; i < 19; i++)
@@ -43,7 +44,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_JustAboveThreshold_TriggersAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - Create 5.26% failure rate (1 failure, 18 successes = 19 total, but need 20+ samples)
         // So use 2 failures, 35 successes = 37 total, 5.41% failure rate
@@ -67,7 +68,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_JustBelowThreshold_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - Create 4.76% failure rate (1 failure, 20 successes = 21 total, 4.76%)
         for (int i = 0; i < 20; i++)
@@ -86,7 +87,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_BelowMinimumSamples_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - Create 50% failure rate but only 10 samples (below minimum of 20)
         for (int i = 0; i < 5; i++)
@@ -108,7 +109,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_ExactlyMinimumSamples_TriggersAlarmIfOverThreshold()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - Create 10% failure rate with exactly 20 samples (2 failures, 18 successes)
         for (int i = 0; i < 18; i++)
@@ -130,7 +131,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_AllFailures_TriggersAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - 100% failure rate with 20 failures
         for (int i = 0; i < 20; i++)
@@ -149,7 +150,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_AllSuccesses_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Act - 0% failure rate with 100 successes
         for (int i = 0; i < 100; i++)
@@ -172,7 +173,7 @@ public class AlarmThresholdBoundaryTests
     public void QueueLength_ExactlyAtThreshold_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act - Set queue to exactly 50 (threshold)
         alarmService.UpdateQueueLength(50);
@@ -187,7 +188,7 @@ public class AlarmThresholdBoundaryTests
     public void QueueLength_JustAboveThreshold_TriggersAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act - Set queue to 51 (just above threshold)
         alarmService.UpdateQueueLength(51);
@@ -204,7 +205,7 @@ public class AlarmThresholdBoundaryTests
     public void QueueLength_JustBelowThreshold_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act - Set queue to 49 (just below threshold)
         alarmService.UpdateQueueLength(49);
@@ -219,7 +220,7 @@ public class AlarmThresholdBoundaryTests
     public void QueueLength_Zero_DoesNotTriggerAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act
         alarmService.UpdateQueueLength(0);
@@ -234,7 +235,7 @@ public class AlarmThresholdBoundaryTests
     public void QueueLength_ExtremelyLarge_TriggersAlarm()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act
         alarmService.UpdateQueueLength(10000);
@@ -250,7 +251,7 @@ public class AlarmThresholdBoundaryTests
     public void QueueLength_FluctuatesAroundThreshold_TriggersAndClearsCorrectly()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act & Assert - Cross threshold multiple times
         alarmService.UpdateQueueLength(51);
@@ -274,7 +275,7 @@ public class AlarmThresholdBoundaryTests
     public void SortingFailureRate_AfterReset_StartsFromZero()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
         
         // Trigger alarm first
         for (int i = 0; i < 18; i++)
@@ -314,7 +315,7 @@ public class AlarmThresholdBoundaryTests
     public void MultipleAlarmTypes_CanCoexistAtBoundaries()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object);
+        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
 
         // Act - Trigger multiple alarms at exact boundaries
         alarmService.UpdateQueueLength(51); // Just above threshold

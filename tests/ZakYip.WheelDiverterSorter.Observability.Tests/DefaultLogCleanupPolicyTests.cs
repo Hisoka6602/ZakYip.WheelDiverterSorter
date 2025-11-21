@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -36,7 +37,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
             LogDirectory = Path.Combine(_testLogDirectory, "nonexistent")
         });
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
 
         // Act & Assert - 不应抛出异常
         var exception = await Record.ExceptionAsync(() => policy.CleanupAsync());
@@ -65,7 +66,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         // 设置旧文件的修改时间为 100 天前
         File.SetLastWriteTimeUtc(oldFile, DateTime.UtcNow.AddDays(-100));
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
 
         // Act
         await policy.CleanupAsync();
@@ -102,7 +103,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         File.SetLastWriteTimeUtc(file2, DateTime.UtcNow.AddDays(-2));
         File.SetLastWriteTimeUtc(file3, DateTime.UtcNow.AddDays(-1));
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
 
         // Act
         await policy.CleanupAsync();
@@ -128,7 +129,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         var recentFile = Path.Combine(_testLogDirectory, "recent.log");
         File.WriteAllText(recentFile, "small content");
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
 
         // Act
         await policy.CleanupAsync();
@@ -157,7 +158,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
             File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-100));
         }
 
-        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, options);
+        var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
         var cts = new CancellationTokenSource();
         cts.Cancel(); // 立即取消
 
@@ -173,7 +174,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         var options = Options.Create(new LogCleanupOptions());
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new DefaultLogCleanupPolicy(null!, options));
+        Assert.Throws<ArgumentNullException>(() => new DefaultLogCleanupPolicy(null!, Mock.Of<ISystemClock>(), options));
     }
 
     [Fact]
@@ -183,6 +184,6 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         var mockLogger = new Mock<ILogger<DefaultLogCleanupPolicy>>();
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new DefaultLogCleanupPolicy(mockLogger.Object, null!));
+        Assert.Throws<ArgumentNullException>(() => new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), null!));
     }
 }

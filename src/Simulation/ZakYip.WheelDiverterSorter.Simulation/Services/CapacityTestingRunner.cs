@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using Microsoft.Extensions.Logging;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
@@ -16,16 +17,19 @@ public class CapacityTestingRunner
     private readonly ICapacityEstimator _capacityEstimator;
     private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<CapacityTestingRunner> _logger;
+    private readonly ISystemClock _clock;
 
     public CapacityTestingRunner(
         ISimulationScenarioRunner scenarioRunner,
         ICapacityEstimator capacityEstimator,
         ILogger<CapacityTestingRunner> logger,
+        ISystemClock clock,
         PrometheusMetrics? metrics = null)
     {
         _scenarioRunner = scenarioRunner ?? throw new ArgumentNullException(nameof(scenarioRunner));
         _capacityEstimator = capacityEstimator ?? throw new ArgumentNullException(nameof(capacityEstimator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _metrics = metrics;
     }
 
@@ -127,7 +131,7 @@ public class CapacityTestingRunner
         {
             BaseScenarioName = "CapacityTest",
             TestResults = results,
-            TestTimestamp = DateTime.UtcNow,
+            TestTimestamp = _clock.LocalNow,
             EstimationResult = estimation
         };
     }

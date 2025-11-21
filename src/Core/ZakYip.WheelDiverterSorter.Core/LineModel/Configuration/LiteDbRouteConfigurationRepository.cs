@@ -65,7 +65,8 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
             throw new ArgumentNullException(nameof(configuration));
         }
 
-        configuration.UpdatedAt = DateTime.UtcNow;
+        // UpdatedAt 由调用者设置（通过 ISystemClock.LocalNow）
+        // configuration.UpdatedAt 应该在调用此方法前已由调用者设置
 
         // 查找现有配置
         var existing = _collection

@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -7,10 +8,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Services;
 /// </summary>
 public class CongestionDataCollector
 {
+    private readonly ISystemClock _clock;
     private readonly List<(long ParcelId, DateTime EntryTime, DateTime? CompletionTime)> _parcelHistory = new();
     private readonly object _lock = new();
     private int _inFlightParcels = 0;
     private readonly TimeSpan _historyWindow = TimeSpan.FromSeconds(60);
+
+    public CongestionDataCollector(ISystemClock clock)
+    {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+    }
 
     /// <summary>
     /// 记录包裹进入系统
@@ -51,7 +58,7 @@ public class CongestionDataCollector
         {
             CleanupOldHistory();
 
-            var now = DateTime.UtcNow;
+            var now = _clock.LocalNow;
             var recentParcels = _parcelHistory
                 .Where(p => p.EntryTime >= now - _historyWindow)
                 .ToList();
@@ -98,7 +105,7 @@ public class CongestionDataCollector
     /// </summary>
     private void CleanupOldHistory()
     {
-        var cutoff = DateTime.UtcNow - _historyWindow - TimeSpan.FromMinutes(5); // 额外保留5分钟
+        var cutoff = _clock.LocalNow - _historyWindow - TimeSpan.FromMinutes(5); // 额外保留5分钟
         _parcelHistory.RemoveAll(p => p.EntryTime < cutoff);
     }
 }

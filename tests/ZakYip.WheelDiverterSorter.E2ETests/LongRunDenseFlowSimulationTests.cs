@@ -13,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
@@ -133,6 +134,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
         services.AddSingleton<ISimulationReportWriter>(sp => 
             new MarkdownReportWriter(
                 sp.GetRequiredService<ILogger<MarkdownReportWriter>>(),
+                sp.GetRequiredService<ISystemClock>(),
                 _testOutputDirectory));
 
         // 添加仿真服务

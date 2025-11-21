@@ -21,6 +21,7 @@ using ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
@@ -138,7 +139,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
         services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<ParcelTimelineCollector>();
         services.AddSingleton<ISimulationReportWriter>(sp => 
-            new MarkdownReportWriter(sp.GetRequiredService<ILogger<MarkdownReportWriter>>(), _testOutputDirectory));
+            new MarkdownReportWriter(sp.GetRequiredService<ILogger<MarkdownReportWriter>>(), sp.GetRequiredService<ISystemClock>(), _testOutputDirectory));
         services.AddSingleton<IParcelLifecycleLogger>(sp => sp.GetRequiredService<ParcelTimelineCollector>());
         services.AddSingleton<SimulationReportPrinter>();
         services.AddSingleton<PrometheusMetrics>();

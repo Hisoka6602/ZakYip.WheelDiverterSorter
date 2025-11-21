@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
@@ -38,6 +39,7 @@ public class ParcelSortingOrchestrator : IDisposable
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly IPathFailureHandler? _pathFailureHandler;
+    private readonly ISystemClock _clock;
     private readonly ILogger<ParcelSortingOrchestrator> _logger;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
@@ -77,6 +79,7 @@ public class ParcelSortingOrchestrator : IDisposable
         ISwitchingPathExecutor pathExecutor,
         IOptions<RuleEngineConnectionOptions> options,
         ISystemConfigurationRepository systemConfigRepository,
+        ISystemClock clock,
         ILogger<ParcelSortingOrchestrator> logger,
         IPathFailureHandler? pathFailureHandler = null,
         ISystemRunStateService? stateService = null,
@@ -91,6 +94,7 @@ public class ParcelSortingOrchestrator : IDisposable
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
@@ -223,7 +227,7 @@ public class ParcelSortingOrchestrator : IDisposable
             }
             
             // PR-08B: 记录包裹进入系统
-            _congestionCollector?.RecordParcelEntry(parcelId, DateTime.UtcNow);
+            _congestionCollector?.RecordParcelEntry(parcelId, _clock.LocalNow);
 
             // 获取异常格口ID
             var systemConfig = _systemConfigRepository.Get();
@@ -314,7 +318,7 @@ public class ParcelSortingOrchestrator : IDisposable
             }
 
             // PR-08B: 记录包裹进入系统
-            _congestionCollector?.RecordParcelEntry(parcelId, DateTime.UtcNow);
+            _congestionCollector?.RecordParcelEntry(parcelId, _clock.LocalNow);
 
             // 获取系统配置
             var systemConfig = _systemConfigRepository.Get();
@@ -504,7 +508,7 @@ public class ParcelSortingOrchestrator : IDisposable
                 if (path == null)
                 {
                     _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
-                    _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                    _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
                     return;
                 }
             }
@@ -544,7 +548,7 @@ public class ParcelSortingOrchestrator : IDisposable
                     if (path == null)
                     {
                         _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成（节点降级），分拣失败", parcelId);
-                        _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                        _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
                         return;
                     }
 
@@ -627,7 +631,7 @@ public class ParcelSortingOrchestrator : IDisposable
                         if (path == null)
                         {
                             _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
-                            _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                            _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
                             return;
                         }
 
@@ -641,7 +645,7 @@ public class ParcelSortingOrchestrator : IDisposable
             if (path == null)
             {
                 _logger.LogError("包裹 {ParcelId} 路径为空，无法执行分拣", parcelId);
-                _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
                 return;
             }
 
@@ -689,7 +693,7 @@ public class ParcelSortingOrchestrator : IDisposable
                 }
                 
                 // PR-08B: 记录包裹完成
-                _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, true);
+                _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, true);
             }
             else
             {
@@ -711,7 +715,7 @@ public class ParcelSortingOrchestrator : IDisposable
                 });
 
                 // PR-08B: 记录包裹完成（失败）
-                _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+                _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
 
                 // 处理路径执行失败
                 if (_pathFailureHandler != null)
@@ -734,7 +738,7 @@ public class ParcelSortingOrchestrator : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "执行包裹 {ParcelId} 分拣时发生异常", parcelId);
-            _congestionCollector?.RecordParcelCompletion(parcelId, DateTime.UtcNow, false);
+            _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
             
             // 清理包裹记录（PR-42）
             lock (_lockObject)
@@ -805,10 +809,10 @@ public class ParcelSortingOrchestrator : IDisposable
         {
             // 使用系统配置中的超时时间
             var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
-            var startTime = DateTime.UtcNow;
+            var startTime = _clock.LocalNow;
             using var cts = new CancellationTokenSource(timeoutMs);
             targetChuteId = await tcs.Task.WaitAsync(cts.Token);
-            var elapsedMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
+            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
             
             _logger.LogInformation("包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}", parcelId, targetChuteId);
 
