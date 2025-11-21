@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -26,6 +27,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_DiverterFailure_FallbackToException")]
     public async Task DiverterFailure_ShouldFallbackToExceptionChute()
     {
         // Arrange
@@ -52,6 +54,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_RuleEngineConnectionLoss_UseException")]
     public async Task RuleEngineConnectionLoss_ShouldUseExceptionChute()
     {
         // Arrange
@@ -82,6 +85,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_SensorFailure_DetectedAndLogged")]
     public async Task SensorFailure_ShouldBeDetectedAndLogged()
     {
         // Arrange & Act - Simulate sensor failure scenario
@@ -94,6 +98,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_CommunicationTimeout_FallbackGracefully")]
     public async Task CommunicationTimeout_ShouldFallbackGracefully()
     {
         // Arrange
@@ -130,6 +135,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_SystemRecovery_AfterTemporaryFailure")]
     public async Task SystemRecovery_AfterTemporaryFailure()
     {
         // Arrange
@@ -163,6 +169,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_MultipleFailures_NotCrashSystem")]
     public async Task MultipleFailures_ShouldNotCrashSystem()
     {
         // Arrange
@@ -198,6 +205,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_InvalidRouteConfiguration_ReturnNull")]
     public void InvalidRouteConfiguration_ShouldReturnNullPath()
     {
         // Arrange - 使用不存在的格口ID
@@ -211,6 +219,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_PathExecutionFailure_ReportCorrectError")]
     public async Task PathExecutionFailure_ShouldReportCorrectError()
     {
         // Arrange
@@ -240,6 +249,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("FaultRecovery_DuplicateTrigger_HandleAsException")]
     public async Task DuplicateTrigger_ShouldBeHandledAsException()
     {
         // Arrange

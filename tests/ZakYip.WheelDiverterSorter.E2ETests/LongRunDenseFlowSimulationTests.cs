@@ -17,6 +17,7 @@ using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -146,6 +147,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
     /// 测试 LongRunDenseFlow 场景的正确性
     /// </summary>
     [Fact]
+    [SimulationScenario("LongRunDenseFlow_AllParcelsCompleted")]
     public async Task LongRunDenseFlow_AllParcelsCompleted_WithCorrectRouting()
     {
         // Arrange
@@ -205,6 +207,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
     /// 测试并发包裹数在合理范围内
     /// </summary>
     [Fact]
+    [SimulationScenario("LongRunDenseFlow_ConcurrentParcelsWithinThreshold")]
     public async Task LongRunDenseFlow_ConcurrentParcelsWithinThreshold()
     {
         // Arrange
@@ -229,6 +232,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
     /// 测试 Markdown 报告生成
     /// </summary>
     [Fact]
+    [SimulationScenario("LongRunDenseFlow_GeneratesMarkdownReport")]
     public async Task LongRunDenseFlow_GeneratesMarkdownReport()
     {
         // Arrange

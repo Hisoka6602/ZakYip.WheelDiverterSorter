@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -22,6 +23,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_Connection_EstablishSuccessfully")]
     public async Task RuleEngineConnection_ShouldEstablishSuccessfully()
     {
         // Arrange
@@ -47,6 +49,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_Disconnect_CleanDisconnect")]
     public async Task RuleEngineDisconnect_ShouldDisconnectCleanly()
     {
         // Arrange
@@ -70,6 +73,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_ParcelDetectionNotification_SentToRuleEngine")]
     public async Task ParcelDetectionNotification_ShouldBeSentToRuleEngine()
     {
         // Arrange
@@ -102,6 +106,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_ChuteAssignment_ReceivedFromRuleEngine")]
     public async Task ChuteAssignment_ShouldBeReceivedFromRuleEngine()
     {
         // Arrange
@@ -145,6 +150,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_ConnectionFailure_HandledGracefully")]
     public async Task ConnectionFailure_ShouldBeHandledGracefully()
     {
         // Arrange
@@ -166,6 +172,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_NotificationFailure_ReturnFalse")]
     public async Task NotificationFailure_ShouldReturnFalse()
     {
         // Arrange
@@ -195,6 +202,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("RuleEngine_AssignmentTimeout_FallbackToException")]
     public async Task AssignmentTimeout_ShouldFallbackToExceptionChute()
     {
         // Arrange

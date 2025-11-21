@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -26,6 +27,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("Concurrent_MultipleParcels_Processed")]
     public async Task MultipleParcels_ShouldBeProcessedConcurrently()
     {
         // Arrange
@@ -78,6 +80,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("Concurrent_PathGeneration_NoRaceConditions")]
     public async Task ConcurrentPathGeneration_ShouldNotCauseRaceConditions()
     {
         // Arrange
@@ -112,6 +115,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("Concurrent_PathExecution_ResourceLocking")]
     public async Task ConcurrentPathExecution_ShouldMaintainResourceLocking()
     {
         // Arrange
@@ -142,6 +146,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("Concurrent_HighThroughput_HandleLoad")]
     public async Task HighThroughputScenario_ShouldHandleLoad()
     {
         // Arrange
@@ -169,6 +174,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("Concurrent_APIRequests_HandledCorrectly")]
     public async Task ConcurrentAPIRequests_ShouldBeHandledCorrectly()
     {
         // Arrange
@@ -196,6 +202,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("Concurrent_ParcelQueue_MaintainOrder")]
     public async Task ParcelQueueManagement_ShouldMaintainOrder()
     {
         // Arrange

@@ -14,6 +14,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -64,6 +65,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     }
 
     [Fact]
+    [SimulationScenario("Panel_Startup_SingleParcel_Normal")]
     public async Task Scenario1_SingleParcelNormalSorting_FullE2EWorkflow()
     {
         // ===== 场景1：单包裹正常分拣 =====
@@ -225,6 +227,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     }
 
     [Fact]
+    [SimulationScenario("Panel_Startup_Upstream_Delay")]
     public async Task Scenario2_UpstreamDelayedResponse_SystemHandlesCorrectly()
     {
         // ===== 场景2：轻微延迟的上游响应 =====
@@ -313,6 +316,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     }
 
     [Fact]
+    [SimulationScenario("Panel_Startup_FirstParcel_Warmup")]
     public async Task Scenario3_FirstParcelAfterStartup_SystemWarmupValidation()
     {
         // ===== 场景3：启动后第一次包裹作为"系统暖机验证" =====

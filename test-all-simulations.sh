@@ -2,6 +2,7 @@
 
 # Script to test all simulation programs
 # This script runs both unit tests and executable simulations
+# PR-42: Updated to include Simulation Regression Suite validation
 
 set -e
 
@@ -45,26 +46,36 @@ run_test() {
     fi
 }
 
-echo "=========================================="
-echo "第一部分: 运行单元测试"
-echo "=========================================="
-echo ""
-
 # Get the base directory
 BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Run all simulation unit tests
-run_test "仿真单元测试 (Simulation Unit Tests)" \
-    "cd '$BASE_DIR/ZakYip.WheelDiverterSorter.E2ETests' && dotnet test --filter 'DisplayName~Simulation' --logger 'console;verbosity=minimal'"
+echo "=========================================="
+echo "第一部分: 仿真回归套件验证 (PR-42)"
+echo "=========================================="
+echo ""
+
+# Run Simulation Manifest Validation Tests (PR-42)
+run_test "仿真场景清单验证测试 (Manifest Validation)" \
+    "cd '$BASE_DIR' && dotnet test tests/ZakYip.WheelDiverterSorter.E2ETests --filter 'FullyQualifiedName~SimulationManifestValidationTests' --logger 'console;verbosity=minimal'"
 
 echo ""
 echo "=========================================="
-echo "第二部分: 运行可执行仿真程序"
+echo "第二部分: E2E 仿真测试"
+echo "=========================================="
+echo ""
+
+# Run all E2E simulation tests
+run_test "E2E 仿真场景测试 (All Scenarios)" \
+    "cd '$BASE_DIR' && dotnet test tests/ZakYip.WheelDiverterSorter.E2ETests --filter 'DisplayName~Simulation' --logger 'console;verbosity=minimal'"
+
+echo ""
+echo "=========================================="
+echo "第三部分: 运行可执行仿真程序"
 echo "=========================================="
 echo ""
 
 # Navigate to simulation project
-cd "$BASE_DIR/ZakYip.WheelDiverterSorter.Simulation"
+cd "$BASE_DIR/src/Simulation/ZakYip.WheelDiverterSorter.Simulation"
 
 # Test different sorting modes
 run_test "仿真程序 - RoundRobin 模式" \
@@ -84,7 +95,7 @@ run_test "仿真程序 - 高摩擦因子" \
 run_test "仿真程序 - 启用掉包模拟" \
     "dotnet run -- --Simulation:ParcelCount=10 --Simulation:IsEnableRandomDropout=true --Simulation:DropoutModel:DropoutProbabilityPerSegment=0.1 --Simulation:IsPauseAtEnd=false"
 
-# Test Scenario E: High friction with dropout (NEW)
+# Test Scenario E: High friction with dropout
 run_test "仿真程序 - 场景E: 高摩擦有丢失" \
     "dotnet run -- --Simulation:ParcelCount=10 --Simulation:IsEnableRandomFriction=true --Simulation:IsEnableRandomDropout=true --Simulation:FrictionModel:MinFactor=0.7 --Simulation:FrictionModel:MaxFactor=1.3 --Simulation:DropoutModel:DropoutProbabilityPerSegment=0.1 --Simulation:IsPauseAtEnd=false"
 
