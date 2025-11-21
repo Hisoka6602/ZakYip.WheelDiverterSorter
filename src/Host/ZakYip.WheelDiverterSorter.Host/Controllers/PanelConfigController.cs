@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
+using System.Collections.Concurrent;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -17,6 +18,9 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - 仿真/硬件模式切换
 /// 
 /// 配置更新立即生效，无需重启服务。
+/// 
+/// **注意**：当前实现使用内存存储，重启后配置会丢失。
+/// 未来版本将实现持久化存储（通过 IPanelConfigurationRepository）。
 /// </remarks>
 [ApiController]
 [Route("api/config/panel")]
@@ -25,7 +29,9 @@ public class PanelConfigController : ControllerBase
 {
     private readonly ILogger<PanelConfigController> _logger;
     // TODO: 需要添加持久化层 - IPanelConfigurationRepository
-    private static PanelConfigResponse _currentConfig = GetDefaultConfig();
+    // 使用 ConcurrentDictionary 确保线程安全的配置存储
+    private static readonly ConcurrentDictionary<string, PanelConfigResponse> _configStore = 
+        new(new[] { new KeyValuePair<string, PanelConfigResponse>("current", GetDefaultConfig()) });
 
     public PanelConfigController(ILogger<PanelConfigController> logger)
     {
@@ -71,7 +77,7 @@ public class PanelConfigController : ControllerBase
         try
         {
             _logger.LogInformation("查询面板配置");
-            return Ok(_currentConfig);
+            return Ok(_configStore["current"]);
         }
         catch (Exception ex)
         {
@@ -134,7 +140,8 @@ public class PanelConfigController : ControllerBase
             {
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
+                    .Select(e => e.ErrorMessage)
+                    .ToList();  // 物化集合避免多次枚举
                 return BadRequest(new { message = "请求参数无效", errors });
             }
 
@@ -154,14 +161,17 @@ public class PanelConfigController : ControllerBase
                 return BadRequest(new { message = "防抖时间必须小于轮询间隔" });
             }
 
-            // 更新配置
-            _currentConfig = new PanelConfigResponse
+            // 创建新配置对象
+            var newConfig = new PanelConfigResponse
             {
                 Enabled = request.Enabled,
                 UseSimulation = request.UseSimulation,
                 PollingIntervalMs = request.PollingIntervalMs,
                 DebounceMs = request.DebounceMs
             };
+
+            // 原子更新配置（线程安全）
+            _configStore["current"] = newConfig;
 
             _logger.LogInformation(
                 "面板配置已更新: Enabled={Enabled}, UseSimulation={UseSimulation}, Polling={PollingMs}ms, Debounce={DebounceMs}ms",
@@ -170,7 +180,7 @@ public class PanelConfigController : ControllerBase
                 request.PollingIntervalMs,
                 request.DebounceMs);
 
-            return Ok(_currentConfig);
+            return Ok(newConfig);
         }
         catch (Exception ex)
         {
@@ -207,9 +217,12 @@ public class PanelConfigController : ControllerBase
     {
         try
         {
-            _currentConfig = GetDefaultConfig();
+            var defaultConfig = GetDefaultConfig();
+            // 原子更新配置（线程安全）
+            _configStore["current"] = defaultConfig;
+            
             _logger.LogInformation("面板配置已重置为默认值");
-            return Ok(_currentConfig);
+            return Ok(defaultConfig);
         }
         catch (Exception ex)
         {
