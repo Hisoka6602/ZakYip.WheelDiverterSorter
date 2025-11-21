@@ -178,20 +178,6 @@ builder.Services.AddSingleton<CommunicationStatsService>();
 // 注册线体拓扑配置提供者
 builder.Services.AddTopologyConfiguration(builder.Configuration);
 
-// 注册仿真服务（用于 API 触发仿真）
-// 注意：这些服务在 Host 层也需要，用于通过 API 运行仿真场景
-if (builder.Configuration.GetValue<bool>("Simulation:EnableApiSimulation", false))
-{
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationRunner>();
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner>();
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.ParcelTimelineFactory>();
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationReportPrinter>();
-    
-    // 注册 ISimulationScenarioRunner 接口
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.ISimulationScenarioRunner>(
-        serviceProvider => serviceProvider.GetRequiredService<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner>());
-}
-
 // 注册改口功能相关服务
 builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
 builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
@@ -199,6 +185,9 @@ builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
 // 注册中段皮带 IO 联动服务
 builder.Services.AddMiddleConveyorServices(builder.Configuration);
+
+// 注册仿真服务（用于 API 触发仿真）
+builder.Services.AddSimulationServices(builder.Configuration);
 
 // 注册后台服务（可选）
 // 取消注释以下行以启用自动传感器监听和分拣编排
