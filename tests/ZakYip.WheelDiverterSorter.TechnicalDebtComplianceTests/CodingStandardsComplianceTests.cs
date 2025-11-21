@@ -355,6 +355,63 @@ public class CodingStandardsComplianceTests
     }
 
     [Fact]
+    public void ShouldNotHaveMeaninglessFileNames()
+    {
+        var violations = new List<string>();
+        var sourceFiles = Utilities.CodeScanner.GetAllSourceFiles("src");
+        
+        // 常见的无意义文件名模式
+        var meaninglessPatterns = new[]
+        {
+            @"^Class\d+\.cs$",        // Class1.cs, Class2.cs, etc.
+            @"^Test\d+\.cs$",         // Test1.cs, Test2.cs, etc.
+            @"^File\d+\.cs$",         // File1.cs, File2.cs, etc.
+            @"^NewFile\d*\.cs$",      // NewFile.cs, NewFile1.cs, etc.
+            @"^Untitled\d*\.cs$",     // Untitled.cs, Untitled1.cs, etc.
+            @"^Temp\d*\.cs$",         // Temp.cs, Temp1.cs, etc.
+            @"^temp\d*\.cs$",         // temp.cs, temp1.cs, etc.
+        };
+
+        foreach (var file in sourceFiles)
+        {
+            var fileName = Path.GetFileName(file);
+            
+            foreach (var pattern in meaninglessPatterns)
+            {
+                if (Regex.IsMatch(fileName, pattern))
+                {
+                    violations.Add(file);
+                    break;
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n❌ 发现 {violations.Count} 个无意义的文件名:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var violation in violations)
+            {
+                var fileName = Path.GetFileName(violation);
+                var relativePath = violation.Replace(Path.GetDirectoryName(Path.GetDirectoryName(violation)) ?? "", "...");
+                report.AppendLine($"  ❌ {fileName}");
+                report.AppendLine($"     {relativePath}");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 将文件重命名为有意义的名称，反映其用途或包含的类型");
+            report.AppendLine("  2. 例如: Class1.cs → UserService.cs");
+            report.AppendLine("  3. 例如: Temp.cs → TemporaryDataHolder.cs");
+            report.AppendLine("  4. 如果文件不再需要，删除它");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    [Fact]
     public void AllEnumsShouldBeInCoreEnumsDirectory()
     {
         var violations = new List<string>();
