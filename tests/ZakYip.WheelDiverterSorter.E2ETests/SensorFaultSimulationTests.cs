@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
@@ -202,6 +203,7 @@ public class SensorFaultSimulationTests : IDisposable
     /// 验证当摆轮前传感器持续不触发时，所有包裹被路由到异常口
     /// </remarks>
     [Fact]
+    [SimulationScenario("ScenarioSF1_PreDiverterSensorFault_RouteToException")]
     public async Task ScenarioSF1_PreDiverterSensorFault_RouteToExceptionChute()
     {
         // Arrange - 使用999个包裹进行完整测试（根据需求）
@@ -240,6 +242,7 @@ public class SensorFaultSimulationTests : IDisposable
     /// 不要求所有包裹都异常，只要求抖动的包裹异常，正常的可以正常分拣
     /// </remarks>
     [Fact]
+    [SimulationScenario("ScenarioSJ1_SensorJitter_DuplicatePackages")]
     public async Task ScenarioSJ1_SensorJitter_DuplicatePackagesRouteToException()
     {
         // Arrange - 使用30个包裹，约40%会抖动
@@ -287,6 +290,7 @@ public class SensorFaultSimulationTests : IDisposable
     /// 测试包裹生命周期日志被正确记录
     /// </summary>
     [Fact]
+    [SimulationScenario("SensorFault_LifecycleLogger_RecordsEvents")]
     public async Task LifecycleLogger_RecordsParcelEvents()
     {
         // Arrange
@@ -308,6 +312,7 @@ public class SensorFaultSimulationTests : IDisposable
     /// 集成测试：验证传感器故障场景下包裹生命周期日志完整性
     /// </summary>
     [Fact]
+    [SimulationScenario("SensorFault_WithLifecycleLogging")]
     public async Task IntegrationTest_SensorFault_WithLifecycleLogging()
     {
         // Arrange

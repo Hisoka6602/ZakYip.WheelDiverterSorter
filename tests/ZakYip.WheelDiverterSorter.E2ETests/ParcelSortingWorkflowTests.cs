@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -25,6 +26,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("ParcelSorting_CompleteFlow_ValidChute")]
     public async Task CompleteSortingFlow_WithValidChute_ShouldSucceed()
     {
         // Arrange
@@ -52,6 +54,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("ParcelSorting_PathGeneration_ValidChute")]
     public void PathGeneration_ForValidChute_ShouldReturnValidPath()
     {
         // Arrange
@@ -86,6 +89,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("ParcelSorting_PathExecution_ValidPath")]
     public async Task PathExecution_WithValidPath_ShouldSucceed()
     {
         // Arrange
@@ -104,6 +108,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("ParcelSorting_FallbackToException_PathGenerationFails")]
     public async Task FallbackToExceptionChute_WhenPathGenerationFails()
     {
         // Arrange
@@ -149,6 +154,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
     }
 
     [Fact]
+    [SimulationScenario("ParcelSorting_DebugAPI_ShouldProcess")]
     public async Task DebugSort_API_ShouldProcessRequest()
     {
         // Arrange

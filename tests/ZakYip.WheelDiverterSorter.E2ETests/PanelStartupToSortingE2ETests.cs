@@ -227,6 +227,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     }
 
     [Fact]
+    [SimulationScenario("Panel_Startup_Upstream_Delay")]
     public async Task Scenario2_UpstreamDelayedResponse_SystemHandlesCorrectly()
     {
         // ===== 场景2：轻微延迟的上游响应 =====
@@ -315,6 +316,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     }
 
     [Fact]
+    [SimulationScenario("Panel_Startup_FirstParcel_Warmup")]
     public async Task Scenario3_FirstParcelAfterStartup_SystemWarmupValidation()
     {
         // ===== 场景3：启动后第一次包裹作为"系统暖机验证" =====

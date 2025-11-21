@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability;
@@ -250,6 +251,7 @@ public class DenseTrafficSimulationTests : IDisposable
     #region 场景 HD-1 测试
 
     [Fact]
+    [SimulationScenario("ScenarioHD1_SlightHighDensity_RouteToException")]
     public async Task ScenarioHD1_SlightHighDensity_RouteToException_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -281,6 +283,7 @@ public class DenseTrafficSimulationTests : IDisposable
     #region 场景 HD-2 测试
 
     [Fact]
+    [SimulationScenario("ScenarioHD2_ExtremeHighDensity_RouteToException")]
     public async Task ScenarioHD2_ExtremeHighDensity_RouteToException_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -312,6 +315,7 @@ public class DenseTrafficSimulationTests : IDisposable
     #region 场景 HD-3 测试（策略变体）
 
     [Fact]
+    [SimulationScenario("ScenarioHD3A_HighDensity_MarkAsTimeout")]
     public async Task ScenarioHD3A_MarkAsTimeout_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -342,6 +346,7 @@ public class DenseTrafficSimulationTests : IDisposable
     }
 
     [Fact]
+    [SimulationScenario("ScenarioHD3B_HighDensity_MarkAsDropped")]
     public async Task ScenarioHD3B_MarkAsDropped_ShouldHaveNoMissorts()
     {
         // Arrange
@@ -376,6 +381,7 @@ public class DenseTrafficSimulationTests : IDisposable
     #region 与现有场景的兼容性测试
 
     [Fact]
+    [SimulationScenario("DenseTraffic_WithoutDenseConfiguration")]
     public async Task ExistingScenario_WithoutDenseConfiguration_ShouldStillWork()
     {
         // Arrange - 使用现有场景，不配置高密度参数

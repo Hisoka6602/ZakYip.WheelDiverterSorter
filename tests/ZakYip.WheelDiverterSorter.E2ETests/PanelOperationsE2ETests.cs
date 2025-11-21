@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -13,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 public class PanelOperationsE2ETests
 {
     [Fact]
+    [SimulationScenario("PanelOps_BasicFlow_StartStopReset")]
     public async Task E2E_BasicOperationFlow_StartStopReset()
     {
         // Arrange - 创建完整的面板 IO 系统
@@ -80,6 +82,7 @@ public class PanelOperationsE2ETests
     }
 
     [Fact]
+    [SimulationScenario("PanelOps_FaultScenario_RedLightAndBuzzer")]
     public async Task E2E_FaultScenario_RedLightAndBuzzer()
     {
         // Arrange
@@ -123,6 +126,7 @@ public class PanelOperationsE2ETests
     }
 
     [Fact]
+    [SimulationScenario("PanelOps_EmergencyStop_Scenario")]
     public async Task E2E_EmergencyStopScenario()
     {
         // Arrange
@@ -161,6 +165,7 @@ public class PanelOperationsE2ETests
     }
 
     [Fact]
+    [SimulationScenario("PanelOps_UpstreamDisconnected_Warning")]
     public async Task E2E_UpstreamDisconnectedWarning()
     {
         // Arrange
@@ -181,6 +186,7 @@ public class PanelOperationsE2ETests
     }
 
     [Fact]
+    [SimulationScenario("PanelOps_CompleteWorkflow_StateHistory")]
     public async Task E2E_CompleteWorkflowWithStateHistory()
     {
         // Arrange

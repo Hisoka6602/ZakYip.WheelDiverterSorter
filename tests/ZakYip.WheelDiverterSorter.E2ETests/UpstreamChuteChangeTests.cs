@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Execution;
 using Microsoft.Extensions.Logging;
 using Moq;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -16,6 +17,7 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 public class UpstreamChuteChangeTests
 {
     [Fact]
+    [SimulationScenario("UpstreamChuteChange_PlanCreated_AcceptChange")]
     public async Task ChuteChange_WhenPlanIsCreated_ShouldAcceptChange()
     {
         // Arrange
@@ -63,6 +65,7 @@ public class UpstreamChuteChangeTests
     }
 
     [Fact]
+    [SimulationScenario("UpstreamChuteChange_PlanCompleted_IgnoreChange")]
     public async Task ChuteChange_WhenPlanIsCompleted_ShouldIgnoreChange()
     {
         // Arrange
@@ -100,6 +103,7 @@ public class UpstreamChuteChangeTests
     }
 
     [Fact]
+    [SimulationScenario("UpstreamChuteChange_PlanExceptionRouted_IgnoreChange")]
     public async Task ChuteChange_WhenPlanIsExceptionRouted_ShouldIgnoreChange()
     {
         // Arrange
@@ -137,6 +141,7 @@ public class UpstreamChuteChangeTests
     }
 
     [Fact]
+    [SimulationScenario("UpstreamChuteChange_AfterDeadline_RejectChange")]
     public async Task ChuteChange_WhenAfterDeadline_ShouldRejectChange()
     {
         // Arrange
@@ -177,6 +182,7 @@ public class UpstreamChuteChangeTests
     }
 
     [Fact]
+    [SimulationScenario("UpstreamChuteChange_PlanNotFound_ReturnFailure")]
     public async Task ChuteChange_WhenPlanNotFound_ShouldReturnFailure()
     {
         // Arrange

@@ -25,6 +25,7 @@ using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
+using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -148,6 +149,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
     /// 测试完整的 API 驱动仿真流程（简化版，100 个包裹）
     /// </summary>
     [Fact]
+    [SimulationScenario("ApiDrivenSimulation_ConfigureViaApi_VerifyResults")]
     public async Task ApiDrivenSimulation_ConfigureViaApi_ThenStartPanel_VerifyResults()
     {
         // 本测试使用 100 个包裹来加快测试速度，验证 API 流程
@@ -277,6 +279,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
     /// 测试获取仿真配置 API
     /// </summary>
     [Fact]
+    [SimulationScenario("ConfigAPI_GetSimulationConfig_ReturnConfiguration")]
     public async Task GetSimulationConfig_ShouldReturnConfiguration()
     {
         // Act
@@ -292,6 +295,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
     /// 测试面板状态查询 API
     /// </summary>
     [Fact]
+    [SimulationScenario("ConfigAPI_GetPanelState_ReturnCurrentState")]
     public async Task GetPanelState_ShouldReturnCurrentState()
     {
         // Act
@@ -307,6 +311,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
     /// 测试仿真状态查询 API
     /// </summary>
     [Fact]
+    [SimulationScenario("ConfigAPI_GetSimulationStatus_ReturnStatus")]
     public async Task GetSimulationStatus_ShouldReturnStatus()
     {
         // Act
