@@ -71,7 +71,8 @@ public class SystemConfigControllerTests : IClassFixture<CustomWebApplicationFac
         var response = await _client.GetAsync("/api/config/system/sorting-mode");
         response.EnsureSuccessStatusCode();
 
-        var content = await response.Content.ReadFromJsonAsync<SortingModeResponse>();
+        var content = await response.Content.ReadFromJsonAsync<SortingModeResponse>(
+            CustomWebApplicationFactory.JsonSerializerOptions);
 
         // Assert
         Assert.NotNull(content);
@@ -92,7 +93,8 @@ public class SystemConfigControllerTests : IClassFixture<CustomWebApplicationFac
 
         // Assert
         response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadFromJsonAsync<SortingModeResponse>();
+        var content = await response.Content.ReadFromJsonAsync<SortingModeResponse>(
+            CustomWebApplicationFactory.JsonSerializerOptions);
         Assert.NotNull(content);
         Assert.Equal(SortingMode.Formal, content.SortingMode);
     }
