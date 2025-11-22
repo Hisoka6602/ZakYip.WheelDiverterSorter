@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
@@ -18,9 +19,10 @@ public class AlarmService
     private long _sortingSuccessCount;
     private long _sortingFailureCount;
     private int _currentQueueLength;
-    private readonly Dictionary<string, DateTime> _diverterFaults = new();
-    private readonly Dictionary<string, DateTime> _sensorFaults = new();
-    private readonly Dictionary<string, DateTime> _ruleEngineDisconnections = new();
+    // 使用 ConcurrentDictionary 实现线程安全 / Use ConcurrentDictionary for thread safety
+    private readonly ConcurrentDictionary<string, DateTime> _diverterFaults = new();
+    private readonly ConcurrentDictionary<string, DateTime> _sensorFaults = new();
+    private readonly ConcurrentDictionary<string, DateTime> _ruleEngineDisconnections = new();
     private DateTime? _lastRuleEngineConnected;
     private DateTime? _systemStartTime;
 
@@ -79,11 +81,11 @@ public class AlarmService
     /// </summary>
     public void ReportDiverterFault(string diverterId, string faultDescription)
     {
-        lock (_lock)
+        // TryAdd is thread-safe - only adds if key doesn't exist
+        if (_diverterFaults.TryAdd(diverterId, _clock.LocalNow))
         {
-            if (!_diverterFaults.ContainsKey(diverterId))
+            lock (_lock)
             {
-                _diverterFaults[diverterId] = _clock.LocalNow;
                 TriggerAlarm(new AlarmEvent
                 {
                     Type = AlarmType.DiverterFault,
@@ -104,9 +106,9 @@ public class AlarmService
     /// </summary>
     public void ClearDiverterFault(string diverterId)
     {
-        lock (_lock)
+        // TryRemove is thread-safe
+        if (_diverterFaults.TryRemove(diverterId, out _))
         {
-            _diverterFaults.Remove(diverterId);
             ClearAlarm(AlarmType.DiverterFault, diverterId);
         }
     }
@@ -116,11 +118,11 @@ public class AlarmService
     /// </summary>
     public void ReportSensorFault(string sensorId, string faultDescription)
     {
-        lock (_lock)
+        // TryAdd is thread-safe - only adds if key doesn't exist
+        if (_sensorFaults.TryAdd(sensorId, _clock.LocalNow))
         {
-            if (!_sensorFaults.ContainsKey(sensorId))
+            lock (_lock)
             {
-                _sensorFaults[sensorId] = _clock.LocalNow;
                 TriggerAlarm(new AlarmEvent
                 {
                     Type = AlarmType.SensorFault,
@@ -141,9 +143,9 @@ public class AlarmService
     /// </summary>
     public void ClearSensorFault(string sensorId)
     {
-        lock (_lock)
+        // TryRemove is thread-safe
+        if (_sensorFaults.TryRemove(sensorId, out _))
         {
-            _sensorFaults.Remove(sensorId);
             ClearAlarm(AlarmType.SensorFault, sensorId);
         }
     }
@@ -153,14 +155,9 @@ public class AlarmService
     /// </summary>
     public void ReportRuleEngineDisconnection(string connectionType)
     {
-        lock (_lock)
-        {
-            if (!_ruleEngineDisconnections.ContainsKey(connectionType))
-            {
-                _ruleEngineDisconnections[connectionType] = _clock.LocalNow;
-                _lastRuleEngineConnected = null;
-            }
-        }
+        // TryAdd is thread-safe
+        _ruleEngineDisconnections.TryAdd(connectionType, _clock.LocalNow);
+        _lastRuleEngineConnected = null;
     }
 
     /// <summary>
@@ -168,12 +165,10 @@ public class AlarmService
     /// </summary>
     public void ReportRuleEngineReconnection(string connectionType)
     {
-        lock (_lock)
-        {
-            _ruleEngineDisconnections.Remove(connectionType);
-            _lastRuleEngineConnected = _clock.LocalNow;
-            ClearAlarm(AlarmType.RuleEngineDisconnected, connectionType);
-        }
+        // TryRemove is thread-safe
+        _ruleEngineDisconnections.TryRemove(connectionType, out _);
+        _lastRuleEngineConnected = _clock.LocalNow;
+        ClearAlarm(AlarmType.RuleEngineDisconnected, connectionType);
     }
 
     /// <summary>

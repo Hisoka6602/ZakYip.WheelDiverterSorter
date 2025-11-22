@@ -20,12 +20,13 @@ public class AnomalyDetector : IAnomalyDetector
     private readonly IAlertSink _alertSink;
     private readonly ILogger<AnomalyDetector> _logger;
 
-    // 时间窗口内的数据缓存
+    // 时间窗口内的数据缓存 - 使用线程安全的并发队列
+    // Thread-safe concurrent queues for time-window data caching
     private readonly object _lock = new();
 
-    private readonly Queue<SortingRecord> _sortingRecords = new();
-    private readonly Queue<OverloadRecord> _overloadRecords = new();
-    private readonly Queue<DateTimeOffset> _upstreamTimeouts = new();
+    private readonly ConcurrentQueue<SortingRecord> _sortingRecords = new();
+    private readonly ConcurrentQueue<OverloadRecord> _overloadRecords = new();
+    private readonly ConcurrentQueue<DateTimeOffset> _upstreamTimeouts = new();
 
     // 配置参数（可通过配置文件或构造函数注入）
     private readonly TimeSpan _monitoringWindow = TimeSpan.FromMinutes(5);
@@ -307,19 +308,20 @@ public class AnomalyDetector : IAnomalyDetector
         var now = DateTimeOffset.UtcNow;
         var windowStart = now - _monitoringWindow;
 
-        while (_sortingRecords.Count > 0 && _sortingRecords.Peek().Timestamp < windowStart)
+        // ConcurrentQueue.TryPeek is thread-safe
+        while (_sortingRecords.TryPeek(out var sortingRecord) && sortingRecord.Timestamp < windowStart)
         {
-            _sortingRecords.Dequeue();
+            _sortingRecords.TryDequeue(out _);
         }
 
-        while (_overloadRecords.Count > 0 && _overloadRecords.Peek().Timestamp < windowStart)
+        while (_overloadRecords.TryPeek(out var overloadRecord) && overloadRecord.Timestamp < windowStart)
         {
-            _overloadRecords.Dequeue();
+            _overloadRecords.TryDequeue(out _);
         }
 
-        while (_upstreamTimeouts.Count > 0 && _upstreamTimeouts.Peek() < windowStart)
+        while (_upstreamTimeouts.TryPeek(out var timeout) && timeout < windowStart)
         {
-            _upstreamTimeouts.Dequeue();
+            _upstreamTimeouts.TryDequeue(out _);
         }
     }
 
