@@ -64,7 +64,7 @@ internal static class EventHandlerExtensions
                     ex,
                     "订阅者处理事件 '{EventName}' 时发生异常 / Subscriber threw exception while handling event '{EventName}': Target={Target}, Method={Method}",
                     eventNameDisplay,
-                    eventNameDisplay,  // EventName appears twice in the message
+                    eventNameDisplay,
                     handler.Target?.GetType().Name ?? "Unknown",
                     handler.Method.Name);
             }
@@ -90,10 +90,9 @@ internal static class EventHandlerExtensions
             return;
         }
 
-        // Convert EventHandler to EventHandler<EventArgs> to use the generic method
-        var genericHandler = new EventHandler<EventArgs>((s, e) => eventHandler(s, e));
+        var eventNameDisplay = eventName ?? "EventHandler";
         
-        // Copy delegates from original handler
+        // Iterate through all delegates
         foreach (var del in eventHandler.GetInvocationList())
         {
             var originalDelegate = (EventHandler)del;
@@ -103,12 +102,11 @@ internal static class EventHandlerExtensions
             }
             catch (Exception ex)
             {
-                var eventNameDisplay = eventName ?? "EventHandler";
                 logger?.LogError(
                     ex,
                     "订阅者处理事件 '{EventName}' 时发生异常 / Subscriber threw exception while handling event '{EventName}': Target={Target}, Method={Method}",
                     eventNameDisplay,
-                    eventNameDisplay,  // EventName appears twice in the message
+                    eventNameDisplay,
                     del.Target?.GetType().Name ?? "Unknown",
                     del.Method.Name);
             }
