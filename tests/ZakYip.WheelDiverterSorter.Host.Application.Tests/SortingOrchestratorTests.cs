@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
 using Moq;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;

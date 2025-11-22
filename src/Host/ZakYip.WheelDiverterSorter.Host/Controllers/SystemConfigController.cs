@@ -80,6 +80,7 @@ public class SystemConfigController : ApiControllerBase
     public ActionResult<ApiResponse<SystemConfigRequest>> GetTemplate()
     {
         var defaultConfig = _configService.GetDefaultTemplate();
+#pragma warning disable CS0618 // 向后兼容
         var request = new SystemConfigRequest
         {
             ExceptionChuteId = defaultConfig.ExceptionChuteId,
@@ -94,6 +95,7 @@ public class SystemConfigController : ApiControllerBase
             FixedChuteId = defaultConfig.FixedChuteId,
             AvailableChuteIds = defaultConfig.AvailableChuteIds
         };
+#pragma warning restore CS0618
         return Success(request, "获取默认配置模板成功");
     }
 
@@ -282,6 +284,7 @@ public class SystemConfigController : ApiControllerBase
 
     private static SystemConfigResponse MapToResponse(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.SystemConfiguration config)
     {
+#pragma warning disable CS0618 // 向后兼容
         return new SystemConfigResponse
         {
             Id = config.Id,
@@ -300,6 +303,7 @@ public class SystemConfigController : ApiControllerBase
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
+#pragma warning restore CS0618
     }
 }
 

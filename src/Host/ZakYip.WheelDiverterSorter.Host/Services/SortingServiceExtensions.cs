@@ -2,6 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
@@ -55,6 +56,9 @@ public static class SortingServiceExtensions
 
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
+
+        // 注册格口分配超时计算器
+        services.AddSingleton<IChuteAssignmentTimeoutCalculator, ChuteAssignmentTimeoutCalculator>();
 
         // 注册 Application 层分拣编排服务
         services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();

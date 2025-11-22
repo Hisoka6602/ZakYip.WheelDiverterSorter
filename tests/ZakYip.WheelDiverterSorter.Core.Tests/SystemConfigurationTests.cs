@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;

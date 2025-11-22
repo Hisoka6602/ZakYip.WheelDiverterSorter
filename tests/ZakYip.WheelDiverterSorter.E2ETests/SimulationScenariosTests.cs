@@ -1,3 +1,4 @@
+#pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
