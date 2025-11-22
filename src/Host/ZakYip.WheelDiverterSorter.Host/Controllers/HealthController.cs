@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Runtime.Health;
@@ -18,15 +19,18 @@ public class HealthController : ControllerBase
 {
     private readonly ISystemStateManager _stateManager;
     private readonly IHealthStatusProvider _healthStatusProvider;
+    private readonly IPreRunHealthCheckService? _preRunHealthCheckService;
     private readonly ILogger<HealthController> _logger;
 
     public HealthController(
         ISystemStateManager stateManager,
         IHealthStatusProvider healthStatusProvider,
-        ILogger<HealthController> logger)
+        ILogger<HealthController> logger,
+        IPreRunHealthCheckService? preRunHealthCheckService = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _healthStatusProvider = healthStatusProvider ?? throw new ArgumentNullException(nameof(healthStatusProvider));
+        _preRunHealthCheckService = preRunHealthCheckService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -244,6 +248,99 @@ public class HealthController : ControllerBase
         return GetReadinessHealth();
     }
 
+    /// <summary>
+    /// 运行前健康检查端点（Pre-Run Check）
+    /// </summary>
+    /// <returns>运行前检查结果</returns>
+    /// <response code="200">系统配置完整，可以开始运行</response>
+    /// <response code="503">系统配置不完整，不可运行</response>
+    /// <remarks>
+    /// 在开始实际分拣/仿真前验证系统基础运行条件：
+    /// 
+    /// 检查项目：
+    /// - 异常口配置是否正确且存在于拓扑中
+    /// - 启动/停止/急停/面板灯等 IO 是否全部配置完毕
+    /// - 摆轮拓扑是否完整（至少有一条从入口到首个摆轮的有效路径）
+    /// - 线体拓扑中线体长度和线速度是否配置完整且合法
+    /// - 其他关键基础运行条件是否满足
+    /// 
+    /// 返回结构化 JSON，包含 overallStatus 与逐项检查状态，所有 message 为中文描述。
+    /// 用于运维/工程在上线前确认系统"具备基本可运行条件"。
+    /// </remarks>
+    [HttpGet("health/prerun")]
+    [SwaggerOperation(
+        Summary = "运行前健康检查（Pre-Run Check）",
+        Description = "验证系统基础运行条件是否就绪，包括异常口、面板IO、拓扑、线体段配置等",
+        OperationId = "GetPreRunHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "系统配置完整，可以开始运行", typeof(PreRunHealthCheckResponse))]
+    [SwaggerResponse(503, "系统配置不完整，不可运行", typeof(PreRunHealthCheckResponse))]
+    [ProducesResponseType(typeof(PreRunHealthCheckResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(PreRunHealthCheckResponse), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> GetPreRunHealth()
+    {
+        try
+        {
+            if (_preRunHealthCheckService == null)
+            {
+                _logger.LogWarning("PreRunHealthCheckService 未注册，返回服务不可用");
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new PreRunHealthCheckResponse
+                {
+                    OverallStatus = "Unhealthy",
+                    Checks = new List<HealthCheckItemResponse>
+                    {
+                        new HealthCheckItemResponse
+                        {
+                            Name = "ServiceAvailability",
+                            Status = "Unhealthy",
+                            Message = "运行前健康检查服务未启用"
+                        }
+                    }
+                });
+            }
+
+            var result = await _preRunHealthCheckService.ExecuteAsync(HttpContext.RequestAborted);
+
+            var response = new PreRunHealthCheckResponse
+            {
+                OverallStatus = result.OverallStatus,
+                Checks = result.Checks.Select(c => new HealthCheckItemResponse
+                {
+                    Name = c.Name,
+                    Status = c.Status,
+                    Message = c.Message
+                }).ToList()
+            };
+
+            if (result.IsHealthy)
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "运行前健康检查失败");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new PreRunHealthCheckResponse
+            {
+                OverallStatus = "Unhealthy",
+                Checks = new List<HealthCheckItemResponse>
+                {
+                    new HealthCheckItemResponse
+                    {
+                        Name = "PreRunCheck",
+                        Status = "Unhealthy",
+                        Message = "运行前健康检查执行时发生异常"
+                    }
+                }
+            });
+        }
+    }
+
     private static LineHealthResponse MapSnapshotToResponse(LineHealthSnapshot snapshot)
     {
         return new LineHealthResponse
@@ -432,4 +529,31 @@ public class AlertSummary
     public required string Severity { get; init; }
     public required string Message { get; init; }
     public DateTimeOffset RaisedAt { get; init; }
+}
+
+/// <summary>
+/// 运行前健康检查响应
+/// </summary>
+public class PreRunHealthCheckResponse
+{
+    /// <summary>整体状态: Healthy/Unhealthy</summary>
+    public required string OverallStatus { get; init; }
+
+    /// <summary>各项检查结果列表</summary>
+    public required List<HealthCheckItemResponse> Checks { get; init; }
+}
+
+/// <summary>
+/// 单项健康检查结果
+/// </summary>
+public class HealthCheckItemResponse
+{
+    /// <summary>检查项名称（英文标识符）</summary>
+    public required string Name { get; init; }
+
+    /// <summary>检查状态: Healthy/Unhealthy</summary>
+    public required string Status { get; init; }
+
+    /// <summary>检查结果描述（中文消息）</summary>
+    public required string Message { get; init; }
 }
