@@ -98,6 +98,33 @@ public static class ConfigurationRepositoryServiceExtensions
             return repository;
         });
 
+        // PR-1: 注册线体拓扑配置仓储为单例
+        services.AddSingleton<ILineTopologyRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbLineTopologyRepository(fullDatabasePath);
+            // 初始化默认配置，使用本地时间
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
+        // PR-1: 注册摆轮硬件绑定配置仓储为单例
+        services.AddSingleton<IWheelBindingsRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbWheelBindingsRepository(fullDatabasePath);
+            // 初始化默认配置，使用本地时间
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
+        // PR-1: 注册路径时间预估服务为单例
+        services.AddSingleton<IRouteTimingEstimator>(serviceProvider =>
+        {
+            var topologyRepository = serviceProvider.GetRequiredService<ILineTopologyRepository>();
+            return new RouteTimingEstimator(topologyRepository);
+        });
+
         return services;
     }
 }
