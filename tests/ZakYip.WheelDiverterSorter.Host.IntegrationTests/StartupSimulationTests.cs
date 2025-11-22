@@ -4,6 +4,7 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using System.Net;
+using ZakYip.WheelDiverterSorter.Core.Enums.Host;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 

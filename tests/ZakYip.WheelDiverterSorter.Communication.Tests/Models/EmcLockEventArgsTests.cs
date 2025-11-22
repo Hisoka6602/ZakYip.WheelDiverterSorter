@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Models;
 

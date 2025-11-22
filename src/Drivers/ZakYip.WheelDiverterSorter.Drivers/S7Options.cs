@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+
 namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
@@ -49,30 +51,4 @@ public class S7Options
     /// 摆轮配置列表
     /// </summary>
     public List<S7DiverterConfigDto> Diverters { get; set; } = new();
-}
-
-/// <summary>
-/// S7 CPU类型
-/// </summary>
-public enum S7CpuType
-{
-    /// <summary>
-    /// S7-1200 系列
-    /// </summary>
-    S71200,
-
-    /// <summary>
-    /// S7-1500 系列
-    /// </summary>
-    S71500,
-
-    /// <summary>
-    /// S7-300 系列
-    /// </summary>
-    S7300,
-
-    /// <summary>
-    /// S7-400 系列
-    /// </summary>
-    S7400
 }

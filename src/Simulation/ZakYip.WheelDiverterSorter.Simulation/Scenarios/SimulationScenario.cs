@@ -1,3 +1,9 @@
+// This file is maintained for backward compatibility.
+// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Simulation namespace.
+
+// Re-export the enum from Core.Enums.Simulation for backward compatibility
+global using ParcelGenerationMode = ZakYip.WheelDiverterSorter.Core.Enums.Simulation.ParcelGenerationMode;
+
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 
@@ -117,32 +123,6 @@ public record class ParcelGenerationConfig
     /// 包裹队列长度（用于批量生成模式）
     /// </summary>
     public int? QueueLength { get; init; }
-}
-
-/// <summary>
-/// 包裹生成模式
-/// </summary>
-public enum ParcelGenerationMode
-{
-    /// <summary>
-    /// 均匀间隔：包裹按固定间隔到达
-    /// </summary>
-    UniformInterval,
-
-    /// <summary>
-    /// 泊松分布：模拟真实的随机到达
-    /// </summary>
-    PoissonDistribution,
-
-    /// <summary>
-    /// 批量：一次性生成所有包裹
-    /// </summary>
-    Batch,
-
-    /// <summary>
-    /// 高密度：模拟拥堵场景
-    /// </summary>
-    HighDensity
 }
 
 /// <summary>
