@@ -676,6 +676,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var healthResult = await ValidatePathHealthAsync(parcelId, path, exceptionChuteId);
                 if (!healthResult.IsHealthy)
                 {
+                    if (healthResult.AlternativePath == null)
+                    {
+                        // 连异常格口路径都无法生成
+                        _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
+                        return new SortingResult(
+                            IsSuccess: false,
+                            ParcelId: parcelId.ToString(),
+                            ActualChuteId: 0,
+                            TargetChuteId: targetChuteId,
+                            ExecutionTimeMs: 0,
+                            FailureReason: "节点降级：连异常格口路径都无法生成"
+                        );
+                    }
                     path = healthResult.AlternativePath;
                     targetChuteId = exceptionChuteId;
                     isOverloadException = true;
@@ -685,9 +698,22 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 5.3: 二次超载检查（路径规划阶段，PR-08C）
             if (!isOverloadException && _overloadPolicy != null && _congestionCollector != null)
             {
-                var secondaryCheck = await CheckSecondaryOverloadAsync(parcelId, path!, targetChuteId, exceptionChuteId);
+                var secondaryCheck = await CheckSecondaryOverloadAsync(parcelId, path, targetChuteId, exceptionChuteId);
                 if (secondaryCheck.ShouldRouteToException)
                 {
+                    if (secondaryCheck.AlternativePath == null)
+                    {
+                        // 连异常格口路径都无法生成
+                        _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
+                        return new SortingResult(
+                            IsSuccess: false,
+                            ParcelId: parcelId.ToString(),
+                            ActualChuteId: 0,
+                            TargetChuteId: targetChuteId,
+                            ExecutionTimeMs: 0,
+                            FailureReason: "路由超载：连异常格口路径都无法生成"
+                        );
+                    }
                     path = secondaryCheck.AlternativePath;
                     targetChuteId = exceptionChuteId;
                     isOverloadException = true;
@@ -695,7 +721,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 5.4: 执行路径
-            var executionResult = await ExecutePathWithTrackingAsync(parcelId, path!, targetChuteId, isOverloadException, cancellationToken);
+            var executionResult = await ExecutePathWithTrackingAsync(parcelId, path, targetChuteId, isOverloadException, cancellationToken);
 
             // 5.5: 记录分拣结果
             await RecordSortingResultAsync(parcelId, executionResult, isOverloadException);
