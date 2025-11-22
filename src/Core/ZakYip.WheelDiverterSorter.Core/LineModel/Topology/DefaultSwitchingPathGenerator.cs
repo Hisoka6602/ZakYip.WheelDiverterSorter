@@ -68,17 +68,40 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return null;
         }
 
-        // 生成有序的摆轮段列表，按配置中的顺序号排序
-        var segments = routeConfig.DiverterConfigurations
-            .OrderBy(config => config.SequenceNumber)
-            .Select((config, index) => new SwitchingPathSegment
+        // PR-5: Optimize - avoid LINQ allocations by sorting in-place when needed
+        var configs = routeConfig.DiverterConfigurations;
+        var segments = new List<SwitchingPathSegment>(configs.Count);
+        
+        if (configs.Count > 1)
+        {
+            // For multiple configs, use List.Sort for better performance than LINQ OrderBy
+            var sortedConfigs = new List<DiverterConfigurationEntry>(configs);
+            sortedConfigs.Sort((a, b) => a.SequenceNumber.CompareTo(b.SequenceNumber));
+            
+            for (int i = 0; i < sortedConfigs.Count; i++)
             {
-                SequenceNumber = index + 1,
+                var config = sortedConfigs[i];
+                segments.Add(new SwitchingPathSegment
+                {
+                    SequenceNumber = i + 1,
+                    DiverterId = config.DiverterId,
+                    TargetDirection = config.TargetDirection,
+                    TtlMilliseconds = CalculateSegmentTtl(config)
+                });
+            }
+        }
+        else
+        {
+            // Single config - no sorting needed
+            var config = configs[0];
+            segments.Add(new SwitchingPathSegment
+            {
+                SequenceNumber = 1,
                 DiverterId = config.DiverterId,
                 TargetDirection = config.TargetDirection,
                 TtlMilliseconds = CalculateSegmentTtl(config)
-            })
-            .ToList();
+            });
+        }
 
         return new SwitchingPath
         {
@@ -165,8 +188,12 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return false;
         }
 
-        // 计算所有段的总TTL（包含容差）
-        double totalRequiredTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+        // PR-5: Optimize - use simple loop instead of LINQ Sum to avoid allocation
+        double totalRequiredTimeMs = 0;
+        for (int i = 0; i < path.Segments.Count; i++)
+        {
+            totalRequiredTimeMs += path.Segments[i].TtlMilliseconds;
+        }
 
         // 判断可用时间是否足够
         return totalRequiredTimeMs <= availableTimeBudgetMs;

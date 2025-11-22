@@ -375,3 +375,6 @@ Data/
 # Monitoring backup files
 backup/
 *.tar.gzreports/
+
+# Performance test results
+performance-results/

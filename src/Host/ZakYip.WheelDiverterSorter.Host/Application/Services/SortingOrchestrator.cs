@@ -726,7 +726,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         // PR-10: 记录路径规划完成事件
-        double totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+        // PR-5: Optimize - use simple loop instead of LINQ Sum
+        double totalRouteTimeMs = 0;
+        for (int i = 0; i < path.Segments.Count; i++)
+        {
+            totalRouteTimeMs += path.Segments[i].TtlMilliseconds;
+        }
+        
         await WriteTraceAsync(new ParcelTraceEventArgs
         {
             ItemId = parcelId,
@@ -801,8 +807,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         int targetChuteId, 
         int exceptionChuteId)
     {
-        // 计算路径所需的总时间
-        double totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+        // PR-5: Optimize - use simple loop instead of LINQ Sum
+        double totalRouteTimeMs = 0;
+        for (int i = 0; i < path.Segments.Count; i++)
+        {
+            totalRouteTimeMs += path.Segments[i].TtlMilliseconds;
+        }
         double remainingTtlMs = EstimatedTotalTtlMs - EstimatedElapsedMs;
 
         // 检查路径是否能在剩余时间内完成
