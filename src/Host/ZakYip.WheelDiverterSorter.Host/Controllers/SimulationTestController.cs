@@ -66,8 +66,8 @@ public class SimulationTestController : ControllerBase
         OperationId = "TriggerDebugSort_Obsolete",
         Tags = new[] { "仿真测试（已废弃）" }
     )]
-    [SwaggerResponse(410, "端点已废弃")]
-    [ProducesResponseType(typeof(object), 410)]
+    [SwaggerResponse(410, "端点已废弃", typeof(EndpointDeprecationResponse))]
+    [ProducesResponseType(typeof(EndpointDeprecationResponse), 410)]
     [Obsolete("请使用 POST /api/simulation/sort")]
     public Task<IActionResult> TriggerDebugSort(
         [FromBody] DebugSortRequest request,
@@ -76,13 +76,46 @@ public class SimulationTestController : ControllerBase
         _logger.LogWarning(
             "使用了已废弃的端点 POST /api/simulation/test/sort，请迁移至 POST /api/simulation/sort");
 
-        return Task.FromResult<IActionResult>(StatusCode(410, new
+        var response = new EndpointDeprecationResponse
         {
-            message = "此端点已废弃",
-            deprecatedEndpoint = "POST /api/simulation/test/sort",
-            newEndpoint = "POST /api/simulation/sort",
-            hint = "请更新您的API调用，使用新端点。请求和响应模型保持不变。",
-            willBeRemovedIn = "v2.0.0"
-        }));
+            Message = "此端点已废弃",
+            DeprecatedEndpoint = "POST /api/simulation/test/sort",
+            NewEndpoint = "POST /api/simulation/sort",
+            Hint = "请更新您的API调用，使用新端点。请求和响应模型保持不变。",
+            WillBeRemovedIn = "v2.0.0"
+        };
+
+        return Task.FromResult<IActionResult>(StatusCode(410, response));
     }
+}
+
+/// <summary>
+/// 端点废弃响应模型
+/// </summary>
+public sealed record EndpointDeprecationResponse
+{
+    /// <summary>
+    /// 废弃消息
+    /// </summary>
+    public required string Message { get; init; }
+
+    /// <summary>
+    /// 已废弃的端点
+    /// </summary>
+    public required string DeprecatedEndpoint { get; init; }
+
+    /// <summary>
+    /// 新端点地址
+    /// </summary>
+    public required string NewEndpoint { get; init; }
+
+    /// <summary>
+    /// 迁移提示
+    /// </summary>
+    public required string Hint { get; init; }
+
+    /// <summary>
+    /// 将在哪个版本移除
+    /// </summary>
+    public required string WillBeRemovedIn { get; init; }
 }

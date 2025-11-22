@@ -773,6 +773,7 @@ public class SimulationController : ControllerBase
     /// <response code="200">分拣执行成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="403">生产环境禁止调用</response>
+    /// <response code="503">服务未配置或不可用</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// **⚠️ 重要警告：仅供测试/仿真环境使用，生产环境禁止调用**
@@ -821,10 +822,12 @@ public class SimulationController : ControllerBase
     [SwaggerResponse(200, "分拣执行成功", typeof(DebugSortResponse))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(403, "生产环境禁止调用")]
+    [SwaggerResponse(503, "服务未配置或不可用")]
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(DebugSortResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 403)]
+    [ProducesResponseType(typeof(object), 503)]
     [ProducesResponseType(typeof(object), 500)]
     public async Task<IActionResult> TriggerTestSort(
         [FromBody] DebugSortRequest request,
@@ -860,7 +863,11 @@ public class SimulationController : ControllerBase
         if (_debugSortService == null)
         {
             _logger.LogError("DebugSortService 未注册，无法执行调试分拣");
-            return StatusCode(500, new { message = "调试分拣服务未初始化" });
+            return StatusCode(503, new 
+            { 
+                message = "调试分拣服务未配置或不可用",
+                hint = "请确保在测试/仿真环境中正确注册 DebugSortService"
+            });
         }
 
         try
