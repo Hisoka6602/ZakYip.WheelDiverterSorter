@@ -88,6 +88,16 @@ public static class ConfigurationRepositoryServiceExtensions
             return repository;
         });
 
+        // 注册 IO 联动配置仓储为单例
+        services.AddSingleton<IIoLinkageConfigurationRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbIoLinkageConfigurationRepository(fullDatabasePath);
+            // 初始化默认配置，使用本地时间
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
         return services;
     }
 }
