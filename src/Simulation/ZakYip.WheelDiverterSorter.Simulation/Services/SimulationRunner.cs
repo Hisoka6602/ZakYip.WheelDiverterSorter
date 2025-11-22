@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
@@ -39,8 +40,9 @@ public class SimulationRunner
     private readonly IReleaseThrottlePolicy? _throttlePolicy;
     private readonly CongestionMetricsCollector? _metricsCollector;
     
-    private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments = new();
-    private readonly Dictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
+    // 使用 ConcurrentDictionary 实现线程安全 / Use ConcurrentDictionary for thread safety
+    private readonly ConcurrentDictionary<long, TaskCompletionSource<int>> _pendingAssignments = new();
+    private readonly ConcurrentDictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
     private readonly object _lockObject = new();
     private long _misSortCount = 0;
     private DateTimeOffset? _previousEntryTime = null;
@@ -297,13 +299,14 @@ public class SimulationRunner
         
         // 追踪并发包裹数
         var currentConcurrent = Interlocked.Increment(ref _currentConcurrentParcels);
-        lock (_lockObject)
+        // Use Interlocked.CompareExchange for thread-safe maximum tracking
+        int currentMax;
+        do
         {
-            if (currentConcurrent > _maxConcurrentParcelsObserved)
-            {
-                _maxConcurrentParcelsObserved = currentConcurrent;
-            }
-        }
+            currentMax = _maxConcurrentParcelsObserved;
+            if (currentConcurrent <= currentMax)
+                break;
+        } while (Interlocked.CompareExchange(ref _maxConcurrentParcelsObserved, currentConcurrent, currentMax) != currentMax);
         
         // 更新在途包裹数指标
         _metrics.SetInFlightParcels(currentConcurrent);
@@ -334,10 +337,8 @@ public class SimulationRunner
             // 记录包裹完成（用于拥堵检测）
             _metricsCollector?.RecordParcelCompleted(isSuccess, latencyMs);
             
-            lock (_lockObject)
-            {
-                _parcelResults[parcelId] = result;
-            }
+            // ConcurrentDictionary is thread-safe for simple add/update operations
+            _parcelResults[parcelId] = result;
 
             // 记录Prometheus指标
             RecordMetrics(result);
@@ -372,10 +373,8 @@ public class SimulationRunner
                 FailureReason = ex.Message
             };
 
-            lock (_lockObject)
-            {
-                _parcelResults[parcelId] = errorResult;
-            }
+            // ConcurrentDictionary is thread-safe for simple add/update operations
+            _parcelResults[parcelId] = errorResult;
 
             RecordMetrics(errorResult);
         }
@@ -488,29 +487,28 @@ public class SimulationRunner
         int errorCount = 0;
         int misSortCount = 0;
 
-        lock (_lockObject)
+        // ConcurrentDictionary.Values is thread-safe for iteration
+        // (though results may change during iteration, it won't crash)
+        foreach (var result in _parcelResults.Values)
         {
-            foreach (var result in _parcelResults.Values)
+            switch (result.Status)
             {
-                switch (result.Status)
-                {
-                    case ParcelSimulationStatus.SortedToTargetChute:
-                        sortedCount++;
-                        break;
-                    case ParcelSimulationStatus.Timeout:
-                        timeoutCount++;
-                        break;
-                    case ParcelSimulationStatus.Dropped:
-                        droppedCount++;
-                        break;
-                    case ParcelSimulationStatus.ExecutionError:
-                    case ParcelSimulationStatus.RuleEngineTimeout:
-                        errorCount++;
-                        break;
-                    case ParcelSimulationStatus.SortedToWrongChute:
-                        misSortCount++;
-                        break;
-                }
+                case ParcelSimulationStatus.SortedToTargetChute:
+                    sortedCount++;
+                    break;
+                case ParcelSimulationStatus.Timeout:
+                    timeoutCount++;
+                    break;
+                case ParcelSimulationStatus.Dropped:
+                    droppedCount++;
+                    break;
+                case ParcelSimulationStatus.ExecutionError:
+                case ParcelSimulationStatus.RuleEngineTimeout:
+                    errorCount++;
+                    break;
+                case ParcelSimulationStatus.SortedToWrongChute:
+                    misSortCount++;
+                    break;
             }
         }
 
@@ -542,10 +540,8 @@ public class SimulationRunner
         // 创建等待格口分配的任务
         var tcs = new TaskCompletionSource<int>();
         
-        lock (_lockObject)
-        {
-            _pendingAssignments[parcelId] = tcs;
-        }
+        // ConcurrentDictionary is thread-safe for simple add/update operations
+        _pendingAssignments[parcelId] = tcs;
 
         try
         {
@@ -554,10 +550,8 @@ public class SimulationRunner
             
             if (!notified)
             {
-                lock (_lockObject)
-                {
-                    _pendingAssignments.Remove(parcelId);
-                }
+                // TryRemove is thread-safe
+                _pendingAssignments.TryRemove(parcelId, out _);
                 
                 LogParcelException(parcelId, null, "无法通知RuleEngine");
                 LogParcelCompleted(parcelId, null, null, ParcelFinalStatus.RuleEngineTimeout);
@@ -737,10 +731,8 @@ public class SimulationRunner
         }
         finally
         {
-            lock (_lockObject)
-            {
-                _pendingAssignments.Remove(parcelId);
-            }
+            // TryRemove is thread-safe
+            _pendingAssignments.TryRemove(parcelId, out _);
         }
     }
 
@@ -809,17 +801,15 @@ public class SimulationRunner
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentNotificationEventArgs e)
     {
-        lock (_lockObject)
+        // TryGetValue is thread-safe on ConcurrentDictionary
+        if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
         {
-            if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
+            tcs.TrySetResult(e.ChuteId);
+            
+            if (_options.IsEnableVerboseLogging)
             {
-                tcs.TrySetResult(e.ChuteId);
-                
-                if (_options.IsEnableVerboseLogging)
-                {
-                    _logger.LogDebug("收到格口分配：包裹 {ParcelId} -> 格口 {ChuteId}", 
-                        e.ParcelId, e.ChuteId);
-                }
+                _logger.LogDebug("收到格口分配：包裹 {ParcelId} -> 格口 {ChuteId}", 
+                    e.ParcelId, e.ChuteId);
             }
         }
     }
