@@ -23,7 +23,7 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
         _logger = logger;
     }
 
-    public SwitchingPath? GeneratePath(int targetChuteId)
+    public SwitchingPath? GeneratePath(long targetChuteId)
     {
         if (targetChuteId <= 0)
         {

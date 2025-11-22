@@ -694,7 +694,7 @@ public class SimulationRunner
             {
                 status = ParcelSimulationStatus.ExecutionError;
                 finalStatus = ParcelFinalStatus.ExecutionError;
-                LogParcelException(parcelId, finalChuteId, execResult.FailureReason ?? "执行错误");
+                LogParcelException(parcelId, (int?)finalChuteId, execResult.FailureReason ?? "执行错误");
             }
             else if (finalChuteId == targetChuteId)
             {
@@ -709,11 +709,11 @@ public class SimulationRunner
                 _logger.LogError(
                     "包裹 {ParcelId} 错误分拣！目标={Target}, 实际={Actual}", 
                     parcelId, targetChuteId, finalChuteId);
-                LogParcelException(parcelId, finalChuteId, "错误分拣");
+                LogParcelException(parcelId, (int?)finalChuteId, "错误分拣");
             }
             
             // 记录包裹完成
-            LogParcelCompleted(parcelId, targetChuteId, finalChuteId, finalStatus);
+            LogParcelCompleted(parcelId, (int?)targetChuteId, (int?)finalChuteId, finalStatus);
             
             return new ParcelSimulationResultEventArgs
             {
