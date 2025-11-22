@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -34,7 +35,34 @@ public class SimulationConfigController : ControllerBase
     /// <returns>仿真配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回当前的仿真配置参数，包括：
+    /// - 包裹数量和放包间隔
+    /// - 线速和安全车距
+    /// - 分拣模式和异常格口配置
+    /// 
+    /// 示例响应：
+    /// ```json
+    /// {
+    ///   "parcelCount": 1000,
+    ///   "lineSpeedMmps": 1000,
+    ///   "parcelIntervalMs": 300,
+    ///   "sortingMode": "RoundRobin",
+    ///   "exceptionChuteId": 21,
+    ///   "minSafeHeadwayMm": 300,
+    ///   "minSafeHeadwayTimeMs": 300
+    /// }
+    /// ```
+    /// </remarks>
     [HttpGet]
+    [SwaggerOperation(
+        Summary = "获取仿真配置",
+        Description = "返回当前的仿真配置参数，包括包裹数量、线速、分拣模式等",
+        OperationId = "GetSimulationConfig",
+        Tags = new[] { "仿真配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(SimulationConfigResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(SimulationConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<SimulationConfigResponse> GetSimulationConfig()
@@ -74,8 +102,24 @@ public class SimulationConfigController : ControllerBase
     ///     }
     /// 
     /// 配置更新后立即生效。
+    /// 
+    /// **参数验证规则**：
+    /// - parcelCount: 1-10000
+    /// - lineSpeedMmps: 100-5000 mm/s
+    /// - parcelIntervalMs: 100-5000 ms
+    /// - minSafeHeadwayMm: 100-1000 mm
+    /// - minSafeHeadwayTimeMs: 50-1000 ms
     /// </remarks>
     [HttpPut]
+    [SwaggerOperation(
+        Summary = "更新仿真配置",
+        Description = "更新仿真配置参数，配置立即生效。可调整包裹数量、线速、分拣模式等",
+        OperationId = "UpdateSimulationConfig",
+        Tags = new[] { "仿真配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(SimulationConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(SimulationConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
