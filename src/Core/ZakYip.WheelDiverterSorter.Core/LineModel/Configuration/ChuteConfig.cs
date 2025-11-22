@@ -37,6 +37,14 @@ public record class ChuteConfig
     public required string BoundDirection { get; init; }
 
     /// <summary>
+    /// 落格偏移距离（毫米）
+    /// </summary>
+    /// <remarks>
+    /// 从摆轮动作点到实际落格点的距离偏移，用于精确计算包裹到达格口的时间
+    /// </remarks>
+    public double DropOffsetMm { get; init; } = 0.0;
+
+    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; init; } = true;
