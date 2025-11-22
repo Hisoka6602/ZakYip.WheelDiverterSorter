@@ -9,7 +9,6 @@ namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 /// </summary>
 /// <remarks>
 /// Tests the consolidated sort endpoint under /api/simulation/sort
-/// and verifies the deprecation of /api/simulation/test/sort
 /// </remarks>
 public class SimulationSortEndpointTests : IClassFixture<CustomWebApplicationFactory>
 {
@@ -46,43 +45,6 @@ public class SimulationSortEndpointTests : IClassFixture<CustomWebApplicationFac
 
         // Verify the endpoint exists (not 404)
         Assert.NotEqual(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task DeprecatedSortEndpoint_ShouldReturn410Gone()
-    {
-        // Arrange
-        var request = new DebugSortRequest
-        {
-            ParcelId = "TEST-PKG-002",
-            TargetChuteId = 1
-        };
-
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/simulation/test/sort", request);
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task DeprecatedSortEndpoint_ShouldReturnMigrationInfo()
-    {
-        // Arrange
-        var request = new DebugSortRequest
-        {
-            ParcelId = "TEST-PKG-003",
-            TargetChuteId = 1
-        };
-
-        // Act
-        var response = await _client.PostAsJsonAsync("/api/simulation/test/sort", request);
-        var content = await response.Content.ReadAsStringAsync();
-
-        // Assert
-        Assert.Equal(HttpStatusCode.Gone, response.StatusCode);
-        Assert.Contains("废弃", content);
-        Assert.Contains("/api/simulation/sort", content);
     }
 
     [Fact]
