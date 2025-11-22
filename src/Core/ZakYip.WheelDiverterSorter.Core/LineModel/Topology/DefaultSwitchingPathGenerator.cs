@@ -68,19 +68,35 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return null;
         }
 
-        // PR-5: Optimize - avoid LINQ allocations by sorting in-place and pre-allocating list
+        // PR-5: Optimize - avoid LINQ allocations by sorting in-place when needed
         var configs = routeConfig.DiverterConfigurations;
-        var sortedConfigs = configs.Count > 1 
-            ? configs.OrderBy(config => config.SequenceNumber).ToList()
-            : configs;
+        var segments = new List<SwitchingPathSegment>(configs.Count);
         
-        var segments = new List<SwitchingPathSegment>(sortedConfigs.Count);
-        for (int i = 0; i < sortedConfigs.Count; i++)
+        if (configs.Count > 1)
         {
-            var config = sortedConfigs[i];
+            // For multiple configs, use List.Sort for better performance than LINQ OrderBy
+            var sortedConfigs = new List<DiverterConfigurationEntry>(configs);
+            sortedConfigs.Sort((a, b) => a.SequenceNumber.CompareTo(b.SequenceNumber));
+            
+            for (int i = 0; i < sortedConfigs.Count; i++)
+            {
+                var config = sortedConfigs[i];
+                segments.Add(new SwitchingPathSegment
+                {
+                    SequenceNumber = i + 1,
+                    DiverterId = config.DiverterId,
+                    TargetDirection = config.TargetDirection,
+                    TtlMilliseconds = CalculateSegmentTtl(config)
+                });
+            }
+        }
+        else
+        {
+            // Single config - no sorting needed
+            var config = configs[0];
             segments.Add(new SwitchingPathSegment
             {
-                SequenceNumber = i + 1,
+                SequenceNumber = 1,
                 DiverterId = config.DiverterId,
                 TargetDirection = config.TargetDirection,
                 TtlMilliseconds = CalculateSegmentTtl(config)

@@ -160,7 +160,11 @@ public class PerformanceBaselineTests : IDisposable
         // Arrange
         var scenario = ScenarioDefinitions.CreateLongRunDenseFlow(parcelCount: 1000);
         
-        // Record GC stats before
+        // Record GC stats before - force full collection for reliable baseline
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        
         var gen0Before = GC.CollectionCount(0);
         var gen1Before = GC.CollectionCount(1);
         var gen2Before = GC.CollectionCount(2);
@@ -200,8 +204,11 @@ public class PerformanceBaselineTests : IDisposable
         Console.WriteLine($"Success Rate: {summary.SortedToTargetChuteCount}/{summary.TotalParcels} ({100.0 * summary.SortedToTargetChuteCount / summary.TotalParcels:F1}%)");
         Console.WriteLine("==========================================");
         
-        // Save baseline to file
-        var baselinePath = Path.Combine(Path.GetTempPath(), "performance-baseline.txt");
+        // Save baseline to dedicated results directory
+        var resultsDir = Path.Combine(Environment.CurrentDirectory, "performance-results");
+        Directory.CreateDirectory(resultsDir);
+        var baselinePath = Path.Combine(resultsDir, $"baseline-{DateTime.Now:yyyy-MM-dd-HHmmss}.txt");
+        
         await File.WriteAllTextAsync(baselinePath, 
             $"Baseline Performance Metrics (1000 Parcels)\n" +
             $"Date: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n" +
