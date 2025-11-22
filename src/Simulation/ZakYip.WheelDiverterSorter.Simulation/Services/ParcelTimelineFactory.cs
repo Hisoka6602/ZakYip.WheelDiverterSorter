@@ -77,7 +77,7 @@ public class ParcelTimelineFactory
         var timeline = new ParcelTimeline
         {
             ParcelId = parcelId,
-            TargetChuteId = (int)path.TargetChuteId,
+            TargetChuteId = path.TargetChuteId,
             EntryTime = startTime,
             SensorEvents = new List<SensorEvent>(),
             IsSensorFault = false,
@@ -347,7 +347,7 @@ public class ParcelTimeline
     /// <summary>
     /// 目标格口ID
     /// </summary>
-    public int TargetChuteId { get; set; }
+    public long TargetChuteId { get; set; }
 
     /// <summary>
     /// 入口时间

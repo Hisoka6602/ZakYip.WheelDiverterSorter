@@ -98,7 +98,7 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 12345;
         string sensorId = "SENSOR_01";
-        int targetChuteId = 5;
+        long targetChuteId = 5;
         int actualChuteId = 5;
 
         var expectedPath = new SwitchingPath
@@ -159,7 +159,7 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 12346;
         string sensorId = "SENSOR_01";
-        int fixedChuteId = 3;
+        long fixedChuteId = 3;
 
         var config = new SystemConfiguration
         {
@@ -230,7 +230,7 @@ public class SortingOrchestratorTests : IDisposable
             FallbackChuteId = 99
         };
 
-        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<int>())).Returns(expectedPath);
+        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<long>())).Returns(expectedPath);
         _mockPathExecutor.Setup(e => e.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = 1 });
 
@@ -258,7 +258,7 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 12347;
         string sensorId = "SENSOR_02";
-        int exceptionChuteId = 99;
+        long exceptionChuteId = 99;
 
         var config = new SystemConfiguration
         {
@@ -310,8 +310,8 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 12348;
         string sensorId = "SENSOR_03";
-        int targetChuteId = 5;
-        int exceptionChuteId = 99;
+        long targetChuteId = 5;
+        long exceptionChuteId = 99;
 
         // 模拟上游返回格口分配
         _mockRuleEngineClient
@@ -359,7 +359,7 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 12349;
         string sensorId = "SENSOR_04";
-        int targetChuteId = 5;
+        long targetChuteId = 5;
 
         // 模拟上游返回格口分配
         _mockRuleEngineClient
@@ -412,7 +412,7 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 12350;
         string sensorId = "SENSOR_05";
-        int targetChuteId = 5;
+        long targetChuteId = 5;
 
         // 模拟上游返回格口分配
         _mockRuleEngineClient
@@ -425,7 +425,7 @@ public class SortingOrchestratorTests : IDisposable
             });
 
         // 模拟所有路径生成都失败
-        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<int>())).Returns((SwitchingPath?)null);
+        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<long>())).Returns((SwitchingPath?)null);
 
         // Act
         var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
@@ -447,7 +447,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         string parcelId = "DEBUG_PKG_001";
-        int targetChuteId = 7;
+        long targetChuteId = 7;
 
         var expectedPath = new SwitchingPath
         {
@@ -493,8 +493,8 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         string parcelId = "DEBUG_PKG_002";
-        int targetChuteId = 999; // 不存在的格口
-        int exceptionChuteId = 99;
+        long targetChuteId = 999; // 不存在的格口
+        long exceptionChuteId = 99;
 
         // 模拟目标格口路径生成失败，但异常格口路径生成成功
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns((SwitchingPath?)null);
@@ -536,10 +536,10 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         string parcelId = "DEBUG_PKG_003";
-        int targetChuteId = 999;
+        long targetChuteId = 999;
 
         // 模拟所有路径生成都失败
-        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<int>())).Returns((SwitchingPath?)null);
+        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<long>())).Returns((SwitchingPath?)null);
 
         // Act
         var result = await _orchestrator.ExecuteDebugSortAsync(parcelId, targetChuteId);
@@ -567,7 +567,7 @@ public class SortingOrchestratorTests : IDisposable
         // Arrange
         long parcelId = 20001;
         string sensorId = "SENSOR_ENTRY";
-        int targetChuteId = 3;
+        long targetChuteId = 3;
 
         bool notificationSent = false;
         bool parcelCreatedBeforeNotification = false;

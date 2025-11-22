@@ -63,7 +63,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly PathHealthChecker? _pathHealthChecker;
     
     // 包裹路由相关的状态
-    private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
+    private readonly Dictionary<long, TaskCompletionSource<long>> _pendingAssignments;
     private readonly Dictionary<long, SwitchingPath> _parcelPaths;
     private readonly Dictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
     private readonly object _lockObject = new object();
@@ -117,7 +117,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _traceSink = traceSink;
         _pathHealthChecker = pathHealthChecker;
         
-        _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
+        _pendingAssignments = new Dictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
         _createdParcels = new Dictionary<long, ParcelCreationRecord>();
 
@@ -539,7 +539,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         // 等待RuleEngine推送格口分配（带超时）
-        var tcs = new TaskCompletionSource<int>();
+        var tcs = new TaskCompletionSource<long>();
         
         lock (_lockObject)
         {

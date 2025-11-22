@@ -41,7 +41,7 @@ public class SimulationRunner
     private readonly CongestionMetricsCollector? _metricsCollector;
     
     // 使用 ConcurrentDictionary 实现线程安全 / Use ConcurrentDictionary for thread safety
-    private readonly ConcurrentDictionary<long, TaskCompletionSource<int>> _pendingAssignments = new();
+    private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments = new();
     private readonly ConcurrentDictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
     private readonly object _lockObject = new();
     private long _misSortCount = 0;
@@ -538,7 +538,7 @@ public class SimulationRunner
         var processingStartTime = DateTimeOffset.UtcNow;
         
         // 创建等待格口分配的任务
-        var tcs = new TaskCompletionSource<int>();
+        var tcs = new TaskCompletionSource<long>();
         
         // ConcurrentDictionary is thread-safe for simple add/update operations
         _pendingAssignments[parcelId] = tcs;
@@ -568,7 +568,7 @@ public class SimulationRunner
             using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
             
-            int targetChuteId;
+            long targetChuteId;
             try
             {
                 targetChuteId = await tcs.Task.WaitAsync(linkedCts.Token);
@@ -630,8 +630,8 @@ public class SimulationRunner
             if (timeline.IsDenseParcel)
             {
                 var denseResult = ApplyDenseParcelStrategy(parcelId, targetChuteId, timeline);
-                LogParcelException(parcelId, (int?)(denseResult.FinalChuteId ?? _options.ExceptionChuteId), "高密度包裹");
-                LogParcelCompleted(parcelId, targetChuteId, (int?)(denseResult.FinalChuteId ?? _options.ExceptionChuteId), 
+                LogParcelException(parcelId, (denseResult.FinalChuteId ?? _options.ExceptionChuteId), "高密度包裹");
+                LogParcelCompleted(parcelId, targetChuteId, (denseResult.FinalChuteId ?? _options.ExceptionChuteId), 
                     denseResult.Status == ParcelSimulationStatus.Timeout ? ParcelFinalStatus.Timeout : ParcelFinalStatus.ExceptionRouted);
                 return denseResult;
             }
@@ -676,8 +676,8 @@ public class SimulationRunner
                     HeadwayMm = timeline.HeadwayMm,
                     IsDenseParcel = timeline.IsDenseParcel
                 };
-                LogParcelException(parcelId, (int)_options.ExceptionChuteId, sensorIssueReason);
-                LogParcelCompleted(parcelId, targetChuteId, (int)_options.ExceptionChuteId, ParcelFinalStatus.SensorFault);
+                LogParcelException(parcelId, _options.ExceptionChuteId, sensorIssueReason);
+                LogParcelCompleted(parcelId, targetChuteId, _options.ExceptionChuteId, ParcelFinalStatus.SensorFault);
                 return result;
             }
 
@@ -694,7 +694,7 @@ public class SimulationRunner
             {
                 status = ParcelSimulationStatus.ExecutionError;
                 finalStatus = ParcelFinalStatus.ExecutionError;
-                LogParcelException(parcelId, (int?)finalChuteId, execResult.FailureReason ?? "执行错误");
+                LogParcelException(parcelId, finalChuteId, execResult.FailureReason ?? "执行错误");
             }
             else if (finalChuteId == targetChuteId)
             {
@@ -709,11 +709,11 @@ public class SimulationRunner
                 _logger.LogError(
                     "包裹 {ParcelId} 错误分拣！目标={Target}, 实际={Actual}", 
                     parcelId, targetChuteId, finalChuteId);
-                LogParcelException(parcelId, (int?)finalChuteId, "错误分拣");
+                LogParcelException(parcelId, finalChuteId, "错误分拣");
             }
             
             // 记录包裹完成
-            LogParcelCompleted(parcelId, (int?)targetChuteId, (int?)finalChuteId, finalStatus);
+            LogParcelCompleted(parcelId, targetChuteId, finalChuteId, finalStatus);
             
             return new ParcelSimulationResultEventArgs
             {
@@ -745,7 +745,7 @@ public class SimulationRunner
     /// <returns>包裹仿真结果</returns>
     private ParcelSimulationResultEventArgs ApplyDenseParcelStrategy(
         long parcelId,
-        int targetChuteId,
+        long targetChuteId,
         ParcelTimeline timeline)
     {
         _logger.LogWarning(
@@ -932,7 +932,7 @@ public class SimulationRunner
     /// <summary>
     /// 记录包裹创建事件
     /// </summary>
-    private void LogParcelCreated(long parcelId, DateTimeOffset entryTime, int targetChuteId)
+    private void LogParcelCreated(long parcelId, DateTimeOffset entryTime, long targetChuteId)
     {
         _lifecycleLogger?.LogCreated(new ParcelLifecycleContext
         {
@@ -965,7 +965,7 @@ public class SimulationRunner
     /// <summary>
     /// 记录格口分配事件
     /// </summary>
-    private void LogChuteAssigned(long parcelId, int chuteId)
+    private void LogChuteAssigned(long parcelId, long chuteId)
     {
         _lifecycleLogger?.LogChuteAssigned(new ParcelLifecycleContext
         {
@@ -979,7 +979,7 @@ public class SimulationRunner
     /// <summary>
     /// 记录包裹完成事件
     /// </summary>
-    private void LogParcelCompleted(long parcelId, int? targetChuteId, int? actualChuteId, ParcelFinalStatus status)
+    private void LogParcelCompleted(long parcelId, long? targetChuteId, long? actualChuteId, ParcelFinalStatus status)
     {
         _lifecycleLogger?.LogCompleted(new ParcelLifecycleContext
         {
@@ -994,7 +994,7 @@ public class SimulationRunner
     /// <summary>
     /// 记录异常事件
     /// </summary>
-    private void LogParcelException(long parcelId, int? chuteId, string reason)
+    private void LogParcelException(long parcelId, long? chuteId, string reason)
     {
         _lifecycleLogger?.LogException(new ParcelLifecycleContext
         {
