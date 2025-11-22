@@ -91,7 +91,7 @@ public class RouteTimingEstimator : IRouteTimingEstimator
                 SpeedMmPerSec = 0,
                 SegmentCount = 0,
                 IsSuccess = false,
-                ErrorMessage = "格口ID不能为空"
+                ErrorMessage = "格口ID不能为空 - Chute ID cannot be empty"
             };
         }
 
@@ -108,7 +108,7 @@ public class RouteTimingEstimator : IRouteTimingEstimator
                 SpeedMmPerSec = speedMmPerSec ?? (double)topology.DefaultLineSpeedMmps,
                 SegmentCount = 0,
                 IsSuccess = false,
-                ErrorMessage = $"无法找到到格口 {chuteId} 的路径"
+                ErrorMessage = $"无法找到到格口 {chuteId} 的路径 - Cannot find path to chute {chuteId}"
             };
         }
 
@@ -132,7 +132,7 @@ public class RouteTimingEstimator : IRouteTimingEstimator
                     SpeedMmPerSec = segmentSpeed,
                     SegmentCount = path.Count,
                     IsSuccess = false,
-                    ErrorMessage = "线速必须大于0"
+                    ErrorMessage = "线速必须大于0 - Speed must be greater than 0"
                 };
             }
 

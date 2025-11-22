@@ -171,7 +171,7 @@ public class LineTopologyController : ControllerBase
             if (request.LineSegments != null)
             {
                 var allNodeIds = nodeIds.ToHashSet();
-                allNodeIds.Add("ENTRY"); // 添加入口节点
+                allNodeIds.Add(LineTopologyConfig.EntryNodeId); // 使用常量
                 
                 foreach (var chute in request.Chutes)
                 {
