@@ -1,15 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -23,20 +15,17 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [ApiController]
 [Route("api/config/system")]
 [Produces("application/json")]
-public class SystemConfigController : ControllerBase
+public class SystemConfigController : ApiControllerBase
 {
-    private readonly ISystemConfigurationRepository _repository;
-    private readonly IRouteConfigurationRepository _routeRepository;
+    private readonly ISystemConfigService _configService;
     private readonly ILogger<SystemConfigController> _logger;
 
     public SystemConfigController(
-        ISystemConfigurationRepository repository,
-        IRouteConfigurationRepository routeRepository,
+        ISystemConfigService configService,
         ILogger<SystemConfigController> logger)
     {
-        _repository = repository;
-        _routeRepository = routeRepository;
-        _logger = logger;
+        _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -52,21 +41,22 @@ public class SystemConfigController : ControllerBase
         OperationId = "GetSystemConfig",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(SystemConfigResponse))]
+    [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<SystemConfigResponse>))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SystemConfigResponse), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SystemConfigResponse> GetSystemConfig()
+    [ProducesResponseType(typeof(ApiResponse<SystemConfigResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SystemConfigResponse>> GetSystemConfig()
     {
         try
         {
-            var config = _repository.Get();
-            return Ok(MapToResponse(config));
+            var config = _configService.GetSystemConfig();
+            var response = MapToResponse(config);
+            return Success(response, "获取系统配置成功");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取系统配置失败");
-            return StatusCode(500, new { message = "获取系统配置失败" });
+            return ServerError<SystemConfigResponse>("获取系统配置失败");
         }
     }
 
@@ -85,12 +75,12 @@ public class SystemConfigController : ControllerBase
         OperationId = "GetSystemConfigTemplate",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "成功返回模板", typeof(SystemConfigRequest))]
-    [ProducesResponseType(typeof(SystemConfigRequest), 200)]
-    public ActionResult<SystemConfigRequest> GetTemplate()
+    [SwaggerResponse(200, "成功返回模板", typeof(ApiResponse<SystemConfigRequest>))]
+    [ProducesResponseType(typeof(ApiResponse<SystemConfigRequest>), 200)]
+    public ActionResult<ApiResponse<SystemConfigRequest>> GetTemplate()
     {
-        var defaultConfig = SystemConfiguration.GetDefault();
-        return Ok(new SystemConfigRequest
+        var defaultConfig = _configService.GetDefaultTemplate();
+        var request = new SystemConfigRequest
         {
             ExceptionChuteId = defaultConfig.ExceptionChuteId,
             MqttDefaultPort = defaultConfig.MqttDefaultPort,
@@ -103,7 +93,8 @@ public class SystemConfigController : ControllerBase
             SortingMode = defaultConfig.SortingMode,
             FixedChuteId = defaultConfig.FixedChuteId,
             AvailableChuteIds = defaultConfig.AvailableChuteIds
-        });
+        };
+        return Success(request, "获取默认配置模板成功");
     }
 
     /// <summary>
@@ -114,43 +105,20 @@ public class SystemConfigController : ControllerBase
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 示例请求:
-    /// 
-    ///     PUT /api/config/system
-    ///     {
-    ///         "exceptionChuteId": 999,
-    ///         "mqttDefaultPort": 1883,
-    ///         "tcpDefaultPort": 8888,
-    ///         "chuteAssignmentTimeoutMs": 10000,
-    ///         "requestTimeoutMs": 5000,
-    ///         "retryCount": 3,
-    ///         "retryDelayMs": 1000,
-    ///         "enableAutoReconnect": true,
-    ///         "sortingMode": "Formal"
-    ///     }
-    /// 
-    /// 配置更新后立即生效，无需重启服务。
-    /// 
-    /// 分拣模式说明：
-    /// - Formal：正式模式，根据上游RuleEngine分配的格口进行分拣
-    /// - FixedChute：固定格口模式，所有包裹分拣到指定的固定格口
-    /// - RoundRobin：循环格口模式，包裹依次分拣到可用格口列表中的格口
-    /// </remarks>
     [HttpPut]
     [SwaggerOperation(
         Summary = "更新系统配置",
-        Description = "更新系统全局配置参数，配置会立即生效无需重启。可配置异常处理、通信参数、分拣模式等。",
+        Description = "更新系统全局配置参数，配置会立即生效无需重启",
         OperationId = "UpdateSystemConfig",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(SystemConfigResponse))]
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<SystemConfigResponse>))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SystemConfigResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SystemConfigResponse> UpdateSystemConfig([FromBody] SystemConfigRequest request)
+    [ProducesResponseType(typeof(ApiResponse<SystemConfigResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<SystemConfigResponse>>> UpdateSystemConfig([FromBody] SystemConfigRequest request)
     {
         try
         {
@@ -158,55 +126,28 @@ public class SystemConfigController : ControllerBase
             {
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                
+                return BadRequest(ApiResponse<SystemConfigResponse>.BadRequest(
+                    "请求参数无效", 
+                    default));
             }
 
-            var config = MapToConfiguration(request);
-            
-            // 验证配置
-            var (isValid, errorMessage) = config.Validate();
-            if (!isValid)
+            var result = await _configService.UpdateSystemConfigAsync(request);
+
+            if (!result.Success)
             {
-                return BadRequest(new { message = errorMessage });
+                return ValidationError<SystemConfigResponse>(result.ErrorMessage ?? "配置验证失败");
             }
 
-            // 验证异常格口是否存在于路由配置中
-            var exceptionRoute = _routeRepository.GetByChuteId(config.ExceptionChuteId);
-            if (exceptionRoute == null)
-            {
-                _logger.LogWarning("异常格口 {ExceptionChuteId} 不存在于路由配置中", 
-                    config.ExceptionChuteId);
-                return BadRequest(new { message = $"异常格口 {config.ExceptionChuteId} 不存在于路由配置中，请先创建对应的路由配置" });
-            }
-
-            if (!exceptionRoute.IsEnabled)
-            {
-                _logger.LogWarning("异常格口 {ExceptionChuteId} 的路由配置未启用", 
-                    config.ExceptionChuteId);
-                return BadRequest(new { message = $"异常格口 {config.ExceptionChuteId} 的路由配置未启用" });
-            }
-
-            _repository.Update(config);
-
-            _logger.LogInformation(
-                "系统配置已更新: ExceptionChuteId={ExceptionChuteId}, Version={Version}",
-                config.ExceptionChuteId,
-                config.Version);
-
-            // 重新获取更新后的配置
-            var updatedConfig = _repository.Get();
-            return Ok(MapToResponse(updatedConfig));
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "系统配置验证失败");
-            return BadRequest(new { message = ex.Message });
+            var response = MapToResponse(result.UpdatedConfig!);
+            return Success(response, "系统配置更新成功");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新系统配置失败");
-            return StatusCode(500, new { message = "更新系统配置失败" });
+            return ServerError<SystemConfigResponse>("更新系统配置失败");
         }
     }
 
@@ -216,9 +157,6 @@ public class SystemConfigController : ControllerBase
     /// <returns>重置后的系统配置</returns>
     /// <response code="200">重置成功</response>
     /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 将系统配置重置为默认值
-    /// </remarks>
     [HttpPost("reset")]
     [SwaggerOperation(
         Summary = "重置系统配置为默认值",
@@ -226,26 +164,22 @@ public class SystemConfigController : ControllerBase
         OperationId = "ResetSystemConfig",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "重置成功", typeof(SystemConfigResponse))]
+    [SwaggerResponse(200, "重置成功", typeof(ApiResponse<SystemConfigResponse>))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SystemConfigResponse), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SystemConfigResponse> ResetSystemConfig()
+    [ProducesResponseType(typeof(ApiResponse<SystemConfigResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<SystemConfigResponse>>> ResetSystemConfig()
     {
         try
         {
-            var defaultConfig = SystemConfiguration.GetDefault();
-            _repository.Update(defaultConfig);
-
-            _logger.LogInformation("系统配置已重置为默认值");
-
-            var updatedConfig = _repository.Get();
-            return Ok(MapToResponse(updatedConfig));
+            var config = await _configService.ResetSystemConfigAsync();
+            var response = MapToResponse(config);
+            return Success(response, "系统配置已重置为默认值");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "重置系统配置失败");
-            return StatusCode(500, new { message = "重置系统配置失败" });
+            return ServerError<SystemConfigResponse>("重置系统配置失败");
         }
     }
 
@@ -255,14 +189,6 @@ public class SystemConfigController : ControllerBase
     /// <returns>当前分拣模式配置信息</returns>
     /// <response code="200">成功返回分拣模式配置</response>
     /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 返回当前系统的分拣模式及相关配置参数。
-    /// 
-    /// 分拣模式说明：
-    /// - Formal：正式分拣模式（默认），由上游 Sorting.RuleEngine 给出格口分配
-    /// - FixedChute：指定落格分拣模式，可设置固定格口落格（异常除外），每次都只在指定的格口ID落格
-    /// - RoundRobin：循环格口落格模式，包裹依次分拣到可用格口列表中的格口
-    /// </remarks>
     [HttpGet("sorting-mode")]
     [SwaggerOperation(
         Summary = "获取当前分拣模式",
@@ -270,26 +196,27 @@ public class SystemConfigController : ControllerBase
         OperationId = "GetSortingMode",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "成功返回分拣模式配置", typeof(SortingModeResponse))]
+    [SwaggerResponse(200, "成功返回分拣模式配置", typeof(ApiResponse<SortingModeResponse>))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SortingModeResponse), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SortingModeResponse> GetSortingMode()
+    [ProducesResponseType(typeof(ApiResponse<SortingModeResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SortingModeResponse>> GetSortingMode()
     {
         try
         {
-            var config = _repository.Get();
-            return Ok(new SortingModeResponse
+            var modeInfo = _configService.GetSortingMode();
+            var response = new SortingModeResponse
             {
-                SortingMode = config.SortingMode,
-                FixedChuteId = config.FixedChuteId,
-                AvailableChuteIds = config.AvailableChuteIds ?? new List<int>()
-            });
+                SortingMode = modeInfo.SortingMode,
+                FixedChuteId = modeInfo.FixedChuteId,
+                AvailableChuteIds = modeInfo.AvailableChuteIds
+            };
+            return Success(response, "获取分拣模式配置成功");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取分拣模式配置失败");
-            return StatusCode(500, new { message = "获取分拣模式配置失败" });
+            return ServerError<SortingModeResponse>("获取分拣模式配置失败");
         }
     }
 
@@ -301,37 +228,6 @@ public class SystemConfigController : ControllerBase
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 更新系统的分拣模式配置，配置会立即生效无需重启。
-    /// 
-    /// 分拣模式说明：
-    /// - Formal：正式分拣模式（默认），由上游 Sorting.RuleEngine 给出格口分配
-    /// - FixedChute：指定落格分拣模式，需要设置 FixedChuteId，所有包裹（异常除外）都将发送到此格口
-    /// - RoundRobin：循环格口落格模式，需要设置 AvailableChuteIds，系统会按顺序循环使用这些格口
-    /// 
-    /// 示例请求（正式分拣模式）：
-    /// 
-    ///     PUT /api/config/system/sorting-mode
-    ///     {
-    ///         "sortingMode": "Formal"
-    ///     }
-    /// 
-    /// 示例请求（固定格口模式）：
-    /// 
-    ///     PUT /api/config/system/sorting-mode
-    ///     {
-    ///         "sortingMode": "FixedChute",
-    ///         "fixedChuteId": 1
-    ///     }
-    /// 
-    /// 示例请求（循环格口模式）：
-    /// 
-    ///     PUT /api/config/system/sorting-mode
-    ///     {
-    ///         "sortingMode": "RoundRobin",
-    ///         "availableChuteIds": [1, 2, 3, 4, 5, 6]
-    ///     }
-    /// </remarks>
     [HttpPut("sorting-mode")]
     [SwaggerOperation(
         Summary = "更新分拣模式配置",
@@ -339,13 +235,13 @@ public class SystemConfigController : ControllerBase
         OperationId = "UpdateSortingMode",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(SortingModeResponse))]
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<SortingModeResponse>))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SortingModeResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SortingModeResponse> UpdateSortingMode([FromBody] SortingModeRequest request)
+    [ProducesResponseType(typeof(ApiResponse<SortingModeResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<SortingModeResponse>>> UpdateSortingMode([FromBody] ZakYip.WheelDiverterSorter.Host.Models.Config.SortingModeRequest request)
     {
         try
         {
@@ -353,86 +249,38 @@ public class SystemConfigController : ControllerBase
             {
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                
+                return BadRequest(ApiResponse<SortingModeResponse>.BadRequest(
+                    "请求参数无效", 
+                    default));
             }
 
-            // 验证分拣模式值
-            if (!Enum.IsDefined(typeof(SortingMode), request.SortingMode))
+            var result = await _configService.UpdateSortingModeAsync(request);
+
+            if (!result.Success)
             {
-                return BadRequest(new { message = "分拣模式值无效，仅支持：Formal（正常）、FixedChute（指定落格）、RoundRobin（循环落格）" });
+                return ValidationError<SortingModeResponse>(result.ErrorMessage ?? "配置验证失败");
             }
 
-            // 获取当前配置
-            var config = _repository.Get();
-
-            // 更新分拣模式相关字段
-            config.SortingMode = request.SortingMode;
-            config.FixedChuteId = request.FixedChuteId;
-            config.AvailableChuteIds = request.AvailableChuteIds ?? new List<int>();
-
-            // 验证配置
-            var (isValid, errorMessage) = config.Validate();
-            if (!isValid)
+            var response = new SortingModeResponse
             {
-                return BadRequest(new { message = errorMessage });
-            }
+                SortingMode = result.UpdatedMode!.SortingMode,
+                FixedChuteId = result.UpdatedMode.FixedChuteId,
+                AvailableChuteIds = result.UpdatedMode.AvailableChuteIds
+            };
 
-            // 更新配置
-            _repository.Update(config);
-
-            _logger.LogInformation(
-                "分拣模式已更新: SortingMode={SortingMode}, FixedChuteId={FixedChuteId}, AvailableChuteIds={AvailableChuteIds}",
-                config.SortingMode,
-                config.FixedChuteId,
-                string.Join(",", config.AvailableChuteIds));
-
-            // 重新获取更新后的配置
-            var updatedConfig = _repository.Get();
-            return Ok(new SortingModeResponse
-            {
-                SortingMode = updatedConfig.SortingMode,
-                FixedChuteId = updatedConfig.FixedChuteId,
-                AvailableChuteIds = updatedConfig.AvailableChuteIds ?? new List<int>()
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "分拣模式配置验证失败");
-            return BadRequest(new { message = ex.Message });
+            return Success(response, "分拣模式配置更新成功");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新分拣模式配置失败");
-            return StatusCode(500, new { message = "更新分拣模式配置失败" });
+            return ServerError<SortingModeResponse>("更新分拣模式配置失败");
         }
     }
 
-    /// <summary>
-    /// 将请求模型映射到配置模型
-    /// </summary>
-    private SystemConfiguration MapToConfiguration(SystemConfigRequest request)
-    {
-        return new SystemConfiguration
-        {
-            ExceptionChuteId = request.ExceptionChuteId,
-            MqttDefaultPort = request.MqttDefaultPort,
-            TcpDefaultPort = request.TcpDefaultPort,
-            ChuteAssignmentTimeoutMs = request.ChuteAssignmentTimeoutMs,
-            RequestTimeoutMs = request.RequestTimeoutMs,
-            RetryCount = request.RetryCount,
-            RetryDelayMs = request.RetryDelayMs,
-            EnableAutoReconnect = request.EnableAutoReconnect,
-            SortingMode = request.SortingMode,
-            FixedChuteId = request.FixedChuteId,
-            AvailableChuteIds = request.AvailableChuteIds ?? new List<int>()
-        };
-    }
-
-    /// <summary>
-    /// 将配置模型映射到响应模型
-    /// </summary>
-    private SystemConfigResponse MapToResponse(SystemConfiguration config)
+    private static SystemConfigResponse MapToResponse(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.SystemConfiguration config)
     {
         return new SystemConfigResponse
         {
@@ -454,3 +302,5 @@ public class SystemConfigController : ControllerBase
         };
     }
 }
+
+// SortingModeResponse - defined in ConfigurationController.cs to avoid duplication
