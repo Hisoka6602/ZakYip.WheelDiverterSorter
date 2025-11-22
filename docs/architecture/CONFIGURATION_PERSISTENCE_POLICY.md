@@ -137,8 +137,8 @@ public static MyConfiguration GetDefault()
         ConfigName = "my_config",
         Version = 1,
         // 设置合理的默认值...
-        CreatedAt = DateTime.UtcNow,
-        UpdatedAt = DateTime.UtcNow
+        // 注意：CreatedAt 和 UpdatedAt 应由仓储层通过 ISystemClock.LocalNow 赋值
+        // 例如：repository.Save(config) 时设置时间戳
     };
 }
 ```
