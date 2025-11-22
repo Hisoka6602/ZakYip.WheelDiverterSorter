@@ -77,7 +77,7 @@ public class ParcelTimelineFactory
         var timeline = new ParcelTimeline
         {
             ParcelId = parcelId,
-            TargetChuteId = path.TargetChuteId,
+            TargetChuteId = (int)path.TargetChuteId,
             EntryTime = startTime,
             SensorEvents = new List<SensorEvent>(),
             IsSensorFault = false,
