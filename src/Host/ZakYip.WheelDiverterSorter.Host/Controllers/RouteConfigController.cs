@@ -14,7 +14,6 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 提供格口路由配置的增删改查功能，支持热更新。
 /// 
 /// **重要说明：本控制器是系统中路由/拓扑配置的唯一权威入口。**
-/// 原 `/api/config/topology` 端点已删除，所有路由和拓扑配置统一在此管理。
 /// 
 /// **配置内容：**
 /// - 格口路由规则（包裹如何分拣到各个格口）

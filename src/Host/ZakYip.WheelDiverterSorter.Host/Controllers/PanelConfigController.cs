@@ -276,10 +276,6 @@ public class PanelConfigController : ControllerBase
         }
     }
 
-    // 注意：原 GET /api/config/panel/template 端点已删除
-    // 功能已合并到 GET /api/config/panel，通过该端点可获取当前配置或默认配置
-    // 如需获取默认配置模板，请使用 POST /api/config/panel/reset 重置配置后再查询
-
     /// <summary>
     /// 将请求模型映射到域配置模型
     /// </summary>
