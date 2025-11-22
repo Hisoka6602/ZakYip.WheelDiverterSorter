@@ -33,16 +33,6 @@ public class ConfigurationController : ControllerBase
         _logger = logger;
     }
 
-    // 注意：线体拓扑配置端点已删除，统一使用 /api/config/routes 进行路由配置管理
-    // 原 /api/config/topology GET/PUT 端点已删除以避免与路由配置重复
-    // 
-    // 迁移说明：
-    // - 原 /api/config/topology GET 功能由 /api/config/routes 替代
-    // - 路由配置支持完整的摆轮序列和格口配置，并且支持热更新
-    
-    // 注意：分拣模式配置已移至 SystemConfigController (/api/config/system/sorting-mode)
-    // 原 /api/config/sorting-mode 端点已删除以避免重复
-
     #region 异常策略配置
 
     /// <summary>
@@ -180,9 +170,6 @@ public class ConfigurationController : ControllerBase
     }
 
     #endregion 异常策略配置
-
-    // 注意：仿真场景配置已移至 SimulationConfigController (/api/config/simulation)
-    // 原 /api/config/simulation-scenario 端点已删除以避免重复
 
     #region 放包节流配置
 

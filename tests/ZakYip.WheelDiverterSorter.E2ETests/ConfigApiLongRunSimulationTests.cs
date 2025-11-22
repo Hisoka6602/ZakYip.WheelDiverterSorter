@@ -323,7 +323,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
     public async Task GetSimulationStatus_ShouldReturnStatus()
     {
         // Act
-        var response = await _client.GetAsync("/api/sim/status");
+        var response = await _client.GetAsync("/api/simulation/status");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
