@@ -12,7 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
@@ -23,11 +23,11 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </summary>
 public class FaultRecoveryScenarioTests : E2ETestBase
 {
-    private readonly ParcelSortingOrchestrator _orchestrator;
+    private readonly ISortingOrchestrator _orchestrator;
 
     public FaultRecoveryScenarioTests(E2ETestFactory factory) : base(factory)
     {
-        _orchestrator = Scope.ServiceProvider.GetRequiredService<ParcelSortingOrchestrator>();
+        _orchestrator = Scope.ServiceProvider.GetRequiredService<ISortingOrchestrator>();
         SetupDefaultRouteConfiguration();
     }
 

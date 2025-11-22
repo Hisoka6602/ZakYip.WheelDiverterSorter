@@ -11,7 +11,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.E2ETests.Helpers;
@@ -23,11 +23,11 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </summary>
 public class ParcelSortingWorkflowTests : E2ETestBase
 {
-    private readonly ParcelSortingOrchestrator _orchestrator;
+    private readonly ISortingOrchestrator _orchestrator;
 
     public ParcelSortingWorkflowTests(E2ETestFactory factory) : base(factory)
     {
-        _orchestrator = Scope.ServiceProvider.GetRequiredService<ParcelSortingOrchestrator>();
+        _orchestrator = Scope.ServiceProvider.GetRequiredService<ISortingOrchestrator>();
         SetupDefaultRouteConfiguration();
     }
 
