@@ -9,6 +9,11 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 public record class LineTopologyConfig
 {
     /// <summary>
+    /// 入口节点ID常量
+    /// </summary>
+    public const string EntryNodeId = "ENTRY";
+
+    /// <summary>
     /// 拓扑配置唯一标识符
     /// </summary>
     public required string TopologyId { get; init; }
@@ -113,14 +118,14 @@ public record class LineTopologyConfig
         }
 
         var path = new List<LineSegmentConfig>();
-        var currentNodeId = "ENTRY"; // 假设入口节点ID为 "ENTRY"
+        var currentNodeId = EntryNodeId; // 使用常量
         var targetNodeId = chute.BoundNodeId;
 
         // 遍历摆轮节点，按位置索引顺序
         var sortedNodes = WheelNodes.OrderBy(n => n.PositionIndex).ToList();
         
         // 找到目标摆轮节点的位置
-        var targetNode = FindNodeById(targetNodeId);
+        var targetNode = WheelNodes.FirstOrDefault(n => n.NodeId == targetNodeId);
         if (targetNode == null)
         {
             return null;

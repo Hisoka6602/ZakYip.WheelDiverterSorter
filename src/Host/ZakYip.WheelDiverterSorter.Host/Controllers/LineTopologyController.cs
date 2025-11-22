@@ -432,7 +432,7 @@ public class LineTopologyController : ControllerBase
         
         return new LineTopologyConfig
         {
-            TopologyId = "default",
+            TopologyId = LiteDbLineTopologyRepository.DefaultTopologyId, // 使用常量
             TopologyName = request.TopologyName,
             Description = request.Description,
             WheelNodes = request.WheelNodes.Select(n => new WheelNodeConfig

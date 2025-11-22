@@ -7,10 +7,14 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 /// </summary>
 public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
 {
+    /// <summary>
+    /// 默认拓扑配置ID常量
+    /// </summary>
+    public const string DefaultTopologyId = "default";
+    
     private readonly LiteDatabase _database;
     private readonly ILiteCollection<LineTopologyConfigEntity> _collection;
     private const string CollectionName = "LineTopologyConfiguration";
-    private const string DefaultTopologyId = "default";
 
     /// <summary>
     /// 初始化LiteDB线体拓扑配置仓储
@@ -98,7 +102,7 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
 
         if (existing == null)
         {
-            var now = currentTime ?? DateTime.UtcNow;
+            var now = currentTime ?? DateTime.Now; // 使用本地时间
             var defaultConfig = GetDefaultConfig();
             var entity = MapToEntity(defaultConfig);
             entity.CreatedAt = now;

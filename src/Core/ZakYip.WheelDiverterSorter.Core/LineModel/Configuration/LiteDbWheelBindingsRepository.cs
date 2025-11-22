@@ -95,7 +95,7 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
 
         if (existing == null)
         {
-            var now = currentTime ?? DateTime.UtcNow;
+            var now = currentTime ?? DateTime.Now; // 使用本地时间
             var defaultConfig = GetDefaultConfig();
             defaultConfig.CreatedAt = now;
             defaultConfig.UpdatedAt = now;
