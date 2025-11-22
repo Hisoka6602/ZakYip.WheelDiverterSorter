@@ -169,14 +169,23 @@ public class PanelConfigController : ControllerBase
                 PollingIntervalMs = request.PollingIntervalMs,
                 DebounceMs = request.DebounceMs,
                 StartButtonInputBit = request.StartButtonInputBit,
+                StartButtonTriggerLevel = request.StartButtonTriggerLevel,
                 StopButtonInputBit = request.StopButtonInputBit,
+                StopButtonTriggerLevel = request.StopButtonTriggerLevel,
                 EmergencyStopButtonInputBit = request.EmergencyStopButtonInputBit,
+                EmergencyStopButtonTriggerLevel = request.EmergencyStopButtonTriggerLevel,
                 StartLightOutputBit = request.StartLightOutputBit,
+                StartLightOutputLevel = request.StartLightOutputLevel,
                 StopLightOutputBit = request.StopLightOutputBit,
+                StopLightOutputLevel = request.StopLightOutputLevel,
                 ConnectionLightOutputBit = request.ConnectionLightOutputBit,
+                ConnectionLightOutputLevel = request.ConnectionLightOutputLevel,
                 SignalTowerRedOutputBit = request.SignalTowerRedOutputBit,
+                SignalTowerRedOutputLevel = request.SignalTowerRedOutputLevel,
                 SignalTowerYellowOutputBit = request.SignalTowerYellowOutputBit,
-                SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit
+                SignalTowerYellowOutputLevel = request.SignalTowerYellowOutputLevel,
+                SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit,
+                SignalTowerGreenOutputLevel = request.SignalTowerGreenOutputLevel
             };
 
             // 原子更新配置（线程安全）
@@ -253,14 +262,23 @@ public class PanelConfigController : ControllerBase
             PollingIntervalMs = 100,
             DebounceMs = 50,
             StartButtonInputBit = null,
+            StartButtonTriggerLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             StopButtonInputBit = null,
+            StopButtonTriggerLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             EmergencyStopButtonInputBit = null,
+            EmergencyStopButtonTriggerLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             StartLightOutputBit = null,
+            StartLightOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             StopLightOutputBit = null,
+            StopLightOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             ConnectionLightOutputBit = null,
+            ConnectionLightOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             SignalTowerRedOutputBit = null,
+            SignalTowerRedOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
             SignalTowerYellowOutputBit = null,
-            SignalTowerGreenOutputBit = null
+            SignalTowerYellowOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
+            SignalTowerGreenOutputBit = null,
+            SignalTowerGreenOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh
         };
     }
 }
@@ -328,6 +346,16 @@ public sealed record PanelConfigRequest
     public int? StartButtonInputBit { get; init; }
 
     /// <summary>
+    /// 开始按钮 IO 触发电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平有效（常开按键）
+    /// - ActiveLow: 低电平有效（常闭按键）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StartButtonTriggerLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+
+    /// <summary>
     /// 停止按钮 IO 绑定（输入位）
     /// </summary>
     /// <remarks>
@@ -336,6 +364,16 @@ public sealed record PanelConfigRequest
     /// <example>1</example>
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
     public int? StopButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 停止按钮 IO 触发电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平有效（常开按键）
+    /// - ActiveLow: 低电平有效（常闭按键）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StopButtonTriggerLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
 
     /// <summary>
     /// 急停按钮 IO 绑定（输入位）
@@ -348,6 +386,16 @@ public sealed record PanelConfigRequest
     public int? EmergencyStopButtonInputBit { get; init; }
 
     /// <summary>
+    /// 急停按钮 IO 触发电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平有效（常开按键）
+    /// - ActiveLow: 低电平有效（常闭按键）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel EmergencyStopButtonTriggerLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+
+    /// <summary>
     /// 开始按钮灯 IO 绑定（输出位）
     /// </summary>
     /// <remarks>
@@ -356,6 +404,16 @@ public sealed record PanelConfigRequest
     /// <example>0</example>
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
     public int? StartLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 开始按钮灯 IO 输出电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StartLightOutputLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
 
     /// <summary>
     /// 停止按钮灯 IO 绑定（输出位）
@@ -368,6 +426,16 @@ public sealed record PanelConfigRequest
     public int? StopLightOutputBit { get; init; }
 
     /// <summary>
+    /// 停止按钮灯 IO 输出电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StopLightOutputLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+
+    /// <summary>
     /// 连接按钮灯 IO 绑定（输出位）
     /// </summary>
     /// <remarks>
@@ -376,6 +444,16 @@ public sealed record PanelConfigRequest
     /// <example>2</example>
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
     public int? ConnectionLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 连接按钮灯 IO 输出电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel ConnectionLightOutputLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
 
     /// <summary>
     /// 三色灯红色 IO 绑定（输出位）
@@ -388,6 +466,16 @@ public sealed record PanelConfigRequest
     public int? SignalTowerRedOutputBit { get; init; }
 
     /// <summary>
+    /// 三色灯红色 IO 输出电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel SignalTowerRedOutputLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+
+    /// <summary>
     /// 三色灯黄色 IO 绑定（输出位）
     /// </summary>
     /// <remarks>
@@ -398,6 +486,16 @@ public sealed record PanelConfigRequest
     public int? SignalTowerYellowOutputBit { get; init; }
 
     /// <summary>
+    /// 三色灯黄色 IO 输出电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel SignalTowerYellowOutputLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+
+    /// <summary>
     /// 三色灯绿色 IO 绑定（输出位）
     /// </summary>
     /// <remarks>
@@ -406,6 +504,16 @@ public sealed record PanelConfigRequest
     /// <example>5</example>
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
     public int? SignalTowerGreenOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯绿色 IO 输出电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel SignalTowerGreenOutputLevel { get; init; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
 }
 
 /// <summary>
@@ -442,9 +550,19 @@ public sealed record PanelConfigResponse
     public int? StartButtonInputBit { get; init; }
 
     /// <summary>
+    /// 开始按钮 IO 触发电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StartButtonTriggerLevel { get; init; }
+
+    /// <summary>
     /// 停止按钮 IO 绑定（输入位）
     /// </summary>
     public int? StopButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 停止按钮 IO 触发电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StopButtonTriggerLevel { get; init; }
 
     /// <summary>
     /// 急停按钮 IO 绑定（输入位）
@@ -452,9 +570,19 @@ public sealed record PanelConfigResponse
     public int? EmergencyStopButtonInputBit { get; init; }
 
     /// <summary>
+    /// 急停按钮 IO 触发电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel EmergencyStopButtonTriggerLevel { get; init; }
+
+    /// <summary>
     /// 开始按钮灯 IO 绑定（输出位）
     /// </summary>
     public int? StartLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 开始按钮灯 IO 输出电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StartLightOutputLevel { get; init; }
 
     /// <summary>
     /// 停止按钮灯 IO 绑定（输出位）
@@ -462,9 +590,19 @@ public sealed record PanelConfigResponse
     public int? StopLightOutputBit { get; init; }
 
     /// <summary>
+    /// 停止按钮灯 IO 输出电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel StopLightOutputLevel { get; init; }
+
+    /// <summary>
     /// 连接按钮灯 IO 绑定（输出位）
     /// </summary>
     public int? ConnectionLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 连接按钮灯 IO 输出电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel ConnectionLightOutputLevel { get; init; }
 
     /// <summary>
     /// 三色灯红色 IO 绑定（输出位）
@@ -472,12 +610,27 @@ public sealed record PanelConfigResponse
     public int? SignalTowerRedOutputBit { get; init; }
 
     /// <summary>
+    /// 三色灯红色 IO 输出电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel SignalTowerRedOutputLevel { get; init; }
+
+    /// <summary>
     /// 三色灯黄色 IO 绑定（输出位）
     /// </summary>
     public int? SignalTowerYellowOutputBit { get; init; }
 
     /// <summary>
+    /// 三色灯黄色 IO 输出电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel SignalTowerYellowOutputLevel { get; init; }
+
+    /// <summary>
     /// 三色灯绿色 IO 绑定（输出位）
     /// </summary>
     public int? SignalTowerGreenOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯绿色 IO 输出电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel SignalTowerGreenOutputLevel { get; init; }
 }

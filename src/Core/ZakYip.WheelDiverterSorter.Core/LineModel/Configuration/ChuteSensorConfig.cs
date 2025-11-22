@@ -43,6 +43,17 @@ public class ChuteSensorConfig
     public int? InputBit { get; set; }
 
     /// <summary>
+    /// IO触发电平配置（高电平有效/低电平有效）
+    /// </summary>
+    /// <remarks>
+    /// 默认值：ActiveHigh（高电平有效）
+    /// - ActiveHigh: 高电平有效（常开按键）
+    /// - ActiveLow: 低电平有效（常闭按键）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel TriggerLevel { get; set; } = 
+        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+
+    /// <summary>
     /// 是否启用此传感器
     /// </summary>
     public bool IsEnabled { get; set; } = true;
