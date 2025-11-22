@@ -19,7 +19,27 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// </summary>
 /// <remarks>
 /// 提供中段皮带等设备的IO联动配置管理功能。
-/// IO联动用于根据系统运行状态自动控制外部设备的IO点位。
+/// 
+/// **功能概述**：
+/// - IO联动用于根据系统运行状态自动控制外部设备的IO点位
+/// - 支持配置系统运行时和停止时的IO输出状态
+/// - 支持单点和批量IO操作，便于测试和手动控制
+/// 
+/// **IO点标识方式**：
+/// - 使用 BitNumber（0-1023）标识IO端口
+/// - 使用 Level（ActiveHigh/ActiveLow）指定电平有效性
+/// - BitNumber 对应物理硬件的输入/输出端口号
+/// 
+/// **使用场景**：
+/// - 配置管理：通过 GET/PUT 端点管理IO联动配置
+/// - 自动联动：系统状态改变时自动应用配置的IO输出
+/// - 手动控制：通过 set 端点手动控制单个或多个IO点
+/// - 状态查询：通过 status 端点查询IO点当前状态
+/// 
+/// **注意事项**：
+/// - IO操作会直接影响物理硬件输出
+/// - 生产环境请谨慎使用手动控制功能
+/// - 建议先在仿真环境测试IO配置
 /// </remarks>
 [ApiController]
 [Route("api/config/io-linkage")]
@@ -240,17 +260,41 @@ public class IoLinkageController : ControllerBase
     /// <summary>
     /// 查询指定 IO 点的状态
     /// </summary>
-    /// <param name="bitNumber">IO 端口编号</param>
+    /// <param name="bitNumber">IO 端口编号（0-1023）</param>
     /// <returns>IO 点状态</returns>
     /// <response code="200">查询成功</response>
     /// <response code="400">参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求:
+    /// **功能说明**：
     /// 
-    ///     GET /api/config/io-linkage/status/3
+    /// 读取单个IO端口的当前电平状态（true=高电平，false=低电平）。
     /// 
-    /// 返回指定IO端口的当前电平状态（true=高电平，false=低电平）
+    /// **IO点标识**：
+    /// - BitNumber: IO端口编号，范围 0-1023
+    /// - 对应物理硬件的实际IO端口
+    /// 
+    /// **使用场景**：
+    /// - 验证IO联动配置是否生效
+    /// - 诊断硬件连接问题
+    /// - 监控外部设备状态
+    /// 
+    /// **示例**：
+    /// ```
+    /// GET /api/config/io-linkage/status/3
+    /// 
+    /// 响应：
+    /// {
+    ///   "bitNumber": 3,
+    ///   "state": true,
+    ///   "level": "High"
+    /// }
+    /// ```
+    /// 
+    /// **注意事项**：
+    /// - 返回的state是原始电平状态（true=高，false=低）
+    /// - 不考虑 ActiveLevel 配置，仅返回物理电平
+    /// - 读取操作不影响IO输出状态
     /// </remarks>
     [HttpGet("status/{bitNumber}")]
     [SwaggerOperation(
@@ -293,17 +337,45 @@ public class IoLinkageController : ControllerBase
     /// <summary>
     /// 批量查询多个 IO 点的状态
     /// </summary>
-    /// <param name="bitNumbers">IO 端口编号列表（逗号分隔）</param>
+    /// <param name="bitNumbers">IO 端口编号列表（逗号分隔），例如: "3,5,7"</param>
     /// <returns>IO 点状态列表</returns>
     /// <response code="200">查询成功</response>
     /// <response code="400">参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求:
+    /// **功能说明**：
     /// 
-    ///     GET /api/config/io-linkage/status/batch?bitNumbers=3,5,7
+    /// 一次性读取多个IO端口的当前电平状态，提高查询效率。
     /// 
-    /// 返回指定IO端口列表的当前电平状态
+    /// **参数格式**：
+    /// - bitNumbers: 逗号分隔的IO端口号，例如 "3,5,7,10"
+    /// - 每个端口号必须在 0-1023 范围内
+    /// - 支持查询任意数量的IO点
+    /// 
+    /// **使用场景**：
+    /// - 批量验证IO联动配置
+    /// - 一次性查询相关IO组的状态
+    /// - 监控仪表板数据采集
+    /// 
+    /// **示例**：
+    /// ```
+    /// GET /api/config/io-linkage/status/batch?bitNumbers=3,5,7
+    /// 
+    /// 响应：
+    /// {
+    ///   "count": 3,
+    ///   "ioPoints": [
+    ///     { "bitNumber": 3, "state": true, "level": "High" },
+    ///     { "bitNumber": 5, "state": false, "level": "Low" },
+    ///     { "bitNumber": 7, "state": true, "level": "High" }
+    ///   ]
+    /// }
+    /// ```
+    /// 
+    /// **注意事项**：
+    /// - 返回顺序与请求顺序一致
+    /// - 任一端口号无效将导致整个请求失败
+    /// - 读取操作不影响IO输出状态
     /// </remarks>
     [HttpGet("status/batch")]
     [SwaggerOperation(
@@ -365,23 +437,51 @@ public class IoLinkageController : ControllerBase
     /// <summary>
     /// 设置指定 IO 点的电平状态
     /// </summary>
-    /// <param name="bitNumber">IO 端口编号</param>
-    /// <param name="request">IO 点设置请求</param>
+    /// <param name="bitNumber">IO 端口编号（0-1023）</param>
+    /// <param name="request">IO 点设置请求，指定目标电平</param>
     /// <returns>设置结果</returns>
     /// <response code="200">设置成功</response>
     /// <response code="400">参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求:
+    /// **功能说明**：
     /// 
-    ///     PUT /api/config/io-linkage/set/3
-    ///     {
-    ///         "level": "ActiveHigh"
-    ///     }
+    /// 手动控制单个IO端口的输出电平，用于测试或特殊场景控制。
     /// 
-    /// IO电平说明：
-    /// - ActiveLow：低电平有效（输出0）
-    /// - ActiveHigh：高电平有效（输出1）
+    /// **IO点标识**：
+    /// - BitNumber: IO端口编号，范围 0-1023
+    /// - Level: 目标电平（ActiveHigh=输出1，ActiveLow=输出0）
+    /// 
+    /// **电平语义**：
+    /// - ActiveHigh: 高电平有效，输出1（设备工作）
+    /// - ActiveLow: 低电平有效，输出0（设备工作）
+    /// 
+    /// **使用场景**：
+    /// - 测试IO硬件连接是否正常
+    /// - 手动控制外部设备开关
+    /// - 调试IO联动配置
+    /// - 应急情况下的手动干预
+    /// 
+    /// **示例**：
+    /// ```
+    /// PUT /api/config/io-linkage/set/3
+    /// {
+    ///   "level": "ActiveHigh"
+    /// }
+    /// 
+    /// 响应：
+    /// {
+    ///   "message": "IO 点设置成功",
+    ///   "bitNumber": 3,
+    ///   "level": "ActiveHigh"
+    /// }
+    /// ```
+    /// 
+    /// **⚠️ 重要警告**：
+    /// - 此操作直接控制物理IO输出，可能影响连接的设备
+    /// - 生产环境请谨慎使用，建议先在仿真环境测试
+    /// - 手动设置可能覆盖系统自动联动的输出
+    /// - 设置后的状态将持续，直到系统状态改变触发新的联动
     /// </remarks>
     [HttpPut("set/{bitNumber}")]
     [SwaggerOperation(
@@ -443,26 +543,59 @@ public class IoLinkageController : ControllerBase
     /// <summary>
     /// 批量设置多个 IO 点的电平状态
     /// </summary>
-    /// <param name="request">批量 IO 点设置请求</param>
+    /// <param name="request">批量 IO 点设置请求，包含IO点配置列表</param>
     /// <returns>设置结果</returns>
     /// <response code="200">设置成功</response>
     /// <response code="400">参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求:
+    /// **功能说明**：
     /// 
-    ///     PUT /api/config/io-linkage/set/batch
-    ///     {
-    ///         "ioPoints": [
-    ///             { "bitNumber": 3, "level": "ActiveHigh" },
-    ///             { "bitNumber": 5, "level": "ActiveLow" },
-    ///             { "bitNumber": 7, "level": "ActiveHigh" }
-    ///         ]
-    ///     }
+    /// 一次性设置多个IO端口的输出电平，适用于需要同时控制多个设备的场景。
     /// 
-    /// IO电平说明：
-    /// - ActiveLow：低电平有效（输出0）
-    /// - ActiveHigh：高电平有效（输出1）
+    /// **请求格式**：
+    /// - ioPoints: IO点配置数组，每个元素包含 bitNumber 和 level
+    /// - 所有IO点在同一操作中批量设置，提高效率
+    /// 
+    /// **电平语义**：
+    /// - ActiveHigh: 高电平有效，输出1
+    /// - ActiveLow: 低电平有效，输出0
+    /// 
+    /// **使用场景**：
+    /// - 批量测试多个IO端口
+    /// - 同时控制一组相关设备
+    /// - 快速应用预定义的IO配置
+    /// - 测试IO联动配置的完整场景
+    /// 
+    /// **示例**：
+    /// ```
+    /// PUT /api/config/io-linkage/set/batch
+    /// {
+    ///   "ioPoints": [
+    ///     { "bitNumber": 3, "level": "ActiveHigh" },
+    ///     { "bitNumber": 5, "level": "ActiveLow" },
+    ///     { "bitNumber": 7, "level": "ActiveHigh" }
+    ///   ]
+    /// }
+    /// 
+    /// 响应：
+    /// {
+    ///   "message": "批量设置 IO 点成功",
+    ///   "count": 3,
+    ///   "ioPoints": [
+    ///     { "bitNumber": 3, "level": "ActiveHigh" },
+    ///     { "bitNumber": 5, "level": "ActiveLow" },
+    ///     { "bitNumber": 7, "level": "ActiveHigh" }
+    ///   ]
+    /// }
+    /// ```
+    /// 
+    /// **⚠️ 重要警告**：
+    /// - 此操作直接控制物理IO输出，可能影响多个设备
+    /// - 所有IO点设置操作是原子性的（全部成功或全部失败）
+    /// - 生产环境请谨慎使用，建议先在仿真环境测试
+    /// - 批量设置可能覆盖系统自动联动的输出
+    /// - 确保IO点配置正确，错误配置可能导致设备异常
     /// </remarks>
     [HttpPut("set/batch")]
     [SwaggerOperation(
