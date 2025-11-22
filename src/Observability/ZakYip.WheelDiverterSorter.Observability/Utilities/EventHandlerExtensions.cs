@@ -62,8 +62,7 @@ internal static class EventHandlerExtensions
                 // Log the exception but continue invoking other subscribers
                 logger?.LogError(
                     ex,
-                    "订阅者处理事件 '{EventName}' 时发生异常 / Subscriber threw exception while handling event '{EventName}': Target={Target}, Method={Method}",
-                    eventNameDisplay,
+                    "订阅者处理事件 '{EventName}' 时发生异常 / Subscriber threw exception while handling event: Target={Target}, Method={Method}",
                     eventNameDisplay,
                     handler.Target?.GetType().Name ?? "Unknown",
                     handler.Method.Name);
@@ -104,8 +103,7 @@ internal static class EventHandlerExtensions
             {
                 logger?.LogError(
                     ex,
-                    "订阅者处理事件 '{EventName}' 时发生异常 / Subscriber threw exception while handling event '{EventName}': Target={Target}, Method={Method}",
-                    eventNameDisplay,
+                    "订阅者处理事件 '{EventName}' 时发生异常 / Subscriber threw exception while handling event: Target={Target}, Method={Method}",
                     eventNameDisplay,
                     del.Target?.GetType().Name ?? "Unknown",
                     del.Method.Name);
