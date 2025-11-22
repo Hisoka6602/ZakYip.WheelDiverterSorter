@@ -2,14 +2,26 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// 仿真运行控制 API 控制器
+/// 统一仿真管理 API 控制器
 /// </summary>
 /// <remarks>
-/// 提供仿真场景的启动和管理功能，与系统状态机集成
+/// 提供所有仿真相关功能的统一入口，包括：
+/// - 场景仿真（长跑测试）
+/// - 面板仿真（按钮和信号塔模拟）
+/// - 包裹仿真（单个或批量包裹创建）
+/// - 系统状态控制（启动、停止、急停等）
+/// 
+/// 所有仿真相关操作统一在本控制器下，避免端点分散。
 /// </remarks>
 [ApiController]
 [Route("api/simulation")]
@@ -17,6 +29,10 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class SimulationController : ControllerBase
 {
     private readonly ISystemStateManager _stateManager;
+    private readonly ISystemClock _clock;
+    private readonly IPanelInputReader _panelInputReader;
+    private readonly ISignalTowerOutput _signalTowerOutput;
+    private readonly ISimulationModeProvider _simulationModeProvider;
     private readonly ILogger<SimulationController> _logger;
     private static ISimulationScenarioRunner? _scenarioRunner;
     private static CancellationTokenSource? _simulationCts;
@@ -25,9 +41,17 @@ public class SimulationController : ControllerBase
 
     public SimulationController(
         ISystemStateManager stateManager,
+        ISystemClock clock,
+        IPanelInputReader panelInputReader,
+        ISignalTowerOutput signalTowerOutput,
+        ISimulationModeProvider simulationModeProvider,
         ILogger<SimulationController> logger)
     {
         _stateManager = stateManager;
+        _clock = clock;
+        _panelInputReader = panelInputReader;
+        _signalTowerOutput = signalTowerOutput;
+        _simulationModeProvider = simulationModeProvider;
         _logger = logger;
     }
 
@@ -269,4 +293,513 @@ public class SimulationController : ControllerBase
             });
         }
     }
+
+    #region 面板仿真
+
+    /// <summary>
+    /// 模拟按下面板启动按钮（切换系统到运行状态）
+    /// </summary>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">操作失败，例如当前状态不允许启动</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 模拟电柜面板启动按钮，触发系统状态切换到 [运行] 状态。
+    /// 适用于测试和自动化场景。
+    /// </remarks>
+    [HttpPost("panel/start")]
+    [SwaggerOperation(
+        Summary = "模拟按下启动按钮",
+        Description = "仿真模式下模拟按下面板启动按钮，触发系统状态切换",
+        OperationId = "SimulatePanelStart",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功", typeof(object))]
+    [SwaggerResponse(400, "操作失败")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> SimulatePanelStart()
+    {
+        try
+        {
+            var result = await _stateManager.ChangeStateAsync(SystemState.Running);
+            
+            if (result.Success)
+            {
+                _logger.LogInformation("仿真：启动按钮已按下，系统切换到运行状态");
+                return Ok(new 
+                { 
+                    success = true,
+                    message = "系统已启动",
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
+                });
+            }
+
+            _logger.LogWarning("仿真：启动操作失败 - {ErrorMessage}", result.ErrorMessage);
+            return BadRequest(new 
+            { 
+                success = false,
+                message = result.ErrorMessage,
+                currentState = result.CurrentState.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "仿真：启动操作异常");
+            return StatusCode(500, new { success = false, message = "启动操作失败" });
+        }
+    }
+
+    /// <summary>
+    /// 模拟按下面板停止按钮（切换系统到就绪状态）
+    /// </summary>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">操作失败</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("panel/stop")]
+    [SwaggerOperation(
+        Summary = "模拟按下停止按钮",
+        Description = "仿真模式下模拟按下面板停止按钮，触发系统状态切换到就绪状态",
+        OperationId = "SimulatePanelStop",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功")]
+    [SwaggerResponse(400, "操作失败")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> SimulatePanelStop()
+    {
+        try
+        {
+            var result = await _stateManager.ChangeStateAsync(SystemState.Ready);
+            
+            if (result.Success)
+            {
+                _logger.LogInformation("仿真：停止按钮已按下，系统切换到就绪状态");
+                return Ok(new 
+                { 
+                    success = true,
+                    message = "系统已停止",
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
+                });
+            }
+
+            _logger.LogWarning("仿真：停止操作失败 - {ErrorMessage}", result.ErrorMessage);
+            return BadRequest(new 
+            { 
+                success = false,
+                message = result.ErrorMessage,
+                currentState = result.CurrentState.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "仿真：停止操作异常");
+            return StatusCode(500, new { success = false, message = "停止操作失败" });
+        }
+    }
+
+    /// <summary>
+    /// 模拟按下面板急停按钮（切换系统到急停状态）
+    /// </summary>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">操作失败</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("panel/emergency-stop")]
+    [SwaggerOperation(
+        Summary = "模拟按下急停按钮",
+        Description = "仿真模式下模拟按下面板急停按钮，立即触发系统进入急停状态",
+        OperationId = "SimulatePanelEmergencyStop",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功")]
+    [SwaggerResponse(400, "操作失败")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> SimulatePanelEmergencyStop()
+    {
+        try
+        {
+            var result = await _stateManager.ChangeStateAsync(SystemState.EmergencyStop);
+            
+            if (result.Success)
+            {
+                _logger.LogWarning("仿真：急停按钮已按下，系统进入急停状态");
+                return Ok(new 
+                { 
+                    success = true,
+                    message = "系统已急停",
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
+                });
+            }
+
+            _logger.LogWarning("仿真：急停操作失败 - {ErrorMessage}", result.ErrorMessage);
+            return BadRequest(new 
+            { 
+                success = false,
+                message = result.ErrorMessage,
+                currentState = result.CurrentState.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "仿真：急停操作异常");
+            return StatusCode(500, new { success = false, message = "急停操作失败" });
+        }
+    }
+
+    /// <summary>
+    /// 模拟急停复位（解除急停状态）
+    /// </summary>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">操作失败</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("panel/emergency-reset")]
+    [SwaggerOperation(
+        Summary = "模拟急停复位",
+        Description = "仿真模式下模拟急停复位按钮，解除急停状态",
+        OperationId = "SimulatePanelEmergencyReset",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功")]
+    [SwaggerResponse(400, "操作失败")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> SimulatePanelEmergencyReset()
+    {
+        try
+        {
+            var result = await _stateManager.ChangeStateAsync(SystemState.Ready);
+            
+            if (result.Success)
+            {
+                _logger.LogInformation("仿真：急停复位按钮已按下，系统解除急停");
+                return Ok(new 
+                { 
+                    success = true,
+                    message = "急停已解除",
+                    currentState = result.CurrentState.ToString(),
+                    previousState = result.PreviousState?.ToString()
+                });
+            }
+
+            _logger.LogWarning("仿真：急停复位操作失败 - {ErrorMessage}", result.ErrorMessage);
+            return BadRequest(new 
+            { 
+                success = false,
+                message = result.ErrorMessage,
+                currentState = result.CurrentState.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "仿真：急停复位操作异常");
+            return StatusCode(500, new { success = false, message = "急停复位操作失败" });
+        }
+    }
+
+    /// <summary>
+    /// 模拟按下指定按钮（低级API，仅在仿真模式下可用）
+    /// </summary>
+    /// <param name="buttonType">按钮类型</param>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">未启用仿真模式或按钮类型无效</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("panel/press-button")]
+    [SwaggerOperation(
+        Summary = "模拟按下按钮（低级API）",
+        Description = "仅在仿真模式下可用，直接模拟按下指定按钮的底层操作",
+        OperationId = "SimulatePressButton",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功")]
+    [SwaggerResponse(400, "未启用仿真模式")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public IActionResult SimulatePressButton([FromQuery] PanelButtonType buttonType)
+    {
+        try
+        {
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 PressButton 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
+
+            if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            {
+                simulatedReader.SimulatePressButton(buttonType);
+                _logger.LogInformation("仿真：按下按钮 {ButtonType}", buttonType);
+                return Ok(new { message = $"已模拟按下按钮: {buttonType}", buttonType });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "模拟按下按钮失败");
+            return BadRequest(new { error = "操作失败，请查看日志获取详细信息" });
+        }
+    }
+
+    /// <summary>
+    /// 模拟释放指定按钮（低级API，仅在仿真模式下可用）
+    /// </summary>
+    /// <param name="buttonType">按钮类型</param>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">未启用仿真模式</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("panel/release-button")]
+    [SwaggerOperation(
+        Summary = "模拟释放按钮（低级API）",
+        Description = "仅在仿真模式下可用，直接模拟释放指定按钮的底层操作",
+        OperationId = "SimulateReleaseButton",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功")]
+    [SwaggerResponse(400, "未启用仿真模式")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public IActionResult SimulateReleaseButton([FromQuery] PanelButtonType buttonType)
+    {
+        try
+        {
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 ReleaseButton 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
+
+            if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            {
+                simulatedReader.SimulateReleaseButton(buttonType);
+                _logger.LogInformation("仿真：释放按钮 {ButtonType}", buttonType);
+                return Ok(new { message = $"已模拟释放按钮: {buttonType}", buttonType });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "模拟释放按钮失败");
+            return BadRequest(new { error = "操作失败，请查看日志获取详细信息" });
+        }
+    }
+
+    /// <summary>
+    /// 获取面板按钮和信号塔状态
+    /// </summary>
+    /// <returns>面板状态信息</returns>
+    /// <response code="200">成功返回状态</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("panel/state")]
+    [SwaggerOperation(
+        Summary = "获取面板状态",
+        Description = "返回当前面板所有按钮的状态和信号塔的状态信息",
+        OperationId = "GetPanelState",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "成功返回状态")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> GetPanelState()
+    {
+        try
+        {
+            var buttonStates = await _panelInputReader.ReadAllButtonStatesAsync();
+            var signalStates = await _signalTowerOutput.GetAllChannelStatesAsync();
+
+            return Ok(new
+            {
+                systemState = _stateManager.CurrentState.ToString(),
+                timestamp = _clock.LocalNow,
+                buttons = buttonStates.Select(kvp => new
+                {
+                    buttonType = kvp.Key.ToString(),
+                    isPressed = kvp.Value.IsPressed,
+                    lastChangedAt = kvp.Value.LastChangedAt,
+                    pressedDurationMs = kvp.Value.PressedDurationMs
+                }),
+                signalTower = signalStates.Select(kvp => new
+                {
+                    channel = kvp.Key.ToString(),
+                    isActive = kvp.Value.IsActive,
+                    isBlinking = kvp.Value.IsBlinking,
+                    blinkIntervalMs = kvp.Value.BlinkIntervalMs
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取面板状态失败");
+            return StatusCode(500, new { error = "获取面板状态失败" });
+        }
+    }
+
+    /// <summary>
+    /// 重置所有按钮状态（仅在仿真模式下可用）
+    /// </summary>
+    /// <returns>操作结果</returns>
+    /// <response code="200">操作成功</response>
+    /// <response code="400">未启用仿真模式</response>
+    [HttpPost("panel/reset-buttons")]
+    [SwaggerOperation(
+        Summary = "重置所有按钮状态",
+        Description = "仅在仿真模式下可用，重置所有按钮到未按下状态",
+        OperationId = "ResetAllButtons",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "操作成功")]
+    [SwaggerResponse(400, "未启用仿真模式")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    public IActionResult ResetAllButtons()
+    {
+        try
+        {
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 ResetAllButtons 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
+
+            if (_panelInputReader is SimulatedPanelInputReader simulatedReader)
+            {
+                simulatedReader.ResetAllButtons();
+                _logger.LogInformation("仿真：重置所有按钮状态");
+                return Ok(new { message = "已重置所有按钮状态" });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "重置按钮状态失败");
+            return BadRequest(new { error = "操作失败" });
+        }
+    }
+
+    /// <summary>
+    /// 获取信号塔状态变更历史（仅在仿真模式下可用）
+    /// </summary>
+    /// <returns>状态变更历史</returns>
+    /// <response code="200">返回状态变更历史</response>
+    /// <response code="400">未启用仿真模式</response>
+    [HttpGet("panel/signal-tower-history")]
+    [SwaggerOperation(
+        Summary = "获取信号塔状态变更历史",
+        Description = "仅在仿真模式下可用，返回信号塔状态变化的历史记录",
+        OperationId = "GetSignalTowerHistory",
+        Tags = new[] { "面板仿真" }
+    )]
+    [SwaggerResponse(200, "返回状态变更历史")]
+    [SwaggerResponse(400, "未启用仿真模式")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    public IActionResult GetSignalTowerHistory()
+    {
+        try
+        {
+            if (!_simulationModeProvider.IsSimulationMode())
+            {
+                _logger.LogWarning("非仿真模式下尝试调用 GetSignalTowerHistory 接口");
+                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
+            }
+
+            if (_signalTowerOutput is SimulatedSignalTowerOutput simulatedOutput)
+            {
+                var history = simulatedOutput.GetStateChangeHistory();
+                return Ok(new
+                {
+                    count = history.Count,
+                    changes = history.Select(change => new
+                    {
+                        channel = change.State.Channel.ToString(),
+                        isActive = change.State.IsActive,
+                        isBlinking = change.State.IsBlinking,
+                        changedAt = change.ChangedAt
+                    })
+                });
+            }
+
+            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取信号塔历史失败");
+            return BadRequest(new { error = "操作失败" });
+        }
+    }
+
+    #endregion 面板仿真
+}
+
+/// <summary>
+/// 仿真状态模型（为向后兼容保留）
+/// </summary>
+/// <remarks>
+/// 该模型用于 E2E 测试的向后兼容性，实际仿真状态通过 /api/simulation/status 端点返回
+/// </remarks>
+public class SimulationStatus
+{
+    /// <summary>
+    /// 是否正在运行
+    /// </summary>
+    public bool IsRunning { get; set; }
+
+    /// <summary>
+    /// 是否已完成
+    /// </summary>
+    public bool IsCompleted { get; set; }
+
+    /// <summary>
+    /// 总包裹数
+    /// </summary>
+    public int TotalParcels { get; set; }
+
+    /// <summary>
+    /// 已完成包裹数
+    /// </summary>
+    public int CompletedParcels { get; set; }
+
+    /// <summary>
+    /// 状态消息
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 错误信息
+    /// </summary>
+    public string? Error { get; set; }
+
+    /// <summary>
+    /// 开始时间
+    /// </summary>
+    public DateTime? StartTime { get; set; }
+
+    /// <summary>
+    /// 完成时间
+    /// </summary>
+    public DateTime? CompletedTime { get; set; }
 }

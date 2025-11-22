@@ -167,7 +167,16 @@ public class PanelConfigController : ControllerBase
                 Enabled = request.Enabled,
                 UseSimulation = request.UseSimulation,
                 PollingIntervalMs = request.PollingIntervalMs,
-                DebounceMs = request.DebounceMs
+                DebounceMs = request.DebounceMs,
+                StartButtonInputBit = request.StartButtonInputBit,
+                StopButtonInputBit = request.StopButtonInputBit,
+                EmergencyStopButtonInputBit = request.EmergencyStopButtonInputBit,
+                StartLightOutputBit = request.StartLightOutputBit,
+                StopLightOutputBit = request.StopLightOutputBit,
+                ConnectionLightOutputBit = request.ConnectionLightOutputBit,
+                SignalTowerRedOutputBit = request.SignalTowerRedOutputBit,
+                SignalTowerYellowOutputBit = request.SignalTowerYellowOutputBit,
+                SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit
             };
 
             // 原子更新配置（线程安全）
@@ -231,34 +240,9 @@ public class PanelConfigController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// 获取面板配置模板
-    /// </summary>
-    /// <returns>默认配置模板</returns>
-    /// <response code="200">成功返回模板</response>
-    /// <remarks>
-    /// 返回面板配置的默认模板，可用作参考或初始配置。
-    /// </remarks>
-    [HttpGet("template")]
-    [SwaggerOperation(
-        Summary = "获取面板配置模板",
-        Description = "返回面板配置的默认模板",
-        OperationId = "GetPanelConfigTemplate",
-        Tags = new[] { "面板配置" }
-    )]
-    [SwaggerResponse(200, "成功返回模板", typeof(PanelConfigRequest))]
-    [ProducesResponseType(typeof(PanelConfigRequest), 200)]
-    public ActionResult<PanelConfigRequest> GetPanelConfigTemplate()
-    {
-        var defaultConfig = GetDefaultConfig();
-        return Ok(new PanelConfigRequest
-        {
-            Enabled = defaultConfig.Enabled,
-            UseSimulation = defaultConfig.UseSimulation,
-            PollingIntervalMs = defaultConfig.PollingIntervalMs,
-            DebounceMs = defaultConfig.DebounceMs
-        });
-    }
+    // 注意：原 GET /api/config/panel/template 端点已删除
+    // 功能已合并到 GET /api/config/panel，通过该端点可获取当前配置或默认配置
+    // 如需获取默认配置模板，请使用 POST /api/config/panel/reset 重置配置后再查询
 
     private static PanelConfigResponse GetDefaultConfig()
     {
@@ -267,7 +251,16 @@ public class PanelConfigController : ControllerBase
             Enabled = false,
             UseSimulation = true,
             PollingIntervalMs = 100,
-            DebounceMs = 50
+            DebounceMs = 50,
+            StartButtonInputBit = null,
+            StopButtonInputBit = null,
+            EmergencyStopButtonInputBit = null,
+            StartLightOutputBit = null,
+            StopLightOutputBit = null,
+            ConnectionLightOutputBit = null,
+            SignalTowerRedOutputBit = null,
+            SignalTowerYellowOutputBit = null,
+            SignalTowerGreenOutputBit = null
         };
     }
 }
@@ -276,7 +269,7 @@ public class PanelConfigController : ControllerBase
 /// 面板配置请求模型
 /// </summary>
 /// <remarks>
-/// 用于更新面板配置的请求数据传输对象
+/// 用于更新面板配置的请求数据传输对象，包括面板按钮和指示灯的 IO 绑定配置
 /// </remarks>
 public sealed record PanelConfigRequest
 {
@@ -322,13 +315,104 @@ public sealed record PanelConfigRequest
     [Required]
     [Range(10, 500, ErrorMessage = "防抖时间必须在 10-500 毫秒之间")]
     public required int DebounceMs { get; init; }
+
+    /// <summary>
+    /// 开始按钮 IO 绑定（输入位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定启动按钮的输入 IO 地址
+    /// 例如：0 表示第0个输入位
+    /// </remarks>
+    /// <example>0</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? StartButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 停止按钮 IO 绑定（输入位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定停止按钮的输入 IO 地址
+    /// </remarks>
+    /// <example>1</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? StopButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 急停按钮 IO 绑定（输入位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定急停按钮的输入 IO 地址
+    /// </remarks>
+    /// <example>2</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? EmergencyStopButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 开始按钮灯 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定启动按钮指示灯的输出 IO 地址
+    /// </remarks>
+    /// <example>0</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? StartLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 停止按钮灯 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定停止按钮指示灯的输出 IO 地址
+    /// </remarks>
+    /// <example>1</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? StopLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 连接按钮灯 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定连接状态指示灯的输出 IO 地址
+    /// </remarks>
+    /// <example>2</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? ConnectionLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯红色 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定三色信号塔红色灯的输出 IO 地址
+    /// </remarks>
+    /// <example>3</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? SignalTowerRedOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯黄色 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定三色信号塔黄色灯的输出 IO 地址
+    /// </remarks>
+    /// <example>4</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? SignalTowerYellowOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯绿色 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定三色信号塔绿色灯的输出 IO 地址
+    /// </remarks>
+    /// <example>5</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? SignalTowerGreenOutputBit { get; init; }
 }
 
 /// <summary>
 /// 面板配置响应模型
 /// </summary>
 /// <remarks>
-/// 面板配置的数据传输对象，用于查询返回
+/// 面板配置的数据传输对象，用于查询返回，包括面板按钮和指示灯的 IO 绑定配置
 /// </remarks>
 public sealed record PanelConfigResponse
 {
@@ -351,4 +435,49 @@ public sealed record PanelConfigResponse
     /// 按钮防抖时间（毫秒）
     /// </summary>
     public required int DebounceMs { get; init; }
+
+    /// <summary>
+    /// 开始按钮 IO 绑定（输入位）
+    /// </summary>
+    public int? StartButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 停止按钮 IO 绑定（输入位）
+    /// </summary>
+    public int? StopButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 急停按钮 IO 绑定（输入位）
+    /// </summary>
+    public int? EmergencyStopButtonInputBit { get; init; }
+
+    /// <summary>
+    /// 开始按钮灯 IO 绑定（输出位）
+    /// </summary>
+    public int? StartLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 停止按钮灯 IO 绑定（输出位）
+    /// </summary>
+    public int? StopLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 连接按钮灯 IO 绑定（输出位）
+    /// </summary>
+    public int? ConnectionLightOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯红色 IO 绑定（输出位）
+    /// </summary>
+    public int? SignalTowerRedOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯黄色 IO 绑定（输出位）
+    /// </summary>
+    public int? SignalTowerYellowOutputBit { get; init; }
+
+    /// <summary>
+    /// 三色灯绿色 IO 绑定（输出位）
+    /// </summary>
+    public int? SignalTowerGreenOutputBit { get; init; }
 }
