@@ -704,6 +704,167 @@ public Parcel CreateParcel(string sensorId, DateTime detectedAt)
 }
 ```
 
+
+---
+
+## 基础设施与工具类规范
+
+### 1. Result 类型策略
+
+**规则**: 避免重复创建相似的 Result 类型。使用三种标准 Result 类型之一。
+
+**三种标准 Result 类型**:
+
+#### ① ApiResponse\<T\> (Host.Models)
+**用途**: API 层 HTTP 响应  
+**使用场景**: 仅在 API Controllers 中使用  
+**特性**: 状态码、消息、时间戳、HTTP 语义
+
+```csharp
+// ✅ 正确：在 API Controller 中使用
+[HttpGet]
+public ActionResult<ApiResponse<SystemConfigDto>> GetConfig()
+{
+    var config = _service.GetConfig();
+    return Ok(ApiResponse<SystemConfigDto>.Ok(config));
+}
+```
+
+#### ② OperationResult\<T\> (Ingress.Upstream)
+**用途**: 上游通信结果，带性能追踪  
+**使用场景**: 通信层、上游集成  
+**特性**: 延迟追踪、降级标识、来源信息
+
+```csharp
+// ✅ 正确：在上游通信中使用
+var result = await _upstreamClient.RequestRoutingAsync(parcelId);
+if (result.IsSuccess) 
+{
+    _metrics.RecordLatency(result.LatencyMs);
+}
+```
+
+#### ③ OperationResult (Core.LineModel.Routing) - 非泛型
+**用途**: 简单的成功/失败操作结果  
+**使用场景**: 内部领域逻辑、状态转换  
+**特性**: 布尔成功标志、错误消息
+
+```csharp
+// ✅ 正确：在领域逻辑中使用
+var result = routePlan.TryApplyChuteChange(newChuteId, timestamp, out decision);
+if (!result.IsSuccess)
+{
+    _logger.LogWarning(result.ErrorMessage);
+}
+```
+
+**领域特定 Result 类型** - 仅在以下情况允许:
+- 携带领域特定信息（如 `PathExecutionResult` 包含失败段详情）
+- 在单个限界上下文内使用
+- 具有独特语义，不被标准类型覆盖
+
+**❌ 禁止**:
+```csharp
+// ❌ 错误：不要创建功能重复的 Result 类型
+public class MyOperationResult  // 与 OperationResult 重复
+{
+    public bool Success { get; set; }
+    public string Message { get; set; }
+}
+```
+
+### 2. Helper 类规范
+
+**规则**: 创建 Helper 类前必须检查是否已存在等价实现。
+
+**优先级顺序**:
+1. **File-scoped** (`file static class`) - 仅在单个文件使用
+2. **Internal** (`internal static class`) - 仅在单个项目使用
+3. **Public** (`public static class`) - 跨项目使用（需强有力理由）
+
+**示例**:
+
+```csharp
+// ✅ 正确：File-scoped helper（推荐）
+namespace MyNamespace;
+
+public class MyService
+{
+    public void DoSomething()
+    {
+        var cleaned = StringHelper.Clean(input);
+    }
+}
+
+// 仅在此文件可见
+file static class StringHelper
+{
+    public static string Clean(string input) => input.Trim();
+}
+```
+
+```csharp
+// ✅ 正确：Internal helper（项目内共享）
+namespace MyNamespace.Utilities;
+
+internal static class ValidationHelper
+{
+    public static bool IsValidChuteId(int id) => id > 0;
+}
+```
+
+**❌ 禁止**:
+```csharp
+// ❌ 错误：不必要的 public helper
+public static class StringUtils  // 应该是 file 或 internal
+{
+    public static string Trim(string input) => input.Trim();
+}
+```
+
+**创建 Helper 前检查清单**:
+- [ ] 此功能是否已存在于现有 Helper 中？
+- [ ] 能否使用 `file static class` 替代？
+- [ ] 能否使用 `internal static class` 替代？
+- [ ] 是否真的需要 Helper 类，还是可以内联逻辑？
+
+### 3. Extension 方法规范
+
+**规则**: Extension 方法必须有明确的必要性。
+
+**允许的场景**:
+- **ServiceExtensions** - 仅用于 DI 注册
+- 扩展你不拥有的类型（如 .NET 框架类型）
+
+```csharp
+// ✅ 正确：ServiceExtensions for DI
+public static class MyFeatureServiceExtensions
+{
+    public static IServiceCollection AddMyFeature(this IServiceCollection services)
+    {
+        services.AddSingleton<IMyService, MyService>();
+        return services;
+    }
+}
+```
+
+**优先考虑实例方法**:
+```csharp
+// ✅ 推荐：实例方法
+public class Parcel
+{
+    public bool IsExpired(ISystemClock clock) 
+        => clock.LocalNow > ExpirationTime;
+}
+
+// ❌ 不推荐：Extension 方法（对于你拥有的类型）
+public static class ParcelExtensions
+{
+    public static bool IsExpired(this Parcel parcel, ISystemClock clock)
+        => clock.LocalNow > parcel.ExpirationTime;
+}
+```
+
 ---
 
 ## 代码审查清单
@@ -715,6 +876,13 @@ public Parcel CreateParcel(string sensorId, DateTime detectedAt)
 - [ ] 小型值类型使用 `readonly struct`
 - [ ] 工具类使用 `file` 作用域类型
 - [ ] 必填属性使用 `required + init`
+
+### 基础设施与工具类
+- [ ] 未创建重复的 Result 类型（使用三种标准类型之一）
+- [ ] Helper 类使用适当的可见性（`file` > `internal` > `public`）
+- [ ] 新 Helper 类前已检查现有实现
+- [ ] Extension 方法有明确必要性
+- [ ] 对自有类型优先使用实例方法而非扩展方法
 
 ### 可空引用类型
 - [ ] 启用可空引用类型（`Nullable=enable`）
