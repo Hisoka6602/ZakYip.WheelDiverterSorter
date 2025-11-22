@@ -26,13 +26,13 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class IoLinkageController : ControllerBase
 {
-    private readonly ISystemConfigurationRepository _repository;
+    private readonly IIoLinkageConfigurationRepository _repository;
     private readonly IIoLinkageDriver _ioLinkageDriver;
     private readonly IIoLinkageCoordinator _ioLinkageCoordinator;
     private readonly ILogger<IoLinkageController> _logger;
 
     public IoLinkageController(
-        ISystemConfigurationRepository repository,
+        IIoLinkageConfigurationRepository repository,
         IIoLinkageDriver ioLinkageDriver,
         IIoLinkageCoordinator ioLinkageCoordinator,
         ILogger<IoLinkageController> logger)
@@ -65,7 +65,7 @@ public class IoLinkageController : ControllerBase
         try
         {
             var config = _repository.Get();
-            return Ok(MapToResponse(config.IoLinkage));
+            return Ok(MapToResponse(config));
         }
         catch (Exception ex)
         {
@@ -130,24 +130,21 @@ public class IoLinkageController : ControllerBase
                 return BadRequest(new { message = "请求参数无效", errors });
             }
 
-            // 获取现有系统配置
-            var systemConfig = _repository.Get();
-            
-            // 更新 IoLinkage 配置
-            systemConfig.IoLinkage = MapToOptions(request);
+            // 将请求映射到域配置模型
+            var config = MapToConfiguration(request);
             
             // 保存配置
-            _repository.Update(systemConfig);
+            _repository.Update(config);
 
             _logger.LogInformation(
                 "IO 联动配置已更新: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}",
-                systemConfig.IoLinkage.Enabled,
-                systemConfig.IoLinkage.RunningStateIos.Count,
-                systemConfig.IoLinkage.StoppedStateIos.Count);
+                config.Enabled,
+                config.RunningStateIos.Count,
+                config.StoppedStateIos.Count);
 
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();
-            return Ok(MapToResponse(updatedConfig.IoLinkage));
+            return Ok(MapToResponse(updatedConfig));
         }
         catch (Exception ex)
         {
@@ -195,13 +192,16 @@ public class IoLinkageController : ControllerBase
         {
             var config = _repository.Get();
 
-            if (!config.IoLinkage.Enabled)
+            if (!config.Enabled)
             {
                 return BadRequest(new { message = "IO 联动功能未启用" });
             }
 
+            // 转换为 IoLinkageOptions 用于协调器
+            var options = ConvertToOptions(config);
+            
             // 确定需要设置的 IO 点
-            var ioPoints = _ioLinkageCoordinator.DetermineIoLinkagePoints(systemState, config.IoLinkage);
+            var ioPoints = _ioLinkageCoordinator.DetermineIoLinkagePoints(systemState, options);
 
             if (ioPoints.Count == 0)
             {
@@ -533,12 +533,14 @@ public class IoLinkageController : ControllerBase
     }
 
     /// <summary>
-    /// 将请求模型映射到配置选项
+    /// 将请求模型映射到域配置模型
     /// </summary>
-    private IoLinkageOptions MapToOptions(IoLinkageConfigRequest request)
+    private IoLinkageConfiguration MapToConfiguration(IoLinkageConfigRequest request)
     {
-        return new IoLinkageOptions
+        return new IoLinkageConfiguration
         {
+            ConfigName = "io_linkage",
+            Version = 1,
             Enabled = request.Enabled,
             RunningStateIos = request.RunningStateIos
                 .Select(p => new IoLinkagePoint
@@ -553,32 +555,47 @@ public class IoLinkageController : ControllerBase
                     BitNumber = p.BitNumber,
                     Level = p.Level
                 })
-                .ToList()
+                .ToList(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
     }
 
     /// <summary>
-    /// 将配置选项映射到响应模型
+    /// 将域配置模型映射到响应模型
     /// </summary>
-    private IoLinkageConfigResponse MapToResponse(IoLinkageOptions options)
+    private IoLinkageConfigResponse MapToResponse(IoLinkageConfiguration config)
     {
         return new IoLinkageConfigResponse
         {
-            Enabled = options.Enabled,
-            RunningStateIos = options.RunningStateIos
+            Enabled = config.Enabled,
+            RunningStateIos = config.RunningStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString()
                 })
                 .ToList(),
-            StoppedStateIos = options.StoppedStateIos
+            StoppedStateIos = config.StoppedStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString()
                 })
                 .ToList()
+        };
+    }
+
+    /// <summary>
+    /// 将域配置模型转换为 IoLinkageOptions（用于协调器）
+    /// </summary>
+    private IoLinkageOptions ConvertToOptions(IoLinkageConfiguration config)
+    {
+        return new IoLinkageOptions
+        {
+            Enabled = config.Enabled,
+            RunningStateIos = config.RunningStateIos.ToList(),
+            StoppedStateIos = config.StoppedStateIos.ToList()
         };
     }
 }
