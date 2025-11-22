@@ -15,6 +15,9 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class ChuteAssignmentTimeoutController : ApiControllerBase
 {
+    // TODO: 当前假设只有一条线，未来支持多线时需要动态获取LineId
+    private const long DefaultLineId = 1;
+    
     private readonly ISystemConfigurationRepository _configRepository;
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ILogger<ChuteAssignmentTimeoutController> _logger;
@@ -60,14 +63,14 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
                 try
                 {
                     var context = new ChuteAssignmentTimeoutContext(
-                        LineId: 1,
+                        LineId: DefaultLineId,
                         SafetyFactor: options.SafetyFactor
                     );
                     effectiveTimeout = _timeoutCalculator.CalculateTimeoutSeconds(context);
                     
                     // 尝试计算理论物理极限（SafetyFactor=1.0）
                     var maxContext = new ChuteAssignmentTimeoutContext(
-                        LineId: 1,
+                        LineId: DefaultLineId,
                         SafetyFactor: 1.0m
                     );
                     theoreticalLimit = _timeoutCalculator.CalculateTimeoutSeconds(maxContext);

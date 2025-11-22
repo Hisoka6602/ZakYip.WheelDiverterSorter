@@ -582,57 +582,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         catch (TimeoutException)
         {
-            var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
-            var timeoutMs = (int)(timeoutSeconds * 1000);
-            
-            _logger.LogWarning(
-                "【路由超时兜底】包裹 {ParcelId} 等待格口分配超时（超时限制：{TimeoutMs}ms），已分拣至异常口。" +
-                "异常口ChuteId={ExceptionChuteId}, " +
-                "发生时间={OccurredAt:yyyy-MM-dd HH:mm:ss.fff}",
-                parcelId,
-                timeoutMs,
-                exceptionChuteId,
-                _clock.LocalNow);
-            
-            // PR-10: 记录超时事件
-            await WriteTraceAsync(new ParcelTraceEventArgs
-            {
-                ItemId = parcelId,
-                BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.UtcNow),
-                Stage = "RoutingTimeout",
-                Source = "Upstream",
-                Details = $"TimeoutMs={timeoutMs}, Status=Timeout, RoutedToException={exceptionChuteId}"
-            });
-            
-            return exceptionChuteId;
+            return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Timeout");
         }
         catch (OperationCanceledException)
         {
-            var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
-            var timeoutMs = (int)(timeoutSeconds * 1000);
-            
-            _logger.LogWarning(
-                "【路由超时兜底】包裹 {ParcelId} 等待格口分配超时（超时限制：{TimeoutMs}ms），已分拣至异常口。" +
-                "异常口ChuteId={ExceptionChuteId}, " +
-                "发生时间={OccurredAt:yyyy-MM-dd HH:mm:ss.fff}",
-                parcelId,
-                timeoutMs,
-                exceptionChuteId,
-                _clock.LocalNow);
-            
-            // PR-10: 记录超时事件
-            await WriteTraceAsync(new ParcelTraceEventArgs
-            {
-                ItemId = parcelId,
-                BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.UtcNow),
-                Stage = "RoutingTimeout",
-                Source = "Upstream",
-                Details = $"TimeoutMs={timeoutMs}, Status=Cancelled, RoutedToException={exceptionChuteId}"
-            });
-            
-            return exceptionChuteId;
+            return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Cancelled");
         }
         finally
         {
@@ -652,7 +606,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (_timeoutCalculator != null)
         {
             var context = new ChuteAssignmentTimeoutContext(
-                LineId: 1, // 当前假设只有一条线
+                LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
                 SafetyFactor: systemConfig.ChuteAssignmentTimeout?.SafetyFactor ?? 0.9m
             );
             
@@ -663,6 +617,41 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 #pragma warning disable CS0618 // 向后兼容
         return systemConfig.ChuteAssignmentTimeoutMs / 1000m;
 #pragma warning restore CS0618
+    }
+
+    /// <summary>
+    /// 处理路由超时（提取公共逻辑）
+    /// </summary>
+    private async Task<long> HandleRoutingTimeoutAsync(
+        long parcelId, 
+        SystemConfiguration systemConfig, 
+        long exceptionChuteId, 
+        string status)
+    {
+        var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
+        var timeoutMs = (int)(timeoutSeconds * 1000);
+        
+        _logger.LogWarning(
+            "【路由超时兜底】包裹 {ParcelId} 等待格口分配超时（超时限制：{TimeoutMs}ms），已分拣至异常口。" +
+            "异常口ChuteId={ExceptionChuteId}, " +
+            "发生时间={OccurredAt:yyyy-MM-dd HH:mm:ss.fff}",
+            parcelId,
+            timeoutMs,
+            exceptionChuteId,
+            _clock.LocalNow);
+        
+        // PR-10: 记录超时事件
+        await WriteTraceAsync(new ParcelTraceEventArgs
+        {
+            ItemId = parcelId,
+            BarCode = null,
+            OccurredAt = new DateTimeOffset(_clock.UtcNow),
+            Stage = "RoutingTimeout",
+            Source = "Upstream",
+            Details = $"TimeoutMs={timeoutMs}, Status={status}, RoutedToException={exceptionChuteId}"
+        });
+        
+        return exceptionChuteId;
     }
 
     /// <summary>
