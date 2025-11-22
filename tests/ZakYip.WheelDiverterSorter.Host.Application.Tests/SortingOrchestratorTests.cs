@@ -486,16 +486,60 @@ public class SortingOrchestratorTests : IDisposable
     }
 
     /// <summary>
-    /// 测试调试分拣路径生成失败
+    /// 测试调试分拣路径生成失败：应尝试路由到异常格口
     /// </summary>
     [Fact]
-    public async Task ExecuteDebugSortAsync_PathGenerationFails_ShouldReturnFailure()
+    public async Task ExecuteDebugSortAsync_PathGenerationFails_ShouldRouteToExceptionChute()
     {
         // Arrange
         string parcelId = "DEBUG_PKG_002";
         int targetChuteId = 999; // 不存在的格口
+        int exceptionChuteId = 99;
 
+        // 模拟目标格口路径生成失败，但异常格口路径生成成功
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns((SwitchingPath?)null);
+        
+        var exceptionPath = new SwitchingPath
+        {
+            TargetChuteId = exceptionChuteId,
+            Segments = new List<SwitchingPathSegment>
+            {
+                new() { DiverterId = 99, TargetDirection = DiverterDirection.Straight, SequenceNumber = 1, TtlMilliseconds = 300 }
+            }.AsReadOnly(),
+            GeneratedAt = _testTime,
+            FallbackChuteId = 99
+        };
+        
+        _mockPathGenerator.Setup(g => g.GeneratePath(exceptionChuteId)).Returns(exceptionPath);
+        _mockPathExecutor.Setup(e => e.ExecuteAsync(exceptionPath, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = exceptionChuteId });
+
+        // Act
+        var result = await _orchestrator.ExecuteDebugSortAsync(parcelId, targetChuteId);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(parcelId, result.ParcelId);
+        Assert.Equal(exceptionChuteId, result.TargetChuteId); // 应该更新为异常格口
+        Assert.Equal(exceptionChuteId, result.ActualChuteId);
+        
+        // 验证尝试生成两次路径：一次目标格口，一次异常格口
+        _mockPathGenerator.Verify(g => g.GeneratePath(targetChuteId), Times.Once);
+        _mockPathGenerator.Verify(g => g.GeneratePath(exceptionChuteId), Times.Once);
+    }
+    
+    /// <summary>
+    /// 测试调试分拣连异常格口路径都无法生成
+    /// </summary>
+    [Fact]
+    public async Task ExecuteDebugSortAsync_CannotGenerateAnyPath_ShouldReturnFailure()
+    {
+        // Arrange
+        string parcelId = "DEBUG_PKG_003";
+        int targetChuteId = 999;
+
+        // 模拟所有路径生成都失败
+        _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<int>())).Returns((SwitchingPath?)null);
 
         // Act
         var result = await _orchestrator.ExecuteDebugSortAsync(parcelId, targetChuteId);
@@ -504,7 +548,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.False(result.IsSuccess);
         Assert.Equal(parcelId, result.ParcelId);
         Assert.Equal(targetChuteId, result.TargetChuteId);
-        Assert.Equal("路径生成失败", result.FailureReason);
+        Assert.Contains("连异常格口路径都无法生成", result.FailureReason);
     }
 
     #endregion
