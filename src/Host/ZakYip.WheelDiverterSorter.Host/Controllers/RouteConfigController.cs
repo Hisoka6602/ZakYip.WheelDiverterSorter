@@ -87,6 +87,16 @@ public class RouteConfigController : ControllerBase {
     /// <response code="404">配置不存在</response>
     /// <response code="500">服务器内部错误</response>
     [HttpGet("{chuteId}")]
+    [SwaggerOperation(
+        Summary = "根据格口ID获取路由配置",
+        Description = "查询指定格口的详细路由配置，包括摆轮序列、皮带参数等",
+        OperationId = "GetRouteByChute",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(RouteConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(404, "配置不存在")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(RouteConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 404)]
@@ -238,6 +248,16 @@ public class RouteConfigController : ControllerBase {
     /// 配置更新后立即生效，无需重启服务
     /// </remarks>
     [HttpPut("{chuteId}")]
+    [SwaggerOperation(
+        Summary = "更新现有路由配置",
+        Description = "更新指定格口的路由配置，支持热更新立即生效",
+        OperationId = "UpdateRoute",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(RouteConfigResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(409, "路由配置冲突")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(RouteConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
@@ -288,6 +308,16 @@ public class RouteConfigController : ControllerBase {
     /// <response code="404">配置不存在</response>
     /// <response code="500">服务器内部错误</response>
     [HttpDelete("{chuteId}")]
+    [SwaggerOperation(
+        Summary = "删除路由配置",
+        Description = "删除指定格口的路由配置，配置删除后立即生效",
+        OperationId = "DeleteRoute",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(204, "删除成功")]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(404, "配置不存在")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(204)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 404)]
@@ -322,6 +352,14 @@ public class RouteConfigController : ControllerBase {
     /// 导出所有路由配置为JSON格式，可用于备份或迁移
     /// </remarks>
     [HttpGet("export")]
+    [SwaggerOperation(
+        Summary = "导出所有路由配置",
+        Description = "导出系统中所有路由配置为JSON格式，用于配置备份或跨环境迁移",
+        OperationId = "ExportRoutes",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(200, "导出成功", typeof(IEnumerable<RouteConfigResponse>))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(IEnumerable<RouteConfigResponse>), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<IEnumerable<RouteConfigResponse>> ExportRoutes() {
@@ -368,6 +406,15 @@ public class RouteConfigController : ControllerBase {
     ///
     /// </remarks>
     [HttpPost("import")]
+    [SwaggerOperation(
+        Summary = "导入路由配置",
+        Description = "批量导入路由配置，跳过已存在的配置，验证每个配置的有效性",
+        OperationId = "ImportRoutes",
+        Tags = new[] { "路由配置" }
+    )]
+    [SwaggerResponse(200, "导入成功", typeof(object))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]

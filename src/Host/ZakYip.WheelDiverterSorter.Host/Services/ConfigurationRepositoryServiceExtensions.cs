@@ -78,6 +78,16 @@ public static class ConfigurationRepositoryServiceExtensions
             return repository;
         });
 
+        // 注册面板配置仓储为单例
+        services.AddSingleton<IPanelConfigurationRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbPanelConfigurationRepository(fullDatabasePath);
+            // 初始化默认配置，使用本地时间
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
         return services;
     }
 }

@@ -1082,6 +1082,8 @@ curl -X PUT http://localhost:5000/api/config/io-linkage/set/batch \
 
 电柜操作面板的配置，包括按钮映射、信号塔指示灯和触发电平配置。
 
+**配置持久化：** 面板配置通过LiteDB持久化存储，服务重启后配置保持不变。
+
 #### 获取面板配置
 ```bash
 curl http://localhost:5000/api/config/panel
@@ -1113,6 +1115,11 @@ curl -X PUT http://localhost:5000/api/config/panel \
     "signalTowerGreenOutputBit": 5,
     "signalTowerGreenOutputLevel": "ActiveHigh"
   }'
+```
+
+#### 重置面板配置为默认值
+```bash
+curl -X POST http://localhost:5000/api/config/panel/reset
 ```
 
 ### 传感器配置 API

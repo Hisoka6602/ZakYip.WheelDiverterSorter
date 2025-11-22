@@ -79,6 +79,13 @@ public class SystemConfigController : ControllerBase
     /// 返回系统默认配置，可用作配置文件模板
     /// </remarks>
     [HttpGet("template")]
+    [SwaggerOperation(
+        Summary = "获取默认系统配置模板",
+        Description = "返回系统默认配置作为配置模板，可用于初始化或参考",
+        OperationId = "GetSystemConfigTemplate",
+        Tags = new[] { "系统配置" }
+    )]
+    [SwaggerResponse(200, "成功返回模板", typeof(SystemConfigRequest))]
     [ProducesResponseType(typeof(SystemConfigRequest), 200)]
     public ActionResult<SystemConfigRequest> GetTemplate()
     {
@@ -213,6 +220,14 @@ public class SystemConfigController : ControllerBase
     /// 将系统配置重置为默认值
     /// </remarks>
     [HttpPost("reset")]
+    [SwaggerOperation(
+        Summary = "重置系统配置为默认值",
+        Description = "将所有系统配置参数重置为默认值，配置立即生效",
+        OperationId = "ResetSystemConfig",
+        Tags = new[] { "系统配置" }
+    )]
+    [SwaggerResponse(200, "重置成功", typeof(SystemConfigResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(SystemConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<SystemConfigResponse> ResetSystemConfig()
