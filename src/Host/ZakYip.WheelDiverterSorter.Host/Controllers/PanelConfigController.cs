@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
-using System.Collections.Concurrent;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -18,9 +19,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - 仿真/硬件模式切换
 /// 
 /// 配置更新立即生效，无需重启服务。
-/// 
-/// **注意**：当前实现使用内存存储，重启后配置会丢失。
-/// 未来版本将实现持久化存储（通过 IPanelConfigurationRepository）。
+/// 配置通过LiteDB持久化存储，服务重启后配置保持不变。
 /// </remarks>
 [ApiController]
 [Route("api/config/panel")]
@@ -28,14 +27,17 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class PanelConfigController : ControllerBase
 {
     private readonly ILogger<PanelConfigController> _logger;
-    // TODO: 需要添加持久化层 - IPanelConfigurationRepository
-    // 使用 ConcurrentDictionary 确保线程安全的配置存储
-    private static readonly ConcurrentDictionary<string, PanelConfigResponse> _configStore = 
-        new(new[] { new KeyValuePair<string, PanelConfigResponse>("current", GetDefaultConfig()) });
+    private readonly IPanelConfigurationRepository _repository;
+    private readonly ISystemClock _clock;
 
-    public PanelConfigController(ILogger<PanelConfigController> logger)
+    public PanelConfigController(
+        ILogger<PanelConfigController> logger,
+        IPanelConfigurationRepository repository,
+        ISystemClock clock)
     {
         _logger = logger;
+        _repository = repository;
+        _clock = clock;
     }
 
     /// <summary>
@@ -77,7 +79,8 @@ public class PanelConfigController : ControllerBase
         try
         {
             _logger.LogInformation("查询面板配置");
-            return Ok(_configStore["current"]);
+            var config = _repository.Get();
+            return Ok(MapToResponse(config));
         }
         catch (Exception ex)
         {
@@ -161,44 +164,30 @@ public class PanelConfigController : ControllerBase
                 return BadRequest(new { message = "防抖时间必须小于轮询间隔" });
             }
 
-            // 创建新配置对象
-            var newConfig = new PanelConfigResponse
+            // 从请求映射到域模型
+            var currentTime = _clock.LocalNow;
+            var config = MapToConfiguration(request, currentTime);
+            
+            // 验证配置
+            var (isValid, errorMessage) = config.Validate();
+            if (!isValid)
             {
-                Enabled = request.Enabled,
-                UseSimulation = request.UseSimulation,
-                PollingIntervalMs = request.PollingIntervalMs,
-                DebounceMs = request.DebounceMs,
-                StartButtonInputBit = request.StartButtonInputBit,
-                StartButtonTriggerLevel = request.StartButtonTriggerLevel,
-                StopButtonInputBit = request.StopButtonInputBit,
-                StopButtonTriggerLevel = request.StopButtonTriggerLevel,
-                EmergencyStopButtonInputBit = request.EmergencyStopButtonInputBit,
-                EmergencyStopButtonTriggerLevel = request.EmergencyStopButtonTriggerLevel,
-                StartLightOutputBit = request.StartLightOutputBit,
-                StartLightOutputLevel = request.StartLightOutputLevel,
-                StopLightOutputBit = request.StopLightOutputBit,
-                StopLightOutputLevel = request.StopLightOutputLevel,
-                ConnectionLightOutputBit = request.ConnectionLightOutputBit,
-                ConnectionLightOutputLevel = request.ConnectionLightOutputLevel,
-                SignalTowerRedOutputBit = request.SignalTowerRedOutputBit,
-                SignalTowerRedOutputLevel = request.SignalTowerRedOutputLevel,
-                SignalTowerYellowOutputBit = request.SignalTowerYellowOutputBit,
-                SignalTowerYellowOutputLevel = request.SignalTowerYellowOutputLevel,
-                SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit,
-                SignalTowerGreenOutputLevel = request.SignalTowerGreenOutputLevel
-            };
+                return BadRequest(new { message = errorMessage });
+            }
 
-            // 原子更新配置（线程安全）
-            _configStore["current"] = newConfig;
+            // 持久化保存
+            _repository.Update(config);
 
             _logger.LogInformation(
-                "面板配置已更新: Enabled={Enabled}, UseSimulation={UseSimulation}, Polling={PollingMs}ms, Debounce={DebounceMs}ms",
+                "面板配置已更新并持久化: Enabled={Enabled}, UseSimulation={UseSimulation}, Polling={PollingMs}ms, Debounce={DebounceMs}ms",
                 request.Enabled,
                 request.UseSimulation,
                 request.PollingIntervalMs,
                 request.DebounceMs);
 
-            return Ok(newConfig);
+            // 重新读取并返回
+            var updatedConfig = _repository.Get();
+            return Ok(MapToResponse(updatedConfig));
         }
         catch (Exception ex)
         {
@@ -235,12 +224,19 @@ public class PanelConfigController : ControllerBase
     {
         try
         {
-            var defaultConfig = GetDefaultConfig();
-            // 原子更新配置（线程安全）
-            _configStore["current"] = defaultConfig;
+            var currentTime = _clock.LocalNow;
+            var defaultConfig = PanelConfiguration.GetDefault() with
+            {
+                CreatedAt = currentTime,
+                UpdatedAt = currentTime
+            };
+            
+            _repository.Update(defaultConfig);
             
             _logger.LogInformation("面板配置已重置为默认值");
-            return Ok(defaultConfig);
+            
+            var updatedConfig = _repository.Get();
+            return Ok(MapToResponse(updatedConfig));
         }
         catch (Exception ex)
         {
@@ -253,32 +249,71 @@ public class PanelConfigController : ControllerBase
     // 功能已合并到 GET /api/config/panel，通过该端点可获取当前配置或默认配置
     // 如需获取默认配置模板，请使用 POST /api/config/panel/reset 重置配置后再查询
 
-    private static PanelConfigResponse GetDefaultConfig()
+    /// <summary>
+    /// 将请求模型映射到域配置模型
+    /// </summary>
+    private static PanelConfiguration MapToConfiguration(PanelConfigRequest request, DateTime currentTime)
+    {
+        return new PanelConfiguration
+        {
+            ConfigName = "panel",
+            Version = 1,
+            Enabled = request.Enabled,
+            UseSimulation = request.UseSimulation,
+            PollingIntervalMs = request.PollingIntervalMs,
+            DebounceMs = request.DebounceMs,
+            StartButtonInputBit = request.StartButtonInputBit,
+            StartButtonTriggerLevel = request.StartButtonTriggerLevel,
+            StopButtonInputBit = request.StopButtonInputBit,
+            StopButtonTriggerLevel = request.StopButtonTriggerLevel,
+            EmergencyStopButtonInputBit = request.EmergencyStopButtonInputBit,
+            EmergencyStopButtonTriggerLevel = request.EmergencyStopButtonTriggerLevel,
+            StartLightOutputBit = request.StartLightOutputBit,
+            StartLightOutputLevel = request.StartLightOutputLevel,
+            StopLightOutputBit = request.StopLightOutputBit,
+            StopLightOutputLevel = request.StopLightOutputLevel,
+            ConnectionLightOutputBit = request.ConnectionLightOutputBit,
+            ConnectionLightOutputLevel = request.ConnectionLightOutputLevel,
+            SignalTowerRedOutputBit = request.SignalTowerRedOutputBit,
+            SignalTowerRedOutputLevel = request.SignalTowerRedOutputLevel,
+            SignalTowerYellowOutputBit = request.SignalTowerYellowOutputBit,
+            SignalTowerYellowOutputLevel = request.SignalTowerYellowOutputLevel,
+            SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit,
+            SignalTowerGreenOutputLevel = request.SignalTowerGreenOutputLevel,
+            CreatedAt = currentTime,
+            UpdatedAt = currentTime
+        };
+    }
+
+    /// <summary>
+    /// 将域配置模型映射到响应模型
+    /// </summary>
+    private static PanelConfigResponse MapToResponse(PanelConfiguration config)
     {
         return new PanelConfigResponse
         {
-            Enabled = false,
-            UseSimulation = true,
-            PollingIntervalMs = 100,
-            DebounceMs = 50,
-            StartButtonInputBit = null,
-            StartButtonTriggerLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            StopButtonInputBit = null,
-            StopButtonTriggerLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            EmergencyStopButtonInputBit = null,
-            EmergencyStopButtonTriggerLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            StartLightOutputBit = null,
-            StartLightOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            StopLightOutputBit = null,
-            StopLightOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            ConnectionLightOutputBit = null,
-            ConnectionLightOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            SignalTowerRedOutputBit = null,
-            SignalTowerRedOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            SignalTowerYellowOutputBit = null,
-            SignalTowerYellowOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh,
-            SignalTowerGreenOutputBit = null,
-            SignalTowerGreenOutputLevel = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh
+            Enabled = config.Enabled,
+            UseSimulation = config.UseSimulation,
+            PollingIntervalMs = config.PollingIntervalMs,
+            DebounceMs = config.DebounceMs,
+            StartButtonInputBit = config.StartButtonInputBit,
+            StartButtonTriggerLevel = config.StartButtonTriggerLevel,
+            StopButtonInputBit = config.StopButtonInputBit,
+            StopButtonTriggerLevel = config.StopButtonTriggerLevel,
+            EmergencyStopButtonInputBit = config.EmergencyStopButtonInputBit,
+            EmergencyStopButtonTriggerLevel = config.EmergencyStopButtonTriggerLevel,
+            StartLightOutputBit = config.StartLightOutputBit,
+            StartLightOutputLevel = config.StartLightOutputLevel,
+            StopLightOutputBit = config.StopLightOutputBit,
+            StopLightOutputLevel = config.StopLightOutputLevel,
+            ConnectionLightOutputBit = config.ConnectionLightOutputBit,
+            ConnectionLightOutputLevel = config.ConnectionLightOutputLevel,
+            SignalTowerRedOutputBit = config.SignalTowerRedOutputBit,
+            SignalTowerRedOutputLevel = config.SignalTowerRedOutputLevel,
+            SignalTowerYellowOutputBit = config.SignalTowerYellowOutputBit,
+            SignalTowerYellowOutputLevel = config.SignalTowerYellowOutputLevel,
+            SignalTowerGreenOutputBit = config.SignalTowerGreenOutputBit,
+            SignalTowerGreenOutputLevel = config.SignalTowerGreenOutputLevel
         };
     }
 }
