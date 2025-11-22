@@ -335,6 +335,19 @@ if (!executionResult.IsSuccess)
   - `200 OK`：系统Ready/Running且自检成功
   - `503 ServiceUnavailable`：系统Faulted/EmergencyStop或自检失败
 
+#### `/health/prerun` - 运行前健康检查 🆕
+- **用途**：验证系统基础运行条件是否就绪（上线前检查）
+- **返回**：结构化检查结果（异常口、面板IO、拓扑、线体段配置）
+- **HTTP状态码**：
+  - `200 OK`：系统配置完整，可以开始运行
+  - `503 ServiceUnavailable`：系统配置不完整，不可运行
+- **检查项目**：
+  - ✅ 异常口配置是否正确且存在于拓扑中
+  - ✅ 启动/停止/急停/面板灯等 IO 是否全部配置完毕
+  - ✅ 摆轮拓扑是否完整（入口到首摆轮路径存在）
+  - ✅ 线体段长度和线速度是否配置完整且合法
+- **详细文档**：[PRE_RUN_HEALTH_CHECK.md](./docs/PRE_RUN_HEALTH_CHECK.md)
+
 ### 启动自检内容
 
 系统启动时自动执行以下检查：

@@ -46,7 +46,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         // 4. 线体长度与线速度合法性检查
         checks.Add(await CheckLineSegmentsValidityAsync(cancellationToken));
 
-        // 5. 上游超时配置检查（如果需要）
+        // TODO: 上游超时配置检查（待后续版本实现）
         // checks.Add(await CheckUpstreamTimeoutConfigAsync(cancellationToken));
 
         // 计算整体状态
