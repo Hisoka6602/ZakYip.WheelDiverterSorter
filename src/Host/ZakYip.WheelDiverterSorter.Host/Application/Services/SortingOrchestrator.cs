@@ -491,9 +491,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         lock (_lockObject)
         {
-            if (_createdParcels.ContainsKey(parcelId))
+            if (_createdParcels.TryGetValue(parcelId, out var parcel))
             {
-                _createdParcels[parcelId].UpstreamRequestSentAt = upstreamRequestSentAt;
+                parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
             }
         }
         
