@@ -30,7 +30,7 @@ public class PathHealthChecker
             throw new ArgumentNullException(nameof(path));
         }
 
-        var unhealthyNodes = new List<int>();
+        var unhealthyNodes = new List<long>();
 
         foreach (var segment in path.Segments)
         {
@@ -69,7 +69,7 @@ public class PathHealthResult
     /// 不健康的节点ID列表
     /// List of unhealthy node IDs
     /// </summary>
-    public IReadOnlyList<int> UnhealthyNodeIds { get; init; }
+    public IReadOnlyList<long> UnhealthyNodeIds { get; init; }
 
     /// <summary>
     /// 创建健康结果
@@ -79,14 +79,14 @@ public class PathHealthResult
         return new PathHealthResult
         {
             IsHealthy = true,
-            UnhealthyNodeIds = Array.Empty<int>()
+            UnhealthyNodeIds = Array.Empty<long>()
         };
     }
 
     /// <summary>
     /// 创建不健康结果
     /// </summary>
-    public static PathHealthResult Unhealthy(List<int> unhealthyNodeIds)
+    public static PathHealthResult Unhealthy(List<long> unhealthyNodeIds)
     {
         return new PathHealthResult
         {

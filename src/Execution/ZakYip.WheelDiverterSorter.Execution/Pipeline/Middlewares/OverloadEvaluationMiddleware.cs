@@ -14,7 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 /// </summary>
 public delegate Task<(CongestionLevel Level, OverloadDecision? Decision)> OverloadEvaluationDelegate(
     long parcelId, 
-    int? targetChuteId, 
+    long? targetChuteId, 
     SwitchingPath? plannedPath,
     string stage);
 

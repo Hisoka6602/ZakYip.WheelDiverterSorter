@@ -69,7 +69,7 @@ public record class ReroutingResult
     /// 原始目标格口ID
     /// Original target chute ID
     /// </summary>
-    public required int OriginalTargetChuteId { get; init; }
+    public required long OriginalTargetChuteId { get; init; }
 
     /// <summary>
     /// 新路径（如果成功）
@@ -101,7 +101,7 @@ public record class ReroutingResult
     /// </summary>
     public static ReroutingResult Success(
         long parcelId,
-        int originalTargetChuteId,
+        long originalTargetChuteId,
         SwitchingPath newPath)
     {
         return new ReroutingResult
@@ -120,7 +120,7 @@ public record class ReroutingResult
     /// </summary>
     public static ReroutingResult Failure(
         long parcelId,
-        int originalTargetChuteId,
+        long originalTargetChuteId,
         int failedNodeId,
         string reason)
     {

@@ -21,7 +21,7 @@ public interface INodeHealthRegistry
     /// </summary>
     /// <param name="nodeId">节点ID</param>
     /// <returns>节点健康状态，如果节点不存在则返回null</returns>
-    NodeHealthStatus? GetNodeHealth(int nodeId);
+    NodeHealthStatus? GetNodeHealth(long nodeId);
 
     /// <summary>
     /// 获取所有节点的健康状态
@@ -43,7 +43,7 @@ public interface INodeHealthRegistry
     /// </summary>
     /// <param name="nodeId">节点ID</param>
     /// <returns>节点是否健康，如果节点不存在则返回true（假设未注册的节点是健康的）</returns>
-    bool IsNodeHealthy(int nodeId);
+    bool IsNodeHealthy(long nodeId);
 
     /// <summary>
     /// 获取当前降级模式
@@ -68,7 +68,7 @@ public class NodeHealthChangedEventArgs : EventArgs
     /// <summary>
     /// 节点ID
     /// </summary>
-    public required int NodeId { get; init; }
+    public required long NodeId { get; init; }
 
     /// <summary>
     /// 新的健康状态

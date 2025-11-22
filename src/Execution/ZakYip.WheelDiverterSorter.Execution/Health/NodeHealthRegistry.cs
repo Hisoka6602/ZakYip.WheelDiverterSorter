@@ -11,7 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Health;
 /// </summary>
 public class NodeHealthRegistry : INodeHealthRegistry
 {
-    private readonly ConcurrentDictionary<int, NodeHealthStatus> _nodeHealthStatuses = new();
+    private readonly ConcurrentDictionary<long, NodeHealthStatus> _nodeHealthStatuses = new();
     private readonly ILogger<NodeHealthRegistry>? _logger;
 
     /// <summary>
@@ -61,7 +61,7 @@ public class NodeHealthRegistry : INodeHealthRegistry
     }
 
     /// <inheritdoc/>
-    public NodeHealthStatus? GetNodeHealth(int nodeId)
+    public NodeHealthStatus? GetNodeHealth(long nodeId)
     {
         return _nodeHealthStatuses.TryGetValue(nodeId, out var status) ? status : null;
     }
@@ -79,7 +79,7 @@ public class NodeHealthRegistry : INodeHealthRegistry
     }
 
     /// <inheritdoc/>
-    public bool IsNodeHealthy(int nodeId)
+    public bool IsNodeHealthy(long nodeId)
     {
         // If node is not registered, assume it's healthy
         if (!_nodeHealthStatuses.TryGetValue(nodeId, out var status))

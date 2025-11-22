@@ -36,5 +36,5 @@ public readonly record struct PathSegmentExecutionFailedEventArgs
     /// <summary>
     /// 失败位置（摆轮ID）
     /// </summary>
-    public int FailurePosition => FailedSegment.DiverterId;
+    public long FailurePosition => FailedSegment.DiverterId;
 }

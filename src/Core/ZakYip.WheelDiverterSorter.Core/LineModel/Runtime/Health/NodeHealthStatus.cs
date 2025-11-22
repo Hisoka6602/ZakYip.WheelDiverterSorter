@@ -10,7 +10,7 @@ public record struct NodeHealthStatus
     /// 节点ID
     /// Node identifier
     /// </summary>
-    public required int NodeId { get; init; }
+    public required long NodeId { get; init; }
 
     /// <summary>
     /// 是否健康

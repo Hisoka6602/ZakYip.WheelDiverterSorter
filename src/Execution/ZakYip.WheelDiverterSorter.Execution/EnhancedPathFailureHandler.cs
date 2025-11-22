@@ -203,7 +203,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
     private async Task<bool> TryRerouteAsync(
         long parcelId,
         SwitchingPath originalPath,
-        int failedNodeId,
+        long failedNodeId,
         PathFailureReason failureReason)
     {
         if (_reroutingService == null)
