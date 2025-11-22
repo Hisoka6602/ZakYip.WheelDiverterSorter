@@ -245,7 +245,23 @@ public class IoLinkageController : ControllerBase
     /// <response code="200">查询成功</response>
     /// <response code="400">参数无效</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     GET /api/config/io-linkage/status/3
+    /// 
+    /// 返回指定IO端口的当前电平状态（true=高电平，false=低电平）
+    /// </remarks>
     [HttpGet("status/{bitNumber}")]
+    [SwaggerOperation(
+        Summary = "查询指定IO点状态",
+        Description = "读取单个IO端口的当前电平状态",
+        OperationId = "GetIoPointStatus",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "查询成功", typeof(object))]
+    [SwaggerResponse(400, "参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
@@ -271,6 +287,248 @@ public class IoLinkageController : ControllerBase
         {
             _logger.LogError(ex, "查询 IO 点状态失败: BitNumber={BitNumber}", bitNumber);
             return StatusCode(500, new { message = "查询 IO 点状态失败" });
+        }
+    }
+
+    /// <summary>
+    /// 批量查询多个 IO 点的状态
+    /// </summary>
+    /// <param name="bitNumbers">IO 端口编号列表（逗号分隔）</param>
+    /// <returns>IO 点状态列表</returns>
+    /// <response code="200">查询成功</response>
+    /// <response code="400">参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     GET /api/config/io-linkage/status/batch?bitNumbers=3,5,7
+    /// 
+    /// 返回指定IO端口列表的当前电平状态
+    /// </remarks>
+    [HttpGet("status/batch")]
+    [SwaggerOperation(
+        Summary = "批量查询IO点状态",
+        Description = "读取多个IO端口的当前电平状态",
+        OperationId = "GetBatchIoPointStatus",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "查询成功", typeof(object))]
+    [SwaggerResponse(400, "参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> GetBatchIoPointStatus([FromQuery] string bitNumbers)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(bitNumbers))
+            {
+                return BadRequest(new { message = "bitNumbers 参数不能为空" });
+            }
+
+            var bits = bitNumbers.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Select(s => int.TryParse(s, out var bit) ? bit : -1)
+                .ToList();
+
+            if (bits.Any(b => b < 0 || b > 1023))
+            {
+                return BadRequest(new { message = "所有 IO 端口编号必须在 0-1023 之间" });
+            }
+
+            var results = new List<object>();
+            foreach (var bitNumber in bits)
+            {
+                var state = await _ioLinkageDriver.ReadIoPointAsync(bitNumber);
+                results.Add(new
+                {
+                    bitNumber,
+                    state,
+                    level = state ? "High" : "Low"
+                });
+            }
+
+            return Ok(new
+            {
+                count = results.Count,
+                ioPoints = results
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量查询 IO 点状态失败");
+            return StatusCode(500, new { message = "批量查询 IO 点状态失败" });
+        }
+    }
+
+    /// <summary>
+    /// 设置指定 IO 点的电平状态
+    /// </summary>
+    /// <param name="bitNumber">IO 端口编号</param>
+    /// <param name="request">IO 点设置请求</param>
+    /// <returns>设置结果</returns>
+    /// <response code="200">设置成功</response>
+    /// <response code="400">参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     PUT /api/config/io-linkage/set/3
+    ///     {
+    ///         "level": "ActiveHigh"
+    ///     }
+    /// 
+    /// IO电平说明：
+    /// - ActiveLow：低电平有效（输出0）
+    /// - ActiveHigh：高电平有效（输出1）
+    /// </remarks>
+    [HttpPut("set/{bitNumber}")]
+    [SwaggerOperation(
+        Summary = "设置指定IO点电平",
+        Description = "设置单个IO端口的电平状态（高电平或低电平）",
+        OperationId = "SetIoPoint",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "设置成功", typeof(object))]
+    [SwaggerResponse(400, "参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> SetIoPoint(int bitNumber, [FromBody] SetIoPointRequest request)
+    {
+        try
+        {
+            if (bitNumber < 0 || bitNumber > 1023)
+            {
+                return BadRequest(new { message = "IO 端口编号必须在 0-1023 之间" });
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效", errors });
+            }
+
+            var ioPoint = new IoLinkagePoint
+            {
+                BitNumber = bitNumber,
+                Level = request.Level
+            };
+
+            await _ioLinkageDriver.SetIoPointAsync(ioPoint);
+
+            _logger.LogInformation(
+                "IO 点设置成功: BitNumber={BitNumber}, Level={Level}",
+                bitNumber,
+                request.Level);
+
+            return Ok(new
+            {
+                message = "IO 点设置成功",
+                bitNumber,
+                level = request.Level.ToString()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "设置 IO 点失败: BitNumber={BitNumber}", bitNumber);
+            return StatusCode(500, new { message = "设置 IO 点失败" });
+        }
+    }
+
+    /// <summary>
+    /// 批量设置多个 IO 点的电平状态
+    /// </summary>
+    /// <param name="request">批量 IO 点设置请求</param>
+    /// <returns>设置结果</returns>
+    /// <response code="200">设置成功</response>
+    /// <response code="400">参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     PUT /api/config/io-linkage/set/batch
+    ///     {
+    ///         "ioPoints": [
+    ///             { "bitNumber": 3, "level": "ActiveHigh" },
+    ///             { "bitNumber": 5, "level": "ActiveLow" },
+    ///             { "bitNumber": 7, "level": "ActiveHigh" }
+    ///         ]
+    ///     }
+    /// 
+    /// IO电平说明：
+    /// - ActiveLow：低电平有效（输出0）
+    /// - ActiveHigh：高电平有效（输出1）
+    /// </remarks>
+    [HttpPut("set/batch")]
+    [SwaggerOperation(
+        Summary = "批量设置IO点电平",
+        Description = "批量设置多个IO端口的电平状态",
+        OperationId = "SetBatchIoPoints",
+        Tags = new[] { "IO联动配置" }
+    )]
+    [SwaggerResponse(200, "设置成功", typeof(object))]
+    [SwaggerResponse(400, "参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<IActionResult> SetBatchIoPoints([FromBody] SetBatchIoPointsRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效", errors });
+            }
+
+            if (request.IoPoints == null || request.IoPoints.Count == 0)
+            {
+                return BadRequest(new { message = "ioPoints 不能为空" });
+            }
+
+            // 验证所有 IO 点编号
+            if (request.IoPoints.Any(p => p.BitNumber < 0 || p.BitNumber > 1023))
+            {
+                return BadRequest(new { message = "所有 IO 端口编号必须在 0-1023 之间" });
+            }
+
+            var ioPoints = request.IoPoints
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList();
+
+            await _ioLinkageDriver.SetIoPointsAsync(ioPoints);
+
+            _logger.LogInformation(
+                "批量设置 IO 点成功: Count={Count}",
+                ioPoints.Count);
+
+            return Ok(new
+            {
+                message = "批量设置 IO 点成功",
+                count = ioPoints.Count,
+                ioPoints = request.IoPoints.Select(p => new
+                {
+                    bitNumber = p.BitNumber,
+                    level = p.Level.ToString()
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量设置 IO 点失败");
+            return StatusCode(500, new { message = "批量设置 IO 点失败" });
         }
     }
 
