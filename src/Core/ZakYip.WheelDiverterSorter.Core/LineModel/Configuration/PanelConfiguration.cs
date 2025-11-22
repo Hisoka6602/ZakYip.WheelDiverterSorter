@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using LiteDB;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -10,6 +11,12 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 /// </remarks>
 public sealed record class PanelConfiguration
 {
+    /// <summary>
+    /// 配置ID（LiteDB自动生成）
+    /// </summary>
+    [BsonId]
+    public int Id { get; init; }
+
     /// <summary>
     /// 配置名称（固定为"panel"）
     /// </summary>

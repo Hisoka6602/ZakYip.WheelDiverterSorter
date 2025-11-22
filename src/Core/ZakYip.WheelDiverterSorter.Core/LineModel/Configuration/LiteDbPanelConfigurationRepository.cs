@@ -69,9 +69,6 @@ public class LiteDbPanelConfigurationRepository : IPanelConfigurationRepository,
             throw new ArgumentException(errorMessage, nameof(configuration));
         }
 
-        // 确保ConfigName为panel
-        configuration = configuration with { ConfigName = PanelConfigName };
-
         // 查找现有配置
         var existing = _collection
             .Query()
@@ -80,12 +77,18 @@ public class LiteDbPanelConfigurationRepository : IPanelConfigurationRepository,
 
         if (existing != null)
         {
-            // 更新现有配置
+            // 更新现有配置，保持现有的Id
+            configuration = configuration with 
+            { 
+                ConfigName = PanelConfigName,
+                Id = existing.Id 
+            };
             _collection.Update(configuration);
         }
         else
         {
-            // 插入新配置
+            // 插入新配置，ConfigName需确保为panel
+            configuration = configuration with { ConfigName = PanelConfigName };
             _collection.Insert(configuration);
         }
     }
