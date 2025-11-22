@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Host.Services;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -39,12 +40,15 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class RouteConfigController : ControllerBase {
     private readonly IRouteConfigurationRepository _repository;
+    private readonly IRouteImportExportService _importExportService;
     private readonly ILogger<RouteConfigController> _logger;
 
     public RouteConfigController(
         IRouteConfigurationRepository repository,
+        IRouteImportExportService importExportService,
         ILogger<RouteConfigController> logger) {
         _repository = repository;
+        _importExportService = importExportService;
         _logger = logger;
     }
 
@@ -343,85 +347,224 @@ public class RouteConfigController : ControllerBase {
     }
 
     /// <summary>
-    /// 导出所有路由配置
+    /// 导出所有路由配置为文件
     /// </summary>
-    /// <returns>所有路由配置的JSON数据</returns>
-    /// <response code="200">导出成功</response>
+    /// <param name="format">导出格式：json 或 csv，默认为 json</param>
+    /// <returns>路由配置文件（JSON 或 CSV 格式）</returns>
+    /// <response code="200">导出成功，返回文件</response>
+    /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 导出所有路由配置为JSON格式，可用于备份或迁移
+    /// 导出所有路由配置为文件，支持 JSON 和 CSV 两种格式。
+    /// 
+    /// **JSON 格式示例**：
+    /// ```json
+    /// [
+    ///   {
+    ///     "chuteId": 1,
+    ///     "chuteName": "A区01号口",
+    ///     "diverterConfigurations": [
+    ///       {
+    ///         "diverterId": 1,
+    ///         "targetDirection": 1,
+    ///         "sequenceNumber": 1,
+    ///         "segmentLengthMm": 5000.0,
+    ///         "segmentSpeedMmPerSecond": 1000.0,
+    ///         "segmentToleranceTimeMs": 2000
+    ///       }
+    ///     ],
+    ///     "beltSpeedMmPerSecond": 1000.0,
+    ///     "beltLengthMm": 10000.0,
+    ///     "toleranceTimeMs": 2000,
+    ///     "isEnabled": true
+    ///   }
+    /// ]
+    /// ```
+    /// 
+    /// **CSV 格式示例**：
+    /// ```
+    /// ChuteId,ChuteName,DiverterId,TargetDirection,SequenceNumber,SegmentLengthMm,SegmentSpeedMmPerSecond,SegmentToleranceTimeMs,BeltSpeedMmPerSecond,BeltLengthMm,ToleranceTimeMs,IsEnabled
+    /// 1,A区01号口,1,1,1,5000.0,1000.0,2000,1000.0,10000.0,2000,True
+    /// ```
+    /// 
+    /// **使用场景**：
+    /// - 配置备份
+    /// - 跨环境迁移
+    /// - 批量编辑后重新导入
     /// </remarks>
     [HttpGet("export")]
     [SwaggerOperation(
-        Summary = "导出所有路由配置",
-        Description = "导出系统中所有路由配置为JSON格式，用于配置备份或跨环境迁移",
-        OperationId = "ExportRoutes",
+        Summary = "导出所有路由配置为文件",
+        Description = "导出系统中所有路由配置为 JSON 或 CSV 文件，用于配置备份或跨环境迁移",
+        OperationId = "ExportRoutesAsFile",
         Tags = new[] { "路由配置" }
     )]
-    [SwaggerResponse(200, "导出成功", typeof(IEnumerable<RouteConfigResponse>))]
+    [SwaggerResponse(200, "导出成功，返回文件")]
+    [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(IEnumerable<RouteConfigResponse>), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<IEnumerable<RouteConfigResponse>> ExportRoutes() {
-        try {
+    [Produces("application/json", "text/csv")]
+    public IActionResult ExportRoutesAsFile([FromQuery] string format = "json")
+    {
+        try
+        {
             var configs = _repository.GetAllEnabled();
-            var responses = configs.Select(MapToResponse);
-            _logger.LogInformation("导出路由配置成功，共 {Count} 条", configs.Count());
-            return Ok(responses);
+            byte[] fileContent;
+            string contentType;
+            string fileName;
+
+            format = format.ToLowerInvariant();
+            switch (format)
+            {
+                case "csv":
+                    fileContent = _importExportService.ExportAsCsv(configs);
+                    contentType = "text/csv";
+                    fileName = $"routes_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                    break;
+
+                case "json":
+                default:
+                    fileContent = _importExportService.ExportAsJson(configs);
+                    contentType = "application/json";
+                    fileName = $"routes_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+                    break;
+            }
+
+            _logger.LogInformation("导出路由配置成功，格式: {Format}，共 {Count} 条", format, configs.Count());
+            
+            return File(fileContent, contentType, fileName);
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "导出路由配置失败");
-            return StatusCode(500, new { message = "导出路由配置失败" });
+            return StatusCode(500, new { message = "导出路由配置失败", error = ex.Message });
         }
     }
 
     /// <summary>
-    /// 导入路由配置
+    /// 导入路由配置文件
     /// </summary>
-    /// <param name="routes">路由配置列表</param>
+    /// <param name="file">路由配置文件（JSON 或 CSV 格式）</param>
+    /// <param name="mode">导入模式：skip（跳过已存在）或 replace（全量替换），默认为 skip</param>
     /// <returns>导入结果</returns>
     /// <response code="200">导入成功</response>
-    /// <response code="400">请求参数无效</response>
+    /// <response code="400">请求参数无效或文件格式错误</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 批量导入路由配置。如果配置已存在，将跳过该配置。
-    /// 导入过程会验证每个配置的有效性。
-    ///
-    /// 示例请求:
-    ///
-    ///     POST /api/config/routes/import
-    ///     [
-    ///         {
-    ///             "chuteId": 1,
-    ///             "diverterConfigurations": [
-    ///                 {
-    ///                     "diverterId": 1,
-    ///                     "targetDirection": 1,
-    ///                     "sequenceNumber": 1
-    ///                 }
-    ///             ],
-    ///             "isEnabled": true
-    ///         }
-    ///     ]
-    ///
+    /// 批量导入路由配置文件，支持 JSON 和 CSV 两种格式。
+    /// 
+    /// **导入模式**：
+    /// - **skip**（默认）：跳过已存在的配置，只导入新配置
+    /// - **replace**：全量替换，删除所有现有配置后导入新配置
+    /// 
+    /// **JSON 格式要求**：
+    /// - 文件必须是 JSON 数组
+    /// - 每个元素必须包含完整的路由配置字段
+    /// - 参考 /api/config/routes/export?format=json 的导出格式
+    /// 
+    /// **CSV 格式要求**：
+    /// - 第一行必须是列名头部
+    /// - 每行代表一个摆轮配置项
+    /// - 同一格口的多个摆轮分多行表示
+    /// - 参考 /api/config/routes/export?format=csv 的导出格式
+    /// 
+    /// **示例（使用 curl）**：
+    /// ```bash
+    /// # 导入 JSON 文件（跳过模式）
+    /// curl -X POST "http://localhost:5000/api/config/routes/import?mode=skip" \
+    ///      -H "Content-Type: multipart/form-data" \
+    ///      -F "file=@routes.json"
+    /// 
+    /// # 导入 CSV 文件（替换模式）
+    /// curl -X POST "http://localhost:5000/api/config/routes/import?mode=replace" \
+    ///      -H "Content-Type: multipart/form-data" \
+    ///      -F "file=@routes.csv"
+    /// ```
+    /// 
+    /// **返回示例**：
+    /// ```json
+    /// {
+    ///   "message": "导入完成",
+    ///   "successCount": 10,
+    ///   "skipCount": 2,
+    ///   "errorCount": 1,
+    ///   "errors": ["格口 5: 摆轮配置不能为空"]
+    /// }
+    /// ```
     /// </remarks>
     [HttpPost("import")]
     [SwaggerOperation(
-        Summary = "导入路由配置",
-        Description = "批量导入路由配置，跳过已存在的配置，验证每个配置的有效性",
-        OperationId = "ImportRoutes",
+        Summary = "导入路由配置文件",
+        Description = "批量导入路由配置文件（JSON 或 CSV 格式），支持跳过或替换模式",
+        OperationId = "ImportRoutesFromFile",
         Tags = new[] { "路由配置" }
     )]
     [SwaggerResponse(200, "导入成功", typeof(object))]
-    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(400, "请求参数无效或文件格式错误")]
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult ImportRoutes([FromBody] List<RouteConfigRequest> routes) {
-        try {
-            if (routes == null || routes.Count == 0) {
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> ImportRoutesFromFile(
+        [FromForm] IFormFile file,
+        [FromQuery] string mode = "skip")
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(new { message = "文件不能为空" });
+            }
+
+            // 验证导入模式
+            mode = mode.ToLowerInvariant();
+            if (mode != "skip" && mode != "replace")
+            {
+                return BadRequest(new { message = "导入模式必须是 'skip' 或 'replace'" });
+            }
+
+            // 根据文件扩展名确定格式
+            var fileExtension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            List<RouteConfigRequest> routes;
+
+            using (var stream = file.OpenReadStream())
+            {
+                try
+                {
+                    if (fileExtension == ".csv")
+                    {
+                        routes = _importExportService.ImportFromCsv(stream);
+                    }
+                    else if (fileExtension == ".json")
+                    {
+                        routes = _importExportService.ImportFromJson(stream);
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = "不支持的文件格式，仅支持 .json 和 .csv 文件" });
+                    }
+                }
+                catch (InvalidOperationException ex)
+                {
+                    _logger.LogWarning(ex, "文件格式解析失败");
+                    return BadRequest(new { message = $"文件格式错误: {ex.Message}" });
+                }
+            }
+
+            if (routes == null || routes.Count == 0)
+            {
                 return BadRequest(new { message = "导入的路由配置列表不能为空" });
+            }
+
+            // 如果是替换模式，先删除所有现有配置
+            if (mode == "replace")
+            {
+                var existingConfigs = _repository.GetAllEnabled();
+                foreach (var existing in existingConfigs)
+                {
+                    _repository.Delete(existing.ChuteId);
+                }
+                _logger.LogInformation("替换模式：已删除所有现有路由配置");
             }
 
             var successCount = 0;
@@ -429,48 +572,62 @@ public class RouteConfigController : ControllerBase {
             var errorCount = 0;
             var errors = new List<string>();
 
-            foreach (var route in routes) {
-                try {
+            foreach (var route in routes)
+            {
+                try
+                {
                     // 验证配置
-                    if (route.ChuteId <= 0) {
+                    if (route.ChuteId <= 0)
+                    {
                         errors.Add($"格口ID必须大于0");
                         errorCount++;
                         continue;
                     }
 
-                    if (route.DiverterConfigurations == null || route.DiverterConfigurations.Count == 0) {
+                    if (route.DiverterConfigurations == null || route.DiverterConfigurations.Count == 0)
+                    {
                         errors.Add($"格口 {route.ChuteId}: 摆轮配置不能为空");
                         errorCount++;
                         continue;
                     }
 
                     var validation = ValidateDiverterConfigurations(route.DiverterConfigurations);
-                    if (!validation.IsValid) {
+                    if (!validation.IsValid)
+                    {
                         errors.Add($"格口 {route.ChuteId}: {validation.ErrorMessage}");
                         errorCount++;
                         continue;
                     }
 
-                    // 检查是否已存在
-                    var existing = _repository.GetByChuteId(route.ChuteId);
-                    if (existing != null) {
-                        skipCount++;
-                        continue;
+                    // 如果是跳过模式且配置已存在，则跳过
+                    if (mode == "skip")
+                    {
+                        var existing = _repository.GetByChuteId(route.ChuteId);
+                        if (existing != null)
+                        {
+                            skipCount++;
+                            continue;
+                        }
                     }
 
-                    // 检查是否存在重复的路由配置
-                    var duplicateRoute = CheckForDuplicateRoute(route.DiverterConfigurations);
-                    if (duplicateRoute != null) {
-                        errors.Add($"格口 {route.ChuteId}: 路由配置重复，与格口 {duplicateRoute.ChuteId} 的配置完全相同");
-                        errorCount++;
-                        continue;
+                    // 检查是否存在重复的路由配置（仅在跳过模式下检查，替换模式已清空）
+                    if (mode == "skip")
+                    {
+                        var duplicateRoute = CheckForDuplicateRoute(route.DiverterConfigurations);
+                        if (duplicateRoute != null)
+                        {
+                            errors.Add($"格口 {route.ChuteId}: 路由配置重复，与格口 {duplicateRoute.ChuteId} 的配置完全相同");
+                            errorCount++;
+                            continue;
+                        }
                     }
 
                     var config = MapToConfiguration(route);
                     _repository.Upsert(config);
                     successCount++;
                 }
-                catch (Exception ex) {
+                catch (Exception ex)
+                {
                     _logger.LogError(ex, "导入格口 {ChuteId} 的配置失败", route.ChuteId);
                     errors.Add($"格口 {route.ChuteId}: {ex.Message}");
                     errorCount++;
@@ -478,20 +635,23 @@ public class RouteConfigController : ControllerBase {
             }
 
             _logger.LogInformation(
-                "导入路由配置完成：成功 {SuccessCount} 条，跳过 {SkipCount} 条，失败 {ErrorCount} 条",
-                successCount, skipCount, errorCount);
+                "导入路由配置完成（{Mode}模式）：成功 {SuccessCount} 条，跳过 {SkipCount} 条，失败 {ErrorCount} 条",
+                mode, successCount, skipCount, errorCount);
 
-            return Ok(new {
-                message = "导入完成",
-                successCount,
-                skipCount,
-                errorCount,
+            return Ok(new
+            {
+                message = $"导入完成（{mode}模式）",
+                mode = mode,
+                successCount = successCount,
+                skipCount = skipCount,
+                errorCount = errorCount,
                 errors = errorCount > 0 ? errors : null
             });
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "导入路由配置失败");
-            return StatusCode(500, new { message = "导入路由配置失败" });
+            return StatusCode(500, new { message = "导入路由配置失败", error = ex.Message });
         }
     }
 
