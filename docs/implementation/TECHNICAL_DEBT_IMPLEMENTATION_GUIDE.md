@@ -462,3 +462,129 @@ After each change:
 - Update SYSTEM_CONFIG_GUIDE.md to reflect ISystemClock usage
 - Update CONCURRENCY_CONTROL.md with thread-safety patterns
 - Update TESTING_STRATEGY.md with new test patterns
+
+## Result Type Strategy (PR-6 Addition)
+
+### Principles
+
+To prevent proliferation of duplicate Result/Helper/Extension classes, follow these guidelines:
+
+### 1. Result Type Usage Guidelines
+
+**Three Standard Result Types** - Do NOT create new ones without justification:
+
+1. **`ApiResponse<T>`** (Host.Models)
+   - **Purpose**: API layer HTTP responses with status codes
+   - **When to use**: Only in API Controllers
+   - **Features**: Success/error codes, messages, timestamps, HTTP semantics
+   - **Example**:
+   ```csharp
+   [HttpGet]
+   public ActionResult<ApiResponse<SystemConfigDto>> GetConfig()
+   {
+       var config = _service.GetConfig();
+       return Ok(ApiResponse<SystemConfigDto>.Ok(config));
+   }
+   ```
+
+2. **`OperationResult<T>`** (Ingress.Upstream)
+   - **Purpose**: Upstream communication results with performance tracking
+   - **When to use**: Communication layer, upstream integrations
+   - **Features**: Latency tracking, fallback indicator, source information
+   - **Example**:
+   ```csharp
+   var result = await _upstreamClient.RequestRoutingAsync(parcelId);
+   if (result.IsSuccess) 
+   {
+       _metrics.RecordLatency(result.LatencyMs);
+   }
+   ```
+
+3. **`OperationResult`** (Core.LineModel.Routing) - Non-generic
+   - **Purpose**: Simple success/failure for domain operations
+   - **When to use**: Internal domain logic, state transitions
+   - **Features**: Boolean success flag, error message
+   - **Example**:
+   ```csharp
+   var result = routePlan.TryApplyChuteChange(newChuteId, timestamp, out decision);
+   if (!result.IsSuccess)
+   {
+       _logger.LogWarning(result.ErrorMessage);
+   }
+   ```
+
+**Domain-Specific Result Types** - Allowed when:
+- Carries domain-specific information (e.g., `PathExecutionResult` with failed segment details)
+- Used within a single bounded context
+- Has unique semantics not covered by standard types
+
+### 2. Helper Class Guidelines
+
+**BEFORE Creating a Helper Class:**
+1. ✅ Check if functionality already exists in existing helpers
+2. ✅ Consider making it a `file static class` if only used in one file
+3. ✅ Consider making it `internal static class` if only used within one project
+4. ✅ Only make `public` if truly needed across multiple projects
+
+**File-Scoped Helpers** (Preferred):
+```csharp
+// MyService.cs
+namespace MyNamespace;
+
+public class MyService
+{
+    public void DoSomething()
+    {
+        var cleaned = StringHelper.Clean(input);
+    }
+}
+
+// Only visible in this file
+file static class StringHelper
+{
+    public static string Clean(string input) => input.Trim();
+}
+```
+
+**Current Helper Classes** (Reference Only):
+- `LoggingHelper` (Core.LineModel.Utilities) - file-scoped, sanitization only
+- `ChuteIdHelper` (Core.LineModel.Utilities) - file-scoped, parsing only
+- `EventHandlerExtensions` (Observability.Utilities) - internal, safe event invocation
+
+### 3. Extension Method Guidelines
+
+**ServiceExtensions** - Only for DI registration:
+```csharp
+public static class MyFeatureServiceExtensions
+{
+    public static IServiceCollection AddMyFeature(this IServiceCollection services)
+    {
+        services.AddSingleton<IMyService, MyService>();
+        return services;
+    }
+}
+```
+
+**Other Extensions** - Must have clear justification:
+- Prefer instance methods on the type itself
+- Only create extensions for types you don't own
+- Make `internal` unless truly needed publicly
+
+### 4. Preventing Future Duplication
+
+**Checklist Before Adding New Infrastructure:**
+- [ ] Does this already exist? (Search codebase for similar names/functionality)
+- [ ] Can I reuse an existing Result type?
+- [ ] Can I make this file-scoped instead of public?
+- [ ] Do I really need a helper class, or can I inline the logic?
+- [ ] If creating a new Result type, document WHY it's different from existing ones
+
+**Code Review Checklist:**
+- [ ] No new public helper classes without strong justification
+- [ ] No new Result types that duplicate existing semantics
+- [ ] Proper use of `file`/`internal` keywords for visibility restriction
+- [ ] Documentation explaining when to use each Result type variant
+
+**Automated Checks:**
+- Analyzer rule planned: Warn on public static helper classes without XML documentation
+- Consider analyzer to detect duplicate Result type patterns

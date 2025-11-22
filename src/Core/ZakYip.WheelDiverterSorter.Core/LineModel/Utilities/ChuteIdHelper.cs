@@ -3,9 +3,10 @@ using System.Runtime.CompilerServices;
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 
 /// <summary>
-/// 格口ID转换辅助类
+/// 格口ID转换辅助类 - 仅限当前文件内部使用
+/// Chute ID conversion utilities - internal to this file only
 /// </summary>
-public static class ChuteIdHelper
+file static class ChuteIdHelper
 {
     /// <summary>
     /// 尝试将字符串格口ID转换为整数

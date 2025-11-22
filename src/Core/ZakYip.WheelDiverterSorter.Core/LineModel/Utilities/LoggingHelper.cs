@@ -1,9 +1,10 @@
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 
 /// <summary>
-/// 日志相关的工具类
+/// 日志相关的工具类 - 仅限当前文件内部使用
+/// Logging utilities - internal to this file only
 /// </summary>
-public static class LoggingHelper
+file static class LoggingHelper
 {
     /// <summary>
     /// 清理字符串以防止日志注入攻击
