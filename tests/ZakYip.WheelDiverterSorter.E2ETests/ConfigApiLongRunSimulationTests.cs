@@ -33,6 +33,7 @@ using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.E2ETests.Helpers;
+using ZakYip.WheelDiverterSorter.Core.Enums.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

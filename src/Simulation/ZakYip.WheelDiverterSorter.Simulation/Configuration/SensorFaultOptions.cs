@@ -1,3 +1,9 @@
+// This file is maintained for backward compatibility.
+// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Simulation namespace.
+
+// Re-export the enum from Core.Enums.Simulation for backward compatibility
+global using IoBehaviorMode = ZakYip.WheelDiverterSorter.Core.Enums.Simulation.IoBehaviorMode;
+
 namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
 
 /// <summary>
@@ -106,17 +112,3 @@ public sealed record class SensorFaultOptions
     public int DebounceWindowMs { get; init; } = 100;
 }
 
-/// <summary>
-/// IO 行为模式
-/// </summary>
-/// <remarks>
-/// PR-40: 定义 IO 层的仿真模式
-/// </remarks>
-public enum IoBehaviorMode
-{
-    /// <summary>理想模式：无抖动、无丢包、无延迟</summary>
-    Ideal = 0,
-
-    /// <summary>混沌模式：带抖动、随机延迟、偶发丢失</summary>
-    Chaos = 1
-}

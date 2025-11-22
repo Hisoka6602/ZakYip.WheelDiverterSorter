@@ -1,3 +1,9 @@
+// This file is maintained for backward compatibility.
+// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Communication namespace.
+
+// Re-export the enum from Core.Enums.Communication for backward compatibility
+global using CircuitState = ZakYip.WheelDiverterSorter.Core.Enums.Communication.CircuitState;
+
 namespace ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
 /// <summary>
@@ -76,27 +82,6 @@ public interface ICircuitBreaker
     /// 重置熔断器
     /// </summary>
     void Reset();
-}
-
-/// <summary>
-/// 熔断器状态
-/// </summary>
-public enum CircuitState
-{
-    /// <summary>
-    /// 关闭状态（正常工作）
-    /// </summary>
-    Closed,
-
-    /// <summary>
-    /// 打开状态（熔断中）
-    /// </summary>
-    Open,
-
-    /// <summary>
-    /// 半开状态（尝试恢复）
-    /// </summary>
-    HalfOpen
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using S7.Net;
 using System.Net.Sockets;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 

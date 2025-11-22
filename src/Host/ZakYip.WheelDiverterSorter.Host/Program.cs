@@ -144,13 +144,13 @@ if (enableHealthCheck)
     builder.Services.AddHealthCheckServices();
     // 注册系统状态管理服务（带自检）
     builder.Services.AddSystemStateManagement(
-        ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Booting, 
+        ZakYip.WheelDiverterSorter.Core.Enums.Host.SystemState.Booting, 
         enableSelfTest: true);
 }
 else
 {
     // 注册系统状态管理服务（不带自检，向后兼容）
-    builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Host.StateMachine.SystemState.Ready);
+    builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Core.Enums.Host.SystemState.Ready);
 }
 
 // PR-33: 注册健康状态提供器
