@@ -1015,8 +1015,181 @@ dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
 - [重构总结](REFACTORING_SUMMARY.md)
 - [任务完成总结](TASK_COMPLETION_SUMMARY.md)
 
-### CI/CD和DevOps
+### CI/CD and DevOps
 - [CI/CD设置](CI_CD_SETUP.md)
+
+## API 使用指南
+
+系统提供完整的 RESTful API 用于配置管理和运行时控制。所有 API 端点均有详细的 Swagger 文档，访问 `http://localhost:5000/swagger` 查看完整文档。
+
+### IO 联动配置 API
+
+IO 联动功能用于根据系统运行状态自动控制外部设备（如中段皮带）的 IO 点位。
+
+#### 获取 IO 联动配置
+```bash
+curl http://localhost:5000/api/config/io-linkage
+```
+
+#### 更新 IO 联动配置
+```bash
+curl -X PUT http://localhost:5000/api/config/io-linkage \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "runningStateIos": [
+      { "bitNumber": 3, "level": "ActiveHigh" },
+      { "bitNumber": 5, "level": "ActiveLow" }
+    ],
+    "stoppedStateIos": [
+      { "bitNumber": 3, "level": "ActiveLow" },
+      { "bitNumber": 5, "level": "ActiveHigh" }
+    ]
+  }'
+```
+
+#### 查询单个 IO 点状态
+```bash
+curl http://localhost:5000/api/config/io-linkage/status/3
+```
+
+#### 批量查询多个 IO 点状态
+```bash
+curl http://localhost:5000/api/config/io-linkage/status/batch?bitNumbers=3,5,7
+```
+
+#### 设置单个 IO 点电平
+```bash
+curl -X PUT http://localhost:5000/api/config/io-linkage/set/3 \
+  -H "Content-Type: application/json" \
+  -d '{ "level": "ActiveHigh" }'
+```
+
+#### 批量设置多个 IO 点电平
+```bash
+curl -X PUT http://localhost:5000/api/config/io-linkage/set/batch \
+  -H "Content-Type: application/json" \
+  -d '{
+    "ioPoints": [
+      { "bitNumber": 3, "level": "ActiveHigh" },
+      { "bitNumber": 5, "level": "ActiveLow" },
+      { "bitNumber": 7, "level": "ActiveHigh" }
+    ]
+  }'
+```
+
+### 面板配置 API
+
+电柜操作面板的配置，包括按钮映射、信号塔指示灯和触发电平配置。
+
+#### 获取面板配置
+```bash
+curl http://localhost:5000/api/config/panel
+```
+
+#### 更新面板配置
+```bash
+curl -X PUT http://localhost:5000/api/config/panel \
+  -H "Content-Type: application/json" \
+  -d '{
+    "enabled": true,
+    "useSimulation": true,
+    "pollingIntervalMs": 100,
+    "debounceMs": 50,
+    "startButtonInputBit": 0,
+    "startButtonTriggerLevel": "ActiveHigh",
+    "stopButtonInputBit": 1,
+    "stopButtonTriggerLevel": "ActiveHigh",
+    "emergencyStopButtonInputBit": 2,
+    "emergencyStopButtonTriggerLevel": "ActiveLow",
+    "startLightOutputBit": 0,
+    "startLightOutputLevel": "ActiveHigh",
+    "stopLightOutputBit": 1,
+    "stopLightOutputLevel": "ActiveHigh",
+    "signalTowerRedOutputBit": 3,
+    "signalTowerRedOutputLevel": "ActiveHigh",
+    "signalTowerYellowOutputBit": 4,
+    "signalTowerYellowOutputLevel": "ActiveHigh",
+    "signalTowerGreenOutputBit": 5,
+    "signalTowerGreenOutputLevel": "ActiveHigh"
+  }'
+```
+
+### 传感器配置 API
+
+传感器配置包括 IO 绑定、触发电平和防抖参数。
+
+#### 获取传感器配置
+```bash
+curl http://localhost:5000/api/config/sensor
+```
+
+#### 更新传感器配置
+```bash
+curl -X PUT http://localhost:5000/api/config/sensor \
+  -H "Content-Type: application/json" \
+  -d '{
+    "useHardwareSensor": true,
+    "vendorType": 1,
+    "leadshine": {
+      "cardNo": 0,
+      "sensors": [
+        {
+          "sensorId": 1,
+          "sensorName": "SENSOR_PE_01",
+          "type": "Photoelectric",
+          "inputBit": 0,
+          "triggerLevel": "ActiveHigh",
+          "isEnabled": true
+        }
+      ]
+    }
+  }'
+```
+
+### IO 电平配置说明
+
+所有 IO 配置（传感器、面板、IO联动）都支持触发电平设置：
+
+- **ActiveHigh（高电平有效）**：IO 输出 1 时设备工作或触发
+- **ActiveLow（低电平有效）**：IO 输出 0 时设备工作或触发
+
+这允许适配不同厂商的硬件设备和不同的接线方式。
+
+### 其他常用 API
+
+#### 系统配置
+```bash
+# 查询系统配置
+curl http://localhost:5000/api/config/system
+
+# 切换分拣模式
+curl -X PUT http://localhost:5000/api/config/system \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sortingMode": "FixedChute",
+    "fixedChuteId": 1,
+    "exceptionChuteId": 999
+  }'
+```
+
+#### 路由配置
+```bash
+# 获取所有格口路由
+curl http://localhost:5000/api/config/routes
+
+# 创建新路由
+curl -X POST http://localhost:5000/api/config/routes \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chuteId": 1,
+    "segments": [
+      { "diverterId": "D1", "direction": "Left" }
+    ]
+  }'
+```
+
+更多 API 端点和详细文档请访问 Swagger UI：`http://localhost:5000/swagger`
 
 ## 技术栈
 
@@ -1036,6 +1209,6 @@ dotnet test --collect:"XPlat Code Coverage" --results-directory ./TestResults
 
 ---
 
-**文档版本：** v3.3  
-**最后更新：** 2025-11-16  
+**文档版本：** v3.4  
+**最后更新：** 2025-11-22  
 **维护团队：** ZakYip Development Team
