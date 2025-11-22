@@ -1,0 +1,1143 @@
+using System.Diagnostics;
+using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Communication;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Health;
+using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Ingress;
+using ZakYip.WheelDiverterSorter.Ingress.Models;
+using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
+
+namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
+
+/// <summary>
+/// 分拣编排服务实现
+/// </summary>
+/// <remarks>
+/// Application 层的核心服务，协调整个分拣流程。
+/// 
+/// <para><b>架构职责</b>：</para>
+/// <list type="bullet">
+///   <item>不直接访问硬件驱动（通过 Execution 层抽象）</item>
+///   <item>不包含 HTTP 路由逻辑（由 Host 层 Controller 处理）</item>
+///   <item>专注于业务流程编排和步骤协调</item>
+///   <item>将长流程拆分为多个小方法，保持可测试性</item>
+/// </list>
+/// </remarks>
+public class SortingOrchestrator : ISortingOrchestrator, IDisposable
+{
+    // 性能估算常量 - 用于超载检测和路径规划
+    private const decimal DefaultLineSpeedMmps = 1000m; // 1 m/s = 1000 mm/s
+    private const double EstimatedTotalTtlMs = 30000; // 预估30秒TTL
+    private const double EstimatedArrivalWindowMs = 10000; // 预估10秒窗口
+    private const double EstimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
+
+    private readonly IParcelDetectionService _parcelDetectionService;
+    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly ISwitchingPathGenerator _pathGenerator;
+    private readonly ISwitchingPathExecutor _pathExecutor;
+    private readonly IPathFailureHandler? _pathFailureHandler;
+    private readonly ISystemClock _clock;
+    private readonly ILogger<SortingOrchestrator> _logger;
+    private readonly RuleEngineConnectionOptions _options;
+    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemRunStateService? _stateService;
+    private readonly ICongestionDetector? _congestionDetector;
+    private readonly IOverloadHandlingPolicy? _overloadPolicy;
+    private readonly CongestionDataCollector? _congestionCollector;
+    private readonly PrometheusMetrics? _metrics;
+    private readonly IParcelTraceSink? _traceSink;
+    private readonly PathHealthChecker? _pathHealthChecker;
+    
+    // 包裹路由相关的状态
+    private readonly Dictionary<long, TaskCompletionSource<int>> _pendingAssignments;
+    private readonly Dictionary<long, SwitchingPath> _parcelPaths;
+    private readonly Dictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
+    private readonly object _lockObject = new object();
+    private int _roundRobinIndex = 0;
+    private bool _isConnected;
+
+    /// <summary>
+    /// PR-42: 包裹创建记录（用于 Parcel-First 语义验证）
+    /// </summary>
+    private class ParcelCreationRecord
+    {
+        public long ParcelId { get; init; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset? UpstreamRequestSentAt { get; set; }
+        public DateTimeOffset? UpstreamReplyReceivedAt { get; set; }
+        public DateTimeOffset? RouteBoundAt { get; set; }
+    }
+
+    public SortingOrchestrator(
+        IParcelDetectionService parcelDetectionService,
+        IRuleEngineClient ruleEngineClient,
+        ISwitchingPathGenerator pathGenerator,
+        ISwitchingPathExecutor pathExecutor,
+        IOptions<RuleEngineConnectionOptions> options,
+        ISystemConfigurationRepository systemConfigRepository,
+        ISystemClock clock,
+        ILogger<SortingOrchestrator> logger,
+        IPathFailureHandler? pathFailureHandler = null,
+        ISystemRunStateService? stateService = null,
+        ICongestionDetector? congestionDetector = null,
+        IOverloadHandlingPolicy? overloadPolicy = null,
+        CongestionDataCollector? congestionCollector = null,
+        PrometheusMetrics? metrics = null,
+        IParcelTraceSink? traceSink = null,
+        PathHealthChecker? pathHealthChecker = null)
+    {
+        _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
+        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
+        _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _pathFailureHandler = pathFailureHandler;
+        _stateService = stateService;
+        _congestionDetector = congestionDetector;
+        _overloadPolicy = overloadPolicy;
+        _congestionCollector = congestionCollector;
+        _metrics = metrics;
+        _traceSink = traceSink;
+        _pathHealthChecker = pathHealthChecker;
+        
+        _pendingAssignments = new Dictionary<long, TaskCompletionSource<int>>();
+        _parcelPaths = new Dictionary<long, SwitchingPath>();
+        _createdParcels = new Dictionary<long, ParcelCreationRecord>();
+
+        // 订阅包裹检测事件
+        _parcelDetectionService.ParcelDetected += OnParcelDetected;
+        _parcelDetectionService.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
+        
+        // 订阅格口分配事件
+        _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
+    }
+
+    /// <summary>
+    /// 启动编排服务
+    /// </summary>
+    public async Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        _logger.LogInformation("正在启动分拣编排服务...");
+
+        // 连接到RuleEngine
+        _isConnected = await _ruleEngineClient.ConnectAsync(cancellationToken);
+
+        if (_isConnected)
+        {
+            _logger.LogInformation("成功连接到RuleEngine，分拣编排服务已启动");
+        }
+        else
+        {
+            _logger.LogWarning("无法连接到RuleEngine，将在包裹检测时尝试重新连接");
+        }
+    }
+
+    /// <summary>
+    /// 停止编排服务
+    /// </summary>
+    public async Task StopAsync()
+    {
+        _logger.LogInformation("正在停止分拣编排服务...");
+
+        // 断开与RuleEngine的连接
+        await _ruleEngineClient.DisconnectAsync();
+        _isConnected = false;
+
+        _logger.LogInformation("分拣编排服务已停止");
+    }
+
+    /// <summary>
+    /// 处理包裹分拣流程（主入口）
+    /// </summary>
+    public async Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        
+        try
+        {
+            _logger.LogInformation("开始处理包裹 {ParcelId}，来源传感器: {SensorId}", parcelId, sensorId);
+
+            // 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
+            await CreateParcelEntityAsync(parcelId, sensorId);
+
+            // 步骤 2: 验证系统状态
+            var stateValidation = await ValidateSystemStateAsync(parcelId);
+            if (!stateValidation.IsValid)
+            {
+                CleanupParcelRecord(parcelId);
+                stopwatch.Stop();
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId.ToString(),
+                    ActualChuteId: 0,
+                    TargetChuteId: 0,
+                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                    FailureReason: stateValidation.Reason
+                );
+            }
+
+            // 步骤 3: 拥堵检测与超载评估
+            var overloadDecision = await DetectCongestionAndOverloadAsync(parcelId);
+            
+            // 步骤 4: 确定目标格口
+            var targetChuteId = await DetermineTargetChuteAsync(parcelId, overloadDecision);
+
+            // 步骤 5: 执行分拣工作流
+            var result = await ExecuteSortingWorkflowAsync(
+                parcelId, 
+                targetChuteId, 
+                overloadDecision.ShouldForceException,
+                cancellationToken);
+
+            stopwatch.Stop();
+            return result with { ExecutionTimeMs = stopwatch.Elapsed.TotalMilliseconds };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理包裹 {ParcelId} 时发生异常", parcelId);
+            CleanupParcelRecord(parcelId);
+            stopwatch.Stop();
+            
+            return new SortingResult(
+                IsSuccess: false,
+                ParcelId: parcelId.ToString(),
+                ActualChuteId: 0,
+                TargetChuteId: 0,
+                ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                FailureReason: $"处理异常: {ex.Message}"
+            );
+        }
+    }
+
+    /// <summary>
+    /// 执行调试分拣（跳过包裹创建和上游路由）
+    /// </summary>
+    public async Task<SortingResult> ExecuteDebugSortAsync(string parcelId, int targetChuteId, CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        
+        try
+        {
+            _logger.LogInformation("开始调试分拣: 包裹ID={ParcelId}, 目标格口={TargetChuteId}", parcelId, targetChuteId);
+
+            // 验证系统状态
+            var stateValidation = await ValidateSystemStateAsync(0); // 使用 0 作为占位符，因为调试模式不创建真实包裹
+            if (!stateValidation.IsValid)
+            {
+                stopwatch.Stop();
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId,
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                    FailureReason: stateValidation.Reason
+                );
+            }
+
+            // 直接生成和执行路径
+            var systemConfig = _systemConfigRepository.Get();
+            var path = _pathGenerator.GeneratePath(targetChuteId);
+            
+            if (path == null)
+            {
+                _logger.LogWarning("无法生成到格口 {TargetChuteId} 的路径", targetChuteId);
+                stopwatch.Stop();
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId,
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                    FailureReason: "路径生成失败"
+                );
+            }
+
+            _logger.LogInformation("路径生成成功: 段数={SegmentCount}, 目标格口={TargetChuteId}", 
+                path.Segments.Count, path.TargetChuteId);
+
+            // 执行路径
+            var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
+            
+            stopwatch.Stop();
+            
+            // 记录指标
+            if (executionResult.IsSuccess)
+            {
+                _metrics?.RecordSortingSuccess(stopwatch.Elapsed.TotalSeconds);
+            }
+            else
+            {
+                _metrics?.RecordSortingFailure(stopwatch.Elapsed.TotalSeconds);
+            }
+
+            return new SortingResult(
+                IsSuccess: executionResult.IsSuccess,
+                ParcelId: parcelId,
+                ActualChuteId: executionResult.ActualChuteId,
+                TargetChuteId: targetChuteId,
+                ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                FailureReason: executionResult.FailureReason
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "调试分拣异常: 包裹ID={ParcelId}", parcelId);
+            stopwatch.Stop();
+            
+            return new SortingResult(
+                IsSuccess: false,
+                ParcelId: parcelId,
+                ActualChuteId: 0,
+                TargetChuteId: targetChuteId,
+                ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                FailureReason: $"调试分拣异常: {ex.Message}"
+            );
+        }
+    }
+
+    #region Private Methods - 流程步骤拆分
+
+    /// <summary>
+    /// 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
+    /// </summary>
+    private async Task CreateParcelEntityAsync(long parcelId, string sensorId)
+    {
+        var createdAt = new DateTimeOffset(_clock.UtcNow);
+        
+        lock (_lockObject)
+        {
+            _createdParcels[parcelId] = new ParcelCreationRecord
+            {
+                ParcelId = parcelId,
+                CreatedAt = createdAt
+            };
+        }
+
+        _logger.LogTrace(
+            "[PR-42 Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
+            parcelId,
+            createdAt,
+            sensorId);
+
+        // PR-10: 记录包裹创建事件
+        await WriteTraceAsync(new ParcelTraceEventArgs
+        {
+            ItemId = parcelId,
+            BarCode = null,
+            OccurredAt = createdAt,
+            Stage = "Created",
+            Source = "Ingress",
+            Details = $"传感器检测到包裹: {sensorId}"
+        });
+
+        // PR-08B: 记录包裹进入系统
+        _congestionCollector?.RecordParcelEntry(parcelId, _clock.LocalNow);
+    }
+
+    /// <summary>
+    /// 步骤 2: 验证系统状态
+    /// </summary>
+    private Task<(bool IsValid, string? Reason)> ValidateSystemStateAsync(long parcelId)
+    {
+        if (_stateService == null)
+        {
+            return Task.FromResult((IsValid: true, Reason: (string?)null));
+        }
+
+        var validationResult = _stateService.ValidateParcelCreation();
+        if (!validationResult.IsSuccess)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 被拒绝：{ErrorMessage}",
+                parcelId,
+                validationResult.ErrorMessage);
+            
+            return Task.FromResult((IsValid: false, Reason: validationResult.ErrorMessage));
+        }
+
+        return Task.FromResult((IsValid: true, Reason: (string?)null));
+    }
+
+    /// <summary>
+    /// 步骤 3: 拥堵检测与超载评估
+    /// </summary>
+    private Task<OverloadDecision> DetectCongestionAndOverloadAsync(long parcelId)
+    {
+        // 如果没有配置拥堵检测和超载策略，返回正常决策
+        if (_congestionDetector == null || _overloadPolicy == null || _congestionCollector == null)
+        {
+            return Task.FromResult(new OverloadDecision
+            {
+                ShouldForceException = false,
+                ShouldMarkAsOverflow = false,
+                Reason = null
+            });
+        }
+
+        // 收集当前拥堵快照
+        var snapshot = _congestionCollector.CollectSnapshot();
+        
+        // 检测拥堵等级
+        var congestionLevel = _congestionDetector.Detect(in snapshot);
+        
+        // 更新拥堵等级指标
+        _metrics?.SetCongestionLevel((int)congestionLevel);
+        _metrics?.SetInFlightParcels(snapshot.InFlightParcels);
+        _metrics?.SetAverageLatency(snapshot.AverageLatencyMs);
+
+        // 构造超载上下文
+        var overloadContext = new OverloadContext
+        {
+            ParcelId = parcelId.ToString(),
+            TargetChuteId = 0, // 尚未分配目标格口
+            CurrentLineSpeed = DefaultLineSpeedMmps,
+            CurrentPosition = "Entry",
+            EstimatedArrivalWindowMs = EstimatedArrivalWindowMs,
+            CurrentCongestionLevel = congestionLevel,
+            RemainingTtlMs = EstimatedTotalTtlMs,
+            InFlightParcels = snapshot.InFlightParcels
+        };
+
+        // 评估是否需要超载处置
+        var overloadDecision = _overloadPolicy.Evaluate(in overloadContext);
+
+        if (overloadDecision.ShouldForceException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 触发超载策略，将路由到异常格口。原因：{Reason}，拥堵等级：{CongestionLevel}",
+                parcelId,
+                overloadDecision.Reason,
+                congestionLevel);
+
+            // 记录超载包裹指标
+            var reason = DetermineOverloadReason(overloadDecision.Reason);
+            _metrics?.RecordOverloadParcel(reason);
+        }
+        else if (overloadDecision.ShouldMarkAsOverflow)
+        {
+            _logger.LogInformation(
+                "包裹 {ParcelId} 标记为潜在超载风险。原因：{Reason}",
+                parcelId,
+                overloadDecision.Reason);
+        }
+
+        return Task.FromResult(overloadDecision);
+    }
+
+    /// <summary>
+    /// 步骤 4: 确定目标格口
+    /// </summary>
+    private async Task<int> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
+    {
+        var systemConfig = _systemConfigRepository.Get();
+        var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+        // 如果超载决策要求强制异常，直接返回异常格口
+        if (overloadDecision.ShouldForceException)
+        {
+            return exceptionChuteId;
+        }
+
+        // 根据分拣模式确定目标格口
+        return systemConfig.SortingMode switch
+        {
+            SortingMode.Formal => await GetChuteFromRuleEngineAsync(parcelId, systemConfig),
+            SortingMode.FixedChute => GetFixedChute(systemConfig),
+            SortingMode.RoundRobin => GetNextRoundRobinChute(systemConfig),
+            _ => GetDefaultExceptionChute(parcelId, systemConfig)
+        };
+    }
+
+    /// <summary>
+    /// 从RuleEngine获取格口分配（正式分拣模式）
+    /// </summary>
+    private async Task<int> GetChuteFromRuleEngineAsync(long parcelId, SystemConfiguration systemConfig)
+    {
+        var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+        // PR-42: Invariant 1 - 上游请求必须引用已存在的本地包裹
+        lock (_lockObject)
+        {
+            if (!_createdParcels.ContainsKey(parcelId))
+            {
+                _logger.LogError(
+                    "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游请求。" +
+                    "请求已阻止，不发送到上游。包裹将被路由到异常格口。",
+                    parcelId);
+                return exceptionChuteId;
+            }
+        }
+
+        // 发送上游请求
+        var upstreamRequestSentAt = new DateTimeOffset(_clock.UtcNow);
+        
+        lock (_lockObject)
+        {
+            if (_createdParcels.TryGetValue(parcelId, out var parcel))
+            {
+                parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
+            }
+        }
+        
+        _logger.LogTrace(
+            "[PR-42 Parcel-First] 发送上游路由请求: ParcelId={ParcelId}, RequestSentAt={SentAt:o}",
+            parcelId,
+            upstreamRequestSentAt);
+        
+        var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
+        
+        if (!notificationSent)
+        {
+            _logger.LogError(
+                "包裹 {ParcelId} 无法发送检测通知到RuleEngine，将返回异常格口",
+                parcelId);
+            return exceptionChuteId;
+        }
+
+        // 等待RuleEngine推送格口分配（带超时）
+        var tcs = new TaskCompletionSource<int>();
+        
+        lock (_lockObject)
+        {
+            _pendingAssignments[parcelId] = tcs;
+        }
+
+        try
+        {
+            var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
+            var startTime = _clock.LocalNow;
+            using var cts = new CancellationTokenSource(timeoutMs);
+            var targetChuteId = await tcs.Task.WaitAsync(cts.Token);
+            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
+            
+            _logger.LogInformation("包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}", parcelId, targetChuteId);
+
+            // PR-10: 记录上游分配事件
+            await WriteTraceAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                Stage = "UpstreamAssigned",
+                Source = "Upstream",
+                Details = $"ChuteId={targetChuteId}, LatencyMs={elapsedMs:F0}, Status=Success"
+            });
+
+            return targetChuteId;
+        }
+        catch (TimeoutException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将返回异常格口",
+                parcelId,
+                systemConfig.ChuteAssignmentTimeoutMs);
+            return exceptionChuteId;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将返回异常格口",
+                parcelId,
+                systemConfig.ChuteAssignmentTimeoutMs);
+            return exceptionChuteId;
+        }
+        finally
+        {
+            lock (_lockObject)
+            {
+                _pendingAssignments.Remove(parcelId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取固定格口（固定格口模式）
+    /// </summary>
+    private int GetFixedChute(SystemConfiguration systemConfig)
+    {
+        var chuteId = systemConfig.FixedChuteId ?? systemConfig.ExceptionChuteId;
+        _logger.LogDebug("使用固定格口模式，目标格口: {ChuteId}", chuteId);
+        return chuteId;
+    }
+
+    /// <summary>
+    /// 获取下一个轮询格口（轮询模式）
+    /// </summary>
+    private int GetNextRoundRobinChute(SystemConfiguration systemConfig)
+    {
+        lock (_lockObject)
+        {
+            if (systemConfig.AvailableChuteIds == null || systemConfig.AvailableChuteIds.Count == 0)
+            {
+                _logger.LogError("循环格口落格模式配置错误：没有可用格口，将使用异常格口");
+                return systemConfig.ExceptionChuteId;
+            }
+
+            var chuteId = systemConfig.AvailableChuteIds[_roundRobinIndex];
+            _roundRobinIndex = (_roundRobinIndex + 1) % systemConfig.AvailableChuteIds.Count;
+
+            _logger.LogDebug("使用轮询模式，目标格口: {ChuteId}", chuteId);
+            return chuteId;
+        }
+    }
+
+    /// <summary>
+    /// 获取默认异常格口（未知模式）
+    /// </summary>
+    private int GetDefaultExceptionChute(long parcelId, SystemConfiguration systemConfig)
+    {
+        _logger.LogError(
+            "未知的分拣模式 {SortingMode}，包裹 {ParcelId} 将发送到异常格口",
+            systemConfig.SortingMode,
+            parcelId);
+        return systemConfig.ExceptionChuteId;
+    }
+
+    /// <summary>
+    /// 步骤 5: 执行分拣工作流
+    /// </summary>
+    private async Task<SortingResult> ExecuteSortingWorkflowAsync(
+        long parcelId, 
+        int targetChuteId, 
+        bool isOverloadException,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+            // 5.1: 生成摆轮路径
+            var pathResult = await GeneratePathOrExceptionAsync(parcelId, targetChuteId, exceptionChuteId);
+            if (pathResult.Path == null)
+            {
+                _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId.ToString(),
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: 0,
+                    FailureReason: "路径生成失败"
+                );
+            }
+
+            var path = pathResult.Path;
+            targetChuteId = pathResult.ActualTargetChuteId;
+            isOverloadException = isOverloadException || pathResult.IsException;
+
+            // 5.2: 路径健康检查（PR-14）
+            if (!isOverloadException)
+            {
+                var healthResult = await ValidatePathHealthAsync(parcelId, path, exceptionChuteId);
+                if (!healthResult.IsHealthy)
+                {
+                    path = healthResult.AlternativePath;
+                    targetChuteId = exceptionChuteId;
+                    isOverloadException = true;
+                }
+            }
+
+            // 5.3: 二次超载检查（路径规划阶段，PR-08C）
+            if (!isOverloadException && _overloadPolicy != null && _congestionCollector != null)
+            {
+                var secondaryCheck = await CheckSecondaryOverloadAsync(parcelId, path!, targetChuteId, exceptionChuteId);
+                if (secondaryCheck.ShouldRouteToException)
+                {
+                    path = secondaryCheck.AlternativePath;
+                    targetChuteId = exceptionChuteId;
+                    isOverloadException = true;
+                }
+            }
+
+            // 5.4: 执行路径
+            var executionResult = await ExecutePathWithTrackingAsync(parcelId, path!, targetChuteId, isOverloadException, cancellationToken);
+
+            // 5.5: 记录分拣结果
+            await RecordSortingResultAsync(parcelId, executionResult, isOverloadException);
+
+            // 清理
+            CleanupParcelRecord(parcelId);
+
+            return executionResult;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "执行包裹 {ParcelId} 分拣时发生异常", parcelId);
+            _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
+            CleanupParcelRecord(parcelId);
+
+            return new SortingResult(
+                IsSuccess: false,
+                ParcelId: parcelId.ToString(),
+                ActualChuteId: 0,
+                TargetChuteId: targetChuteId,
+                ExecutionTimeMs: 0,
+                FailureReason: $"执行异常: {ex.Message}"
+            );
+        }
+    }
+
+    /// <summary>
+    /// 5.1: 生成路径（含异常处理）
+    /// </summary>
+    private async Task<(SwitchingPath? Path, int ActualTargetChuteId, bool IsException)> GeneratePathOrExceptionAsync(
+        long parcelId, 
+        int targetChuteId, 
+        int exceptionChuteId)
+    {
+        var path = _pathGenerator.GeneratePath(targetChuteId);
+
+        if (path == null)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 无法生成到格口 {TargetChuteId} 的路径，将发送到异常格口",
+                parcelId,
+                targetChuteId);
+
+            // 生成到异常格口的路径
+            path = _pathGenerator.GeneratePath(exceptionChuteId);
+
+            if (path == null)
+            {
+                _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
+                return (null, exceptionChuteId, true);
+            }
+
+            return (path, exceptionChuteId, true);
+        }
+
+        // PR-10: 记录路径规划完成事件
+        double totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+        await WriteTraceAsync(new ParcelTraceEventArgs
+        {
+            ItemId = parcelId,
+            BarCode = null,
+            OccurredAt = new DateTimeOffset(_clock.UtcNow),
+            Stage = "RoutePlanned",
+            Source = "Execution",
+            Details = $"TargetChuteId={targetChuteId}, SegmentCount={path.Segments.Count}, EstimatedTimeMs={totalRouteTimeMs:F0}"
+        });
+
+        // 记录路径到字典，用于失败处理
+        lock (_lockObject)
+        {
+            _parcelPaths[parcelId] = path;
+        }
+
+        return (path, targetChuteId, false);
+    }
+
+    /// <summary>
+    /// 5.2: 验证路径健康（PR-14）
+    /// </summary>
+    private async Task<(bool IsHealthy, SwitchingPath? AlternativePath)> ValidatePathHealthAsync(
+        long parcelId, 
+        SwitchingPath path, 
+        int exceptionChuteId)
+    {
+        if (_pathHealthChecker == null)
+        {
+            return (true, null);
+        }
+
+        var pathHealthResult = _pathHealthChecker.ValidatePath(path);
+        
+        if (!pathHealthResult.IsHealthy)
+        {
+            var unhealthyNodeList = string.Join(", ", pathHealthResult.UnhealthyNodeIds);
+            
+            _logger.LogWarning(
+                "包裹 {ParcelId} 的路径经过不健康节点 [{UnhealthyNodes}]，将重定向到异常格口",
+                parcelId,
+                unhealthyNodeList);
+
+            // PR-10: 记录节点降级决策事件
+            await WriteTraceAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                Stage = "OverloadDecision",
+                Source = "NodeHealthCheck",
+                Details = $"Reason=NodeDegraded, UnhealthyNodes=[{unhealthyNodeList}], OriginalTargetChute={path.TargetChuteId}"
+            });
+
+            // 记录节点降级指标
+            _metrics?.RecordOverloadParcel("NodeDegraded");
+
+            // 生成到异常格口的路径
+            var alternativePath = _pathGenerator.GeneratePath(exceptionChuteId);
+            return (false, alternativePath);
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// 5.3: 二次超载检查（路径规划阶段，PR-08C）
+    /// </summary>
+    private async Task<(bool ShouldRouteToException, SwitchingPath? AlternativePath)> CheckSecondaryOverloadAsync(
+        long parcelId, 
+        SwitchingPath path, 
+        int targetChuteId, 
+        int exceptionChuteId)
+    {
+        // 计算路径所需的总时间
+        double totalRouteTimeMs = path.Segments.Sum(s => (double)s.TtlMilliseconds);
+        double remainingTtlMs = EstimatedTotalTtlMs - EstimatedElapsedMs;
+
+        // 检查路径是否能在剩余时间内完成
+        if (totalRouteTimeMs <= remainingTtlMs)
+        {
+            return (false, null);
+        }
+
+        // 路由时间预算不足，调用超载策略
+        var snapshot = _congestionCollector!.CollectSnapshot();
+        var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? CongestionLevel.Normal;
+        
+        var routeOverloadContext = new OverloadContext
+        {
+            ParcelId = parcelId.ToString(),
+            TargetChuteId = targetChuteId,
+            CurrentLineSpeed = DefaultLineSpeedMmps,
+            CurrentPosition = "PathPlanning",
+            EstimatedArrivalWindowMs = remainingTtlMs,
+            CurrentCongestionLevel = congestionLevel,
+            RemainingTtlMs = remainingTtlMs,
+            InFlightParcels = snapshot.InFlightParcels
+        };
+
+        var routeDecision = _overloadPolicy!.Evaluate(in routeOverloadContext);
+        
+        if (routeDecision.ShouldForceException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 路径规划阶段检测到超载：路径需要 {RequiredMs}ms，但剩余时间仅 {RemainingMs}ms，决策：{Decision}",
+                parcelId,
+                totalRouteTimeMs,
+                remainingTtlMs,
+                routeDecision.Reason);
+
+            // PR-10: 记录路由超载决策事件
+            await WriteTraceAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                Stage = "OverloadDecision",
+                Source = "OverloadPolicy",
+                Details = $"Reason=RouteOverload, CongestionLevel={congestionLevel}, RequiredMs={totalRouteTimeMs:F0}, RemainingMs={remainingTtlMs:F0}"
+            });
+
+            // 记录路由超载指标
+            _metrics?.RecordOverloadParcel("RouteOverload");
+
+            // 生成到异常格口的路径
+            var alternativePath = _pathGenerator.GeneratePath(exceptionChuteId);
+            return (true, alternativePath);
+        }
+
+        return (false, null);
+    }
+
+    /// <summary>
+    /// 5.4: 执行路径并追踪
+    /// </summary>
+    private async Task<SortingResult> ExecutePathWithTrackingAsync(
+        long parcelId, 
+        SwitchingPath path, 
+        int targetChuteId, 
+        bool isOverloadException,
+        CancellationToken cancellationToken)
+    {
+        var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
+
+        if (executionResult.IsSuccess)
+        {
+            _logger.LogInformation(
+                "包裹 {ParcelId} 成功分拣到格口 {ActualChuteId}{OverloadFlag}",
+                parcelId,
+                executionResult.ActualChuteId,
+                isOverloadException ? " [超载异常]" : "");
+
+            // PR-10: 记录成功落格事件
+            if (isOverloadException)
+            {
+                await WriteTraceAsync(new ParcelTraceEventArgs
+                {
+                    ItemId = parcelId,
+                    BarCode = null,
+                    OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                    Stage = "ExceptionDiverted",
+                    Source = "Execution",
+                    Details = $"ChuteId={executionResult.ActualChuteId}, Reason=Overload"
+                });
+            }
+            else
+            {
+                await WriteTraceAsync(new ParcelTraceEventArgs
+                {
+                    ItemId = parcelId,
+                    BarCode = null,
+                    OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                    Stage = "Diverted",
+                    Source = "Execution",
+                    Details = $"ChuteId={executionResult.ActualChuteId}, TargetChuteId={targetChuteId}"
+                });
+            }
+        }
+        else
+        {
+            _logger.LogError(
+                "包裹 {ParcelId} 分拣失败: {FailureReason}，实际到达格口: {ActualChuteId}",
+                parcelId,
+                executionResult.FailureReason,
+                executionResult.ActualChuteId);
+
+            // PR-10: 记录异常落格事件
+            await WriteTraceAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                Stage = "ExceptionDiverted",
+                Source = "Execution",
+                Details = $"ChuteId={executionResult.ActualChuteId}, Reason={executionResult.FailureReason}"
+            });
+
+            // 处理路径执行失败
+            if (_pathFailureHandler != null)
+            {
+                _pathFailureHandler.HandlePathFailure(
+                    parcelId,
+                    path,
+                    executionResult.FailureReason ?? "未知错误",
+                    executionResult.FailedSegment);
+            }
+        }
+
+        return new SortingResult(
+            IsSuccess: executionResult.IsSuccess,
+            ParcelId: parcelId.ToString(),
+            ActualChuteId: executionResult.ActualChuteId,
+            TargetChuteId: targetChuteId,
+            ExecutionTimeMs: 0, // Will be set by caller
+            FailureReason: executionResult.FailureReason,
+            IsOverloadException: isOverloadException
+        );
+    }
+
+    /// <summary>
+    /// 5.5: 记录分拣结果
+    /// </summary>
+    private Task RecordSortingResultAsync(long parcelId, SortingResult result, bool isOverloadException)
+    {
+        // PR-08B: 记录包裹完成
+        _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, result.IsSuccess);
+
+        // 清理路径记录
+        lock (_lockObject)
+        {
+            _parcelPaths.Remove(parcelId);
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 清理包裹记录
+    /// </summary>
+    private void CleanupParcelRecord(long parcelId)
+    {
+        lock (_lockObject)
+        {
+            _createdParcels.Remove(parcelId);
+            _parcelPaths.Remove(parcelId);
+            _pendingAssignments.Remove(parcelId);
+        }
+    }
+
+    #endregion
+
+    #region Event Handlers - 事件处理
+
+    /// <summary>
+    /// 处理包裹检测事件
+    /// </summary>
+    private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
+    {
+        try
+        {
+            await ProcessParcelAsync(e.ParcelId, e.SensorId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理包裹检测事件时发生异常: ParcelId={ParcelId}", e.ParcelId);
+        }
+    }
+
+    /// <summary>
+    /// 处理重复触发异常事件
+    /// </summary>
+    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerEventArgs e)
+    {
+        var parcelId = e.ParcelId;
+        _logger.LogWarning(
+            "检测到重复触发异常: ParcelId={ParcelId}, 传感器={SensorId}, " +
+            "距上次触发={TimeSinceLastMs}ms, 原因={Reason}",
+            parcelId,
+            e.SensorId,
+            e.TimeSinceLastTriggerMs,
+            e.Reason);
+
+        try
+        {
+            // PR-42: Parcel-First - 本地创建包裹实体
+            await CreateParcelEntityAsync(parcelId, e.SensorId);
+
+            // 获取异常格口ID
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+            // 通知RuleEngine包裹重复触发异常（不等待响应）
+            await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
+
+            // 直接将包裹发送到异常格口
+            await ExecuteSortingWorkflowAsync(parcelId, exceptionChuteId, isOverloadException: true, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理重复触发异常包裹 {ParcelId} 时发生错误", parcelId);
+            CleanupParcelRecord(parcelId);
+        }
+    }
+
+    /// <summary>
+    /// 处理格口分配通知
+    /// </summary>
+    private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentNotificationEventArgs e)
+    {
+        lock (_lockObject)
+        {
+            // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
+            if (!_createdParcels.ContainsKey(e.ParcelId))
+            {
+                _logger.LogError(
+                    "[PR-42 Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
+                    "本地不存在此包裹实体。响应已丢弃，不创建幽灵包裹。",
+                    e.ParcelId,
+                    e.ChuteId);
+                return;
+            }
+
+            // 记录上游响应接收时间
+            _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.UtcNow);
+            
+            if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
+            {
+                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
+                
+                // 记录路由绑定时间
+                _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.UtcNow);
+                
+                // PR-42: 记录路由绑定完成的 Trace 日志
+                _logger.LogTrace(
+                    "[PR-42 Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                    "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
+                    e.ParcelId,
+                    e.ChuteId,
+                    _createdParcels[e.ParcelId].CreatedAt,
+                    _createdParcels[e.ParcelId].UpstreamRequestSentAt,
+                    _createdParcels[e.ParcelId].UpstreamReplyReceivedAt,
+                    _createdParcels[e.ParcelId].RouteBoundAt);
+                
+                tcs.TrySetResult(e.ChuteId);
+                _pendingAssignments.Remove(e.ParcelId);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Helper Methods - 辅助方法
+
+    /// <summary>
+    /// 根据超载决策原因确定指标原因标签
+    /// </summary>
+    private string DetermineOverloadReason(string? decisionReason)
+    {
+        if (string.IsNullOrEmpty(decisionReason))
+        {
+            return "Unknown";
+        }
+
+        if (decisionReason.Contains("TTL") || decisionReason.Contains("超时") || decisionReason.Contains("Timeout"))
+        {
+            return "Timeout";
+        }
+
+        if (decisionReason.Contains("窗口") || decisionReason.Contains("Window"))
+        {
+            return "WindowMiss";
+        }
+
+        if (decisionReason.Contains("在途") || decisionReason.Contains("InFlight") || decisionReason.Contains("Capacity"))
+        {
+            return "CapacityExceeded";
+        }
+
+        if (decisionReason.Contains("拥堵") || decisionReason.Contains("Congestion"))
+        {
+            return "Congestion";
+        }
+
+        return "Other";
+    }
+
+    /// <summary>
+    /// 写入包裹追踪日志
+    /// </summary>
+    private async ValueTask WriteTraceAsync(ParcelTraceEventArgs eventArgs)
+    {
+        if (_traceSink != null)
+        {
+            await _traceSink.WriteAsync(eventArgs);
+        }
+    }
+
+    #endregion
+
+    /// <summary>
+    /// 释放资源
+    /// </summary>
+    public void Dispose()
+    {
+        // 取消订阅事件
+        _parcelDetectionService.ParcelDetected -= OnParcelDetected;
+        _parcelDetectionService.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
+        _ruleEngineClient.ChuteAssignmentReceived -= OnChuteAssignmentReceived;
+
+        // 断开连接
+        StopAsync().GetAwaiter().GetResult();
+    }
+}

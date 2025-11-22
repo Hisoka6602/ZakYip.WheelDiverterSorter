@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 
@@ -54,7 +55,10 @@ public static class SortingServiceExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
-        // 注册包裹分拣编排服务
+        // PR-2: 注册新的 Application 层分拣编排服务（推荐使用）
+        services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
+        
+        // 注册旧的包裹分拣编排服务（向后兼容，逐步迁移）
         services.AddSingleton<ParcelSortingOrchestrator>();
 
         // 注册调试分拣服务
