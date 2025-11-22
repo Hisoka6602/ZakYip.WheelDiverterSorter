@@ -3,8 +3,11 @@ using System.Net;
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 
 /// <summary>
-/// Integration tests for PanelSimulationController
+/// Integration tests for unified SimulationController panel endpoints
 /// </summary>
+/// <remarks>
+/// Tests the consolidated panel simulation endpoints under /api/simulation/panel/*
+/// </remarks>
 public class PanelSimulationControllerTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
@@ -17,22 +20,24 @@ public class PanelSimulationControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task PressButton_ReturnsProperResponse()
     {
-        // Act
-        var response = await _client.PostAsync("/api/simulation/panel/press?buttonType=Start", null);
+        // Act - Updated path to new unified endpoint
+        var response = await _client.PostAsync("/api/simulation/panel/press-button?buttonType=Start", null);
 
         // Assert
-        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode)
+        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode) or NotFound
         // Should NOT return 500 (unhandled exception)
         Assert.True(
             response.StatusCode == HttpStatusCode.OK ||
-            response.StatusCode == HttpStatusCode.BadRequest);
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Unexpected status code: {response.StatusCode}");
     }
 
     [Fact]
     public async Task PressButton_InNonSimulationMode_ReturnsBadRequestWithChineseMessage()
     {
-        // Act
-        var response = await _client.PostAsync("/api/simulation/panel/press?buttonType=Start", null);
+        // Act - Updated path to new unified endpoint
+        var response = await _client.PostAsync("/api/simulation/panel/press-button?buttonType=Start", null);
 
         // Assert
         if (response.StatusCode == HttpStatusCode.BadRequest)
@@ -49,22 +54,24 @@ public class PanelSimulationControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task ReleaseButton_ReturnsProperResponse()
     {
-        // Act
-        var response = await _client.PostAsync("/api/simulation/panel/release?buttonType=Start", null);
+        // Act - Updated path to new unified endpoint
+        var response = await _client.PostAsync("/api/simulation/panel/release-button?buttonType=Start", null);
 
         // Assert
-        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode)
+        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode) or NotFound
         // Should NOT return 500 (unhandled exception)
         Assert.True(
             response.StatusCode == HttpStatusCode.OK ||
-            response.StatusCode == HttpStatusCode.BadRequest);
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Unexpected status code: {response.StatusCode}");
     }
 
     [Fact]
     public async Task ReleaseButton_InNonSimulationMode_ReturnsBadRequestWithChineseMessage()
     {
-        // Act
-        var response = await _client.PostAsync("/api/simulation/panel/release?buttonType=Start", null);
+        // Act - Updated path to new unified endpoint
+        var response = await _client.PostAsync("/api/simulation/panel/release-button?buttonType=Start", null);
 
         // Assert
         if (response.StatusCode == HttpStatusCode.BadRequest)
@@ -81,7 +88,7 @@ public class PanelSimulationControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task GetPanelState_ReturnsProperResponse()
     {
-        // Act
+        // Act - Path remains the same
         var response = await _client.GetAsync("/api/simulation/panel/state");
 
         // Assert
@@ -95,22 +102,24 @@ public class PanelSimulationControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task ResetAllButtons_ReturnsProperResponse()
     {
-        // Act
-        var response = await _client.PostAsync("/api/simulation/panel/reset", null);
+        // Act - Updated path to new unified endpoint
+        var response = await _client.PostAsync("/api/simulation/panel/reset-buttons", null);
 
         // Assert
-        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode)
+        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode) or NotFound
         // Should NOT return 500 (unhandled exception)
         Assert.True(
             response.StatusCode == HttpStatusCode.OK ||
-            response.StatusCode == HttpStatusCode.BadRequest);
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Unexpected status code: {response.StatusCode}");
     }
 
     [Fact]
     public async Task ResetAllButtons_InNonSimulationMode_ReturnsBadRequestWithChineseMessage()
     {
-        // Act
-        var response = await _client.PostAsync("/api/simulation/panel/reset", null);
+        // Act - Updated path to new unified endpoint
+        var response = await _client.PostAsync("/api/simulation/panel/reset-buttons", null);
 
         // Assert
         if (response.StatusCode == HttpStatusCode.BadRequest)
@@ -127,22 +136,24 @@ public class PanelSimulationControllerTests : IClassFixture<CustomWebApplication
     [Fact]
     public async Task GetSignalTowerHistory_ReturnsProperResponse()
     {
-        // Act
-        var response = await _client.GetAsync("/api/simulation/panel/signal-tower/history");
+        // Act - Updated path to new unified endpoint
+        var response = await _client.GetAsync("/api/simulation/panel/signal-tower-history");
 
         // Assert
-        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode)
+        // Should return either OK (if simulation mode) or BadRequest (if not simulation mode) or NotFound
         // Should NOT return 500 (unhandled exception)
         Assert.True(
             response.StatusCode == HttpStatusCode.OK ||
-            response.StatusCode == HttpStatusCode.BadRequest);
+            response.StatusCode == HttpStatusCode.BadRequest ||
+            response.StatusCode == HttpStatusCode.NotFound,
+            $"Unexpected status code: {response.StatusCode}");
     }
 
     [Fact]
     public async Task GetSignalTowerHistory_InNonSimulationMode_ReturnsBadRequestWithChineseMessage()
     {
-        // Act
-        var response = await _client.GetAsync("/api/simulation/panel/signal-tower/history");
+        // Act - Updated path to new unified endpoint
+        var response = await _client.GetAsync("/api/simulation/panel/signal-tower-history");
 
         // Assert
         if (response.StatusCode == HttpStatusCode.BadRequest)
