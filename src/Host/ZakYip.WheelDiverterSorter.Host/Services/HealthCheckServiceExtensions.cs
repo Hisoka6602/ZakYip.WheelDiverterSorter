@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Communication.Health;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -53,6 +54,9 @@ public static class HealthCheckServiceExtensions
 
         // 注册启动自检服务
         services.AddHostedService<BootHostedService>();
+
+        // 注册运行前健康检查服务
+        services.AddSingleton<IPreRunHealthCheckService, PreRunHealthCheckService>();
 
         return services;
     }
