@@ -409,7 +409,182 @@ src/Host/ZakYip.WheelDiverterSorter.Host/Application/
 
 ---
 
-## 7. PR-2 重构建议
+## 7. PR-2 重构后的架构
+
+### 7.1 新增 Application 层 Orchestrator
+
+#### 新增服务
+
+**ISortingOrchestrator** (`src/Host/ZakYip.WheelDiverterSorter.Host/Application/Services/ISortingOrchestrator.cs`)
+
+```csharp
+public interface ISortingOrchestrator
+{
+    Task StartAsync(CancellationToken cancellationToken = default);
+    Task StopAsync();
+    Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, CancellationToken cancellationToken = default);
+    Task<SortingResult> ExecuteDebugSortAsync(string parcelId, int targetChuteId, CancellationToken cancellationToken = default);
+}
+```
+
+**SortingOrchestrator** (`src/Host/ZakYip.WheelDiverterSorter.Host/Application/Services/SortingOrchestrator.cs`)
+
+职责：
+- 统一的分拣流程编排入口
+- 将长流程拆分为多个小方法（15-40 行/方法）
+- 保持 PR-42 Parcel-First 语义
+- 支持调试分拣（跳过上游路由）
+
+**核心方法拆分**：
+
+```csharp
+// 主流程入口
+Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, ...)
+
+// 流程步骤分解
+1. CreateParcelEntityAsync()           // 创建本地包裹实体（PR-42）
+2. ValidateSystemStateAsync()          // 验证系统状态
+3. DetectCongestionAndOverloadAsync()  // 拥堵检测与超载评估
+4. DetermineTargetChuteAsync()         // 确定目标格口
+   ├─ GetChuteFromRuleEngineAsync()    // 正式模式：从上游获取
+   ├─ GetFixedChute()                  // 固定格口模式
+   └─ GetNextRoundRobinChute()         // 轮询模式
+5. ExecuteSortingWorkflowAsync()       // 执行分拣工作流
+   ├─ GeneratePathOrExceptionAsync()   // 生成路径
+   ├─ ValidatePathHealthAsync()        // 路径健康检查（PR-14）
+   ├─ CheckSecondaryOverloadAsync()    // 二次超载检查（PR-08C）
+   ├─ ExecutePathWithTrackingAsync()   // 执行路径
+   └─ RecordSortingResultAsync()       // 记录结果
+```
+
+#### 架构改进
+
+**分层清晰**：
+
+```
+┌──────────────────────────────────────────────────┐
+│ Host 层 (Controllers / DI / API)                 │
+│  - SimulationTestController                      │
+│  - ParcelSortingWorker (BackgroundService)       │
+└──────────────────────────────────────────────────┘
+                     ↓ 调用
+┌──────────────────────────────────────────────────┐
+│ Application 层 (Business Orchestration) [PR-2]   │
+│  - ISortingOrchestrator                          │
+│  - SortingOrchestrator (新增)                    │
+│    ├─ 统一的分拣流程编排                          │
+│    ├─ 小方法拆分，易于测试                         │
+│    └─ 保持所有现有语义（PR-42, PR-14, PR-08）     │
+└──────────────────────────────────────────────────┘
+                     ↓ 调用
+┌──────────────────────────────────────────────────┐
+│ Execution 层 (Path Generation & Execution)       │
+│  - ISwitchingPathGenerator                       │
+│  - ISwitchingPathExecutor                        │
+└──────────────────────────────────────────────────┘
+```
+
+**优点**：
+
+1. ✅ **统一入口**：所有分拣流程通过 `ISortingOrchestrator` 接口
+2. ✅ **方法拆分**：大方法拆分为 15+ 个小方法，每个 15-40 行
+3. ✅ **易于测试**：每个步骤可独立测试
+4. ✅ **向后兼容**：保留 `ParcelSortingOrchestrator` 用于渐进迁移
+5. ✅ **遵守规范**：所有仓库编码规范（ISystemClock、nullable、SafeExecutionService）
+
+#### DI 注册
+
+```csharp
+// src/Host/ZakYip.WheelDiverterSorter.Host/Services/SortingServiceExtensions.cs
+
+// PR-2: 注册新的 Application 层分拣编排服务（推荐使用）
+services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
+
+// 注册旧的包裹分拣编排服务（向后兼容，逐步迁移）
+services.AddSingleton<ParcelSortingOrchestrator>();
+```
+
+### 7.2 更新后的分拣流程
+
+#### 推荐流程（使用新 Orchestrator）
+
+```
+【真实硬件 / 仿真】
+传感器触发
+  ↓
+IParcelDetectionService.ParcelDetected 事件
+  ↓
+【方式 1: 通过旧 Orchestrator（现有）】
+ParcelSortingOrchestrator.OnParcelDetected()
+  └─ 完整的分拣流程（910 行）
+
+【方式 2: 通过新 Orchestrator（推荐）】
+ISortingOrchestrator.ProcessParcelAsync()
+  ├─ 1. CreateParcelEntityAsync()           [15 lines]
+  ├─ 2. ValidateSystemStateAsync()          [20 lines]
+  ├─ 3. DetectCongestionAndOverloadAsync()  [40 lines]
+  ├─ 4. DetermineTargetChuteAsync()         [15 lines]
+  └─ 5. ExecuteSortingWorkflowAsync()       [30 lines]
+       ├─ 5.1 GeneratePathOrExceptionAsync()
+       ├─ 5.2 ValidatePathHealthAsync()
+       ├─ 5.3 CheckSecondaryOverloadAsync()
+       ├─ 5.4 ExecutePathWithTrackingAsync()
+       └─ 5.5 RecordSortingResultAsync()
+```
+
+#### 调试分拣流程
+
+```
+【测试环境】
+POST /api/simulation/test/sort
+  ↓
+SimulationTestController.TriggerDebugSort()
+  ↓
+DebugSortService.ExecuteDebugSortAsync()
+  └─ 检查系统状态后，可以选择：
+      
+【方式 1: 直接调用底层（现有）】
+├─ ISwitchingPathGenerator.GeneratePath()
+└─ ISwitchingPathExecutor.ExecuteAsync()
+
+【方式 2: 通过 Orchestrator（推荐）】
+└─ ISortingOrchestrator.ExecuteDebugSortAsync()
+    └─ 统一的路径生成和执行逻辑
+```
+
+### 7.3 迁移建议
+
+#### 立即可用
+
+- ✅ 新代码直接使用 `ISortingOrchestrator`
+- ✅ 通过 DI 注入 `ISortingOrchestrator` 而非 `ParcelSortingOrchestrator`
+
+#### 渐进迁移
+
+**Phase 1（当前 PR-2）**:
+- ✅ 创建 `ISortingOrchestrator` 和 `SortingOrchestrator`
+- ✅ 注册到 DI 容器
+- ✅ 保持 `ParcelSortingOrchestrator` 向后兼容
+
+**Phase 2（未来 PR）**:
+- 更新 `ParcelSortingWorker` 使用新 Orchestrator
+- 更新 `DebugSortService` 使用新 Orchestrator
+- 创建 `SimulationOrchestratorService` 实现
+
+**Phase 3（未来 PR）**:
+- 所有服务迁移完成
+- 移除旧的 `ParcelSortingOrchestrator`
+- 更新所有文档
+
+#### 兼容性保证
+
+- ✅ 现有测试继续通过（使用旧 Orchestrator）
+- ✅ 现有 API 端点不受影响
+- ✅ 所有 PR-42 Parcel-First 语义保持不变
+- ✅ 所有超载处置策略（PR-08）保持不变
+- ✅ 所有节点健康检查（PR-14）保持不变
+
+---
 
 ### 7.1 目标
 
