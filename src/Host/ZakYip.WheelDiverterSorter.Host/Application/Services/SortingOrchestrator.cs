@@ -254,20 +254,36 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
             // 直接生成和执行路径
             var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
             var path = _pathGenerator.GeneratePath(targetChuteId);
             
+            // 如果路径生成失败，尝试生成到异常格口的路径
             if (path == null)
             {
-                _logger.LogWarning("无法生成到格口 {TargetChuteId} 的路径", targetChuteId);
-                stopwatch.Stop();
-                return new SortingResult(
-                    IsSuccess: false,
-                    ParcelId: parcelId,
-                    ActualChuteId: 0,
-                    TargetChuteId: targetChuteId,
-                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: "路径生成失败"
-                );
+                _logger.LogWarning(
+                    "无法生成到格口 {TargetChuteId} 的路径，尝试路由到异常格口 {ExceptionChuteId}",
+                    targetChuteId,
+                    exceptionChuteId);
+                
+                path = _pathGenerator.GeneratePath(exceptionChuteId);
+                
+                if (path == null)
+                {
+                    _logger.LogError("无法生成到异常格口 {ExceptionChuteId} 的路径，调试分拣失败", exceptionChuteId);
+                    stopwatch.Stop();
+                    return new SortingResult(
+                        IsSuccess: false,
+                        ParcelId: parcelId,
+                        ActualChuteId: 0,
+                        TargetChuteId: targetChuteId,
+                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                        FailureReason: "路径生成失败：连异常格口路径都无法生成"
+                    );
+                }
+                
+                // 更新目标格口为异常格口
+                targetChuteId = exceptionChuteId;
+                _logger.LogInformation("已重定向到异常格口 {ExceptionChuteId}", exceptionChuteId);
             }
 
             _logger.LogInformation("路径生成成功: 段数={SegmentCount}, 目标格口={TargetChuteId}", 
@@ -278,13 +294,23 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             stopwatch.Stop();
             
-            // 记录指标
+            // 记录指标和日志
             if (executionResult.IsSuccess)
             {
+                _logger.LogInformation(
+                    "调试分拣成功: 包裹ID={ParcelId}, 实际格口={ActualChuteId}, 目标格口={TargetChuteId}",
+                    parcelId,
+                    executionResult.ActualChuteId,
+                    targetChuteId);
                 _metrics?.RecordSortingSuccess(stopwatch.Elapsed.TotalSeconds);
             }
             else
             {
+                _logger.LogError(
+                    "调试分拣失败: 包裹ID={ParcelId}, 失败原因={FailureReason}, 实际到达格口={ActualChuteId}",
+                    parcelId,
+                    executionResult.FailureReason,
+                    executionResult.ActualChuteId);
                 _metrics?.RecordSortingFailure(stopwatch.Elapsed.TotalSeconds);
             }
 
