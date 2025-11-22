@@ -124,87 +124,11 @@ builder.Services.AddSwaggerGen(options =>
     options.UseInlineDefinitionsForEnums();
 });
 
-// 配置路由数据库路径
-var databasePath = builder.Configuration["RouteConfiguration:DatabasePath"] ?? "Data/routes.db";
-var fullDatabasePath = Path.Combine(AppContext.BaseDirectory, databasePath);
+// 注册所有配置仓储（路由、系统、驱动器、传感器、通信）
+builder.Services.AddConfigurationRepositories(builder.Configuration);
 
-// 确保数据目录存在
-var dataDirectory = Path.GetDirectoryName(fullDatabasePath);
-if (!string.IsNullOrEmpty(dataDirectory) && !Directory.Exists(dataDirectory))
-{
-    Directory.CreateDirectory(dataDirectory);
-}
-
-// 注册路由配置仓储为单例
-builder.Services.AddSingleton<IRouteConfigurationRepository>(serviceProvider =>
-{
-    var repository = new LiteDbRouteConfigurationRepository(fullDatabasePath);
-    // 初始化默认数据
-    repository.InitializeDefaultData();
-    return repository;
-});
-
-// 注册系统配置仓储为单例
-builder.Services.AddSingleton<ISystemConfigurationRepository>(serviceProvider =>
-{
-    var clock = serviceProvider.GetRequiredService<ISystemClock>();
-    var repository = new LiteDbSystemConfigurationRepository(fullDatabasePath);
-    // 初始化默认配置，使用本地时间
-    repository.InitializeDefault(clock.LocalNow);
-    return repository;
-});
-
-// 注册驱动器配置仓储为单例
-builder.Services.AddSingleton<IDriverConfigurationRepository>(serviceProvider =>
-{
-    var repository = new LiteDbDriverConfigurationRepository(fullDatabasePath);
-    // 初始化默认配置
-    repository.InitializeDefault();
-    return repository;
-});
-
-// 注册传感器配置仓储为单例
-builder.Services.AddSingleton<ISensorConfigurationRepository>(serviceProvider =>
-{
-    var repository = new LiteDbSensorConfigurationRepository(fullDatabasePath);
-    // 初始化默认配置
-    repository.InitializeDefault();
-    return repository;
-});
-
-// 注册通信配置仓储为单例
-builder.Services.AddSingleton<ICommunicationConfigurationRepository>(serviceProvider =>
-{
-    var repository = new LiteDbCommunicationConfigurationRepository(fullDatabasePath);
-    // 初始化默认配置
-    repository.InitializeDefault();
-    return repository;
-});
-
-// 注册摆轮分拣相关服务
-// 首先注册基础路径生成器
-builder.Services.AddSingleton<DefaultSwitchingPathGenerator>();
-
-// 使用装饰器模式添加缓存功能（可选，通过配置启用）
-var enablePathCaching = builder.Configuration.GetValue<bool>("Performance:EnablePathCaching", true);
-if (enablePathCaching)
-{
-    builder.Services.AddSingleton<ISwitchingPathGenerator>(serviceProvider =>
-    {
-        var innerGenerator = serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>();
-        var cache = serviceProvider.GetRequiredService<IMemoryCache>();
-        var logger = serviceProvider.GetRequiredService<ILogger<CachedSwitchingPathGenerator>>();
-        return new CachedSwitchingPathGenerator(innerGenerator, cache, logger);
-    });
-}
-else
-{
-    builder.Services.AddSingleton<ISwitchingPathGenerator>(serviceProvider =>
-        serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>());
-}
-
-// 注册优化的分拣服务
-builder.Services.AddSingleton<OptimizedSortingService>();
+// 注册分拣相关服务（路径生成、路径执行、分拣编排）
+builder.Services.AddSortingServices(builder.Configuration);
 
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
@@ -242,51 +166,17 @@ builder.Services.DecorateWithConcurrencyControl();
 // PR-14: 注册节点健康服务
 builder.Services.AddNodeHealthServices();
 
-builder.Services.AddSingleton<DebugSortService>();
-
 // 注册传感器服务（使用工厂模式，支持多厂商）
 builder.Services.AddSensorServices(builder.Configuration);
 
-// 注册包裹检测服务
-builder.Services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
-
 // 注册RuleEngine通信服务（支持TCP/SignalR/MQTT/HTTP）
 builder.Services.AddRuleEngineCommunication(builder.Configuration);
-
-// 注册包裹分拣编排服务
-builder.Services.AddSingleton<ParcelSortingOrchestrator>();
 
 // 注册通信统计服务
 builder.Services.AddSingleton<CommunicationStatsService>();
 
 // 注册线体拓扑配置提供者
-builder.Services.AddSingleton<ILineTopologyConfigProvider>(serviceProvider =>
-{
-    var topologyPath = builder.Configuration["TopologyConfiguration:FilePath"];
-    if (!string.IsNullOrEmpty(topologyPath))
-    {
-        var fullPath = Path.IsPathRooted(topologyPath) 
-            ? topologyPath 
-            : Path.Combine(AppContext.BaseDirectory, topologyPath);
-        return new JsonLineTopologyConfigProvider(fullPath);
-    }
-    // 使用默认拓扑配置
-    return new DefaultLineTopologyConfigProvider();
-});
-
-// 注册仿真服务（用于 API 触发仿真）
-// 注意：这些服务在 Host 层也需要，用于通过 API 运行仿真场景
-if (builder.Configuration.GetValue<bool>("Simulation:EnableApiSimulation", false))
-{
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationRunner>();
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner>();
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.ParcelTimelineFactory>();
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationReportPrinter>();
-    
-    // 注册 ISimulationScenarioRunner 接口
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Simulation.Services.ISimulationScenarioRunner>(
-        serviceProvider => serviceProvider.GetRequiredService<ZakYip.WheelDiverterSorter.Simulation.Services.SimulationScenarioRunner>());
-}
+builder.Services.AddTopologyConfiguration(builder.Configuration);
 
 // 注册改口功能相关服务
 builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
@@ -295,6 +185,9 @@ builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
 // 注册中段皮带 IO 联动服务
 builder.Services.AddMiddleConveyorServices(builder.Configuration);
+
+// 注册仿真服务（用于 API 触发仿真）
+builder.Services.AddSimulationServices(builder.Configuration);
 
 // 注册后台服务（可选）
 // 取消注释以下行以启用自动传感器监听和分拣编排
