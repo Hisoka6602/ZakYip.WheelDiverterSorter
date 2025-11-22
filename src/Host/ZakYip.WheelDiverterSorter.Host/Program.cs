@@ -203,6 +203,9 @@ builder.Services.AddSimulationServices(builder.Configuration);
 // 注册告警监控后台服务
 builder.Services.AddHostedService<AlarmMonitoringWorker>();
 
+// 注册路由-拓扑一致性检查后台服务（启动时执行）
+builder.Services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
+
 var app = builder.Build();
 
 // 配置Prometheus指标中间件

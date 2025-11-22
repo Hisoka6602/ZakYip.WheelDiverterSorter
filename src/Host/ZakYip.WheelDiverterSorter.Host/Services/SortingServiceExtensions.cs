@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
@@ -57,6 +58,9 @@ public static class SortingServiceExtensions
 
         // 注册 Application 层分拣编排服务
         services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
+
+        // 注册路由-拓扑一致性检查器（编排层服务）
+        services.AddSingleton<IRouteTopologyConsistencyChecker, RouteTopologyConsistencyChecker>();
 
         // 注册调试分拣服务
         services.AddSingleton<DebugSortService>();
