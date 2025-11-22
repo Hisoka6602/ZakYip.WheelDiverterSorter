@@ -112,7 +112,7 @@ public class RoutingTopologyLayerTests
             // Check fields
             foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (IsTopologyType(field.FieldType))
+                if (IsTopologyTypeReference(field.FieldType))
                 {
                     references.Add(field.FieldType.FullName ?? field.FieldType.Name);
                 }
@@ -121,7 +121,7 @@ public class RoutingTopologyLayerTests
             // Check properties
             foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (IsTopologyType(property.PropertyType))
+                if (IsTopologyTypeReference(property.PropertyType))
                 {
                     references.Add(property.PropertyType.FullName ?? property.PropertyType.Name);
                 }
@@ -130,14 +130,14 @@ public class RoutingTopologyLayerTests
             // Check method parameters and return types
             foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (IsTopologyType(method.ReturnType))
+                if (IsTopologyTypeReference(method.ReturnType))
                 {
                     references.Add(method.ReturnType.FullName ?? method.ReturnType.Name);
                 }
 
                 foreach (var parameter in method.GetParameters())
                 {
-                    if (IsTopologyType(parameter.ParameterType))
+                    if (IsTopologyTypeReference(parameter.ParameterType))
                     {
                         references.Add(parameter.ParameterType.FullName ?? parameter.ParameterType.Name);
                     }
@@ -149,7 +149,7 @@ public class RoutingTopologyLayerTests
             {
                 foreach (var parameter in constructor.GetParameters())
                 {
-                    if (IsTopologyType(parameter.ParameterType))
+                    if (IsTopologyTypeReference(parameter.ParameterType))
                     {
                         references.Add(parameter.ParameterType.FullName ?? parameter.ParameterType.Name);
                     }
@@ -157,7 +157,7 @@ public class RoutingTopologyLayerTests
             }
 
             // Check base type
-            if (type.BaseType != null && IsTopologyType(type.BaseType))
+            if (type.BaseType != null && IsTopologyTypeReference(type.BaseType))
             {
                 references.Add(type.BaseType.FullName ?? type.BaseType.Name);
             }
@@ -165,15 +165,21 @@ public class RoutingTopologyLayerTests
             // Check interfaces
             foreach (var iface in type.GetInterfaces())
             {
-                if (IsTopologyType(iface))
+                if (IsTopologyTypeReference(iface))
                 {
                     references.Add(iface.FullName ?? iface.Name);
                 }
             }
         }
-        catch
+        catch (ReflectionTypeLoadException ex)
         {
-            // Ignore types that can't be inspected
+            // Some types may fail to load - log and continue
+            Console.WriteLine($"Warning: Failed to load some types from {type.FullName}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            // Other reflection errors - log and continue
+            Console.WriteLine($"Warning: Error inspecting type {type.FullName}: {ex.Message}");
         }
 
         return references.ToList();
@@ -191,7 +197,7 @@ public class RoutingTopologyLayerTests
             // Check fields
             foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (IsRoutingType(field.FieldType))
+                if (IsRoutingTypeReference(field.FieldType))
                 {
                     references.Add(field.FieldType.FullName ?? field.FieldType.Name);
                 }
@@ -200,7 +206,7 @@ public class RoutingTopologyLayerTests
             // Check properties
             foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (IsRoutingType(property.PropertyType))
+                if (IsRoutingTypeReference(property.PropertyType))
                 {
                     references.Add(property.PropertyType.FullName ?? property.PropertyType.Name);
                 }
@@ -209,14 +215,14 @@ public class RoutingTopologyLayerTests
             // Check method parameters and return types
             foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static))
             {
-                if (IsRoutingType(method.ReturnType))
+                if (IsRoutingTypeReference(method.ReturnType))
                 {
                     references.Add(method.ReturnType.FullName ?? method.ReturnType.Name);
                 }
 
                 foreach (var parameter in method.GetParameters())
                 {
-                    if (IsRoutingType(parameter.ParameterType))
+                    if (IsRoutingTypeReference(parameter.ParameterType))
                     {
                         references.Add(parameter.ParameterType.FullName ?? parameter.ParameterType.Name);
                     }
@@ -228,7 +234,7 @@ public class RoutingTopologyLayerTests
             {
                 foreach (var parameter in constructor.GetParameters())
                 {
-                    if (IsRoutingType(parameter.ParameterType))
+                    if (IsRoutingTypeReference(parameter.ParameterType))
                     {
                         references.Add(parameter.ParameterType.FullName ?? parameter.ParameterType.Name);
                     }
@@ -236,7 +242,7 @@ public class RoutingTopologyLayerTests
             }
 
             // Check base type
-            if (type.BaseType != null && IsRoutingType(type.BaseType))
+            if (type.BaseType != null && IsRoutingTypeReference(type.BaseType))
             {
                 references.Add(type.BaseType.FullName ?? type.BaseType.Name);
             }
@@ -244,24 +250,31 @@ public class RoutingTopologyLayerTests
             // Check interfaces
             foreach (var iface in type.GetInterfaces())
             {
-                if (IsRoutingType(iface))
+                if (IsRoutingTypeReference(iface))
                 {
                     references.Add(iface.FullName ?? iface.Name);
                 }
             }
         }
-        catch
+        catch (ReflectionTypeLoadException ex)
         {
-            // Ignore types that can't be inspected
+            // Some types may fail to load - log and continue
+            Console.WriteLine($"Warning: Failed to load some types from {type.FullName}: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            // Other reflection errors - log and continue
+            Console.WriteLine($"Warning: Error inspecting type {type.FullName}: {ex.Message}");
         }
 
         return references.ToList();
     }
 
     /// <summary>
-    /// Check if a type belongs to Topology layer
+    /// Check if a type reference should be counted as a Topology dependency.
+    /// Returns true if the type is from Topology namespace AND the referencing type is not in Orchestration.
     /// </summary>
-    private bool IsTopologyType(Type type)
+    private bool IsTopologyTypeReference(Type type)
     {
         if (type.Namespace == null) return false;
         
@@ -269,31 +282,28 @@ public class RoutingTopologyLayerTests
         if (type.Namespace.Contains(".LineModel.Topology"))
             return true;
 
-        // Allow Orchestration layer to use Topology
-        if (type.Namespace.Contains(".LineModel.Orchestration"))
-            return false;
-
         // Check generic type arguments
         if (type.IsGenericType)
         {
             foreach (var arg in type.GetGenericArguments())
             {
-                if (IsTopologyType(arg))
+                if (IsTopologyTypeReference(arg))
                     return true;
             }
         }
 
         // Check array element type
-        if (type.IsArray && IsTopologyType(type.GetElementType()!))
+        if (type.IsArray && IsTopologyTypeReference(type.GetElementType()!))
             return true;
 
         return false;
     }
 
     /// <summary>
-    /// Check if a type belongs to Routing layer
+    /// Check if a type reference should be counted as a Routing dependency.
+    /// Returns true if the type is from Routing namespace AND the referencing type is not in Orchestration.
     /// </summary>
-    private bool IsRoutingType(Type type)
+    private bool IsRoutingTypeReference(Type type)
     {
         if (type.Namespace == null) return false;
         
@@ -301,22 +311,18 @@ public class RoutingTopologyLayerTests
         if (type.Namespace.Contains(".LineModel.Routing"))
             return true;
 
-        // Allow Orchestration layer to use Routing
-        if (type.Namespace.Contains(".LineModel.Orchestration"))
-            return false;
-
         // Check generic type arguments
         if (type.IsGenericType)
         {
             foreach (var arg in type.GetGenericArguments())
             {
-                if (IsRoutingType(arg))
+                if (IsRoutingTypeReference(arg))
                     return true;
             }
         }
 
         // Check array element type
-        if (type.IsArray && IsRoutingType(type.GetElementType()!))
+        if (type.IsArray && IsRoutingTypeReference(type.GetElementType()!))
             return true;
 
         return false;
