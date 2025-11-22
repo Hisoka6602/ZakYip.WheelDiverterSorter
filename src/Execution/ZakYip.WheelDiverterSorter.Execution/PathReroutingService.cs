@@ -46,7 +46,7 @@ public class PathReroutingService : IPathReroutingService
     public Task<ReroutingResult> TryRerouteAsync(
         long parcelId,
         SwitchingPath currentPath,
-        int failedNodeId,
+        long failedNodeId,
         PathFailureReason failureReason,
         CancellationToken cancellationToken = default)
     {
@@ -190,7 +190,7 @@ public class PathReroutingService : IPathReroutingService
     /// <summary>
     /// 在路径中查找失败节点的索引
     /// </summary>
-    private int FindFailedSegmentIndex(SwitchingPath path, int failedNodeId)
+    private int FindFailedSegmentIndex(SwitchingPath path, long failedNodeId)
     {
         for (int i = 0; i < path.Segments.Count; i++)
         {
@@ -208,7 +208,7 @@ public class PathReroutingService : IPathReroutingService
     private IReadOnlyList<SwitchingPathSegment>? TryGenerateRerouteSegments(
         List<DiverterConfigurationEntry> diverterConfigurations,
         IReadOnlyList<SwitchingPathSegment> remainingSegments,
-        int targetChuteId)
+        long targetChuteId)
     {
         // 获取目标格口所需的所有摆轮配置
         var requiredDiverters = diverterConfigurations

@@ -36,5 +36,5 @@ public readonly record struct PathExecutionFailedEventArgs
     /// <summary>
     /// 实际到达的格口ID（通常是异常格口）
     /// </summary>
-    public required int ActualChuteId { get; init; }
+    public required long ActualChuteId { get; init; }
 }

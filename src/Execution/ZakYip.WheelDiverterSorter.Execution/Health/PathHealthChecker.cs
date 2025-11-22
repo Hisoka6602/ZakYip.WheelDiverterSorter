@@ -97,6 +97,6 @@ public class PathHealthResult
 
     private PathHealthResult()
     {
-        UnhealthyNodeIds = Array.Empty<int>();
+        UnhealthyNodeIds = Array.Empty<long>();
     }
 }
