@@ -15,7 +15,7 @@ public class DiverterConfigurationEntry
     /// <summary>
     /// 摆轮标识（数字ID，与硬件设备对应）
     /// </summary>
-    public required int DiverterId { get; set; }
+    public required long DiverterId { get; set; }
 
     /// <summary>
     /// 摆轮名称（可选）- Diverter Name (Optional)

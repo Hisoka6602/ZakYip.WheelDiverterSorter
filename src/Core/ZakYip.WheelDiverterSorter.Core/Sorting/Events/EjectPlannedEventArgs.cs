@@ -28,5 +28,5 @@ public readonly record struct EjectPlannedEventArgs
     /// <summary>
     /// 目标格口ID
     /// </summary>
-    public int TargetChuteId { get; init; }
+    public long TargetChuteId { get; init; }
 }

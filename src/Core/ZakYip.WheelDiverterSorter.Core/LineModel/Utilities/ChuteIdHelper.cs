@@ -15,7 +15,7 @@ file static class ChuteIdHelper
     /// <param name="chuteId">字符串格口ID</param>
     /// <param name="result">转换后的整数ID</param>
     /// <returns>是否转换成功</returns>
-    public static bool TryParseChuteId(string? chuteId, out int result)
+    public static bool TryParseChuteId(string? chuteId, out long result)
     {
         result = 0;
         
@@ -25,7 +25,7 @@ file static class ChuteIdHelper
         }
 
         // 尝试直接解析为整数
-        if (int.TryParse(chuteId, out result))
+        if (long.TryParse(chuteId, out result))
         {
             return result > 0;
         }
@@ -38,7 +38,7 @@ file static class ChuteIdHelper
             .Replace("CHUTE", "")
             .Trim();
 
-        if (int.TryParse(cleaned, out result))
+        if (long.TryParse(cleaned, out result))
         {
             return result > 0;
         }
@@ -52,7 +52,7 @@ file static class ChuteIdHelper
     /// <param name="chuteId">字符串格口ID</param>
     /// <returns>转换后的整数ID，如果失败则返回null</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static int? ParseChuteId(string? chuteId)
+    public static long? ParseChuteId(string? chuteId)
     {
         return TryParseChuteId(chuteId, out var result) ? result : null;
     }
@@ -63,7 +63,7 @@ file static class ChuteIdHelper
     /// <param name="chuteId">整数格口ID</param>
     /// <returns>字符串格式的格口ID</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static string FormatChuteId(int chuteId)
+    public static string FormatChuteId(long chuteId)
     {
         return chuteId.ToString();
     }

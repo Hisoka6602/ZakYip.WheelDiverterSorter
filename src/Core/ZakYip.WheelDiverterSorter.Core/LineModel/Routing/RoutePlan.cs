@@ -24,12 +24,12 @@ public class RoutePlan
     /// <summary>
     /// 初始目标格口ID
     /// </summary>
-    public int InitialTargetChuteId { get; private set; }
+    public long InitialTargetChuteId { get; private set; }
 
     /// <summary>
     /// 当前有效目标格口ID
     /// </summary>
-    public int CurrentTargetChuteId { get; private set; }
+    public long CurrentTargetChuteId { get; private set; }
 
     /// <summary>
     /// 当前计划状态
@@ -64,7 +64,7 @@ public class RoutePlan
     /// <summary>
     /// 构造函数（用于创建新计划）
     /// </summary>
-    public RoutePlan(long parcelId, int targetChuteId, DateTimeOffset createdAt, DateTimeOffset? lastReplanDeadline = null)
+    public RoutePlan(long parcelId, long targetChuteId, DateTimeOffset createdAt, DateTimeOffset? lastReplanDeadline = null)
     {
         ParcelId = parcelId;
         InitialTargetChuteId = targetChuteId;
@@ -142,7 +142,7 @@ public class RoutePlan
     /// <param name="decision">输出决策结果</param>
     /// <returns>操作结果（成功表示已接受，失败表示被拒绝或忽略）</returns>
     public OperationResult TryApplyChuteChange(
-        int requestedChuteId,
+        long requestedChuteId,
         DateTimeOffset requestedAt,
         out ChuteChangeDecision decision)
     {

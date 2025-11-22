@@ -24,7 +24,7 @@ public record class WheelHardwareBinding
     /// <remarks>
     /// 与硬件驱动配置中的摆轮ID对应
     /// </remarks>
-    public required int DriverId { get; init; }
+    public required long DriverId { get; init; }
 
     /// <summary>
     /// 驱动器名称（可选）

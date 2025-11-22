@@ -40,12 +40,12 @@ public sealed class SortingPipelineContext
     /// <summary>
     /// 目标格口ID（由上游分配或固定模式决定）
     /// </summary>
-    public int? TargetChuteId { get; set; }
+    public long? TargetChuteId { get; set; }
 
     /// <summary>
     /// 实际落格的格口ID（执行完成后设置）
     /// </summary>
-    public int? ActualChuteId { get; set; }
+    public long? ActualChuteId { get; set; }
 
     /// <summary>
     /// 规划的摆轮路径

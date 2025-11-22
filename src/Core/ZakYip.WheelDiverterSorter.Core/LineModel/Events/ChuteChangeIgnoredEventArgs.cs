@@ -20,7 +20,7 @@ public record struct ChuteChangeIgnoredEventArgs
     /// <summary>
     /// 请求的格口ID
     /// </summary>
-    public required int RequestedChuteId { get; init; }
+    public required long RequestedChuteId { get; init; }
 
     /// <summary>
     /// 被忽略/拒绝的原因

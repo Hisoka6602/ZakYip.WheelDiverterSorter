@@ -36,7 +36,7 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     /// <summary>
     /// 根据格口ID获取路由配置
     /// </summary>
-    public ChuteRouteConfiguration? GetByChuteId(int chuteId)
+    public ChuteRouteConfiguration? GetByChuteId(long chuteId)
     {
         if (chuteId <= 0)
         {
@@ -96,7 +96,7 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     /// <summary>
     /// 删除指定格口的路由配置
     /// </summary>
-    public bool Delete(int chuteId)
+    public bool Delete(long chuteId)
     {
         if (chuteId <= 0)
         {

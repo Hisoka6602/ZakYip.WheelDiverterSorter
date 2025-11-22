@@ -18,12 +18,12 @@ public readonly record struct ParcelDivertedEventArgs
     /// <summary>
     /// 实际到达的格口ID
     /// </summary>
-    public required int ActualChuteId { get; init; }
+    public required long ActualChuteId { get; init; }
 
     /// <summary>
     /// 目标格口ID
     /// </summary>
-    public int TargetChuteId { get; init; }
+    public long TargetChuteId { get; init; }
 
     /// <summary>
     /// 分拣总耗时（毫秒）

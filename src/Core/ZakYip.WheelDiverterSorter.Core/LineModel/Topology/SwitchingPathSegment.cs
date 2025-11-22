@@ -20,7 +20,7 @@ public record class SwitchingPathSegment
     /// <summary>
     /// 摆轮标识（数字ID）
     /// </summary>
-    public required int DiverterId { get; init; }
+    public required long DiverterId { get; init; }
 
     /// <summary>
     /// 目标摆轮转向方向
