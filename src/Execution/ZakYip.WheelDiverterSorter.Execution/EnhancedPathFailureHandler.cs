@@ -203,7 +203,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
     private async Task<bool> TryRerouteAsync(
         long parcelId,
         SwitchingPath originalPath,
-        int failedNodeId,
+        long failedNodeId,
         PathFailureReason failureReason)
     {
         if (_reroutingService == null)
@@ -325,7 +325,7 @@ public class ReroutingSucceededEventArgs : EventArgs
     public required long ParcelId { get; init; }
     public required SwitchingPath OriginalPath { get; init; }
     public required SwitchingPath NewPath { get; init; }
-    public required int FailedNodeId { get; init; }
+    public required long FailedNodeId { get; init; }
     public required DateTimeOffset ReroutedAt { get; init; }
 }
 
@@ -336,7 +336,7 @@ public class ReroutingFailedEventArgs : EventArgs
 {
     public required long ParcelId { get; init; }
     public required SwitchingPath OriginalPath { get; init; }
-    public required int FailedNodeId { get; init; }
+    public required long FailedNodeId { get; init; }
     public required string FailureReason { get; init; }
     public required DateTimeOffset ReroutedAt { get; init; }
 }

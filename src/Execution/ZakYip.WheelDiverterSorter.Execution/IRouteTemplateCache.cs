@@ -16,7 +16,7 @@ public interface IRouteTemplateCache
     /// <param name="chuteId">格口ID</param>
     /// <param name="configuration">路由配置</param>
     /// <returns>如果缓存命中返回true，否则返回false</returns>
-    bool TryGet(int chuteId, out ChuteRouteConfiguration? configuration);
+    bool TryGet(long chuteId, out ChuteRouteConfiguration? configuration);
 
     /// <summary>
     /// 将路由配置添加到缓存
@@ -24,7 +24,7 @@ public interface IRouteTemplateCache
     /// </summary>
     /// <param name="chuteId">格口ID</param>
     /// <param name="configuration">路由配置</param>
-    void Add(int chuteId, ChuteRouteConfiguration configuration);
+    void Add(long chuteId, ChuteRouteConfiguration configuration);
 
     /// <summary>
     /// 从缓存中移除指定格口的路由配置
@@ -32,7 +32,7 @@ public interface IRouteTemplateCache
     /// </summary>
     /// <param name="chuteId">格口ID</param>
     /// <returns>如果成功移除返回true，否则返回false</returns>
-    bool Remove(int chuteId);
+    bool Remove(long chuteId);
 
     /// <summary>
     /// 清空缓存
@@ -53,7 +53,7 @@ public interface IRouteTemplateCache
 /// </summary>
 public class DefaultRouteTemplateCache : IRouteTemplateCache
 {
-    private readonly ConcurrentDictionary<int, ChuteRouteConfiguration> _cache;
+    private readonly ConcurrentDictionary<long, ChuteRouteConfiguration> _cache;
 
     /// <summary>
     /// 初始化路由模板缓存
@@ -61,23 +61,23 @@ public class DefaultRouteTemplateCache : IRouteTemplateCache
     /// </summary>
     public DefaultRouteTemplateCache()
     {
-        _cache = new ConcurrentDictionary<int, ChuteRouteConfiguration>();
+        _cache = new ConcurrentDictionary<long, ChuteRouteConfiguration>();
     }
 
     /// <inheritdoc/>
-    public bool TryGet(int chuteId, out ChuteRouteConfiguration? configuration)
+    public bool TryGet(long chuteId, out ChuteRouteConfiguration? configuration)
     {
         return _cache.TryGetValue(chuteId, out configuration);
     }
 
     /// <inheritdoc/>
-    public void Add(int chuteId, ChuteRouteConfiguration configuration)
+    public void Add(long chuteId, ChuteRouteConfiguration configuration)
     {
         _cache[chuteId] = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
     /// <inheritdoc/>
-    public bool Remove(int chuteId)
+    public bool Remove(long chuteId)
     {
         return _cache.TryRemove(chuteId, out _);
     }

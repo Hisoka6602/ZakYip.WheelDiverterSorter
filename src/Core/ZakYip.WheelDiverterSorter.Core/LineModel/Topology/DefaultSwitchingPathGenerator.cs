@@ -53,7 +53,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// 生成的摆轮路径，如果目标格口无法映射到任意摆轮组合则返回null。
     /// 当返回null时，包裹将走异常口处理流程。
     /// </returns>
-    public SwitchingPath? GeneratePath(int targetChuteId)
+    public SwitchingPath? GeneratePath(long targetChuteId)
     {
         if (targetChuteId <= 0)
         {

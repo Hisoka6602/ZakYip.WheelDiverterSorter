@@ -140,7 +140,7 @@ public class DiverterDriverEntry
     /// <summary>
     /// 摆轮标识符（数字ID）
     /// </summary>
-    public required int DiverterId { get; set; }
+    public required long DiverterId { get; set; }
 
     /// <summary>
     /// 摆轮名称（可选）- Diverter Name (Optional)

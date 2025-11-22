@@ -20,17 +20,17 @@ public record struct ChuteChangeDecision
     /// <summary>
     /// 原目标格口ID
     /// </summary>
-    public required int OriginalChuteId { get; init; }
+    public required long OriginalChuteId { get; init; }
 
     /// <summary>
     /// 请求的新目标格口ID
     /// </summary>
-    public required int RequestedChuteId { get; init; }
+    public required long RequestedChuteId { get; init; }
 
     /// <summary>
     /// 实际生效的格口ID（如果改口被接受，则等于RequestedChuteId；否则等于OriginalChuteId）
     /// </summary>
-    public required int? AppliedChuteId { get; init; }
+    public required long? AppliedChuteId { get; init; }
 
     /// <summary>
     /// 决策结果

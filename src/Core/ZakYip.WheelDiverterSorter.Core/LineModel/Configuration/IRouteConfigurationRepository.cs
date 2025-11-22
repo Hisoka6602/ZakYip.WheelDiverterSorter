@@ -10,7 +10,7 @@ public interface IRouteConfigurationRepository
     /// </summary>
     /// <param name="chuteId">格口标识（数字ID）</param>
     /// <returns>格口路由配置，如果不存在则返回null</returns>
-    ChuteRouteConfiguration? GetByChuteId(int chuteId);
+    ChuteRouteConfiguration? GetByChuteId(long chuteId);
 
     /// <summary>
     /// 获取所有启用的路由配置
@@ -29,7 +29,7 @@ public interface IRouteConfigurationRepository
     /// </summary>
     /// <param name="chuteId">格口标识（数字ID）</param>
     /// <returns>是否删除成功</returns>
-    bool Delete(int chuteId);
+    bool Delete(long chuteId);
 
     /// <summary>
     /// 初始化默认配置数据

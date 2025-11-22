@@ -13,7 +13,7 @@ public class ChuteRouteConfiguration
     /// <summary>
     /// 目标格口标识（数字ID，与上游系统对应）
     /// </summary>
-    public required int ChuteId { get; set; }
+    public required long ChuteId { get; set; }
 
     /// <summary>
     /// 格口名称（可选）- Chute Name (Optional)

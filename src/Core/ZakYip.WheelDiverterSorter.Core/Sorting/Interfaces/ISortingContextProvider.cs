@@ -21,19 +21,19 @@ public interface ISortingContextProvider
     /// 获取异常格口ID
     /// </summary>
     /// <returns>异常格口ID</returns>
-    int GetExceptionChuteId();
+    long GetExceptionChuteId();
 
     /// <summary>
     /// 获取固定格口ID（仅在 FixedChute 模式下有效）
     /// </summary>
     /// <returns>固定格口ID，如果不在 FixedChute 模式下则返回 null</returns>
-    int? GetFixedChuteId();
+    long? GetFixedChuteId();
 
     /// <summary>
     /// 获取可用格口ID列表（仅在 RoundRobin 模式下有效）
     /// </summary>
     /// <returns>可用格口ID列表</returns>
-    IReadOnlyList<int> GetAvailableChuteIds();
+    IReadOnlyList<long> GetAvailableChuteIds();
 
     /// <summary>
     /// 获取异常路由策略

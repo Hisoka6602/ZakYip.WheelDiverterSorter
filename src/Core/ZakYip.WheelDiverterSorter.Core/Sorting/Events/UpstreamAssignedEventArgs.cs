@@ -13,7 +13,7 @@ public readonly record struct UpstreamAssignedEventArgs
     /// <summary>
     /// 分配的目标格口ID
     /// </summary>
-    public required int ChuteId { get; init; }
+    public required long ChuteId { get; init; }
 
     /// <summary>
     /// 分配时间（UTC）

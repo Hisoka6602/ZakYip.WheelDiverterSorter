@@ -22,7 +22,7 @@ public record class PathExecutionResult
     /// <para>注意：如果旧代码中存在硬编码的异常口逻辑，应统一使用 
     /// <see cref="SwitchingPath.FallbackChuteId"/> 字段，删除旧的实现方式。</para>
     /// </remarks>
-    public required int ActualChuteId { get; init; }
+    public required long ActualChuteId { get; init; }
 
     /// <summary>
     /// 失败原因说明

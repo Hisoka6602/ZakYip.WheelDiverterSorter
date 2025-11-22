@@ -34,7 +34,7 @@ public class SystemConfiguration
     /// <para>异常格口永远不能为空。如果未配置，系统将使用默认值</para>
     /// <para>建议：配置为在最末端一个摆轮的直行方向的格口，确保包裹能够安全通过系统</para>
     /// </remarks>
-    public int ExceptionChuteId { get; set; } = 999;
+    public long ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
     /// MQTT默认端口
@@ -122,7 +122,7 @@ public class SystemConfiguration
     /// <remarks>
     /// 当分拣模式为 FixedChute 时，所有包裹（异常除外）都将发送到此格口
     /// </remarks>
-    public int? FixedChuteId { get; set; }
+    public long? FixedChuteId { get; set; }
 
     /// <summary>
     /// 可用格口ID列表（仅在循环格口落格模式下使用）
@@ -130,7 +130,7 @@ public class SystemConfiguration
     /// <remarks>
     /// 当分拣模式为 RoundRobin 时，系统会按顺序循环使用这些格口
     /// </remarks>
-    public List<int> AvailableChuteIds { get; set; } = new();
+    public List<long> AvailableChuteIds { get; set; } = new();
 
     // ========== PR-08: 拥堵检测与背压控制配置 / Congestion Detection and Throttling Config ==========
 
@@ -304,7 +304,7 @@ public class SystemConfiguration
             IoLinkage = new IoLinkageOptions(),
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
-            AvailableChuteIds = new List<int>(),
+            AvailableChuteIds = new List<long>(),
             Version = 1
             // CreatedAt 和 UpdatedAt 由仓储在插入时通过 ISystemClock.LocalNow 设置
         };

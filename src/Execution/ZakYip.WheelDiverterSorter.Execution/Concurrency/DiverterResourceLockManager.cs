@@ -15,7 +15,7 @@ public interface IDiverterResourceLockManager
     /// </summary>
     /// <param name="diverterId">摆轮ID（数字ID）</param>
     /// <returns>摆轮资源锁</returns>
-    IDiverterResourceLock GetLock(int diverterId);
+    IDiverterResourceLock GetLock(long diverterId);
 }
 
 /// <summary>
@@ -23,7 +23,7 @@ public interface IDiverterResourceLockManager
 /// </summary>
 public class DiverterResourceLockManager : IDiverterResourceLockManager, IDisposable
 {
-    private readonly ConcurrentDictionary<int, DiverterResourceLock> _locks;
+    private readonly ConcurrentDictionary<long, DiverterResourceLock> _locks;
     private bool _disposed;
 
     /// <summary>
@@ -31,11 +31,11 @@ public class DiverterResourceLockManager : IDiverterResourceLockManager, IDispos
     /// </summary>
     public DiverterResourceLockManager()
     {
-        _locks = new ConcurrentDictionary<int, DiverterResourceLock>();
+        _locks = new ConcurrentDictionary<long, DiverterResourceLock>();
     }
 
     /// <inheritdoc/>
-    public IDiverterResourceLock GetLock(int diverterId)
+    public IDiverterResourceLock GetLock(long diverterId)
     {
         if (diverterId <= 0)
         {

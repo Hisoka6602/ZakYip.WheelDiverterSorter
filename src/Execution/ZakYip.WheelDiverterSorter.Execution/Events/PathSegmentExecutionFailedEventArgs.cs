@@ -21,7 +21,7 @@ public readonly record struct PathSegmentExecutionFailedEventArgs
     /// <summary>
     /// 原始目标格口ID
     /// </summary>
-    public required int OriginalTargetChuteId { get; init; }
+    public required long OriginalTargetChuteId { get; init; }
 
     /// <summary>
     /// 失败原因
@@ -36,5 +36,5 @@ public readonly record struct PathSegmentExecutionFailedEventArgs
     /// <summary>
     /// 失败位置（摆轮ID）
     /// </summary>
-    public int FailurePosition => FailedSegment.DiverterId;
+    public long FailurePosition => FailedSegment.DiverterId;
 }

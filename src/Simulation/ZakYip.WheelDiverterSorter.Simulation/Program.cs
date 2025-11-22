@@ -259,7 +259,7 @@ static Func<long, int> CreateFormalAssignmentFunc(SimulationOptions options)
 /// </summary>
 internal class InMemoryRouteConfigurationRepository : IRouteConfigurationRepository
 {
-    private readonly Dictionary<int, ChuteRouteConfiguration> _configurations = new();
+    private readonly Dictionary<long, ChuteRouteConfiguration> _configurations = new();
     private readonly object _lockObject = new();
 
     public void InitializeDefaultData()
@@ -301,7 +301,7 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
         }
     }
 
-    public ChuteRouteConfiguration? GetByChuteId(int chuteId)
+    public ChuteRouteConfiguration? GetByChuteId(long chuteId)
     {
         lock (_lockObject)
         {
@@ -325,7 +325,7 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
         }
     }
 
-    public bool Delete(int chuteId)
+    public bool Delete(long chuteId)
     {
         lock (_lockObject)
         {

@@ -21,7 +21,7 @@ public readonly record struct ParcelDivertedToExceptionEventArgs
     /// <summary>
     /// 异常格口ID
     /// </summary>
-    public required int ExceptionChuteId { get; init; }
+    public required long ExceptionChuteId { get; init; }
 
     /// <summary>
     /// 异常原因
@@ -31,7 +31,7 @@ public readonly record struct ParcelDivertedToExceptionEventArgs
     /// <summary>
     /// 原始目标格口ID（如果有）
     /// </summary>
-    public int? OriginalTargetChuteId { get; init; }
+    public long? OriginalTargetChuteId { get; init; }
 
     /// <summary>
     /// 异常类型

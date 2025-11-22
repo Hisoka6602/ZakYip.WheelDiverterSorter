@@ -42,7 +42,7 @@ public interface IPathReroutingService
     Task<ReroutingResult> TryRerouteAsync(
         long parcelId,
         SwitchingPath currentPath,
-        int failedNodeId,
+        long failedNodeId,
         PathFailureReason failureReason,
         CancellationToken cancellationToken = default);
 }
@@ -69,7 +69,7 @@ public record class ReroutingResult
     /// 原始目标格口ID
     /// Original target chute ID
     /// </summary>
-    public required int OriginalTargetChuteId { get; init; }
+    public required long OriginalTargetChuteId { get; init; }
 
     /// <summary>
     /// 新路径（如果成功）
@@ -87,7 +87,7 @@ public record class ReroutingResult
     /// 失败的节点ID
     /// Failed node ID
     /// </summary>
-    public int? FailedNodeId { get; init; }
+    public long? FailedNodeId { get; init; }
 
     /// <summary>
     /// 重规划时间
@@ -101,7 +101,7 @@ public record class ReroutingResult
     /// </summary>
     public static ReroutingResult Success(
         long parcelId,
-        int originalTargetChuteId,
+        long originalTargetChuteId,
         SwitchingPath newPath)
     {
         return new ReroutingResult
@@ -120,8 +120,8 @@ public record class ReroutingResult
     /// </summary>
     public static ReroutingResult Failure(
         long parcelId,
-        int originalTargetChuteId,
-        int failedNodeId,
+        long originalTargetChuteId,
+        long failedNodeId,
         string reason)
     {
         return new ReroutingResult

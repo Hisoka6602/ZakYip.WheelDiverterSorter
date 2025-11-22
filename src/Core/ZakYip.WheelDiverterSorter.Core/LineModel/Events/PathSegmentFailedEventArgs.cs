@@ -47,7 +47,7 @@ public record class PathSegmentFailedEventArgs
     /// 原始目标格口ID（可选）
     /// Original target chute ID (optional)
     /// </summary>
-    public int? OriginalTargetChuteId { get; init; }
+    public long? OriginalTargetChuteId { get; init; }
 
     /// <summary>
     /// 附加详情（可选）

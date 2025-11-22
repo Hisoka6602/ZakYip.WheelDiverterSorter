@@ -13,12 +13,12 @@ public record struct ChuteChangeAcceptedEventArgs
     /// <summary>
     /// 原目标格口ID
     /// </summary>
-    public required int OriginalChuteId { get; init; }
+    public required long OriginalChuteId { get; init; }
 
     /// <summary>
     /// 新目标格口ID
     /// </summary>
-    public required int NewChuteId { get; init; }
+    public required long NewChuteId { get; init; }
 
     /// <summary>
     /// 接受时间
