@@ -16,7 +16,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -25,10 +25,10 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </summary>
 public class ConcurrentParcelProcessingTests : E2ETestBase
 {
-    private readonly ParcelSortingOrchestrator _orchestrator;
+    private readonly ISortingOrchestrator _orchestrator;
     public ConcurrentParcelProcessingTests(E2ETestFactory factory) : base(factory)
     {
-        _orchestrator = Scope.ServiceProvider.GetRequiredService<ParcelSortingOrchestrator>();
+        _orchestrator = Scope.ServiceProvider.GetRequiredService<ISortingOrchestrator>();
         SetupDefaultRouteConfiguration();
     }
     [Fact]

@@ -35,7 +35,7 @@ public class ParcelTraceValidator
         var parcelLogs = allLogs
             .Where(log => 
                 log.Level == LogLevel.Trace && 
-                log.CategoryName.Contains("ParcelSortingOrchestrator") &&
+                log.CategoryName.Contains("SortingOrchestrator") &&
                 log.Message.Contains("[PR-42 Parcel-First]") &&
                 log.Message.Contains($"ParcelId={parcelId}"))
             .OrderBy(log => log.Timestamp)

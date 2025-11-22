@@ -55,11 +55,8 @@ public static class SortingServiceExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
-        // PR-2: 注册新的 Application 层分拣编排服务（推荐使用）
+        // 注册 Application 层分拣编排服务
         services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
-        
-        // 注册旧的包裹分拣编排服务（向后兼容，逐步迁移）
-        services.AddSingleton<ParcelSortingOrchestrator>();
 
         // 注册调试分拣服务
         services.AddSingleton<DebugSortService>();

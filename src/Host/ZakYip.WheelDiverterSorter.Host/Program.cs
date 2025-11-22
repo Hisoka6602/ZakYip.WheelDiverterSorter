@@ -197,9 +197,8 @@ builder.Services.AddMiddleConveyorServices(builder.Configuration);
 builder.Services.AddSimulationServices(builder.Configuration);
 
 // 注册后台服务（可选）
-// 取消注释以下行以启用自动传感器监听和分拣编排
+// 取消注释以下行以启用自动传感器监听
 // builder.Services.AddHostedService<SensorMonitoringWorker>();
-// builder.Services.AddHostedService<ParcelSortingWorker>();
 
 // 注册告警监控后台服务
 builder.Services.AddHostedService<AlarmMonitoringWorker>();

@@ -4,7 +4,7 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
-using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -14,11 +14,11 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </summary>
 public class RuleEngineIntegrationTests : E2ETestBase
 {
-    private readonly ParcelSortingOrchestrator _orchestrator;
+    private readonly ISortingOrchestrator _orchestrator;
 
     public RuleEngineIntegrationTests(E2ETestFactory factory) : base(factory)
     {
-        _orchestrator = Scope.ServiceProvider.GetRequiredService<ParcelSortingOrchestrator>();
+        _orchestrator = Scope.ServiceProvider.GetRequiredService<ISortingOrchestrator>();
         SetupDefaultRouteConfiguration();
     }
 
