@@ -25,8 +25,8 @@ public record WheelHardwareBindingRequest
     /// 驱动器ID（数字ID）
     /// </summary>
     [Required]
-    [Range(1, 10000)]
-    public required int DriverId { get; init; }
+    [Range(1, long.MaxValue)]
+    public required long DriverId { get; init; }
 
     /// <summary>
     /// 驱动器名称（可选）

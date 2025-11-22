@@ -22,7 +22,7 @@ public class DiverterConfigRequest {
     /// <example>1</example>
     [Required(ErrorMessage = "摆轮ID不能为空")]
     [SwaggerSchema(Description = "摆轮设备的唯一编号")]
-    public int DiverterId { get; set; }
+    public long DiverterId { get; set; }
 
     /// <summary>
     /// 目标摆轮转向方向（直行、左转、右转）

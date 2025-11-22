@@ -20,7 +20,7 @@ public class RouteConfigResponse
     /// </summary>
     /// <example>1</example>
     [SwaggerSchema(Description = "目标格口的唯一编号")]
-    public required int ChuteId { get; set; }
+    public required long ChuteId { get; set; }
 
     /// <summary>
     /// 格口名称（可选）- Chute Name (Optional)

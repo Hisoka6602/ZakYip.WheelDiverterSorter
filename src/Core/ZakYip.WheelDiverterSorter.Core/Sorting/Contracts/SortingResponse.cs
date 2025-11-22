@@ -16,7 +16,7 @@ public record SortingResponse
     /// <summary>
     /// 目标格口ID
     /// </summary>
-    public required int TargetChuteId { get; init; }
+    public required long TargetChuteId { get; init; }
 
     /// <summary>
     /// 是否成功

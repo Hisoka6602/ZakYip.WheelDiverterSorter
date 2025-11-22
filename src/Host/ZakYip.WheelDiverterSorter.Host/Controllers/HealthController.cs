@@ -415,7 +415,7 @@ public class SystemSummary
 /// </summary>
 public class NodeHealthInfo
 {
-    public int NodeId { get; init; }
+    public long NodeId { get; init; }
     public string? NodeType { get; init; }
     public bool IsHealthy { get; init; }
     public string? ErrorCode { get; init; }

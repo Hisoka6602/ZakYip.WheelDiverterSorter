@@ -70,7 +70,7 @@ public class SortingOrchestratorTests : IDisposable
             SortingMode = SortingMode.Formal,
             ExceptionChuteId = 99,
             ChuteAssignmentTimeoutMs = 5000,
-            AvailableChuteIds = new List<int> { 1, 2, 3, 4, 5 }
+            AvailableChuteIds = new List<long> { 1, 2, 3, 4, 5 }
         };
 
         _mockConfigRepository.Setup(r => r.Get()).Returns(_defaultConfig);
@@ -215,7 +215,7 @@ public class SortingOrchestratorTests : IDisposable
         {
             SortingMode = SortingMode.RoundRobin,
             ExceptionChuteId = 99,
-            AvailableChuteIds = new List<int> { 1, 2, 3 }
+            AvailableChuteIds = new List<long> { 1, 2, 3 }
         };
         _mockConfigRepository.Setup(r => r.Get()).Returns(config);
 

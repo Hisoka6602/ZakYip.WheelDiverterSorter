@@ -20,7 +20,7 @@ public class DebugSortResponse
     /// </summary>
     /// <example>1</example>
     [SwaggerSchema(Description = "请求的目标格口编号")]
-    public required int TargetChuteId { get; init; }
+    public required long TargetChuteId { get; init; }
 
     /// <summary>
     /// 执行是否成功
@@ -34,7 +34,7 @@ public class DebugSortResponse
     /// </summary>
     /// <example>1</example>
     [SwaggerSchema(Description = "包裹实际落入的格口编号")]
-    public required int ActualChuteId { get; init; }
+    public required long ActualChuteId { get; init; }
 
     /// <summary>
     /// 执行结果消息（中文）
