@@ -302,20 +302,3 @@ public class RoutePlan
     }
 }
 
-/// <summary>
-/// 操作结果辅助类
-/// </summary>
-public class OperationResult
-{
-    public bool IsSuccess { get; private set; }
-    public string? ErrorMessage { get; private set; }
-
-    private OperationResult(bool isSuccess, string? errorMessage = null)
-    {
-        IsSuccess = isSuccess;
-        ErrorMessage = errorMessage;
-    }
-
-    public static OperationResult Success() => new(true);
-    public static OperationResult Failure(string errorMessage) => new(false, errorMessage);
-}

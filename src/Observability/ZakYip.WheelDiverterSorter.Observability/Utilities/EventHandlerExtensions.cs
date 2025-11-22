@@ -6,7 +6,11 @@ namespace ZakYip.WheelDiverterSorter.Observability.Utilities;
 /// 扩展方法：安全调用事件处理器 - 防止单个订阅者异常影响其他订阅者
 /// Extension methods for safely invoking event handlers - prevents one subscriber's exception from affecting others
 /// </summary>
-public static class EventHandlerExtensions
+/// <remarks>
+/// 设为 internal 以限制可见性 - 当前未被使用，但保留以备未来需要
+/// Set to internal to limit visibility - currently unused but kept for future use
+/// </remarks>
+internal static class EventHandlerExtensions
 {
     /// <summary>
     /// 安全调用事件 - 捕获并记录每个订阅者的异常，但不阻止其他订阅者执行
