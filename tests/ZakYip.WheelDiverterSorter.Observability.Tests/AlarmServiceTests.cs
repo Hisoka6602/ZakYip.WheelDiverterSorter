@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Collections.Concurrent;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -197,7 +198,7 @@ public class AlarmServiceTests
         var disconnectionsField = typeof(AlarmService)
             .GetField("_ruleEngineDisconnections", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var disconnections = disconnectionsField?.GetValue(_alarmService) as Dictionary<string, DateTime>;
+        var disconnections = disconnectionsField?.GetValue(_alarmService) as ConcurrentDictionary<string, DateTime>;
         if (disconnections != null)
         {
             disconnections["tcp"] = DateTime.UtcNow.AddMinutes(-2);
@@ -225,7 +226,7 @@ public class AlarmServiceTests
         var disconnectionsField = typeof(AlarmService)
             .GetField("_ruleEngineDisconnections", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var disconnections = disconnectionsField?.GetValue(_alarmService) as Dictionary<string, DateTime>;
+        var disconnections = disconnectionsField?.GetValue(_alarmService) as ConcurrentDictionary<string, DateTime>;
         if (disconnections != null)
         {
             disconnections["tcp"] = DateTime.UtcNow.AddMinutes(-2);

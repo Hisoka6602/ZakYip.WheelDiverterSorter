@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Moq;
+using System.Collections.Concurrent;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -338,17 +339,19 @@ public class ConcurrentAlarmUpdateTests
     public void ConcurrentRuleEngineDisconnectionChecks_DoesNotCreateDuplicateAlarms()
     {
         // Arrange
-        var alarmService = new AlarmService(_mockLogger.Object, Mock.Of<ISystemClock>());
+        var mockClock = new Mock<ISystemClock>();
+        mockClock.Setup(c => c.LocalNow).Returns(DateTime.Now);
+        var alarmService = new AlarmService(_mockLogger.Object, mockClock.Object);
         alarmService.ReportRuleEngineDisconnection("tcp");
         
         // Use reflection to set disconnection time to simulate 2 minutes ago
         var disconnectionsField = typeof(AlarmService)
             .GetField("_ruleEngineDisconnections", 
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var disconnections = disconnectionsField?.GetValue(alarmService) as Dictionary<string, DateTime>;
+        var disconnections = disconnectionsField?.GetValue(alarmService) as ConcurrentDictionary<string, DateTime>;
         if (disconnections != null)
         {
-            disconnections["tcp"] = DateTime.UtcNow.AddMinutes(-2);
+            disconnections["tcp"] = DateTime.Now.AddMinutes(-2);
         }
 
         const int threadCount = 10;
