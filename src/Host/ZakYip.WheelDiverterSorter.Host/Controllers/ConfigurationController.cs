@@ -19,139 +19,27 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class ConfigurationController : ControllerBase
 {
-    private readonly ILineTopologyConfigProvider _topologyProvider;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ISystemClock _clock;
     private readonly ILogger<ConfigurationController> _logger;
 
     public ConfigurationController(
-        ILineTopologyConfigProvider topologyProvider,
         ISystemConfigurationRepository systemConfigRepository,
         ISystemClock clock,
         ILogger<ConfigurationController> logger)
     {
-        _topologyProvider = topologyProvider;
         _systemConfigRepository = systemConfigRepository;
         _clock = clock;
         _logger = logger;
     }
 
-    #region 线体拓扑配置
-
-    /// <summary>
-    /// 获取线体拓扑配置
-    /// </summary>
-    /// <returns>线体拓扑配置</returns>
-    /// <response code="200">成功返回拓扑配置</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpGet("topology")]
-    [SwaggerOperation(
-        Summary = "获取线体拓扑配置",
-        Description = "返回当前系统的完整线体拓扑配置，包括所有摆轮节点和格口信息",
-        OperationId = "GetTopology",
-        Tags = new[] { "配置管理" }
-    )]
-    [SwaggerResponse(200, "成功返回拓扑配置", typeof(LineTopologyConfig))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(LineTopologyConfig), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<ActionResult<LineTopologyConfig>> GetTopology()
-    {
-        try
-        {
-            var topology = await _topologyProvider.GetTopologyAsync();
-            return Ok(topology);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取线体拓扑配置失败");
-            return StatusCode(500, new { message = "获取线体拓扑配置失败" });
-        }
-    }
-
-    /// <summary>
-    /// 更新线体拓扑配置
-    /// </summary>
-    /// <param name="config">线体拓扑配置</param>
-    /// <returns>更新后的拓扑配置</returns>
-    /// <response code="200">更新成功</response>
-    /// <response code="400">请求参数无效</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 注意：当前实现使用的是JSON文件作为配置源，更新操作暂不支持。
-    /// 
-    /// **拓扑配置 vs 路由配置的区别：**
-    /// 
-    /// **拓扑配置**（本端点）：
-    /// - 定义物理设备和连接关系（哪些摆轮、哪些格口、如何连接）
-    /// - 低频变化（硬件安装、线体改造时）
-    /// - 当前需要通过编辑配置文件并重启服务来更新
-    /// 
-    /// **路由配置**（/api/config/routes）：
-    /// - 定义业务规则（包裹如何分拣到格口、摆轮如何切换）
-    /// - 较高频变化（业务规则调整时）
-    /// - 支持通过 API 热更新，立即生效
-    /// 
-    /// **推荐实践**：
-    /// - 日常业务调整请使用路由配置 API
-    /// - 仅在硬件变更时才需要修改拓扑配置
-    /// 
-    /// 未来可扩展为支持数据库存储的动态更新。
-    /// </remarks>
-    [HttpPut("topology")]
-    [SwaggerOperation(
-        Summary = "更新线体拓扑配置",
-        Description = "更新线体拓扑配置（当前版本暂不支持，需直接修改配置文件）",
-        OperationId = "UpdateTopology",
-        Tags = new[] { "配置管理" }
-    )]
-    [SwaggerResponse(200, "更新成功", typeof(LineTopologyConfig))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(501, "功能暂未实现")]
-    [ProducesResponseType(typeof(LineTopologyConfig), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 501)]
-    public async Task<ActionResult<LineTopologyConfig>> UpdateTopology([FromBody] LineTopologyConfig config)
-    {
-        await Task.Yield();
-        try
-        {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
-            }
-
-            // 基本验证
-            if (string.IsNullOrWhiteSpace(config.TopologyId))
-            {
-                return BadRequest(new { message = "拓扑ID不能为空" });
-            }
-
-            if (config.WheelNodes.Count == 0)
-            {
-                return BadRequest(new { message = "摆轮节点列表不能为空" });
-            }
-
-            if (config.Chutes.Count == 0)
-            {
-                return BadRequest(new { message = "格口列表不能为空" });
-            }
-
-            _logger.LogWarning("拓扑配置更新功能暂未实现，当前使用JSON文件配置");
-            return StatusCode(501, new { message = "拓扑配置更新功能暂未实现，请直接修改配置文件" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新线体拓扑配置失败");
-            return StatusCode(500, new { message = "更新线体拓扑配置失败" });
-        }
-    }
-
-    #endregion 线体拓扑配置
-
+    // 注意：线体拓扑配置端点已删除，统一使用 /api/config/routes 进行路由配置管理
+    // 原 /api/config/topology GET/PUT 端点已删除以避免与路由配置重复
+    // 
+    // 迁移说明：
+    // - 原 /api/config/topology GET 功能由 /api/config/routes 替代
+    // - 路由配置支持完整的摆轮序列和格口配置，并且支持热更新
+    
     // 注意：分拣模式配置已移至 SystemConfigController (/api/config/system/sorting-mode)
     // 原 /api/config/sorting-mode 端点已删除以避免重复
 
