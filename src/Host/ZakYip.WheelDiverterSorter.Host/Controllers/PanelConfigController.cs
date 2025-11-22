@@ -52,6 +52,8 @@ public class PanelConfigController : ControllerBase
     /// - 是否使用仿真模式
     /// - 按钮轮询间隔
     /// - 按钮防抖时间
+    /// - IO 绑定配置（按钮输入位、指示灯输出位）
+    /// - IO 电平配置（高电平有效/低电平有效）
     /// 
     /// 示例响应：
     /// ```json
@@ -59,9 +61,38 @@ public class PanelConfigController : ControllerBase
     ///   "enabled": true,
     ///   "useSimulation": true,
     ///   "pollingIntervalMs": 100,
-    ///   "debounceMs": 50
+    ///   "debounceMs": 50,
+    ///   "startButtonInputBit": 0,
+    ///   "startButtonTriggerLevel": "ActiveHigh",
+    ///   "stopButtonInputBit": 1,
+    ///   "stopButtonTriggerLevel": "ActiveHigh",
+    ///   "emergencyStopButtonInputBit": 2,
+    ///   "emergencyStopButtonTriggerLevel": "ActiveHigh",
+    ///   "startLightOutputBit": 0,
+    ///   "startLightOutputLevel": "ActiveHigh",
+    ///   "stopLightOutputBit": 1,
+    ///   "stopLightOutputLevel": "ActiveHigh",
+    ///   "connectionLightOutputBit": 2,
+    ///   "connectionLightOutputLevel": "ActiveHigh",
+    ///   "signalTowerRedOutputBit": 3,
+    ///   "signalTowerRedOutputLevel": "ActiveHigh",
+    ///   "signalTowerYellowOutputBit": 4,
+    ///   "signalTowerYellowOutputLevel": "ActiveHigh",
+    ///   "signalTowerGreenOutputBit": 5,
+    ///   "signalTowerGreenOutputLevel": "ActiveHigh"
     /// }
     /// ```
+    /// 
+    /// **字段说明**：
+    /// - **enabled**: 是否启用面板功能
+    /// - **useSimulation**: true 表示使用仿真驱动，false 表示使用真实硬件
+    /// - **pollingIntervalMs**: 按钮状态轮询间隔（毫秒）
+    /// - **debounceMs**: 按钮防抖时间（毫秒），防止误触
+    /// - **xxxInputBit**: 输入 IO 位地址（0-1023）
+    /// - **xxxOutputBit**: 输出 IO 位地址（0-1023）
+    /// - **xxxTriggerLevel / xxxOutputLevel**: IO 电平配置
+    ///   - ActiveHigh: 高电平有效（常开按键/输出1点亮）
+    ///   - ActiveLow: 低电平有效（常闭按键/输出0点亮）
     /// </remarks>
     [HttpGet]
     [SwaggerOperation(
