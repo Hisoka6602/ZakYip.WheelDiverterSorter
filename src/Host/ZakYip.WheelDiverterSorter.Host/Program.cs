@@ -183,6 +183,9 @@ builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>
 builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
 builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
+// 注册路由导入导出服务
+builder.Services.AddScoped<IRouteImportExportService, RouteImportExportService>();
+
 // 注册中段皮带 IO 联动服务
 builder.Services.AddMiddleConveyorServices(builder.Configuration);
 
@@ -228,11 +231,27 @@ app.UseSwaggerUI(options =>
 
 app.MapControllers();
 
+// 旧的调试分拣端点（已废弃，保留用于向后兼容）
+// 已迁移到 SimulationTestController: POST /api/simulation/test/sort
 app.MapPost("/api/debug/sort", async (
     DebugSortRequest request,
     DebugSortService debugService,
+    IWebHostEnvironment environment,
+    ILogger<Program> logger,
     CancellationToken cancellationToken) =>
 {
+    logger.LogWarning("使用了已废弃的端点 /api/debug/sort，请迁移到 /api/simulation/test/sort");
+
+    // 生产环境禁止调用
+    if (environment.IsProduction())
+    {
+        logger.LogWarning("生产环境下尝试调用已废弃的调试接口 /api/debug/sort");
+        return Results.Problem(
+            statusCode: 403,
+            title: "生产环境下禁止调用",
+            detail: "此接口仅供开发、测试和仿真环境使用。已迁移到 /api/simulation/test/sort");
+    }
+
     if (string.IsNullOrWhiteSpace(request.ParcelId))
     {
         return Results.BadRequest(new { message = "包裹ID不能为空" });
@@ -250,11 +269,12 @@ app.MapPost("/api/debug/sort", async (
 
     return response.IsSuccess ? Results.Ok(response) : Results.Ok(response);
 })
-.WithName("DebugSort")
-.WithDescription("调试分拣接口：接收包裹ID和目标格口ID，生成并执行摆轮路径，返回执行结果。这是调试入口，正式环境可改成由扫码/供包台触发。")
-.WithTags("调试接口")
+.WithName("DebugSort_Obsolete")
+.WithDescription("[已废弃] 调试分拣接口，请使用 /api/simulation/test/sort 代替。仅在测试/仿真环境可用，生产环境禁止调用。")
+.WithTags("调试接口（已废弃）")
 .Produces<DebugSortResponse>(200)
-.Produces(400);
+.Produces(400)
+.Produces(403);
 
 
     app.Run();
