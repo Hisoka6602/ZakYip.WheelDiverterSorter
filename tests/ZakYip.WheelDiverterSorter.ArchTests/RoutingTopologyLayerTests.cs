@@ -269,6 +269,10 @@ public class RoutingTopologyLayerTests
         if (type.Namespace.Contains(".LineModel.Topology"))
             return true;
 
+        // Allow Orchestration layer to use Topology
+        if (type.Namespace.Contains(".LineModel.Orchestration"))
+            return false;
+
         // Check generic type arguments
         if (type.IsGenericType)
         {
@@ -296,6 +300,10 @@ public class RoutingTopologyLayerTests
         // Direct namespace check
         if (type.Namespace.Contains(".LineModel.Routing"))
             return true;
+
+        // Allow Orchestration layer to use Routing
+        if (type.Namespace.Contains(".LineModel.Orchestration"))
+            return false;
 
         // Check generic type arguments
         if (type.IsGenericType)

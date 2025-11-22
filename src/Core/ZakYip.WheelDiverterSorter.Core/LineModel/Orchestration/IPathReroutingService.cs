@@ -6,7 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
+namespace ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 
 /// <summary>
 /// 路径重规划服务接口

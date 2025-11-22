@@ -38,6 +38,13 @@
 - [ ] Host 层未包含业务逻辑，所有业务规则在 `Core` / `Application` / `Execution` 层实现
 - [ ] 硬件相关操作通过 `Drivers` 层接口访问，未直接依赖具体实现
 
+### 路由 / 拓扑 分层检查（PR-9）
+
+- [ ] 本次改动未在 `Routing` 命名空间中使用任何 `Topology` 类型或概念（线体长度、线体段、摆轮物理位置等）
+- [ ] 本次改动未在 `Topology` 命名空间中加入任何业务路由规则（客户、条码前缀、业务策略等）
+- [ ] 如需同时使用 `Routing` 和 `Topology`，相关代码已确认位于 `Orchestration` 命名空间或 `Application.Services` 层
+- [ ] 架构测试（`ZakYip.WheelDiverterSorter.ArchTests`）已通过
+
 ### 代码风格
 
 - [ ] DTO / 只读数据使用 `record` / `record struct`
