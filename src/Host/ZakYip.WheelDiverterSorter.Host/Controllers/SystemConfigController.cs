@@ -295,7 +295,7 @@ public class SystemConfigController : ApiControllerBase
             EnableAutoReconnect = config.EnableAutoReconnect,
             SortingMode = config.SortingMode,
             FixedChuteId = config.FixedChuteId,
-            AvailableChuteIds = config.AvailableChuteIds ?? new List<int>(),
+            AvailableChuteIds = config.AvailableChuteIds ?? new List<long>(),
             Version = config.Version,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt

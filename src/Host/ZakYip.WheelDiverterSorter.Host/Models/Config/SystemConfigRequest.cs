@@ -17,9 +17,9 @@ public class SystemConfigRequest
     /// </summary>
     /// <example>999</example>
     [Required(ErrorMessage = "异常格口ID不能为空")]
-    [Range(1, int.MaxValue, ErrorMessage = "异常格口ID必须大于0")]
+    [Range(1, long.MaxValue, ErrorMessage = "异常格口ID必须大于0")]
     [SwaggerSchema(Description = "无法正常分拣时包裹落入的异常格口编号")]
-    public int ExceptionChuteId { get; set; } = 999;
+    public long ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
     /// MQTT默认端口
@@ -88,12 +88,12 @@ public class SystemConfigRequest
     /// </summary>
     /// <example>1</example>
     [SwaggerSchema(Description = "固定格口模式下的目标格口编号，仅在SortingMode为FixedChute时有效")]
-    public int? FixedChuteId { get; set; }
+    public long? FixedChuteId { get; set; }
 
     /// <summary>
     /// 可用格口ID列表（仅在循环格口落格模式下使用）
     /// </summary>
     /// <example>[1, 2, 3, 4, 5, 6]</example>
     [SwaggerSchema(Description = "循环格口模式下的可用格口编号列表，仅在SortingMode为RoundRobin时有效")]
-    public List<int> AvailableChuteIds { get; set; } = new();
+    public List<long> AvailableChuteIds { get; set; } = new();
 }

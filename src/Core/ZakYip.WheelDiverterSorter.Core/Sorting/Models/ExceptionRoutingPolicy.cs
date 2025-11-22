@@ -11,7 +11,7 @@ public record ExceptionRoutingPolicy
     /// <summary>
     /// 异常格口ID
     /// </summary>
-    public required int ExceptionChuteId { get; init; }
+    public required long ExceptionChuteId { get; init; }
 
     /// <summary>
     /// 上游超时时间（毫秒）

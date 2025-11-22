@@ -27,21 +27,21 @@ public class ChuteChangeResponse
     /// </summary>
     /// <example>3</example>
     [SwaggerSchema(Description = "包裹原计划的目标格口编号")]
-    public int? OriginalChuteId { get; set; }
+    public long? OriginalChuteId { get; set; }
 
     /// <summary>
     /// 请求的新格口ID
     /// </summary>
     /// <example>5</example>
     [SwaggerSchema(Description = "改口请求指定的新目标格口编号")]
-    public required int RequestedChuteId { get; set; }
+    public required long RequestedChuteId { get; set; }
 
     /// <summary>
     /// 实际生效的格口ID
     /// </summary>
     /// <example>5</example>
     [SwaggerSchema(Description = "改口实际生效的格口编号，可能与请求的格口不同")]
-    public int? EffectiveChuteId { get; set; }
+    public long? EffectiveChuteId { get; set; }
 
     /// <summary>
     /// 决策结果（Accepted, IgnoredAlreadyCompleted, IgnoredExceptionRouted, RejectedInvalidState, RejectedTooLate）

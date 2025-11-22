@@ -65,8 +65,8 @@ public record SystemConfigUpdateResult(
 /// </summary>
 public record SortingModeInfo(
     SortingMode SortingMode,
-    int? FixedChuteId,
-    List<int> AvailableChuteIds);
+    long? FixedChuteId,
+    List<long> AvailableChuteIds);
 
 /// <summary>
 /// 分拣模式更新结果

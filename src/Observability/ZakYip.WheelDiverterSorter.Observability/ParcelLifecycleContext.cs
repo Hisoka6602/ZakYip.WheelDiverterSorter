@@ -26,12 +26,12 @@ public sealed record class ParcelLifecycleContext
     /// <summary>
     /// 目标格口ID
     /// </summary>
-    public int? TargetChuteId { get; init; }
+    public long? TargetChuteId { get; init; }
 
     /// <summary>
     /// 实际格口ID
     /// </summary>
-    public int? ActualChuteId { get; init; }
+    public long? ActualChuteId { get; init; }
 
     /// <summary>
     /// 事件时间

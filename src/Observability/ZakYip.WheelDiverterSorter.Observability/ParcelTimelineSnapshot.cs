@@ -16,12 +16,12 @@ public class ParcelTimelineSnapshot
     /// <summary>
     /// 目标格口ID
     /// </summary>
-    public int? TargetChuteId { get; set; }
+    public long? TargetChuteId { get; set; }
 
     /// <summary>
     /// 实际格口ID
     /// </summary>
-    public int? ActualChuteId { get; set; }
+    public long? ActualChuteId { get; set; }
 
     /// <summary>
     /// 最终状态
