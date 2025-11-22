@@ -33,8 +33,8 @@ public class SimulationController : ControllerBase
     private readonly IPanelInputReader _panelInputReader;
     private readonly ISignalTowerOutput _signalTowerOutput;
     private readonly ISimulationModeProvider _simulationModeProvider;
+    private readonly ISimulationScenarioRunner? _scenarioRunner;
     private readonly ILogger<SimulationController> _logger;
-    private static ISimulationScenarioRunner? _scenarioRunner;
     private static CancellationTokenSource? _simulationCts;
     private static Task? _runningSimulation;
     private static readonly object _lockObject = new();
@@ -45,22 +45,16 @@ public class SimulationController : ControllerBase
         IPanelInputReader panelInputReader,
         ISignalTowerOutput signalTowerOutput,
         ISimulationModeProvider simulationModeProvider,
-        ILogger<SimulationController> logger)
+        ILogger<SimulationController> logger,
+        ISimulationScenarioRunner? scenarioRunner = null)
     {
         _stateManager = stateManager;
         _clock = clock;
         _panelInputReader = panelInputReader;
         _signalTowerOutput = signalTowerOutput;
         _simulationModeProvider = simulationModeProvider;
+        _scenarioRunner = scenarioRunner;
         _logger = logger;
-    }
-
-    /// <summary>
-    /// 注册仿真场景运行器（内部使用）
-    /// </summary>
-    public static void RegisterScenarioRunner(ISimulationScenarioRunner runner)
-    {
-        _scenarioRunner = runner;
     }
 
     /// <summary>
