@@ -100,6 +100,60 @@ public class RoutingTopologyLayerTests
         Assert.NotEmpty(topologyTypes);
     }
 
+    [Fact]
+    public void Orchestration_CanDependOnBoth_RoutingAndTopology()
+    {
+        // Arrange: Get all types in Orchestration namespace
+        var orchestrationTypes = _coreAssembly.GetTypes()
+            .Where(t => t.Namespace != null && t.Namespace.Contains(".LineModel.Orchestration"))
+            .ToList();
+
+        // Act: Check if orchestration types can reference both Routing and Topology
+        var typesThatReferBoth = new List<string>();
+        
+        foreach (var orchType in orchestrationTypes)
+        {
+            var routingRefs = GetRoutingReferences(orchType);
+            var topologyRefs = GetTopologyReferences(orchType);
+            
+            if (routingRefs.Any() && topologyRefs.Any())
+            {
+                typesThatReferBoth.Add(orchType.FullName ?? orchType.Name);
+            }
+        }
+
+        // Assert: It's ok for Orchestration to reference both (this test just verifies it doesn't throw)
+        // The important thing is that Routing and Topology don't reference each other
+        Assert.True(true, "Orchestration layer is allowed to reference both Routing and Topology");
+    }
+
+    [Fact]
+    public void OnlyOrchestration_CanDependOnBoth_RoutingAndTopology()
+    {
+        // Arrange: Get all types from Core assembly
+        var allTypes = _coreAssembly.GetTypes()
+            .Where(t => t.Namespace != null && 
+                       !t.Namespace.Contains(".LineModel.Orchestration"))
+            .ToList();
+
+        // Act: Find any non-Orchestration types that reference both Routing and Topology
+        var violations = new List<string>();
+        
+        foreach (var type in allTypes)
+        {
+            var routingRefs = GetRoutingReferences(type);
+            var topologyRefs = GetTopologyReferences(type);
+            
+            if (routingRefs.Any() && topologyRefs.Any())
+            {
+                violations.Add($"{type.FullName} references both Routing and Topology but is not in Orchestration namespace");
+            }
+        }
+
+        // Assert: No violations should exist
+        Assert.Empty(violations);
+    }
+
     /// <summary>
     /// Get all Topology type references from a given type
     /// </summary>

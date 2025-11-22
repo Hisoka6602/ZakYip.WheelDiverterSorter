@@ -760,17 +760,32 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         if (path == null)
         {
+            // 增强日志：路由返回的 ChuteId 在拓扑中不存在或无路由配置
+            var localTime = _clock.LocalNow;
             _logger.LogWarning(
-                "包裹 {ParcelId} 无法生成到格口 {TargetChuteId} 的路径，将发送到异常格口",
+                "【路由-拓扑不一致兜底】包裹 {ParcelId} 无法生成到格口 {TargetChuteId} 的路径，" +
+                "将强制分拣到异常格口 {ExceptionChuteId}。" +
+                "原因：目标格口不在拓扑中或无路由配置。" +
+                "时间：{LocalTime:yyyy-MM-dd HH:mm:ss}",
                 parcelId,
-                targetChuteId);
+                targetChuteId,
+                exceptionChuteId,
+                localTime);
+
+            // 记录不一致指标（如果指标服务可用）
+            _metrics?.RecordOverloadParcel("RoutingTopologyMismatch");
 
             // 生成到异常格口的路径
             path = _pathGenerator.GeneratePath(exceptionChuteId);
 
             if (path == null)
             {
-                _logger.LogError("包裹 {ParcelId} 连异常格口路径都无法生成，分拣失败", parcelId);
+                _logger.LogError(
+                    "包裹 {ParcelId} 连异常格口 {ExceptionChuteId} 的路径都无法生成，分拣失败。" +
+                    "时间：{LocalTime:yyyy-MM-dd HH:mm:ss}",
+                    parcelId,
+                    exceptionChuteId,
+                    localTime);
                 return (null, exceptionChuteId, true);
             }
 

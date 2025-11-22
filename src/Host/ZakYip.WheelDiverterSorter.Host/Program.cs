@@ -134,6 +134,9 @@ builder.Services.AddScoped<ZakYip.WheelDiverterSorter.Host.Application.Services.
 // 注册分拣相关服务（路径生成、路径执行、分拣编排）
 builder.Services.AddSortingServices(builder.Configuration);
 
+// 注册路由-拓扑一致性检查服务
+builder.Services.AddConsistencyCheckServices();
+
 // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
 builder.Services.AddDriverServices(builder.Configuration);
 
