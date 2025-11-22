@@ -25,17 +25,17 @@ public sealed record class ChangeParcelChuteResult
     /// <summary>
     /// 原目标格口ID
     /// </summary>
-    public int? OriginalChuteId { get; init; }
+    public long? OriginalChuteId { get; init; }
 
     /// <summary>
     /// 请求的新格口ID
     /// </summary>
-    public required int RequestedChuteId { get; init; }
+    public required long RequestedChuteId { get; init; }
 
     /// <summary>
     /// 实际生效的格口ID
     /// </summary>
-    public int? EffectiveChuteId { get; init; }
+    public long? EffectiveChuteId { get; init; }
 
     /// <summary>
     /// 决策结果
@@ -57,9 +57,9 @@ public sealed record class ChangeParcelChuteResult
     /// </summary>
     public static ChangeParcelChuteResult Success(
         long parcelId,
-        int originalChuteId,
-        int requestedChuteId,
-        int effectiveChuteId,
+        long originalChuteId,
+        long requestedChuteId,
+        long effectiveChuteId,
         ChuteChangeOutcome outcome,
         string? message = null)
     {
@@ -81,7 +81,7 @@ public sealed record class ChangeParcelChuteResult
     /// </summary>
     public static ChangeParcelChuteResult Failure(
         long parcelId,
-        int requestedChuteId,
+        long requestedChuteId,
         string message)
     {
         return new ChangeParcelChuteResult

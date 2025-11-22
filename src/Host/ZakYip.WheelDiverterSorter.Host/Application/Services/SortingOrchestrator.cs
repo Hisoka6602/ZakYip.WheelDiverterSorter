@@ -870,8 +870,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private async Task<(bool ShouldRouteToException, SwitchingPath? AlternativePath)> CheckSecondaryOverloadAsync(
         long parcelId, 
         SwitchingPath path, 
-        int targetChuteId, 
-        int exceptionChuteId)
+        long targetChuteId, 
+        long exceptionChuteId)
     {
         // PR-5: Optimize - use simple loop instead of LINQ Sum
         double totalRouteTimeMs = 0;
@@ -942,7 +942,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private async Task<SortingResult> ExecutePathWithTrackingAsync(
         long parcelId, 
         SwitchingPath path, 
-        int targetChuteId, 
+        long targetChuteId, 
         bool isOverloadException,
         CancellationToken cancellationToken)
     {
