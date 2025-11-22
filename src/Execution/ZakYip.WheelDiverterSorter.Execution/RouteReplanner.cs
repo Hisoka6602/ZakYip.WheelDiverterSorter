@@ -23,7 +23,7 @@ public class RouteReplanner : IRouteReplanner
     /// <inheritdoc/>
     public Task<ReplanResult> ReplanAsync(
         long parcelId,
-        int newTargetChuteId,
+        long newTargetChuteId,
         DateTimeOffset replanAt,
         CancellationToken cancellationToken = default)
     {

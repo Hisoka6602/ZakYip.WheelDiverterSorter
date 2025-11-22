@@ -91,7 +91,7 @@ public interface ISortingOrchestrator
     ///   <item>硬件驱动测试</item>
     /// </list>
     /// </remarks>
-    Task<SortingResult> ExecuteDebugSortAsync(string parcelId, int targetChuteId, CancellationToken cancellationToken = default);
+    Task<SortingResult> ExecuteDebugSortAsync(string parcelId, long targetChuteId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -107,8 +107,8 @@ public interface ISortingOrchestrator
 public record SortingResult(
     bool IsSuccess,
     string ParcelId,
-    int ActualChuteId,
-    int TargetChuteId,
+    long ActualChuteId,
+    long TargetChuteId,
     double ExecutionTimeMs,
     string? FailureReason = null,
     bool IsOverloadException = false

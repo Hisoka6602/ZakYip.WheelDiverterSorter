@@ -389,10 +389,10 @@ public class SortingModeResponse
     public SortingMode SortingMode { get; set; }
 
     /// <summary>固定格口ID（仅在FixedChute模式下使用）</summary>
-    public int? FixedChuteId { get; set; }
+    public long? FixedChuteId { get; set; }
 
     /// <summary>可用格口ID列表（仅在RoundRobin模式下使用）</summary>
-    public List<int> AvailableChuteIds { get; set; } = new();
+    public List<long> AvailableChuteIds { get; set; } = new();
 }
 
 /// <summary>
@@ -404,8 +404,8 @@ public class SortingModeRequest
     public SortingMode SortingMode { get; set; }
 
     /// <summary>固定格口ID（仅在FixedChute模式下使用）</summary>
-    public int? FixedChuteId { get; set; }
+    public long? FixedChuteId { get; set; }
 
     /// <summary>可用格口ID列表（仅在RoundRobin模式下使用）</summary>
-    public List<int>? AvailableChuteIds { get; set; }
+    public List<long>? AvailableChuteIds { get; set; }
 }

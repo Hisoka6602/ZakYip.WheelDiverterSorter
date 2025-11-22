@@ -229,7 +229,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 执行调试分拣（跳过包裹创建和上游路由）
     /// </summary>
-    public async Task<SortingResult> ExecuteDebugSortAsync(string parcelId, int targetChuteId, CancellationToken cancellationToken = default)
+    public async Task<SortingResult> ExecuteDebugSortAsync(string parcelId, long targetChuteId, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         
@@ -471,7 +471,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 步骤 4: 确定目标格口
     /// </summary>
-    private async Task<int> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
+    private async Task<long> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
     {
         var systemConfig = _systemConfigRepository.Get();
         var exceptionChuteId = systemConfig.ExceptionChuteId;
@@ -495,7 +495,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 从RuleEngine获取格口分配（正式分拣模式）
     /// </summary>
-    private async Task<int> GetChuteFromRuleEngineAsync(long parcelId, SystemConfiguration systemConfig)
+    private async Task<long> GetChuteFromRuleEngineAsync(long parcelId, SystemConfiguration systemConfig)
     {
         var exceptionChuteId = systemConfig.ExceptionChuteId;
 
@@ -597,7 +597,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 获取固定格口（固定格口模式）
     /// </summary>
-    private int GetFixedChute(SystemConfiguration systemConfig)
+    private long GetFixedChute(SystemConfiguration systemConfig)
     {
         var chuteId = systemConfig.FixedChuteId ?? systemConfig.ExceptionChuteId;
         _logger.LogDebug("使用固定格口模式，目标格口: {ChuteId}", chuteId);
@@ -607,7 +607,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 获取下一个轮询格口（轮询模式）
     /// </summary>
-    private int GetNextRoundRobinChute(SystemConfiguration systemConfig)
+    private long GetNextRoundRobinChute(SystemConfiguration systemConfig)
     {
         lock (_lockObject)
         {
@@ -628,7 +628,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 获取默认异常格口（未知模式）
     /// </summary>
-    private int GetDefaultExceptionChute(long parcelId, SystemConfiguration systemConfig)
+    private long GetDefaultExceptionChute(long parcelId, SystemConfiguration systemConfig)
     {
         _logger.LogError(
             "未知的分拣模式 {SortingMode}，包裹 {ParcelId} 将发送到异常格口",
@@ -642,7 +642,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private async Task<SortingResult> ExecuteSortingWorkflowAsync(
         long parcelId, 
-        int targetChuteId, 
+        long targetChuteId, 
         bool isOverloadException,
         CancellationToken cancellationToken)
     {
@@ -751,10 +751,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 5.1: 生成路径（含异常处理）
     /// </summary>
-    private async Task<(SwitchingPath? Path, int ActualTargetChuteId, bool IsException)> GeneratePathOrExceptionAsync(
+    private async Task<(SwitchingPath? Path, long ActualTargetChuteId, bool IsException)> GeneratePathOrExceptionAsync(
         long parcelId, 
-        int targetChuteId, 
-        int exceptionChuteId)
+        long targetChuteId, 
+        long exceptionChuteId)
     {
         var path = _pathGenerator.GeneratePath(targetChuteId);
 
@@ -824,7 +824,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private async Task<(bool IsHealthy, SwitchingPath? AlternativePath)> ValidatePathHealthAsync(
         long parcelId, 
         SwitchingPath path, 
-        int exceptionChuteId)
+        long exceptionChuteId)
     {
         if (_pathHealthChecker == null)
         {

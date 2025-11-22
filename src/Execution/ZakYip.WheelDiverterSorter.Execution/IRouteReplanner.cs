@@ -29,7 +29,7 @@ public interface IRouteReplanner
     /// </remarks>
     Task<ReplanResult> ReplanAsync(
         long parcelId,
-        int newTargetChuteId,
+        long newTargetChuteId,
         DateTimeOffset replanAt,
         CancellationToken cancellationToken = default);
 }
@@ -52,12 +52,12 @@ public record class ReplanResult
     /// <summary>
     /// 原目标格口ID
     /// </summary>
-    public int? OriginalChuteId { get; init; }
+    public long? OriginalChuteId { get; init; }
 
     /// <summary>
     /// 新目标格口ID
     /// </summary>
-    public int? NewChuteId { get; init; }
+    public long? NewChuteId { get; init; }
 
     /// <summary>
     /// 失败原因（如果失败）
@@ -72,7 +72,7 @@ public record class ReplanResult
     /// <summary>
     /// 创建成功的重规划结果
     /// </summary>
-    public static ReplanResult Success(long parcelId, int originalChuteId, int newChuteId, SwitchingPath newPath)
+    public static ReplanResult Success(long parcelId, long originalChuteId, long newChuteId, SwitchingPath newPath)
     {
         return new ReplanResult
         {

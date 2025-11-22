@@ -104,7 +104,7 @@ public class SystemConfigService : ISystemConfigService
         return new SortingModeInfo(
             config.SortingMode,
             config.FixedChuteId,
-            config.AvailableChuteIds ?? new List<int>());
+            config.AvailableChuteIds ?? new List<long>());
     }
 
     public async Task<SortingModeUpdateResult> UpdateSortingModeAsync(SortingModeRequest request)
@@ -124,7 +124,7 @@ public class SystemConfigService : ISystemConfigService
             // 更新分拣模式相关字段
             config.SortingMode = request.SortingMode;
             config.FixedChuteId = request.FixedChuteId;
-            config.AvailableChuteIds = request.AvailableChuteIds ?? new List<int>();
+            config.AvailableChuteIds = request.AvailableChuteIds ?? new List<long>();
 
             // 验证配置
             var (isValid, errorMessage) = config.Validate();
@@ -148,7 +148,7 @@ public class SystemConfigService : ISystemConfigService
             var updatedMode = new SortingModeInfo(
                 updatedConfig.SortingMode,
                 updatedConfig.FixedChuteId,
-                updatedConfig.AvailableChuteIds ?? new List<int>());
+                updatedConfig.AvailableChuteIds ?? new List<long>());
 
             return new SortingModeUpdateResult(true, null, updatedMode);
         }
@@ -178,7 +178,7 @@ public class SystemConfigService : ISystemConfigService
             EnableAutoReconnect = request.EnableAutoReconnect,
             SortingMode = request.SortingMode,
             FixedChuteId = request.FixedChuteId,
-            AvailableChuteIds = request.AvailableChuteIds ?? new List<int>()
+            AvailableChuteIds = request.AvailableChuteIds ?? new List<long>()
         };
     }
 }
