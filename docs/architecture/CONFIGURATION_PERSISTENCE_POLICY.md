@@ -99,8 +99,9 @@ public sealed record class MyConfiguration
     public string ConfigName { get; init; } = "my_config";
     public int Version { get; init; } = 1;
     
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
+    // 注意：时间戳字段必须由仓储实现通过 ISystemClock.LocalNow 赋值，禁止直接使用 DateTime.Now/DateTime.UtcNow
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
 }
 ```
 
