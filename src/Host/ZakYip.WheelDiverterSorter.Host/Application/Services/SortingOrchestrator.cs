@@ -527,7 +527,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             parcelId,
             upstreamRequestSentAt);
         
-        var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
+        var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
         
         if (!notificationSent)
         {

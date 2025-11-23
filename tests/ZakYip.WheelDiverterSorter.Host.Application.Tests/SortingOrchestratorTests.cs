@@ -61,6 +61,7 @@ public class SortingOrchestratorTests : IDisposable
         _testTime = new DateTimeOffset(2025, 11, 22, 12, 0, 0, TimeSpan.Zero);
         _mockClock.Setup(c => c.UtcNow).Returns(_testTime.UtcDateTime);
         _mockClock.Setup(c => c.LocalNow).Returns(_testTime.LocalDateTime);
+        _mockClock.Setup(c => c.LocalNowOffset).Returns(_testTime);
 
         _options = Options.Create(new RuleEngineConnectionOptions
         {
@@ -143,13 +144,16 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游返回格口分配
         _mockRuleEngineClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
-            .Callback(() =>
+            .Callback<long, CancellationToken>((pid, ct) =>
             {
                 // 模拟上游异步推送格口分配
-                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                if (pid == parcelId)
+                {
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                }
             });
 
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns(expectedPath);
@@ -160,7 +164,7 @@ public class SortingOrchestratorTests : IDisposable
         var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
 
         // Assert
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsSuccess, $"Expected success but got failure. FailureReason: {result.FailureReason}, TargetChute: {result.TargetChuteId}, ActualChute: {result.ActualChuteId}");
         Assert.Equal(parcelId.ToString(), result.ParcelId);
         Assert.Equal(targetChuteId, result.TargetChuteId);
         Assert.Equal(actualChuteId, result.ActualChuteId);
