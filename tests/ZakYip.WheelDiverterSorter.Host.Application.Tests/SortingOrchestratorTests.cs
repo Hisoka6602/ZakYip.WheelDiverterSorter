@@ -61,6 +61,7 @@ public class SortingOrchestratorTests : IDisposable
         _testTime = new DateTimeOffset(2025, 11, 22, 12, 0, 0, TimeSpan.Zero);
         _mockClock.Setup(c => c.UtcNow).Returns(_testTime.UtcDateTime);
         _mockClock.Setup(c => c.LocalNow).Returns(_testTime.LocalDateTime);
+        _mockClock.Setup(c => c.LocalNowOffset).Returns(_testTime);
 
         _options = Options.Create(new RuleEngineConnectionOptions
         {
@@ -143,13 +144,18 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游返回格口分配
         _mockRuleEngineClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
-            .Callback(() =>
+            .Callback<long, CancellationToken>((pid, ct) =>
             {
-                // 模拟上游异步推送格口分配
-                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                // 模拟上游异步推送格口分配 - 使用 Task.Run 确保异步执行
+                Task.Run(async () =>
+                {
+                    await Task.Yield(); // Ensure we yield to allow TCS registration
+                    await Task.Yield();
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                });
             });
 
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns(expectedPath);
@@ -160,7 +166,7 @@ public class SortingOrchestratorTests : IDisposable
         var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
 
         // Assert
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsSuccess, $"Expected success but got failure. FailureReason: {result.FailureReason}, TargetChute: {result.TargetChuteId}, ActualChute: {result.ActualChuteId}");
         Assert.Equal(parcelId.ToString(), result.ParcelId);
         Assert.Equal(targetChuteId, result.TargetChuteId);
         Assert.Equal(actualChuteId, result.ActualChuteId);
@@ -341,8 +347,12 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(true)
             .Callback(() =>
             {
-                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                });
             });
 
         // 模拟路径生成失败（返回 null）
@@ -395,8 +405,12 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(true)
             .Callback(() =>
             {
-                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                });
             });
 
         var expectedPath = new SwitchingPath
@@ -418,7 +432,7 @@ public class SortingOrchestratorTests : IDisposable
         };
 
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns(expectedPath);
-        _mockPathExecutor.Setup(e => e.ExecuteAsync(expectedPath, It.IsAny<CancellationToken>()))
+        _mockPathExecutor.Setup(e => e.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(failedExecutionResult);
 
         // Act
@@ -448,8 +462,12 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(true)
             .Callback(() =>
             {
-                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                });
             });
 
         // 模拟所有路径生成都失败
@@ -617,8 +635,12 @@ public class SortingOrchestratorTests : IDisposable
                 parcelCreatedBeforeNotification = true;
 
                 // 模拟上游推送格口分配
-                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
+                Task.Run(async () =>
+                {
+                    await Task.Yield();
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                });
             });
 
         var expectedPath = new SwitchingPath
@@ -633,14 +655,14 @@ public class SortingOrchestratorTests : IDisposable
         };
 
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns(expectedPath);
-        _mockPathExecutor.Setup(e => e.ExecuteAsync(expectedPath, It.IsAny<CancellationToken>()))
+        _mockPathExecutor.Setup(e => e.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = targetChuteId });
 
         // Act
         var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
 
         // Assert
-        Assert.True(result.IsSuccess);
+        Assert.True(result.IsSuccess, $"Expected success but got failure. FailureReason: {result.FailureReason}, TargetChute: {result.TargetChuteId}, ActualChute: {result.ActualChuteId}");
         Assert.True(notificationSent, "应该已发送上游通知");
         Assert.True(parcelCreatedBeforeNotification, "包裹应该在发送通知前创建");
 
