@@ -1,11 +1,12 @@
 namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
 
 /// <summary>
-/// 摆轮资源锁实现，基于ReaderWriterLockSlim
+/// 摆轮资源锁实现，基于SemaphoreSlim（支持异步操作，无线程亲和性要求）
+/// 简化版：所有锁都是排他锁（写锁语义）
 /// </summary>
 public class DiverterResourceLock : IDiverterResourceLock, IDisposable
 {
-    private readonly ReaderWriterLockSlim _lock;
+    private readonly SemaphoreSlim _semaphore = new(1, 1);
     private bool _disposed;
 
     /// <summary>
@@ -15,7 +16,6 @@ public class DiverterResourceLock : IDiverterResourceLock, IDisposable
     public DiverterResourceLock(string diverterId)
     {
         DiverterId = diverterId ?? throw new ArgumentNullException(nameof(diverterId));
-        _lock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
     }
 
     /// <inheritdoc/>
@@ -24,27 +24,16 @@ public class DiverterResourceLock : IDiverterResourceLock, IDisposable
     /// <inheritdoc/>
     public async Task<IDisposable> AcquireWriteLockAsync(CancellationToken cancellationToken = default)
     {
-        // 在异步上下文中获取锁
-        await Task.Run(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            _lock.EnterWriteLock();
-        }, cancellationToken).ConfigureAwait(false);
-
-        return new WriteLockReleaser(_lock);
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new LockReleaser(_semaphore);
     }
 
     /// <inheritdoc/>
     public async Task<IDisposable> AcquireReadLockAsync(CancellationToken cancellationToken = default)
     {
-        // 在异步上下文中获取锁
-        await Task.Run(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            _lock.EnterReadLock();
-        }, cancellationToken).ConfigureAwait(false);
-
-        return new ReadLockReleaser(_lock);
+        // 对于摆轮操作，读写锁都是排他的（简化实现）
+        await _semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return new LockReleaser(_semaphore);
     }
 
     /// <summary>
@@ -54,43 +43,25 @@ public class DiverterResourceLock : IDiverterResourceLock, IDisposable
     {
         if (_disposed) return;
         
-        _lock?.Dispose();
+        _semaphore?.Dispose();
         _disposed = true;
     }
-}
 
-/// <summary>
-/// 写锁释放器
-/// </summary>
-file readonly struct WriteLockReleaser : IDisposable
-{
-    private readonly ReaderWriterLockSlim _lock;
-
-    public WriteLockReleaser(ReaderWriterLockSlim lockSlim)
+    /// <summary>
+    /// 锁释放器
+    /// </summary>
+    private readonly struct LockReleaser : IDisposable
     {
-        _lock = lockSlim;
-    }
+        private readonly SemaphoreSlim _semaphore;
 
-    public readonly void Dispose()
-    {
-        _lock.ExitWriteLock();
-    }
-}
+        public LockReleaser(SemaphoreSlim semaphore)
+        {
+            _semaphore = semaphore;
+        }
 
-/// <summary>
-/// 读锁释放器
-/// </summary>
-file readonly struct ReadLockReleaser : IDisposable
-{
-    private readonly ReaderWriterLockSlim _lock;
-
-    public ReadLockReleaser(ReaderWriterLockSlim lockSlim)
-    {
-        _lock = lockSlim;
-    }
-
-    public readonly void Dispose()
-    {
-        _lock.ExitReadLock();
+        public readonly void Dispose()
+        {
+            _semaphore.Release();
+        }
     }
 }
