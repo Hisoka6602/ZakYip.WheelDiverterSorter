@@ -86,14 +86,14 @@ public class SortingOrchestratorTests : IDisposable
 
         _mockExceptionHandler
             .Setup(h => h.CreatePathGenerationFailureResult(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>()))
-            .Returns<long, long, long, string>((parcelId, targetChuteId, exceptionChuteId, reason) =>
+            .Returns((long pid, long tid, long eid, string r) =>
                 new SortingResult(
                     IsSuccess: false,
-                    ParcelId: parcelId.ToString(),
+                    ParcelId: pid.ToString(),
                     ActualChuteId: 0,
-                    TargetChuteId: targetChuteId,
+                    TargetChuteId: tid,
                     ExecutionTimeMs: 0,
-                    FailureReason: $"路径生成失败: {reason}，连异常格口路径都无法生成"
+                    FailureReason: $"路径生成失败: {r}，连异常格口路径都无法生成"
                 ));
 
         _orchestrator = new SortingOrchestrator(
@@ -556,9 +556,9 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Equal(exceptionChuteId, result.TargetChuteId); // 应该更新为异常格口
         Assert.Equal(exceptionChuteId, result.ActualChuteId);
         
-        // 验证尝试生成两次路径：一次目标格口，一次异常格口
+        // 验证尝试生成目标格口路径（失败），然后通过异常处理器生成异常格口路径
         _mockPathGenerator.Verify(g => g.GeneratePath(targetChuteId), Times.Once);
-        _mockPathGenerator.Verify(g => g.GeneratePath(exceptionChuteId), Times.Once);
+        _mockExceptionHandler.Verify(h => h.GenerateExceptionPath(exceptionChuteId, 0, It.IsAny<string>()), Times.Once);
     }
     
     /// <summary>
