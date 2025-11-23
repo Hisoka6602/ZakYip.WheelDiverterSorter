@@ -1145,7 +1145,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
             // 通知RuleEngine包裹重复触发异常（不等待响应）
-            await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId);
+            await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
 
             // 直接将包裹发送到异常格口
             await ExecuteSortingWorkflowAsync(parcelId, exceptionChuteId, isOverloadException: true, CancellationToken.None);

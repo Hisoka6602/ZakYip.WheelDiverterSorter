@@ -149,11 +149,8 @@ public class SortingOrchestratorTests : IDisposable
             .Callback<long, CancellationToken>((pid, ct) =>
             {
                 // 模拟上游异步推送格口分配
-                if (pid == parcelId)
-                {
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
-                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
-                }
+                var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, args);
             });
 
         _mockPathGenerator.Setup(g => g.GeneratePath(targetChuteId)).Returns(expectedPath);
