@@ -35,7 +35,16 @@ public static class CommunicationServiceExtensions
         var options = new RuleEngineConnectionOptions();
         configuration.GetSection("RuleEngineConnection").Bind(options);
 
-        // 验证配置
+        // 检查是否为测试环境（通过配置标记）
+        var isTestMode = configuration.GetValue<bool>("IsTestEnvironment", false);
+        
+        // 在测试环境下，如果配置为空，提供默认测试配置
+        if (isTestMode && string.IsNullOrWhiteSpace(options.HttpApi) && options.Mode == CommunicationMode.Http)
+        {
+            options.HttpApi = "http://localhost:9999/test-stub";
+        }
+
+        // 验证配置（测试环境的默认配置也需要通过验证）
         ValidateOptions(options);
 
         // 注册配置为单例

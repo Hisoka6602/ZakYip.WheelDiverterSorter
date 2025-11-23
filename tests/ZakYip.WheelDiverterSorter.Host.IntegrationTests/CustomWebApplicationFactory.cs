@@ -23,20 +23,23 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
     public Mock<IRuleEngineClient>? MockRuleEngineClient { get; private set; }
 
-    protected override IHost CreateHost(IHostBuilder builder)
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // Set environment to Testing to avoid production constraints
+        // Set environment to Testing to load appsettings.Testing.json
         builder.UseEnvironment("Testing");
         
-        // Configure test-specific settings - MUST be done before Program.Main runs
+        // Configure test-specific settings - this runs BEFORE Program.cs service registration
         builder.ConfigureAppConfiguration((context, config) =>
         {
-            // Clear existing configuration sources to ensure our test config takes precedence
-            config.Sources.Clear();
+            // Don't clear sources - let appsettings.Testing.json be loaded first
+            // Then override with in-memory configuration for test-specific values
             
             // Add minimal valid configuration for RuleEngine to pass validation
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                // Mark this as test environment to enable test-friendly defaults
+                ["IsTestEnvironment"] = "true",
+                
                 // Configure RuleEngine communication with minimal valid settings
                 // This prevents validation errors in AddRuleEngineCommunication
                 ["RuleEngineConnection:Mode"] = "Http",
@@ -59,7 +62,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             });
         });
         
-        // Configure test-specific services - this runs after AddRuleEngineCommunication
+        // Configure test-specific services - this runs after Program.cs service registration
         builder.ConfigureServices(services =>
         {
             // Remove existing RuleEngine client if registered and replace with mock
@@ -92,7 +95,5 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             
             services.AddSingleton(MockRuleEngineClient.Object);
         });
-
-        return base.CreateHost(builder);
     }
 }
