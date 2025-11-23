@@ -220,13 +220,13 @@ public class IoSimulationTests
         }
 
         // Wait for all to complete or timeout
-        var completed = await Task.WhenAny(
-            Task.WhenAll(tasks),
-            Task.Delay(TimeSpan.FromSeconds(10), cts.Token)
-        );
+        var allTasksTask = Task.WhenAll(tasks);
+        var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10), cts.Token);
+        var completed = await Task.WhenAny(allTasksTask, timeoutTask);
 
         // Assert
-        Assert.Equal(Task.WhenAll(tasks), completed); // Should complete before timeout
+        Assert.Same(allTasksTask, completed); // Should complete before timeout
+        Assert.True(allTasksTask.IsCompletedSuccessfully, "All tasks should complete successfully");
         Assert.False(cts.Token.IsCancellationRequested, "Should complete without timeout/deadlock");
     }
 
