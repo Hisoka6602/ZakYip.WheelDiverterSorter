@@ -17,7 +17,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [ApiController]
 [Route("api/config")]
 [Produces("application/json")]
-public class ConfigurationController : ControllerBase
+public class ConfigurationController : ApiControllerBase
 {
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ISystemClock _clock;
@@ -48,17 +48,17 @@ public class ConfigurationController : ControllerBase
         OperationId = "GetExceptionPolicy",
         Tags = new[] { "配置管理" }
     )]
-    [SwaggerResponse(200, "成功返回异常策略", typeof(ExceptionRoutingPolicy))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ExceptionRoutingPolicy), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ExceptionRoutingPolicy> GetExceptionPolicy()
+    [SwaggerResponse(200, "成功返回异常策略", typeof(ApiResponse<ExceptionRoutingPolicy>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ExceptionRoutingPolicy>))]
+    [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 500)]
+    public ActionResult<ApiResponse<ExceptionRoutingPolicy>> GetExceptionPolicy()
     {
         try
         {
             var config = _systemConfigRepository.Get();
 #pragma warning disable CS0618 // 向后兼容
-            return Ok(new ExceptionRoutingPolicy
+            var policy = new ExceptionRoutingPolicy
             {
                 ExceptionChuteId = config.ExceptionChuteId,
                 UpstreamTimeoutMs = config.ChuteAssignmentTimeoutMs,
@@ -67,13 +67,15 @@ public class ConfigurationController : ControllerBase
                 RetryDelayMs = config.RetryDelayMs,
                 UseExceptionOnTopologyUnreachable = true,
                 UseExceptionOnTtlFailure = true
-            });
+            };
 #pragma warning restore CS0618
+            
+            return Success(policy, "获取异常路由策略成功");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取异常路由策略失败");
-            return StatusCode(500, new { message = "获取异常路由策略失败" });
+            return ServerError<ExceptionRoutingPolicy>("获取异常路由策略失败");
         }
     }
 
@@ -108,43 +110,41 @@ public class ConfigurationController : ControllerBase
         OperationId = "UpdateExceptionPolicy",
         Tags = new[] { "配置管理" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(ExceptionRoutingPolicy))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ExceptionRoutingPolicy), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ExceptionRoutingPolicy> UpdateExceptionPolicy([FromBody] ExceptionRoutingPolicy policy)
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<ExceptionRoutingPolicy>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<ExceptionRoutingPolicy>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ExceptionRoutingPolicy>))]
+    [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 500)]
+    public ActionResult<ApiResponse<ExceptionRoutingPolicy>> UpdateExceptionPolicy([FromBody] ExceptionRoutingPolicy policy)
     {
         try
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                return ValidationError<ExceptionRoutingPolicy>();
             }
 
+            // TODO: PR-47 - Extract validation logic to validator class or request attributes
             // 验证异常格口ID
             if (policy.ExceptionChuteId <= 0)
             {
-                return BadRequest(new { message = "异常格口ID必须大于0" });
+                return ValidationError<ExceptionRoutingPolicy>("异常格口ID必须大于0");
             }
 
             if (policy.UpstreamTimeoutMs < 1000 || policy.UpstreamTimeoutMs > 60000)
             {
-                return BadRequest(new { message = "上游超时时间必须在1000-60000毫秒之间" });
+                return ValidationError<ExceptionRoutingPolicy>("上游超时时间必须在1000-60000毫秒之间");
             }
 
             if (policy.RetryCount < 0 || policy.RetryCount > 10)
             {
-                return BadRequest(new { message = "重试次数必须在0-10之间" });
+                return ValidationError<ExceptionRoutingPolicy>("重试次数必须在0-10之间");
             }
 
             if (policy.RetryDelayMs < 100 || policy.RetryDelayMs > 10000)
             {
-                return BadRequest(new { message = "重试延迟必须在100-10000毫秒之间" });
+                return ValidationError<ExceptionRoutingPolicy>("重试延迟必须在100-10000毫秒之间");
             }
 
             // 获取当前配置并更新
@@ -164,12 +164,12 @@ public class ConfigurationController : ControllerBase
                 policy.ExceptionChuteId,
                 policy.UpstreamTimeoutMs);
 
-            return Ok(policy);
+            return Success(policy, "异常路由策略已更新");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新异常路由策略失败");
-            return StatusCode(500, new { message = "更新异常路由策略失败" });
+            return ServerError<ExceptionRoutingPolicy>("更新异常路由策略失败");
         }
     }
 
@@ -190,16 +190,16 @@ public class ConfigurationController : ControllerBase
         OperationId = "GetReleaseThrottle",
         Tags = new[] { "配置管理" }
     )]
-    [SwaggerResponse(200, "成功返回节流配置", typeof(ReleaseThrottleConfigResponse))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ReleaseThrottleConfigResponse), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ReleaseThrottleConfigResponse> GetReleaseThrottle()
+    [SwaggerResponse(200, "成功返回节流配置", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
+    [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 500)]
+    public ActionResult<ApiResponse<ReleaseThrottleConfigResponse>> GetReleaseThrottle()
     {
         try
         {
             var config = _systemConfigRepository.Get();
-            return Ok(new ReleaseThrottleConfigResponse
+            var response = new ReleaseThrottleConfigResponse
             {
                 WarningThresholdLatencyMs = config.ThrottleWarningLatencyMs,
                 SevereThresholdLatencyMs = config.ThrottleSevereLatencyMs,
@@ -213,12 +213,14 @@ public class ConfigurationController : ControllerBase
                 ShouldPauseOnSevere = config.ThrottleShouldPauseOnSevere,
                 EnableThrottling = config.ThrottleEnabled,
                 MetricsTimeWindowSeconds = config.ThrottleMetricsWindowSeconds
-            });
+            };
+            
+            return Success(response, "获取放包节流配置成功");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取放包节流配置失败");
-            return StatusCode(500, new { message = "获取放包节流配置失败" });
+            return ServerError<ReleaseThrottleConfigResponse>("获取放包节流配置失败");
         }
     }
 
@@ -262,24 +264,22 @@ public class ConfigurationController : ControllerBase
         OperationId = "UpdateReleaseThrottle",
         Tags = new[] { "配置管理" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(ReleaseThrottleConfigResponse))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ReleaseThrottleConfigResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ReleaseThrottleConfigResponse> UpdateReleaseThrottle([FromBody] ReleaseThrottleConfigRequest request)
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
+    [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 500)]
+    public ActionResult<ApiResponse<ReleaseThrottleConfigResponse>> UpdateReleaseThrottle([FromBody] ReleaseThrottleConfigRequest request)
     {
         try
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                return ValidationError<ReleaseThrottleConfigResponse>();
             }
 
+            // TODO: PR-47 - Extract validation logic to validator class or request attributes
             // 验证延迟阈值
             if (request.WarningThresholdLatencyMs < 1000 || request.WarningThresholdLatencyMs > 60000)
             {
@@ -358,7 +358,7 @@ public class ConfigurationController : ControllerBase
                 request.EnableThrottling,
                 request.NormalReleaseIntervalMs);
 
-            return Ok(new ReleaseThrottleConfigResponse
+            var response = new ReleaseThrottleConfigResponse
             {
                 WarningThresholdLatencyMs = config.ThrottleWarningLatencyMs,
                 SevereThresholdLatencyMs = config.ThrottleSevereLatencyMs,
@@ -372,12 +372,14 @@ public class ConfigurationController : ControllerBase
                 ShouldPauseOnSevere = config.ThrottleShouldPauseOnSevere,
                 EnableThrottling = config.ThrottleEnabled,
                 MetricsTimeWindowSeconds = config.ThrottleMetricsWindowSeconds
-            });
+            };
+            
+            return Success(response, "放包节流配置已更新");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新放包节流配置失败");
-            return StatusCode(500, new { message = "更新放包节流配置失败" });
+            return ServerError<ReleaseThrottleConfigResponse>("更新放包节流配置失败");
         }
     }
 
