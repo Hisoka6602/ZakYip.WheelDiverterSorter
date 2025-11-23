@@ -245,8 +245,9 @@ public class ChuteAssignmentTimeoutCalculatorTests
     {
         // Arrange
         var systemConfig = CreateSystemConfig(fallbackTimeout: 5m);
+        LineTopologyConfig? nullTopology = null;
         
-        _mockTopologyRepository.Setup(r => r.Get()).Returns((LineTopologyConfig?)null!);
+        _mockTopologyRepository.Setup(r => r.Get()).Returns(nullTopology!);
         _mockSystemConfigRepository.Setup(r => r.Get()).Returns(systemConfig);
 
         var context = new ChuteAssignmentTimeoutContext(LineId: 1, SafetyFactor: 0.9m);
@@ -339,9 +340,10 @@ public class ChuteAssignmentTimeoutCalculatorTests
     {
         // Arrange
         var topology = CreateSimpleTopology(segmentLength: 1000, segmentSpeed: 500.0);
+        SystemConfiguration? nullConfig = null;
         
         _mockTopologyRepository.Setup(r => r.Get()).Returns(topology);
-        _mockSystemConfigRepository.Setup(r => r.Get()).Returns((SystemConfiguration?)null!);
+        _mockSystemConfigRepository.Setup(r => r.Get()).Returns(nullConfig!);
 
         var context = new ChuteAssignmentTimeoutContext(LineId: 1, SafetyFactor: 0.9m);
 
@@ -349,8 +351,8 @@ public class ChuteAssignmentTimeoutCalculatorTests
         var timeout = _calculator.CalculateTimeoutSeconds(context);
 
         // Assert
-        // 没有系统配置时使用默认的 ChuteAssignmentTimeoutOptions，其默认 FallbackTimeoutSeconds 为 5
-        // 但由于拓扑配置正常，应该能够正常计算：1000mm / 500mm/s = 2秒 * 0.9 = 1.8秒
+        // 没有系统配置时会创建默认的 ChuteAssignmentTimeoutOptions
+        // 由于拓扑配置正常，应该能够正常计算：1000mm / 500mm/s = 2秒 * 0.9 = 1.8秒
         Assert.Equal(1.8m, timeout);
     }
 
@@ -463,7 +465,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
     }
 
     [Fact]
-    public void CalculateTimeoutSeconds_WhenSystemConfigRepositoryThrows_StillCalculatesCorrectly()
+    public void CalculateTimeoutSeconds_WhenSystemConfigRepositoryThrows_ReturnsHardcodedFallback()
     {
         // Arrange
         var topology = CreateSimpleTopology(segmentLength: 1000, segmentSpeed: 500.0);
@@ -477,7 +479,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
         var timeout = _calculator.CalculateTimeoutSeconds(context);
 
         // Assert
-        // 异常时应该返回硬编码的降级值 5 秒
+        // 系统配置Repository异常时应该返回硬编码的降级值 5 秒
         Assert.Equal(5m, timeout);
     }
 
