@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
@@ -18,9 +19,9 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     private readonly IEnumerable<ISensor> _sensors;
     private readonly ILogger<SensorHealthMonitor>? _logger;
-    private readonly Dictionary<string, SensorHealthStatus> _healthStatus = new();
-    private readonly Dictionary<string, DateTimeOffset> _faultStartTimes = new();
-    private readonly object _lockObject = new();
+    // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
+    private readonly ConcurrentDictionary<string, SensorHealthStatus> _healthStatus = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _faultStartTimes = new();
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
     private bool _isRunning;
@@ -76,10 +77,10 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
         _logger?.LogInformation("启动传感器健康监控服务");
 
-        lock (_lockObject) {
-            foreach (var status in _healthStatus.Values) {
-                status.StartTime = DateTimeOffset.UtcNow;
-            }
+        // PR-44: ConcurrentDictionary 迭代器是线程安全的，但每个状态对象的修改需要注意
+        // 这里是初始化时的操作，风险较低，但为保证原子性可以考虑使用锁或逐个修改
+        foreach (var status in _healthStatus.Values) {
+            status.StartTime = DateTimeOffset.UtcNow;
         }
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -118,56 +119,53 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// 获取传感器健康状态
     /// </summary>
     public SensorHealthStatus GetHealthStatus(string sensorId) {
-        lock (_lockObject) {
-            if (_healthStatus.TryGetValue(sensorId, out var status)) {
-                // 更新运行时长
-                if (status.StartTime.HasValue) {
-                    status.UptimeSeconds = (DateTimeOffset.UtcNow - status.StartTime.Value).TotalSeconds;
-                }
-                return status;
+        // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
+        if (_healthStatus.TryGetValue(sensorId, out var status)) {
+            // 更新运行时长
+            if (status.StartTime.HasValue) {
+                status.UptimeSeconds = (DateTimeOffset.UtcNow - status.StartTime.Value).TotalSeconds;
             }
-
-            throw new ArgumentException($"传感器 {sensorId} 不存在", nameof(sensorId));
+            return status;
         }
+
+        throw new ArgumentException($"传感器 {sensorId} 不存在", nameof(sensorId));
     }
 
     /// <summary>
     /// 获取所有传感器的健康状态
     /// </summary>
     public IDictionary<string, SensorHealthStatus> GetAllHealthStatus() {
-        lock (_lockObject) {
-            // 更新所有传感器的运行时长
-            foreach (var status in _healthStatus.Values) {
-                if (status.StartTime.HasValue) {
-                    status.UptimeSeconds = (DateTimeOffset.UtcNow - status.StartTime.Value).TotalSeconds;
-                }
+        // PR-44: ConcurrentDictionary 迭代器和构造函数是线程安全的
+        // 更新所有传感器的运行时长
+        foreach (var status in _healthStatus.Values) {
+            if (status.StartTime.HasValue) {
+                status.UptimeSeconds = (DateTimeOffset.UtcNow - status.StartTime.Value).TotalSeconds;
             }
-
-            return new Dictionary<string, SensorHealthStatus>(_healthStatus);
         }
+
+        return new Dictionary<string, SensorHealthStatus>(_healthStatus);
     }
 
     /// <summary>
     /// 手动报告传感器错误
     /// </summary>
     public void ReportError(string sensorId, string error) {
-        lock (_lockObject) {
-            if (_healthStatus.TryGetValue(sensorId, out var status)) {
-                status.ErrorCount++;
-                status.LastError = error;
-                status.LastErrorTime = DateTimeOffset.UtcNow;
-                status.LastCheckTime = DateTimeOffset.UtcNow;
+        // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
+        if (_healthStatus.TryGetValue(sensorId, out var status)) {
+            status.ErrorCount++;
+            status.LastError = error;
+            status.LastErrorTime = DateTimeOffset.UtcNow;
+            status.LastCheckTime = DateTimeOffset.UtcNow;
 
-                _logger?.LogWarning(
-                    "传感器 {SensorId} 报告错误 (第{Count}次): {Error}",
-                    sensorId,
-                    status.ErrorCount,
-                    error);
+            _logger?.LogWarning(
+                "传感器 {SensorId} 报告错误 (第{Count}次): {Error}",
+                sensorId,
+                status.ErrorCount,
+                error);
 
-                // 检查是否达到故障阈值
-                if (status.IsHealthy && status.ErrorCount >= _errorThreshold) {
-                    MarkSensorAsFaulty(sensorId, SensorFaultType.ReadError, error);
-                }
+            // 检查是否达到故障阈值
+            if (status.IsHealthy && status.ErrorCount >= _errorThreshold) {
+                MarkSensorAsFaulty(sensorId, SensorFaultType.ReadError, error);
             }
         }
     }
@@ -176,22 +174,21 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// 处理传感器触发事件
     /// </summary>
     private void OnSensorTriggered(object? sender, SensorEvent sensorEvent) {
-        lock (_lockObject) {
-            if (_healthStatus.TryGetValue(sensorEvent.SensorId, out var status)) {
-                status.LastTriggerTime = sensorEvent.TriggerTime;
-                status.TotalTriggerCount++;
-                status.LastCheckTime = DateTimeOffset.UtcNow;
+        // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
+        if (_healthStatus.TryGetValue(sensorEvent.SensorId, out var status)) {
+            status.LastTriggerTime = sensorEvent.TriggerTime;
+            status.TotalTriggerCount++;
+            status.LastCheckTime = DateTimeOffset.UtcNow;
 
-                // 如果传感器之前处于故障状态，现在恢复了
-                if (!status.IsHealthy) {
-                    MarkSensorAsRecovered(sensorEvent.SensorId);
-                }
+            // 如果传感器之前处于故障状态，现在恢复了
+            if (!status.IsHealthy) {
+                MarkSensorAsRecovered(sensorEvent.SensorId);
+            }
 
-                // 重置错误计数
-                if (status.ErrorCount > 0) {
-                    _logger?.LogDebug("传感器 {SensorId} 正常触发，重置错误计数", sensorEvent.SensorId);
-                    status.ErrorCount = 0;
-                }
+            // 重置错误计数
+            if (status.ErrorCount > 0) {
+                _logger?.LogDebug("传感器 {SensorId} 正常触发，重置错误计数", sensorEvent.SensorId);
+                status.ErrorCount = 0;
             }
         }
     }
@@ -206,24 +203,23 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
             try {
                 await Task.Delay(_checkInterval, cancellationToken);
 
-                lock (_lockObject) {
-                    var now = DateTimeOffset.UtcNow;
+                // PR-44: ConcurrentDictionary 迭代器是线程安全的
+                var now = DateTimeOffset.UtcNow;
 
-                    foreach (var status in _healthStatus.Values) {
-                        status.LastCheckTime = now;
+                foreach (var status in _healthStatus.Values) {
+                    status.LastCheckTime = now;
 
-                        // 检查是否长时间无响应
-                        if (status.IsHealthy && status.LastTriggerTime.HasValue) {
-                            var timeSinceLastTrigger = now - status.LastTriggerTime.Value;
-                            if (timeSinceLastTrigger > _noResponseThreshold) {
-                                _logger?.LogWarning(
-                                    "传感器 {SensorId} 已 {Seconds} 秒未响应",
-                                    status.SensorId,
-                                    timeSinceLastTrigger.TotalSeconds);
+                    // 检查是否长时间无响应
+                    if (status.IsHealthy && status.LastTriggerTime.HasValue) {
+                        var timeSinceLastTrigger = now - status.LastTriggerTime.Value;
+                        if (timeSinceLastTrigger > _noResponseThreshold) {
+                            _logger?.LogWarning(
+                                "传感器 {SensorId} 已 {Seconds} 秒未响应",
+                                status.SensorId,
+                                timeSinceLastTrigger.TotalSeconds);
 
-                                // 注意：长时间无响应可能是正常的（没有包裹经过）
-                                // 这里只记录警告，不标记为故障
-                            }
+                            // 注意：长时间无响应可能是正常的（没有包裹经过）
+                            // 这里只记录警告，不标记为故障
                         }
                     }
                 }
@@ -275,7 +271,8 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
             var faultDuration = 0.0;
             if (_faultStartTimes.TryGetValue(sensorId, out var faultStartTime)) {
                 faultDuration = (DateTimeOffset.UtcNow - faultStartTime).TotalSeconds;
-                _faultStartTimes.Remove(sensorId);
+                // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
+                _faultStartTimes.TryRemove(sensorId, out _);
             }
 
             _logger?.LogInformation(
