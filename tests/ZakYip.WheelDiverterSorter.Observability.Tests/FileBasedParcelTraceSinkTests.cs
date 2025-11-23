@@ -107,19 +107,24 @@ public class FileBasedParcelTraceSinkTests : IDisposable
         var mockClock = new Mock<ISystemClock>();
         mockClock.Setup(c => c.LocalNow).Returns(new DateTime(2024, 1, 15, 10, 30, 0));
         
-        // 使用只读目录导致写入失败（Linux上 /proc 是只读的）
-        var readonlyPath = "/proc/test_readonly";
-        if (!OperatingSystem.IsLinux())
-        {
-            // Windows环境下跳过此测试或使用其他方法
-            readonlyPath = Path.Combine(Path.GetTempPath(), "readonly_test");
-            if (!Directory.Exists(readonlyPath))
-            {
-                Directory.CreateDirectory(readonlyPath);
-            }
-        }
+        // 使用只读目录导致写入失败
+        var readonlyPath = Path.Combine(Path.GetTempPath(), "readonly_test_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(readonlyPath);
         
+        // 创建sink后，将目录设置为只读
         var sink = new FileBasedParcelTraceSink(mockLogger.Object, mockClock.Object, readonlyPath);
+        
+        // 在Linux上设置目录为只读
+        if (OperatingSystem.IsLinux())
+        {
+            System.IO.File.SetUnixFileMode(readonlyPath, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        }
+        else
+        {
+            // Windows上设置只读属性
+            var dirInfo = new DirectoryInfo(readonlyPath);
+            dirInfo.Attributes = FileAttributes.ReadOnly;
+        }
 
         var eventArgs = new ParcelTraceEventArgs
         {
@@ -141,6 +146,25 @@ public class FileBasedParcelTraceSinkTests : IDisposable
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
+        
+        // Cleanup - restore permissions and delete directory
+        try
+        {
+            if (OperatingSystem.IsLinux())
+            {
+                System.IO.File.SetUnixFileMode(readonlyPath, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+            else
+            {
+                var dirInfo = new DirectoryInfo(readonlyPath);
+                dirInfo.Attributes = FileAttributes.Normal;
+            }
+            Directory.Delete(readonlyPath, true);
+        }
+        catch
+        {
+            // Ignore cleanup errors
+        }
     }
 
     [Fact]
