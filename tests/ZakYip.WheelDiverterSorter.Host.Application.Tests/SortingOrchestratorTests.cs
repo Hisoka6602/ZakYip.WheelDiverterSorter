@@ -41,6 +41,7 @@ public class SortingOrchestratorTests : IDisposable
     private readonly Mock<ISystemConfigurationRepository> _mockConfigRepository;
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<SortingOrchestrator>> _mockLogger;
+    private readonly Mock<ISortingExceptionHandler> _mockExceptionHandler;
     private readonly IOptions<RuleEngineConnectionOptions> _options;
     private readonly SortingOrchestrator _orchestrator;
     private readonly SystemConfiguration _defaultConfig;
@@ -55,6 +56,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockConfigRepository = new Mock<ISystemConfigurationRepository>();
         _mockClock = new Mock<ISystemClock>();
         _mockLogger = new Mock<ILogger<SortingOrchestrator>>();
+        _mockExceptionHandler = new Mock<ISortingExceptionHandler>();
 
         _testTime = new DateTimeOffset(2025, 11, 22, 12, 0, 0, TimeSpan.Zero);
         _mockClock.Setup(c => c.UtcNow).Returns(_testTime.UtcDateTime);
@@ -76,6 +78,24 @@ public class SortingOrchestratorTests : IDisposable
 
         _mockConfigRepository.Setup(r => r.Get()).Returns(_defaultConfig);
 
+        // Default mock setup for exception handler - returns null by default
+        // Individual tests can override this for specific scenarios
+        _mockExceptionHandler
+            .Setup(h => h.GenerateExceptionPath(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>()))
+            .Returns((SwitchingPath?)null);
+
+        _mockExceptionHandler
+            .Setup(h => h.CreatePathGenerationFailureResult(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>()))
+            .Returns<long, long, long, string>((parcelId, targetChuteId, exceptionChuteId, reason) =>
+                new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId.ToString(),
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: 0,
+                    FailureReason: $"路径生成失败: {reason}，连异常格口路径都无法生成"
+                ));
+
         _orchestrator = new SortingOrchestrator(
             _mockParcelDetection.Object,
             _mockRuleEngineClient.Object,
@@ -84,7 +104,8 @@ public class SortingOrchestratorTests : IDisposable
             _options,
             _mockConfigRepository.Object,
             _mockClock.Object,
-            _mockLogger.Object
+            _mockLogger.Object,
+            _mockExceptionHandler.Object
         );
     }
 
@@ -338,6 +359,12 @@ public class SortingOrchestratorTests : IDisposable
             GeneratedAt = _testTime,
             FallbackChuteId = 99
         };
+        
+        // Setup exception handler to return the exception path
+        _mockExceptionHandler
+            .Setup(h => h.GenerateExceptionPath(exceptionChuteId, parcelId, It.IsAny<string>()))
+            .Returns(exceptionPath);
+        
         _mockPathGenerator.Setup(g => g.GeneratePath(exceptionChuteId)).Returns(exceptionPath);
         _mockPathExecutor.Setup(e => e.ExecuteAsync(exceptionPath, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = exceptionChuteId });
@@ -510,6 +537,11 @@ public class SortingOrchestratorTests : IDisposable
             GeneratedAt = _testTime,
             FallbackChuteId = 99
         };
+        
+        // Setup exception handler to return exception path
+        _mockExceptionHandler
+            .Setup(h => h.GenerateExceptionPath(exceptionChuteId, 0, It.IsAny<string>()))
+            .Returns(exceptionPath);
         
         _mockPathGenerator.Setup(g => g.GeneratePath(exceptionChuteId)).Returns(exceptionPath);
         _mockPathExecutor.Setup(e => e.ExecuteAsync(exceptionPath, It.IsAny<CancellationToken>()))

@@ -60,6 +60,9 @@ public static class SortingServiceExtensions
         // 注册格口分配超时计算器
         services.AddSingleton<IChuteAssignmentTimeoutCalculator, ChuteAssignmentTimeoutCalculator>();
 
+        // 注册分拣异常处理器
+        services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
+
         // 注册 Application 层分拣编排服务
         services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
 
