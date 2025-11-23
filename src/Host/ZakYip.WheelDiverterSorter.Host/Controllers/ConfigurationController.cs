@@ -57,6 +57,7 @@ public class ConfigurationController : ControllerBase
         try
         {
             var config = _systemConfigRepository.Get();
+#pragma warning disable CS0618 // 向后兼容
             return Ok(new ExceptionRoutingPolicy
             {
                 ExceptionChuteId = config.ExceptionChuteId,
@@ -67,6 +68,7 @@ public class ConfigurationController : ControllerBase
                 UseExceptionOnTopologyUnreachable = true,
                 UseExceptionOnTtlFailure = true
             });
+#pragma warning restore CS0618
         }
         catch (Exception ex)
         {
@@ -148,7 +150,9 @@ public class ConfigurationController : ControllerBase
             // 获取当前配置并更新
             var config = _systemConfigRepository.Get();
             config.ExceptionChuteId = policy.ExceptionChuteId;
+#pragma warning disable CS0618 // 向后兼容
             config.ChuteAssignmentTimeoutMs = policy.UpstreamTimeoutMs;
+#pragma warning restore CS0618
             config.RetryCount = policy.RetryOnTimeout ? policy.RetryCount : 0;
             config.RetryDelayMs = policy.RetryDelayMs;
             config.UpdatedAt = _clock.LocalNow;

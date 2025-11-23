@@ -53,12 +53,22 @@ public class SystemConfiguration
     public int TcpDefaultPort { get; set; } = 8888;
 
     /// <summary>
-    /// 格口分配超时时间（毫秒）
+    /// 格口分配超时时间（毫秒）[已弃用]
     /// </summary>
     /// <remarks>
-    /// 等待RuleEngine推送格口分配的最大时间，超时后使用异常格口
+    /// <para><b>已弃用：</b>此字段保留用于向后兼容，实际超时时间现在通过 <see cref="ChuteAssignmentTimeout"/> 动态计算</para>
+    /// <para>新系统会根据线体拓扑配置（入口到第一个摆轮的距离和速度）自动计算超时时间</para>
     /// </remarks>
+    [Obsolete("使用 ChuteAssignmentTimeout 配置进行动态超时计算")]
     public int ChuteAssignmentTimeoutMs { get; set; } = 10000;
+
+    /// <summary>
+    /// 格口分配超时配置
+    /// </summary>
+    /// <remarks>
+    /// 用于配置格口分配等待超时的动态计算参数
+    /// </remarks>
+    public ChuteAssignmentTimeoutOptions ChuteAssignmentTimeout { get; set; } = new();
 
     /// <summary>
     /// 请求超时时间（毫秒）
@@ -239,10 +249,12 @@ public class SystemConfiguration
             return (false, "TCP默认端口必须在1-65535之间");
         }
 
+#pragma warning disable CS0618 // 向后兼容：保留旧字段验证
         if (ChuteAssignmentTimeoutMs < 1000 || ChuteAssignmentTimeoutMs > 60000)
         {
             return (false, "格口分配超时时间必须在1000-60000毫秒之间");
         }
+#pragma warning restore CS0618
 
         if (RequestTimeoutMs < 1000 || RequestTimeoutMs > 60000)
         {
@@ -289,6 +301,7 @@ public class SystemConfiguration
     /// </summary>
     public static SystemConfiguration GetDefault()
     {
+#pragma warning disable CS0618 // 向后兼容：保留旧字段默认值
         return new SystemConfiguration
         {
             ConfigName = "system",
@@ -296,6 +309,7 @@ public class SystemConfiguration
             MqttDefaultPort = 1883,
             TcpDefaultPort = 8888,
             ChuteAssignmentTimeoutMs = 10000,
+            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions(),
             RequestTimeoutMs = 5000,
             RetryCount = 3,
             RetryDelayMs = 1000,
@@ -308,5 +322,6 @@ public class SystemConfiguration
             Version = 1
             // CreatedAt 和 UpdatedAt 由仓储在插入时通过 ISystemClock.LocalNow 设置
         };
+#pragma warning restore CS0618
     }
 }

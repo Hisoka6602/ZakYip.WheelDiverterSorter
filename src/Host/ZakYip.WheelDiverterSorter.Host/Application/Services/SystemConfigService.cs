@@ -171,7 +171,9 @@ public class SystemConfigService : ISystemConfigService
             ExceptionChuteId = request.ExceptionChuteId,
             MqttDefaultPort = request.MqttDefaultPort,
             TcpDefaultPort = request.TcpDefaultPort,
+#pragma warning disable CS0618 // 向后兼容
             ChuteAssignmentTimeoutMs = request.ChuteAssignmentTimeoutMs,
+#pragma warning restore CS0618
             RequestTimeoutMs = request.RequestTimeoutMs,
             RetryCount = request.RetryCount,
             RetryDelayMs = request.RetryDelayMs,

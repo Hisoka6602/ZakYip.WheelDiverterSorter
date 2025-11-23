@@ -61,6 +61,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly PrometheusMetrics? _metrics;
     private readonly IParcelTraceSink? _traceSink;
     private readonly PathHealthChecker? _pathHealthChecker;
+    private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     
     // 包裹路由相关的状态
     private readonly Dictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -98,7 +99,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         CongestionDataCollector? congestionCollector = null,
         PrometheusMetrics? metrics = null,
         IParcelTraceSink? traceSink = null,
-        PathHealthChecker? pathHealthChecker = null)
+        PathHealthChecker? pathHealthChecker = null,
+        IChuteAssignmentTimeoutCalculator? timeoutCalculator = null)
     {
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
@@ -116,6 +118,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _metrics = metrics;
         _traceSink = traceSink;
         _pathHealthChecker = pathHealthChecker;
+        _timeoutCalculator = timeoutCalculator;
         
         _pendingAssignments = new Dictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new Dictionary<long, SwitchingPath>();
@@ -538,7 +541,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return exceptionChuteId;
         }
 
-        // 等待RuleEngine推送格口分配（带超时）
+        // 等待RuleEngine推送格口分配（带动态超时）
         var tcs = new TaskCompletionSource<long>();
         
         lock (_lockObject)
@@ -548,13 +551,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         try
         {
-            var timeoutMs = systemConfig.ChuteAssignmentTimeoutMs;
+            // 计算动态超时时间
+            var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
+            var timeoutMs = (int)(timeoutSeconds * 1000);
+            
             var startTime = _clock.LocalNow;
             using var cts = new CancellationTokenSource(timeoutMs);
             var targetChuteId = await tcs.Task.WaitAsync(cts.Token);
             var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
             
-            _logger.LogInformation("包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}", parcelId, targetChuteId);
+            _logger.LogInformation(
+                "包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}（耗时 {ElapsedMs:F0}ms，超时限制 {TimeoutMs}ms）", 
+                parcelId, 
+                targetChuteId,
+                elapsedMs,
+                timeoutMs);
 
             // PR-10: 记录上游分配事件
             await WriteTraceAsync(new ParcelTraceEventArgs
@@ -564,26 +575,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 OccurredAt = new DateTimeOffset(_clock.UtcNow),
                 Stage = "UpstreamAssigned",
                 Source = "Upstream",
-                Details = $"ChuteId={targetChuteId}, LatencyMs={elapsedMs:F0}, Status=Success"
+                Details = $"ChuteId={targetChuteId}, LatencyMs={elapsedMs:F0}, Status=Success, TimeoutMs={timeoutMs}"
             });
 
             return targetChuteId;
         }
         catch (TimeoutException)
         {
-            _logger.LogWarning(
-                "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将返回异常格口",
-                parcelId,
-                systemConfig.ChuteAssignmentTimeoutMs);
-            return exceptionChuteId;
+            return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Timeout");
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning(
-                "包裹 {ParcelId} 等待格口分配超时（{TimeoutMs}ms），将返回异常格口",
-                parcelId,
-                systemConfig.ChuteAssignmentTimeoutMs);
-            return exceptionChuteId;
+            return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Cancelled");
         }
         finally
         {
@@ -592,6 +595,63 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 _pendingAssignments.Remove(parcelId);
             }
         }
+    }
+
+    /// <summary>
+    /// 计算格口分配超时时间（秒）
+    /// </summary>
+    private decimal CalculateChuteAssignmentTimeout(SystemConfiguration systemConfig)
+    {
+        // 如果有超时计算器，使用动态计算
+        if (_timeoutCalculator != null)
+        {
+            var context = new ChuteAssignmentTimeoutContext(
+                LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
+                SafetyFactor: systemConfig.ChuteAssignmentTimeout?.SafetyFactor ?? 0.9m
+            );
+            
+            return _timeoutCalculator.CalculateTimeoutSeconds(context);
+        }
+        
+        // 降级：使用旧的固定超时配置
+#pragma warning disable CS0618 // 向后兼容
+        return systemConfig.ChuteAssignmentTimeoutMs / 1000m;
+#pragma warning restore CS0618
+    }
+
+    /// <summary>
+    /// 处理路由超时（提取公共逻辑）
+    /// </summary>
+    private async Task<long> HandleRoutingTimeoutAsync(
+        long parcelId, 
+        SystemConfiguration systemConfig, 
+        long exceptionChuteId, 
+        string status)
+    {
+        var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
+        var timeoutMs = (int)(timeoutSeconds * 1000);
+        
+        _logger.LogWarning(
+            "【路由超时兜底】包裹 {ParcelId} 等待格口分配超时（超时限制：{TimeoutMs}ms），已分拣至异常口。" +
+            "异常口ChuteId={ExceptionChuteId}, " +
+            "发生时间={OccurredAt:yyyy-MM-dd HH:mm:ss.fff}",
+            parcelId,
+            timeoutMs,
+            exceptionChuteId,
+            _clock.LocalNow);
+        
+        // PR-10: 记录超时事件
+        await WriteTraceAsync(new ParcelTraceEventArgs
+        {
+            ItemId = parcelId,
+            BarCode = null,
+            OccurredAt = new DateTimeOffset(_clock.UtcNow),
+            Stage = "RoutingTimeout",
+            Source = "Upstream",
+            Details = $"TimeoutMs={timeoutMs}, Status={status}, RoutedToException={exceptionChuteId}"
+        });
+        
+        return exceptionChuteId;
     }
 
     /// <summary>
@@ -1131,6 +1191,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
             {
+                // 正常情况：在超时前收到响应
                 _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
                 
                 // 记录路由绑定时间
@@ -1149,6 +1210,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 
                 tcs.TrySetResult(e.ChuteId);
                 _pendingAssignments.Remove(e.ParcelId);
+            }
+            else
+            {
+                // 迟到的响应：包裹已经超时并被路由到异常口
+                _logger.LogInformation(
+                    "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
+                    "但该包裹已因超时被路由到异常口，不再改变去向。" +
+                    "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}",
+                    e.ParcelId,
+                    e.ChuteId,
+                    _clock.LocalNow);
             }
         }
     }
