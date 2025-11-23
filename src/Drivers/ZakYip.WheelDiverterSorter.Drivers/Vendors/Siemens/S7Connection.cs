@@ -86,7 +86,7 @@ public class S7Connection : IDisposable
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否连接成功</returns>
-    public async Task<bool> EnsureConnectedAsync(CancellationToken cancellationToken = default)
+    public virtual async Task<bool> EnsureConnectedAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
         {
@@ -141,7 +141,7 @@ public class S7Connection : IDisposable
     /// 获取PLC实例
     /// </summary>
     /// <returns>PLC实例，如果未连接则返回null</returns>
-    public Plc? GetPlc()
+    public virtual Plc? GetPlc()
     {
         return _plc;
     }
