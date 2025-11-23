@@ -74,17 +74,17 @@ jobs:
         coverage_percent_int=$(printf "%.0f" "$coverage_percent")
         
         echo "📊 Code coverage: ${coverage_percent_int}%"
-        echo "🎯 Target: 80%"
-        echo "🚪 Minimum threshold: 60%"
+        echo "🎯 Target: 90%"
+        echo "🚪 Minimum threshold: 85%"
         
-        if (( $(echo "$coverage < 0.60" | bc -l) )); then
-          echo "❌ Coverage ${coverage_percent_int}% is below minimum threshold of 60%"
+        if (( $(echo "$coverage < 0.85" | bc -l) )); then
+          echo "❌ Coverage ${coverage_percent_int}% is below minimum threshold of 85%"
           exit 1
-        elif (( $(echo "$coverage < 0.80" | bc -l) )); then
-          echo "⚠️ Coverage ${coverage_percent_int}% meets minimum (60%) but below target (80%)"
+        elif (( $(echo "$coverage < 0.90" | bc -l) )); then
+          echo "⚠️ Coverage ${coverage_percent_int}% meets minimum (85%) but below target (90%)"
           exit 0
         else
-          echo "✅ Coverage ${coverage_percent_int}% meets target threshold of 80%"
+          echo "✅ Coverage ${coverage_percent_int}% meets target threshold of 90%"
           exit 0
         fi
     
