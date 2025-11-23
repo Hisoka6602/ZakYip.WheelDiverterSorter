@@ -149,8 +149,10 @@ public class SortingOrchestratorTests : IDisposable
             .Callback<long, CancellationToken>((pid, ct) =>
             {
                 // 模拟上游异步推送格口分配 - 使用 Task.Run 确保异步执行
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
+                    await Task.Yield(); // Ensure we yield to allow TCS registration
+                    await Task.Yield();
                     var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
@@ -345,8 +347,9 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(true)
             .Callback(() =>
             {
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
+                    await Task.Yield();
                     var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
@@ -402,8 +405,9 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(true)
             .Callback(() =>
             {
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
+                    await Task.Yield();
                     var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
@@ -458,8 +462,9 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(true)
             .Callback(() =>
             {
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
+                    await Task.Yield();
                     var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
@@ -630,8 +635,9 @@ public class SortingOrchestratorTests : IDisposable
                 parcelCreatedBeforeNotification = true;
 
                 // 模拟上游推送格口分配
-                Task.Run(() =>
+                Task.Run(async () =>
                 {
+                    await Task.Yield();
                     var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
