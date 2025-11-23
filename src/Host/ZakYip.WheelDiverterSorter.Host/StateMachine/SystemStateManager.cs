@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
 namespace ZakYip.WheelDiverterSorter.Host.StateMachine;
@@ -12,8 +13,9 @@ namespace ZakYip.WheelDiverterSorter.Host.StateMachine;
 public class SystemStateManager : ISystemStateManager
 {
     private readonly ILogger<SystemStateManager> _logger;
-    private readonly object _lock = new();
+    private readonly object _lock = new(); // 用于状态转换和历史记录的原子性
     private SystemState _currentState;
+    // PR-44: 保持 List 但在锁保护下使用（历史记录需要有序性和大小限制）
     private readonly List<StateTransitionRecord> _transitionHistory = new();
     private const int MaxHistorySize = 100;
     private ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.SystemSelfTestReport? _lastSelfTestReport;
