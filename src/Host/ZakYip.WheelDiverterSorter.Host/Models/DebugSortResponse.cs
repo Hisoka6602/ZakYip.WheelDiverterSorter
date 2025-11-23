@@ -6,7 +6,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 /// 调试接口的响应模型
 /// </summary>
 [SwaggerSchema(Description = "调试分拣接口的响应结果，包含分拣执行的详细信息")]
-public class DebugSortResponse
+public record DebugSortResponse
 {
     /// <summary>
     /// 包裹标识
