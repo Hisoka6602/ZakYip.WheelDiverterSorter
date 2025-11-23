@@ -63,6 +63,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IParcelTraceSink? _traceSink;
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
+    private readonly ISortingExceptionHandler _exceptionHandler;
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -93,6 +94,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISystemConfigurationRepository systemConfigRepository,
         ISystemClock clock,
         ILogger<SortingOrchestrator> logger,
+        ISortingExceptionHandler exceptionHandler,
         IPathFailureHandler? pathFailureHandler = null,
         ISystemRunStateService? stateService = null,
         ICongestionDetector? congestionDetector = null,
@@ -111,6 +113,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _exceptionHandler = exceptionHandler ?? throw new ArgumentNullException(nameof(exceptionHandler));
         _pathFailureHandler = pathFailureHandler;
         _stateService = stateService;
         _congestionDetector = congestionDetector;
@@ -264,24 +267,22 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 如果路径生成失败，尝试生成到异常格口的路径
             if (path == null)
             {
-                _logger.LogWarning(
-                    "无法生成到格口 {TargetChuteId} 的路径，尝试路由到异常格口 {ExceptionChuteId}",
-                    targetChuteId,
-                    exceptionChuteId);
-                
-                path = _pathGenerator.GeneratePath(exceptionChuteId);
+                path = _exceptionHandler.GenerateExceptionPath(
+                    exceptionChuteId, 
+                    0, // 调试模式使用占位符
+                    $"无法生成到格口 {targetChuteId} 的路径");
                 
                 if (path == null)
                 {
-                    _logger.LogError("无法生成到异常格口 {ExceptionChuteId} 的路径，调试分拣失败", exceptionChuteId);
                     stopwatch.Stop();
+                    // Create failure result directly since we can't use exception handler with string parcelId
                     return new SortingResult(
                         IsSuccess: false,
                         ParcelId: parcelId,
                         ActualChuteId: 0,
                         TargetChuteId: targetChuteId,
                         ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "路径生成失败：连异常格口路径都无法生成"
+                        FailureReason: "路径生成失败: 调试分拣，连异常格口路径都无法生成"
                     );
                 }
                 
@@ -823,19 +824,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 exceptionChuteId,
                 localTime);
 
-            // 可选：记录指标计数（如果需要监控）
-            // _metrics?.RecordRoutingTopologyMismatch();
-
-            // 生成到异常格口的路径
-            path = _pathGenerator.GeneratePath(exceptionChuteId);
+            // 使用统一的异常处理器生成到异常格口的路径
+            path = _exceptionHandler.GenerateExceptionPath(
+                exceptionChuteId, 
+                parcelId, 
+                $"路由返回的格口 {targetChuteId} 在拓扑中不存在");
 
             if (path == null)
             {
-                _logger.LogError(
-                    "【严重错误】包裹 {ParcelId} 连异常格口 {ExceptionChuteId} 的路径都无法生成，分拣失败。" +
-                    "请检查异常格口配置是否正确。",
-                    parcelId,
-                    exceptionChuteId);
                 return (null, exceptionChuteId, true);
             }
 
@@ -905,8 +901,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 记录节点降级指标
             _metrics?.RecordOverloadParcel("NodeDegraded");
 
-            // 生成到异常格口的路径
-            var alternativePath = _pathGenerator.GeneratePath(exceptionChuteId);
+            // 使用统一的异常处理器生成到异常格口的路径
+            var alternativePath = _exceptionHandler.GenerateExceptionPath(
+                exceptionChuteId, 
+                parcelId, 
+                $"路径经过不健康节点: {unhealthyNodeList}");
+            
             return (false, alternativePath);
         }
 
@@ -977,8 +977,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 记录路由超载指标
             _metrics?.RecordOverloadParcel("RouteOverload");
 
-            // 生成到异常格口的路径
-            var alternativePath = _pathGenerator.GeneratePath(exceptionChuteId);
+            // 使用统一的异常处理器生成到异常格口的路径
+            var alternativePath = _exceptionHandler.GenerateExceptionPath(
+                exceptionChuteId, 
+                parcelId, 
+                $"路径规划阶段超载: 需要{totalRouteTimeMs:F0}ms，剩余{remainingTtlMs:F0}ms");
+            
             return (true, alternativePath);
         }
 
