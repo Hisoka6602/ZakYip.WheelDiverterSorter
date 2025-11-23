@@ -7,7 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 /// 调试接口的请求模型
 /// </summary>
 [SwaggerSchema(Description = "调试分拣接口的请求参数，用于测试包裹分拣功能")]
-public class DebugSortRequest
+public record DebugSortRequest
 {
     /// <summary>
     /// 包裹标识

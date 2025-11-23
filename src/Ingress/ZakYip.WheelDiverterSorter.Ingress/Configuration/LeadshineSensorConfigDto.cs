@@ -10,25 +10,25 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Configuration;
 /// <summary>
 /// 雷赛传感器配置DTO
 /// </summary>
-public class LeadshineSensorConfigDto {
-
+public record LeadshineSensorConfigDto
+{
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public required string SensorId { get; set; }
+    public required string SensorId { get; init; }
 
     /// <summary>
     /// 传感器类型
     /// </summary>
-    public SensorType Type { get; set; }
+    public required SensorType Type { get; init; }
 
     /// <summary>
     /// 输入位索引
     /// </summary>
-    public int InputBit { get; set; }
+    public required int InputBit { get; init; }
 
     /// <summary>
     /// 是否启用
     /// </summary>
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get; init; } = true;
 }
