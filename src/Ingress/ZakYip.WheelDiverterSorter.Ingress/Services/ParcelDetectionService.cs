@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
@@ -17,10 +18,11 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly ILogger<ParcelDetectionService>? _logger;
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
-    private readonly Dictionary<string, DateTimeOffset> _lastTriggerTimes = new();
-    private readonly Queue<long> _recentParcelIds = new();
-    private readonly HashSet<long> _parcelIdSet = new();
-    private readonly object _lockObject = new();
+    // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastTriggerTimes = new();
+    // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
+    private readonly ConcurrentQueue<long> _recentParcelIds = new();
+    private readonly ConcurrentDictionary<long, byte> _parcelIdSet = new(); // 使用 byte 作为 dummy value
     private bool _isRunning;
 
     /// <summary>
@@ -125,21 +127,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             return;
         }
 
-        lock (_lockObject)
+        // PR-44: 不再需要锁，使用 ConcurrentDictionary 和 ConcurrentQueue
+        var (isDuplicate, timeSinceLastTriggerMs) = CheckForDuplicateTrigger(sensorEvent);
+        UpdateLastTriggerTime(sensorEvent);
+
+        var parcelId = GenerateUniqueParcelId(sensorEvent);
+        AddParcelIdToHistory(parcelId);
+
+        if (isDuplicate)
         {
-            var (isDuplicate, timeSinceLastTriggerMs) = CheckForDuplicateTrigger(sensorEvent);
-            UpdateLastTriggerTime(sensorEvent);
-
-            var parcelId = GenerateUniqueParcelId(sensorEvent);
-            AddParcelIdToHistory(parcelId);
-
-            if (isDuplicate)
-            {
-                RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
-            }
-
-            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
+            RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
         }
+
+        RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
     }
 
     /// <summary>
@@ -240,8 +240,8 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             parcelId = sensorEvent.TriggerTime.ToUnixTimeMilliseconds();
             attempts++;
 
-            // 检查是否已存在于历史记录中
-            if (!_parcelIdSet.Contains(parcelId))
+            // PR-44: 检查是否已存在于历史记录中 (ConcurrentDictionary.ContainsKey 是线程安全的)
+            if (!_parcelIdSet.ContainsKey(parcelId))
             {
                 break;
             }
@@ -266,14 +266,17 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="parcelId">包裹ID</param>
     private void AddParcelIdToHistory(long parcelId)
     {
-        _parcelIdSet.Add(parcelId);
+        // PR-44: ConcurrentDictionary.TryAdd 和 ConcurrentQueue.Enqueue 是线程安全的
+        _parcelIdSet.TryAdd(parcelId, 0); // 0 是 dummy value
         _recentParcelIds.Enqueue(parcelId);
 
         // 如果超过最大历史记录数量，移除最旧的记录
         while (_recentParcelIds.Count > _options.ParcelIdHistorySize)
         {
-            var oldestId = _recentParcelIds.Dequeue();
-            _parcelIdSet.Remove(oldestId);
+            if (_recentParcelIds.TryDequeue(out var oldestId))
+            {
+                _parcelIdSet.TryRemove(oldestId, out _);
+            }
         }
     }
 

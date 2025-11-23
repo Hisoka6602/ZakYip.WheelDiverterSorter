@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication;
@@ -63,11 +64,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     
-    // 包裹路由相关的状态
-    private readonly Dictionary<long, TaskCompletionSource<long>> _pendingAssignments;
-    private readonly Dictionary<long, SwitchingPath> _parcelPaths;
-    private readonly Dictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
-    private readonly object _lockObject = new object();
+    // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
+    private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
+    private readonly ConcurrentDictionary<long, SwitchingPath> _parcelPaths;
+    private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
+    private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
     private bool _isConnected;
 
@@ -120,9 +121,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pathHealthChecker = pathHealthChecker;
         _timeoutCalculator = timeoutCalculator;
         
-        _pendingAssignments = new Dictionary<long, TaskCompletionSource<long>>();
-        _parcelPaths = new Dictionary<long, SwitchingPath>();
-        _createdParcels = new Dictionary<long, ParcelCreationRecord>();
+        _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
+        _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
+        _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
 
         // 订阅包裹检测事件
         _parcelDetectionService.ParcelDetected += OnParcelDetected;
@@ -351,14 +352,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         var createdAt = new DateTimeOffset(_clock.UtcNow);
         
-        lock (_lockObject)
+        // PR-44: ConcurrentDictionary 是线程安全的，不需要锁
+        _createdParcels[parcelId] = new ParcelCreationRecord
         {
-            _createdParcels[parcelId] = new ParcelCreationRecord
-            {
-                ParcelId = parcelId,
-                CreatedAt = createdAt
-            };
-        }
+            ParcelId = parcelId,
+            CreatedAt = createdAt
+        };
 
         _logger.LogTrace(
             "[PR-42 Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
@@ -503,27 +502,23 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         var exceptionChuteId = systemConfig.ExceptionChuteId;
 
         // PR-42: Invariant 1 - 上游请求必须引用已存在的本地包裹
-        lock (_lockObject)
+        // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
+        if (!_createdParcels.ContainsKey(parcelId))
         {
-            if (!_createdParcels.ContainsKey(parcelId))
-            {
-                _logger.LogError(
-                    "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游请求。" +
-                    "请求已阻止，不发送到上游。包裹将被路由到异常格口。",
-                    parcelId);
-                return exceptionChuteId;
-            }
+            _logger.LogError(
+                "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游请求。" +
+                "请求已阻止，不发送到上游。包裹将被路由到异常格口。",
+                parcelId);
+            return exceptionChuteId;
         }
 
         // 发送上游请求
         var upstreamRequestSentAt = new DateTimeOffset(_clock.UtcNow);
         
-        lock (_lockObject)
+        // PR-44: 使用 TryGetValue 是线程安全的
+        if (_createdParcels.TryGetValue(parcelId, out var parcel))
         {
-            if (_createdParcels.TryGetValue(parcelId, out var parcel))
-            {
-                parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
-            }
+            parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
         }
         
         _logger.LogTrace(
@@ -544,10 +539,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 等待RuleEngine推送格口分配（带动态超时）
         var tcs = new TaskCompletionSource<long>();
         
-        lock (_lockObject)
-        {
-            _pendingAssignments[parcelId] = tcs;
-        }
+        // PR-44: ConcurrentDictionary 索引器赋值是线程安全的
+        _pendingAssignments[parcelId] = tcs;
 
         try
         {
@@ -590,10 +583,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         finally
         {
-            lock (_lockObject)
-            {
-                _pendingAssignments.Remove(parcelId);
-            }
+            // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
+            _pendingAssignments.TryRemove(parcelId, out _);
         }
     }
 
@@ -870,10 +861,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         });
 
         // 记录路径到字典，用于失败处理
-        lock (_lockObject)
-        {
-            _parcelPaths[parcelId] = path;
-        }
+        // PR-44: ConcurrentDictionary 索引器赋值是线程安全的
+        _parcelPaths[parcelId] = path;
 
         return (path, targetChuteId, false);
     }
@@ -1092,10 +1081,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, result.IsSuccess);
 
         // 清理路径记录
-        lock (_lockObject)
-        {
-            _parcelPaths.Remove(parcelId);
-        }
+        // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
+        _parcelPaths.TryRemove(parcelId, out _);
 
         return Task.CompletedTask;
     }
@@ -1105,12 +1092,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private void CleanupParcelRecord(long parcelId)
     {
-        lock (_lockObject)
-        {
-            _createdParcels.Remove(parcelId);
-            _parcelPaths.Remove(parcelId);
-            _pendingAssignments.Remove(parcelId);
-        }
+        // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
+        _createdParcels.TryRemove(parcelId, out _);
+        _parcelPaths.TryRemove(parcelId, out _);
+        _pendingAssignments.TryRemove(parcelId, out _);
     }
 
     #endregion
@@ -1173,55 +1158,54 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentNotificationEventArgs e)
     {
-        lock (_lockObject)
+        // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
+        // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
+        if (!_createdParcels.ContainsKey(e.ParcelId))
         {
-            // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
-            if (!_createdParcels.ContainsKey(e.ParcelId))
-            {
-                _logger.LogError(
-                    "[PR-42 Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
-                    "本地不存在此包裹实体。响应已丢弃，不创建幽灵包裹。",
-                    e.ParcelId,
-                    e.ChuteId);
-                return;
-            }
+            _logger.LogError(
+                "[PR-42 Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
+                "本地不存在此包裹实体。响应已丢弃，不创建幽灵包裹。",
+                e.ParcelId,
+                e.ChuteId);
+            return;
+        }
 
-            // 记录上游响应接收时间
-            _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.UtcNow);
+        // 记录上游响应接收时间
+        _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.UtcNow);
+        
+        if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
+        {
+            // 正常情况：在超时前收到响应
+            _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
             
-            if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
-            {
-                // 正常情况：在超时前收到响应
-                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
-                
-                // 记录路由绑定时间
-                _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.UtcNow);
-                
-                // PR-42: 记录路由绑定完成的 Trace 日志
-                _logger.LogTrace(
-                    "[PR-42 Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
-                    "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
-                    e.ParcelId,
-                    e.ChuteId,
-                    _createdParcels[e.ParcelId].CreatedAt,
-                    _createdParcels[e.ParcelId].UpstreamRequestSentAt,
-                    _createdParcels[e.ParcelId].UpstreamReplyReceivedAt,
-                    _createdParcels[e.ParcelId].RouteBoundAt);
-                
-                tcs.TrySetResult(e.ChuteId);
-                _pendingAssignments.Remove(e.ParcelId);
-            }
-            else
-            {
-                // 迟到的响应：包裹已经超时并被路由到异常口
-                _logger.LogInformation(
-                    "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
-                    "但该包裹已因超时被路由到异常口，不再改变去向。" +
-                    "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}",
-                    e.ParcelId,
-                    e.ChuteId,
-                    _clock.LocalNow);
-            }
+            // 记录路由绑定时间
+            _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.UtcNow);
+            
+            // PR-42: 记录路由绑定完成的 Trace 日志
+            _logger.LogTrace(
+                "[PR-42 Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
+                e.ParcelId,
+                e.ChuteId,
+                _createdParcels[e.ParcelId].CreatedAt,
+                _createdParcels[e.ParcelId].UpstreamRequestSentAt,
+                _createdParcels[e.ParcelId].UpstreamReplyReceivedAt,
+                _createdParcels[e.ParcelId].RouteBoundAt);
+            
+            tcs.TrySetResult(e.ChuteId);
+            // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
+            _pendingAssignments.TryRemove(e.ParcelId, out _);
+        }
+        else
+        {
+            // 迟到的响应：包裹已经超时并被路由到异常口
+            _logger.LogInformation(
+                "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
+                "但该包裹已因超时被路由到异常口，不再改变去向。" +
+                "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}",
+                e.ParcelId,
+                e.ChuteId,
+                _clock.LocalNow);
         }
     }
 
