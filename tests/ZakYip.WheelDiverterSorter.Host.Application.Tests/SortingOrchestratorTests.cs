@@ -78,16 +78,11 @@ public class SortingOrchestratorTests : IDisposable
 
         _mockConfigRepository.Setup(r => r.Get()).Returns(_defaultConfig);
 
-        // Setup mock exception handler - default behavior returns exception paths
+        // Default mock setup for exception handler - returns null by default
         // Individual tests can override this for specific scenarios
         _mockExceptionHandler
             .Setup(h => h.GenerateExceptionPath(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>()))
-            .Returns<long, long, string>((exceptionChuteId, parcelId, reason) =>
-            {
-                // Check if path generator can actually generate a path for this chute
-                var path = _mockPathGenerator.Object.GeneratePath(exceptionChuteId);
-                return path;  // Will be null if mock is set up to return null for this chute
-            });
+            .Returns((SwitchingPath?)null);
 
         _mockExceptionHandler
             .Setup(h => h.CreatePathGenerationFailureResult(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<long>(), It.IsAny<string>()))
@@ -364,6 +359,12 @@ public class SortingOrchestratorTests : IDisposable
             GeneratedAt = _testTime,
             FallbackChuteId = 99
         };
+        
+        // Setup exception handler to return the exception path
+        _mockExceptionHandler
+            .Setup(h => h.GenerateExceptionPath(exceptionChuteId, parcelId, It.IsAny<string>()))
+            .Returns(exceptionPath);
+        
         _mockPathGenerator.Setup(g => g.GeneratePath(exceptionChuteId)).Returns(exceptionPath);
         _mockPathExecutor.Setup(e => e.ExecuteAsync(exceptionPath, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = exceptionChuteId });
@@ -536,6 +537,11 @@ public class SortingOrchestratorTests : IDisposable
             GeneratedAt = _testTime,
             FallbackChuteId = 99
         };
+        
+        // Setup exception handler to return exception path
+        _mockExceptionHandler
+            .Setup(h => h.GenerateExceptionPath(exceptionChuteId, 0, It.IsAny<string>()))
+            .Returns(exceptionPath);
         
         _mockPathGenerator.Setup(g => g.GeneratePath(exceptionChuteId)).Returns(exceptionPath);
         _mockPathExecutor.Setup(e => e.ExecuteAsync(exceptionPath, It.IsAny<CancellationToken>()))
