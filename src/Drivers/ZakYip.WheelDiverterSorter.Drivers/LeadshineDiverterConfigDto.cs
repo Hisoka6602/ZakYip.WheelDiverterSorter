@@ -3,40 +3,40 @@ namespace ZakYip.WheelDiverterSorter.Drivers;
 /// <summary>
 /// 摆轮配置DTO
 /// </summary>
-public class LeadshineDiverterConfigDto
+public record LeadshineDiverterConfigDto
 {
     /// <summary>
     /// 摆轮ID
     /// </summary>
-    public int DiverterId { get; set; }
+    public required int DiverterId { get; init; }
 
     /// <summary>
     /// 摆轮名称
     /// </summary>
-    public required string DiverterName { get; set; }
+    public required string DiverterName { get; init; }
 
     /// <summary>
     /// 连接输送线的长度（mm）
     /// </summary>
-    public double ConnectedConveyorLengthMm { get; set; }
+    public required double ConnectedConveyorLengthMm { get; init; }
 
     /// <summary>
     /// 连接输送线的速度（mm/s）
     /// </summary>
-    public double ConnectedConveyorSpeedMmPerSec { get; set; }
+    public required double ConnectedConveyorSpeedMmPerSec { get; init; }
 
     /// <summary>
     /// 摆轮速度（mm/s）
     /// </summary>
-    public double DiverterSpeedMmPerSec { get; set; }
+    public required double DiverterSpeedMmPerSec { get; init; }
 
     /// <summary>
     /// 输出起始位
     /// </summary>
-    public required int OutputStartBit { get; set; }
+    public required int OutputStartBit { get; init; }
 
     /// <summary>
     /// 反馈输入位（可选）
     /// </summary>
-    public int? FeedbackInputBit { get; set; }
+    public int? FeedbackInputBit { get; init; }
 }

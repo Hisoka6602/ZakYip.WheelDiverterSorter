@@ -3,7 +3,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Communication;
 /// <summary>
 /// 连接测试响应模型 - Connection Test Response Model
 /// </summary>
-public class ConnectionTestResponse
+public record ConnectionTestResponse
 {
     /// <summary>
     /// 测试是否成功 - Whether the test succeeded
