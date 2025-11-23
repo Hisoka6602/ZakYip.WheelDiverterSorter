@@ -209,8 +209,8 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
     {
         if (disposing)
         {
-            DisconnectAsync().GetAwaiter().GetResult();
-            _connection?.DisposeAsync().GetAwaiter().GetResult();
+            DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            _connection?.DisposeAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         base.Dispose(disposing);

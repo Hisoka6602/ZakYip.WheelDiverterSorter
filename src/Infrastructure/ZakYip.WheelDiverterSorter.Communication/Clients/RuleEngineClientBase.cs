@@ -173,7 +173,7 @@ public abstract class RuleEngineClientBase : IRuleEngineClient
     {
         if (disposing)
         {
-            DisconnectAsync().GetAwaiter().GetResult();
+            DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 

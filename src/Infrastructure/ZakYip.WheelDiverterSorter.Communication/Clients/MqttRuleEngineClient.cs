@@ -238,7 +238,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     {
         if (disposing)
         {
-            DisconnectAsync().GetAwaiter().GetResult();
+            DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             _mqttClient?.Dispose();
         }
 
