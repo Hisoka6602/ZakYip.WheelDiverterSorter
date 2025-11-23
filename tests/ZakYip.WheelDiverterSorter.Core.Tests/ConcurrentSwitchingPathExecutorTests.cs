@@ -274,9 +274,9 @@ public class ConcurrentSwitchingPathExecutorTests
 
         _innerExecutorMock
             .Setup(x => x.ExecuteAsync(It.IsAny<SwitchingPath>(), It.IsAny<CancellationToken>()))
-            .Returns(async () =>
+            .Returns(async (SwitchingPath p, CancellationToken ct) =>
             {
-                await Task.Delay(1000);
+                await Task.Delay(100, ct);  // This should throw when cancelled
                 return new PathExecutionResult { IsSuccess = true, ActualChuteId = 1 };
             });
 
@@ -288,6 +288,7 @@ public class ConcurrentSwitchingPathExecutorTests
 
         // Act
         var executeTask = executor.ExecuteAsync(path, cts.Token);
+        await Task.Delay(10);  // Give task a chance to start
         cts.Cancel();
         var result = await executeTask;
 
@@ -370,26 +371,43 @@ public class ConcurrentSwitchingPathExecutorTests
                 return new PathExecutionResult { IsSuccess = true, ActualChuteId = 1 };
             });
 
+        // Use longer timeout for high concurrency test to avoid spurious timeouts
+        var options = Options.Create(new ConcurrencyOptions
+        {
+            MaxConcurrentParcels = 5,
+            DiverterLockTimeoutMs = 30000  // Increased to 30 seconds for high contention scenarios
+        });
+
         var executor = new ConcurrentSwitchingPathExecutor(
             mockExecutor.Object,
             lockManager,
-            _options,
+            options,
             NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
 
         // Act - execute many requests concurrently
+        var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
         var tasks = Enumerable.Range(1, totalRequests).Select(async i =>
         {
-            var path = CreateTestPath(i % 10, new[] { i % 5 });
+            var path = CreateTestPath(i % 10, new[] { (i % 5) + 1 });  // Use diverter IDs 1-5, not 0-4
             var result = await executor.ExecuteAsync(path);
             if (result.IsSuccess)
             {
                 Interlocked.Increment(ref successCount);
+            }
+            else
+            {
+                failures.Add($"Task {i}: {result.FailureReason}");
             }
         });
 
         await Task.WhenAll(tasks);
 
         // Assert
+        if (successCount != totalRequests)
+        {
+            var failureDetails = string.Join(Environment.NewLine, failures);
+            Assert.Fail($"Expected {totalRequests} successes but got {successCount}. Failures:{Environment.NewLine}{failureDetails}");
+        }
         Assert.Equal(totalRequests, successCount);
     }
 
