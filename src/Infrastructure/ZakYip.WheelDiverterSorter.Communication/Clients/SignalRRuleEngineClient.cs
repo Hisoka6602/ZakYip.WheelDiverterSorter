@@ -14,21 +14,14 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// <remarks>
 /// 推荐生产环境使用，提供实时双向通信和自动重连机制
 /// </remarks>
-public class SignalRRuleEngineClient : IRuleEngineClient
+public class SignalRRuleEngineClient : RuleEngineClientBase
 {
-    private readonly ILogger<SignalRRuleEngineClient> _logger;
-    private readonly RuleEngineConnectionOptions _options;
     private HubConnection? _connection;
 
     /// <summary>
     /// 客户端是否已连接
     /// </summary>
-    public bool IsConnected => _connection?.State == HubConnectionState.Connected;
-
-    /// <summary>
-    /// 格口分配通知事件
-    /// </summary>
-    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
+    public override bool IsConnected => _connection?.State == HubConnectionState.Connected;
 
     /// <summary>
     /// 构造函数
@@ -37,12 +30,9 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     /// <param name="options">连接配置</param>
     public SignalRRuleEngineClient(
         ILogger<SignalRRuleEngineClient> logger,
-        RuleEngineConnectionOptions options)
+        RuleEngineConnectionOptions options) : base(logger, options)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-
-        if (string.IsNullOrWhiteSpace(_options.SignalRHub))
+        if (string.IsNullOrWhiteSpace(options.SignalRHub))
         {
             throw new ArgumentException("SignalR Hub URL不能为空", nameof(options));
         }
@@ -56,19 +46,19 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     private void InitializeConnection()
     {
         var builder = new HubConnectionBuilder()
-            .WithUrl(_options.SignalRHub!)
+            .WithUrl(Options.SignalRHub!)
             .ConfigureLogging(logging =>
             {
                 logging.AddFilter("Microsoft.AspNetCore.SignalR", LogLevel.Information);
             });
 
         // 配置自动重连
-        if (_options.EnableAutoReconnect)
+        if (Options.EnableAutoReconnect)
         {
-            if (_options.SignalR.ReconnectIntervals != null && _options.SignalR.ReconnectIntervals.Length > 0)
+            if (Options.SignalR.ReconnectIntervals != null && Options.SignalR.ReconnectIntervals.Length > 0)
             {
                 // 使用自定义重连间隔
-                var delays = _options.SignalR.ReconnectIntervals.Select(i => TimeSpan.FromMilliseconds(i)).ToArray();
+                var delays = Options.SignalR.ReconnectIntervals.Select(i => TimeSpan.FromMilliseconds(i)).ToArray();
                 builder.WithAutomaticReconnect(delays);
             }
             else
@@ -81,34 +71,34 @@ public class SignalRRuleEngineClient : IRuleEngineClient
         _connection = builder.Build();
 
         // 配置连接超时
-        _connection.HandshakeTimeout = TimeSpan.FromSeconds(_options.SignalR.HandshakeTimeout);
-        _connection.KeepAliveInterval = TimeSpan.FromSeconds(_options.SignalR.KeepAliveInterval);
-        _connection.ServerTimeout = TimeSpan.FromSeconds(_options.SignalR.ServerTimeout);
+        _connection.HandshakeTimeout = TimeSpan.FromSeconds(Options.SignalR.HandshakeTimeout);
+        _connection.KeepAliveInterval = TimeSpan.FromSeconds(Options.SignalR.KeepAliveInterval);
+        _connection.ServerTimeout = TimeSpan.FromSeconds(Options.SignalR.ServerTimeout);
 
         // 注册格口分配推送的处理程序
         _connection.On<ChuteAssignmentNotificationEventArgs>(
             "ReceiveChuteAssignment",
-            OnChuteAssignmentReceived);
+            HandleChuteAssignmentReceived);
 
         _connection.Closed += async (error) =>
         {
-            _logger.LogWarning(error, "SignalR连接已关闭");
-            if (_options.EnableAutoReconnect)
+            Logger.LogWarning(error, "SignalR连接已关闭");
+            if (Options.EnableAutoReconnect)
             {
-                await Task.Delay(_options.RetryDelayMs);
+                await Task.Delay(Options.RetryDelayMs);
                 await ConnectAsync();
             }
         };
 
         _connection.Reconnecting += (error) =>
         {
-            _logger.LogWarning(error, "SignalR正在重新连接...");
+            Logger.LogWarning(error, "SignalR正在重新连接...");
             return Task.CompletedTask;
         };
 
         _connection.Reconnected += (connectionId) =>
         {
-            _logger.LogInformation("SignalR重新连接成功，连接ID: {ConnectionId}", connectionId);
+            Logger.LogInformation("SignalR重新连接成功，连接ID: {ConnectionId}", connectionId);
             return Task.CompletedTask;
         };
     }
@@ -116,20 +106,20 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     /// <summary>
     /// 处理接收到的格口分配通知
     /// </summary>
-    private void OnChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
+    private void HandleChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
     {
-        _logger.LogInformation(
+        Logger.LogInformation(
             "收到包裹 {ParcelId} 的格口分配: {ChuteId}",
             notification.ParcelId,
             notification.ChuteId);
 
-        ChuteAssignmentReceived?.Invoke(this, notification);
+        OnChuteAssignmentReceived(notification);
     }
 
     /// <summary>
     /// 连接到RuleEngine
     /// </summary>
-    public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    public override async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
         {
@@ -138,19 +128,19 @@ public class SignalRRuleEngineClient : IRuleEngineClient
 
         try
         {
-            _logger.LogInformation("正在连接到RuleEngine SignalR Hub: {HubUrl}...", _options.SignalRHub);
+            Logger.LogInformation("正在连接到RuleEngine SignalR Hub: {HubUrl}...", Options.SignalRHub);
             
             await _connection!.StartAsync(cancellationToken);
             
-            _logger.LogInformation(
+            Logger.LogInformation(
                 "成功连接到RuleEngine SignalR Hub (Timeout: {Timeout}s, KeepAlive: {KeepAlive}s)",
-                _options.SignalR.ServerTimeout,
-                _options.SignalR.KeepAliveInterval);
+                Options.SignalR.ServerTimeout,
+                Options.SignalR.KeepAliveInterval);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "连接到RuleEngine SignalR Hub失败");
+            Logger.LogError(ex, "连接到RuleEngine SignalR Hub失败");
             return false;
         }
     }
@@ -158,48 +148,41 @@ public class SignalRRuleEngineClient : IRuleEngineClient
     /// <summary>
     /// 断开与RuleEngine的连接
     /// </summary>
-    public async Task DisconnectAsync()
+    public override async Task DisconnectAsync()
     {
         try
         {
             if (_connection != null)
             {
                 await _connection.StopAsync();
-                _logger.LogInformation("已断开与RuleEngine SignalR Hub的连接");
+                Logger.LogInformation("已断开与RuleEngine SignalR Hub的连接");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "断开连接时发生异常");
+            Logger.LogWarning(ex, "断开连接时发生异常");
         }
     }
 
     /// <summary>
     /// 通知RuleEngine包裹已到达
     /// </summary>
-    public async Task<bool> NotifyParcelDetectedAsync(
+    public override async Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
     {
-        if (parcelId <= 0)
-        {
-            throw new ArgumentException("包裹ID必须为正数", nameof(parcelId));
-        }
+        ValidateParcelId(parcelId);
 
         // 尝试连接（如果未连接）
-        if (!IsConnected)
+        if (!await EnsureConnectedAsync(cancellationToken))
         {
-            var connected = await ConnectAsync(cancellationToken);
-            if (!connected)
-            {
-                _logger.LogError("无法连接到RuleEngine SignalR Hub，无法发送包裹检测通知");
-                return false;
-            }
+            Logger.LogError("无法连接到RuleEngine SignalR Hub，无法发送包裹检测通知");
+            return false;
         }
 
         try
         {
-            _logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
+            Logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
 
             var notification = new ParcelDetectionNotification { ParcelId = parcelId };
             
@@ -209,22 +192,27 @@ public class SignalRRuleEngineClient : IRuleEngineClient
                 notification,
                 cancellationToken);
 
-            _logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+            Logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
+            Logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
             return false;
         }
     }
 
     /// <summary>
-    /// 释放资源
+    /// 释放托管和非托管资源
     /// </summary>
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        DisconnectAsync().GetAwaiter().GetResult();
-        _connection?.DisposeAsync().GetAwaiter().GetResult();
+        if (disposing)
+        {
+            DisconnectAsync().GetAwaiter().GetResult();
+            _connection?.DisposeAsync().GetAwaiter().GetResult();
+        }
+
+        base.Dispose(disposing);
     }
 }

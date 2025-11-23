@@ -17,15 +17,13 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// <remarks>
 /// 推荐生产环境使用，提供轻量级IoT消息协议，支持QoS保证
 /// </remarks>
-public class MqttRuleEngineClient : IRuleEngineClient
+public class MqttRuleEngineClient : RuleEngineClientBase
 {
     /// <summary>
     /// MQTT协议默认端口
     /// </summary>
     private const int MqttDefaultPort = 1883;
 
-    private readonly ILogger<MqttRuleEngineClient> _logger;
-    private readonly RuleEngineConnectionOptions _options;
     private IMqttClient? _mqttClient;
     private readonly string _detectionTopic;
     private readonly string _assignmentTopic;
@@ -33,12 +31,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
     /// <summary>
     /// 客户端是否已连接
     /// </summary>
-    public bool IsConnected => _mqttClient?.IsConnected == true;
-
-    /// <summary>
-    /// 格口分配通知事件
-    /// </summary>
-    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
+    public override bool IsConnected => _mqttClient?.IsConnected == true;
 
     /// <summary>
     /// 构造函数
@@ -47,18 +40,15 @@ public class MqttRuleEngineClient : IRuleEngineClient
     /// <param name="options">连接配置</param>
     public MqttRuleEngineClient(
         ILogger<MqttRuleEngineClient> logger,
-        RuleEngineConnectionOptions options)
+        RuleEngineConnectionOptions options) : base(logger, options)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-
-        if (string.IsNullOrWhiteSpace(_options.MqttBroker))
+        if (string.IsNullOrWhiteSpace(options.MqttBroker))
         {
             throw new ArgumentException("MQTT Broker地址不能为空", nameof(options));
         }
 
-        _detectionTopic = $"{_options.MqttTopic}/detection";
-        _assignmentTopic = $"{_options.MqttTopic}/assignment";
+        _detectionTopic = $"{options.MqttTopic}/detection";
+        _assignmentTopic = $"{options.MqttTopic}/assignment";
 
         InitializeMqttClient();
     }
@@ -73,10 +63,10 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
         _mqttClient.DisconnectedAsync += async args =>
         {
-            _logger.LogWarning("MQTT连接已断开: {Reason}", args.Reason);
-            if (_options.EnableAutoReconnect)
+            Logger.LogWarning("MQTT连接已断开: {Reason}", args.Reason);
+            if (Options.EnableAutoReconnect)
             {
-                await Task.Delay(_options.RetryDelayMs);
+                await Task.Delay(Options.RetryDelayMs);
                 await ConnectAsync();
             }
         };
@@ -87,7 +77,7 @@ public class MqttRuleEngineClient : IRuleEngineClient
     /// <summary>
     /// 连接到RuleEngine
     /// </summary>
-    public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    public override async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
         {
@@ -96,25 +86,20 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
         try
         {
-            var uri = new Uri(_options.MqttBroker!);
-            _logger.LogInformation("正在连接到MQTT Broker: {Broker}...", _options.MqttBroker);
+            var uri = new Uri(Options.MqttBroker!);
+            Logger.LogInformation("正在连接到MQTT Broker: {Broker}...", Options.MqttBroker);
 
             var mqttOptions = new MqttClientOptionsBuilder()
                 .WithTcpServer(uri.Host, uri.Port > 0 ? uri.Port : MqttDefaultPort)
-                .WithClientId($"{_options.Mqtt.ClientIdPrefix}_{Guid.NewGuid():N}")
-                .WithCleanSession(_options.Mqtt.CleanSession)
-                .WithSessionExpiryInterval((uint)_options.Mqtt.SessionExpiryInterval)
+                .WithClientId($"{Options.Mqtt.ClientIdPrefix}_{Guid.NewGuid():N}")
+                .WithCleanSession(Options.Mqtt.CleanSession)
+                .WithSessionExpiryInterval((uint)Options.Mqtt.SessionExpiryInterval)
                 .Build();
 
             await _mqttClient!.ConnectAsync(mqttOptions, cancellationToken);
 
             // 订阅格口分配主题
-            var qosLevel = _options.Mqtt.QualityOfServiceLevel switch
-            {
-                0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
-                2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
-                _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
-            };
+            var qosLevel = GetQosLevel();
 
             var subscribeOptions = new MqttClientSubscribeOptionsBuilder()
                 .WithTopicFilter(f => f.WithTopic(_assignmentTopic).WithQualityOfServiceLevel(qosLevel))
@@ -122,16 +107,16 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
             await _mqttClient.SubscribeAsync(subscribeOptions, cancellationToken);
 
-            _logger.LogInformation(
+            Logger.LogInformation(
                 "成功连接到MQTT Broker并订阅主题: {Topic} (QoS: {Qos}, CleanSession: {Clean})",
                 _assignmentTopic,
-                _options.Mqtt.QualityOfServiceLevel,
-                _options.Mqtt.CleanSession);
+                Options.Mqtt.QualityOfServiceLevel,
+                Options.Mqtt.CleanSession);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "连接到MQTT Broker失败");
+            Logger.LogError(ex, "连接到MQTT Broker失败");
             return false;
         }
     }
@@ -139,81 +124,82 @@ public class MqttRuleEngineClient : IRuleEngineClient
     /// <summary>
     /// 断开与RuleEngine的连接
     /// </summary>
-    public async Task DisconnectAsync()
+    public override async Task DisconnectAsync()
     {
         try
         {
             if (_mqttClient != null && IsConnected)
             {
                 await _mqttClient.DisconnectAsync();
-                _logger.LogInformation("已断开与MQTT Broker的连接");
+                Logger.LogInformation("已断开与MQTT Broker的连接");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "断开连接时发生异常");
+            Logger.LogWarning(ex, "断开连接时发生异常");
         }
     }
 
     /// <summary>
     /// 通知RuleEngine包裹已到达
     /// </summary>
-    public async Task<bool> NotifyParcelDetectedAsync(
+    public override async Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
     {
-        if (parcelId <= 0)
-        {
-            throw new ArgumentException("包裹ID必须为正数", nameof(parcelId));
-        }
+        ValidateParcelId(parcelId);
 
         // 尝试连接（如果未连接）
-        if (!IsConnected)
+        if (!await EnsureConnectedAsync(cancellationToken))
         {
-            var connected = await ConnectAsync(cancellationToken);
-            if (!connected)
-            {
-                _logger.LogError("无法连接到MQTT Broker，无法发送包裹检测通知");
-                return false;
-            }
+            Logger.LogError("无法连接到MQTT Broker，无法发送包裹检测通知");
+            return false;
         }
 
         try
         {
-            _logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
+            Logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
 
             var notification = new ParcelDetectionNotification { ParcelId = parcelId };
             var notificationJson = JsonSerializer.Serialize(notification);
             
-            var qosLevel = _options.Mqtt.QualityOfServiceLevel switch
-            {
-                0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
-                2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
-                _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
-            };
+            var qosLevel = GetQosLevel();
 
             var messageBuilder = new MqttApplicationMessageBuilder()
                 .WithTopic(_detectionTopic)
                 .WithPayload(notificationJson)
                 .WithQualityOfServiceLevel(qosLevel);
 
-            if (_options.Mqtt.MessageExpiryInterval > 0)
+            if (Options.Mqtt.MessageExpiryInterval > 0)
             {
-                messageBuilder.WithMessageExpiryInterval((uint)_options.Mqtt.MessageExpiryInterval);
+                messageBuilder.WithMessageExpiryInterval((uint)Options.Mqtt.MessageExpiryInterval);
             }
 
             var message = messageBuilder.Build();
 
             await _mqttClient!.PublishAsync(message, cancellationToken);
 
-            _logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+            Logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
+            Logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
             return false;
         }
+    }
+
+    /// <summary>
+    /// 获取QoS级别
+    /// </summary>
+    private MQTTnet.Protocol.MqttQualityOfServiceLevel GetQosLevel()
+    {
+        return Options.Mqtt.QualityOfServiceLevel switch
+        {
+            0 => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce,
+            2 => MQTTnet.Protocol.MqttQualityOfServiceLevel.ExactlyOnce,
+            _ => MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce
+        };
     }
 
     /// <summary>
@@ -230,27 +216,32 @@ public class MqttRuleEngineClient : IRuleEngineClient
 
             if (notification != null)
             {
-                _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", 
+                Logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", 
                     notification.ParcelId, notification.ChuteId);
                 
                 // 触发事件
-                ChuteAssignmentReceived?.Invoke(this, notification);
+                OnChuteAssignmentReceived(notification);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理MQTT消息时发生异常");
+            Logger.LogError(ex, "处理MQTT消息时发生异常");
         }
 
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 释放资源
+    /// 释放托管和非托管资源
     /// </summary>
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        DisconnectAsync().GetAwaiter().GetResult();
-        _mqttClient?.Dispose();
+        if (disposing)
+        {
+            DisconnectAsync().GetAwaiter().GetResult();
+            _mqttClient?.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }
