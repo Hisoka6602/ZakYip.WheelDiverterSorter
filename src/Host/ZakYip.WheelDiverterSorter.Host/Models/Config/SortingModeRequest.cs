@@ -7,24 +7,24 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 /// <summary>
 /// 分拣模式配置请求模型
 /// </summary>
-public class SortingModeRequest
+public record SortingModeRequest
 {
     /// <summary>
     /// 分拣模式
     /// </summary>
     /// <example>Formal</example>
     [Required(ErrorMessage = "分拣模式不能为空")]
-    public SortingMode SortingMode { get; set; }
+    public required SortingMode SortingMode { get; init; }
 
     /// <summary>
     /// 固定格口ID（仅在指定落格分拣模式下使用）
     /// </summary>
     /// <example>1</example>
-    public long? FixedChuteId { get; set; }
+    public long? FixedChuteId { get; init; }
 
     /// <summary>
     /// 可用格口ID列表（仅在循环格口落格模式下使用）
     /// </summary>
     /// <example>[1, 2, 3, 4, 5, 6]</example>
-    public List<long>? AvailableChuteIds { get; set; }
+    public List<long>? AvailableChuteIds { get; init; }
 }
