@@ -330,9 +330,12 @@ public class IoLinkageController : ControllerBase
     {
         try
         {
-            if (bitNumber < 0 || bitNumber > 1023)
+            // 验证 IO 端点有效性
+            if (!IoEndpointValidator.IsValidEndpoint(bitNumber))
             {
-                return BadRequest(new { message = "IO 端口编号必须在 0-1023 之间" });
+                var errorMsg = IoEndpointValidator.GetValidationError(bitNumber);
+                _logger.LogWarning("尝试读取无效 IO 端点: BitNumber={BitNumber}, Error={Error}", bitNumber, errorMsg);
+                return BadRequest(new { message = errorMsg });
             }
 
             var state = await _ioLinkageDriver.ReadIoPointAsync(bitNumber);
@@ -418,12 +421,22 @@ public class IoLinkageController : ControllerBase
 
             var bits = bitNumbers.Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => s.Trim())
-                .Select(s => int.TryParse(s, out var bit) ? bit : -1)
+                .Select(s => int.TryParse(s, out var bit) ? bit : IoEndpointValidator.InvalidEndpoint)
                 .ToList();
 
-            if (bits.Any(b => b < 0 || b > 1023))
+            // 验证所有 IO 点编号
+            var invalidBits = bits.Where(b => !IoEndpointValidator.IsValidEndpoint(b)).ToList();
+            if (invalidBits.Count > 0)
             {
-                return BadRequest(new { message = "所有 IO 端口编号必须在 0-1023 之间" });
+                _logger.LogWarning(
+                    "批量查询包含 {Count} 个无效 IO 端点: [{InvalidEndpoints}]",
+                    invalidBits.Count,
+                    string.Join(", ", invalidBits));
+                return BadRequest(new
+                {
+                    message = $"IO 端口编号必须在 {IoEndpointValidator.MinValidEndpoint}-{IoEndpointValidator.MaxValidEndpoint} 之间",
+                    invalidEndpoints = invalidBits
+                });
             }
 
             var results = new List<object>();
@@ -517,9 +530,12 @@ public class IoLinkageController : ControllerBase
     {
         try
         {
-            if (bitNumber < 0 || bitNumber > 1023)
+            // 验证 IO 端点有效性
+            if (!IoEndpointValidator.IsValidEndpoint(bitNumber))
             {
-                return BadRequest(new { message = "IO 端口编号必须在 0-1023 之间" });
+                var errorMsg = IoEndpointValidator.GetValidationError(bitNumber);
+                _logger.LogWarning("尝试设置无效 IO 端点: BitNumber={BitNumber}, Error={Error}", bitNumber, errorMsg);
+                return BadRequest(new { message = errorMsg });
             }
 
             if (!ModelState.IsValid)
@@ -644,13 +660,8 @@ public class IoLinkageController : ControllerBase
                 return BadRequest(new { message = "ioPoints 不能为空" });
             }
 
-            // 验证所有 IO 点编号
-            if (request.IoPoints.Any(p => p.BitNumber < 0 || p.BitNumber > 1023))
-            {
-                return BadRequest(new { message = "所有 IO 端口编号必须在 0-1023 之间" });
-            }
-
-            var ioPoints = request.IoPoints
+            // 验证所有 IO 点编号并过滤无效端点
+            var allPoints = request.IoPoints
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
@@ -658,17 +669,31 @@ public class IoLinkageController : ControllerBase
                 })
                 .ToList();
 
-            await _ioLinkageDriver.SetIoPointsAsync(ioPoints);
+            var validPoints = IoEndpointValidator.FilterAndLogInvalidEndpoints(allPoints, _logger).ToList();
+
+            if (validPoints.Count == 0)
+            {
+                return BadRequest(new
+                {
+                    message = "所有 IO 端点均无效，未执行任何操作",
+                    validRange = $"{IoEndpointValidator.MinValidEndpoint}-{IoEndpointValidator.MaxValidEndpoint}"
+                });
+            }
+
+            await _ioLinkageDriver.SetIoPointsAsync(validPoints);
 
             _logger.LogInformation(
-                "批量设置 IO 点成功: Count={Count}",
-                ioPoints.Count);
+                "批量设置 IO 点成功: TotalRequested={TotalRequested}, ValidCount={ValidCount}",
+                request.IoPoints.Count,
+                validPoints.Count);
 
             return Ok(new
             {
                 message = "批量设置 IO 点成功",
-                count = ioPoints.Count,
-                ioPoints = request.IoPoints.Select(p => new
+                totalRequested = request.IoPoints.Count,
+                validCount = validPoints.Count,
+                skippedCount = request.IoPoints.Count - validPoints.Count,
+                ioPoints = validPoints.Select(p => new
                 {
                     bitNumber = p.BitNumber,
                     level = p.Level.ToString()
