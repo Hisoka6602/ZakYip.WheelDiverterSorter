@@ -267,4 +267,83 @@ public class RuleEngineClientFactoryTests
         Assert.NotNull(client);
         Assert.True(client is SignalRRuleEngineClient);
     }
+
+    [Fact]
+    public void CreateClient_WithEmptyHttpApi_FallsBackToHttpWithDefaults()
+    {
+        // Arrange - empty HttpApi should be handled by fallback
+        var options = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Http,
+            HttpApi = "" // Empty configuration
+        };
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+
+        // Act
+        using var client = factory.CreateClient();
+
+        // Assert - should fallback and work
+        Assert.NotNull(client);
+        Assert.IsType<HttpRuleEngineClient>(client);
+    }
+
+    [Fact]
+    public void CreateClient_WithEmptyTcpServer_FallsBackToHttp()
+    {
+        // Arrange - empty TcpServer should trigger fallback
+        var options = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "", // Empty configuration
+            HttpApi = "http://localhost:5000/api/chute"
+        };
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+
+        // Act - should catch exception and fallback to Http
+        using var client = factory.CreateClient();
+
+        // Assert - should fallback to Http client
+        Assert.NotNull(client);
+        Assert.IsType<HttpRuleEngineClient>(client);
+    }
+
+    [Fact]
+    public void CreateClient_WithEmptySignalRHub_FallsBackToHttp()
+    {
+        // Arrange - empty SignalRHub should trigger fallback
+        var options = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.SignalR,
+            SignalRHub = "", // Empty configuration
+            HttpApi = "http://localhost:5000/api/chute"
+        };
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+
+        // Act - should catch exception and fallback to Http
+        using var client = factory.CreateClient();
+
+        // Assert - should fallback to Http client
+        Assert.NotNull(client);
+        Assert.IsType<HttpRuleEngineClient>(client);
+    }
+
+    [Fact]
+    public void CreateClient_WithEmptyMqttBroker_FallsBackToHttp()
+    {
+        // Arrange - empty MqttBroker should trigger fallback
+        var options = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Mqtt,
+            MqttBroker = "", // Empty configuration
+            HttpApi = "http://localhost:5000/api/chute"
+        };
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+
+        // Act - should catch exception and fallback to Http
+        using var client = factory.CreateClient();
+
+        // Assert - should fallback to Http client
+        Assert.NotNull(client);
+        Assert.IsType<HttpRuleEngineClient>(client);
+    }
 }
