@@ -28,7 +28,7 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly RuleEngineConnectionOptions _initialOptions;
-    private readonly IServiceProvider _serviceProvider;
+    private readonly RuleEngineServerFactory _serverFactory;
 
     private IRuleEngineServer? _currentServer;
     private RuleEngineConnectionOptions _currentOptions;
@@ -39,13 +39,13 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
         ISystemClock systemClock,
         ISafeExecutionService safeExecutor,
         RuleEngineConnectionOptions initialOptions,
-        IServiceProvider serviceProvider)
+        RuleEngineServerFactory serverFactory)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _initialOptions = initialOptions ?? throw new ArgumentNullException(nameof(initialOptions));
-        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+        _serverFactory = serverFactory ?? throw new ArgumentNullException(nameof(serverFactory));
         _currentOptions = initialOptions;
     }
 
@@ -194,33 +194,12 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
     {
         // 根据通信模式创建相应的服务器实例
         // Create server instance based on communication mode
-        _currentServer = CreateServerInstance(_currentOptions);
+        _currentServer = _serverFactory.CreateServer(_currentOptions);
 
         if (_currentServer != null)
         {
             await _currentServer.StartAsync(cancellationToken);
         }
-    }
-
-    private IRuleEngineServer? CreateServerInstance(RuleEngineConnectionOptions options)
-    {
-        // 这里需要根据 Mode 创建对应的服务器实例
-        // 实际实现中，应该通过依赖注入来获取服务器实例
-        // 为了避免循环依赖，这里使用工厂模式或服务定位器模式
-
-        // 注意：实际实现应该通过 IServiceProvider 解析服务器实例
-        // 这里提供一个基础实现框架
-        
-        _logger.LogInformation(
-            "[{LocalTime}] Creating server instance for mode: {Mode}",
-            _systemClock.LocalNow,
-            options.Mode);
-
-        // 实际应该从 DI 容器获取
-        // return _serviceProvider.GetService<IRuleEngineServer>();
-        
-        // 临时返回 null，实际使用时需要通过工厂或 DI 容器创建
-        return null;
     }
 
     public override void Dispose()
