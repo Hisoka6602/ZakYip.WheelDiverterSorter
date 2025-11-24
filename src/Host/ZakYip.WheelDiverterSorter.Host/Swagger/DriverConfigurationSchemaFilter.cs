@@ -50,7 +50,8 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
             var vendorProperties = new Dictionary<DriverVendorType, string[]>
             {
                 { DriverVendorType.Leadshine, new[] { "leadshine" } },
-                { DriverVendorType.ShuDiNiao, new[] { "shuDiNiao" } }
+                { DriverVendorType.ShuDiNiao, new[] { "shuDiNiao" } },
+                { DriverVendorType.Modi, new[] { "modi" } }
                 // Note: Siemens, Mitsubishi, Omron, Mock properties will be added when their configurations are implemented
             };
 
@@ -91,6 +92,7 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
             DriverVendorType.Mitsubishi => "三菱PLC",
             DriverVendorType.Omron => "欧姆龙PLC",
             DriverVendorType.ShuDiNiao => "数递鸟摆轮设备",
+            DriverVendorType.Modi => "莫迪摆轮设备",
             _ => "未知"
         };
     }

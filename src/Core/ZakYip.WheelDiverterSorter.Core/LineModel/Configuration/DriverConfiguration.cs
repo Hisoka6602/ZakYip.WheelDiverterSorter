@@ -28,6 +28,7 @@ public class DriverConfiguration
     /// - Mitsubishi: 三菱PLC
     /// - Omron: 欧姆龙PLC
     /// - ShuDiNiao: 数递鸟摆轮设备
+    /// - Modi: 莫迪摆轮设备
     /// </remarks>
     public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
 
@@ -40,6 +41,11 @@ public class DriverConfiguration
     /// 数递鸟摆轮设备配置
     /// </summary>
     public ShuDiNiaoDriverConfig? ShuDiNiao { get; set; }
+
+    /// <summary>
+    /// 莫迪摆轮设备配置
+    /// </summary>
+    public ModiDriverConfig? Modi { get; set; }
 
     /// <summary>
     /// 配置版本号
@@ -98,6 +104,11 @@ public class DriverConfiguration
             return (false, "使用数递鸟硬件驱动时，必须配置数递鸟参数");
         }
 
+        if (UseHardwareDriver && VendorType == DriverVendorType.Modi && Modi == null)
+        {
+            return (false, "使用莫迪硬件驱动时，必须配置莫迪参数");
+        }
+
         if (Leadshine != null)
         {
             if (Leadshine.Diverters == null || !Leadshine.Diverters.Any())
@@ -135,6 +146,26 @@ public class DriverConfiguration
             if (duplicateAddresses.Any())
             {
                 return (false, $"数递鸟设备地址重复: {string.Join(", ", duplicateAddresses.Select(a => $"0x{a:X2}"))}");
+            }
+        }
+
+        if (Modi != null)
+        {
+            if (Modi.Devices == null || !Modi.Devices.Any())
+            {
+                return (false, "莫迪摆轮设备配置不能为空");
+            }
+
+            // 检查DiverterId不能重复
+            var duplicateIds = Modi.Devices
+                .GroupBy(d => d.DiverterId)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (duplicateIds.Any())
+            {
+                return (false, $"莫迪摆轮ID重复: {string.Join(", ", duplicateIds)}");
             }
         }
 
@@ -233,6 +264,60 @@ public record class ShuDiNiaoDeviceEntry
     /// </remarks>
     /// <example>0x51</example>
     public required byte DeviceAddress { get; init; }
+
+    /// <summary>
+    /// 是否启用该设备
+    /// </summary>
+    public bool IsEnabled { get; init; } = true;
+}
+
+/// <summary>
+/// 莫迪摆轮设备配置
+/// </summary>
+public record class ModiDriverConfig
+{
+    /// <summary>
+    /// 莫迪摆轮设备列表
+    /// </summary>
+    public required List<ModiDeviceEntry> Devices { get; init; }
+
+    /// <summary>
+    /// 是否启用仿真模式
+    /// </summary>
+    public bool UseSimulation { get; init; } = false;
+}
+
+/// <summary>
+/// 莫迪摆轮设备条目
+/// </summary>
+public record class ModiDeviceEntry
+{
+    /// <summary>
+    /// 摆轮标识符（字符串ID）
+    /// </summary>
+    /// <example>D1</example>
+    public required string DiverterId { get; init; }
+
+    /// <summary>
+    /// TCP连接主机地址
+    /// </summary>
+    /// <example>192.168.1.100</example>
+    public required string Host { get; init; }
+
+    /// <summary>
+    /// TCP连接端口
+    /// </summary>
+    /// <example>8000</example>
+    public required int Port { get; init; }
+
+    /// <summary>
+    /// 设备编号
+    /// </summary>
+    /// <remarks>
+    /// 莫迪设备的内部编号，用于协议通信
+    /// </remarks>
+    /// <example>1</example>
+    public required int DeviceId { get; init; }
 
     /// <summary>
     /// 是否启用该设备
