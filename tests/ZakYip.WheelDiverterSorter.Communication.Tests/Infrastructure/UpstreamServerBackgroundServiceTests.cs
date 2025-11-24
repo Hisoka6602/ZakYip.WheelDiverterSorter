@@ -77,7 +77,7 @@ public class UpstreamServerBackgroundServiceTests
     }
 
     [Fact]
-    public void AddUpstreamConnectionManagement_WithClientMode_DoesNotRegisterServerBackgroundService()
+    public void AddUpstreamConnectionManagement_AlwaysRegistersBothBackgroundServices()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -99,13 +99,14 @@ public class UpstreamServerBackgroundServiceTests
         services.AddUpstreamConnectionManagement(configuration);
         var serviceProvider = services.BuildServiceProvider();
 
-        // Assert
+        // Assert - Both services are registered
         var hostedServices = serviceProvider.GetServices<IHostedService>().ToList();
-        Assert.DoesNotContain(hostedServices, s => s.GetType() == typeof(UpstreamServerBackgroundService));
+        Assert.Contains(hostedServices, s => s.GetType() == typeof(UpstreamConnectionBackgroundService));
+        Assert.Contains(hostedServices, s => s.GetType() == typeof(UpstreamServerBackgroundService));
     }
 
     [Fact]
-    public void AddUpstreamConnectionManagement_WithServerMode_DoesNotRegisterClientBackgroundService()
+    public void AddUpstreamConnectionManagement_RegistersBothServices_RegardlessOfMode()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -127,9 +128,10 @@ public class UpstreamServerBackgroundServiceTests
         services.AddUpstreamConnectionManagement(configuration);
         var serviceProvider = services.BuildServiceProvider();
 
-        // Assert
+        // Assert - Both services are registered (they check mode at runtime)
         var hostedServices = serviceProvider.GetServices<IHostedService>().ToList();
-        Assert.DoesNotContain(hostedServices, s => s.GetType() == typeof(UpstreamConnectionBackgroundService));
+        Assert.Contains(hostedServices, s => s.GetType() == typeof(UpstreamConnectionBackgroundService));
+        Assert.Contains(hostedServices, s => s.GetType() == typeof(UpstreamServerBackgroundService));
     }
 
     [Fact]
