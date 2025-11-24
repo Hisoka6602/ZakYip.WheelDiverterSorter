@@ -17,6 +17,16 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 public static class CommunicationServiceExtensions
 {
     /// <summary>
+    /// 默认配置常量
+    /// </summary>
+    private static class DefaultConfiguration
+    {
+        public const string TcpServer = "localhost:9000";
+        public const string SignalRHub = "http://localhost:5001/ruleengine";
+        public const string MqttBroker = "localhost";
+        public const string HttpApi = "http://localhost:9999/api/ruleengine";
+    }
+    /// <summary>
     /// 添加RuleEngine通信服务
     /// </summary>
     /// <param name="services">服务集合</param>
@@ -92,10 +102,12 @@ public static class CommunicationServiceExtensions
     }
 
     /// <summary>
-    /// 验证配置有效性
+    /// 验证配置有效性，如果配置为空则提供默认值
     /// </summary>
     /// <param name="options">连接配置</param>
-    /// <exception cref="InvalidOperationException">配置无效</exception>
+    /// <remarks>
+    /// 无论任何情况下都不会抛出异常导致程序崩溃，只记录警告信息
+    /// </remarks>
     private static void ValidateOptions(RuleEngineConnectionOptions options)
     {
         switch (options.Mode)
@@ -103,33 +115,45 @@ public static class CommunicationServiceExtensions
             case CommunicationMode.Tcp:
                 if (string.IsNullOrWhiteSpace(options.TcpServer))
                 {
-                    throw new InvalidOperationException("TCP模式下，TcpServer配置不能为空");
+                    options.TcpServer = DefaultConfiguration.TcpServer;
+                    Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {options.TcpServer}");
                 }
                 break;
 
             case CommunicationMode.SignalR:
                 if (string.IsNullOrWhiteSpace(options.SignalRHub))
                 {
-                    throw new InvalidOperationException("SignalR模式下，SignalRHub配置不能为空");
+                    options.SignalRHub = DefaultConfiguration.SignalRHub;
+                    Console.WriteLine($"⚠️ [配置警告] SignalR模式下，SignalRHub配置为空，已使用默认值: {options.SignalRHub}");
                 }
                 break;
 
             case CommunicationMode.Mqtt:
                 if (string.IsNullOrWhiteSpace(options.MqttBroker))
                 {
-                    throw new InvalidOperationException("MQTT模式下，MqttBroker配置不能为空");
+                    options.MqttBroker = DefaultConfiguration.MqttBroker;
+                    Console.WriteLine($"⚠️ [配置警告] MQTT模式下，MqttBroker配置为空，已使用默认值: {options.MqttBroker}");
                 }
                 break;
 
             case CommunicationMode.Http:
                 if (string.IsNullOrWhiteSpace(options.HttpApi))
                 {
-                    throw new InvalidOperationException("HTTP模式下，HttpApi配置不能为空");
+                    options.HttpApi = DefaultConfiguration.HttpApi;
+                    Console.WriteLine($"⚠️ [配置警告] HTTP模式下，HttpApi配置为空，已使用默认值: {options.HttpApi}");
                 }
                 break;
 
             default:
-                throw new NotSupportedException($"不支持的通信模式: {options.Mode}");
+                // 不支持的通信模式，使用默认的Http模式
+                Console.WriteLine($"⚠️ [配置警告] 不支持的通信模式: {options.Mode}，已切换为Http模式");
+                options.Mode = CommunicationMode.Http;
+                if (string.IsNullOrWhiteSpace(options.HttpApi))
+                {
+                    options.HttpApi = DefaultConfiguration.HttpApi;
+                    Console.WriteLine($"⚠️ [配置警告] HTTP模式下，HttpApi配置为空，已使用默认值: {options.HttpApi}");
+                }
+                break;
         }
     }
 }
