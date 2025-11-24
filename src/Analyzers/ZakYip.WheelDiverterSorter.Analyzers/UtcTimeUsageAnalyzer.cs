@@ -8,8 +8,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace ZakYip.WheelDiverterSorter.Analyzers;
 
 /// <summary>
-/// 分析器：禁止业务代码使用 ISystemClock.UtcNow（仅允许与外部系统交互时使用）
-/// Analyzer: Prohibit business code from using ISystemClock.UtcNow (only allow for external system interaction)
+/// 分析器：禁止业务代码使用 UTC 时间（仅允许与外部系统交互时使用）
+/// Analyzer: Prohibit business code from using UTC time (only allow for external system interaction)
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class UtcTimeUsageAnalyzer : DiagnosticAnalyzer
@@ -45,6 +45,7 @@ public class UtcTimeUsageAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
         context.RegisterSyntaxNodeAction(AnalyzeMemberAccess, SyntaxKind.SimpleMemberAccessExpression);
+        context.RegisterSyntaxNodeAction(AnalyzeInvocation, SyntaxKind.InvocationExpression);
     }
 
     private static void AnalyzeMemberAccess(SyntaxNodeAnalysisContext context)
@@ -57,7 +58,6 @@ public class UtcTimeUsageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // Check if it's ISystemClock.UtcNow or DateTime.UtcNow
         var symbolInfo = context.SemanticModel.GetSymbolInfo(memberAccess.Expression);
         var symbol = symbolInfo.Symbol;
 
@@ -70,6 +70,16 @@ public class UtcTimeUsageAnalyzer : DiagnosticAnalyzer
         if (symbol.ContainingNamespace?.ToDisplayString() == "System" && symbol.Name == "DateTime")
         {
             return; // Already handled by ZAKYIP001
+        }
+
+        // Check if it's DateTimeOffset.UtcNow
+        if (symbol.ContainingNamespace?.ToDisplayString() == "System" && symbol.Name == "DateTimeOffset")
+        {
+            if (!ShouldAllowUtcUsage(context))
+            {
+                ReportDiagnostic(context, memberAccess, "DateTimeOffset.UtcNow");
+            }
+            return;
         }
 
         // Check if it's ISystemClock.UtcNow
@@ -85,33 +95,85 @@ public class UtcTimeUsageAnalyzer : DiagnosticAnalyzer
         bool isSystemClock = type.Name == "ISystemClock" || 
                             type.AllInterfaces.Any(i => i.Name == "ISystemClock");
 
-        if (!isSystemClock)
+        if (isSystemClock && !ShouldAllowUtcUsage(context))
+        {
+            ReportDiagnostic(context, memberAccess, "ISystemClock.UtcNow");
+        }
+    }
+
+    private static void AnalyzeInvocation(SyntaxNodeAnalysisContext context)
+    {
+        var invocation = (InvocationExpressionSyntax)context.Node;
+        
+        if (invocation.Expression is not MemberAccessExpressionSyntax memberAccess)
         {
             return;
         }
 
-        // Allow usage in Communication infrastructure (for external system protocols)
-        var containingNamespace = context.ContainingSymbol?.ContainingNamespace?.ToDisplayString();
-        if (containingNamespace != null)
+        // Check for ToUniversalTime() or ToUniversalTime(DateTimeKind)
+        var methodName = memberAccess.Name.Identifier.Text;
+        if (methodName != "ToUniversalTime")
         {
-            // Allow in Communication infrastructure for protocol compliance
-            if (containingNamespace.Contains(".Communication."))
-            {
-                return;
-            }
-            
-            // Allow in test code
-            if (containingNamespace.Contains(".Tests") || containingNamespace.Contains(".Test"))
-            {
-                return;
-            }
+            return;
         }
 
-        // Report diagnostic
+        var symbolInfo = context.SemanticModel.GetSymbolInfo(invocation);
+        if (symbolInfo.Symbol is not IMethodSymbol methodSymbol)
+        {
+            return;
+        }
+
+        // Check if it's DateTime.ToUniversalTime()
+        if (methodSymbol.ContainingType?.Name == "DateTime" && 
+            methodSymbol.ContainingNamespace?.ToDisplayString() == "System")
+        {
+            if (!ShouldAllowUtcUsage(context))
+            {
+                ReportDiagnostic(context, invocation, "DateTime.ToUniversalTime()");
+            }
+            return;
+        }
+
+        // Check if it's DateTimeOffset.ToUniversalTime()
+        if (methodSymbol.ContainingType?.Name == "DateTimeOffset" && 
+            methodSymbol.ContainingNamespace?.ToDisplayString() == "System")
+        {
+            if (!ShouldAllowUtcUsage(context))
+            {
+                ReportDiagnostic(context, invocation, "DateTimeOffset.ToUniversalTime()");
+            }
+        }
+    }
+
+    private static bool ShouldAllowUtcUsage(SyntaxNodeAnalysisContext context)
+    {
+        var containingNamespace = context.ContainingSymbol?.ContainingNamespace?.ToDisplayString();
+        if (containingNamespace == null)
+        {
+            return false;
+        }
+
+        // Allow in Communication infrastructure (for external system protocols)
+        if (containingNamespace.Contains(".Communication."))
+        {
+            return true;
+        }
+        
+        // Allow in test code
+        if (containingNamespace.Contains(".Tests") || containingNamespace.Contains(".Test"))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ReportDiagnostic(SyntaxNodeAnalysisContext context, SyntaxNode node, string usage)
+    {
         var diagnostic = Diagnostic.Create(
             Rule,
-            memberAccess.GetLocation(),
-            "ISystemClock.UtcNow");
+            node.GetLocation(),
+            usage);
         
         context.ReportDiagnostic(diagnostic);
     }
