@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;

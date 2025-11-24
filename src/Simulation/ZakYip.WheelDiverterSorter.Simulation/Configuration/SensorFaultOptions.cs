@@ -2,7 +2,7 @@
 // The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Simulation namespace.
 
 // Re-export the enum from Core.Enums.Simulation for backward compatibility
-global using IoBehaviorMode = ZakYip.WheelDiverterSorter.Core.Enums.Simulation.IoBehaviorMode;
+global using IoBehaviorMode = ZakYip.WheelDiverterSorter.Core.Enums.IoBehaviorMode;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
 

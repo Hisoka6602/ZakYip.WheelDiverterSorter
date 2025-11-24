@@ -8,12 +8,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -22,8 +17,6 @@ using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
-using ZakYip.WheelDiverterSorter.Core.Enums.Observability;
-using ZakYip.WheelDiverterSorter.Core.Enums.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

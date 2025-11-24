@@ -5,7 +5,7 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Core.Enums.Observability;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Tests.Concurrency;
 

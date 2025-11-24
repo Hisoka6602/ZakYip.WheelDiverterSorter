@@ -1,7 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 

@@ -43,7 +43,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act
@@ -73,7 +72,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act
@@ -98,7 +96,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act - Record successful path generation
@@ -126,7 +123,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act - Record successful path execution
@@ -154,7 +150,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act - Record various durations
@@ -180,7 +175,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act - Simulate business operations
@@ -224,7 +218,6 @@ public class SorterMetricsTests
         sorterMetrics.RecordSortingRequest();
 
         // Assert - Verify meter is created with correct name
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         sorterMetrics.RecordSortingRequest();
         
         var measurements = metricsHelper.GetLongMeasurements();
@@ -240,7 +233,6 @@ public class SorterMetricsTests
         var serviceProvider = services.BuildServiceProvider();
         var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
         
-        using var metricsHelper = new MetricsTestHelper("ZakYip.WheelDiverterSorter");
         var sorterMetrics = new SorterMetrics(meterFactory);
 
         // Act - Simulate a workflow

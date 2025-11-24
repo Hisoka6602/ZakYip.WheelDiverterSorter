@@ -1,6 +1,6 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests;
 

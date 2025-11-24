@@ -1,12 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Observability;

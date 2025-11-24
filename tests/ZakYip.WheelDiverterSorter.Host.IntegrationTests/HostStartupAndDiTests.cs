@@ -38,7 +38,6 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
     public void HostStartup_RegistersDriverServices()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
         var services = scope.ServiceProvider;
 
         // Act & Assert - Verify service provider is working
@@ -50,7 +49,6 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
     public void HostStartup_RegistersCommunicationServices()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
         var services = scope.ServiceProvider;
 
         // Act & Assert - Verify Communication services are registered
@@ -62,7 +60,6 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
     public void HostStartup_RegistersObservabilityServices()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
         var services = scope.ServiceProvider;
 
         // Act & Assert - Verify Observability services are registered
@@ -80,7 +77,6 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
     public void HostStartup_RegistersCoreConfigurationServices()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
         var services = scope.ServiceProvider;
 
         // Act & Assert - Verify configuration services are available
@@ -233,8 +229,6 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
     public void HostStartup_LogDeduplicatorIsSingleton()
     {
         // Arrange & Act
-        using var scope1 = _factory.Services.CreateScope();
-        using var scope2 = _factory.Services.CreateScope();
         
         var dedup1 = scope1.ServiceProvider.GetRequiredService<ILogDeduplicator>();
         var dedup2 = scope2.ServiceProvider.GetRequiredService<ILogDeduplicator>();
@@ -304,7 +298,6 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
     public void HostStartup_UsesCorrectDefaultUpstreamMode()
     {
         // Arrange
-        using var scope = _factory.Services.CreateScope();
         var services = scope.ServiceProvider;
 
         // Act - Get communication configuration service if available

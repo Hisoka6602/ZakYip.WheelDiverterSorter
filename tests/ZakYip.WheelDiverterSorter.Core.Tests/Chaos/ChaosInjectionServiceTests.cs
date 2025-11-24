@@ -1,14 +1,7 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Chaos;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests.Chaos;
 

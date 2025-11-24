@@ -126,7 +126,6 @@ public class DiverterResourceLockManagerTests
         // Act - try to execute multiple operations on the same diverter
         var tasks = Enumerable.Range(1, 3).Select(async _ =>
         {
-            using var lockHandle = await lock1.AcquireWriteLockAsync();
             var current = Interlocked.Increment(ref executionCount);
             maxConcurrent = Math.Max(maxConcurrent, current);
             await Task.Delay(50);

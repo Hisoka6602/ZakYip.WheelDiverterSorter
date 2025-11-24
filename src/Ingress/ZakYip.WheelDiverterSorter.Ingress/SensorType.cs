@@ -4,4 +4,4 @@
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
 // Re-export the enum from Core.Enums.Sensors for backward compatibility
-using SensorType = ZakYip.WheelDiverterSorter.Core.Enums.Sensors.SensorType;
+using SensorType = ZakYip.WheelDiverterSorter.Core.Enums.SensorType;

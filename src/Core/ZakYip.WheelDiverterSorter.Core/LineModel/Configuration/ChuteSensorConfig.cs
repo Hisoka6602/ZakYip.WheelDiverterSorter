@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums;
+
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
@@ -50,8 +52,7 @@ public class ChuteSensorConfig
     /// - ActiveHigh: 高电平有效（常开按键）
     /// - ActiveLow: 低电平有效（常闭按键）
     /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel TriggerLevel { get; set; } = 
-        ZakYip.WheelDiverterSorter.Core.Enums.Sensors.TriggerLevel.ActiveHigh;
+    public TriggerLevel TriggerLevel { get; set; } = TriggerLevel.ActiveHigh;
 
     /// <summary>
     /// 是否启用此传感器

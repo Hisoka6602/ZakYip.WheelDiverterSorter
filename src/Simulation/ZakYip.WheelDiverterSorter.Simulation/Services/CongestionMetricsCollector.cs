@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 

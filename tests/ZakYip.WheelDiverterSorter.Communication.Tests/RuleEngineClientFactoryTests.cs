@@ -2,12 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -81,7 +76,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -100,7 +94,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -119,7 +112,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -182,7 +174,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -201,7 +192,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert - timeout is configured in the options passed to client
         Assert.NotNull(client);
@@ -220,7 +210,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert - auto-reconnect is configured in the options
         Assert.NotNull(client);
@@ -241,7 +230,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert - retry settings are configured in the options
         Assert.NotNull(client);
@@ -260,7 +248,6 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
-        using var client = factory.CreateClient();
 
         // Assert - push model timeout protection is configured
         Assert.NotNull(client);

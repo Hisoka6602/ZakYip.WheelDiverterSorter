@@ -1,6 +1,6 @@
 using Xunit;
 using FluentAssertions;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;

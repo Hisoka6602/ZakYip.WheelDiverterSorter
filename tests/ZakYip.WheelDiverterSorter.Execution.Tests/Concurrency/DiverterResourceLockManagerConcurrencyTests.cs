@@ -54,7 +54,6 @@ public class DiverterResourceLockManagerConcurrencyTests
     public async Task GetLock_ConcurrentAccessToSameDiverter_ReturnsSameInstance()
     {
         // Arrange
-        using var manager = new DiverterResourceLockManager();
         const int threadCount = 50;
         const int diverterId = 1;
         var locks = new IDiverterResourceLock[threadCount];
@@ -85,7 +84,6 @@ public class DiverterResourceLockManagerConcurrencyTests
     public async Task GetLock_MixedConcurrentAccess_CorrectLockDistribution()
     {
         // Arrange
-        using var manager = new DiverterResourceLockManager();
         const int threadCount = 100;
         const int diverterCount = 5;
         var locksByDiverterId = new Dictionary<int, HashSet<IDiverterResourceLock>>();
@@ -237,7 +235,6 @@ public class DiverterResourceLockManagerConcurrencyTests
         {
             try
             {
-                using var manager = new DiverterResourceLockManager();
                 var tasks = new List<Task>();
 
                 // Create locks concurrently

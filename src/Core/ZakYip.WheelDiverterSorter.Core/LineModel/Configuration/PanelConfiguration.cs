@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using LiteDB;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
