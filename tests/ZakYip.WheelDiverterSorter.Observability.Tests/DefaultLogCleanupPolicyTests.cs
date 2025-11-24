@@ -51,9 +51,8 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         // Arrange
         var mockLogger = new Mock<ILogger<DefaultLogCleanupPolicy>>();
         var mockClock = new Mock<ISystemClock>();
-        var now = DateTime.UtcNow;
-        mockClock.Setup(c => c.UtcNow).Returns(now);
-        mockClock.Setup(c => c.LocalNow).Returns(now.ToLocalTime());
+        var now = DateTime.Now;
+        mockClock.Setup(c => c.LocalNow).Returns(now);
         
         var options = Options.Create(new LogCleanupOptions
         {
@@ -70,7 +69,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         File.WriteAllText(newFile, "new log content");
         
         // 设置旧文件的修改时间为 100 天前
-        File.SetLastWriteTimeUtc(oldFile, now.AddDays(-100));
+        File.SetLastWriteTime(oldFile, now.AddDays(-100));
 
         var policy = new DefaultLogCleanupPolicy(mockLogger.Object, mockClock.Object, options);
 
@@ -88,9 +87,8 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         // Arrange
         var mockLogger = new Mock<ILogger<DefaultLogCleanupPolicy>>();
         var mockClock = new Mock<ISystemClock>();
-        var now = DateTime.UtcNow;
-        mockClock.Setup(c => c.UtcNow).Returns(now);
-        mockClock.Setup(c => c.LocalNow).Returns(now.ToLocalTime());
+        var now = DateTime.Now;
+        mockClock.Setup(c => c.LocalNow).Returns(now);
         
         var options = Options.Create(new LogCleanupOptions
         {
@@ -166,7 +164,7 @@ public class DefaultLogCleanupPolicyTests : IDisposable
         {
             var file = Path.Combine(_testLogDirectory, $"old-{i}.log");
             File.WriteAllText(file, new string('X', 10000));
-            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddDays(-100));
+            File.SetLastWriteTime(file, DateTime.Now.AddDays(-100));
         }
 
         var policy = new DefaultLogCleanupPolicy(mockLogger.Object, Mock.Of<ISystemClock>(), options);
