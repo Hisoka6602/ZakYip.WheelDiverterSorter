@@ -307,6 +307,9 @@ public class PanelConfigController : ControllerBase
             SignalTowerYellowOutputLevel = request.SignalTowerYellowOutputLevel,
             SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit,
             SignalTowerGreenOutputLevel = request.SignalTowerGreenOutputLevel,
+            PreStartWarningDurationSeconds = request.PreStartWarningDurationSeconds,
+            PreStartWarningOutputBit = request.PreStartWarningOutputBit,
+            PreStartWarningOutputLevel = request.PreStartWarningOutputLevel,
             CreatedAt = currentTime,
             UpdatedAt = currentTime
         };
@@ -340,7 +343,10 @@ public class PanelConfigController : ControllerBase
             SignalTowerYellowOutputBit = config.SignalTowerYellowOutputBit,
             SignalTowerYellowOutputLevel = config.SignalTowerYellowOutputLevel,
             SignalTowerGreenOutputBit = config.SignalTowerGreenOutputBit,
-            SignalTowerGreenOutputLevel = config.SignalTowerGreenOutputLevel
+            SignalTowerGreenOutputLevel = config.SignalTowerGreenOutputLevel,
+            PreStartWarningDurationSeconds = config.PreStartWarningDurationSeconds,
+            PreStartWarningOutputBit = config.PreStartWarningOutputBit,
+            PreStartWarningOutputLevel = config.PreStartWarningOutputLevel
         };
     }
 }
@@ -576,6 +582,38 @@ public sealed record PanelConfigRequest
     /// </remarks>
     public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerGreenOutputLevel { get; init; } =
         ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
+
+    /// <summary>
+    /// 运行前预警持续时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 按下电柜面板启动按钮时，先触发预警输出（如红灯闪烁）持续N秒，
+    /// 然后才真正开始运行。目的是告诉现场人员离开设备，避免安全事故。
+    /// 有效范围：0-60 秒，不设置则不启用预警功能
+    /// </remarks>
+    /// <example>5</example>
+    [Range(0, 60, ErrorMessage = "运行前预警时间必须在 0-60 秒之间")]
+    public int? PreStartWarningDurationSeconds { get; init; }
+
+    /// <summary>
+    /// 运行前预警输出 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定运行前预警输出（如红灯）的 IO 地址
+    /// </remarks>
+    /// <example>6</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? PreStartWarningOutputBit { get; init; }
+
+    /// <summary>
+    /// 运行前预警输出 IO 电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel PreStartWarningOutputLevel { get; init; } =
+        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
 }
 
 /// <summary>
@@ -695,4 +733,19 @@ public sealed record PanelConfigResponse
     /// 三色灯绿色 IO 输出电平配置
     /// </summary>
     public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerGreenOutputLevel { get; init; }
+
+    /// <summary>
+    /// 运行前预警持续时间（秒）
+    /// </summary>
+    public int? PreStartWarningDurationSeconds { get; init; }
+
+    /// <summary>
+    /// 运行前预警输出 IO 绑定（输出位）
+    /// </summary>
+    public int? PreStartWarningOutputBit { get; init; }
+
+    /// <summary>
+    /// 运行前预警输出 IO 电平配置
+    /// </summary>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel PreStartWarningOutputLevel { get; init; }
 }

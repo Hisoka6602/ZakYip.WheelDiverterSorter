@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -30,6 +31,7 @@ public class CommunicationController : ControllerBase {
     private readonly CommunicationStatsService _statsService;
     private readonly ILogger<CommunicationController> _logger;
     private readonly ISystemClock _systemClock;
+    private readonly ISystemStateManager _stateManager;
 
     public CommunicationController(
         IRuleEngineClient ruleEngineClient,
@@ -37,13 +39,15 @@ public class CommunicationController : ControllerBase {
         ICommunicationConfigurationRepository configRepository,
         CommunicationStatsService statsService,
         ILogger<CommunicationController> logger,
-        ISystemClock systemClock) {
+        ISystemClock systemClock,
+        ISystemStateManager stateManager) {
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
     }
 
     /// <summary>
@@ -149,19 +153,21 @@ public class CommunicationController : ControllerBase {
     [ProducesResponseType(typeof(object), 500)]
     public ActionResult<CommunicationStatusResponse> GetStatus() {
         try {
-            var config = _connectionOptions.Value;
+            // 从持久化配置读取通信模式，确保与其他端点一致
+            // Read from persisted config to ensure consistency with other endpoints
+            var persistedConfig = _configRepository.Get();
             var isConnected = _ruleEngineClient.IsConnected;
 
-            string? serverAddress = config.Mode switch {
-                CommunicationMode.Tcp => config.TcpServer,
-                CommunicationMode.Http => config.HttpApi,
-                CommunicationMode.Mqtt => config.MqttBroker,
-                CommunicationMode.SignalR => config.SignalRHub,
+            string? serverAddress = persistedConfig.Mode switch {
+                CommunicationMode.Tcp => persistedConfig.TcpServer,
+                CommunicationMode.Http => persistedConfig.HttpApi,
+                CommunicationMode.Mqtt => persistedConfig.MqttBroker,
+                CommunicationMode.SignalR => persistedConfig.SignalRHub,
                 _ => null
             };
 
             var response = new CommunicationStatusResponse {
-                Mode = config.Mode.ToString(),
+                Mode = persistedConfig.Mode.ToString(),
                 IsConnected = isConnected,
                 MessagesSent = _statsService.MessagesSent,
                 MessagesReceived = _statsService.MessagesReceived,
@@ -480,6 +486,128 @@ public class CommunicationController : ControllerBase {
         catch (Exception ex) {
             _logger.LogError(ex, "重置通信配置失败 - Failed to reset communication configuration");
             return StatusCode(500, new { message = "重置通信配置失败 - Failed to reset communication configuration" });
+        }
+    }
+
+    /// <summary>
+    /// 发送测试包裹创建请求（仅在未启动状态下可用）
+    /// </summary>
+    /// <param name="request">测试包裹请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>测试结果</returns>
+    /// <response code="200">测试成功</response>
+    /// <response code="400">请求参数无效或系统状态不允许</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 此端点用于在系统未运行时测试与上游RuleEngine的通信。
+    /// 只能在系统处于Ready状态（未启动）时调用，用于验证通信配置是否正确。
+    /// 
+    /// 示例请求:
+    ///
+    ///     POST /api/communication/test-parcel
+    ///     {
+    ///         "parcelId": "TEST-PKG-001"
+    ///     }
+    ///
+    /// 注意：
+    /// - 此端点仅用于测试目的
+    /// - 系统必须处于Ready状态（未运行）
+    /// - 如果系统正在运行，将返回400错误
+    /// </remarks>
+    [HttpPost("test-parcel")]
+    [SwaggerOperation(
+        Summary = "发送测试包裹创建请求",
+        Description = "发送测试包裹到上游RuleEngine，仅在系统未启动（Ready状态）时可用",
+        OperationId = "SendTestParcel",
+        Tags = new[] { "通信管理" }
+    )]
+    [SwaggerResponse(200, "测试成功", typeof(TestParcelResponse))]
+    [SwaggerResponse(400, "请求参数无效或系统状态不允许")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(TestParcelResponse), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<ActionResult<TestParcelResponse>> SendTestParcel(
+        [FromBody] TestParcelRequest request,
+        CancellationToken cancellationToken = default) {
+        try {
+            // 验证请求
+            if (!ModelState.IsValid) {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效 - Invalid request parameters", errors });
+            }
+
+            // 检查系统状态，只允许在Ready状态下发送测试
+            var currentState = _stateManager.CurrentState;
+            if (currentState != Core.Enums.System.SystemState.Ready) {
+                return BadRequest(new { 
+                    message = "系统当前状态不允许发送测试包裹 - Current system state does not allow test parcel sending",
+                    currentState = currentState.ToString(),
+                    requiredState = "Ready",
+                    hint = "请先停止系统运行，然后重试 - Please stop the system before sending test parcels"
+                });
+            }
+
+            _logger.LogInformation(
+                "收到测试包裹请求 - Received test parcel request: ParcelId={ParcelId}",
+                request.ParcelId);
+
+            var sw = Stopwatch.StartNew();
+            var sentAt = _systemClock.LocalNowOffset;
+
+            // 发送测试包裹请求到上游
+            // Parse the parcelId to long if it's a timestamp format, otherwise use a generated timestamp
+            long parcelIdLong;
+            if (!long.TryParse(request.ParcelId, out parcelIdLong))
+            {
+                // If parcelId is not a number, generate a timestamp-based ID
+                parcelIdLong = _systemClock.LocalNowOffset.ToUnixTimeMilliseconds();
+                _logger.LogInformation(
+                    "ParcelId '{ParcelId}' is not numeric, using generated ID: {GeneratedId}",
+                    request.ParcelId,
+                    parcelIdLong);
+            }
+
+            var success = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelIdLong, cancellationToken);
+            sw.Stop();
+
+            if (success) {
+                _logger.LogInformation(
+                    "测试包裹请求发送成功 - Test parcel request sent successfully: ParcelId={ParcelId}, ResponseTime={ResponseTimeMs}ms",
+                    request.ParcelId,
+                    sw.ElapsedMilliseconds);
+
+                return Ok(new TestParcelResponse {
+                    Success = true,
+                    ParcelId = request.ParcelId,
+                    Message = "测试包裹请求已发送 - Test parcel request sent successfully",
+                    SentAt = sentAt,
+                    ResponseTimeMs = sw.ElapsedMilliseconds
+                });
+            }
+            else {
+                _logger.LogWarning(
+                    "测试包裹请求发送失败 - Test parcel request failed: ParcelId={ParcelId}",
+                    request.ParcelId);
+
+                return Ok(new TestParcelResponse {
+                    Success = false,
+                    ParcelId = request.ParcelId,
+                    Message = "测试包裹请求发送失败 - Test parcel request failed",
+                    ErrorDetails = "无法发送请求到上游 - Unable to send request to upstream",
+                    SentAt = sentAt,
+                    ResponseTimeMs = sw.ElapsedMilliseconds
+                });
+            }
+        }
+        catch (Exception ex) {
+            _logger.LogError(ex, "发送测试包裹时发生异常 - Exception occurred while sending test parcel");
+            return StatusCode(500, new { 
+                message = "发送测试包裹失败 - Failed to send test parcel",
+                error = ex.Message
+            });
         }
     }
 }

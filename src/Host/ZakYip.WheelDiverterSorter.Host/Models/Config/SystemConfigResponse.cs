@@ -7,6 +7,9 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 /// <summary>
 /// 系统配置响应模型
 /// </summary>
+/// <remarks>
+/// 系统配置不包含通信相关字段，通信配置请使用 /api/communication/config/persisted 端点
+/// </remarks>
 public record SystemConfigResponse
 {
     /// <summary>
@@ -18,41 +21,6 @@ public record SystemConfigResponse
     /// 异常格口ID
     /// </summary>
     public required long ExceptionChuteId { get; init; }
-
-    /// <summary>
-    /// MQTT默认端口
-    /// </summary>
-    public required int MqttDefaultPort { get; init; }
-
-    /// <summary>
-    /// TCP默认端口
-    /// </summary>
-    public required int TcpDefaultPort { get; init; }
-
-    /// <summary>
-    /// 格口分配超时时间（毫秒）
-    /// </summary>
-    public required int ChuteAssignmentTimeoutMs { get; init; }
-
-    /// <summary>
-    /// 请求超时时间（毫秒）
-    /// </summary>
-    public required int RequestTimeoutMs { get; init; }
-
-    /// <summary>
-    /// 重试次数
-    /// </summary>
-    public required int RetryCount { get; init; }
-
-    /// <summary>
-    /// 重试延迟（毫秒）
-    /// </summary>
-    public required int RetryDelayMs { get; init; }
-
-    /// <summary>
-    /// 是否启用自动重连
-    /// </summary>
-    public required bool EnableAutoReconnect { get; init; }
 
     /// <summary>
     /// 分拣模式

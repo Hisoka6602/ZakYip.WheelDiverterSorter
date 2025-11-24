@@ -84,13 +84,6 @@ public class SystemConfigController : ApiControllerBase
         var request = new SystemConfigRequest
         {
             ExceptionChuteId = defaultConfig.ExceptionChuteId,
-            MqttDefaultPort = defaultConfig.MqttDefaultPort,
-            TcpDefaultPort = defaultConfig.TcpDefaultPort,
-            ChuteAssignmentTimeoutMs = defaultConfig.ChuteAssignmentTimeoutMs,
-            RequestTimeoutMs = defaultConfig.RequestTimeoutMs,
-            RetryCount = defaultConfig.RetryCount,
-            RetryDelayMs = defaultConfig.RetryDelayMs,
-            EnableAutoReconnect = defaultConfig.EnableAutoReconnect,
             SortingMode = defaultConfig.SortingMode,
             FixedChuteId = defaultConfig.FixedChuteId,
             AvailableChuteIds = defaultConfig.AvailableChuteIds
@@ -289,13 +282,6 @@ public class SystemConfigController : ApiControllerBase
         {
             Id = config.Id,
             ExceptionChuteId = config.ExceptionChuteId,
-            MqttDefaultPort = config.MqttDefaultPort,
-            TcpDefaultPort = config.TcpDefaultPort,
-            ChuteAssignmentTimeoutMs = config.ChuteAssignmentTimeoutMs,
-            RequestTimeoutMs = config.RequestTimeoutMs,
-            RetryCount = config.RetryCount,
-            RetryDelayMs = config.RetryDelayMs,
-            EnableAutoReconnect = config.EnableAutoReconnect,
             SortingMode = config.SortingMode,
             FixedChuteId = config.FixedChuteId,
             AvailableChuteIds = config.AvailableChuteIds ?? new List<long>(),
