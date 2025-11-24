@@ -52,8 +52,11 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         {
             var properties = driverConfigSchema.GetProperty("properties");
             
-            // Should have leadshine property
-            Assert.True(properties.TryGetProperty("leadshine", out _), "Leadshine property should be present");
+            // Should have leadshine property (even if it's a $ref)
+            Assert.True(properties.TryGetProperty("leadshine", out var leadshineProperty), "Leadshine property should be present");
+            
+            // Leadshine property should exist (either inline or as $ref)
+            Assert.True(leadshineProperty.ValueKind == JsonValueKind.Object);
             
             // Should NOT have shuDiNiao property (filtered out)
             Assert.False(properties.TryGetProperty("shuDiNiao", out _), "ShuDiNiao property should be filtered out");
@@ -91,8 +94,11 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         {
             var properties = driverConfigSchema.GetProperty("properties");
             
-            // Should have shuDiNiao property
-            Assert.True(properties.TryGetProperty("shuDiNiao", out _), "ShuDiNiao property should be present");
+            // Should have shuDiNiao property (even if it's a $ref)
+            Assert.True(properties.TryGetProperty("shuDiNiao", out var shuDiNiaoProperty), "ShuDiNiao property should be present");
+            
+            // ShuDiNiao property should exist (either inline or as $ref)
+            Assert.True(shuDiNiaoProperty.ValueKind == JsonValueKind.Object);
             
             // Should NOT have leadshine property (filtered out)
             Assert.False(properties.TryGetProperty("leadshine", out _), "Leadshine property should be filtered out");
