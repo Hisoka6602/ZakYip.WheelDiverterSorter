@@ -200,7 +200,7 @@ public sealed record class PanelConfiguration
     /// <returns>默认配置实例</returns>
     public static PanelConfiguration GetDefault(ISystemClock? systemClock = null)
     {
-        var now = systemClock?.LocalNow ?? new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local);
+        var now = systemClock?.LocalNow ?? ConfigurationDefaults.DefaultTimestamp;
         return new PanelConfiguration
         {
             ConfigName = "panel",
