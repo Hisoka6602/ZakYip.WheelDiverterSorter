@@ -150,6 +150,7 @@ internal class TcpMockServer : IDisposable
     {
         using var stream = client.GetStream();
         var buffer = new byte[8192];
+        var messageBuffer = new StringBuilder();
 
         while (!cancellationToken.IsCancellationRequested && client.Connected)
         {
@@ -158,23 +159,46 @@ internal class TcpMockServer : IDisposable
                 var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken);
                 if (bytesRead == 0) break;
 
-                var message = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                var receivedText = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                messageBuffer.Append(receivedText);
                 
-                // 解析请求
-                ParcelDetectionNotification? notification = null;
-                try
+                // 处理所有完整的消息（以换行符分隔）
+                var messages = messageBuffer.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                
+                // 如果最后一个字符不是换行符，保留最后一条不完整的消息
+                if (!receivedText.EndsWith('\n') && messages.Length > 0)
                 {
-                    notification = JsonSerializer.Deserialize<ParcelDetectionNotification>(message);
+                    messageBuffer.Clear();
+                    messageBuffer.Append(messages[^1]);
+                    messages = messages[..^1];
                 }
-                catch
+                else
                 {
-                    // 如果解析失败，忽略
-                    continue;
+                    messageBuffer.Clear();
                 }
 
-                if (notification != null)
+                // 处理每条完整的消息
+                foreach (var message in messages)
                 {
-                    await HandleNotificationAsync(stream, notification, cancellationToken);
+                    if (string.IsNullOrWhiteSpace(message))
+                        continue;
+
+                    // 解析请求
+                    ParcelDetectionNotification? notification = null;
+                    try
+                    {
+                        notification = JsonSerializer.Deserialize<ParcelDetectionNotification>(message.Trim());
+                    }
+                    catch
+                    {
+                        // 如果解析失败，忽略
+                        continue;
+                    }
+
+                    if (notification != null)
+                    {
+                        await HandleNotificationAsync(stream, notification, cancellationToken);
+                    }
                 }
             }
             catch (OperationCanceledException)
