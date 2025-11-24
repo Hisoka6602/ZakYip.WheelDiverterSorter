@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using Microsoft.OpenApi.Models;
 using Prometheus;
@@ -148,13 +149,13 @@ if (enableHealthCheck)
     builder.Services.AddHealthCheckServices();
     // 注册系统状态管理服务（带自检）
     builder.Services.AddSystemStateManagement(
-        ZakYip.WheelDiverterSorter.Core.Enums.Host.SystemState.Booting, 
+        ZakYip.WheelDiverterSorter.Core.Enums.SystemState.Booting, 
         enableSelfTest: true);
 }
 else
 {
     // 注册系统状态管理服务（不带自检，向后兼容）
-    builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Core.Enums.Host.SystemState.Ready);
+    builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Core.Enums.SystemState.Ready);
 }
 
 // PR-33: 注册健康状态提供器

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests.Utilities;

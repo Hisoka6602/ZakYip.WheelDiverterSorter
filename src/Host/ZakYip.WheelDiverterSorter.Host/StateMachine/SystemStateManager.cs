@@ -78,6 +78,7 @@ public class SystemStateManager : ISystemStateManager
     /// 初始化系统状态管理器
     /// </summary>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     /// <param name="initialState">初始状态（默认为Booting）</param>
     public SystemStateManager(ILogger<SystemStateManager> logger, ISystemClock clock, SystemState initialState = SystemState.Booting)
     {

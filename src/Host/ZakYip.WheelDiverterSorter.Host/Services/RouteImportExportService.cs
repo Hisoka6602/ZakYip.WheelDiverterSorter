@@ -131,6 +131,8 @@ public class RouteImportExportService : IRouteImportExportService
     {
         var routes = new Dictionary<int, RouteConfigRequest>();
 
+        using var reader = new StreamReader(stream);
+        
         // 跳过头部
         var header = reader.ReadLine();
         if (header == null)
