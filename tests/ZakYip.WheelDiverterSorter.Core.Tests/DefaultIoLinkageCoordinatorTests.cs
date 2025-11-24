@@ -2,13 +2,15 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
+namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
 public class DefaultIoLinkageCoordinatorTests
 {
-    private readonly DefaultIoLinkageCoordinator _coordinator = new();
+    private readonly DefaultIoLinkageCoordinator _coordinator = new(NullLogger<DefaultIoLinkageCoordinator>.Instance);
 
     [Fact]
     public void DetermineIoLinkagePoints_WhenDisabled_ShouldReturnEmpty()
