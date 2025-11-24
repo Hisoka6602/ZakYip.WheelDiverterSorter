@@ -30,7 +30,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         // Arrange
         const int parcelCount = 10;
         var parcels = Enumerable.Range(0, parcelCount)
-            .Select(_ => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + _)
+            .Select(_ => DateTimeOffset.Now.ToUnixTimeMilliseconds() + _)
             .ToList();
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
@@ -135,7 +135,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
             .Callback<long, CancellationToken>((parcelId, _) => processedParcels.Enqueue(parcelId))
         // Act - Process parcels in sequence
         for (int i = 0; i < parcelCount; i++)
-            var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + i;
+            var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds() + i;
             await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
             await Task.Delay(10); // Small delay between parcels
         await Task.Delay(500); // Allow processing

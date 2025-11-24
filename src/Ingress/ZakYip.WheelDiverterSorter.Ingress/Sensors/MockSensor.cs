@@ -139,7 +139,7 @@ public class MockSensor : ISensor {
             OnSensorTriggered(new SensorEvent {
                 SensorId = SensorId,
                 SensorType = Type,
-                TriggerTime = DateTimeOffset.UtcNow,
+                TriggerTime = DateTimeOffset.Now,
                 IsTriggered = true
             });
 
@@ -150,7 +150,7 @@ public class MockSensor : ISensor {
             OnSensorTriggered(new SensorEvent {
                 SensorId = SensorId,
                 SensorType = Type,
-                TriggerTime = DateTimeOffset.UtcNow,
+                TriggerTime = DateTimeOffset.Now,
                 IsTriggered = false
             });
         }

@@ -22,7 +22,7 @@ public class StructuredLoggingTests
         {
             TargetChuteId = chuteId,
             Segments = new List<SwitchingPathSegment>(),
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = 999
         };
     }

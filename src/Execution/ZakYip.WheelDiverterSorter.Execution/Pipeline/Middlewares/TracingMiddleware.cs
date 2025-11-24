@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Events;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -16,16 +17,19 @@ public sealed class TracingMiddleware : ISortingPipelineMiddleware
     private readonly ILogger<TracingMiddleware>? _logger;
     private readonly DiagnosticsLevel _diagnosticsLevel;
     private readonly double _normalParcelSamplingRate;
+    private readonly ISystemClock _clock;
     private readonly Random _random = new();
 
     /// <summary>
     /// 构造函数
     /// </summary>
     public TracingMiddleware(
+        ISystemClock clock,
         IParcelTraceSink? traceSink = null, 
         ILogger<TracingMiddleware>? logger = null,
         IOptions<DiagnosticsOptions>? options = null)
     {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _traceSink = traceSink;
         _logger = logger;
         var diagnosticsOptions = options?.Value;
@@ -70,7 +74,7 @@ public sealed class TracingMiddleware : ISortingPipelineMiddleware
             ItemId = context.ParcelId,
             BarCode = context.Barcode,
             TargetChuteId = context.TargetChuteId,
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = _clock.LocalNowOffset,
             Stage = context.CurrentStage,
             Source = "Pipeline",
             Details = $"进入阶段: {context.CurrentStage}"
@@ -86,7 +90,7 @@ public sealed class TracingMiddleware : ISortingPipelineMiddleware
             BarCode = context.Barcode,
             TargetChuteId = context.TargetChuteId,
             ActualChuteId = context.ActualChuteId,
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = _clock.LocalNowOffset,
             Stage = context.CurrentStage,
             Source = "Pipeline",
             Details = $"完成阶段: {context.CurrentStage}, 成功: {context.IsSuccess}"

@@ -33,7 +33,7 @@ public sealed class SimulatedConveyorSegmentDriver : IConveyorSegmentDriver
         _logger.LogInformation("仿真：启动中段皮带段 [{SegmentKey}]", Mapping.SegmentKey);
         _startSignalActive = true;
         _stopSignalActive = false;
-        _startCommandTime = DateTimeOffset.UtcNow;
+        _startCommandTime = DateTimeOffset.Now;
 
         // 模拟启动延迟：短暂延迟后自动设置为运行状态
         _ = Task.Run(async () =>

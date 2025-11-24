@@ -65,7 +65,7 @@ public class MonitoredParcelQueueTests
     public async Task EnqueueAsync_CallsInnerQueue()
     {
         // Arrange
-        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
+        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
         _innerQueueMock.Setup(q => q.Count).Returns(5);
 
         // Act
@@ -79,7 +79,7 @@ public class MonitoredParcelQueueTests
     public async Task DequeueAsync_CallsInnerQueue()
     {
         // Arrange
-        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
+        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
         _innerQueueMock.Setup(q => q.DequeueAsync(default)).ReturnsAsync(item);
         _innerQueueMock.Setup(q => q.Count).Returns(3);
 
@@ -95,7 +95,7 @@ public class MonitoredParcelQueueTests
     public void TryDequeue_WhenSuccessful_ReturnsItem()
     {
         // Arrange
-        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
+        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
         _innerQueueMock.Setup(q => q.TryDequeue(out It.Ref<ParcelQueueItem?>.IsAny))
             .Returns(new TryDequeueDelegate((out ParcelQueueItem? outItem) =>
             {
@@ -137,8 +137,8 @@ public class MonitoredParcelQueueTests
         // Arrange
         var items = new List<ParcelQueueItem>
         {
-            new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 },
-            new ParcelQueueItem { ParcelId = "PKG002", TargetChuteId = "2", Priority = 1 }
+            new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now },
+            new ParcelQueueItem { ParcelId = "PKG002", TargetChuteId = "2", Priority = 1 , EnqueuedAt = DateTimeOffset.Now }
         };
         _innerQueueMock.Setup(q => q.DequeueBatchAsync(10, default))
             .ReturnsAsync(items);

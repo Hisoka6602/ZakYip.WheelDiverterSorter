@@ -38,7 +38,7 @@ public class ParcelDetectionServiceTests
             {
                 SensorId = "SENSOR_01",
                 SensorType = SensorType.Photoelectric,
-                TriggerTime = DateTimeOffset.UtcNow.AddMilliseconds(i * 1500),
+                TriggerTime = DateTimeOffset.Now.AddMilliseconds(i * 1500),
                 IsTriggered = true
             };
 
@@ -75,7 +75,7 @@ public class ParcelDetectionServiceTests
         // Start the service
         await service.StartAsync();
 
-        var baseTime = DateTimeOffset.UtcNow;
+        var baseTime = DateTimeOffset.Now;
 
         // Act - Trigger twice within deduplication window
         var sensorEvent1 = new SensorEvent
@@ -123,7 +123,7 @@ public class ParcelDetectionServiceTests
         // Start the service
         await service.StartAsync();
 
-        var baseTime = DateTimeOffset.UtcNow;
+        var baseTime = DateTimeOffset.Now;
 
         // Act - Trigger twice outside deduplication window
         var sensorEvent1 = new SensorEvent
@@ -167,7 +167,7 @@ public class ParcelDetectionServiceTests
         // Start the service
         await service.StartAsync();
 
-        var triggerTime = DateTimeOffset.UtcNow;
+        var triggerTime = DateTimeOffset.Now;
 
         // Act
         var sensorEvent = new SensorEvent
@@ -212,7 +212,7 @@ public class ParcelDetectionServiceTests
         {
             SensorId = "SENSOR_01",
             SensorType = SensorType.Photoelectric,
-            TriggerTime = DateTimeOffset.UtcNow,
+            TriggerTime = DateTimeOffset.Now,
             IsTriggered = false // Not triggered
         };
         mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent1);
@@ -222,7 +222,7 @@ public class ParcelDetectionServiceTests
         {
             SensorId = "SENSOR_01",
             SensorType = SensorType.Photoelectric,
-            TriggerTime = DateTimeOffset.UtcNow.AddSeconds(1),
+            TriggerTime = DateTimeOffset.Now.AddSeconds(1),
             IsTriggered = true // Triggered
         };
         mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent2);
@@ -258,7 +258,7 @@ public class ParcelDetectionServiceTests
         // Start the service
         await service.StartAsync();
 
-        var baseTime = DateTimeOffset.UtcNow;
+        var baseTime = DateTimeOffset.Now;
 
         // Act - Trigger both sensors at the same time
         var sensorEvent1 = new SensorEvent
@@ -305,7 +305,7 @@ public class ParcelDetectionServiceTests
         // Start the service
         await service.StartAsync();
 
-        var baseTime = DateTimeOffset.UtcNow;
+        var baseTime = DateTimeOffset.Now;
 
         // Act - Trigger twice within deduplication window
         var sensorEvent1 = new SensorEvent
@@ -366,7 +366,7 @@ public class ParcelDetectionServiceTests
             {
                 SensorId = "SENSOR_01",
                 SensorType = SensorType.Photoelectric,
-                TriggerTime = DateTimeOffset.UtcNow.AddMilliseconds(i * 150),
+                TriggerTime = DateTimeOffset.Now.AddMilliseconds(i * 150),
                 IsTriggered = true
             };
             mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent);

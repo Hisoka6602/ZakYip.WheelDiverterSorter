@@ -54,7 +54,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 SensorId = sensor.SensorId,
                 Type = sensor.Type,
                 IsHealthy = true,
-                LastCheckTime = DateTimeOffset.UtcNow
+                LastCheckTime = DateTimeOffset.Now
             };
 
             // 订阅传感器事件
@@ -75,7 +75,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
         // PR-44: ConcurrentDictionary 迭代器是线程安全的，但每个状态对象的修改需要注意
         // 这里是初始化时的操作，风险较低，但为保证原子性可以考虑使用锁或逐个修改
         foreach (var status in _healthStatus.Values) {
-            status.StartTime = DateTimeOffset.UtcNow;
+            status.StartTime = DateTimeOffset.Now;
         }
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -118,7 +118,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             // 更新运行时长
             if (status.StartTime.HasValue) {
-                status.UptimeSeconds = (DateTimeOffset.UtcNow - status.StartTime.Value).TotalSeconds;
+                status.UptimeSeconds = (DateTimeOffset.Now - status.StartTime.Value).TotalSeconds;
             }
             return status;
         }
@@ -134,7 +134,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
         // 更新所有传感器的运行时长
         foreach (var status in _healthStatus.Values) {
             if (status.StartTime.HasValue) {
-                status.UptimeSeconds = (DateTimeOffset.UtcNow - status.StartTime.Value).TotalSeconds;
+                status.UptimeSeconds = (DateTimeOffset.Now - status.StartTime.Value).TotalSeconds;
             }
         }
 
@@ -149,8 +149,8 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             status.ErrorCount++;
             status.LastError = error;
-            status.LastErrorTime = DateTimeOffset.UtcNow;
-            status.LastCheckTime = DateTimeOffset.UtcNow;
+            status.LastErrorTime = DateTimeOffset.Now;
+            status.LastCheckTime = DateTimeOffset.Now;
 
             _logger?.LogWarning(
                 "传感器 {SensorId} 报告错误 (第{Count}次): {Error}",
@@ -173,7 +173,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
         if (_healthStatus.TryGetValue(sensorEvent.SensorId, out var status)) {
             status.LastTriggerTime = sensorEvent.TriggerTime;
             status.TotalTriggerCount++;
-            status.LastCheckTime = DateTimeOffset.UtcNow;
+            status.LastCheckTime = DateTimeOffset.Now;
 
             // 如果传感器之前处于故障状态，现在恢复了
             if (!status.IsHealthy) {
@@ -199,7 +199,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 await Task.Delay(_checkInterval, cancellationToken);
 
                 // PR-44: ConcurrentDictionary 迭代器是线程安全的
-                var now = DateTimeOffset.UtcNow;
+                var now = DateTimeOffset.Now;
 
                 foreach (var status in _healthStatus.Values) {
                     status.LastCheckTime = now;
@@ -236,7 +236,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     private void MarkSensorAsFaulty(string sensorId, SensorFaultType faultType, string description) {
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             status.IsHealthy = false;
-            _faultStartTimes[sensorId] = DateTimeOffset.UtcNow;
+            _faultStartTimes[sensorId] = DateTimeOffset.Now;
 
             _logger?.LogError(
                 "传感器 {SensorId} 进入故障状态: {FaultType} - {Description}",
@@ -250,7 +250,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 Type = status.Type,
                 FaultType = faultType,
                 Description = description,
-                FaultTime = DateTimeOffset.UtcNow
+                FaultTime = DateTimeOffset.Now
             });
         }
     }
@@ -265,7 +265,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
             var faultDuration = 0.0;
             if (_faultStartTimes.TryGetValue(sensorId, out var faultStartTime)) {
-                faultDuration = (DateTimeOffset.UtcNow - faultStartTime).TotalSeconds;
+                faultDuration = (DateTimeOffset.Now - faultStartTime).TotalSeconds;
                 // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
                 _faultStartTimes.TryRemove(sensorId, out _);
             }
@@ -279,7 +279,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
             SensorRecovery?.Invoke(this, new SensorRecoveryEventArgs {
                 SensorId = sensorId,
                 Type = status.Type,
-                RecoveryTime = DateTimeOffset.UtcNow,
+                RecoveryTime = DateTimeOffset.Now,
                 FaultDurationSeconds = faultDuration
             });
         }

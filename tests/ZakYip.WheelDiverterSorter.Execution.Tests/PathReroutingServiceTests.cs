@@ -21,7 +21,7 @@ public class PathReroutingServiceTests
         _service = new PathReroutingService(
             _mockRouteRepo.Object,
             _mockPathGenerator.Object,
-            NullLogger<PathReroutingService>.Instance);
+            NullLogger<PathReroutingService>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
     }
 
     [Fact]
@@ -200,7 +200,7 @@ public class PathReroutingServiceTests
         {
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = 999
         };
     }

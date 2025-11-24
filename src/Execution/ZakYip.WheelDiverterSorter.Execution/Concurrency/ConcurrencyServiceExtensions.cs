@@ -67,8 +67,9 @@ public static class ConcurrencyServiceExtensions
             var lockManager = sp.GetRequiredService<IDiverterResourceLockManager>();
             var options = sp.GetRequiredService<IOptions<ConcurrencyOptions>>();
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ConcurrentSwitchingPathExecutor>>();
+            var clock = sp.GetRequiredService<Core.Utilities.ISystemClock>();
 
-            return new ConcurrentSwitchingPathExecutor(inner, lockManager, options, logger);
+            return new ConcurrentSwitchingPathExecutor(inner, lockManager, options, logger, clock);
         });
 
         return services;

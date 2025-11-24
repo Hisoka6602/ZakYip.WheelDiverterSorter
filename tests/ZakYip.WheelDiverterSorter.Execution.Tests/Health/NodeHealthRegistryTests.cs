@@ -20,7 +20,7 @@ public class NodeHealthRegistryTests
         {
             NodeId = 1,
             IsHealthy = true,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -42,7 +42,7 @@ public class NodeHealthRegistryTests
         {
             NodeId = 1,
             IsHealthy = true,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         };
         
         registry.UpdateNodeHealth(initialStatus);
@@ -53,7 +53,7 @@ public class NodeHealthRegistryTests
             IsHealthy = false,
             ErrorCode = "TEST_ERROR",
             ErrorMessage = "测试错误",
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -101,7 +101,7 @@ public class NodeHealthRegistryTests
         {
             NodeId = 1,
             IsHealthy = false,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         };
         
         registry.UpdateNodeHealth(nodeStatus);
@@ -123,21 +123,21 @@ public class NodeHealthRegistryTests
         {
             NodeId = 1,
             IsHealthy = true,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         });
         
         registry.UpdateNodeHealth(new NodeHealthStatus
         {
             NodeId = 2,
             IsHealthy = false,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         });
         
         registry.UpdateNodeHealth(new NodeHealthStatus
         {
             NodeId = 3,
             IsHealthy = false,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         });
 
         // Act
@@ -159,7 +159,7 @@ public class NodeHealthRegistryTests
         {
             NodeId = 1,
             IsHealthy = true,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         });
 
         // Act
@@ -182,7 +182,7 @@ public class NodeHealthRegistryTests
             {
                 NodeId = i,
                 IsHealthy = true,
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = DateTimeOffset.Now
             });
         }
         
@@ -191,14 +191,14 @@ public class NodeHealthRegistryTests
         {
             NodeId = 11,
             IsHealthy = false,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         });
         
         registry.UpdateNodeHealth(new NodeHealthStatus
         {
             NodeId = 12,
             IsHealthy = false,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         });
 
         // Act
@@ -221,7 +221,7 @@ public class NodeHealthRegistryTests
             {
                 NodeId = i,
                 IsHealthy = true,
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = DateTimeOffset.Now
             });
         }
         
@@ -232,7 +232,7 @@ public class NodeHealthRegistryTests
             {
                 NodeId = i,
                 IsHealthy = false,
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = DateTimeOffset.Now
             });
         }
 
@@ -255,7 +255,7 @@ public class NodeHealthRegistryTests
         {
             NodeId = 1,
             IsHealthy = true,
-            CheckedAt = DateTimeOffset.UtcNow
+            CheckedAt = DateTimeOffset.Now
         };
 
         // Act

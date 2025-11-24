@@ -18,7 +18,7 @@ public class AnomalyDetectorTests
     {
         _mockAlertSink = new Mock<IAlertSink>();
         _mockLogger = new Mock<ILogger<AnomalyDetector>>();
-        _detector = new AnomalyDetector(_mockAlertSink.Object, _mockLogger.Object);
+        _detector = new AnomalyDetector(_mockAlertSink.Object, _mockLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
     }
 
     [Fact]
@@ -26,7 +26,7 @@ public class AnomalyDetectorTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new AnomalyDetector(null!, _mockLogger.Object));
+            new AnomalyDetector(null!, _mockLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public class AnomalyDetectorTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new AnomalyDetector(_mockAlertSink.Object, null!));
+            new AnomalyDetector(_mockAlertSink.Object, null!, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]

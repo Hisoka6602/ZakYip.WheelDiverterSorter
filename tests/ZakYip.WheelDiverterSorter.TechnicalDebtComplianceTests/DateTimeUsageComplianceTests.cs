@@ -9,7 +9,7 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// <remarks>
 /// 根据 copilot-instructions.md 规范：
 /// 1. 业务代码必须使用 ISystemClock.LocalNow 获取时间
-/// 2. 禁止直接使用 DateTime.Now / DateTime.UtcNow / DateTimeOffset.UtcNow
+/// 2. 禁止直接使用 DateTime.Now / DateTime.UtcNow / DateTimeOffset.Now
 /// 3. 仅 SystemClock 实现类可以直接使用 DateTime.Now/UtcNow
 /// </remarks>
 public class DateTimeUsageComplianceTests
@@ -23,7 +23,7 @@ public class DateTimeUsageComplianceTests
         // 过滤掉 ISystemClock.UtcNow 的 warnings（这个可以在特定场景使用）
         var errors = violations.Where(v => v.Severity == ViolationSeverity.Error).ToList();
 
-        // Assert: 不应有直接的 DateTime.Now/UtcNow 或 DateTimeOffset.UtcNow 使用
+        // Assert: 不应有直接的 DateTime.Now/UtcNow 或 DateTimeOffset.Now 使用
         if (errors.Any())
         {
             var report = GenerateViolationReport(errors);
@@ -138,7 +138,7 @@ public class DateTimeUsageComplianceTests
         report.AppendLine("\n💡 修复建议:");
         report.AppendLine("1. 将 DateTime.Now → ISystemClock.LocalNow");
         report.AppendLine("2. 将 DateTime.UtcNow → ISystemClock.LocalNow");
-        report.AppendLine("3. 将 DateTimeOffset.UtcNow → ISystemClock.LocalNowOffset");
+        report.AppendLine("3. 将 DateTimeOffset.Now → ISystemClock.LocalNowOffset");
         report.AppendLine("4. 在构造函数注入 ISystemClock 依赖");
         
         return report.ToString();

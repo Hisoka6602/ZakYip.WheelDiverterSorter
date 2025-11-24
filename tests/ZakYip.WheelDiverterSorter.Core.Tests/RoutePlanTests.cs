@@ -14,7 +14,7 @@ public class RoutePlanTests
         // Arrange
         var parcelId = 12345L;
         var targetChuteId = 10;
-        var createdAt = DateTimeOffset.UtcNow;
+        var createdAt = DateTimeOffset.Now;
 
         // Act
         var routePlan = new RoutePlan(parcelId, targetChuteId, createdAt);
@@ -32,9 +32,9 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenCreated_ShouldAcceptChange()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         var result = routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out var decision);
@@ -51,10 +51,10 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenExecuting_ShouldAcceptChange()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
-        routePlan.MarkAsExecuting(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
+        routePlan.MarkAsExecuting(DateTimeOffset.Now);
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         var result = routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out var decision);
@@ -69,11 +69,11 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenCompleted_ShouldIgnoreChange()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
-        routePlan.MarkAsCompleted(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
+        routePlan.MarkAsCompleted(DateTimeOffset.Now);
         var originalChuteId = routePlan.CurrentTargetChuteId;
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         var result = routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out var decision);
@@ -90,11 +90,11 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenExceptionRouted_ShouldIgnoreChange()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
-        routePlan.MarkAsExceptionRouted(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
+        routePlan.MarkAsExceptionRouted(DateTimeOffset.Now);
         var originalChuteId = routePlan.CurrentTargetChuteId;
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         var result = routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out var decision);
@@ -111,10 +111,10 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenFailed_ShouldRejectChange()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
-        routePlan.MarkAsFailed(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
+        routePlan.MarkAsFailed(DateTimeOffset.Now);
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         var result = routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out var decision);
@@ -131,7 +131,7 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenAfterDeadline_ShouldRejectChange()
     {
         // Arrange
-        var createdAt = DateTimeOffset.UtcNow;
+        var createdAt = DateTimeOffset.Now;
         var deadline = createdAt.AddSeconds(10);
         var routePlan = new RoutePlan(12345L, 10, createdAt, deadline);
         var requestedChuteId = 20;
@@ -152,7 +152,7 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenBeforeDeadline_ShouldAcceptChange()
     {
         // Arrange
-        var createdAt = DateTimeOffset.UtcNow;
+        var createdAt = DateTimeOffset.Now;
         var deadline = createdAt.AddSeconds(10);
         var routePlan = new RoutePlan(12345L, 10, createdAt, deadline);
         var requestedChuteId = 20;
@@ -173,9 +173,9 @@ public class RoutePlanTests
     public void TryApplyChuteChange_ShouldRaiseDomainEvents()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out _);
@@ -190,11 +190,11 @@ public class RoutePlanTests
     public void TryApplyChuteChange_WhenIgnored_ShouldRaiseIgnoredEvent()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
-        routePlan.MarkAsCompleted(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
+        routePlan.MarkAsCompleted(DateTimeOffset.Now);
         routePlan.ClearDomainEvents();
         var requestedChuteId = 20;
-        var requestedAt = DateTimeOffset.UtcNow;
+        var requestedAt = DateTimeOffset.Now;
 
         // Act
         routePlan.TryApplyChuteChange(requestedChuteId, requestedAt, out _);
@@ -209,12 +209,12 @@ public class RoutePlanTests
     public void MultipleChanges_ShouldIncrementCountCorrectly()
     {
         // Arrange
-        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
 
         // Act
-        routePlan.TryApplyChuteChange(20, DateTimeOffset.UtcNow, out _);
-        routePlan.TryApplyChuteChange(30, DateTimeOffset.UtcNow.AddSeconds(1), out _);
-        routePlan.TryApplyChuteChange(40, DateTimeOffset.UtcNow.AddSeconds(2), out _);
+        routePlan.TryApplyChuteChange(20, DateTimeOffset.Now, out _);
+        routePlan.TryApplyChuteChange(30, DateTimeOffset.Now.AddSeconds(1), out _);
+        routePlan.TryApplyChuteChange(40, DateTimeOffset.Now.AddSeconds(2), out _);
 
         // Assert
         Assert.Equal(3, routePlan.ChuteChangeCount);

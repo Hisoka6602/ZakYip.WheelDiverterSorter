@@ -517,7 +517,7 @@ public class InMemoryLogCollector : ILoggerProvider
                     CategoryName = _categoryName,
                     Message = message,
                     Exception = exception,
-                    Timestamp = DateTimeOffset.UtcNow
+                    Timestamp = DateTimeOffset.Now
                 });
             }
         }

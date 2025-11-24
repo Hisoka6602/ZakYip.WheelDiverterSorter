@@ -40,7 +40,7 @@ public class RelayWheelDiverterSelfTest : IDriverSelfTest
             {
                 DriverName = DriverName,
                 IsHealthy = true,
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = DateTimeOffset.Now
             };
         }
         catch (OperationCanceledException)
@@ -52,7 +52,7 @@ public class RelayWheelDiverterSelfTest : IDriverSelfTest
                 IsHealthy = false,
                 ErrorCode = "CANCELLED",
                 ErrorMessage = "自检操作被取消",
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = DateTimeOffset.Now
             };
         }
         catch (Exception ex)
@@ -64,7 +64,7 @@ public class RelayWheelDiverterSelfTest : IDriverSelfTest
                 IsHealthy = false,
                 ErrorCode = "DRIVER_ERROR",
                 ErrorMessage = $"驱动器访问失败: {ex.Message}",
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = DateTimeOffset.Now
             };
         }
     }

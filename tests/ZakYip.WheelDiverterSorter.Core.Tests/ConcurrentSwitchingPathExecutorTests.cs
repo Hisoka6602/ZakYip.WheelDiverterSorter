@@ -39,7 +39,7 @@ public class ConcurrentSwitchingPathExecutorTests
                 null!,
                 _lockManager,
                 _options,
-                NullLogger<ConcurrentSwitchingPathExecutor>.Instance));
+                NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public class ConcurrentSwitchingPathExecutorTests
                 _innerExecutorMock.Object,
                 null!,
                 _options,
-                NullLogger<ConcurrentSwitchingPathExecutor>.Instance));
+                NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public class ConcurrentSwitchingPathExecutorTests
                 _innerExecutorMock.Object,
                 _lockManager,
                 null!,
-                NullLogger<ConcurrentSwitchingPathExecutor>.Instance));
+                NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(() =>
@@ -100,7 +100,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act
         var result = await executor.ExecuteAsync(path);
@@ -134,7 +134,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act
         await executor.ExecuteAsync(path);
@@ -172,7 +172,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - try to execute 10 paths concurrently
         var tasks = Enumerable.Range(1, 10).Select(i =>
@@ -211,7 +211,7 @@ public class ConcurrentSwitchingPathExecutorTests
             mockExecutor.Object,
             lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - try to execute multiple paths using the same diverter
         var tasks = Enumerable.Range(1, 5).Select(i =>
@@ -246,7 +246,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - execute paths with different diverters
         var tasks = Enumerable.Range(1, 5).Select(i =>
@@ -279,7 +279,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act
         var executeTask = executor.ExecuteAsync(path, cts.Token);
@@ -306,7 +306,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act
         var result = await executor.ExecuteAsync(path);
@@ -330,7 +330,7 @@ public class ConcurrentSwitchingPathExecutorTests
             _innerExecutorMock.Object,
             _lockManager,
             _options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act
         var result1 = await executor.ExecuteAsync(path);
@@ -377,7 +377,7 @@ public class ConcurrentSwitchingPathExecutorTests
             mockExecutor.Object,
             lockManager,
             options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - execute many requests concurrently
         var failures = new System.Collections.Concurrent.ConcurrentBag<string>();
@@ -420,7 +420,7 @@ public class ConcurrentSwitchingPathExecutorTests
         {
             TargetChuteId = targetChuteId,
             Segments = segments,
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = 999
         };
     }

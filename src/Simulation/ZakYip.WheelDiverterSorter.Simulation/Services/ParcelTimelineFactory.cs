@@ -32,7 +32,7 @@ public class ParcelTimelineFactory
     {
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _simulationStartTime = DateTimeOffset.UtcNow;
+        _simulationStartTime = DateTimeOffset.Now;
         _parcelCounter = 0;
 
         // 初始化摩擦随机数生成器
@@ -275,7 +275,7 @@ public class ParcelTimelineFactory
             return false;
         }
 
-        var elapsed = DateTimeOffset.UtcNow - _simulationStartTime;
+        var elapsed = DateTimeOffset.Now - _simulationStartTime;
 
         // 检查是否在故障时间范围内
         if (_options.SensorFault.FaultStartOffset.HasValue)

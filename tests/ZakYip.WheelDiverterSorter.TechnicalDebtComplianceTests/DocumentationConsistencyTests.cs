@@ -90,7 +90,7 @@ public class DocumentationConsistencyTests
         plan.AppendLine("### Action Items:");
         plan.AppendLine("1. Replace all `DateTime.Now` with `ISystemClock.LocalNow`");
         plan.AppendLine("2. Replace all `DateTime.UtcNow` with `ISystemClock.LocalNow`");
-        plan.AppendLine("3. Replace all `DateTimeOffset.UtcNow` with `ISystemClock.LocalNowOffset`");
+        plan.AppendLine("3. Replace all `DateTimeOffset.Now` with `ISystemClock.LocalNowOffset`");
         plan.AppendLine("4. Inject `ISystemClock` dependency where needed\n");
         
         var dateTimeByLayer = dateTimeViolations.GroupBy(v =>

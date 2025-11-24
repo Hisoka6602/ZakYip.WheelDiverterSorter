@@ -66,7 +66,7 @@ public class PerformanceBottleneckBenchmarks
         _repository.Upsert(complexRoute);
 
         _generator = new DefaultSwitchingPathGenerator(_repository);
-        _executor = new MockSwitchingPathExecutor();
+        _executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         _simplePath = _generator.GeneratePath(1)!;
         _complexPath = _generator.GeneratePath(2)!;
@@ -258,7 +258,7 @@ public class PerformanceBottleneckBenchmarks
                         TtlMilliseconds = 5000
                     }
                 }.AsReadOnly(),
-                GeneratedAt = DateTimeOffset.UtcNow,
+                GeneratedAt = DateTimeOffset.Now,
                 FallbackChuteId = WellKnownChuteIds.DefaultException
             };
             _consumer.Consume(path);

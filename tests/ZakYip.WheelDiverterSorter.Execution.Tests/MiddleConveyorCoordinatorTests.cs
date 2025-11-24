@@ -28,7 +28,7 @@ public class MiddleConveyorCoordinatorTests
             mapping,
             NullLogger<SimulatedConveyorSegmentDriver>.Instance);
 
-        return new ConveyorSegment(driver, NullLogger<ConveyorSegment>.Instance);
+        return new ConveyorSegment(driver, NullLogger<ConveyorSegment>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
     }
 
     private MiddleConveyorCoordinator CreateCoordinator(

@@ -129,7 +129,7 @@ public class DenseTrafficSimulationTests : IDisposable
                     {
                         TargetChuteId = targetChuteId,
                         FallbackChuteId = 999,
-                        GeneratedAt = DateTimeOffset.UtcNow,
+                        GeneratedAt = DateTimeOffset.Now,
                         Segments = new List<SwitchingPathSegment>
                         {
                             new SwitchingPathSegment

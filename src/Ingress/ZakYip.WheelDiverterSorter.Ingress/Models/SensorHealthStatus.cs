@@ -30,7 +30,7 @@ public class SensorHealthStatus {
     /// <summary>
     /// 最后检查时间
     /// </summary>
-    public DateTimeOffset LastCheckTime { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset LastCheckTime { get; set; } = DateTimeOffset.Now;
 
     /// <summary>
     /// 错误计数

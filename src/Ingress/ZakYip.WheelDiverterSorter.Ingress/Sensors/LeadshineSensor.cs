@@ -136,7 +136,7 @@ public class LeadshineSensor : ISensor {
                     var sensorEvent = new SensorEvent {
                         SensorId = SensorId,
                         SensorType = Type,
-                        TriggerTime = DateTimeOffset.UtcNow,
+                        TriggerTime = DateTimeOffset.Now,
                         IsTriggered = currentState
                     };
 

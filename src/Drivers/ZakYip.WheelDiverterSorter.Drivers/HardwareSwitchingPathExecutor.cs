@@ -84,7 +84,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                         ActualChuteId = path.FallbackChuteId,
                         FailureReason = $"找不到摆轮控制器: {segment.DiverterId}",
                         FailedSegment = segment,
-                        FailureTime = DateTimeOffset.UtcNow
+                        FailureTime = DateTimeOffset.Now
                     };
                 }
 
@@ -118,7 +118,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                         ActualChuteId = path.FallbackChuteId,
                         FailureReason = $"段 {segment.SequenceNumber} 执行超时",
                         FailedSegment = segment,
-                        FailureTime = DateTimeOffset.UtcNow
+                        FailureTime = DateTimeOffset.Now
                     };
                 }
 
@@ -134,7 +134,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                         ActualChuteId = path.FallbackChuteId,
                         FailureReason = $"段 {segment.SequenceNumber} 执行失败",
                         FailedSegment = segment,
-                        FailureTime = DateTimeOffset.UtcNow
+                        FailureTime = DateTimeOffset.Now
                     };
                 }
 
@@ -162,7 +162,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = "操作被取消",
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = DateTimeOffset.Now
             };
         }
         catch (Exception ex)
@@ -173,7 +173,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = $"执行异常: {ex.Message}",
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = DateTimeOffset.Now
             };
         }
     }

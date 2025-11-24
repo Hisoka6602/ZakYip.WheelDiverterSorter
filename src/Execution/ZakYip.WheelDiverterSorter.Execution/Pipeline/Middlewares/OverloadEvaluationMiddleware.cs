@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -26,15 +27,18 @@ public sealed class OverloadEvaluationMiddleware : ISortingPipelineMiddleware
     private readonly OverloadEvaluationDelegate? _evaluationDelegate;
     private readonly IParcelTraceSink? _traceSink;
     private readonly ILogger<OverloadEvaluationMiddleware>? _logger;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     public OverloadEvaluationMiddleware(
+        ISystemClock clock,
         OverloadEvaluationDelegate? evaluationDelegate = null,
         IParcelTraceSink? traceSink = null,
         ILogger<OverloadEvaluationMiddleware>? logger = null)
     {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _evaluationDelegate = evaluationDelegate;
         _traceSink = traceSink;
         _logger = logger;
@@ -74,7 +78,7 @@ public sealed class OverloadEvaluationMiddleware : ISortingPipelineMiddleware
                     ItemId = context.ParcelId,
                     BarCode = context.Barcode,
                     TargetChuteId = context.TargetChuteId,
-                    OccurredAt = DateTimeOffset.UtcNow,
+                    OccurredAt = _clock.LocalNowOffset,
                     Stage = "OverloadEvaluated",
                     Source = "OverloadPolicy",
                     Details = $"Reason={overloadDecision.Value.Reason}, CongestionLevel={congestionLevel}, ForceException=true"

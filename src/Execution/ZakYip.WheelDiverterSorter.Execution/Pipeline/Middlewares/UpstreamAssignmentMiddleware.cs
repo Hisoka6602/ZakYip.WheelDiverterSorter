@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -19,16 +20,19 @@ public sealed class UpstreamAssignmentMiddleware : ISortingPipelineMiddleware
     private readonly UpstreamAssignmentDelegate _assignmentDelegate;
     private readonly IParcelTraceSink? _traceSink;
     private readonly ILogger<UpstreamAssignmentMiddleware>? _logger;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     public UpstreamAssignmentMiddleware(
         UpstreamAssignmentDelegate assignmentDelegate,
+        ISystemClock clock,
         IParcelTraceSink? traceSink = null,
         ILogger<UpstreamAssignmentMiddleware>? logger = null)
     {
         _assignmentDelegate = assignmentDelegate ?? throw new ArgumentNullException(nameof(assignmentDelegate));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _traceSink = traceSink;
         _logger = logger;
     }
@@ -63,7 +67,7 @@ public sealed class UpstreamAssignmentMiddleware : ISortingPipelineMiddleware
             {
                 ItemId = context.ParcelId,
                 BarCode = context.Barcode,
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = _clock.LocalNowOffset,
                 Stage = "UpstreamAssigned",
                 Source = source,
                 Details = $"ChuteId={chuteId}, LatencyMs={latencyMs:F0}, Status={status}"

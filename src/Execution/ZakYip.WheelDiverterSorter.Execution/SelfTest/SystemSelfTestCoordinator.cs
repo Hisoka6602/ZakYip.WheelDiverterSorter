@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.SelfTest;
 
@@ -14,18 +15,21 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
     private readonly IConfigValidator _configValidator;
     private readonly INodeHealthRegistry? _nodeHealthRegistry;
     private readonly ILogger<SystemSelfTestCoordinator> _logger;
+    private readonly ISystemClock _clock;
 
     public SystemSelfTestCoordinator(
         IEnumerable<IDriverSelfTest> driverTests,
         IEnumerable<IUpstreamHealthChecker> upstreamCheckers,
         IConfigValidator configValidator,
         ILogger<SystemSelfTestCoordinator> logger,
+        ISystemClock clock,
         INodeHealthRegistry? nodeHealthRegistry = null)
     {
         _driverTests = driverTests ?? throw new ArgumentNullException(nameof(driverTests));
         _upstreamCheckers = upstreamCheckers ?? throw new ArgumentNullException(nameof(upstreamCheckers));
         _configValidator = configValidator ?? throw new ArgumentNullException(nameof(configValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _nodeHealthRegistry = nodeHealthRegistry;
     }
 
@@ -33,7 +37,7 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
     public async Task<SystemSelfTestReport> RunAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("开始系统自检...");
-        var startTime = DateTimeOffset.UtcNow;
+        var startTime = _clock.LocalNowOffset;
 
         try
         {

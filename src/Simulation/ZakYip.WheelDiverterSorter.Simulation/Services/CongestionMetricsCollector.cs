@@ -38,7 +38,7 @@ public class CongestionMetricsCollector
         
         _recentParcels.Enqueue(new ParcelMetric
         {
-            Timestamp = DateTimeOffset.UtcNow,
+            Timestamp = DateTimeOffset.Now,
             Success = success,
             LatencyMs = latencyMs
         });
@@ -82,7 +82,7 @@ public class CongestionMetricsCollector
 
     private void CleanupOldMetrics()
     {
-        var cutoffTime = DateTimeOffset.UtcNow - _timeWindow;
+        var cutoffTime = DateTimeOffset.Now - _timeWindow;
         
         while (_recentParcels.TryPeek(out var metric) && metric.Timestamp < cutoffTime)
         {

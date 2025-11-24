@@ -31,7 +31,7 @@ public class PathFailureIntegrationTests
         
         var failureHandler = new PathFailureHandler(
             pathGeneratorMock.Object,
-            NullLogger<PathFailureHandler>.Instance);
+            NullLogger<PathFailureHandler>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
         
         // 创建一个会失败的执行器
         var executor = new FailingMockExecutor();
@@ -82,7 +82,7 @@ public class PathFailureIntegrationTests
         
         var failureHandler = new PathFailureHandler(
             pathGeneratorMock.Object,
-            NullLogger<PathFailureHandler>.Instance);
+            NullLogger<PathFailureHandler>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
         
         var executor = new FailingMockExecutor();
         
@@ -124,9 +124,9 @@ public class PathFailureIntegrationTests
         
         var failureHandler = new PathFailureHandler(
             pathGeneratorMock.Object,
-            NullLogger<PathFailureHandler>.Instance);
+            NullLogger<PathFailureHandler>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
         
-        var executor = new MockSwitchingPathExecutor();
+        var executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
         
         var failureEventRaised = false;
         failureHandler.PathExecutionFailed += (sender, args) => failureEventRaised = true;
@@ -152,7 +152,7 @@ public class PathFailureIntegrationTests
         {
             TargetChuteId = targetChuteId,
             FallbackChuteId = fallbackChuteId,
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
@@ -191,7 +191,7 @@ public class PathFailureIntegrationTests
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = "模拟段执行失败",
                 FailedSegment = failedSegment,
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = DateTimeOffset.Now
             });
         }
     }

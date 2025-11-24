@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 
@@ -20,6 +21,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly IParcelTraceSink? _traceSink;
     private readonly ILogger<RoutePlanningMiddleware>? _logger;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 构造函数
@@ -27,12 +29,14 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
     public RoutePlanningMiddleware(
         ISwitchingPathGenerator pathGenerator,
         ISystemConfigurationRepository systemConfigRepository,
+        ISystemClock clock,
         PathHealthChecker? pathHealthChecker = null,
         IParcelTraceSink? traceSink = null,
         ILogger<RoutePlanningMiddleware>? logger = null)
     {
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _pathHealthChecker = pathHealthChecker;
         _traceSink = traceSink;
         _logger = logger;
@@ -44,7 +48,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
         context.CurrentStage = "RoutePlanning";
         _logger?.LogDebug("包裹 {ParcelId} 开始路径规划", context.ParcelId);
 
-        var startTime = DateTimeOffset.UtcNow;
+        var startTime = _clock.LocalNowOffset;
 
         try
         {
@@ -97,7 +101,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
                         ItemId = context.ParcelId,
                         BarCode = context.Barcode,
                         TargetChuteId = context.TargetChuteId,
-                        OccurredAt = DateTimeOffset.UtcNow,
+                        OccurredAt = _clock.LocalNowOffset,
                         Stage = "OverloadEvaluated",
                         Source = "NodeHealthCheck",
                         Details = $"Reason=NodeDegraded, UnhealthyNodes=[{unhealthyNodeList}], OriginalTargetChute={context.TargetChuteId}"
@@ -122,7 +126,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
                 }
             }
 
-            var elapsedMs = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
+            var elapsedMs = (_clock.LocalNowOffset - startTime).TotalMilliseconds;
             context.PlanningLatencyMs = elapsedMs;
 
             // 记录路径规划完成事件
@@ -131,7 +135,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
                 ItemId = context.ParcelId,
                 BarCode = context.Barcode,
                 TargetChuteId = context.TargetChuteId,
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = _clock.LocalNowOffset,
                 Stage = "RoutePlanned",
                 Source = "Execution",
                 Details = $"TargetChuteId={context.TargetChuteId}, SegmentCount={path.Segments.Count}, EstimatedTimeMs={totalRouteTimeMs:F0}"

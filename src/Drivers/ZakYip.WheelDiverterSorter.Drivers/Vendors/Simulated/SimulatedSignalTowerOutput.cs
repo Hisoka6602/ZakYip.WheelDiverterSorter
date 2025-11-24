@@ -92,7 +92,7 @@ public class SimulatedSignalTowerOutput : ISignalTowerOutput
             _stateChangeHistory.Add(new SignalTowerStateChange
             {
                 State = state,
-                ChangedAt = DateTimeOffset.UtcNow
+                ChangedAt = DateTimeOffset.Now
             });
         }
     }

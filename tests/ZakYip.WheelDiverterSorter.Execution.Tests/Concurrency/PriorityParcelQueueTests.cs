@@ -36,7 +36,7 @@ public class PriorityParcelQueueTests
     {
         // Arrange
         var queue = new PriorityParcelQueue();
-        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
+        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
 
         // Act
         await queue.EnqueueAsync(item);
@@ -63,7 +63,7 @@ public class PriorityParcelQueueTests
     {
         // Arrange
         var queue = new PriorityParcelQueue();
-        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
+        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
         await queue.EnqueueAsync(item);
 
         // Act
@@ -79,9 +79,9 @@ public class PriorityParcelQueueTests
     {
         // Arrange
         var queue = new PriorityParcelQueue();
-        var item1 = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
-        var item2 = new ParcelQueueItem { ParcelId = "PKG002", TargetChuteId = "2", Priority = 1 };
-        var item3 = new ParcelQueueItem { ParcelId = "PKG003", TargetChuteId = "3", Priority = 1 };
+        var item1 = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
+        var item2 = new ParcelQueueItem { ParcelId = "PKG002", TargetChuteId = "2", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
+        var item3 = new ParcelQueueItem { ParcelId = "PKG003", TargetChuteId = "3", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
 
         // Act
         await queue.EnqueueAsync(item1);
@@ -104,8 +104,8 @@ public class PriorityParcelQueueTests
     {
         // Arrange
         var queue = new PriorityParcelQueue();
-        var item1 = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 };
-        var item2 = new ParcelQueueItem { ParcelId = "PKG002", TargetChuteId = "2", Priority = 1 };
+        var item1 = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
+        var item2 = new ParcelQueueItem { ParcelId = "PKG002", TargetChuteId = "2", Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
 
         // Act & Assert
         queue.Count.Should().Be(0);
@@ -152,7 +152,7 @@ public class PriorityParcelQueueTests
             int index = i;
             tasks.Add(Task.Run(async () =>
             {
-                var item = new ParcelQueueItem { ParcelId = $"PKG{index:000}", TargetChuteId = index.ToString(), Priority = 1 };
+                var item = new ParcelQueueItem { ParcelId = $"PKG{index:000}", TargetChuteId = index.ToString(), Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
                 await queue.EnqueueAsync(item);
             }));
         }
@@ -171,7 +171,7 @@ public class PriorityParcelQueueTests
         
         for (int i = 0; i < itemCount; i++)
         {
-            var item = new ParcelQueueItem { ParcelId = $"PKG{i:000}", TargetChuteId = i.ToString(), Priority = 1 };
+            var item = new ParcelQueueItem { ParcelId = $"PKG{i:000}", TargetChuteId = i.ToString(), Priority = 1 , EnqueuedAt = DateTimeOffset.Now };
             await queue.EnqueueAsync(item);
         }
 

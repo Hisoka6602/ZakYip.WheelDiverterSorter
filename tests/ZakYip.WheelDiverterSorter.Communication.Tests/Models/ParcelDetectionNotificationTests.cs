@@ -12,7 +12,7 @@ public class ParcelDetectionNotificationTests
     {
         // Arrange
         var parcelId = 1234567890L;
-        var detectionTime = DateTimeOffset.UtcNow;
+        var detectionTime = DateTimeOffset.Now;
         var metadata = new Dictionary<string, string>
         {
             { "weight", "1.5kg" },
@@ -39,13 +39,13 @@ public class ParcelDetectionNotificationTests
     public void ParcelDetectionNotification_DefaultDetectionTime()
     {
         // Arrange & Act
-        var before = DateTimeOffset.UtcNow;
+        var before = DateTimeOffset.Now;
         var notification = new ParcelDetectionNotification
         {
             ParcelId = 123456L,
-            DetectionTime = DateTimeOffset.UtcNow
+            DetectionTime = DateTimeOffset.Now
         };
-        var after = DateTimeOffset.UtcNow;
+        var after = DateTimeOffset.Now;
 
         // Assert
         Assert.InRange(notification.DetectionTime, before.AddSeconds(-1), after.AddSeconds(1));
@@ -58,7 +58,7 @@ public class ParcelDetectionNotificationTests
         var notification = new ParcelDetectionNotification
         {
             ParcelId = 123456L,
-            DetectionTime = DateTimeOffset.UtcNow,
+            DetectionTime = DateTimeOffset.Now,
             Metadata = null
         };
 
@@ -71,7 +71,7 @@ public class ParcelDetectionNotificationTests
     {
         // Arrange
         var parcelId = 123456L;
-        var detectionTime = DateTimeOffset.UtcNow;
+        var detectionTime = DateTimeOffset.Now;
         
         var notification1 = new ParcelDetectionNotification
         {

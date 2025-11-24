@@ -116,7 +116,7 @@ public class PerformanceBaselineTests : IDisposable
                     {
                         TargetChuteId = targetChuteId,
                         FallbackChuteId = 21,
-                        GeneratedAt = DateTimeOffset.UtcNow,
+                        GeneratedAt = DateTimeOffset.Now,
                         Segments = new List<SwitchingPathSegment>
                         {
                             new SwitchingPathSegment

@@ -4,7 +4,9 @@ using System.Text.RegularExpressions;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
 
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
 
 /// <summary>
 /// 带并发控制的摆轮路径执行器
@@ -21,6 +23,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
     private readonly SemaphoreSlim _concurrencyThrottle;
     private readonly ILogger<ConcurrentSwitchingPathExecutor> _logger;
     private readonly ConcurrencyOptions _options;
+    private readonly ISystemClock _clock;
     private static readonly Regex LogSanitizer = new Regex(@"[\r\n]", RegexOptions.Compiled);
 
     /// <summary>
@@ -48,16 +51,19 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
     /// <param name="lockManager">摆轮资源锁管理器</param>
     /// <param name="options">并发控制选项</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     public ConcurrentSwitchingPathExecutor(
         ISwitchingPathExecutor innerExecutor,
         IDiverterResourceLockManager lockManager,
         IOptions<ConcurrencyOptions> options,
-        ILogger<ConcurrentSwitchingPathExecutor> logger)
+        ILogger<ConcurrentSwitchingPathExecutor> logger,
+        ISystemClock clock)
     {
         _innerExecutor = innerExecutor ?? throw new ArgumentNullException(nameof(innerExecutor));
         _lockManager = lockManager ?? throw new ArgumentNullException(nameof(lockManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
         _concurrencyThrottle = new SemaphoreSlim(
             _options.MaxConcurrentParcels,
@@ -125,7 +131,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
                             ActualChuteId = path.FallbackChuteId,
                             FailureReason = $"获取摆轮 {segment.DiverterId} 的锁超时",
                             FailedSegment = segment,
-                            FailureTime = DateTimeOffset.UtcNow
+                            FailureTime = _clock.LocalNowOffset
                         };
                     }
                 }
@@ -167,7 +173,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = "操作被取消",
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = _clock.LocalNowOffset
             };
         }
         catch (Exception ex)
@@ -178,7 +184,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = $"执行异常: {ex.Message}",
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = _clock.LocalNowOffset
             };
         }
         finally

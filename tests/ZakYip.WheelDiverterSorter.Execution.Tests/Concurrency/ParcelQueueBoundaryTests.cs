@@ -25,12 +25,9 @@ public class ParcelQueueBoundaryTests
         // Act - Fill the queue
         for (int i = 0; i < 10; i++)
         {
-            await queue.EnqueueAsync(new ParcelQueueItem
-            {
-                ParcelId = $"PKG{i:000}",
-                TargetChuteId = "1",
+            await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"PKG{i:000}", TargetChuteId = "1",
                 Priority = 1
-            });
+            , EnqueuedAt = DateTimeOffset.Now });
         }
 
         // Assert
@@ -64,12 +61,9 @@ public class ParcelQueueBoundaryTests
             {
                 for (int j = 0; j < itemsPerThread; j++)
                 {
-                    await queue.EnqueueAsync(new ParcelQueueItem
-                    {
-                        ParcelId = $"T{threadId:00}_P{j:00}",
-                        TargetChuteId = (j % 5 + 1).ToString(),
+                    await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"T{threadId:00}_P{j:00}", TargetChuteId = (j % 5 + 1).ToString(),
                         Priority = j % 3
-                    });
+                    , EnqueuedAt = DateTimeOffset.Now });
                 }
             }));
         }
@@ -97,12 +91,9 @@ public class ParcelQueueBoundaryTests
         {
             for (int j = 0; j < itemsPerProducer; j++)
             {
-                await queue.EnqueueAsync(new ParcelQueueItem
-                {
-                    ParcelId = $"P{i:00}_{j:000}",
-                    TargetChuteId = (j % 5 + 1).ToString(),
+                await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"P{i:00}_{j:000}", TargetChuteId = (j % 5 + 1).ToString(),
                     Priority = j % 3
-                });
+                , EnqueuedAt = DateTimeOffset.Now });
                 Interlocked.Increment(ref producedCount);
             }
         })).ToList();
@@ -155,12 +146,9 @@ public class ParcelQueueBoundaryTests
         // Add items
         for (int i = 0; i < itemCount; i++)
         {
-            await queue.EnqueueAsync(new ParcelQueueItem
-            {
-                ParcelId = $"PKG{i:000}",
-                TargetChuteId = "1",
+            await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"PKG{i:000}", TargetChuteId = "1",
                 Priority = 1
-            });
+            , EnqueuedAt = DateTimeOffset.Now });
         }
 
         // Act
@@ -191,11 +179,11 @@ public class ParcelQueueBoundaryTests
         var queue = new PriorityParcelQueue();
         
         // Add items with different target chutes
-        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG1", TargetChuteId = "1", Priority = 1 });
-        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG2", TargetChuteId = "1", Priority = 1 });
-        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG3", TargetChuteId = "1", Priority = 1 });
-        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG4", TargetChuteId = "2", Priority = 1 });
-        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG5", TargetChuteId = "2", Priority = 1 });
+        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG1", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now });
+        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG2", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now });
+        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG3", TargetChuteId = "1", Priority = 1 , EnqueuedAt = DateTimeOffset.Now });
+        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG4", TargetChuteId = "2", Priority = 1 , EnqueuedAt = DateTimeOffset.Now });
+        await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = "PKG5", TargetChuteId = "2", Priority = 1 , EnqueuedAt = DateTimeOffset.Now });
 
         // Act
         var batch = await queue.DequeueBatchAsync(10);
@@ -232,12 +220,9 @@ public class ParcelQueueBoundaryTests
         // Act - Add many items to trigger alarm
         for (int i = 0; i < 100; i++)
         {
-            await monitoredQueue.EnqueueAsync(new ParcelQueueItem
-            {
-                ParcelId = $"PKG{i:000}",
-                TargetChuteId = "1",
+            await monitoredQueue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"PKG{i:000}", TargetChuteId = "1",
                 Priority = 1
-            });
+            , EnqueuedAt = DateTimeOffset.Now });
         }
 
         // Assert - Alarm should be triggered for queue backlog
@@ -259,12 +244,9 @@ public class ParcelQueueBoundaryTests
         {
             for (int i = 0; i < operationCount; i++)
             {
-                await queue.EnqueueAsync(new ParcelQueueItem
-                {
-                    ParcelId = $"PKG{i:000000}",
-                    TargetChuteId = (i % 10 + 1).ToString(),
+                await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"PKG{i:000000}", TargetChuteId = (i % 10 + 1).ToString(),
                     Priority = i % 3
-                });
+                , EnqueuedAt = DateTimeOffset.Now });
             }
         });
 
@@ -312,12 +294,9 @@ public class ParcelQueueBoundaryTests
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
-        var item = new ParcelQueueItem
-        {
-            ParcelId = "PKG001",
-            TargetChuteId = "1",
+        var item = new ParcelQueueItem { ParcelId = "PKG001", TargetChuteId = "1",
             Priority = 1
-        };
+        , EnqueuedAt = DateTimeOffset.Now };
 
         // Act & Assert
         // TaskCanceledException inherits from OperationCanceledException
@@ -337,12 +316,9 @@ public class ParcelQueueBoundaryTests
         {
             for (int i = 0; i < iterations; i++)
             {
-                await queue.EnqueueAsync(new ParcelQueueItem
-                {
-                    ParcelId = $"PKG{i:0000}",
-                    TargetChuteId = "1",
+                await queue.EnqueueAsync(new ParcelQueueItem { ParcelId = $"PKG{i:0000}", TargetChuteId = "1",
                     Priority = 1
-                });
+                , EnqueuedAt = DateTimeOffset.Now });
             }
         });
 

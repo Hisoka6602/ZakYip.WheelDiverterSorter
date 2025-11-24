@@ -23,7 +23,7 @@ public class ParcelQueueItem
     /// <summary>
     /// 入队时间
     /// </summary>
-    public DateTimeOffset EnqueuedAt { get; init; } = DateTimeOffset.UtcNow;
+    public required DateTimeOffset EnqueuedAt { get; init; }
 
     /// <summary>
     /// 任务完成源，用于通知结果

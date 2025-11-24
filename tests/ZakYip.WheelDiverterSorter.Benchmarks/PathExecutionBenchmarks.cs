@@ -20,7 +20,7 @@ public class PathExecutionBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _executor = new MockSwitchingPathExecutor();
+        _executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         _singleSegmentPath = new SwitchingPath
         {
@@ -35,7 +35,7 @@ public class PathExecutionBenchmarks
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
 
@@ -59,7 +59,7 @@ public class PathExecutionBenchmarks
                     TtlMilliseconds = 5000
                 }
             }.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
     }

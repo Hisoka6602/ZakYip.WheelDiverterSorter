@@ -3,7 +3,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 中段皮带段实现。
@@ -13,6 +15,7 @@ public sealed class ConveyorSegment : IConveyorSegment
 {
     private readonly IConveyorSegmentDriver _driver;
     private readonly ILogger<ConveyorSegment> _logger;
+    private readonly ISystemClock _clock;
     private ConveyorSegmentState _state;
     private string? _faultInfo;
     private readonly object _stateLock = new();
@@ -39,10 +42,12 @@ public sealed class ConveyorSegment : IConveyorSegment
 
     public ConveyorSegment(
         IConveyorSegmentDriver driver,
-        ILogger<ConveyorSegment> logger)
+        ILogger<ConveyorSegment> logger,
+        ISystemClock clock)
     {
         _driver = driver ?? throw new ArgumentNullException(nameof(driver));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
         SegmentId = new ConveyorSegmentId
         {
@@ -77,10 +82,10 @@ public sealed class ConveyorSegment : IConveyorSegment
             await _driver.WriteStartSignalAsync(cancellationToken);
 
             // 等待运行反馈（如果配置了运行反馈点位）
-            var startTime = DateTimeOffset.UtcNow;
+            var startTime = _clock.LocalNowOffset;
             var timeout = TimeSpan.FromMilliseconds(_driver.Mapping.StartTimeoutMs);
 
-            while (DateTimeOffset.UtcNow - startTime < timeout)
+            while (_clock.LocalNowOffset - startTime < timeout)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -155,10 +160,10 @@ public sealed class ConveyorSegment : IConveyorSegment
             await _driver.WriteStopSignalAsync(cancellationToken);
 
             // 等待停止完成（如果配置了运行反馈点位）
-            var stopTime = DateTimeOffset.UtcNow;
+            var stopTime = _clock.LocalNowOffset;
             var timeout = TimeSpan.FromMilliseconds(_driver.Mapping.StopTimeoutMs);
 
-            while (DateTimeOffset.UtcNow - stopTime < timeout)
+            while (_clock.LocalNowOffset - stopTime < timeout)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 

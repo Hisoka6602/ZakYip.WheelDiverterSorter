@@ -77,7 +77,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task ParcelDetectionNotification_ShouldBeSentToRuleEngine()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
@@ -110,7 +110,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task ChuteAssignment_ShouldBeReceivedFromRuleEngine()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         var targetChuteId = 1;
 
         Factory.MockRuleEngineClient!
@@ -176,7 +176,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task NotificationFailure_ShouldReturnFalse()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
@@ -206,7 +206,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task AssignmentTimeout_ShouldFallbackToExceptionChute()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
