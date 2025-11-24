@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -18,6 +19,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 public class TcpRuleEngineClientBoundaryTests : IDisposable
 {
     private readonly Mock<ILogger<TcpRuleEngineClient>> _loggerMock;
+    private readonly ISystemClock _clockMock;
     private TcpListener? _testServer;
     private readonly int _testPort;
     private CancellationTokenSource? _serverCts;
@@ -25,6 +27,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public TcpRuleEngineClientBoundaryTests()
     {
         _loggerMock = new Mock<ILogger<TcpRuleEngineClient>>();
+        _clockMock = Mock.Of<ISystemClock>();
         _testPort = GetAvailablePort();
     }
 
@@ -42,7 +45,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options));
+        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock));
     }
 
     [Theory]
@@ -60,7 +63,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options));
+        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock));
     }
 
     [Theory]
@@ -77,7 +80,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options));
+        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock));
     }
 
     [Theory]
@@ -93,7 +96,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options));
+        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock));
     }
 
     [Fact]
@@ -107,7 +110,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             RetryCount = 3,
             RetryDelayMs = 10
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
+        using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act
         var result = await client.ConnectAsync();
@@ -127,6 +130,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 1000
         };
+        using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act
         var result = await client.ConnectAsync();
@@ -147,6 +151,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000
         };
+        using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
         await client.ConnectAsync();
 
         // Create a large payload (1MB)
@@ -166,6 +171,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         {
             TcpServer = $"localhost:{_testPort}"
         };
+        using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act - Try to connect concurrently
         var tasks = Enumerable.Range(0, 10)
@@ -188,6 +194,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         {
             TcpServer = $"localhost:{_testPort}"
         };
+        using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
         await client.ConnectAsync();
 
         // Act - Try to disconnect concurrently
@@ -209,7 +216,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         {
             TcpServer = "localhost:19999"
         };
-        var client = new TcpRuleEngineClient(_loggerMock.Object, options);
+        var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
         client.Dispose();
 
         // Act & Assert
@@ -224,7 +231,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         {
             TcpServer = "localhost:19999"
         };
-        var client = new TcpRuleEngineClient(_loggerMock.Object, options);
+        var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
         client.Dispose();
 
         // Act & Assert
@@ -242,6 +249,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{port}",
             TimeoutMs = 500
         };
+        using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act
         var result = await client.ConnectAsync();
@@ -265,7 +273,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options));
+        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock));
     }
 
     #region Helper Methods
