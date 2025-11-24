@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution;
 
@@ -14,6 +15,7 @@ public class AnomalyDetector : IAnomalyDetector
 {
     private readonly IAlertSink _alertSink;
     private readonly ILogger<AnomalyDetector> _logger;
+    private readonly ISystemClock _clock;
 
     // 时间窗口内的数据缓存 - 使用线程安全的并发队列
     // Thread-safe concurrent queues for time-window data caching
@@ -38,10 +40,11 @@ public class AnomalyDetector : IAnomalyDetector
     private DateTimeOffset? _lastUpstreamTimeoutAlert;
     private readonly TimeSpan _alertCooldown = TimeSpan.FromMinutes(10);
 
-    public AnomalyDetector(IAlertSink alertSink, ILogger<AnomalyDetector> logger)
+    public AnomalyDetector(IAlertSink alertSink, ILogger<AnomalyDetector> logger, ISystemClock clock)
     {
         _alertSink = alertSink ?? throw new ArgumentNullException(nameof(alertSink));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     public void RecordSortingResult(string targetChuteId, bool isExceptionChute)
@@ -50,7 +53,7 @@ public class AnomalyDetector : IAnomalyDetector
         {
             _sortingRecords.Enqueue(new SortingRecord
             {
-                Timestamp = DateTimeOffset.UtcNow,
+                Timestamp = _clock.LocalNowOffset,
                 ChuteId = targetChuteId,
                 IsExceptionChute = isExceptionChute
             });
@@ -66,7 +69,7 @@ public class AnomalyDetector : IAnomalyDetector
         {
             _overloadRecords.Enqueue(new OverloadRecord
             {
-                Timestamp = DateTimeOffset.UtcNow,
+                Timestamp = _clock.LocalNowOffset,
                 Reason = reason
             });
 
@@ -79,7 +82,7 @@ public class AnomalyDetector : IAnomalyDetector
     {
         lock (_lock)
         {
-            _upstreamTimeouts.Enqueue(DateTimeOffset.UtcNow);
+            _upstreamTimeouts.Enqueue(_clock.LocalNowOffset);
 
             // 清理过期数据
             CleanupOldRecords();
@@ -118,7 +121,7 @@ public class AnomalyDetector : IAnomalyDetector
         await Task.Yield();
         lock (_lock)
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _clock.LocalNowOffset;
             var windowStart = now - _monitoringWindow;
 
             var recentRecords = _sortingRecords.Where(r => r.Timestamp >= windowStart).ToList();
@@ -173,7 +176,7 @@ public class AnomalyDetector : IAnomalyDetector
         await Task.Yield();
         lock (_lock)
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _clock.LocalNowOffset;
             var windowStart = now - _monitoringWindow;
             var halfWindowStart = now - TimeSpan.FromMinutes(_monitoringWindow.TotalMinutes / 2);
 
@@ -248,7 +251,7 @@ public class AnomalyDetector : IAnomalyDetector
         await Task.Yield();
         lock (_lock)
         {
-            var now = DateTimeOffset.UtcNow;
+            var now = _clock.LocalNowOffset;
             var windowStart = now - _monitoringWindow;
 
             var recentTimeouts = _upstreamTimeouts.Where(t => t >= windowStart).ToList();
@@ -300,7 +303,7 @@ public class AnomalyDetector : IAnomalyDetector
 
     private void CleanupOldRecords()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = _clock.LocalNowOffset;
         var windowStart = now - _monitoringWindow;
 
         // ConcurrentQueue.TryPeek is thread-safe

@@ -58,14 +58,14 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
             return;
         }
 
-        var startTime = DateTimeOffset.UtcNow;
+        var startTime = _clock.LocalNowOffset;
 
         try
         {
             // 执行摆轮路径
             var executionResult = await _pathExecutor.ExecuteAsync(context.PlannedPath);
 
-            var elapsedMs = (DateTimeOffset.UtcNow - startTime).TotalMilliseconds;
+            var elapsedMs = (_clock.LocalNowOffset - startTime).TotalMilliseconds;
             context.ExecutionLatencyMs = elapsedMs;
             context.ActualChuteId = executionResult.ActualChuteId;
 
@@ -86,7 +86,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                         BarCode = context.Barcode,
                         TargetChuteId = context.TargetChuteId,
                         ActualChuteId = executionResult.ActualChuteId,
-                        OccurredAt = DateTimeOffset.UtcNow,
+                        OccurredAt = _clock.LocalNowOffset,
                         Stage = "ExceptionDiverted",
                         Source = "Execution",
                         Details = $"ChuteId={executionResult.ActualChuteId}, Reason={context.ExceptionReason}, Type={context.ExceptionType}"
@@ -100,7 +100,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                         BarCode = context.Barcode,
                         TargetChuteId = context.TargetChuteId,
                         ActualChuteId = executionResult.ActualChuteId,
-                        OccurredAt = DateTimeOffset.UtcNow,
+                        OccurredAt = _clock.LocalNowOffset,
                         Stage = "Diverted",
                         Source = "Execution",
                         Details = $"ChuteId={executionResult.ActualChuteId}, TargetChuteId={context.TargetChuteId}"
@@ -123,7 +123,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                     BarCode = context.Barcode,
                     TargetChuteId = context.TargetChuteId,
                     ActualChuteId = executionResult.ActualChuteId,
-                    OccurredAt = DateTimeOffset.UtcNow,
+                    OccurredAt = _clock.LocalNowOffset,
                     Stage = "ExceptionDiverted",
                     Source = "Execution",
                     Details = $"ChuteId={executionResult.ActualChuteId}, Reason={executionResult.FailureReason}"
@@ -159,7 +159,7 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
                 ItemId = context.ParcelId,
                 BarCode = context.Barcode,
                 TargetChuteId = context.TargetChuteId,
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = _clock.LocalNowOffset,
                 Stage = "ExceptionDiverted",
                 Source = "Execution",
                 Details = $"ExecutionException: {ex.Message}"

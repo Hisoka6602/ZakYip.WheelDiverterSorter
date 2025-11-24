@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
@@ -20,6 +21,7 @@ public class PathReroutingService : IPathReroutingService
     private readonly IRouteConfigurationRepository _routeRepository;
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ILogger<PathReroutingService> _logger;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 初始化路径重规划服务
@@ -27,14 +29,17 @@ public class PathReroutingService : IPathReroutingService
     /// <param name="routeRepository">路由配置仓储</param>
     /// <param name="pathGenerator">路径生成器</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     public PathReroutingService(
         IRouteConfigurationRepository routeRepository,
         ISwitchingPathGenerator pathGenerator,
-        ILogger<PathReroutingService> logger)
+        ILogger<PathReroutingService> logger,
+        ISystemClock clock)
     {
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc/>
@@ -142,7 +147,7 @@ public class PathReroutingService : IPathReroutingService
             {
                 TargetChuteId = currentPath.TargetChuteId,
                 Segments = rerouteSegments,
-                GeneratedAt = DateTimeOffset.UtcNow,
+                GeneratedAt = _clock.LocalNowOffset,
                 FallbackChuteId = currentPath.FallbackChuteId
             };
 

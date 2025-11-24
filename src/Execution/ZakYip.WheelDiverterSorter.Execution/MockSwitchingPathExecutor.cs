@@ -1,7 +1,9 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 
 
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 模拟的摆轮路径执行器，用于测试和调试
@@ -12,6 +14,13 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelD
 /// </remarks>
 public class MockSwitchingPathExecutor : ISwitchingPathExecutor
 {
+    private readonly ISystemClock _clock;
+
+    public MockSwitchingPathExecutor(ISystemClock clock)
+    {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+    }
+
     /// <summary>
     /// 异步执行摆轮路径（模拟实现）
     /// </summary>
@@ -55,7 +64,7 @@ public class MockSwitchingPathExecutor : ISwitchingPathExecutor
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = "操作被取消",
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = _clock.LocalNowOffset
             };
         }
         catch (Exception ex)
@@ -66,7 +75,7 @@ public class MockSwitchingPathExecutor : ISwitchingPathExecutor
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
                 FailureReason = $"执行异常: {ex.Message}",
-                FailureTime = DateTimeOffset.UtcNow
+                FailureTime = _clock.LocalNowOffset
             };
         }
     }

@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Observability;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
@@ -23,6 +24,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
     private readonly IPathReroutingService? _reroutingService;
     private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<EnhancedPathFailureHandler> _logger;
+    private readonly ISystemClock _clock;
 
     /// <inheritdoc/>
     public event EventHandler<PathSegmentExecutionFailedEventArgs>? SegmentExecutionFailed;
@@ -50,16 +52,19 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
     /// </summary>
     /// <param name="pathGenerator">路径生成器，用于生成备用路径</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     /// <param name="reroutingService">路径重规划服务（可选）</param>
     /// <param name="metrics">Prometheus指标服务（可选）</param>
     public EnhancedPathFailureHandler(
         ISwitchingPathGenerator pathGenerator,
         ILogger<EnhancedPathFailureHandler> logger,
+        ISystemClock clock,
         IPathReroutingService? reroutingService = null,
         PrometheusMetrics? metrics = null)
     {
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _reroutingService = reroutingService;
         _metrics = metrics;
     }
@@ -71,7 +76,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
         SwitchingPathSegment failedSegment,
         string failureReason)
     {
-        var failureTime = DateTimeOffset.UtcNow;
+        var failureTime = _clock.LocalNowOffset;
 
         // 解析失败原因为枚举类型
         var failureReasonEnum = ParseFailureReason(failureReason);
@@ -118,7 +123,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
         string failureReason,
         SwitchingPathSegment? failedSegment = null)
     {
-        var failureTime = DateTimeOffset.UtcNow;
+        var failureTime = _clock.LocalNowOffset;
 
         _logger.LogError(
             "路径执行失败: ParcelId={ParcelId}, 原始目标格口={TargetChuteId}, " +

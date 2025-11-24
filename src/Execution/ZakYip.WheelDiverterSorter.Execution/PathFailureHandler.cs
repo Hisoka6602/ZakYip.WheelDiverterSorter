@@ -3,7 +3,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Execution.Events;
 
 
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
 /// 路径执行失败处理器实现
@@ -12,6 +14,7 @@ public class PathFailureHandler : IPathFailureHandler
 {
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ILogger<PathFailureHandler> _logger;
+    private readonly ISystemClock _clock;
 
     /// <inheritdoc/>
     public event EventHandler<PathSegmentExecutionFailedEventArgs>? SegmentExecutionFailed;
@@ -27,12 +30,15 @@ public class PathFailureHandler : IPathFailureHandler
     /// </summary>
     /// <param name="pathGenerator">路径生成器，用于生成备用路径</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     public PathFailureHandler(
         ISwitchingPathGenerator pathGenerator,
-        ILogger<PathFailureHandler> logger)
+        ILogger<PathFailureHandler> logger,
+        ISystemClock clock)
     {
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc/>
@@ -42,7 +48,7 @@ public class PathFailureHandler : IPathFailureHandler
         SwitchingPathSegment failedSegment,
         string failureReason)
     {
-        var failureTime = DateTimeOffset.UtcNow;
+        var failureTime = _clock.LocalNowOffset;
 
         _logger.LogWarning(
             "路径段执行失败: ParcelId={ParcelId}, 段序号={SequenceNumber}, " +
@@ -73,7 +79,7 @@ public class PathFailureHandler : IPathFailureHandler
         string failureReason,
         SwitchingPathSegment? failedSegment = null)
     {
-        var failureTime = DateTimeOffset.UtcNow;
+        var failureTime = _clock.LocalNowOffset;
 
         _logger.LogError(
             "路径执行失败: ParcelId={ParcelId}, 原始目标格口={TargetChuteId}, " +
