@@ -76,7 +76,7 @@ public class SimulationController : ControllerBase
     /// </summary>
     /// <returns>启动结果</returns>
     /// <response code="200">仿真启动成功</response>
-    /// <response code="400">系统状态不允许启动</response>
+    /// <response code="400">系统状态不允许启动（必须在Ready状态）</response>
     /// <response code="409">仿真已在运行中</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
@@ -86,25 +86,31 @@ public class SimulationController : ControllerBase
     /// - 目标格口随机分配
     /// - 异常格口为配置中的 ExceptionChuteId
     /// 
-    /// 系统要求：
-    /// - 系统状态必须为 Ready
-    /// - 启动后系统状态切换为 Running
-    /// - 仿真结束后系统状态恢复为 Ready
+    /// <para><b>⚠️ 系统状态要求（严格）：</b></para>
+    /// <list type="bullet">
+    ///   <item><b>只能在 Ready（等待运行）状态下启动</b></item>
+    ///   <item>❌ 不能在 Running（已运行）状态下启动</item>
+    ///   <item>❌ 不能在 EmergencyStop（急停）状态下启动</item>
+    ///   <item>❌ 不能在 Paused、Faulted、Booting 状态下启动</item>
+    ///   <item>✅ 启动后系统状态切换为 Running</item>
+    ///   <item>✅ 仿真结束后系统状态恢复为 Ready</item>
+    /// </list>
     /// 
     /// 使用方式：
-    /// 1. 通过配置 API 设置仿真参数
-    /// 2. 调用此接口启动仿真
-    /// 3. 通过 Prometheus/Grafana 观察指标
+    /// 1. 确保系统状态为 Ready（通过 GET /api/system/state 查询）
+    /// 2. 通过配置 API 设置仿真参数
+    /// 3. 调用此接口启动仿真
+    /// 4. 通过 Prometheus/Grafana 观察指标
     /// </remarks>
     [HttpPost("run-scenario-e")]
     [SwaggerOperation(
-        Summary = "运行场景 E 长跑仿真",
-        Description = "启动场景 E 长跑仿真，按配置参数创建包裹并进行分拣",
+        Summary = "运行场景 E 长跑仿真（仅限Ready状态）",
+        Description = "启动场景 E 长跑仿真，按配置参数创建包裹并进行分拣。⚠️ 只能在Ready状态下启动，不能在Running或EmergencyStop状态下启动。",
         OperationId = "RunScenarioE",
         Tags = new[] { "仿真管理" }
     )]
     [SwaggerResponse(200, "仿真启动成功")]
-    [SwaggerResponse(400, "系统状态不允许启动")]
+    [SwaggerResponse(400, "系统状态不允许启动（当前不在Ready状态）")]
     [SwaggerResponse(409, "仿真已在运行中")]
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(object), 200)]
@@ -119,18 +125,33 @@ public class SimulationController : ControllerBase
             if (_runningSimulation != null && !_runningSimulation.IsCompleted)
             {
                 _logger.LogWarning("仿真已在运行中，拒绝重复启动");
-                return Conflict(new { message = "仿真已在运行中" });
+                return Conflict(new { message = "仿真已在运行中，无法启动新的仿真" });
             }
 
-            // 检查系统状态
+            // ⚠️ 状态检查：只能在 Ready（等待运行）状态下启动仿真
+            // 不能在 Running（已运行）或 EmergencyStop（急停）状态下启动
             if (_stateManager.CurrentState != SystemState.Ready)
             {
+                var stateDescription = _stateManager.CurrentState switch
+                {
+                    SystemState.Running => "系统已在运行中",
+                    SystemState.EmergencyStop => "系统处于急停状态",
+                    SystemState.Paused => "系统处于暂停状态",
+                    SystemState.Faulted => "系统处于故障状态",
+                    SystemState.Booting => "系统正在启动中",
+                    _ => $"未知状态: {_stateManager.CurrentState}"
+                };
+                
                 _logger.LogWarning(
-                    "系统状态不允许启动仿真，当前状态: {CurrentState}",
-                    _stateManager.CurrentState);
+                    "系统状态不允许启动仿真，当前状态: {CurrentState} ({Description})",
+                    _stateManager.CurrentState,
+                    stateDescription);
+                    
                 return BadRequest(new 
                 { 
-                    message = $"系统状态必须为 Ready 才能启动仿真，当前状态: {_stateManager.CurrentState}" 
+                    message = $"只能在等待运行状态（Ready）下启动仿真。当前状态: {stateDescription}",
+                    currentState = _stateManager.CurrentState.ToString(),
+                    allowedState = "Ready"
                 });
             }
 
