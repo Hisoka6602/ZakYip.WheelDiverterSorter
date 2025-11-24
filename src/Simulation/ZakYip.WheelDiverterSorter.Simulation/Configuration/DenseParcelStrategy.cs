@@ -2,7 +2,6 @@
 // The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Simulation namespace.
 
 // Re-export the enum from Core.Enums.Simulation for backward compatibility
-global using DenseParcelStrategy = ZakYip.WheelDiverterSorter.Core.Enums.DenseParcelStrategy;
+global using DenseParcelStrategy = ZakYip.WheelDiverterSorter.Core.Enums.Parcel.DenseParcelStrategy;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
-

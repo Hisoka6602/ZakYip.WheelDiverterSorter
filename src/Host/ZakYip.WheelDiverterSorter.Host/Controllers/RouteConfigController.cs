@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Host.Services;
-using Swashbuckle.AspNetCore.Annotations;
-using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -13,32 +13,33 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// </summary>
 /// <remarks>
 /// 提供格口路由配置的增删改查功能，支持热更新。
-/// 
+///
 /// **重要说明：本控制器是系统中路由/拓扑配置的唯一权威入口。**
-/// 
+///
 /// **配置内容：**
 /// - 格口路由规则（包裹如何分拣到各个格口）
 /// - 摆轮切换序列（每个格口对应的摆轮动作）
 /// - 皮带速度和长度参数
 /// - 容错时间配置
-/// 
+///
 /// **与物理拓扑的关系：**
 /// 路由配置引用拓扑配置中定义的格口ID和摆轮ID。
 /// 必须确保引用的格口和摆轮在拓扑配置中已定义。
-/// 
+///
 /// **使用场景：**
 /// - 新增格口分拣规则
 /// - 调整摆轮切换顺序
 /// - 优化分拣路径
 /// - 修改容错时间
-/// 
+///
 /// **变更频率**：
 /// 路由配置属于业务规则层，变更频率较高，支持热更新无需重启。
 /// </remarks>
 [ApiController]
 [Route("api/config/routes")]
 [Produces("application/json")]
-public class RouteConfigController : ControllerBase {
+public class RouteConfigController : ControllerBase
+{
     private readonly IRouteConfigurationRepository _repository;
     private readonly IRouteImportExportService _importExportService;
     private readonly ISystemClock _systemClock;
@@ -48,7 +49,8 @@ public class RouteConfigController : ControllerBase {
         IRouteConfigurationRepository repository,
         IRouteImportExportService importExportService,
         ISystemClock systemClock,
-        ILogger<RouteConfigController> logger) {
+        ILogger<RouteConfigController> logger)
+    {
         _repository = repository;
         _importExportService = importExportService;
         _systemClock = systemClock;
@@ -72,13 +74,16 @@ public class RouteConfigController : ControllerBase {
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(IEnumerable<RouteConfigResponse>), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<IEnumerable<RouteConfigResponse>> GetAllRoutes() {
-        try {
+    public ActionResult<IEnumerable<RouteConfigResponse>> GetAllRoutes()
+    {
+        try
+        {
             var configs = _repository.GetAllEnabled();
             var responses = configs.Select(MapToResponse);
             return Ok(responses);
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "获取路由配置列表失败");
             return StatusCode(500, new { message = "获取配置列表失败" });
         }
@@ -108,20 +113,25 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 404)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RouteConfigResponse> GetRoute(int chuteId) {
-        try {
-            if (chuteId <= 0) {
+    public ActionResult<RouteConfigResponse> GetRoute(int chuteId)
+    {
+        try
+        {
+            if (chuteId <= 0)
+            {
                 return BadRequest(new { message = "格口ID必须大于0" });
             }
 
             var config = _repository.GetByChuteId(chuteId);
-            if (config == null) {
+            if (config == null)
+            {
                 return NotFound(new { message = $"格口 {chuteId} 的配置不存在" });
             }
 
             return Ok(MapToResponse(config));
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "获取格口 {ChuteId} 的配置失败", chuteId);
             return StatusCode(500, new { message = "获取配置失败" });
         }
@@ -187,31 +197,38 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 409)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RouteConfigResponse> CreateRoute([FromBody] RouteConfigRequest request) {
-        try {
-            if (request.ChuteId <= 0) {
+    public ActionResult<RouteConfigResponse> CreateRoute([FromBody] RouteConfigRequest request)
+    {
+        try
+        {
+            if (request.ChuteId <= 0)
+            {
                 return BadRequest(new { message = "格口ID必须大于0" });
             }
 
-            if (request.DiverterConfigurations == null || request.DiverterConfigurations.Count == 0) {
+            if (request.DiverterConfigurations == null || request.DiverterConfigurations.Count == 0)
+            {
                 return BadRequest(new { message = "摆轮配置不能为空" });
             }
 
             // 验证摆轮配置
             var validation = ValidateDiverterConfigurations(request.DiverterConfigurations);
-            if (!validation.IsValid) {
+            if (!validation.IsValid)
+            {
                 return BadRequest(new { message = validation.ErrorMessage });
             }
 
             // 检查是否已存在相同的格口ID
             var existing = _repository.GetByChuteId(request.ChuteId);
-            if (existing != null) {
+            if (existing != null)
+            {
                 return Conflict(new { message = $"格口 {request.ChuteId} 的配置已存在，请使用PUT方法更新" });
             }
 
             // 检查是否存在重复的路由配置（相同的摆轮方向组合）
             var duplicateRoute = CheckForDuplicateRoute(request.DiverterConfigurations);
-            if (duplicateRoute != null) {
+            if (duplicateRoute != null)
+            {
                 return Conflict(new { message = $"路由配置重复：与格口 {duplicateRoute.ChuteId} 的配置完全相同" });
             }
 
@@ -221,7 +238,8 @@ public class RouteConfigController : ControllerBase {
             _logger.LogInformation("创建格口 {ChuteId} 的路由配置成功", request.ChuteId);
             return CreatedAtAction(nameof(GetRoute), new { chuteId = request.ChuteId }, MapToResponse(config));
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "创建格口 {ChuteId} 的配置失败", request.ChuteId);
             return StatusCode(500, new { message = "创建配置失败" });
         }
@@ -268,25 +286,31 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(RouteConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RouteConfigResponse> UpdateRoute(int chuteId, [FromBody] RouteConfigRequest request) {
-        try {
-            if (chuteId <= 0) {
+    public ActionResult<RouteConfigResponse> UpdateRoute(int chuteId, [FromBody] RouteConfigRequest request)
+    {
+        try
+        {
+            if (chuteId <= 0)
+            {
                 return BadRequest(new { message = "格口ID必须大于0" });
             }
 
-            if (request.DiverterConfigurations == null || request.DiverterConfigurations.Count == 0) {
+            if (request.DiverterConfigurations == null || request.DiverterConfigurations.Count == 0)
+            {
                 return BadRequest(new { message = "摆轮配置不能为空" });
             }
 
             // 验证摆轮配置
             var validation = ValidateDiverterConfigurations(request.DiverterConfigurations);
-            if (!validation.IsValid) {
+            if (!validation.IsValid)
+            {
                 return BadRequest(new { message = validation.ErrorMessage });
             }
 
             // 检查是否存在重复的路由配置（相同的摆轮方向组合），排除当前格口
             var duplicateRoute = CheckForDuplicateRoute(request.DiverterConfigurations, chuteId);
-            if (duplicateRoute != null) {
+            if (duplicateRoute != null)
+            {
                 return Conflict(new { message = $"路由配置重复：与格口 {duplicateRoute.ChuteId} 的配置完全相同" });
             }
 
@@ -299,7 +323,8 @@ public class RouteConfigController : ControllerBase {
             _logger.LogInformation("更新格口 {ChuteId} 的路由配置成功，配置已热更新", chuteId);
             return Ok(MapToResponse(config));
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "更新格口 {ChuteId} 的配置失败", chuteId);
             return StatusCode(500, new { message = "更新配置失败" });
         }
@@ -329,21 +354,26 @@ public class RouteConfigController : ControllerBase {
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 404)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult DeleteRoute(int chuteId) {
-        try {
-            if (chuteId <= 0) {
+    public ActionResult DeleteRoute(int chuteId)
+    {
+        try
+        {
+            if (chuteId <= 0)
+            {
                 return BadRequest(new { message = "格口ID必须大于0" });
             }
 
             var success = _repository.Delete(chuteId);
-            if (!success) {
+            if (!success)
+            {
                 return NotFound(new { message = $"格口 {chuteId} 的配置不存在" });
             }
 
             _logger.LogInformation("删除格口 {ChuteId} 的路由配置成功", chuteId);
             return NoContent();
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             _logger.LogError(ex, "删除格口 {ChuteId} 的配置失败", chuteId);
             return StatusCode(500, new { message = "删除配置失败" });
         }
@@ -359,7 +389,7 @@ public class RouteConfigController : ControllerBase {
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 导出所有路由配置为文件，支持 JSON 和 CSV 两种格式。
-    /// 
+    ///
     /// **JSON 格式示例**：
     /// ```json
     /// [
@@ -383,13 +413,13 @@ public class RouteConfigController : ControllerBase {
     ///   }
     /// ]
     /// ```
-    /// 
+    ///
     /// **CSV 格式示例**：
     /// ```
     /// ChuteId,ChuteName,DiverterId,TargetDirection,SequenceNumber,SegmentLengthMm,SegmentSpeedMmPerSecond,SegmentToleranceTimeMs,BeltSpeedMmPerSecond,BeltLengthMm,ToleranceTimeMs,IsEnabled
     /// 1,A区01号口,1,1,1,5000.0,1000.0,2000,1000.0,10000.0,2000,True
     /// ```
-    /// 
+    ///
     /// **使用场景**：
     /// - 配置备份
     /// - 跨环境迁移
@@ -433,7 +463,7 @@ public class RouteConfigController : ControllerBase {
             }
 
             _logger.LogInformation("导出路由配置成功，格式: {Format}，共 {Count} 条", format, configs.Count());
-            
+
             return File(fileContent, contentType, fileName);
         }
         catch (Exception ex)
@@ -454,35 +484,35 @@ public class RouteConfigController : ControllerBase {
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 批量导入路由配置文件，支持 JSON 和 CSV 两种格式。
-    /// 
+    ///
     /// **导入模式**：
     /// - **skip**（默认）：跳过已存在的配置，只导入新配置
     /// - **replace**：全量替换，删除所有现有配置后导入新配置
-    /// 
+    ///
     /// **JSON 格式要求**：
     /// - 文件必须是 JSON 数组
     /// - 每个元素必须包含完整的路由配置字段
     /// - 参考 /api/config/routes/export?format=json 的导出格式
-    /// 
+    ///
     /// **CSV 格式要求**：
     /// - 第一行必须是列名头部
     /// - 每行代表一个摆轮配置项
     /// - 同一格口的多个摆轮分多行表示
     /// - 参考 /api/config/routes/export?format=csv 的导出格式
-    /// 
+    ///
     /// **示例（使用 curl）**：
     /// ```bash
     /// # 导入 JSON 文件（跳过模式）
     /// curl -X POST "http://localhost:5000/api/config/routes/import?mode=skip" \
     ///      -H "Content-Type: multipart/form-data" \
     ///      -F "file=@routes.json"
-    /// 
+    ///
     /// # 导入 CSV 文件（替换模式）
     /// curl -X POST "http://localhost:5000/api/config/routes/import?mode=replace" \
     ///      -H "Content-Type: multipart/form-data" \
     ///      -F "file=@routes.csv"
     /// ```
-    /// 
+    ///
     /// **返回示例**：
     /// ```json
     /// {
@@ -512,6 +542,7 @@ public class RouteConfigController : ControllerBase {
         [FromForm] IFormFile file,
         [FromQuery] string mode = "skip")
     {
+        await Task.Yield();
         try
         {
             if (file == null || file.Length == 0)
@@ -661,26 +692,32 @@ public class RouteConfigController : ControllerBase {
     /// <summary>
     /// 验证摆轮配置
     /// </summary>
-    private (bool IsValid, string? ErrorMessage) ValidateDiverterConfigurations(List<DiverterConfigRequest> configs) {
+    private (bool IsValid, string? ErrorMessage) ValidateDiverterConfigurations(List<DiverterConfigRequest> configs)
+    {
         // 检查是否有无效的DiverterId
-        if (configs.Any(c => c.DiverterId <= 0)) {
+        if (configs.Any(c => c.DiverterId <= 0))
+        {
             return (false, "摆轮ID必须大于0");
         }
 
         // 检查顺序号是否连续且从1开始
         var sortedSequences = configs.Select(c => c.SequenceNumber).OrderBy(s => s).ToList();
-        if (sortedSequences.First() != 1) {
+        if (sortedSequences.First() != 1)
+        {
             return (false, "顺序号必须从1开始");
         }
 
-        for (int i = 0; i < sortedSequences.Count - 1; i++) {
-            if (sortedSequences[i + 1] - sortedSequences[i] != 1) {
+        for (int i = 0; i < sortedSequences.Count - 1; i++)
+        {
+            if (sortedSequences[i + 1] - sortedSequences[i] != 1)
+            {
                 return (false, "顺序号必须连续");
             }
         }
 
         // 检查是否有重复的顺序号
-        if (configs.Select(c => c.SequenceNumber).Distinct().Count() != configs.Count) {
+        if (configs.Select(c => c.SequenceNumber).Distinct().Count() != configs.Count)
+        {
             return (false, "顺序号不能重复");
         }
 
@@ -693,7 +730,8 @@ public class RouteConfigController : ControllerBase {
     /// <param name="diverterConfigs">要检查的摆轮配置列表</param>
     /// <param name="excludeChuteId">要排除的格口ID（用于更新时排除自身）</param>
     /// <returns>如果存在重复则返回重复的配置，否则返回null</returns>
-    private ChuteRouteConfiguration? CheckForDuplicateRoute(List<DiverterConfigRequest> diverterConfigs, int? excludeChuteId = null) {
+    private ChuteRouteConfiguration? CheckForDuplicateRoute(List<DiverterConfigRequest> diverterConfigs, int? excludeChuteId = null)
+    {
         var allConfigs = _repository.GetAllEnabled();
 
         // 创建当前配置的签名（按顺序的摆轮ID和方向组合）
@@ -701,9 +739,11 @@ public class RouteConfigController : ControllerBase {
             .OrderBy(c => c.SequenceNumber)
             .Select(c => $"{c.DiverterId}:{c.TargetDirection}"));
 
-        foreach (var existing in allConfigs) {
+        foreach (var existing in allConfigs)
+        {
             // 排除指定的格口ID
-            if (excludeChuteId.HasValue && existing.ChuteId == excludeChuteId.Value) {
+            if (excludeChuteId.HasValue && existing.ChuteId == excludeChuteId.Value)
+            {
                 continue;
             }
 
@@ -712,7 +752,8 @@ public class RouteConfigController : ControllerBase {
                 .OrderBy(c => c.SequenceNumber)
                 .Select(c => $"{c.DiverterId}:{c.TargetDirection}"));
 
-            if (currentSignature == existingSignature) {
+            if (currentSignature == existingSignature)
+            {
                 return existing;
             }
         }
@@ -723,12 +764,15 @@ public class RouteConfigController : ControllerBase {
     /// <summary>
     /// 将请求模型映射到配置模型
     /// </summary>
-    private ChuteRouteConfiguration MapToConfiguration(RouteConfigRequest request) {
-        return new ChuteRouteConfiguration {
+    private ChuteRouteConfiguration MapToConfiguration(RouteConfigRequest request)
+    {
+        return new ChuteRouteConfiguration
+        {
             ChuteId = request.ChuteId,
             ChuteName = request.ChuteName,
             DiverterConfigurations = request.DiverterConfigurations
-                .Select(d => new DiverterConfigurationEntry {
+                .Select(d => new DiverterConfigurationEntry
+                {
                     DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber,
@@ -740,7 +784,8 @@ public class RouteConfigController : ControllerBase {
             BeltSpeedMmPerSecond = request.BeltSpeedMmPerSecond,
             BeltLengthMm = request.BeltLengthMm,
             ToleranceTimeMs = request.ToleranceTimeMs,
-            SensorConfig = request.SensorConfig != null ? new ChuteSensorConfig {
+            SensorConfig = request.SensorConfig != null ? new ChuteSensorConfig
+            {
                 SensorId = request.SensorConfig.SensorId,
                 SensorType = request.SensorConfig.SensorType,
                 InputBit = request.SensorConfig.InputBit,
@@ -754,13 +799,16 @@ public class RouteConfigController : ControllerBase {
     /// <summary>
     /// 将配置模型映射到响应模型
     /// </summary>
-    private RouteConfigResponse MapToResponse(ChuteRouteConfiguration config) {
-        return new RouteConfigResponse {
+    private RouteConfigResponse MapToResponse(ChuteRouteConfiguration config)
+    {
+        return new RouteConfigResponse
+        {
             Id = config.Id,
             ChuteId = config.ChuteId,
             ChuteName = config.ChuteName,
             DiverterConfigurations = config.DiverterConfigurations
-                .Select(d => new DiverterConfigRequest {
+                .Select(d => new DiverterConfigRequest
+                {
                     DiverterId = d.DiverterId,
                     TargetDirection = d.TargetDirection,
                     SequenceNumber = d.SequenceNumber,
@@ -772,7 +820,8 @@ public class RouteConfigController : ControllerBase {
             BeltSpeedMmPerSecond = config.BeltSpeedMmPerSecond,
             BeltLengthMm = config.BeltLengthMm,
             ToleranceTimeMs = config.ToleranceTimeMs,
-            SensorConfig = config.SensorConfig != null ? new ChuteSensorConfigRequest {
+            SensorConfig = config.SensorConfig != null ? new ChuteSensorConfigRequest
+            {
                 SensorId = config.SensorConfig.SensorId,
                 SensorType = config.SensorConfig.SensorType,
                 InputBit = config.SensorConfig.InputBit,

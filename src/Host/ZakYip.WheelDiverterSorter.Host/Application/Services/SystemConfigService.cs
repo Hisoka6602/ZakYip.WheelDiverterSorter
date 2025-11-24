@@ -1,7 +1,7 @@
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 
@@ -36,6 +36,7 @@ public class SystemConfigService : ISystemConfigService
 
     public async Task<SystemConfigUpdateResult> UpdateSystemConfigAsync(SystemConfigRequest request)
     {
+        await Task.Yield();
         try
         {
             var config = MapToConfiguration(request);
@@ -90,6 +91,7 @@ public class SystemConfigService : ISystemConfigService
 
     public async Task<SystemConfiguration> ResetSystemConfigAsync()
     {
+        await Task.Yield();
         var defaultConfig = SystemConfiguration.GetDefault();
         _repository.Update(defaultConfig);
 
@@ -111,6 +113,7 @@ public class SystemConfigService : ISystemConfigService
     {
         try
         {
+            await Task.Yield();
             // 验证分拣模式值
             if (!Enum.IsDefined(typeof(SortingMode), request.SortingMode))
             {

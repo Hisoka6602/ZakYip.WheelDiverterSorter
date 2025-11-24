@@ -1,6 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 
@@ -68,6 +68,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         return await _safeExecutor.ExecuteAsync(
             async () =>
             {
+                await Task.Yield();
                 var systemConfig = _systemConfigRepository.Get();
                 if (systemConfig == null)
                 {
@@ -102,7 +103,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
-                var exceptionChuteExists = topology.Chutes.Any(c => 
+                var exceptionChuteExists = topology.Chutes.Any(c =>
                     long.TryParse(c.ChuteId, out var chuteId) && chuteId == exceptionChuteId);
 
                 if (!exceptionChuteExists)
@@ -153,6 +154,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         return await _safeExecutor.ExecuteAsync(
             async () =>
             {
+                await Task.Yield();
                 var panelConfig = _panelConfigRepository.Get();
                 if (panelConfig == null || !panelConfig.Enabled)
                 {
@@ -239,6 +241,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         return await _safeExecutor.ExecuteAsync(
             async () =>
             {
+                await Task.Yield();
                 var topology = _lineTopologyRepository.Get();
                 if (topology == null)
                 {
@@ -331,6 +334,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         return await _safeExecutor.ExecuteAsync(
             async () =>
             {
+                await Task.Yield();
                 var topology = _lineTopologyRepository.Get();
                 if (topology == null)
                 {

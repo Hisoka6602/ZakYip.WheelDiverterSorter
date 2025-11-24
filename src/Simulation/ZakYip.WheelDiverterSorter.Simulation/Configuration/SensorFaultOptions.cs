@@ -2,7 +2,7 @@
 // The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Simulation namespace.
 
 // Re-export the enum from Core.Enums.Simulation for backward compatibility
-global using IoBehaviorMode = ZakYip.WheelDiverterSorter.Core.Enums.IoBehaviorMode;
+global using IoBehaviorMode = ZakYip.WheelDiverterSorter.Core.Enums.Hardware.IoBehaviorMode;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
 
@@ -111,4 +111,3 @@ public sealed record class SensorFaultOptions
     /// </remarks>
     public int DebounceWindowMs { get; init; } = 100;
 }
-
