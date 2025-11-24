@@ -44,11 +44,8 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         var tasks = parcels.Select(async parcelId =>
         {
             var chuteId = (parcelId % 6) + 1; // Distribute across chutes 1-6
-            var assignmentArgs = new ChuteAssignmentNotificationEventArgs
-            {
-                ParcelId = parcelId,
-                ChuteId = (int)chuteId
-            };
+            var assignmentArgs = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId
+            , NotificationTime = DateTimeOffset.Now };
             Factory.MockRuleEngineClient.Raise(
                 x => x.ChuteAssignmentReceived += null,
                 Factory.MockRuleEngineClient.Object,

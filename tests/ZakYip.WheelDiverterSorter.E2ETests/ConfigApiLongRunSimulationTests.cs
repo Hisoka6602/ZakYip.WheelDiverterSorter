@@ -14,6 +14,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -83,7 +84,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
                 {
                     _mockRuleEngineClient.Raise(
                         x => x.ChuteAssignmentReceived += null,
-                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId }
+                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId , NotificationTime = DateTimeOffset.Now }
                     );
                 });
                 return true;

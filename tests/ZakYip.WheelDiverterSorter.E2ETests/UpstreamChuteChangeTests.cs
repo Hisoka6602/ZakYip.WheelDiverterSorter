@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Execution;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public class UpstreamChuteChangeTests
         var handler = new ChangeParcelChuteCommandHandler(
             repository,
             replanner,
+            Mock.Of<ISystemClock>(),
             Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
 
         var parcelId = 12345L;
@@ -76,7 +78,7 @@ public class UpstreamChuteChangeTests
         var handler = new ChangeParcelChuteCommandHandler(
             repository,
             replanner,
-            Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -114,7 +116,7 @@ public class UpstreamChuteChangeTests
         var handler = new ChangeParcelChuteCommandHandler(
             repository,
             replanner,
-            Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -152,7 +154,7 @@ public class UpstreamChuteChangeTests
         var handler = new ChangeParcelChuteCommandHandler(
             repository,
             replanner,
-            Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -193,7 +195,7 @@ public class UpstreamChuteChangeTests
         var handler = new ChangeParcelChuteCommandHandler(
             repository,
             replanner,
-            Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
 
         var command = new ChangeParcelChuteCommand
         {

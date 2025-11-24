@@ -1,5 +1,7 @@
+using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -13,7 +15,7 @@ public class PrometheusMetricsTests
     public void RecordSortingSuccess_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordSortingSuccess(0.150); // 150ms
@@ -24,7 +26,7 @@ public class PrometheusMetricsTests
     public void RecordSortingFailure_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordSortingFailure(0.100); // 100ms
@@ -35,7 +37,7 @@ public class PrometheusMetricsTests
     public void RecordPathGeneration_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordPathGeneration(0.010); // 10ms
@@ -46,7 +48,7 @@ public class PrometheusMetricsTests
     public void RecordPathExecution_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordPathExecution(0.120); // 120ms
@@ -57,7 +59,7 @@ public class PrometheusMetricsTests
     public void SetQueueLength_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.SetQueueLength(42);
@@ -68,7 +70,7 @@ public class PrometheusMetricsTests
     public void RecordQueueWaitTime_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordQueueWaitTime(0.050); // 50ms
@@ -79,7 +81,7 @@ public class PrometheusMetricsTests
     public void SetDiverterActive_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.SetDiverterActive("diverter_01", true);
@@ -91,7 +93,7 @@ public class PrometheusMetricsTests
     public void RecordDiverterOperation_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordDiverterOperation("div_01", "left");
@@ -103,7 +105,7 @@ public class PrometheusMetricsTests
     public void SetDiverterUtilization_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.SetDiverterUtilization("diverter_03", 0.75);
@@ -114,7 +116,7 @@ public class PrometheusMetricsTests
     public void SetRuleEngineConnectionStatus_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.SetRuleEngineConnectionStatus("tcp", true);
@@ -126,7 +128,7 @@ public class PrometheusMetricsTests
     public void RecordRuleEngineSend_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordRuleEngineSend("tcp", "sort_request");
@@ -137,7 +139,7 @@ public class PrometheusMetricsTests
     public void RecordRuleEngineReceive_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordRuleEngineReceive("mqtt", "sort_response");
@@ -148,7 +150,7 @@ public class PrometheusMetricsTests
     public void SetSensorHealthStatus_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.SetSensorHealthStatus("sensor_01", "leadshine", true);
@@ -160,7 +162,7 @@ public class PrometheusMetricsTests
     public void RecordSensorError_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordSensorError("sensor_fail", "leadshine");
@@ -171,7 +173,7 @@ public class PrometheusMetricsTests
     public void RecordSensorDetection_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.RecordSensorDetection("sensor_detect", "mock");
@@ -182,7 +184,7 @@ public class PrometheusMetricsTests
     public void ActiveRequests_ShouldNotThrowException()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert - Should not throw
         metrics.IncrementActiveRequests();
@@ -194,7 +196,7 @@ public class PrometheusMetricsTests
     public void CompleteWorkflow_ShouldRecordAllMetrics()
     {
         // Arrange
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act - Simulate a complete sorting workflow
         // Should not throw any exceptions
@@ -217,7 +219,7 @@ public class PrometheusMetricsTests
     public void PrometheusMetrics_CanBeInstantiated()
     {
         // Act & Assert - Should not throw
-        var metrics = new PrometheusMetrics();
+        var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
         Assert.NotNull(metrics);
     }
 
@@ -225,8 +227,8 @@ public class PrometheusMetricsTests
     public void MultipleMetricsInstances_ShouldWorkCorrectly()
     {
         // Arrange & Act - Create multiple instances
-        var metrics1 = new PrometheusMetrics();
-        var metrics2 = new PrometheusMetrics();
+        var metrics1 = new PrometheusMetrics(Mock.Of<ISystemClock>());
+        var metrics2 = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act - Use both instances
         metrics1.RecordSortingSuccess(0.100);

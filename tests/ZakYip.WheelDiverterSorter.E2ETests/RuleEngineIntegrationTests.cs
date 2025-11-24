@@ -125,11 +125,8 @@ public class RuleEngineIntegrationTests : E2ETestBase
 
         // Act - Simulate RuleEngine sending chute assignment (push model)
         // In the push model, the client receives assignments without explicitly requesting them
-        var assignmentArgs = new ChuteAssignmentNotificationEventArgs
-        {
-            ParcelId = parcelId,
-            ChuteId = targetChuteId
-        };
+        var assignmentArgs = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId
+        , NotificationTime = DateTimeOffset.Now };
 
         Factory.MockRuleEngineClient.Raise(
             x => x.ChuteAssignmentReceived += null,
