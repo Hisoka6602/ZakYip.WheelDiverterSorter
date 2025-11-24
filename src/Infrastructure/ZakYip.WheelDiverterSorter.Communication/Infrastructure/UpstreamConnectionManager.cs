@@ -29,7 +29,6 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
     private Task? _connectionTask;
     private CancellationTokenSource? _cts;
     private readonly SemaphoreSlim _optionsLock = new(1, 1);
-    private bool _isConnected;
     private bool _disposed;
 
     public UpstreamConnectionManager(
@@ -48,7 +47,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         _currentOptions = initialOptions ?? throw new ArgumentNullException(nameof(initialOptions));
     }
 
-    public bool IsConnected => _isConnected;
+    public bool IsConnected => _client.IsConnected;
 
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
 
@@ -158,10 +157,9 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                     // Attempt to connect
                     await ConnectAsync(options, cancellationToken).ConfigureAwait(false);
 
-                    if (!_isConnected)
-                    {
-                        SetConnectionState(true, null);
-                    }
+                    // 通知连接状态变化
+                    // Notify connection state change
+                    SetConnectionState(true, null);
 
                     // 连接成功，重置退避时间
                     // Connection successful, reset backoff
@@ -169,7 +167,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
                     // 保持连接，直到断开或取消
                     // Maintain connection until disconnected or cancelled
-                    while (!cancellationToken.IsCancellationRequested && _isConnected)
+                    while (!cancellationToken.IsCancellationRequested && _client.IsConnected)
                     {
                         await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                     }
@@ -194,10 +192,9 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                         _logDeduplicator.RecordLog(LogLevel.Warning, logKey, ex.GetType().Name);
                     }
 
-                    if (_isConnected)
-                    {
-                        SetConnectionState(false, ex.Message);
-                    }
+                    // 通知连接状态变化（如果之前是连接状态）
+                    // Notify connection state change (if previously connected)
+                    SetConnectionState(false, ex.Message);
 
                     // 应用退避策略
                     // Apply backoff strategy
@@ -242,8 +239,6 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
     private void SetConnectionState(bool isConnected, string? errorMessage)
     {
-        _isConnected = isConnected;
-
         ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs
         {
             IsConnected = isConnected,

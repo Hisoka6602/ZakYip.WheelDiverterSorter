@@ -50,7 +50,14 @@ public class RuleEngineConnectionOptions
     /// <summary>
     /// 重试次数
     /// </summary>
-    public int RetryCount { get; set; } = 3;
+    /// <remarks>
+    /// 注意：此参数仅用于发送操作的重试，不用于连接重试。
+    /// 客户端模式下的连接使用无限重试机制（EnableInfiniteRetry=true）。
+    /// 
+    /// 根据系统规则，发送失败应只记录日志，不进行重试，因此此参数在实际使用中应设为0。
+    /// 保留此参数主要是为了向后兼容和特殊场景使用。
+    /// </remarks>
+    public int RetryCount { get; set; } = 0;
 
     /// <summary>
     /// 重试延迟（毫秒）
