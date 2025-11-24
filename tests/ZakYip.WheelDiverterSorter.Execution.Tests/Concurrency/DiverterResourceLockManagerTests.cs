@@ -26,6 +26,7 @@ public class DiverterResourceLockManagerTests
     public void GetLock_WithSameDiverterId_ReturnsSameLock()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
 
         // Act
         var lock1 = manager.GetLock(1);
@@ -39,6 +40,7 @@ public class DiverterResourceLockManagerTests
     public void GetLock_WithDifferentDiverterIds_ReturnsDifferentLocks()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
 
         // Act
         var lock1 = manager.GetLock(1);
@@ -55,6 +57,7 @@ public class DiverterResourceLockManagerTests
     public void GetLock_WithInvalidDiverterId_ThrowsArgumentException(int diverterId)
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
 
         // Act
         Action act = () => manager.GetLock(diverterId);
@@ -98,6 +101,7 @@ public class DiverterResourceLockManagerTests
     public void GetLock_ThreadSafe_ReturnsSameLockInstance()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         const int diverterId = 42;
         const int threadCount = 10;
         var locks = new IDiverterResourceLock[threadCount];

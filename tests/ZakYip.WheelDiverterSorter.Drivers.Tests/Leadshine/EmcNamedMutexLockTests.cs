@@ -60,6 +60,7 @@ public class EmcNamedMutexLockTests
     {
         // Arrange
         var resourceName = $"TestResource_{Guid.NewGuid()}";
+        using var emcLock = new EmcNamedMutexLock(_mockLogger.Object, resourceName);
         await emcLock.TryAcquireAsync(TimeSpan.FromSeconds(5));
 
         // Act - try to acquire again
@@ -75,6 +76,7 @@ public class EmcNamedMutexLockTests
     {
         // Arrange
         var resourceName = $"TestResource_{Guid.NewGuid()}";
+        using var emcLock = new EmcNamedMutexLock(_mockLogger.Object, resourceName);
 
         // Act & Assert (should not throw)
         emcLock.Release();

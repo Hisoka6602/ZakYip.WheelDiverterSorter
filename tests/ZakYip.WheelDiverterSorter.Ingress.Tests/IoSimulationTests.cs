@@ -121,7 +121,7 @@ public class IoSimulationTests
                     await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
                     {
                         BitNumber = bitNumber,
-                        Level = Core.Enums.Sensors.TriggerLevel.ActiveHigh
+                        Level = Core.Enums.TriggerLevel.ActiveHigh
                     });
                     
                     await Task.Delay(1); // Small delay to increase concurrency
@@ -213,8 +213,8 @@ public class IoSimulationTests
                 {
                     BitNumber = bitNum,
                     Level = (i % 2 == 0) 
-                        ? Core.Enums.Sensors.TriggerLevel.ActiveHigh 
-                        : Core.Enums.Sensors.TriggerLevel.ActiveLow
+                        ? Core.Enums.TriggerLevel.ActiveHigh 
+                        : Core.Enums.TriggerLevel.ActiveLow
                 });
             }, cts.Token));
         }
@@ -293,7 +293,7 @@ public class IoSimulationTests
                 await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
                 {
                     BitNumber = bit,
-                    Level = Core.Enums.Sensors.TriggerLevel.ActiveHigh
+                    Level = Core.Enums.TriggerLevel.ActiveHigh
                 });
             }
         }));
@@ -306,7 +306,7 @@ public class IoSimulationTests
                 await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
                 {
                     BitNumber = bit,
-                    Level = Core.Enums.Sensors.TriggerLevel.ActiveLow
+                    Level = Core.Enums.TriggerLevel.ActiveLow
                 });
             }
         }));
@@ -319,7 +319,7 @@ public class IoSimulationTests
                 await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
                 {
                     BitNumber = bit,
-                    Level = Core.Enums.Sensors.TriggerLevel.ActiveHigh
+                    Level = Core.Enums.TriggerLevel.ActiveHigh
                 });
             }
         }));
@@ -364,8 +364,8 @@ public class IoSimulationTests
                 {
                     BitNumber = testBit,
                     Level = (i % 2 == 0) 
-                        ? Core.Enums.Sensors.TriggerLevel.ActiveHigh 
-                        : Core.Enums.Sensors.TriggerLevel.ActiveLow
+                        ? Core.Enums.TriggerLevel.ActiveHigh 
+                        : Core.Enums.TriggerLevel.ActiveLow
                 });
                 await Task.Yield(); // Yield to allow concurrent access
             }

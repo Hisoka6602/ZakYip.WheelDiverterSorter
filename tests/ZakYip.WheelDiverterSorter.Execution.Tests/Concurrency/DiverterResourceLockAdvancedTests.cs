@@ -43,6 +43,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task AcquireLock_WithCancellationToken_ThrowsOnCancel()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         var lockInstance = manager.GetLock(1);
         var cts = new CancellationTokenSource();
 
@@ -64,6 +65,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task MultipleLocks_WithDifferentDiverters_AllowConcurrentAccess()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         var lock1 = manager.GetLock(1);
         var lock2 = manager.GetLock(2);
         var lock3 = manager.GetLock(3);
@@ -89,6 +91,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task ReadLocks_AllowConcurrentAccess()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         var lockInstance = manager.GetLock(1);
         var readsCompleted = 0;
 
@@ -112,6 +115,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task WriteLock_BlocksOtherWriters()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         var lockInstance = manager.GetLock(1);
         var executionOrder = new List<int>();
 
@@ -155,6 +159,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task StressTest_ManyDiverters_ManyOperations()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         const int diverterCount = 50;
         const int operationsPerDiverter = 20;
         var totalOperations = 0;
@@ -188,6 +193,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task ConcurrentGetLock_CreatesOnlyOneInstance()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         const int diverterId = 42;
         const int threadCount = 50;
         var locks = new IDiverterResourceLock[threadCount];
@@ -222,6 +228,7 @@ public class DiverterResourceLockAdvancedTests
     public void GetLock_WithManyDifferentIds_HandlesScaleCorrectly(int lockCount)
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
 
         // Act
         var locks = new List<IDiverterResourceLock>();
@@ -239,6 +246,7 @@ public class DiverterResourceLockAdvancedTests
     public async Task LockFairness_MultipleWaiters()
     {
         // Arrange
+        using var manager = new DiverterResourceLockManager();
         var lockInstance = manager.GetLock(1);
         var acquisitionOrder = new List<int>();
         var startGate = new TaskCompletionSource<bool>();
