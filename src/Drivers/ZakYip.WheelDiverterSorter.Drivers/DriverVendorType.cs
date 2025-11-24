@@ -4,4 +4,4 @@
 namespace ZakYip.WheelDiverterSorter.Drivers;
 
 // Re-export the enum from Core.Enums.Hardware for backward compatibility
-using DriverVendorType = ZakYip.WheelDiverterSorter.Core.Enums.DriverVendorType;
+using DriverVendorType = ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DriverVendorType;
