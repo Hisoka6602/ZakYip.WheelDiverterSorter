@@ -258,7 +258,8 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         try
         {
             _receiveCts?.Cancel();
-            _receiveTask?.Wait(TimeSpan.FromSeconds(5));
+            // 等待任务完成，但不阻塞太久
+            _receiveTask?.Wait(TimeSpan.FromSeconds(2));
         }
         catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
         {
@@ -290,8 +291,16 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         {
             try
             {
+                // 添加空检查以避免竞态条件
+                var stream = _stream;
+                if (stream == null || !IsConnected)
+                {
+                    Logger.LogDebug("Stream is null or connection is lost, exiting receive loop");
+                    break;
+                }
+
                 // 读取数据
-                var bytesRead = await _stream!.ReadAsync(buffer, cancellationToken);
+                var bytesRead = await stream.ReadAsync(buffer, cancellationToken);
 
                 if (bytesRead == 0)
                 {
