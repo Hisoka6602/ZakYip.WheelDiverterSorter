@@ -46,7 +46,7 @@ public class ConfigurationController : ApiControllerBase
         Summary = "获取异常路由策略",
         Description = "返回系统当前的异常路由策略配置",
         OperationId = "GetExceptionPolicy",
-        Tags = new[] { "配置管理" }
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "成功返回异常策略", typeof(ApiResponse<ExceptionRoutingPolicy>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ExceptionRoutingPolicy>))]
@@ -108,7 +108,7 @@ public class ConfigurationController : ApiControllerBase
         Summary = "更新异常路由策略",
         Description = "更新系统异常路由策略，配置立即生效",
         OperationId = "UpdateExceptionPolicy",
-        Tags = new[] { "配置管理" }
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(ApiResponse<ExceptionRoutingPolicy>))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<ExceptionRoutingPolicy>))]
@@ -188,7 +188,7 @@ public class ConfigurationController : ApiControllerBase
         Summary = "获取放包节流配置",
         Description = "返回当前的拥堵检测与放包节流配置",
         OperationId = "GetReleaseThrottle",
-        Tags = new[] { "配置管理" }
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "成功返回节流配置", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
@@ -262,7 +262,7 @@ public class ConfigurationController : ApiControllerBase
         Summary = "更新放包节流配置",
         Description = "更新拥堵检测与放包节流配置，配置立即生效",
         OperationId = "UpdateReleaseThrottle",
-        Tags = new[] { "配置管理" }
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]

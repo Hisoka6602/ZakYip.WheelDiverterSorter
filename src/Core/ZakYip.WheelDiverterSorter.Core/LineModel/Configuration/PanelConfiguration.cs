@@ -153,6 +153,34 @@ public sealed record class PanelConfiguration
     /// </summary>
     public TriggerLevel SignalTowerGreenOutputLevel { get; init; } = TriggerLevel.ActiveHigh;
 
+    // ========== 运行前预警配置 ==========
+
+    /// <summary>
+    /// 运行前预警持续时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 按下电柜面板启动按钮时，先触发预警输出（如红灯闪烁）持续N秒，
+    /// 然后才真正开始运行。目的是告诉现场人员离开设备，避免安全事故。
+    /// </remarks>
+    public int? PreStartWarningDurationSeconds { get; init; }
+
+    /// <summary>
+    /// 运行前预警输出 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定运行前预警输出（如红灯）的 IO 地址
+    /// </remarks>
+    public int? PreStartWarningOutputBit { get; init; }
+
+    /// <summary>
+    /// 运行前预警输出 IO 电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平点亮（输出1）
+    /// - ActiveLow: 低电平点亮（输出0）
+    /// </remarks>
+    public TriggerLevel PreStartWarningOutputLevel { get; init; } = TriggerLevel.ActiveHigh;
+
     // ========== 元数据 ==========
 
     /// <summary>
@@ -199,6 +227,9 @@ public sealed record class PanelConfiguration
             SignalTowerYellowOutputLevel = TriggerLevel.ActiveHigh,
             SignalTowerGreenOutputBit = null,
             SignalTowerGreenOutputLevel = TriggerLevel.ActiveHigh,
+            PreStartWarningDurationSeconds = null,
+            PreStartWarningOutputBit = null,
+            PreStartWarningOutputLevel = TriggerLevel.ActiveHigh,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -230,7 +261,8 @@ public sealed record class PanelConfiguration
         {
             StartButtonInputBit, StopButtonInputBit, EmergencyStopButtonInputBit,
             StartLightOutputBit, StopLightOutputBit, ConnectionLightOutputBit,
-            SignalTowerRedOutputBit, SignalTowerYellowOutputBit, SignalTowerGreenOutputBit
+            SignalTowerRedOutputBit, SignalTowerYellowOutputBit, SignalTowerGreenOutputBit,
+            PreStartWarningOutputBit
         };
 
         foreach (var bit in ioBits)
@@ -238,6 +270,15 @@ public sealed record class PanelConfiguration
             if (bit.HasValue && (bit.Value < 0 || bit.Value > 1023))
             {
                 return (false, $"IO位 {bit.Value} 必须在 0-1023 范围内");
+            }
+        }
+
+        // 验证预警时间范围
+        if (PreStartWarningDurationSeconds.HasValue)
+        {
+            if (PreStartWarningDurationSeconds.Value < 0 || PreStartWarningDurationSeconds.Value > 60)
+            {
+                return (false, "运行前预警时间必须在 0-60 秒之间");
             }
         }
 

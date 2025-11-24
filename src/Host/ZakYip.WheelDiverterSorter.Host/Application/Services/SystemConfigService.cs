@@ -172,18 +172,11 @@ public class SystemConfigService : ISystemConfigService
         return new SystemConfiguration
         {
             ExceptionChuteId = request.ExceptionChuteId,
-            MqttDefaultPort = request.MqttDefaultPort,
-            TcpDefaultPort = request.TcpDefaultPort,
-#pragma warning disable CS0618 // 向后兼容
-            ChuteAssignmentTimeoutMs = request.ChuteAssignmentTimeoutMs,
-#pragma warning restore CS0618
-            RequestTimeoutMs = request.RequestTimeoutMs,
-            RetryCount = request.RetryCount,
-            RetryDelayMs = request.RetryDelayMs,
-            EnableAutoReconnect = request.EnableAutoReconnect,
             SortingMode = request.SortingMode,
             FixedChuteId = request.FixedChuteId,
             AvailableChuteIds = request.AvailableChuteIds ?? new List<long>()
+            // Note: Communication-related fields are not set here.
+            // They should be managed through /api/communication endpoints
         };
     }
 }
