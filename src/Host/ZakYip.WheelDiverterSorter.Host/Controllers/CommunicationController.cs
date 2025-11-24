@@ -32,6 +32,7 @@ public class CommunicationController : ControllerBase {
     private readonly ILogger<CommunicationController> _logger;
     private readonly ISystemClock _systemClock;
     private readonly ISystemStateManager _stateManager;
+    private readonly IUpstreamConnectionManager? _connectionManager;
 
     public CommunicationController(
         IRuleEngineClient ruleEngineClient,
@@ -40,7 +41,8 @@ public class CommunicationController : ControllerBase {
         CommunicationStatsService statsService,
         ILogger<CommunicationController> logger,
         ISystemClock systemClock,
-        ISystemStateManager stateManager) {
+        ISystemStateManager stateManager,
+        IUpstreamConnectionManager? connectionManager = null) {
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
@@ -48,6 +50,7 @@ public class CommunicationController : ControllerBase {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
+        _connectionManager = connectionManager;
     }
 
     /// <summary>
@@ -428,7 +431,7 @@ public class CommunicationController : ControllerBase {
     [ProducesResponseType(typeof(CommunicationConfigurationResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfigurationResponse> UpdatePersistedConfiguration([FromBody] CommunicationConfigurationRequest request) {
+    public async Task<ActionResult<CommunicationConfigurationResponse>> UpdatePersistedConfiguration([FromBody] CommunicationConfigurationRequest request) {
         try {
             if (!ModelState.IsValid) {
                 var errors = ModelState.Values
@@ -494,6 +497,29 @@ public class CommunicationController : ControllerBase {
                 config.Mode,
                 config.Version);
 
+            // 如果配置了 UpstreamConnectionManager，触发重新连接
+            // If UpstreamConnectionManager is configured, trigger reconnection
+            if (_connectionManager != null)
+            {
+                try
+                {
+                    var updatedOptions = MapToRuleEngineConnectionOptions(config);
+                    await _connectionManager.UpdateConnectionOptionsAsync(updatedOptions);
+                    
+                    _logger.LogInformation(
+                        "UpstreamConnectionManager 已更新配置并将使用新参数重新连接 - " +
+                        "UpstreamConnectionManager updated configuration and will reconnect with new parameters");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "更新 UpstreamConnectionManager 配置时出错 - Error updating UpstreamConnectionManager configuration");
+                    // 不抛出异常，因为配置已经持久化成功
+                    // Don't throw exception as configuration has been persisted successfully
+                }
+            }
+
             // 返回更新后的配置（重新获取以确保返回持久化后的值）
             return GetPersistedConfiguration();
         }
@@ -505,6 +531,56 @@ public class CommunicationController : ControllerBase {
             _logger.LogError(ex, "更新通信配置失败 - Failed to update communication configuration");
             return StatusCode(500, new { message = "更新通信配置失败 - Failed to update communication configuration" });
         }
+    }
+
+    /// <summary>
+    /// 将 CommunicationConfiguration 映射到 RuleEngineConnectionOptions
+    /// Map CommunicationConfiguration to RuleEngineConnectionOptions
+    /// </summary>
+    private static RuleEngineConnectionOptions MapToRuleEngineConnectionOptions(CommunicationConfiguration config)
+    {
+        return new RuleEngineConnectionOptions
+        {
+            Mode = config.Mode,
+            ConnectionMode = config.ConnectionMode,
+            TcpServer = config.TcpServer,
+            SignalRHub = config.SignalRHub,
+            MqttBroker = config.MqttBroker,
+            MqttTopic = config.MqttTopic,
+            HttpApi = config.HttpApi,
+            TimeoutMs = config.TimeoutMs,
+            RetryCount = config.RetryCount,
+            RetryDelayMs = config.RetryDelayMs,
+            EnableAutoReconnect = config.EnableAutoReconnect,
+            Tcp = new Communication.Configuration.TcpOptions
+            {
+                ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
+                SendBufferSize = config.Tcp.SendBufferSize,
+                NoDelay = config.Tcp.NoDelay
+            },
+            Http = new Communication.Configuration.HttpOptions
+            {
+                MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
+                PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
+                PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
+                UseHttp2 = config.Http.UseHttp2
+            },
+            Mqtt = new Communication.Configuration.MqttOptions
+            {
+                QualityOfServiceLevel = config.Mqtt.QualityOfServiceLevel,
+                CleanSession = config.Mqtt.CleanSession,
+                SessionExpiryInterval = config.Mqtt.SessionExpiryInterval,
+                MessageExpiryInterval = config.Mqtt.MessageExpiryInterval,
+                ClientIdPrefix = config.Mqtt.ClientIdPrefix
+            },
+            SignalR = new Communication.Configuration.SignalROptions
+            {
+                HandshakeTimeout = config.SignalR.HandshakeTimeout,
+                KeepAliveInterval = config.SignalR.KeepAliveInterval,
+                ServerTimeout = config.SignalR.ServerTimeout,
+                SkipNegotiation = config.SignalR.SkipNegotiation
+            }
+        };
     }
 
     /// <summary>

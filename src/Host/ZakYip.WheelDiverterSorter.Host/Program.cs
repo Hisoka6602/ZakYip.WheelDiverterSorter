@@ -176,6 +176,9 @@ try
     // 注册RuleEngine通信服务（支持TCP/SignalR/MQTT/HTTP）
     builder.Services.AddRuleEngineCommunication(builder.Configuration);
 
+    // 注册上游连接管理服务（自动启动Client模式连接或Server模式监听）
+    builder.Services.AddUpstreamConnectionManagement(builder.Configuration);
+
     // 注册通信统计服务
     builder.Services.AddSingleton<CommunicationStatsService>();
 

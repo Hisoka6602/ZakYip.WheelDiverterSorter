@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
@@ -97,6 +98,45 @@ public static class CommunicationServiceExtensions
             var factory = sp.GetRequiredService<EmcResourceLockManagerFactory>();
             return factory.CreateLockManager();
         });
+
+        return services;
+    }
+
+    /// <summary>
+    /// 添加上游连接管理服务
+    /// Add upstream connection management service
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <param name="configuration">配置</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddUpstreamConnectionManagement(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // 绑定配置
+        var options = new RuleEngineConnectionOptions();
+        configuration.GetSection("RuleEngineConnection").Bind(options);
+
+        // 注册 UpstreamConnectionManager
+        services.AddSingleton<IUpstreamConnectionManager>(sp =>
+        {
+            var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpstreamConnectionManager>>();
+            var systemClock = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.Utilities.ISystemClock>();
+            var logDeduplicator = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ILogDeduplicator>();
+            var safeExecutor = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ISafeExecutionService>();
+            var client = sp.GetRequiredService<IRuleEngineClient>();
+
+            return new UpstreamConnectionManager(
+                logger,
+                systemClock,
+                logDeduplicator,
+                safeExecutor,
+                client,
+                options);
+        });
+
+        // 注册后台服务，自动启动连接管理
+        services.AddHostedService<UpstreamConnectionBackgroundService>();
 
         return services;
     }
