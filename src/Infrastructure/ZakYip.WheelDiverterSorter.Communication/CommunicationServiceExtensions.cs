@@ -33,28 +33,72 @@ public static class CommunicationServiceExtensions
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置</param>
     /// <returns>服务集合</returns>
+    /// <remarks>
+    /// <para><b>⚠️ 重要架构约束：</b></para>
+    /// <list type="bullet">
+    ///   <item>RuleEngine连接配置<b>必须从数据库读取</b>，不允许从 appsettings.json 配置</item>
+    ///   <item><b>默认为正式环境</b>，除非在 appsettings.json 中明确设置 "IsTestEnvironment": true</item>
+    ///   <item>正式环境启动时从 LiteDB 数据库加载持久化配置</item>
+    ///   <item>测试环境可以使用 appsettings.json 中的配置（仅用于自动化测试）</item>
+    /// </list>
+    /// </remarks>
     public static IServiceCollection AddRuleEngineCommunication(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // 绑定配置
-        var options = new RuleEngineConnectionOptions();
-        configuration.GetSection("RuleEngineConnection").Bind(options);
-
-        // 检查是否为测试环境（通过配置标记）
+        // 检查是否为测试环境（默认 false = 正式环境）
+        // Check if test environment (default false = production environment)
         var isTestMode = configuration.GetValue<bool>("IsTestEnvironment", false);
-        
-        // 在测试环境下，如果配置为空，提供默认测试配置
-        if (isTestMode && string.IsNullOrWhiteSpace(options.HttpApi) && options.Mode == CommunicationMode.Http)
+
+        if (!isTestMode)
         {
-            options.HttpApi = "http://localhost:9999/test-stub";
+            Console.WriteLine("🏭 [环境检测] 正式环境模式 - RuleEngine 配置将从数据库加载");
+        }
+        else
+        {
+            Console.WriteLine("🧪 [环境检测] 测试环境模式 - RuleEngine 配置将从 appsettings.json 加载");
         }
 
-        // 验证配置（测试环境的默认配置也需要通过验证）
-        ValidateOptions(options);
-
-        // 注册配置为单例
-        services.AddSingleton(options);
+        // ⚠️ 注册配置为延迟加载单例 - 从数据库读取而非 appsettings.json
+        // Register configuration as lazy-loaded singleton - load from database not appsettings.json
+        services.AddSingleton<RuleEngineConnectionOptions>(sp =>
+        {
+            if (isTestMode)
+            {
+                // 测试环境：使用配置文件中的配置（仅用于自动化测试）
+                // Test environment: use configuration from appsettings.json (for automated tests only)
+                var testOptions = new RuleEngineConnectionOptions();
+                configuration.GetSection("RuleEngineConnection").Bind(testOptions);
+                
+                // 在测试环境下，如果配置为空，提供默认测试配置
+                if (string.IsNullOrWhiteSpace(testOptions.HttpApi) && testOptions.Mode == CommunicationMode.Http)
+                {
+                    testOptions.HttpApi = "http://localhost:9999/test-stub";
+                }
+                
+                ValidateOptions(testOptions);
+                
+                Console.WriteLine($"🧪 [测试配置] Mode={testOptions.Mode}, Server={GetServerAddress(testOptions)}");
+                
+                return testOptions;
+            }
+            else
+            {
+                // 正式环境（默认）：从数据库加载配置
+                // Production environment (default): load configuration from database
+                var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.ICommunicationConfigurationRepository>();
+                var dbConfig = configRepository.Get();
+                
+                // 将数据库配置映射到 RuleEngineConnectionOptions
+                var options = MapFromDatabaseConfig(dbConfig);
+                
+                ValidateOptions(options);
+                
+                Console.WriteLine($"✅ [数据库配置] 已加载 RuleEngine 连接配置: Mode={options.Mode}, ConnectionMode={options.ConnectionMode}, Server={GetServerAddress(options)}");
+                
+                return options;
+            }
+        });
 
         // 注册客户端工厂
         services.AddSingleton<IRuleEngineClientFactory, RuleEngineClientFactory>();
@@ -224,5 +268,74 @@ public static class CommunicationServiceExtensions
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// 将数据库配置映射到 RuleEngineConnectionOptions
+    /// Map database configuration to RuleEngineConnectionOptions
+    /// </summary>
+    private static RuleEngineConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.CommunicationConfiguration dbConfig)
+    {
+        return new RuleEngineConnectionOptions
+        {
+            Mode = dbConfig.Mode,
+            ConnectionMode = dbConfig.ConnectionMode,
+            TcpServer = dbConfig.TcpServer,
+            SignalRHub = dbConfig.SignalRHub,
+            MqttBroker = dbConfig.MqttBroker,
+            MqttTopic = dbConfig.MqttTopic,
+            HttpApi = dbConfig.HttpApi,
+            TimeoutMs = dbConfig.TimeoutMs,
+            RetryCount = dbConfig.RetryCount,
+            RetryDelayMs = dbConfig.RetryDelayMs,
+            EnableAutoReconnect = dbConfig.EnableAutoReconnect,
+            InitialBackoffMs = dbConfig.InitialBackoffMs,
+            MaxBackoffMs = dbConfig.MaxBackoffMs,
+            EnableInfiniteRetry = dbConfig.EnableInfiniteRetry,
+            Tcp = new TcpOptions
+            {
+                ReceiveBufferSize = dbConfig.Tcp.ReceiveBufferSize,
+                SendBufferSize = dbConfig.Tcp.SendBufferSize,
+                NoDelay = dbConfig.Tcp.NoDelay
+            },
+            Http = new HttpOptions
+            {
+                MaxConnectionsPerServer = dbConfig.Http.MaxConnectionsPerServer,
+                PooledConnectionIdleTimeout = dbConfig.Http.PooledConnectionIdleTimeout,
+                PooledConnectionLifetime = dbConfig.Http.PooledConnectionLifetime,
+                UseHttp2 = dbConfig.Http.UseHttp2
+            },
+            Mqtt = new MqttOptions
+            {
+                QualityOfServiceLevel = dbConfig.Mqtt.QualityOfServiceLevel,
+                CleanSession = dbConfig.Mqtt.CleanSession,
+                SessionExpiryInterval = dbConfig.Mqtt.SessionExpiryInterval,
+                MessageExpiryInterval = dbConfig.Mqtt.MessageExpiryInterval,
+                ClientIdPrefix = dbConfig.Mqtt.ClientIdPrefix
+            },
+            SignalR = new SignalROptions
+            {
+                HandshakeTimeout = dbConfig.SignalR.HandshakeTimeout,
+                KeepAliveInterval = dbConfig.SignalR.KeepAliveInterval,
+                ServerTimeout = dbConfig.SignalR.ServerTimeout,
+                SkipNegotiation = dbConfig.SignalR.SkipNegotiation
+            }
+        };
+    }
+
+    /// <summary>
+    /// 获取服务器地址（用于日志）
+    /// Get server address (for logging)
+    /// </summary>
+    private static string GetServerAddress(RuleEngineConnectionOptions options)
+    {
+        return options.Mode switch
+        {
+            CommunicationMode.Tcp => options.TcpServer ?? "未配置",
+            CommunicationMode.SignalR => options.SignalRHub ?? "未配置",
+            CommunicationMode.Mqtt => options.MqttBroker ?? "未配置",
+            CommunicationMode.Http => options.HttpApi ?? "未配置",
+            _ => "未知模式"
+        };
     }
 }
