@@ -3,6 +3,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Host.Models.Panel;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -47,13 +48,14 @@ public class PanelConfigController : ControllerBase
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 返回当前的面板配置，包括：
-    /// - 是否启用面板功能
-    /// - 是否使用仿真模式
-    /// - 按钮轮询间隔
-    /// - 按钮防抖时间
-    /// - IO 绑定配置（按钮输入位、指示灯输出位）
-    /// - IO 电平配置（高电平有效/低电平有效）
+    /// 返回当前的面板配置，参数按功能分类组织：
+    /// - 基础配置：enabled, useSimulation, pollingIntervalMs, debounceMs
+    /// - 开始按钮：startButton (inputBit, inputTriggerLevel, lightOutputBit, lightOutputLevel)
+    /// - 停止按钮：stopButton (inputBit, inputTriggerLevel, lightOutputBit, lightOutputLevel)
+    /// - 急停按钮：emergencyStopButton (inputBit, inputTriggerLevel)
+    /// - 连接指示灯：connectionIndicator (outputBit, outputLevel)
+    /// - 三色信号塔：signalTower (redOutputBit, redOutputLevel, yellowOutputBit, yellowOutputLevel, greenOutputBit, greenOutputLevel)
+    /// - 运行前预警：preStartWarning (durationSeconds, outputBit, outputLevel)
     ///
     /// 示例响应：
     /// ```json
@@ -62,37 +64,41 @@ public class PanelConfigController : ControllerBase
     ///   "useSimulation": true,
     ///   "pollingIntervalMs": 100,
     ///   "debounceMs": 50,
-    ///   "startButtonInputBit": 0,
-    ///   "startButtonTriggerLevel": "ActiveHigh",
-    ///   "stopButtonInputBit": 1,
-    ///   "stopButtonTriggerLevel": "ActiveHigh",
-    ///   "emergencyStopButtonInputBit": 2,
-    ///   "emergencyStopButtonTriggerLevel": "ActiveHigh",
-    ///   "startLightOutputBit": 0,
-    ///   "startLightOutputLevel": "ActiveHigh",
-    ///   "stopLightOutputBit": 1,
-    ///   "stopLightOutputLevel": "ActiveHigh",
-    ///   "connectionLightOutputBit": 2,
-    ///   "connectionLightOutputLevel": "ActiveHigh",
-    ///   "signalTowerRedOutputBit": 3,
-    ///   "signalTowerRedOutputLevel": "ActiveHigh",
-    ///   "signalTowerYellowOutputBit": 4,
-    ///   "signalTowerYellowOutputLevel": "ActiveHigh",
-    ///   "signalTowerGreenOutputBit": 5,
-    ///   "signalTowerGreenOutputLevel": "ActiveHigh"
+    ///   "startButton": {
+    ///     "inputBit": 0,
+    ///     "inputTriggerLevel": "ActiveHigh",
+    ///     "lightOutputBit": 0,
+    ///     "lightOutputLevel": "ActiveHigh"
+    ///   },
+    ///   "stopButton": {
+    ///     "inputBit": 1,
+    ///     "inputTriggerLevel": "ActiveHigh",
+    ///     "lightOutputBit": 1,
+    ///     "lightOutputLevel": "ActiveHigh"
+    ///   },
+    ///   "emergencyStopButton": {
+    ///     "inputBit": 2,
+    ///     "inputTriggerLevel": "ActiveHigh"
+    ///   },
+    ///   "connectionIndicator": {
+    ///     "outputBit": 2,
+    ///     "outputLevel": "ActiveHigh"
+    ///   },
+    ///   "signalTower": {
+    ///     "redOutputBit": 3,
+    ///     "redOutputLevel": "ActiveHigh",
+    ///     "yellowOutputBit": 4,
+    ///     "yellowOutputLevel": "ActiveHigh",
+    ///     "greenOutputBit": 5,
+    ///     "greenOutputLevel": "ActiveHigh"
+    ///   },
+    ///   "preStartWarning": {
+    ///     "durationSeconds": 5,
+    ///     "outputBit": 6,
+    ///     "outputLevel": "ActiveHigh"
+    ///   }
     /// }
     /// ```
-    ///
-    /// **字段说明**：
-    /// - **enabled**: 是否启用面板功能
-    /// - **useSimulation**: true 表示使用仿真驱动，false 表示使用真实硬件
-    /// - **pollingIntervalMs**: 按钮状态轮询间隔（毫秒）
-    /// - **debounceMs**: 按钮防抖时间（毫秒），防止误触
-    /// - **xxxInputBit**: 输入 IO 位地址（0-1023）
-    /// - **xxxOutputBit**: 输出 IO 位地址（0-1023）
-    /// - **xxxTriggerLevel / xxxOutputLevel**: IO 电平配置
-    ///   - ActiveHigh: 高电平有效（常开按键/输出1点亮）
-    ///   - ActiveLow: 低电平有效（常闭按键/输出0点亮）
     /// </remarks>
     [HttpGet]
     [SwaggerOperation(
@@ -129,7 +135,7 @@ public class PanelConfigController : ControllerBase
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 更新面板配置，配置立即生效。
+    /// 更新面板配置，参数按功能分类组织，配置立即生效。
     ///
     /// 示例请求：
     /// ```json
@@ -137,15 +143,38 @@ public class PanelConfigController : ControllerBase
     ///   "enabled": true,
     ///   "useSimulation": true,
     ///   "pollingIntervalMs": 100,
-    ///   "debounceMs": 50
+    ///   "debounceMs": 50,
+    ///   "startButton": {
+    ///     "inputBit": 0,
+    ///     "inputTriggerLevel": "ActiveHigh",
+    ///     "lightOutputBit": 0,
+    ///     "lightOutputLevel": "ActiveHigh"
+    ///   },
+    ///   "stopButton": {
+    ///     "inputBit": 1,
+    ///     "inputTriggerLevel": "ActiveHigh",
+    ///     "lightOutputBit": 1,
+    ///     "lightOutputLevel": "ActiveHigh"
+    ///   },
+    ///   "signalTower": {
+    ///     "redOutputBit": 3,
+    ///     "redOutputLevel": "ActiveHigh",
+    ///     "yellowOutputBit": 4,
+    ///     "yellowOutputLevel": "ActiveHigh",
+    ///     "greenOutputBit": 5,
+    ///     "greenOutputLevel": "ActiveHigh"
+    ///   }
     /// }
     /// ```
     ///
-    /// 参数说明：
-    /// - **enabled**: 是否启用面板功能
-    /// - **useSimulation**: 是否使用仿真模式（true=仿真，false=硬件）
-    /// - **pollingIntervalMs**: 按钮轮询间隔（50-1000毫秒）
-    /// - **debounceMs**: 按钮防抖时间（10-500毫秒）
+    /// 参数分组说明：
+    /// - **基础配置**: enabled, useSimulation, pollingIntervalMs, debounceMs
+    /// - **startButton**: 开始按钮的输入和指示灯配置
+    /// - **stopButton**: 停止按钮的输入和指示灯配置
+    /// - **emergencyStopButton**: 急停按钮的输入配置
+    /// - **connectionIndicator**: 连接状态指示灯配置
+    /// - **signalTower**: 三色信号塔配置
+    /// - **preStartWarning**: 运行前预警配置
     ///
     /// 注意事项：
     /// - 轮询间隔不宜过小，避免CPU占用过高
@@ -289,27 +318,27 @@ public class PanelConfigController : ControllerBase
             UseSimulation = request.UseSimulation,
             PollingIntervalMs = request.PollingIntervalMs,
             DebounceMs = request.DebounceMs,
-            StartButtonInputBit = request.StartButtonInputBit,
-            StartButtonTriggerLevel = request.StartButtonTriggerLevel,
-            StopButtonInputBit = request.StopButtonInputBit,
-            StopButtonTriggerLevel = request.StopButtonTriggerLevel,
-            EmergencyStopButtonInputBit = request.EmergencyStopButtonInputBit,
-            EmergencyStopButtonTriggerLevel = request.EmergencyStopButtonTriggerLevel,
-            StartLightOutputBit = request.StartLightOutputBit,
-            StartLightOutputLevel = request.StartLightOutputLevel,
-            StopLightOutputBit = request.StopLightOutputBit,
-            StopLightOutputLevel = request.StopLightOutputLevel,
-            ConnectionLightOutputBit = request.ConnectionLightOutputBit,
-            ConnectionLightOutputLevel = request.ConnectionLightOutputLevel,
-            SignalTowerRedOutputBit = request.SignalTowerRedOutputBit,
-            SignalTowerRedOutputLevel = request.SignalTowerRedOutputLevel,
-            SignalTowerYellowOutputBit = request.SignalTowerYellowOutputBit,
-            SignalTowerYellowOutputLevel = request.SignalTowerYellowOutputLevel,
-            SignalTowerGreenOutputBit = request.SignalTowerGreenOutputBit,
-            SignalTowerGreenOutputLevel = request.SignalTowerGreenOutputLevel,
-            PreStartWarningDurationSeconds = request.PreStartWarningDurationSeconds,
-            PreStartWarningOutputBit = request.PreStartWarningOutputBit,
-            PreStartWarningOutputLevel = request.PreStartWarningOutputLevel,
+            StartButtonInputBit = request.StartButton?.InputBit,
+            StartButtonTriggerLevel = request.StartButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            StopButtonInputBit = request.StopButton?.InputBit,
+            StopButtonTriggerLevel = request.StopButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            EmergencyStopButtonInputBit = request.EmergencyStopButton?.InputBit,
+            EmergencyStopButtonTriggerLevel = request.EmergencyStopButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            StartLightOutputBit = request.StartButton?.LightOutputBit,
+            StartLightOutputLevel = request.StartButton?.LightOutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            StopLightOutputBit = request.StopButton?.LightOutputBit,
+            StopLightOutputLevel = request.StopButton?.LightOutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            ConnectionLightOutputBit = request.ConnectionIndicator?.OutputBit,
+            ConnectionLightOutputLevel = request.ConnectionIndicator?.OutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            SignalTowerRedOutputBit = request.SignalTower?.RedOutputBit,
+            SignalTowerRedOutputLevel = request.SignalTower?.RedOutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            SignalTowerYellowOutputBit = request.SignalTower?.YellowOutputBit,
+            SignalTowerYellowOutputLevel = request.SignalTower?.YellowOutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            SignalTowerGreenOutputBit = request.SignalTower?.GreenOutputBit,
+            SignalTowerGreenOutputLevel = request.SignalTower?.GreenOutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            PreStartWarningDurationSeconds = request.PreStartWarning?.DurationSeconds,
+            PreStartWarningOutputBit = request.PreStartWarning?.OutputBit,
+            PreStartWarningOutputLevel = request.PreStartWarning?.OutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
             CreatedAt = currentTime,
             UpdatedAt = currentTime
         };
@@ -326,426 +355,45 @@ public class PanelConfigController : ControllerBase
             UseSimulation = config.UseSimulation,
             PollingIntervalMs = config.PollingIntervalMs,
             DebounceMs = config.DebounceMs,
-            StartButtonInputBit = config.StartButtonInputBit,
-            StartButtonTriggerLevel = config.StartButtonTriggerLevel,
-            StopButtonInputBit = config.StopButtonInputBit,
-            StopButtonTriggerLevel = config.StopButtonTriggerLevel,
-            EmergencyStopButtonInputBit = config.EmergencyStopButtonInputBit,
-            EmergencyStopButtonTriggerLevel = config.EmergencyStopButtonTriggerLevel,
-            StartLightOutputBit = config.StartLightOutputBit,
-            StartLightOutputLevel = config.StartLightOutputLevel,
-            StopLightOutputBit = config.StopLightOutputBit,
-            StopLightOutputLevel = config.StopLightOutputLevel,
-            ConnectionLightOutputBit = config.ConnectionLightOutputBit,
-            ConnectionLightOutputLevel = config.ConnectionLightOutputLevel,
-            SignalTowerRedOutputBit = config.SignalTowerRedOutputBit,
-            SignalTowerRedOutputLevel = config.SignalTowerRedOutputLevel,
-            SignalTowerYellowOutputBit = config.SignalTowerYellowOutputBit,
-            SignalTowerYellowOutputLevel = config.SignalTowerYellowOutputLevel,
-            SignalTowerGreenOutputBit = config.SignalTowerGreenOutputBit,
-            SignalTowerGreenOutputLevel = config.SignalTowerGreenOutputLevel,
-            PreStartWarningDurationSeconds = config.PreStartWarningDurationSeconds,
-            PreStartWarningOutputBit = config.PreStartWarningOutputBit,
-            PreStartWarningOutputLevel = config.PreStartWarningOutputLevel
+            StartButton = new StartButtonConfigDto
+            {
+                InputBit = config.StartButtonInputBit,
+                InputTriggerLevel = config.StartButtonTriggerLevel,
+                LightOutputBit = config.StartLightOutputBit,
+                LightOutputLevel = config.StartLightOutputLevel
+            },
+            StopButton = new StopButtonConfigDto
+            {
+                InputBit = config.StopButtonInputBit,
+                InputTriggerLevel = config.StopButtonTriggerLevel,
+                LightOutputBit = config.StopLightOutputBit,
+                LightOutputLevel = config.StopLightOutputLevel
+            },
+            EmergencyStopButton = new EmergencyStopButtonConfigDto
+            {
+                InputBit = config.EmergencyStopButtonInputBit,
+                InputTriggerLevel = config.EmergencyStopButtonTriggerLevel
+            },
+            ConnectionIndicator = new ConnectionIndicatorConfigDto
+            {
+                OutputBit = config.ConnectionLightOutputBit,
+                OutputLevel = config.ConnectionLightOutputLevel
+            },
+            SignalTower = new SignalTowerConfigDto
+            {
+                RedOutputBit = config.SignalTowerRedOutputBit,
+                RedOutputLevel = config.SignalTowerRedOutputLevel,
+                YellowOutputBit = config.SignalTowerYellowOutputBit,
+                YellowOutputLevel = config.SignalTowerYellowOutputLevel,
+                GreenOutputBit = config.SignalTowerGreenOutputBit,
+                GreenOutputLevel = config.SignalTowerGreenOutputLevel
+            },
+            PreStartWarning = new PreStartWarningConfigDto
+            {
+                DurationSeconds = config.PreStartWarningDurationSeconds,
+                OutputBit = config.PreStartWarningOutputBit,
+                OutputLevel = config.PreStartWarningOutputLevel
+            }
         };
     }
-}
-
-/// <summary>
-/// 面板配置请求模型
-/// </summary>
-/// <remarks>
-/// 用于更新面板配置的请求数据传输对象，包括面板按钮和指示灯的 IO 绑定配置
-/// </remarks>
-public sealed record PanelConfigRequest
-{
-    /// <summary>
-    /// 是否启用面板功能
-    /// </summary>
-    /// <example>true</example>
-    [Required]
-    public required bool Enabled { get; init; }
-
-    /// <summary>
-    /// 是否使用仿真模式
-    /// </summary>
-    /// <remarks>
-    /// true: 使用仿真驱动（SimulatedPanelInputReader / SimulatedSignalTowerOutput）
-    /// false: 使用真实硬件驱动
-    /// </remarks>
-    /// <example>true</example>
-    [Required]
-    public required bool UseSimulation { get; init; }
-
-    /// <summary>
-    /// 面板按钮轮询间隔（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 有效范围：50-1000 毫秒
-    /// 建议值：100 毫秒
-    /// </remarks>
-    /// <example>100</example>
-    [Required]
-    [Range(50, 1000, ErrorMessage = "轮询间隔必须在 50-1000 毫秒之间")]
-    public required int PollingIntervalMs { get; init; }
-
-    /// <summary>
-    /// 按钮防抖时间（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 有效范围：10-500 毫秒
-    /// 建议值：50 毫秒
-    /// 在此时间内的重复触发将被忽略
-    /// </remarks>
-    /// <example>50</example>
-    [Required]
-    [Range(10, 500, ErrorMessage = "防抖时间必须在 10-500 毫秒之间")]
-    public required int DebounceMs { get; init; }
-
-    /// <summary>
-    /// 开始按钮 IO 绑定（输入位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定启动按钮的输入 IO 地址
-    /// 例如：0 表示第0个输入位
-    /// </remarks>
-    /// <example>0</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? StartButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 开始按钮 IO 触发电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平有效（常开按键）
-    /// - ActiveLow: 低电平有效（常闭按键）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StartButtonTriggerLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 停止按钮 IO 绑定（输入位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定停止按钮的输入 IO 地址
-    /// </remarks>
-    /// <example>1</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? StopButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 停止按钮 IO 触发电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平有效（常开按键）
-    /// - ActiveLow: 低电平有效（常闭按键）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StopButtonTriggerLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 急停按钮 IO 绑定（输入位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定急停按钮的输入 IO 地址
-    /// </remarks>
-    /// <example>2</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? EmergencyStopButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 急停按钮 IO 触发电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平有效（常开按键）
-    /// - ActiveLow: 低电平有效（常闭按键）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel EmergencyStopButtonTriggerLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 开始按钮灯 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定启动按钮指示灯的输出 IO 地址
-    /// </remarks>
-    /// <example>0</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? StartLightOutputBit { get; init; }
-
-    /// <summary>
-    /// 开始按钮灯 IO 输出电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StartLightOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 停止按钮灯 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定停止按钮指示灯的输出 IO 地址
-    /// </remarks>
-    /// <example>1</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? StopLightOutputBit { get; init; }
-
-    /// <summary>
-    /// 停止按钮灯 IO 输出电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StopLightOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 连接按钮灯 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定连接状态指示灯的输出 IO 地址
-    /// </remarks>
-    /// <example>2</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? ConnectionLightOutputBit { get; init; }
-
-    /// <summary>
-    /// 连接按钮灯 IO 输出电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel ConnectionLightOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 三色灯红色 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定三色信号塔红色灯的输出 IO 地址
-    /// </remarks>
-    /// <example>3</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? SignalTowerRedOutputBit { get; init; }
-
-    /// <summary>
-    /// 三色灯红色 IO 输出电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerRedOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 三色灯黄色 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定三色信号塔黄色灯的输出 IO 地址
-    /// </remarks>
-    /// <example>4</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? SignalTowerYellowOutputBit { get; init; }
-
-    /// <summary>
-    /// 三色灯黄色 IO 输出电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerYellowOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 三色灯绿色 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定三色信号塔绿色灯的输出 IO 地址
-    /// </remarks>
-    /// <example>5</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? SignalTowerGreenOutputBit { get; init; }
-
-    /// <summary>
-    /// 三色灯绿色 IO 输出电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerGreenOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 运行前预警持续时间（秒）
-    /// </summary>
-    /// <remarks>
-    /// 按下电柜面板启动按钮时，先触发预警输出（如红灯闪烁）持续N秒，
-    /// 然后才真正开始运行。目的是告诉现场人员离开设备，避免安全事故。
-    /// 有效范围：0-60 秒，不设置则不启用预警功能
-    /// </remarks>
-    /// <example>5</example>
-    [Range(0, 60, ErrorMessage = "运行前预警时间必须在 0-60 秒之间")]
-    public int? PreStartWarningDurationSeconds { get; init; }
-
-    /// <summary>
-    /// 运行前预警输出 IO 绑定（输出位）
-    /// </summary>
-    /// <remarks>
-    /// 用于绑定运行前预警输出（如红灯）的 IO 地址
-    /// </remarks>
-    /// <example>6</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? PreStartWarningOutputBit { get; init; }
-
-    /// <summary>
-    /// 运行前预警输出 IO 电平配置
-    /// </summary>
-    /// <remarks>
-    /// - ActiveHigh: 高电平点亮（输出1）
-    /// - ActiveLow: 低电平点亮（输出0）
-    /// </remarks>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel PreStartWarningOutputLevel { get; init; } =
-        ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel.ActiveHigh;
-}
-
-/// <summary>
-/// 面板配置响应模型
-/// </summary>
-/// <remarks>
-/// 面板配置的数据传输对象，用于查询返回，包括面板按钮和指示灯的 IO 绑定配置
-/// </remarks>
-public sealed record PanelConfigResponse
-{
-    /// <summary>
-    /// 是否启用面板功能
-    /// </summary>
-    public required bool Enabled { get; init; }
-
-    /// <summary>
-    /// 是否使用仿真模式
-    /// </summary>
-    public required bool UseSimulation { get; init; }
-
-    /// <summary>
-    /// 面板按钮轮询间隔（毫秒）
-    /// </summary>
-    public required int PollingIntervalMs { get; init; }
-
-    /// <summary>
-    /// 按钮防抖时间（毫秒）
-    /// </summary>
-    public required int DebounceMs { get; init; }
-
-    /// <summary>
-    /// 开始按钮 IO 绑定（输入位）
-    /// </summary>
-    public int? StartButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 开始按钮 IO 触发电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StartButtonTriggerLevel { get; init; }
-
-    /// <summary>
-    /// 停止按钮 IO 绑定（输入位）
-    /// </summary>
-    public int? StopButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 停止按钮 IO 触发电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StopButtonTriggerLevel { get; init; }
-
-    /// <summary>
-    /// 急停按钮 IO 绑定（输入位）
-    /// </summary>
-    public int? EmergencyStopButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 急停按钮 IO 触发电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel EmergencyStopButtonTriggerLevel { get; init; }
-
-    /// <summary>
-    /// 开始按钮灯 IO 绑定（输出位）
-    /// </summary>
-    public int? StartLightOutputBit { get; init; }
-
-    /// <summary>
-    /// 开始按钮灯 IO 输出电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StartLightOutputLevel { get; init; }
-
-    /// <summary>
-    /// 停止按钮灯 IO 绑定（输出位）
-    /// </summary>
-    public int? StopLightOutputBit { get; init; }
-
-    /// <summary>
-    /// 停止按钮灯 IO 输出电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel StopLightOutputLevel { get; init; }
-
-    /// <summary>
-    /// 连接按钮灯 IO 绑定（输出位）
-    /// </summary>
-    public int? ConnectionLightOutputBit { get; init; }
-
-    /// <summary>
-    /// 连接按钮灯 IO 输出电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel ConnectionLightOutputLevel { get; init; }
-
-    /// <summary>
-    /// 三色灯红色 IO 绑定（输出位）
-    /// </summary>
-    public int? SignalTowerRedOutputBit { get; init; }
-
-    /// <summary>
-    /// 三色灯红色 IO 输出电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerRedOutputLevel { get; init; }
-
-    /// <summary>
-    /// 三色灯黄色 IO 绑定（输出位）
-    /// </summary>
-    public int? SignalTowerYellowOutputBit { get; init; }
-
-    /// <summary>
-    /// 三色灯黄色 IO 输出电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerYellowOutputLevel { get; init; }
-
-    /// <summary>
-    /// 三色灯绿色 IO 绑定（输出位）
-    /// </summary>
-    public int? SignalTowerGreenOutputBit { get; init; }
-
-    /// <summary>
-    /// 三色灯绿色 IO 输出电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel SignalTowerGreenOutputLevel { get; init; }
-
-    /// <summary>
-    /// 运行前预警持续时间（秒）
-    /// </summary>
-    public int? PreStartWarningDurationSeconds { get; init; }
-
-    /// <summary>
-    /// 运行前预警输出 IO 绑定（输出位）
-    /// </summary>
-    public int? PreStartWarningOutputBit { get; init; }
-
-    /// <summary>
-    /// 运行前预警输出 IO 电平配置
-    /// </summary>
-    public ZakYip.WheelDiverterSorter.Core.Enums.Hardware.TriggerLevel PreStartWarningOutputLevel { get; init; }
 }
