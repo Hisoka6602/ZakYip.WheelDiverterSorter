@@ -650,7 +650,7 @@ public class CommunicationController : ControllerBase {
     }
 
     /// <summary>
-    /// 发送测试包裹创建请求（仅在未启动状态下可用）
+    /// 发送测试包裹创建请求（在未启动或故障状态下可用）
     /// </summary>
     /// <param name="request">测试包裹请求</param>
     /// <param name="cancellationToken">取消令牌</param>
@@ -660,7 +660,7 @@ public class CommunicationController : ControllerBase {
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 此端点用于在系统未运行时测试与上游RuleEngine的通信。
-    /// 只能在系统处于Ready状态（未启动）时调用，用于验证通信配置是否正确。
+    /// 只能在系统处于Ready或Faulted状态时调用，用于验证通信配置是否正确。
     /// 
     /// **重要**：此端点遵循持久化的通信配置（/api/communication/config/persisted），
     /// 使用配置中指定的通信模式和连接模式：
@@ -678,14 +678,14 @@ public class CommunicationController : ControllerBase {
     ///
     /// 注意：
     /// - 此端点仅用于测试目的
-    /// - 系统必须处于Ready状态（未运行）
+    /// - 系统必须处于Ready或Faulted状态
     /// - 如果系统正在运行，将返回400错误
     /// - 测试时会使用当前持久化的通信配置
     /// </remarks>
     [HttpPost("test-parcel")]
     [SwaggerOperation(
         Summary = "发送测试包裹创建请求",
-        Description = "发送测试包裹到上游RuleEngine，使用持久化的通信配置，仅在系统未启动（Ready状态）时可用",
+        Description = "发送测试包裹到上游RuleEngine，使用持久化的通信配置，仅在系统未启动（Ready或Faulted状态）时可用",
         OperationId = "SendTestParcel",
         Tags = new[] { "通信管理" }
     )]
@@ -707,15 +707,16 @@ public class CommunicationController : ControllerBase {
                 return BadRequest(new { message = "请求参数无效 - Invalid request parameters", errors });
             }
 
-            // 检查系统状态，只允许在Ready状态下发送测试
+            // 检查系统状态，只允许在Ready或Faulted状态下发送测试
             var currentState = _stateManager.CurrentState;
-            if (currentState != Core.Enums.System.SystemState.Ready) {
+            if (currentState != Core.Enums.System.SystemState.Ready && 
+                currentState != Core.Enums.System.SystemState.Faulted) {
                 return BadRequest(new StateValidationErrorResponse
                 {
                     Message = "系统当前状态不允许发送测试包裹 - Current system state does not allow test parcel sending",
                     CurrentState = currentState.ToString(),
-                    RequiredState = "Ready",
-                    Hint = "请先停止系统运行，然后重试 - Please stop the system before sending test parcels"
+                    RequiredState = "Ready or Faulted",
+                    Hint = "请先停止系统运行或等待故障处理，然后重试 - Please stop the system or wait for fault handling before sending test parcels"
                 });
             }
 
