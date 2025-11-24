@@ -69,12 +69,6 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         {
             throw new ArgumentException($"超时时间必须大于0: {options.TimeoutMs}ms", nameof(options));
         }
-
-        // 验证重试次数
-        if (options.RetryCount < 0)
-        {
-            throw new ArgumentException($"重试次数不能为负数: {options.RetryCount}", nameof(options));
-        }
     }
 
     /// <summary>
@@ -165,6 +159,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     /// </summary>
     /// <remarks>
     /// TCP客户端使用请求/响应模型的内部实现来模拟推送模型
+    /// 根据系统规则：发送失败只记录日志，不进行重试
     /// </remarks>
     public override async Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
@@ -178,13 +173,24 @@ public class TcpRuleEngineClient : RuleEngineClientBase
             return false;
         }
 
-        return await ExecuteWithRetryAsync(
-            async ct => await SendRequestAsync(parcelId, ct),
-            $"向RuleEngine请求包裹 {parcelId} 的格口号",
-            cancellationToken);
+        try
+        {
+            await SendRequestAsync(parcelId, cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 根据系统规则：发送失败只记录日志，不重试
+            Logger.LogError(
+                ex,
+                "向RuleEngine发送包裹 {ParcelId} 通知失败: {Message}",
+                parcelId,
+                ex.Message);
+            return false;
+        }
     }
 
-    private async Task<bool> SendRequestAsync(long parcelId, CancellationToken cancellationToken)
+    private async Task SendRequestAsync(long parcelId, CancellationToken cancellationToken)
     {
         // 构造请求
         var request = new ChuteAssignmentRequest 
@@ -232,8 +238,6 @@ public class TcpRuleEngineClient : RuleEngineClientBase
             NotificationTime = response.ResponseTime
         };
         OnChuteAssignmentReceived(notification);
-
-        return response.IsSuccess;
     }
 
     /// <summary>

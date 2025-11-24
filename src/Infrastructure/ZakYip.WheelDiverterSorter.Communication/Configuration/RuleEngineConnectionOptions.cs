@@ -48,13 +48,27 @@ public class RuleEngineConnectionOptions
     public int TimeoutMs { get; set; } = 5000;
 
     /// <summary>
-    /// 重试次数
+    /// 重试次数（已废弃，不再使用）
     /// </summary>
-    public int RetryCount { get; set; } = 3;
+    /// <remarks>
+    /// ⚠️ 此参数已废弃，不再使用。
+    /// 
+    /// 原因：
+    /// 1. 发送操作：根据系统规则，发送失败只记录日志，不进行重试
+    /// 2. 连接操作：客户端模式使用无限重试机制（EnableInfiniteRetry=true）
+    /// 
+    /// 保留此字段仅为向后兼容，实际代码中不应使用此参数。
+    /// 新代码请使用无限重试机制（EnableInfiniteRetry）。
+    /// </remarks>
+    public int RetryCount { get; set; } = 0;
 
     /// <summary>
-    /// 重试延迟（毫秒）
+    /// 重试延迟（已废弃，不再使用）
     /// </summary>
+    /// <remarks>
+    /// ⚠️ 此参数已废弃，因为发送操作不再重试。
+    /// 保留此字段仅为向后兼容。
+    /// </remarks>
     public int RetryDelayMs { get; set; } = 1000;
 
     /// <summary>
