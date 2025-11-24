@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.StateMachine;
 
@@ -13,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Host.StateMachine;
 public class SystemStateManager : ISystemStateManager
 {
     private readonly ILogger<SystemStateManager> _logger;
+    private readonly ISystemClock _clock;
     private readonly object _lock = new(); // 用于状态转换和历史记录的原子性
     private SystemState _currentState;
     // PR-44: 保持 List 但在锁保护下使用（历史记录需要有序性和大小限制）
@@ -77,9 +79,10 @@ public class SystemStateManager : ISystemStateManager
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="initialState">初始状态（默认为Booting）</param>
-    public SystemStateManager(ILogger<SystemStateManager> logger, SystemState initialState = SystemState.Booting)
+    public SystemStateManager(ILogger<SystemStateManager> logger, ISystemClock clock, SystemState initialState = SystemState.Booting)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _currentState = initialState;
         _logger.LogInformation("系统状态管理器已初始化，初始状态: {State}", _currentState);
     }
@@ -251,7 +254,7 @@ public class SystemStateManager : ISystemStateManager
         {
             FromState = fromState,
             ToState = toState,
-            TransitionTime = DateTimeOffset.UtcNow,
+            TransitionTime = new DateTimeOffset(_clock.LocalNow),
             Success = success,
             FailureReason = failureReason
         };
@@ -291,7 +294,7 @@ public class SystemStateManager : ISystemStateManager
             Drivers = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.DriverHealthStatus>().AsReadOnly(),
             Upstreams = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.UpstreamHealthStatus>().AsReadOnly(),
             Config = new ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health.ConfigHealthStatus { IsValid = true },
-            PerformedAt = DateTimeOffset.UtcNow
+            PerformedAt = new DateTimeOffset(_clock.LocalNow)
         };
 
         lock (_lock)
@@ -317,7 +320,7 @@ public class SystemStateManager : ISystemStateManager
         var stageInfo = new BootstrapStageInfo
         {
             Stage = stage,
-            EnteredAt = DateTimeOffset.UtcNow,
+            EnteredAt = new DateTimeOffset(_clock.LocalNow),
             Message = message,
             IsSuccess = true
         };

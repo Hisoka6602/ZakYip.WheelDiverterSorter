@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
@@ -41,8 +42,9 @@ public static class SortingServiceExtensions
             {
                 var innerGenerator = serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>();
                 var cache = serviceProvider.GetRequiredService<IMemoryCache>();
+                var clock = serviceProvider.GetRequiredService<ISystemClock>();
                 var logger = serviceProvider.GetRequiredService<ILogger<CachedSwitchingPathGenerator>>();
-                return new CachedSwitchingPathGenerator(innerGenerator, cache, logger);
+                return new CachedSwitchingPathGenerator(innerGenerator, cache, clock, logger);
             });
         }
         else

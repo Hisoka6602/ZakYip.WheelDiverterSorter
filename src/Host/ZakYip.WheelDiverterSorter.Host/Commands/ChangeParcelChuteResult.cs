@@ -56,6 +56,7 @@ public sealed record class ChangeParcelChuteResult
         long requestedChuteId,
         long effectiveChuteId,
         ChuteChangeOutcome outcome,
+        DateTimeOffset processedAt,
         string? message = null)
     {
         return new ChangeParcelChuteResult
@@ -67,7 +68,7 @@ public sealed record class ChangeParcelChuteResult
             EffectiveChuteId = effectiveChuteId,
             Outcome = outcome,
             Message = message ?? "Chute change processed successfully",
-            ProcessedAt = DateTimeOffset.UtcNow
+            ProcessedAt = processedAt
         };
     }
 
@@ -77,6 +78,7 @@ public sealed record class ChangeParcelChuteResult
     public static ChangeParcelChuteResult Failure(
         long parcelId,
         long requestedChuteId,
+        DateTimeOffset processedAt,
         string message)
     {
         return new ChangeParcelChuteResult
@@ -85,7 +87,7 @@ public sealed record class ChangeParcelChuteResult
             ParcelId = parcelId,
             RequestedChuteId = requestedChuteId,
             Message = message,
-            ProcessedAt = DateTimeOffset.UtcNow
+            ProcessedAt = processedAt
         };
     }
 }

@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -123,7 +124,8 @@ public static class MiddleConveyorServiceExtensions
             // 创建 ConveyorSegment
             var segment = new ConveyorSegment(
                 driver,
-                serviceProvider.GetRequiredService<ILogger<ConveyorSegment>>());
+                serviceProvider.GetRequiredService<ILogger<ConveyorSegment>>(),
+                serviceProvider.GetRequiredService<ISystemClock>());
 
             segments.Add(segment);
         }

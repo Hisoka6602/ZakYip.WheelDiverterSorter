@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Communication.Health;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
@@ -29,8 +30,9 @@ public static class HealthCheckServiceExtensions
         services.AddSingleton<IUpstreamHealthChecker>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<RuleEngineUpstreamHealthChecker>>();
+            var clock = sp.GetRequiredService<ISystemClock>();
             var client = sp.GetService<ZakYip.WheelDiverterSorter.Communication.Abstractions.IRuleEngineClient>();
-            return new RuleEngineUpstreamHealthChecker(client, "Default", logger);
+            return new RuleEngineUpstreamHealthChecker(client, "Default", logger, clock);
         });
 
         // 注册驱动器自检（暂时为空列表，可以在实际使用时添加）
@@ -41,15 +43,17 @@ public static class HealthCheckServiceExtensions
         services.AddSingleton<SystemStateManager>(sp =>
         {
             var logger = sp.GetRequiredService<ILogger<SystemStateManager>>();
-            return new SystemStateManager(logger, SystemState.Booting);
+            var clock = sp.GetRequiredService<ISystemClock>();
+            return new SystemStateManager(logger, clock, SystemState.Booting);
         });
 
         services.AddSingleton<ISystemStateManager>(sp =>
         {
             var inner = sp.GetRequiredService<SystemStateManager>();
             var coordinator = sp.GetService<ISelfTestCoordinator>();
+            var clock = sp.GetRequiredService<ISystemClock>();
             var logger = sp.GetRequiredService<ILogger<SystemStateManagerWithBoot>>();
-            return new SystemStateManagerWithBoot(inner, coordinator, logger);
+            return new SystemStateManagerWithBoot(inner, coordinator, clock, logger);
         });
 
         // 注册启动自检服务

@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Pipeline;
 
@@ -15,6 +16,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Pipeline;
 public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddleware
 {
     private readonly IUpstreamFacade _upstreamFacade;
+    private readonly ISystemClock _clock;
     private readonly IParcelTraceSink? _traceSink;
     private readonly ILogger<UpstreamFacadeAssignmentMiddleware>? _logger;
 
@@ -23,10 +25,12 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
     /// </summary>
     public UpstreamFacadeAssignmentMiddleware(
         IUpstreamFacade upstreamFacade,
+        ISystemClock clock,
         IParcelTraceSink? traceSink = null,
         ILogger<UpstreamFacadeAssignmentMiddleware>? logger = null)
     {
         _upstreamFacade = upstreamFacade ?? throw new ArgumentNullException(nameof(upstreamFacade));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _traceSink = traceSink;
         _logger = logger;
     }
@@ -44,7 +48,7 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
             {
                 ParcelId = context.ParcelId,
                 Barcode = context.Barcode,
-                RequestTime = DateTimeOffset.UtcNow
+                RequestTime = new DateTimeOffset(_clock.LocalNow)
             };
 
             // 调用上游门面获取目标格口
@@ -60,7 +64,7 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
                 {
                     ItemId = context.ParcelId,
                     BarCode = context.Barcode,
-                    OccurredAt = DateTimeOffset.UtcNow,
+                    OccurredAt = new DateTimeOffset(_clock.LocalNow),
                     Stage = "UpstreamAssigned",
                     Source = result.Source ?? "Unknown",
                     Details = $"ChuteId={result.Data.ChuteId}, LatencyMs={result.LatencyMs:F0}, " +
@@ -90,7 +94,7 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
                 {
                     ItemId = context.ParcelId,
                     BarCode = context.Barcode,
-                    OccurredAt = DateTimeOffset.UtcNow,
+                    OccurredAt = new DateTimeOffset(_clock.LocalNow),
                     Stage = "UpstreamAssignmentFailed",
                     Source = result.Source ?? "Unknown",
                     Details = $"ErrorCode={result.ErrorCode}, ErrorMessage={result.ErrorMessage}"
@@ -111,7 +115,7 @@ public sealed class UpstreamFacadeAssignmentMiddleware : ISortingPipelineMiddlew
             {
                 ItemId = context.ParcelId,
                 BarCode = context.Barcode,
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = new DateTimeOffset(_clock.LocalNow),
                 Stage = "UpstreamAssignmentException",
                 Source = "Local",
                 Details = $"Exception={ex.GetType().Name}, Message={ex.Message}"

@@ -688,8 +688,8 @@ public class IoLinkageController : ControllerBase
                     Level = p.Level
                 })
                 .ToList(),
-            CreatedAt = _systemClock.UtcNow,
-            UpdatedAt = _systemClock.UtcNow
+            CreatedAt = _systemClock.LocalNow,
+            UpdatedAt = _systemClock.LocalNow
         };
     }
 

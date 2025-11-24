@@ -351,7 +351,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private async Task CreateParcelEntityAsync(long parcelId, string sensorId)
     {
-        var createdAt = new DateTimeOffset(_clock.UtcNow);
+        var createdAt = new DateTimeOffset(_clock.LocalNow);
         
         // PR-44: ConcurrentDictionary 是线程安全的，不需要锁
         _createdParcels[parcelId] = new ParcelCreationRecord
@@ -514,7 +514,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         // 发送上游请求
-        var upstreamRequestSentAt = new DateTimeOffset(_clock.UtcNow);
+        var upstreamRequestSentAt = new DateTimeOffset(_clock.LocalNow);
         
         // PR-44: 使用 TryGetValue 是线程安全的
         if (_createdParcels.TryGetValue(parcelId, out var parcel))
@@ -566,7 +566,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 ItemId = parcelId,
                 BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                OccurredAt = new DateTimeOffset(_clock.LocalNow),
                 Stage = "UpstreamAssigned",
                 Source = "Upstream",
                 Details = $"ChuteId={targetChuteId}, LatencyMs={elapsedMs:F0}, Status=Success, TimeoutMs={timeoutMs}"
@@ -637,7 +637,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             ItemId = parcelId,
             BarCode = null,
-            OccurredAt = new DateTimeOffset(_clock.UtcNow),
+            OccurredAt = new DateTimeOffset(_clock.LocalNow),
             Stage = "RoutingTimeout",
             Source = "Upstream",
             Details = $"TimeoutMs={timeoutMs}, Status={status}, RoutedToException={exceptionChuteId}"
@@ -850,7 +850,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             ItemId = parcelId,
             BarCode = null,
-            OccurredAt = new DateTimeOffset(_clock.UtcNow),
+            OccurredAt = new DateTimeOffset(_clock.LocalNow),
             Stage = "RoutePlanned",
             Source = "Execution",
             Details = $"TargetChuteId={targetChuteId}, SegmentCount={path.Segments.Count}, EstimatedTimeMs={totalRouteTimeMs:F0}"
@@ -892,7 +892,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 ItemId = parcelId,
                 BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                OccurredAt = new DateTimeOffset(_clock.LocalNow),
                 Stage = "OverloadDecision",
                 Source = "NodeHealthCheck",
                 Details = $"Reason=NodeDegraded, UnhealthyNodes=[{unhealthyNodeList}], OriginalTargetChute={path.TargetChuteId}"
@@ -968,7 +968,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 ItemId = parcelId,
                 BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                OccurredAt = new DateTimeOffset(_clock.LocalNow),
                 Stage = "OverloadDecision",
                 Source = "OverloadPolicy",
                 Details = $"Reason=RouteOverload, CongestionLevel={congestionLevel}, RequiredMs={totalRouteTimeMs:F0}, RemainingMs={remainingTtlMs:F0}"
@@ -1016,7 +1016,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 {
                     ItemId = parcelId,
                     BarCode = null,
-                    OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                    OccurredAt = new DateTimeOffset(_clock.LocalNow),
                     Stage = "ExceptionDiverted",
                     Source = "Execution",
                     Details = $"ChuteId={executionResult.ActualChuteId}, Reason=Overload"
@@ -1028,7 +1028,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 {
                     ItemId = parcelId,
                     BarCode = null,
-                    OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                    OccurredAt = new DateTimeOffset(_clock.LocalNow),
                     Stage = "Diverted",
                     Source = "Execution",
                     Details = $"ChuteId={executionResult.ActualChuteId}, TargetChuteId={targetChuteId}"
@@ -1048,7 +1048,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 ItemId = parcelId,
                 BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.UtcNow),
+                OccurredAt = new DateTimeOffset(_clock.LocalNow),
                 Stage = "ExceptionDiverted",
                 Source = "Execution",
                 Details = $"ChuteId={executionResult.ActualChuteId}, Reason={executionResult.FailureReason}"
@@ -1175,7 +1175,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         // 记录上游响应接收时间
-        _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.UtcNow);
+        _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.LocalNow);
         
         if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
         {
@@ -1183,7 +1183,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
             
             // 记录路由绑定时间
-            _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.UtcNow);
+            _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.LocalNow);
             
             // PR-42: 记录路由绑定完成的 Trace 日志
             _logger.LogTrace(

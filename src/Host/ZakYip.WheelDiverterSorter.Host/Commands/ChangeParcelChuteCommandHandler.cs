@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Commands;
 
@@ -12,15 +13,18 @@ public class ChangeParcelChuteCommandHandler
 {
     private readonly IRoutePlanRepository _routePlanRepository;
     private readonly IRouteReplanner _routeReplanner;
+    private readonly ISystemClock _clock;
     private readonly ILogger<ChangeParcelChuteCommandHandler> _logger;
 
     public ChangeParcelChuteCommandHandler(
         IRoutePlanRepository routePlanRepository,
         IRouteReplanner routeReplanner,
+        ISystemClock clock,
         ILogger<ChangeParcelChuteCommandHandler> logger)
     {
         _routePlanRepository = routePlanRepository ?? throw new ArgumentNullException(nameof(routePlanRepository));
         _routeReplanner = routeReplanner ?? throw new ArgumentNullException(nameof(routeReplanner));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -33,7 +37,7 @@ public class ChangeParcelChuteCommandHandler
     {
         ArgumentNullException.ThrowIfNull(command);
 
-        var requestedAt = command.RequestedAt ?? DateTimeOffset.UtcNow;
+        var requestedAt = command.RequestedAt ?? new DateTimeOffset(_clock.LocalNow);
 
         _logger.LogInformation(
             "Processing chute change request for parcel {ParcelId} to chute {ChuteId}",
@@ -51,6 +55,7 @@ public class ChangeParcelChuteCommandHandler
             return ChangeParcelChuteResult.Failure(
                 command.ParcelId,
                 command.RequestedChuteId,
+                new DateTimeOffset(_clock.LocalNow),
                 $"Route plan not found for parcel {command.ParcelId}");
         }
 
@@ -85,7 +90,7 @@ public class ChangeParcelChuteCommandHandler
                 // 重规划失败，但领域层已接受改口，这是不一致状态
                 // 实际应用中可能需要回滚或进入异常处理流程
                 // 这里简化处理：标记为异常路由
-                routePlan.MarkAsExceptionRouted(DateTimeOffset.UtcNow);
+                routePlan.MarkAsExceptionRouted(new DateTimeOffset(_clock.LocalNow));
             }
 
             // 5. 保存更新后的路由计划
@@ -97,6 +102,7 @@ public class ChangeParcelChuteCommandHandler
                 command.RequestedChuteId,
                 decision.AppliedChuteId ?? command.RequestedChuteId,
                 decision.Outcome,
+                new DateTimeOffset(_clock.LocalNow),
                 replanResult.IsSuccess
                     ? "Chute change accepted and path replanned successfully"
                     : $"Chute change accepted but replan failed: {replanResult.FailureReason}");
@@ -117,6 +123,7 @@ public class ChangeParcelChuteCommandHandler
                 command.RequestedChuteId,
                 decision.AppliedChuteId ?? originalChuteId,
                 decision.Outcome,
+                new DateTimeOffset(_clock.LocalNow),
                 decision.Reason);
         }
     }
