@@ -328,7 +328,7 @@ public sealed class ShuDiNiaoSimulatedDevice : IDisposable
 
         try
         {
-            StopAsync().GetAwaiter().GetResult();
+            StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             _cts?.Dispose();
         }
         catch (Exception ex)

@@ -309,7 +309,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
 
         try
         {
-            CloseConnectionAsync().GetAwaiter().GetResult();
+            CloseConnectionAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             _connectionLock.Dispose();
         }
         catch (Exception ex)
