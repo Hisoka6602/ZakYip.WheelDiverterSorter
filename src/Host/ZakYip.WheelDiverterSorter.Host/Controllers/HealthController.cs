@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Runtime.Health;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -20,16 +21,19 @@ public class HealthController : ControllerBase
     private readonly ISystemStateManager _stateManager;
     private readonly IHealthStatusProvider _healthStatusProvider;
     private readonly IPreRunHealthCheckService? _preRunHealthCheckService;
+    private readonly ISystemClock _systemClock;
     private readonly ILogger<HealthController> _logger;
 
     public HealthController(
         ISystemStateManager stateManager,
         IHealthStatusProvider healthStatusProvider,
+        ISystemClock systemClock,
         ILogger<HealthController> logger,
         IPreRunHealthCheckService? preRunHealthCheckService = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _healthStatusProvider = healthStatusProvider ?? throw new ArgumentNullException(nameof(healthStatusProvider));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _preRunHealthCheckService = preRunHealthCheckService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -67,7 +71,7 @@ public class HealthController : ControllerBase
             var response = new ProcessHealthResponse
             {
                 Status = "Healthy",
-                Timestamp = DateTimeOffset.UtcNow
+                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
             };
 
             return Ok(response);
@@ -79,7 +83,7 @@ public class HealthController : ControllerBase
             {
                 Status = "Unhealthy",
                 Reason = "进程内部错误",
-                Timestamp = DateTimeOffset.UtcNow
+                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
             };
             return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }
@@ -119,7 +123,7 @@ public class HealthController : ControllerBase
             {
                 Status = isStartupComplete ? "Healthy" : "Starting",
                 Reason = isStartupComplete ? null : "系统正在启动中",
-                Timestamp = DateTimeOffset.UtcNow
+                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
             };
 
             if (isStartupComplete)
@@ -138,7 +142,7 @@ public class HealthController : ControllerBase
             {
                 Status = "Unhealthy",
                 Reason = "启动检查失败",
-                Timestamp = DateTimeOffset.UtcNow
+                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
             };
             return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }

@@ -36,7 +36,9 @@ public class ApiResponse<T>
     /// 响应时间戳
     /// </summary>
     [JsonPropertyName("timestamp")]
+#pragma warning disable ZAKYIP004 // API响应时间戳用于外部协议交互，使用UTC时间
     public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+#pragma warning restore ZAKYIP004
 
     /// <summary>
     /// 创建成功响应
