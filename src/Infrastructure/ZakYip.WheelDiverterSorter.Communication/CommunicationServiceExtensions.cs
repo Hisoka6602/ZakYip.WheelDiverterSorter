@@ -17,6 +17,16 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 public static class CommunicationServiceExtensions
 {
     /// <summary>
+    /// 默认配置常量
+    /// </summary>
+    private static class DefaultConfiguration
+    {
+        public const string TcpServer = "localhost:9000";
+        public const string SignalRHub = "http://localhost:5001/ruleengine";
+        public const string MqttBroker = "localhost";
+        public const string HttpApi = "http://localhost:9999/api/ruleengine";
+    }
+    /// <summary>
     /// 添加RuleEngine通信服务
     /// </summary>
     /// <param name="services">服务集合</param>
@@ -105,7 +115,7 @@ public static class CommunicationServiceExtensions
             case CommunicationMode.Tcp:
                 if (string.IsNullOrWhiteSpace(options.TcpServer))
                 {
-                    options.TcpServer = "localhost:9000";
+                    options.TcpServer = DefaultConfiguration.TcpServer;
                     Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {options.TcpServer}");
                 }
                 break;
@@ -113,7 +123,7 @@ public static class CommunicationServiceExtensions
             case CommunicationMode.SignalR:
                 if (string.IsNullOrWhiteSpace(options.SignalRHub))
                 {
-                    options.SignalRHub = "http://localhost:5001/ruleengine";
+                    options.SignalRHub = DefaultConfiguration.SignalRHub;
                     Console.WriteLine($"⚠️ [配置警告] SignalR模式下，SignalRHub配置为空，已使用默认值: {options.SignalRHub}");
                 }
                 break;
@@ -121,7 +131,7 @@ public static class CommunicationServiceExtensions
             case CommunicationMode.Mqtt:
                 if (string.IsNullOrWhiteSpace(options.MqttBroker))
                 {
-                    options.MqttBroker = "localhost";
+                    options.MqttBroker = DefaultConfiguration.MqttBroker;
                     Console.WriteLine($"⚠️ [配置警告] MQTT模式下，MqttBroker配置为空，已使用默认值: {options.MqttBroker}");
                 }
                 break;
@@ -129,7 +139,7 @@ public static class CommunicationServiceExtensions
             case CommunicationMode.Http:
                 if (string.IsNullOrWhiteSpace(options.HttpApi))
                 {
-                    options.HttpApi = "http://localhost:9999/api/ruleengine";
+                    options.HttpApi = DefaultConfiguration.HttpApi;
                     Console.WriteLine($"⚠️ [配置警告] HTTP模式下，HttpApi配置为空，已使用默认值: {options.HttpApi}");
                 }
                 break;
@@ -140,7 +150,7 @@ public static class CommunicationServiceExtensions
                 options.Mode = CommunicationMode.Http;
                 if (string.IsNullOrWhiteSpace(options.HttpApi))
                 {
-                    options.HttpApi = "http://localhost:9999/api/ruleengine";
+                    options.HttpApi = DefaultConfiguration.HttpApi;
                     Console.WriteLine($"⚠️ [配置警告] HTTP模式下，HttpApi配置为空，已使用默认值: {options.HttpApi}");
                 }
                 break;

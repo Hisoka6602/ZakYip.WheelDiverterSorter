@@ -89,16 +89,27 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
         var logger = _loggerFactory.CreateLogger<RuleEngineClientFactory>();
         logger.LogWarning("使用Http模式作为降级方案，通信模式: {Mode}", _options.Mode);
         
-        // 确保HttpApi有值
+        // 创建新的options实例用于降级，避免修改原始共享实例
+        var fallbackOptions = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Http,
+            HttpApi = string.IsNullOrWhiteSpace(_options.HttpApi) 
+                ? "http://localhost:9999/api/ruleengine" 
+                : _options.HttpApi,
+            TimeoutMs = _options.TimeoutMs,
+            RetryCount = _options.RetryCount,
+            RetryDelayMs = _options.RetryDelayMs,
+            Http = _options.Http
+        };
+
         if (string.IsNullOrWhiteSpace(_options.HttpApi))
         {
-            _options.HttpApi = "http://localhost:9999/api/ruleengine";
-            logger.LogWarning("HttpApi为空，使用默认值: {HttpApi}", _options.HttpApi);
+            logger.LogWarning("HttpApi为空，使用默认值: {HttpApi}", fallbackOptions.HttpApi);
         }
 
         return new HttpRuleEngineClient(
             _loggerFactory.CreateLogger<HttpRuleEngineClient>(),
-            _options,
+            fallbackOptions,
             _systemClock);
     }
 }
