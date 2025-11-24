@@ -24,7 +24,7 @@ public record class ConveyorOperationResult
     /// <summary>
     /// 操作时间戳
     /// </summary>
-    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset Timestamp { get; init; }
 
     /// <summary>
     /// 创建成功结果

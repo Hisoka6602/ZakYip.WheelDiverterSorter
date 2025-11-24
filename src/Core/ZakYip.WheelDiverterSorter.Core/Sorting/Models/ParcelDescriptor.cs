@@ -24,7 +24,7 @@ public record ParcelDescriptor
     /// <summary>
     /// 入口时间
     /// </summary>
-    public DateTimeOffset IngressTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset IngressTime { get; init; }
 
     /// <summary>
     /// 检测传感器ID

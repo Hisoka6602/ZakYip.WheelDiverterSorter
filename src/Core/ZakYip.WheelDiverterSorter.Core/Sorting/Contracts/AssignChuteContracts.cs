@@ -21,7 +21,7 @@ public record AssignChuteRequest
     /// <summary>
     /// 请求时间
     /// </summary>
-    public DateTimeOffset RequestTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset RequestTime { get; init; }
 
     /// <summary>
     /// 候选格口ID列表
@@ -68,7 +68,7 @@ public record AssignChuteResponse
     /// <summary>
     /// 响应时间
     /// </summary>
-    public DateTimeOffset ResponseTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ResponseTime { get; init; }
 
     /// <summary>
     /// 来源（例如：RuleEngine、LocalDecision、FallbackPolicy）

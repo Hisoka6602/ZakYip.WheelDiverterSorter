@@ -24,7 +24,7 @@ public record SortingRequest
     /// <summary>
     /// 请求时间
     /// </summary>
-    public DateTimeOffset RequestTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset RequestTime { get; init; }
 
     /// <summary>
     /// 候选格口ID列表
