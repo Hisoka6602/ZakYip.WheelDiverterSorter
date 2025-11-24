@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Pipeline;
 
@@ -11,13 +12,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Pipeline;
 public class UpstreamAssignmentAdapter
 {
     private readonly IUpstreamFacade _upstreamFacade;
+    private readonly ISystemClock _clock;
     private readonly ILogger<UpstreamAssignmentAdapter>? _logger;
 
     public UpstreamAssignmentAdapter(
         IUpstreamFacade upstreamFacade,
+        ISystemClock clock,
         ILogger<UpstreamAssignmentAdapter>? logger = null)
     {
         _upstreamFacade = upstreamFacade ?? throw new ArgumentNullException(nameof(upstreamFacade));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger;
     }
 
@@ -33,7 +37,7 @@ public class UpstreamAssignmentAdapter
                 var request = new AssignChuteRequest
                 {
                     ParcelId = parcelId,
-                    RequestTime = DateTimeOffset.UtcNow
+                    RequestTime = new DateTimeOffset(_clock.LocalNow)
                 };
 
                 var result = await _upstreamFacade.AssignChuteAsync(request);

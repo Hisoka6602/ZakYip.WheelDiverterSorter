@@ -27,15 +27,17 @@ public static class SystemStateServiceExtensions
             services.AddSingleton<SystemStateManager>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<SystemStateManager>>();
-                return new SystemStateManager(logger, SystemState.Booting);
+                var clock = sp.GetRequiredService<ISystemClock>();
+                return new SystemStateManager(logger, clock, SystemState.Booting);
             });
 
             services.AddSingleton<ISystemStateManager>(sp =>
             {
                 var inner = sp.GetRequiredService<SystemStateManager>();
                 var coordinator = sp.GetService<ISelfTestCoordinator>();
+                var clock = sp.GetRequiredService<ISystemClock>();
                 var logger = sp.GetRequiredService<ILogger<SystemStateManagerWithBoot>>();
-                return new SystemStateManagerWithBoot(inner, coordinator, logger);
+                return new SystemStateManagerWithBoot(inner, coordinator, clock, logger);
             });
         }
         else
@@ -44,7 +46,8 @@ public static class SystemStateServiceExtensions
             services.AddSingleton<ISystemStateManager>(sp =>
             {
                 var logger = sp.GetRequiredService<ILogger<SystemStateManager>>();
-                return new SystemStateManager(logger, initialState);
+                var clock = sp.GetRequiredService<ISystemClock>();
+                return new SystemStateManager(logger, clock, initialState);
             });
         }
 

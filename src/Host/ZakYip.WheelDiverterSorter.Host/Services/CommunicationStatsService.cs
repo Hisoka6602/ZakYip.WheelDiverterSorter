@@ -1,4 +1,5 @@
 using System.Threading;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -10,11 +11,17 @@ namespace ZakYip.WheelDiverterSorter.Host.Services;
 /// </remarks>
 public class CommunicationStatsService
 {
+    private readonly ISystemClock _clock;
     private long _messagesSent;
     private long _messagesReceived;
     private DateTimeOffset? _lastConnectedAt;
     private DateTimeOffset? _lastDisconnectedAt;
     private DateTimeOffset? _firstConnectedAt;
+
+    public CommunicationStatsService(ISystemClock clock)
+    {
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+    }
 
     /// <summary>
     /// 发送消息计数 - Messages sent count
@@ -51,7 +58,7 @@ public class CommunicationStatsService
             if (_firstConnectedAt == null || _lastDisconnectedAt != null)
                 return null;
 
-            return (long)(DateTimeOffset.UtcNow - _firstConnectedAt.Value).TotalSeconds;
+            return (long)(new DateTimeOffset(_clock.LocalNow) - _firstConnectedAt.Value).TotalSeconds;
         }
     }
 
@@ -76,7 +83,7 @@ public class CommunicationStatsService
     /// </summary>
     public void RecordConnected()
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = new DateTimeOffset(_clock.LocalNow);
         _lastConnectedAt = now;
         if (_firstConnectedAt == null)
         {
@@ -89,7 +96,7 @@ public class CommunicationStatsService
     /// </summary>
     public void RecordDisconnected()
     {
-        _lastDisconnectedAt = DateTimeOffset.UtcNow;
+        _lastDisconnectedAt = new DateTimeOffset(_clock.LocalNow);
     }
 
     /// <summary>

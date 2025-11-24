@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.StateMachine;
 
@@ -15,15 +16,18 @@ public class SystemStateManagerWithBoot : ISystemStateManager
 {
     private readonly SystemStateManager _inner;
     private readonly ISelfTestCoordinator? _coordinator;
+    private readonly ISystemClock _clock;
     private readonly ILogger<SystemStateManagerWithBoot> _logger;
 
     public SystemStateManagerWithBoot(
         SystemStateManager inner,
         ISelfTestCoordinator? coordinator,
+        ISystemClock clock,
         ILogger<SystemStateManagerWithBoot> logger)
     {
         _inner = inner ?? throw new ArgumentNullException(nameof(inner));
         _coordinator = coordinator;
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -71,7 +75,7 @@ public class SystemStateManagerWithBoot : ISystemStateManager
                 Drivers = new List<DriverHealthStatus>().AsReadOnly(),
                 Upstreams = new List<UpstreamHealthStatus>().AsReadOnly(),
                 Config = new ConfigHealthStatus { IsValid = true, ErrorMessage = "自检协调器未配置" },
-                PerformedAt = DateTimeOffset.UtcNow
+                PerformedAt = new DateTimeOffset(_clock.LocalNow)
             };
         }
         else

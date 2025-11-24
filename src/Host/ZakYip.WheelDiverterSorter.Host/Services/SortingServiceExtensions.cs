@@ -41,8 +41,9 @@ public static class SortingServiceExtensions
             {
                 var innerGenerator = serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>();
                 var cache = serviceProvider.GetRequiredService<IMemoryCache>();
+                var clock = serviceProvider.GetRequiredService<ISystemClock>();
                 var logger = serviceProvider.GetRequiredService<ILogger<CachedSwitchingPathGenerator>>();
-                return new CachedSwitchingPathGenerator(innerGenerator, cache, logger);
+                return new CachedSwitchingPathGenerator(innerGenerator, cache, clock, logger);
             });
         }
         else

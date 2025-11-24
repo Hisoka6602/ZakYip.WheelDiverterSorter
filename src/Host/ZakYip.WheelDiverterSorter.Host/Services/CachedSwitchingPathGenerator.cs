@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -11,15 +12,18 @@ namespace ZakYip.WheelDiverterSorter.Host.Services;
 public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
     private readonly ISwitchingPathGenerator _innerGenerator;
     private readonly IMemoryCache _cache;
+    private readonly ISystemClock _clock;
     private readonly ILogger<CachedSwitchingPathGenerator> _logger;
     private const int CacheDurationMinutes = 5;
 
     public CachedSwitchingPathGenerator(
         ISwitchingPathGenerator innerGenerator,
         IMemoryCache cache,
+        ISystemClock clock,
         ILogger<CachedSwitchingPathGenerator> logger) {
         _innerGenerator = innerGenerator;
         _cache = cache;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -37,7 +41,7 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
             _logger.LogDebug("路径缓存命中: {ChuteId}", targetChuteId);
 
             // 返回缓存的路径，更新生成时间
-            return cachedPath with { GeneratedAt = DateTimeOffset.UtcNow };
+            return cachedPath with { GeneratedAt = new DateTimeOffset(_clock.LocalNow) };
         }
 
         // 缓存未命中，生成新路径
