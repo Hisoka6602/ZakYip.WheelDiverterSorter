@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -36,8 +37,9 @@ public class TcpRuleEngineClientContractTests : RuleEngineClientContractTestsBas
         };
 
         var loggerMock = new Mock<ILogger<TcpRuleEngineClient>>();
+        var clockMock = Mock.Of<ISystemClock>();
 
-        return new TcpRuleEngineClient(loggerMock.Object, options);
+        return new TcpRuleEngineClient(loggerMock.Object, options, clockMock);
     }
 
     protected override async Task StartMockServerAsync()
@@ -199,7 +201,8 @@ internal class TcpMockServer : IDisposable
                 var response = new ChuteAssignmentNotificationEventArgs
                 {
                     ParcelId = notification.ParcelId,
-                    ChuteId = 1
+                    ChuteId = 1,
+                    NotificationTime = DateTimeOffset.Now
                 };
                 await SendResponseAsync(stream, response, cancellationToken);
                 break;
@@ -214,7 +217,8 @@ internal class TcpMockServer : IDisposable
                 var delayedResponse = new ChuteAssignmentNotificationEventArgs
                 {
                     ParcelId = notification.ParcelId,
-                    ChuteId = 2
+                    ChuteId = 2,
+                    NotificationTime = DateTimeOffset.Now
                 };
                 await SendResponseAsync(stream, delayedResponse, cancellationToken);
                 break;

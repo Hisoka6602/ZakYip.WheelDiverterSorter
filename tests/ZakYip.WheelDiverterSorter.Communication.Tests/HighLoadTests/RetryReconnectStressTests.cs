@@ -3,6 +3,7 @@ using Moq;
 using Xunit;
 using Xunit.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.HighLoadTests;
 
@@ -25,6 +26,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
 
         await client.ConnectAsync(); // 必须先连接
@@ -43,6 +45,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
 
         await client.ConnectAsync(); // 必须先连接
@@ -65,6 +68,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
 
         await client.ConnectAsync(); // 必须先连接
@@ -94,6 +98,7 @@ public class RetryReconnectStressTests
         {
             using var client = new InMemoryRuleEngineClient(
                 parcelId => (int)(parcelId % 10) + 1,
+                Mock.Of<ISystemClock>(),
                 logger);
             await client.ConnectAsync();
             await client.NotifyParcelDetectedAsync(i + 1);
@@ -113,6 +118,7 @@ public class RetryReconnectStressTests
         // Act - 多个线程同时尝试连接
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
         var tasks = Enumerable.Range(1, 20).Select(async _ =>
         {
@@ -133,6 +139,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
         var cts = new CancellationTokenSource();
 
@@ -163,6 +170,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
 
         await client.ConnectAsync(); // 必须先连接
@@ -181,6 +189,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
 
         // Act - 不显式连接，直接发送请求（InMemoryClient会返回false）
@@ -204,6 +213,7 @@ public class RetryReconnectStressTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
+            Mock.Of<ISystemClock>(),
             logger);
 
         // Act - 连接、断开、重连

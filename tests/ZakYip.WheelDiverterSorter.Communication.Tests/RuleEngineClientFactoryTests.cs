@@ -3,6 +3,7 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -13,10 +14,12 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 public class RuleEngineClientFactoryTests
 {
     private readonly Mock<ILoggerFactory> _loggerFactoryMock;
+    private readonly ISystemClock _clockMock;
 
     public RuleEngineClientFactoryTests()
     {
         _loggerFactoryMock = new Mock<ILoggerFactory>();
+        _clockMock = Mock.Of<ISystemClock>();
         
         // Setup logger factory to return mock loggers
         _loggerFactoryMock
@@ -35,14 +38,14 @@ public class RuleEngineClientFactoryTests
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new RuleEngineClientFactory(null!, options));
+        Assert.Throws<ArgumentNullException>(() => new RuleEngineClientFactory(null!, options, _clockMock));
     }
 
     [Fact]
     public void Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new RuleEngineClientFactory(_loggerFactoryMock.Object, null!));
+        Assert.Throws<ArgumentNullException>(() => new RuleEngineClientFactory(_loggerFactoryMock.Object, null!, _clockMock));
     }
 
     [Fact]
@@ -54,7 +57,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9999"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -73,9 +76,10 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.SignalR,
             SignalRHub = "http://localhost:5000/sorterhub"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -91,9 +95,10 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Mqtt,
             MqttBroker = "mqtt://localhost:1883"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -109,9 +114,10 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Http,
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -127,7 +133,7 @@ public class RuleEngineClientFactoryTests
             Mode = (CommunicationMode)999, // Invalid mode
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act & Assert
         var exception = Assert.Throws<NotSupportedException>(() => factory.CreateClient());
@@ -143,7 +149,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Http,
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client1 = factory.CreateClient();
@@ -171,9 +177,10 @@ public class RuleEngineClientFactoryTests
             MqttBroker = "mqtt://localhost:1883",
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert
         Assert.NotNull(client);
@@ -189,9 +196,10 @@ public class RuleEngineClientFactoryTests
             HttpApi = "http://localhost:5000/api/chute",
             TimeoutMs = 10000
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert - timeout is configured in the options passed to client
         Assert.NotNull(client);
@@ -207,9 +215,10 @@ public class RuleEngineClientFactoryTests
             SignalRHub = "http://localhost:5000/sorterhub",
             EnableAutoReconnect = true
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert - auto-reconnect is configured in the options
         Assert.NotNull(client);
@@ -227,9 +236,10 @@ public class RuleEngineClientFactoryTests
             RetryCount = 5,
             RetryDelayMs = 2000
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
+        using var client = factory.CreateClient();
 
         // Assert - retry settings are configured in the options
         Assert.NotNull(client);
@@ -245,7 +255,7 @@ public class RuleEngineClientFactoryTests
             SignalRHub = "http://localhost:5000/sorterhub",
             ChuteAssignmentTimeoutMs = 15000 // Timeout protection for push model
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
+        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         var client = factory.CreateClient();

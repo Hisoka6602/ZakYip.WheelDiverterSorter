@@ -42,7 +42,8 @@ public class ParcelDetectionNotificationTests
         var before = DateTimeOffset.UtcNow;
         var notification = new ParcelDetectionNotification
         {
-            ParcelId = 123456L
+            ParcelId = 123456L,
+            DetectionTime = DateTimeOffset.UtcNow
         };
         var after = DateTimeOffset.UtcNow;
 
@@ -57,6 +58,7 @@ public class ParcelDetectionNotificationTests
         var notification = new ParcelDetectionNotification
         {
             ParcelId = 123456L,
+            DetectionTime = DateTimeOffset.UtcNow,
             Metadata = null
         };
 

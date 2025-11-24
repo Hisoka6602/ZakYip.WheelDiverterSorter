@@ -13,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
@@ -81,7 +82,7 @@ var host = Host.CreateDefaultBuilder(args)
                 _ => throw new InvalidOperationException($"不支持的分拣模式: {options.SortingMode}")
             };
 
-            return new InMemoryRuleEngineClient(chuteAssignmentFunc, sp.GetRequiredService<Core.Utilities.ISystemClock>(), logger);
+            return new InMemoryRuleEngineClient(chuteAssignmentFunc, sp.GetRequiredService<ISystemClock>(), logger);
         });
 
         // 注册Prometheus指标服务
