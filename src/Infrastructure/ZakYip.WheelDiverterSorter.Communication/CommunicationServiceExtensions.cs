@@ -113,9 +113,31 @@ public static class CommunicationServiceExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // 绑定配置
-        var options = new RuleEngineConnectionOptions();
-        configuration.GetSection("RuleEngineConnection").Bind(options);
+        // 从DI容器获取已注册的配置（由AddRuleEngineCommunication注册）
+        // 如果还未注册，则读取并注册
+        RuleEngineConnectionOptions? options = null;
+        
+        // 尝试从已构建的服务提供者获取配置
+        var serviceProvider = services.BuildServiceProvider();
+        try
+        {
+            options = serviceProvider.GetService<RuleEngineConnectionOptions>();
+        }
+        catch
+        {
+            // 如果获取失败，则从配置中读取
+        }
+        finally
+        {
+            serviceProvider.Dispose();
+        }
+
+        // 如果无法从DI获取，则从配置文件读取
+        if (options == null)
+        {
+            options = new RuleEngineConnectionOptions();
+            configuration.GetSection("RuleEngineConnection").Bind(options);
+        }
 
         // 注册 UpstreamConnectionManager（用于Client模式）
         services.AddSingleton<IUpstreamConnectionManager>(sp =>
@@ -125,6 +147,8 @@ public static class CommunicationServiceExtensions
             var logDeduplicator = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ILogDeduplicator>();
             var safeExecutor = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ISafeExecutionService>();
             var client = sp.GetRequiredService<IRuleEngineClient>();
+            // 从DI容器获取已注册的配置，确保使用相同的配置实例
+            var connectionOptions = sp.GetRequiredService<RuleEngineConnectionOptions>();
 
             return new UpstreamConnectionManager(
                 logger,
@@ -132,23 +156,16 @@ public static class CommunicationServiceExtensions
                 logDeduplicator,
                 safeExecutor,
                 client,
-                options);
+                connectionOptions);
         });
 
         // 注册 RuleEngineServerFactory（用于Server模式）
         services.AddSingleton<RuleEngineServerFactory>();
 
-        // 根据连接模式注册对应的后台服务
-        if (options.ConnectionMode == Core.Enums.Communication.ConnectionMode.Client)
-        {
-            // Client模式：注册客户端连接后台服务，自动启动连接管理
-            services.AddHostedService<UpstreamConnectionBackgroundService>();
-        }
-        else if (options.ConnectionMode == Core.Enums.Communication.ConnectionMode.Server)
-        {
-            // Server模式：注册服务器监听后台服务，自动启动服务器
-            services.AddHostedService<UpstreamServerBackgroundService>();
-        }
+        // 始终注册两个后台服务，但它们会在启动时检查配置决定是否真正启动
+        // Always register both background services, but they check configuration at startup
+        services.AddHostedService<UpstreamConnectionBackgroundService>();
+        services.AddHostedService<UpstreamServerBackgroundService>();
 
         return services;
     }

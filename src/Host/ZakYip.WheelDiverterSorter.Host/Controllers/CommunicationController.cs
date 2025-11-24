@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
@@ -33,6 +34,7 @@ public class CommunicationController : ControllerBase {
     private readonly ISystemClock _systemClock;
     private readonly ISystemStateManager _stateManager;
     private readonly IUpstreamConnectionManager? _connectionManager;
+    private readonly UpstreamServerBackgroundService? _serverBackgroundService;
 
     public CommunicationController(
         IRuleEngineClient ruleEngineClient,
@@ -42,7 +44,8 @@ public class CommunicationController : ControllerBase {
         ILogger<CommunicationController> logger,
         ISystemClock systemClock,
         ISystemStateManager stateManager,
-        IUpstreamConnectionManager? connectionManager = null) {
+        IUpstreamConnectionManager? connectionManager = null,
+        UpstreamServerBackgroundService? serverBackgroundService = null) {
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
@@ -51,6 +54,7 @@ public class CommunicationController : ControllerBase {
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _connectionManager = connectionManager;
+        _serverBackgroundService = serverBackgroundService;
     }
 
     /// <summary>
@@ -493,31 +497,58 @@ public class CommunicationController : ControllerBase {
             _configRepository.Update(config);
 
             _logger.LogInformation(
-                "通信配置已更新 - Communication configuration updated: Mode={Mode}, Version={Version}",
+                "通信配置已更新 - Communication configuration updated: Mode={Mode}, ConnectionMode={ConnectionMode}, Version={Version}",
                 config.Mode,
+                config.ConnectionMode,
                 config.Version);
 
-            // 如果配置了 UpstreamConnectionManager，触发重新连接
-            // If UpstreamConnectionManager is configured, trigger reconnection
-            if (_connectionManager != null)
+            // 根据连接模式触发对应的重新连接/重启
+            var updatedOptions = MapToRuleEngineConnectionOptions(config);
+            
+            // Client模式：通过 UpstreamConnectionManager 触发重新连接
+            if (config.ConnectionMode == ConnectionMode.Client && _connectionManager != null)
             {
                 try
                 {
-                    var updatedOptions = MapToRuleEngineConnectionOptions(config);
                     await _connectionManager.UpdateConnectionOptionsAsync(updatedOptions);
                     
                     _logger.LogInformation(
-                        "UpstreamConnectionManager 已更新配置并将使用新参数重新连接 - " +
-                        "UpstreamConnectionManager updated configuration and will reconnect with new parameters");
+                        "Client模式：UpstreamConnectionManager 已更新配置并将使用新参数重新连接 - " +
+                        "Client mode: UpstreamConnectionManager updated configuration and will reconnect with new parameters");
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(
                         ex,
                         "更新 UpstreamConnectionManager 配置时出错 - Error updating UpstreamConnectionManager configuration");
-                    // 不抛出异常，因为配置已经持久化成功
-                    // Don't throw exception as configuration has been persisted successfully
                 }
+            }
+            // Server模式：通过 UpstreamServerBackgroundService 触发服务器重启
+            else if (config.ConnectionMode == ConnectionMode.Server && _serverBackgroundService != null)
+            {
+                try
+                {
+                    await _serverBackgroundService.UpdateServerConfigurationAsync(updatedOptions);
+                    
+                    _logger.LogInformation(
+                        "Server模式：UpstreamServerBackgroundService 已重启服务器并使用新配置 - " +
+                        "Server mode: UpstreamServerBackgroundService restarted server with new configuration");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "重启 UpstreamServerBackgroundService 时出错 - Error restarting UpstreamServerBackgroundService");
+                }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "配置已更新但无法触发重新连接/重启：ConnectionMode={ConnectionMode}, " +
+                    "ConnectionManager={HasConnectionManager}, ServerBackgroundService={HasServerService}",
+                    config.ConnectionMode,
+                    _connectionManager != null,
+                    _serverBackgroundService != null);
             }
 
             // 返回更新后的配置（重新获取以确保返回持久化后的值）
