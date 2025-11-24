@@ -85,6 +85,29 @@ public class CommunicationController : ControllerBase {
         try {
             _logger.LogInformation("开始测试通信连接 - Starting communication connection test");
 
+            // 检查配置的连接模式
+            var persistedConfig = _configRepository.Get();
+            
+            // 如果是 Server 模式，提供明确说明
+            if (persistedConfig.ConnectionMode == ConnectionMode.Server)
+            {
+                sw.Stop();
+                _logger.LogWarning(
+                    "尝试测试 Server 模式连接。Server 模式需要上游主动连接，无法从本端测试 - " +
+                    "Attempted to test Server mode connection. Server mode requires upstream to connect, cannot test from this side.");
+                
+                return Ok(new ConnectionTestResponse {
+                    Success = false,
+                    ResponseTimeMs = sw.ElapsedMilliseconds,
+                    Message = "Server 模式无法测试连接 - Cannot test connection in Server mode",
+                    ErrorDetails = "系统配置为 Server 模式，需要上游主动连接到本端。" +
+                                   "请确认已启动监听服务，并从上游发起连接。" +
+                                   "当前版本仅完全支持 Client 模式的连接测试。",
+                    TestedAt = testedAt
+                });
+            }
+
+            // Client 模式：尝试实际连接
             var connected = await _ruleEngineClient.ConnectAsync(cancellationToken);
             sw.Stop();
 
@@ -106,7 +129,11 @@ public class CommunicationController : ControllerBase {
                     Success = false,
                     ResponseTimeMs = sw.ElapsedMilliseconds,
                     Message = "连接失败 - Connection failed",
-                    ErrorDetails = "无法建立连接 - Unable to establish connection",
+                    ErrorDetails = $"无法建立到 {GetServerAddress(persistedConfig)} 的连接。请检查：" +
+                                   "1. 服务器地址配置是否正确 " +
+                                   "2. 网络连接是否正常 " +
+                                   "3. 上游服务是否启动 " +
+                                   "4. 防火墙设置是否允许连接",
                     TestedAt = testedAt
                 });
             }
@@ -119,7 +146,7 @@ public class CommunicationController : ControllerBase {
                 Success = false,
                 ResponseTimeMs = sw.ElapsedMilliseconds,
                 Message = "连接测试失败 - Connection test failed",
-                ErrorDetails = ex.Message,
+                ErrorDetails = $"异常详情: {ex.Message}",
                 TestedAt = testedAt
             });
         }
@@ -154,17 +181,31 @@ public class CommunicationController : ControllerBase {
     public ActionResult<CommunicationStatusResponse> GetStatus() {
         try {
             // 从持久化配置读取通信模式，确保与其他端点一致
-            // Read from persisted config to ensure consistency with other endpoints
             var persistedConfig = _configRepository.Get();
+            
+            // 检查是否为 Server 模式
+            if (persistedConfig.ConnectionMode == ConnectionMode.Server)
+            {
+                _logger.LogWarning(
+                    "尝试获取 Server 模式的连接状态。注意：Server 模式下 IsConnected 状态可能不准确，因为服务器监听功能尚未完全实现");
+                
+                return Ok(new CommunicationStatusResponse
+                {
+                    Mode = persistedConfig.Mode.ToString(),
+                    IsConnected = false, // Server 模式当前不支持连接状态检测
+                    MessagesSent = _statsService.MessagesSent,
+                    MessagesReceived = _statsService.MessagesReceived,
+                    ConnectionDurationSeconds = _statsService.ConnectionDurationSeconds,
+                    LastConnectedAt = _statsService.LastConnectedAt,
+                    LastDisconnectedAt = _statsService.LastDisconnectedAt,
+                    ServerAddress = GetServerAddress(persistedConfig),
+                    ErrorMessage = "Server 模式下连接状态不可用。系统当前版本仅完全支持 Client 模式的连接状态监控。" +
+                                   "如需监听上游连接，请使用专用的监听服务。"
+                });
+            }
+            
+            // Client 模式：检查实际连接状态
             var isConnected = _ruleEngineClient.IsConnected;
-
-            string? serverAddress = persistedConfig.Mode switch {
-                CommunicationMode.Tcp => persistedConfig.TcpServer,
-                CommunicationMode.Http => persistedConfig.HttpApi,
-                CommunicationMode.Mqtt => persistedConfig.MqttBroker,
-                CommunicationMode.SignalR => persistedConfig.SignalRHub,
-                _ => null
-            };
 
             var response = new CommunicationStatusResponse {
                 Mode = persistedConfig.Mode.ToString(),
@@ -174,8 +215,8 @@ public class CommunicationController : ControllerBase {
                 ConnectionDurationSeconds = _statsService.ConnectionDurationSeconds,
                 LastConnectedAt = _statsService.LastConnectedAt,
                 LastDisconnectedAt = _statsService.LastDisconnectedAt,
-                ServerAddress = serverAddress,
-                ErrorMessage = isConnected ? null : "当前未连接 - Currently not connected"
+                ServerAddress = GetServerAddress(persistedConfig),
+                ErrorMessage = isConnected ? null : "当前未连接到上游。Client 模式下会自动重试连接。"
             };
 
             return Ok(response);
@@ -184,6 +225,21 @@ public class CommunicationController : ControllerBase {
             _logger.LogError(ex, "获取通信状态失败 - Failed to get communication status");
             return StatusCode(500, new { message = "获取通信状态失败 - Failed to get communication status" });
         }
+    }
+
+    /// <summary>
+    /// 获取服务器地址
+    /// </summary>
+    private static string? GetServerAddress(CommunicationConfiguration config)
+    {
+        return config.Mode switch
+        {
+            CommunicationMode.Tcp => config.TcpServer,
+            CommunicationMode.Http => config.HttpApi,
+            CommunicationMode.Mqtt => config.MqttBroker,
+            CommunicationMode.SignalR => config.SignalRHub,
+            _ => null
+        };
     }
 
     /// <summary>

@@ -223,15 +223,21 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
     private async Task ConnectAsync(RuleEngineConnectionOptions options, CancellationToken cancellationToken)
     {
-        // 这里应该调用实际的连接逻辑
-        // This should call actual connection logic
-        // 为了简化，这里假设 IRuleEngineClient 有连接方法
-        // For simplicity, assume IRuleEngineClient has connect method
-
-        // 注意：实际的连接逻辑应该在 IRuleEngineClient 的具体实现中
-        // Note: Actual connection logic should be in concrete implementation of IRuleEngineClient
-
-        await Task.CompletedTask; // Placeholder
+        // 实际调用客户端的连接方法
+        // Actually call the client's connect method
+        var connected = await _client.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        
+        if (!connected)
+        {
+            throw new InvalidOperationException(
+                $"Failed to connect to RuleEngine using {options.Mode} mode at {GetServerAddress(options)}");
+        }
+        
+        _logger.LogInformation(
+            "[{LocalTime}] Successfully connected to RuleEngine using {Mode} mode at {Server}",
+            _systemClock.LocalNow,
+            options.Mode,
+            GetServerAddress(options));
     }
 
     private void SetConnectionState(bool isConnected, string? errorMessage)
