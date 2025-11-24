@@ -35,17 +35,5 @@ public enum DriverVendorType
     /// 欧姆龙（Omron）PLC
     /// </summary>
     [Description("欧姆龙（Omron）PLC")]
-    Omron = 4,
-
-    /// <summary>
-    /// 数递鸟（ShuDiNiao）摆轮设备
-    /// </summary>
-    [Description("数递鸟（ShuDiNiao）摆轮设备")]
-    ShuDiNiao = 5,
-
-    /// <summary>
-    /// 莫迪（Modi）摆轮设备
-    /// </summary>
-    [Description("莫迪（Modi）摆轮设备")]
-    Modi = 6
+    Omron = 4
 }

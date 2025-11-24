@@ -7,28 +7,28 @@ namespace ZakYip.WheelDiverterSorter.Host.Swagger;
 
 /// <summary>
 /// Swagger Schema Filter that dynamically filters vendor-specific properties
-/// in DriverConfiguration based on the currently configured VendorType.
+/// in WheelDiverterConfiguration based on the currently configured VendorType.
 /// This ensures that only the relevant vendor configuration is shown in Swagger UI.
 /// </summary>
-public class DriverConfigurationSchemaFilter : ISchemaFilter
+public class WheelDiverterConfigurationSchemaFilter : ISchemaFilter
 {
-    private readonly IDriverConfigurationRepository _repository;
+    private readonly IWheelDiverterConfigurationRepository _repository;
 
-    public DriverConfigurationSchemaFilter(IDriverConfigurationRepository repository)
+    public WheelDiverterConfigurationSchemaFilter(IWheelDiverterConfigurationRepository repository)
     {
         _repository = repository;
     }
 
     public void Apply(OpenApiSchema schema, SchemaFilterContext context)
     {
-        // Only apply to DriverConfiguration type
-        if (context.Type != typeof(DriverConfiguration))
+        // Only apply to WheelDiverterConfiguration type
+        if (context.Type != typeof(WheelDiverterConfiguration))
         {
             return;
         }
 
-        // Get current driver configuration to determine active vendor
-        DriverConfiguration currentConfig;
+        // Get current wheel diverter configuration to determine active vendor
+        WheelDiverterConfiguration currentConfig;
         try
         {
             currentConfig = _repository.Get();
@@ -46,12 +46,11 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
         // Remove vendor-specific properties that don't match the current vendor
         if (schema.Properties != null)
         {
-            // List of vendor-specific property names (only those that actually exist in DriverConfiguration)
-            var vendorProperties = new Dictionary<DriverVendorType, string[]>
+            // List of vendor-specific property names
+            var vendorProperties = new Dictionary<WheelDiverterVendorType, string[]>
             {
-                { DriverVendorType.Leadshine, new[] { "leadshine" } }
-                // Note: Siemens, Mitsubishi, Omron properties will be added when their configurations are implemented
-                // ShuDiNiao and Modi have been moved to WheelDiverterConfiguration
+                { WheelDiverterVendorType.ShuDiNiao, new[] { "shuDiNiao" } },
+                { WheelDiverterVendorType.Modi, new[] { "modi" } }
             };
 
             // Remove all vendor-specific properties except the current vendor's
@@ -72,24 +71,22 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
             // Add description indicating which vendor is currently active
             if (schema.Description != null)
             {
-                schema.Description += $"\n\n**当前配置的驱动厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
+                schema.Description += $"\n\n**当前配置的摆轮厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
             }
             else
             {
-                schema.Description = $"**当前配置的驱动厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
+                schema.Description = $"**当前配置的摆轮厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
             }
         }
     }
 
-    private static string GetVendorDisplayName(DriverVendorType vendorType)
+    private static string GetVendorDisplayName(WheelDiverterVendorType vendorType)
     {
         return vendorType switch
         {
-            DriverVendorType.Mock => "模拟驱动器",
-            DriverVendorType.Leadshine => "雷赛控制器",
-            DriverVendorType.Siemens => "西门子PLC",
-            DriverVendorType.Mitsubishi => "三菱PLC",
-            DriverVendorType.Omron => "欧姆龙PLC",
+            WheelDiverterVendorType.Mock => "模拟摆轮",
+            WheelDiverterVendorType.ShuDiNiao => "数递鸟摆轮设备",
+            WheelDiverterVendorType.Modi => "莫迪摆轮设备",
             _ => "未知"
         };
     }

@@ -27,8 +27,8 @@ public class DriverConfiguration
     /// - Siemens: 西门子PLC
     /// - Mitsubishi: 三菱PLC
     /// - Omron: 欧姆龙PLC
-    /// - ShuDiNiao: 数递鸟摆轮设备
-    /// - Modi: 莫迪摆轮设备
+    /// 
+    /// 注意：摆轮设备（如数递鸟、莫迪）的配置已分离到 WheelDiverterConfiguration
     /// </remarks>
     public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
 
@@ -36,16 +36,6 @@ public class DriverConfiguration
     /// 雷赛控制器配置
     /// </summary>
     public LeadshineDriverConfig? Leadshine { get; set; }
-
-    /// <summary>
-    /// 数递鸟摆轮设备配置
-    /// </summary>
-    public ShuDiNiaoDriverConfig? ShuDiNiao { get; set; }
-
-    /// <summary>
-    /// 莫迪摆轮设备配置
-    /// </summary>
-    public ModiDriverConfig? Modi { get; set; }
 
     /// <summary>
     /// 配置版本号
@@ -99,16 +89,6 @@ public class DriverConfiguration
             return (false, "使用雷赛硬件驱动时，必须配置雷赛参数");
         }
 
-        if (UseHardwareDriver && VendorType == DriverVendorType.ShuDiNiao && ShuDiNiao == null)
-        {
-            return (false, "使用数递鸟硬件驱动时，必须配置数递鸟参数");
-        }
-
-        if (UseHardwareDriver && VendorType == DriverVendorType.Modi && Modi == null)
-        {
-            return (false, "使用莫迪硬件驱动时，必须配置莫迪参数");
-        }
-
         if (Leadshine != null)
         {
             if (Leadshine.Diverters == null || !Leadshine.Diverters.Any())
@@ -126,46 +106,6 @@ public class DriverConfiguration
             if (duplicateIds.Any())
             {
                 return (false, $"摆轮ID重复: {string.Join(", ", duplicateIds)}");
-            }
-        }
-
-        if (ShuDiNiao != null)
-        {
-            if (ShuDiNiao.Devices == null || !ShuDiNiao.Devices.Any())
-            {
-                return (false, "数递鸟摆轮设备配置不能为空");
-            }
-
-            // 检查DeviceAddress不能重复
-            var duplicateAddresses = ShuDiNiao.Devices
-                .GroupBy(d => d.DeviceAddress)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-
-            if (duplicateAddresses.Any())
-            {
-                return (false, $"数递鸟设备地址重复: {string.Join(", ", duplicateAddresses.Select(a => $"0x{a:X2}"))}");
-            }
-        }
-
-        if (Modi != null)
-        {
-            if (Modi.Devices == null || !Modi.Devices.Any())
-            {
-                return (false, "莫迪摆轮设备配置不能为空");
-            }
-
-            // 检查DiverterId不能重复
-            var duplicateIds = Modi.Devices
-                .GroupBy(d => d.DiverterId)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-
-            if (duplicateIds.Any())
-            {
-                return (false, $"莫迪摆轮ID重复: {string.Join(", ", duplicateIds)}");
             }
         }
 
@@ -219,22 +159,6 @@ public class DiverterDriverEntry
 }
 
 /// <summary>
-/// 数递鸟摆轮设备配置
-/// </summary>
-public record class ShuDiNiaoDriverConfig
-{
-    /// <summary>
-    /// 数递鸟摆轮设备列表
-    /// </summary>
-    public required List<ShuDiNiaoDeviceEntry> Devices { get; init; }
-
-    /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; init; } = false;
-}
-
-/// <summary>
 /// 数递鸟摆轮设备条目
 /// </summary>
 public record class ShuDiNiaoDeviceEntry
@@ -269,22 +193,6 @@ public record class ShuDiNiaoDeviceEntry
     /// 是否启用该设备
     /// </summary>
     public bool IsEnabled { get; init; } = true;
-}
-
-/// <summary>
-/// 莫迪摆轮设备配置
-/// </summary>
-public record class ModiDriverConfig
-{
-    /// <summary>
-    /// 莫迪摆轮设备列表
-    /// </summary>
-    public required List<ModiDeviceEntry> Devices { get; init; }
-
-    /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; init; } = false;
 }
 
 /// <summary>

@@ -24,15 +24,15 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
 /// </remarks>
 [ApiController]
-[Route("api/config/driver/shudiniao")]
+[Route("api/config/wheeldiverter/shudiniao")]
 [Produces("application/json")]
 public class ShuDiNiaoConfigController : ControllerBase
 {
-    private readonly IDriverConfigurationRepository _repository;
+    private readonly IWheelDiverterConfigurationRepository _repository;
     private readonly ILogger<ShuDiNiaoConfigController> _logger;
 
     public ShuDiNiaoConfigController(
-        IDriverConfigurationRepository repository,
+        IWheelDiverterConfigurationRepository repository,
         ILogger<ShuDiNiaoConfigController> logger)
     {
         _repository = repository;
@@ -52,11 +52,11 @@ public class ShuDiNiaoConfigController : ControllerBase
         OperationId = "GetShuDiNiaoConfig",
         Tags = new[] { "数递鸟摆轮配置" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(ShuDiNiaoDriverConfig))]
+    [SwaggerResponse(200, "成功返回配置", typeof(ShuDiNiaoWheelDiverterConfig))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ShuDiNiaoDriverConfig), 200)]
+    [ProducesResponseType(typeof(ShuDiNiaoWheelDiverterConfig), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ShuDiNiaoDriverConfig?> GetShuDiNiaoConfig()
+    public ActionResult<ShuDiNiaoWheelDiverterConfig?> GetShuDiNiaoConfig()
     {
         try
         {
@@ -74,14 +74,14 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// 更新数递鸟摆轮配置
     /// </summary>
     /// <param name="request">数递鸟摆轮配置请求</param>
-    /// <returns>更新后的完整驱动器配置</returns>
+    /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     PUT /api/config/driver/shudiniao
+    ///     PUT /api/config/wheeldiverter/shudiniao
     ///     {
     ///         "devices": [
     ///             {
@@ -118,13 +118,13 @@ public class ShuDiNiaoConfigController : ControllerBase
         OperationId = "UpdateShuDiNiaoConfig",
         Tags = new[] { "数递鸟摆轮配置" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "更新成功", typeof(WheelDiverterConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> UpdateShuDiNiaoConfig(
+    public ActionResult<WheelDiverterConfiguration> UpdateShuDiNiaoConfig(
         [FromBody] UpdateShuDiNiaoConfigRequest request)
     {
         try
@@ -141,7 +141,7 @@ public class ShuDiNiaoConfigController : ControllerBase
             var config = _repository.Get();
 
             // 更新数递鸟配置
-            config.ShuDiNiao = new ShuDiNiaoDriverConfig
+            config.ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
             {
                 Devices = request.Devices.Select(d => new ShuDiNiaoDeviceEntry
                 {
@@ -157,7 +157,7 @@ public class ShuDiNiaoConfigController : ControllerBase
             // 如果启用了数递鸟配置，则将厂商类型设置为ShuDiNiao
             if (request.Devices.Any())
             {
-                config.VendorType = Core.Enums.Hardware.DriverVendorType.ShuDiNiao;
+                config.VendorType = Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao;
             }
 
             // 验证配置
@@ -195,14 +195,14 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// 切换数递鸟摆轮仿真模式
     /// </summary>
     /// <param name="useSimulation">是否使用仿真模式</param>
-    /// <returns>更新后的完整驱动器配置</returns>
+    /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">切换成功</response>
     /// <response code="400">请求参数无效或未配置数递鸟设备</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     POST /api/config/driver/shudiniao/simulation?useSimulation=true
+    ///     POST /api/config/wheeldiverter/shudiniao/simulation?useSimulation=true
     /// 
     /// 仿真模式说明：
     /// - true：使用仿真设备，不连接真实硬件
@@ -217,13 +217,13 @@ public class ShuDiNiaoConfigController : ControllerBase
         OperationId = "ToggleShuDiNiaoSimulation",
         Tags = new[] { "数递鸟摆轮配置" }
     )]
-    [SwaggerResponse(200, "切换成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "切换成功", typeof(WheelDiverterConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> ToggleSimulation(
+    public ActionResult<WheelDiverterConfiguration> ToggleSimulation(
         [FromQuery, Required] bool useSimulation)
     {
         try

@@ -24,15 +24,15 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
 /// </remarks>
 [ApiController]
-[Route("api/config/driver/modi")]
+[Route("api/config/wheeldiverter/modi")]
 [Produces("application/json")]
 public class ModiConfigController : ControllerBase
 {
-    private readonly IDriverConfigurationRepository _repository;
+    private readonly IWheelDiverterConfigurationRepository _repository;
     private readonly ILogger<ModiConfigController> _logger;
 
     public ModiConfigController(
-        IDriverConfigurationRepository repository,
+        IWheelDiverterConfigurationRepository repository,
         ILogger<ModiConfigController> logger)
     {
         _repository = repository;
@@ -52,11 +52,11 @@ public class ModiConfigController : ControllerBase
         OperationId = "GetModiConfig",
         Tags = new[] { "莫迪摆轮配置" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(ModiDriverConfig))]
+    [SwaggerResponse(200, "成功返回配置", typeof(ModiWheelDiverterConfig))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ModiDriverConfig), 200)]
+    [ProducesResponseType(typeof(ModiWheelDiverterConfig), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ModiDriverConfig?> GetModiConfig()
+    public ActionResult<ModiWheelDiverterConfig?> GetModiConfig()
     {
         try
         {
@@ -74,14 +74,14 @@ public class ModiConfigController : ControllerBase
     /// 更新莫迪摆轮配置
     /// </summary>
     /// <param name="request">莫迪摆轮配置请求</param>
-    /// <returns>更新后的完整驱动器配置</returns>
+    /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     PUT /api/config/driver/modi
+    ///     PUT /api/config/wheeldiverter/modi
     ///     {
     ///         "devices": [
     ///             {
@@ -112,13 +112,13 @@ public class ModiConfigController : ControllerBase
         OperationId = "UpdateModiConfig",
         Tags = new[] { "莫迪摆轮配置" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "更新成功", typeof(WheelDiverterConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> UpdateModiConfig(
+    public ActionResult<WheelDiverterConfiguration> UpdateModiConfig(
         [FromBody] UpdateModiConfigRequest request)
     {
         try
@@ -135,7 +135,7 @@ public class ModiConfigController : ControllerBase
             var config = _repository.Get();
 
             // 更新莫迪配置
-            config.Modi = new ModiDriverConfig
+            config.Modi = new ModiWheelDiverterConfig
             {
                 Devices = request.Devices.Select(d => new ModiDeviceEntry
                 {
@@ -151,7 +151,7 @@ public class ModiConfigController : ControllerBase
             // 如果启用了莫迪配置，则将厂商类型设置为Modi
             if (request.Devices.Any())
             {
-                config.VendorType = Core.Enums.Hardware.DriverVendorType.Modi;
+                config.VendorType = Core.Enums.Hardware.WheelDiverterVendorType.Modi;
             }
 
             // 验证配置
@@ -189,14 +189,14 @@ public class ModiConfigController : ControllerBase
     /// 切换莫迪摆轮仿真模式
     /// </summary>
     /// <param name="useSimulation">是否使用仿真模式</param>
-    /// <returns>更新后的完整驱动器配置</returns>
+    /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">切换成功</response>
     /// <response code="400">请求参数无效或未配置莫迪设备</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     POST /api/config/driver/modi/simulation?useSimulation=true
+    ///     POST /api/config/wheeldiverter/modi/simulation?useSimulation=true
     /// 
     /// 仿真模式说明：
     /// - true：使用仿真设备，不连接真实硬件
@@ -211,13 +211,13 @@ public class ModiConfigController : ControllerBase
         OperationId = "ToggleModiSimulation",
         Tags = new[] { "莫迪摆轮配置" }
     )]
-    [SwaggerResponse(200, "切换成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "切换成功", typeof(WheelDiverterConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> ToggleSimulation(
+    public ActionResult<WheelDiverterConfiguration> ToggleSimulation(
         [FromQuery, Required] bool useSimulation)
     {
         try

@@ -12,19 +12,21 @@ namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplicationFactory>
 {
     private readonly HttpClient _client;
-    private readonly IDriverConfigurationRepository _repository;
+    private readonly IDriverConfigurationRepository _driverRepository;
+    private readonly IWheelDiverterConfigurationRepository _wheelDiverterRepository;
 
     public SwaggerDriverConfigSchemaTests(CustomWebApplicationFactory factory)
     {
         _client = factory.CreateClient();
-        _repository = factory.Services.GetRequiredService<IDriverConfigurationRepository>();
+        _driverRepository = factory.Services.GetRequiredService<IDriverConfigurationRepository>();
+        _wheelDiverterRepository = factory.Services.GetRequiredService<IWheelDiverterConfigurationRepository>();
     }
 
     [Fact]
-    public async Task SwaggerSchema_ShowsOnlyLeadshineConfig_WhenLeadshineSelected()
+    public async Task SwaggerSchema_ShowsLeadshineConfig_WhenLeadshineSelected()
     {
         // Arrange - Set driver to Leadshine
-        var config = _repository.Get();
+        var config = _driverRepository.Get();
         config.VendorType = DriverVendorType.Leadshine;
         config.Leadshine = new LeadshineDriverConfig
         {
@@ -34,8 +36,7 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
                 new() { DiverterId = 1, DiverterName = "D1", OutputStartBit = 0, FeedbackInputBit = 10 }
             }
         };
-        config.ShuDiNiao = null;
-        _repository.Update(config);
+        _driverRepository.Update(config);
 
         // Act - Get Swagger JSON
         var response = await _client.GetAsync("/swagger/v1/swagger.json");
@@ -57,27 +58,24 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
             
             // Leadshine property should exist (either inline or as $ref)
             Assert.True(leadshineProperty.ValueKind == JsonValueKind.Object);
-            
-            // Should NOT have shuDiNiao property (filtered out)
-            Assert.False(properties.TryGetProperty("shuDiNiao", out _), "ShuDiNiao property should be filtered out");
         }
     }
 
     [Fact]
-    public async Task SwaggerSchema_ShowsOnlyShuDiNiaoConfig_WhenShuDiNiaoSelected()
+    public async Task SwaggerSchema_ShowsShuDiNiaoConfig_WhenShuDiNiaoSelected()
     {
-        // Arrange - Set driver to ShuDiNiao
-        var config = _repository.Get();
-        config.VendorType = DriverVendorType.ShuDiNiao;
-        config.ShuDiNiao = new ShuDiNiaoDriverConfig
+        // Arrange - Set wheel diverter to ShuDiNiao
+        var config = _wheelDiverterRepository.Get();
+        config.VendorType = WheelDiverterVendorType.ShuDiNiao;
+        config.ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
         {
             Devices = new List<ShuDiNiaoDeviceEntry>
             {
                 new() { DiverterId = "D1", Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
             }
         };
-        config.Leadshine = null;
-        _repository.Update(config);
+        config.Modi = null;
+        _wheelDiverterRepository.Update(config);
 
         // Act - Get Swagger JSON
         var response = await _client.GetAsync("/swagger/v1/swagger.json");
@@ -89,10 +87,10 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         using var doc = JsonDocument.Parse(swaggerJson);
         var schemas = doc.RootElement.GetProperty("components").GetProperty("schemas");
         
-        // Find DriverConfiguration schema
-        if (schemas.TryGetProperty("DriverConfiguration", out var driverConfigSchema))
+        // Find WheelDiverterConfiguration schema
+        if (schemas.TryGetProperty("WheelDiverterConfiguration", out var wheelDiverterConfigSchema))
         {
-            var properties = driverConfigSchema.GetProperty("properties");
+            var properties = wheelDiverterConfigSchema.GetProperty("properties");
             
             // Should have shuDiNiao property (even if it's a $ref)
             Assert.True(properties.TryGetProperty("shuDiNiao", out var shuDiNiaoProperty), "ShuDiNiao property should be present");
@@ -100,18 +98,18 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
             // ShuDiNiao property should exist (either inline or as $ref)
             Assert.True(shuDiNiaoProperty.ValueKind == JsonValueKind.Object);
             
-            // Should NOT have leadshine property (filtered out)
-            Assert.False(properties.TryGetProperty("leadshine", out _), "Leadshine property should be filtered out");
+            // Should NOT have modi property (filtered out)
+            Assert.False(properties.TryGetProperty("modi", out _), "Modi property should be filtered out");
         }
     }
 
     [Fact]
-    public async Task SwaggerSchema_IncludesVendorTypeInDescription()
+    public async Task SwaggerSchema_IncludesVendorTypeInDescription_ForDriverConfiguration()
     {
         // Arrange - Set driver to Leadshine
-        var config = _repository.Get();
+        var config = _driverRepository.Get();
         config.VendorType = DriverVendorType.Leadshine;
-        _repository.Update(config);
+        _driverRepository.Update(config);
 
         // Act - Get Swagger JSON
         var response = await _client.GetAsync("/swagger/v1/swagger.json");
@@ -137,62 +135,61 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
     }
 
     [Fact]
-    public async Task SwaggerSchema_ChangesWhenVendorTypeChanges()
+    public async Task SwaggerSchema_ChangesWhenWheelDiverterVendorTypeChanges()
     {
-        // Arrange - Start with Leadshine
-        var config = _repository.Get();
-        config.VendorType = DriverVendorType.Leadshine;
-        config.Leadshine = new LeadshineDriverConfig
-        {
-            CardNo = 0,
-            Diverters = new List<DiverterDriverEntry>
-            {
-                new() { DiverterId = 1, DiverterName = "D1", OutputStartBit = 0, FeedbackInputBit = 10 }
-            }
-        };
-        _repository.Update(config);
-
-        // Act 1 - Get Swagger with Leadshine
-        var response1 = await _client.GetAsync("/swagger/v1/swagger.json");
-        var swagger1 = await response1.Content.ReadAsStringAsync();
-
-        // Arrange - Change to ShuDiNiao
-        config.VendorType = DriverVendorType.ShuDiNiao;
-        config.ShuDiNiao = new ShuDiNiaoDriverConfig
+        // Arrange - Start with ShuDiNiao
+        var config = _wheelDiverterRepository.Get();
+        config.VendorType = WheelDiverterVendorType.ShuDiNiao;
+        config.ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
         {
             Devices = new List<ShuDiNiaoDeviceEntry>
             {
                 new() { DiverterId = "D1", Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
             }
         };
-        _repository.Update(config);
+        _wheelDiverterRepository.Update(config);
 
-        // Act 2 - Get Swagger with ShuDiNiao
+        // Act 1 - Get Swagger with ShuDiNiao
+        var response1 = await _client.GetAsync("/swagger/v1/swagger.json");
+        var swagger1 = await response1.Content.ReadAsStringAsync();
+
+        // Arrange - Change to Modi
+        config.VendorType = WheelDiverterVendorType.Modi;
+        config.Modi = new ModiWheelDiverterConfig
+        {
+            Devices = new List<ModiDeviceEntry>
+            {
+                new() { DiverterId = "D1", Host = "192.168.1.100", Port = 8000, DeviceId = 1 }
+            }
+        };
+        _wheelDiverterRepository.Update(config);
+
+        // Act 2 - Get Swagger with Modi
         var response2 = await _client.GetAsync("/swagger/v1/swagger.json");
         var swagger2 = await response2.Content.ReadAsStringAsync();
 
         // Assert - Swagger schemas should be different
         Assert.NotEqual(swagger1, swagger2);
         
-        // Verify Leadshine version has leadshine property
+        // Verify ShuDiNiao version has shuDiNiao property
         using (var doc1 = JsonDocument.Parse(swagger1))
         {
             var schemas1 = doc1.RootElement.GetProperty("components").GetProperty("schemas");
-            if (schemas1.TryGetProperty("DriverConfiguration", out var schema1))
+            if (schemas1.TryGetProperty("WheelDiverterConfiguration", out var schema1))
             {
                 var properties1 = schema1.GetProperty("properties");
-                Assert.True(properties1.TryGetProperty("leadshine", out _));
+                Assert.True(properties1.TryGetProperty("shuDiNiao", out _));
             }
         }
         
-        // Verify ShuDiNiao version has shuDiNiao property
+        // Verify Modi version has modi property
         using (var doc2 = JsonDocument.Parse(swagger2))
         {
             var schemas2 = doc2.RootElement.GetProperty("components").GetProperty("schemas");
-            if (schemas2.TryGetProperty("DriverConfiguration", out var schema2))
+            if (schemas2.TryGetProperty("WheelDiverterConfiguration", out var schema2))
             {
                 var properties2 = schema2.GetProperty("properties");
-                Assert.True(properties2.TryGetProperty("shuDiNiao", out _));
+                Assert.True(properties2.TryGetProperty("modi", out _));
             }
         }
     }
