@@ -155,6 +155,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         // Arrange
         var options = CreateDefaultOptions();
         options.ConnectionMode = ConnectionMode.Server;
+        using var manager = CreateManager(options);
 
         // Act
         await manager.StartAsync();
@@ -178,6 +179,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         // Arrange
         var options = CreateDefaultOptions();
         options.ConnectionMode = ConnectionMode.Client;
+        using var manager = CreateManager(options);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         // Act
@@ -200,6 +202,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     {
         // Arrange
         var options = CreateDefaultOptions();
+        using var manager = CreateManager(options);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -237,6 +240,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         // Arrange
         var options = CreateDefaultOptions();
         options.ConnectionMode = ConnectionMode.Client;
+        using var manager = CreateManager(options);
         
         await manager.StartAsync();
         await Task.Delay(100);
@@ -260,6 +264,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     {
         // Arrange
         var options = CreateDefaultOptions();
+        using var manager = CreateManager(options);
         
         var eventFired = false;
         ConnectionStateChangedEventArgs? eventArgs = null;

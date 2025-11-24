@@ -248,6 +248,7 @@ public class RuleEngineClientFactoryTests
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options);
 
         // Act
+        var client = factory.CreateClient();
 
         // Assert - push model timeout protection is configured
         Assert.NotNull(client);
