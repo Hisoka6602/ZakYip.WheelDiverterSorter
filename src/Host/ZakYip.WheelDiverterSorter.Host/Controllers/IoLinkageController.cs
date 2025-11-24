@@ -96,7 +96,7 @@ public class IoLinkageController : ControllerBase
     /// <summary>
     /// 更新IO联动配置（支持热更新）
     /// </summary>
-    /// <param name="request">IO联动配置请求，包含启用状态和运行/停止时的IO点位设置</param>
+    /// <param name="request">IO联动配置请求，包含启用状态和各种状态下的IO点位设置</param>
     /// <returns>更新后的IO联动配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
@@ -114,6 +114,15 @@ public class IoLinkageController : ControllerBase
     ///         "stoppedStateIos": [
     ///             { "bitNumber": 3, "level": "ActiveHigh" },
     ///             { "bitNumber": 5, "level": "ActiveHigh" }
+    ///         ],
+    ///         "emergencyStopStateIos": [
+    ///             { "bitNumber": 10, "level": "ActiveHigh" }
+    ///         ],
+    ///         "upstreamConnectionExceptionStateIos": [
+    ///             { "bitNumber": 11, "level": "ActiveHigh" }
+    ///         ],
+    ///         "diverterExceptionStateIos": [
+    ///             { "bitNumber": 12, "level": "ActiveHigh" }
     ///         ]
     ///     }
     /// 
@@ -122,7 +131,12 @@ public class IoLinkageController : ControllerBase
     /// - ActiveHigh：高电平有效（输出1时设备工作）
     /// 
     /// 配置更新后立即生效，无需重启服务。
-    /// 系统运行时自动应用runningStateIos，停止时应用stoppedStateIos。
+    /// 系统根据不同状态自动应用对应的IO联动配置：
+    /// - runningStateIos：系统正常运行时
+    /// - stoppedStateIos：系统停止时
+    /// - emergencyStopStateIos：急停时
+    /// - upstreamConnectionExceptionStateIos：上游连接异常时
+    /// - diverterExceptionStateIos：摆轮异常时
     /// </remarks>
     [HttpPut]
     [SwaggerOperation(
@@ -156,10 +170,14 @@ public class IoLinkageController : ControllerBase
             _repository.Update(config);
 
             _logger.LogInformation(
-                "IO 联动配置已更新: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}",
+                "IO 联动配置已更新: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}, " + 
+                "EmergencyStopIos={EmergencyStopCount}, UpstreamExceptionIos={UpstreamExceptionCount}, DiverterExceptionIos={DiverterExceptionCount}",
                 config.Enabled,
                 config.RunningStateIos.Count,
-                config.StoppedStateIos.Count);
+                config.StoppedStateIos.Count,
+                config.EmergencyStopStateIos.Count,
+                config.UpstreamConnectionExceptionStateIos.Count,
+                config.DiverterExceptionStateIos.Count);
 
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();
@@ -688,6 +706,27 @@ public class IoLinkageController : ControllerBase
                     Level = p.Level
                 })
                 .ToList(),
+            EmergencyStopStateIos = request.EmergencyStopStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
+            UpstreamConnectionExceptionStateIos = request.UpstreamConnectionExceptionStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
+            DiverterExceptionStateIos = request.DiverterExceptionStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
             CreatedAt = _systemClock.LocalNow,
             UpdatedAt = _systemClock.LocalNow
         };
@@ -709,6 +748,27 @@ public class IoLinkageController : ControllerBase
                 })
                 .ToList(),
             StoppedStateIos = config.StoppedStateIos
+                .Select(p => new IoLinkagePointResponse
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level.ToString()
+                })
+                .ToList(),
+            EmergencyStopStateIos = config.EmergencyStopStateIos
+                .Select(p => new IoLinkagePointResponse
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level.ToString()
+                })
+                .ToList(),
+            UpstreamConnectionExceptionStateIos = config.UpstreamConnectionExceptionStateIos
+                .Select(p => new IoLinkagePointResponse
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level.ToString()
+                })
+                .ToList(),
+            DiverterExceptionStateIos = config.DiverterExceptionStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,

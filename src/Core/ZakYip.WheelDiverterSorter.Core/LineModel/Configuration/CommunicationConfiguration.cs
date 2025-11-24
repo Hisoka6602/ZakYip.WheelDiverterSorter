@@ -160,8 +160,8 @@ public class CommunicationConfiguration
     {
         return new CommunicationConfiguration
         {
-            Mode = CommunicationMode.Http,
-            ConnectionMode = ConnectionMode.Client,
+            Mode = CommunicationMode.Tcp,  // 默认使用TCP
+            ConnectionMode = ConnectionMode.Server,  // 默认使用TCP服务端模式
             TcpServer = "192.168.1.100:8000",
             SignalRHub = "http://192.168.1.100:5000/sortingHub",
             MqttBroker = "mqtt://192.168.1.100:1883",

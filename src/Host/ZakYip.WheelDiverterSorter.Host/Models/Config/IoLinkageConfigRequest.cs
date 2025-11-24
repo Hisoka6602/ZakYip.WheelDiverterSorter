@@ -24,4 +24,22 @@ public sealed record class IoLinkageConfigRequest
     /// </summary>
     [Required(ErrorMessage = "StoppedStateIos 不能为空")]
     public required List<IoLinkagePointRequest> StoppedStateIos { get; init; }
+
+    /// <summary>
+    /// 急停状态时联动的 IO 点列表
+    /// </summary>
+    [Required(ErrorMessage = "EmergencyStopStateIos 不能为空")]
+    public required List<IoLinkagePointRequest> EmergencyStopStateIos { get; init; }
+
+    /// <summary>
+    /// 上游连接异常状态时联动的 IO 点列表
+    /// </summary>
+    [Required(ErrorMessage = "UpstreamConnectionExceptionStateIos 不能为空")]
+    public required List<IoLinkagePointRequest> UpstreamConnectionExceptionStateIos { get; init; }
+
+    /// <summary>
+    /// 摆轮异常状态时联动的 IO 点列表
+    /// </summary>
+    [Required(ErrorMessage = "DiverterExceptionStateIos 不能为空")]
+    public required List<IoLinkagePointRequest> DiverterExceptionStateIos { get; init; }
 }

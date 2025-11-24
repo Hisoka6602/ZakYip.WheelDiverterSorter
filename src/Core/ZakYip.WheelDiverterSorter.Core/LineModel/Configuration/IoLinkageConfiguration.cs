@@ -51,6 +51,30 @@ public sealed record class IoLinkageConfiguration
     public List<IoLinkagePoint> StoppedStateIos { get; init; } = new();
 
     /// <summary>
+    /// 急停状态时联动的 IO 点列表
+    /// </summary>
+    /// <remarks>
+    /// 例如：急停时将某些 IO 设置为特定电平以紧急停止设备
+    /// </remarks>
+    public List<IoLinkagePoint> EmergencyStopStateIos { get; init; } = new();
+
+    /// <summary>
+    /// 上游连接异常状态时联动的 IO 点列表
+    /// </summary>
+    /// <remarks>
+    /// 例如：上游连接异常时将某些 IO 设置为特定电平以告警
+    /// </remarks>
+    public List<IoLinkagePoint> UpstreamConnectionExceptionStateIos { get; init; } = new();
+
+    /// <summary>
+    /// 摆轮异常状态时联动的 IO 点列表
+    /// </summary>
+    /// <remarks>
+    /// 例如：摆轮异常时将某些 IO 设置为特定电平以告警
+    /// </remarks>
+    public List<IoLinkagePoint> DiverterExceptionStateIos { get; init; } = new();
+
+    /// <summary>
     /// 配置创建时间
     /// </summary>
     public DateTime CreatedAt { get; init; }
@@ -75,6 +99,9 @@ public sealed record class IoLinkageConfiguration
             Enabled = true,
             RunningStateIos = new List<IoLinkagePoint>(),
             StoppedStateIos = new List<IoLinkagePoint>(),
+            EmergencyStopStateIos = new List<IoLinkagePoint>(),
+            UpstreamConnectionExceptionStateIos = new List<IoLinkagePoint>(),
+            DiverterExceptionStateIos = new List<IoLinkagePoint>(),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -114,6 +141,48 @@ public sealed record class IoLinkageConfiguration
             }
         }
 
+        // 验证急停状态 IO 点
+        foreach (var ioPoint in EmergencyStopStateIos)
+        {
+            if (ioPoint.BitNumber < 0 || ioPoint.BitNumber > 1023)
+            {
+                return (false, $"急停状态 IO 点 {ioPoint.BitNumber} 必须在 0-1023 范围内");
+            }
+
+            if (!Enum.IsDefined(typeof(TriggerLevel), ioPoint.Level))
+            {
+                return (false, $"急停状态 IO 点 {ioPoint.BitNumber} 的电平配置无效");
+            }
+        }
+
+        // 验证上游连接异常状态 IO 点
+        foreach (var ioPoint in UpstreamConnectionExceptionStateIos)
+        {
+            if (ioPoint.BitNumber < 0 || ioPoint.BitNumber > 1023)
+            {
+                return (false, $"上游连接异常状态 IO 点 {ioPoint.BitNumber} 必须在 0-1023 范围内");
+            }
+
+            if (!Enum.IsDefined(typeof(TriggerLevel), ioPoint.Level))
+            {
+                return (false, $"上游连接异常状态 IO 点 {ioPoint.BitNumber} 的电平配置无效");
+            }
+        }
+
+        // 验证摆轮异常状态 IO 点
+        foreach (var ioPoint in DiverterExceptionStateIos)
+        {
+            if (ioPoint.BitNumber < 0 || ioPoint.BitNumber > 1023)
+            {
+                return (false, $"摆轮异常状态 IO 点 {ioPoint.BitNumber} 必须在 0-1023 范围内");
+            }
+
+            if (!Enum.IsDefined(typeof(TriggerLevel), ioPoint.Level))
+            {
+                return (false, $"摆轮异常状态 IO 点 {ioPoint.BitNumber} 的电平配置无效");
+            }
+        }
+
         // 检查重复的 IO 点
         var runningBits = RunningStateIos.Select(io => io.BitNumber).ToList();
         var duplicateRunningBits = runningBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
@@ -127,6 +196,27 @@ public sealed record class IoLinkageConfiguration
         if (duplicateStoppedBits.Any())
         {
             return (false, $"停止状态 IO 点存在重复: {string.Join(", ", duplicateStoppedBits)}");
+        }
+
+        var emergencyStopBits = EmergencyStopStateIos.Select(io => io.BitNumber).ToList();
+        var duplicateEmergencyStopBits = emergencyStopBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateEmergencyStopBits.Any())
+        {
+            return (false, $"急停状态 IO 点存在重复: {string.Join(", ", duplicateEmergencyStopBits)}");
+        }
+
+        var upstreamExceptionBits = UpstreamConnectionExceptionStateIos.Select(io => io.BitNumber).ToList();
+        var duplicateUpstreamExceptionBits = upstreamExceptionBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateUpstreamExceptionBits.Any())
+        {
+            return (false, $"上游连接异常状态 IO 点存在重复: {string.Join(", ", duplicateUpstreamExceptionBits)}");
+        }
+
+        var diverterExceptionBits = DiverterExceptionStateIos.Select(io => io.BitNumber).ToList();
+        var duplicateDiverterExceptionBits = diverterExceptionBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateDiverterExceptionBits.Any())
+        {
+            return (false, $"摆轮异常状态 IO 点存在重复: {string.Join(", ", duplicateDiverterExceptionBits)}");
         }
 
         return (true, null);

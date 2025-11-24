@@ -19,6 +19,21 @@ public sealed record class IoLinkageConfigResponse
     /// 停止/复位状态时联动的 IO 点列表
     /// </summary>
     public required List<IoLinkagePointResponse> StoppedStateIos { get; init; }
+
+    /// <summary>
+    /// 急停状态时联动的 IO 点列表
+    /// </summary>
+    public required List<IoLinkagePointResponse> EmergencyStopStateIos { get; init; }
+
+    /// <summary>
+    /// 上游连接异常状态时联动的 IO 点列表
+    /// </summary>
+    public required List<IoLinkagePointResponse> UpstreamConnectionExceptionStateIos { get; init; }
+
+    /// <summary>
+    /// 摆轮异常状态时联动的 IO 点列表
+    /// </summary>
+    public required List<IoLinkagePointResponse> DiverterExceptionStateIos { get; init; }
 }
 
 /// <summary>

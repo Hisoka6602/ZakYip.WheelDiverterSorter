@@ -47,34 +47,6 @@ public class CommunicationController : ControllerBase {
     }
 
     /// <summary>
-    /// 获取当前通信配置
-    /// </summary>
-    /// <returns>通信配置信息</returns>
-    /// <response code="200">成功返回配置</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpGet("config")]
-    [SwaggerOperation(
-        Summary = "获取当前通信配置",
-        Description = "返回当前生效的RuleEngine通信配置，包括通信模式、服务器地址、超时时间等参数",
-        OperationId = "GetConfiguration",
-        Tags = new[] { "通信管理" }
-    )]
-    [SwaggerResponse(200, "成功返回配置", typeof(RuleEngineConnectionOptions))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(RuleEngineConnectionOptions), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<RuleEngineConnectionOptions> GetConfiguration() {
-        try {
-            var config = _connectionOptions.Value;
-            return Ok(config);
-        }
-        catch (Exception ex) {
-            _logger.LogError(ex, "获取通信配置失败 - Failed to get communication configuration");
-            return StatusCode(500, new { message = "获取通信配置失败 - Failed to get communication configuration" });
-        }
-    }
-
-    /// <summary>
     /// 测试与RuleEngine的连接
     /// </summary>
     /// <param name="cancellationToken">取消令牌，用于取消长时间运行的连接测试操作</param>
