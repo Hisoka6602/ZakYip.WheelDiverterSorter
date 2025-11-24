@@ -152,13 +152,62 @@ public abstract class EmcResourceLockManagerBase : IEmcResourceLockManager
     protected abstract Task<bool> SendEventAsync(EmcLockEvent lockEvent, CancellationToken cancellationToken);
 
     /// <summary>
+    /// 完成待响应的请求
+    /// Complete a pending request
+    /// </summary>
+    /// <param name="eventId">事件ID</param>
+    /// <param name="success">是否成功</param>
+    protected void CompletePendingRequest(string eventId, bool success)
+    {
+        if (_pendingRequests.TryRemove(eventId, out var tcs))
+        {
+            tcs.TrySetResult(success);
+        }
+    }
+
+    /// <summary>
     /// 发送事件并等待响应
     /// Send event and wait for response
     /// </summary>
     /// <param name="lockEvent">EMC锁事件</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否收到确认响应</returns>
-    protected abstract Task<bool> SendEventAndWaitForResponseAsync(EmcLockEvent lockEvent, CancellationToken cancellationToken);
+    protected async Task<bool> SendEventAndWaitForResponseAsync(EmcLockEvent lockEvent, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            _pendingRequests.TryAdd(lockEvent.EventId, tcs);
+
+            if (!await SendEventAsync(lockEvent, cancellationToken))
+            {
+                _pendingRequests.TryRemove(lockEvent.EventId, out _);
+                return false;
+            }
+
+            // 等待响应或超时
+            using var timeoutCts = new CancellationTokenSource(lockEvent.TimeoutMs);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+            try
+            {
+                return await tcs.Task.WaitAsync(linkedCts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Timeout occurred
+                return false;
+            }
+            finally
+            {
+                _pendingRequests.TryRemove(lockEvent.EventId, out _);
+            }
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
 
     /// <inheritdoc/>
     public abstract void Dispose();
