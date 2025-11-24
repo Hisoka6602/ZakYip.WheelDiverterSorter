@@ -163,12 +163,12 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 var panelConfig = _panelConfigRepository.Get();
                 if (panelConfig == null || !panelConfig.Enabled)
                 {
-                    // 如果面板未启用，认为检查通过（可选配置）
+                    // PR-8: 如果面板未配置或未启用，返回 Unhealthy
                     return new HealthCheckItem
                     {
                         Name = "PanelIoConfigured",
-                        Status = "Healthy",
-                        Message = "面板功能未启用，跳过检查"
+                        Status = "Unhealthy",
+                        Message = "面板 IO 配置未启用或未配置"
                     };
                 }
 
