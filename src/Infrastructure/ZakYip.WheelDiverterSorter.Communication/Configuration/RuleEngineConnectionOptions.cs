@@ -10,7 +10,10 @@ public class RuleEngineConnectionOptions
     /// <summary>
     /// 通信模式
     /// </summary>
-    public CommunicationMode Mode { get; set; } = CommunicationMode.Http;
+    /// <remarks>
+    /// 默认使用TCP模式，因为HTTP仅用于测试场景，生产环境不使用HTTP
+    /// </remarks>
+    public CommunicationMode Mode { get; set; } = CommunicationMode.Tcp;
 
     /// <summary>
     /// 连接模式（客户端或服务端）

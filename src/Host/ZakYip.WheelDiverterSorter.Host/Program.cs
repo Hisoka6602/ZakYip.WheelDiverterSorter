@@ -199,10 +199,6 @@ try
     // 注册仿真服务（用于 API 触发仿真）
     builder.Services.AddSimulationServices(builder.Configuration);
 
-    // 注册后台服务（可选）
-    // 取消注释以下行以启用自动传感器监听
-    // builder.Services.AddHostedService<SensorMonitoringWorker>();
-
     // 注册告警监控后台服务
     builder.Services.AddHostedService<AlarmMonitoringWorker>();
 

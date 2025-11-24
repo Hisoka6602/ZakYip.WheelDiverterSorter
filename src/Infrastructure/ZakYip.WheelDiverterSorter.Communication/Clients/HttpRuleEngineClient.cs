@@ -20,11 +20,16 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 public class HttpRuleEngineClient : RuleEngineClientBase
 {
     private readonly HttpClient _httpClient;
+    private bool _isConnected;
 
     /// <summary>
     /// 客户端是否已连接
     /// </summary>
-    public override bool IsConnected => true; // HTTP是无状态的
+    /// <remarks>
+    /// HTTP是无状态的，但为了与 UpstreamConnectionManager 配合，需要验证端点可达性
+    /// 通过 ConnectAsync 验证服务器是否可访问
+    /// </remarks>
+    public override bool IsConnected => _isConnected;
 
     /// <summary>
     /// 构造函数
@@ -70,10 +75,38 @@ public class HttpRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 连接到RuleEngine
     /// </summary>
-    public override Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// HTTP是无状态的，但此方法会验证服务器端点是否可访问
+    /// 用于与 UpstreamConnectionManager 配合，确保连接状态准确
+    /// </remarks>
+    public override async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
-        // HTTP是无状态的，不需要连接
-        return Task.FromResult(true);
+        ThrowIfDisposed();
+
+        try
+        {
+            Logger.LogInformation("正在验证HTTP RuleEngine端点可达性: {Endpoint}", Options.HttpApi);
+            
+            // 尝试发送一个健康检查请求来验证端点可达性
+            // 使用较短的超时时间避免阻塞太久
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMilliseconds(Math.Min(Options.TimeoutMs, 3000)));
+            
+            // 尝试访问根路径或健康检查端点
+            var healthCheckUrl = Options.HttpApi!.TrimEnd('/');
+            var response = await _httpClient.GetAsync(healthCheckUrl, cts.Token);
+            
+            // 即使返回404或其他状态码，只要能收到响应就说明端点可达
+            _isConnected = true;
+            Logger.LogInformation("HTTP RuleEngine端点验证成功: {Endpoint}", Options.HttpApi);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _isConnected = false;
+            Logger.LogWarning(ex, "HTTP RuleEngine端点验证失败: {Endpoint}", Options.HttpApi);
+            return false;
+        }
     }
 
     /// <summary>
@@ -81,7 +114,9 @@ public class HttpRuleEngineClient : RuleEngineClientBase
     /// </summary>
     public override Task DisconnectAsync()
     {
-        // HTTP是无状态的，不需要断开
+        ThrowIfDisposed();
+        _isConnected = false;
+        Logger.LogInformation("已标记HTTP RuleEngine连接为断开状态");
         return Task.CompletedTask;
     }
 

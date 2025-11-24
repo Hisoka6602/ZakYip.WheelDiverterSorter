@@ -18,21 +18,35 @@ public sealed class UpstreamConnectionBackgroundService : BackgroundService
     private readonly ILogger<UpstreamConnectionBackgroundService> _logger;
     private readonly IUpstreamConnectionManager _connectionManager;
     private readonly ISystemClock _systemClock;
+    private readonly Communication.Configuration.RuleEngineConnectionOptions _options;
 
     public UpstreamConnectionBackgroundService(
         ILogger<UpstreamConnectionBackgroundService> logger,
         IUpstreamConnectionManager connectionManager,
-        ISystemClock systemClock)
+        ISystemClock systemClock,
+        Communication.Configuration.RuleEngineConnectionOptions options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // 检查是否为Client模式，如果不是则不启动
+        // Check if Client mode, if not then don't start
+        if (_options.ConnectionMode != Core.Enums.Communication.ConnectionMode.Client)
+        {
+            _logger.LogInformation(
+                "[{LocalTime}] Upstream connection background service skipped - Not in Client mode (ConnectionMode={ConnectionMode})",
+                _systemClock.LocalNow,
+                _options.ConnectionMode);
+            return;
+        }
+
         _logger.LogInformation(
-            "[{LocalTime}] Upstream connection background service starting",
+            "[{LocalTime}] Upstream connection background service starting in Client mode",
             _systemClock.LocalNow);
 
         try
