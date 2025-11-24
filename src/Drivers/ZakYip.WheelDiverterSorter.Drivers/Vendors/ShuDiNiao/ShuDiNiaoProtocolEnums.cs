@@ -5,7 +5,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 /// <summary>
 /// 数递鸟协议消息类型（第4字节）
 /// </summary>
-internal enum ShuDiNiaoMessageType : byte
+public enum ShuDiNiaoMessageType : byte
 {
     /// <summary>
     /// 信息一：设备状态上报（设备端 → 服务端）
@@ -29,7 +29,7 @@ internal enum ShuDiNiaoMessageType : byte
 /// <summary>
 /// 数递鸟设备状态码（信息一第5字节）
 /// </summary>
-internal enum ShuDiNiaoDeviceState : byte
+public enum ShuDiNiaoDeviceState : byte
 {
     /// <summary>
     /// 待机
@@ -59,7 +59,7 @@ internal enum ShuDiNiaoDeviceState : byte
 /// <summary>
 /// 数递鸟控制命令码（信息二第5字节）
 /// </summary>
-internal enum ShuDiNiaoControlCommand : byte
+public enum ShuDiNiaoControlCommand : byte
 {
     /// <summary>
     /// 运行
@@ -95,7 +95,7 @@ internal enum ShuDiNiaoControlCommand : byte
 /// <summary>
 /// 数递鸟应答/完成状态码（信息三第5字节）
 /// </summary>
-internal enum ShuDiNiaoResponseCode : byte
+public enum ShuDiNiaoResponseCode : byte
 {
     /// <summary>
     /// 运行应答
