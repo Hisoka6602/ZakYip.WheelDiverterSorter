@@ -261,8 +261,7 @@ public class CommunicationController : ControllerBase {
                     TcpServer = config.TcpServer,
                     ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
                     SendBufferSize = config.Tcp.SendBufferSize,
-                    NoDelay = config.Tcp.NoDelay,
-                    KeepAliveInterval = config.Tcp.KeepAliveInterval
+                    NoDelay = config.Tcp.NoDelay
                 },
                 Http = new HttpConfigDto
                 {
@@ -326,8 +325,7 @@ public class CommunicationController : ControllerBase {
     ///             "tcpServer": "192.168.1.100:8000",
     ///             "receiveBufferSize": 8192,
     ///             "sendBufferSize": 8192,
-    ///             "noDelay": true,
-    ///             "keepAliveInterval": 60
+    ///             "noDelay": true
     ///         }
     ///     }
     ///
@@ -401,8 +399,7 @@ public class CommunicationController : ControllerBase {
                 {
                     ReceiveBufferSize = request.Tcp?.ReceiveBufferSize ?? 8192,
                     SendBufferSize = request.Tcp?.SendBufferSize ?? 8192,
-                    NoDelay = request.Tcp?.NoDelay ?? true,
-                    KeepAliveInterval = request.Tcp?.KeepAliveInterval ?? 60
+                    NoDelay = request.Tcp?.NoDelay ?? true
                 },
                 Http = new Core.LineModel.Configuration.HttpConfig
                 {

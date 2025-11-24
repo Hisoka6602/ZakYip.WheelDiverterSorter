@@ -105,12 +105,6 @@ public class TcpConfigDto
     /// </summary>
     [SwaggerSchema(Description = "是否禁用Nagle算法（true=低延迟，false=高吞吐）")]
     public bool NoDelay { get; set; } = true;
-
-    /// <summary>
-    /// 保持连接心跳间隔（秒）
-    /// </summary>
-    [SwaggerSchema(Description = "TCP Keep-Alive心跳间隔，单位：秒")]
-    public int KeepAliveInterval { get; set; } = 60;
 }
 
 /// <summary>
