@@ -27,6 +27,7 @@ public class DriverConfiguration
     /// - Siemens: 西门子PLC
     /// - Mitsubishi: 三菱PLC
     /// - Omron: 欧姆龙PLC
+    /// - ShuDiNiao: 数递鸟摆轮设备
     /// </remarks>
     public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
 
@@ -34,6 +35,11 @@ public class DriverConfiguration
     /// 雷赛控制器配置
     /// </summary>
     public LeadshineDriverConfig? Leadshine { get; set; }
+
+    /// <summary>
+    /// 数递鸟摆轮设备配置
+    /// </summary>
+    public ShuDiNiaoDriverConfig? ShuDiNiao { get; set; }
 
     /// <summary>
     /// 配置版本号
@@ -87,6 +93,11 @@ public class DriverConfiguration
             return (false, "使用雷赛硬件驱动时，必须配置雷赛参数");
         }
 
+        if (UseHardwareDriver && VendorType == DriverVendorType.ShuDiNiao && ShuDiNiao == null)
+        {
+            return (false, "使用数递鸟硬件驱动时，必须配置数递鸟参数");
+        }
+
         if (Leadshine != null)
         {
             if (Leadshine.Diverters == null || !Leadshine.Diverters.Any())
@@ -104,6 +115,26 @@ public class DriverConfiguration
             if (duplicateIds.Any())
             {
                 return (false, $"摆轮ID重复: {string.Join(", ", duplicateIds)}");
+            }
+        }
+
+        if (ShuDiNiao != null)
+        {
+            if (ShuDiNiao.Devices == null || !ShuDiNiao.Devices.Any())
+            {
+                return (false, "数递鸟摆轮设备配置不能为空");
+            }
+
+            // 检查DeviceAddress不能重复
+            var duplicateAddresses = ShuDiNiao.Devices
+                .GroupBy(d => d.DeviceAddress)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key)
+                .ToList();
+
+            if (duplicateAddresses.Any())
+            {
+                return (false, $"数递鸟设备地址重复: {string.Join(", ", duplicateAddresses.Select(a => $"0x{a:X2}"))}");
             }
         }
 
@@ -154,4 +185,57 @@ public class DiverterDriverEntry
     /// 反馈输入位
     /// </summary>
     public int FeedbackInputBit { get; set; }
+}
+
+/// <summary>
+/// 数递鸟摆轮设备配置
+/// </summary>
+public record class ShuDiNiaoDriverConfig
+{
+    /// <summary>
+    /// 数递鸟摆轮设备列表
+    /// </summary>
+    public required List<ShuDiNiaoDeviceEntry> Devices { get; init; }
+
+    /// <summary>
+    /// 是否启用仿真模式
+    /// </summary>
+    public bool UseSimulation { get; init; } = false;
+}
+
+/// <summary>
+/// 数递鸟摆轮设备条目
+/// </summary>
+public record class ShuDiNiaoDeviceEntry
+{
+    /// <summary>
+    /// 摆轮标识符（字符串ID）
+    /// </summary>
+    public required string DiverterId { get; init; }
+
+    /// <summary>
+    /// TCP连接主机地址
+    /// </summary>
+    /// <example>192.168.0.100</example>
+    public required string Host { get; init; }
+
+    /// <summary>
+    /// TCP连接端口
+    /// </summary>
+    /// <example>2000</example>
+    public required int Port { get; init; }
+
+    /// <summary>
+    /// 设备地址（协议中的设备地址字节）
+    /// </summary>
+    /// <remarks>
+    /// 0x51 表示 1 号设备，0x52 表示 2 号设备，依次类推
+    /// </remarks>
+    /// <example>0x51</example>
+    public required byte DeviceAddress { get; init; }
+
+    /// <summary>
+    /// 是否启用该设备
+    /// </summary>
+    public bool IsEnabled { get; init; } = true;
 }
