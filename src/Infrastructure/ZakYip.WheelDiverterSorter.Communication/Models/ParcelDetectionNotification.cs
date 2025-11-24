@@ -16,7 +16,7 @@ public record ParcelDetectionNotification
     /// <summary>
     /// 检测时间
     /// </summary>
-    public DateTimeOffset DetectionTime { get; init; } = DateTimeOffset.UtcNow;
+    public required DateTimeOffset DetectionTime { get; init; }
 
     /// <summary>
     /// 额外的元数据（可选）

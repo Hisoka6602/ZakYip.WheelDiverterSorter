@@ -1,4 +1,5 @@
 using Prometheus;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -8,6 +9,17 @@ namespace ZakYip.WheelDiverterSorter.Observability;
 /// </summary>
 public class PrometheusMetrics
 {
+    private readonly ISystemClock _systemClock;
+
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="systemClock">系统时钟</param>
+    public PrometheusMetrics(ISystemClock systemClock)
+    {
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+    }
+
     // 分拣成功/失败计数器
     // Sorting success/failure counters
     private static readonly Counter SortingSuccessCounter = Metrics
@@ -770,7 +782,7 @@ public class PrometheusMetrics
     /// </summary>
     public void RecordSelfTestSuccess()
     {
-        SystemSelfTestLastSuccessTimestamp.Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        SystemSelfTestLastSuccessTimestamp.Set(_systemClock.LocalNowOffset.ToUnixTimeSeconds());
     }
 
     /// <summary>
@@ -855,7 +867,7 @@ public class PrometheusMetrics
     public void RecordAlert(string severity, string code)
     {
         AlertsTotal.WithLabels(severity, code).Inc();
-        LastAlertTimestamp.WithLabels(severity, code).Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        LastAlertTimestamp.WithLabels(severity, code).Set(_systemClock.LocalNowOffset.ToUnixTimeSeconds());
     }
 
     // ========== PR-34: 健康检查指标 / Health Check Metrics ==========
