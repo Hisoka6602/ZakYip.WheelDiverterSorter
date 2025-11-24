@@ -62,11 +62,10 @@ public sealed record class IoLinkageConfiguration
     /// <summary>
     /// 获取默认 IO 联动配置
     /// </summary>
-    /// <param name="systemClock">系统时钟（用于设置时间戳）</param>
     /// <returns>默认配置实例</returns>
-    public static IoLinkageConfiguration GetDefault(ISystemClock? systemClock = null)
+    public static IoLinkageConfiguration GetDefault()
     {
-        var now = systemClock?.LocalNow ?? DateTime.Now; // 兼容旧代码，允许不传入systemClock
+        var now = DateTime.Now;
         return new IoLinkageConfiguration
         {
             ConfigName = "io_linkage",

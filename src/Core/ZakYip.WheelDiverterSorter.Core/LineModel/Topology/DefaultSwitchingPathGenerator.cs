@@ -1,6 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
@@ -36,17 +35,14 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     private const int DefaultSegmentTtlMs = 5000;
 
     private readonly IRouteConfigurationRepository _routeRepository;
-    private readonly ISystemClock _systemClock;
 
     /// <summary>
     /// 初始化路径生成器
     /// </summary>
     /// <param name="routeRepository">路由配置仓储</param>
-    /// <param name="systemClock">系统时钟</param>
-    public DefaultSwitchingPathGenerator(IRouteConfigurationRepository routeRepository, ISystemClock systemClock)
+    public DefaultSwitchingPathGenerator(IRouteConfigurationRepository routeRepository)
     {
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
-        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -111,7 +107,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         {
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
-            GeneratedAt = _systemClock.LocalNowOffset,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
     }

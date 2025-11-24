@@ -1,5 +1,4 @@
 using LiteDB;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -10,7 +9,6 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
 {
     private readonly LiteDatabase _database;
     private readonly ILiteCollection<WheelBindingsConfig> _collection;
-    private readonly ISystemClock _systemClock;
     private const string CollectionName = "WheelBindingsConfiguration";
     private const string DefaultConfigName = "wheel-bindings";
 
@@ -18,11 +16,8 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
     /// 初始化LiteDB摆轮硬件绑定配置仓储
     /// </summary>
     /// <param name="databasePath">LiteDB数据库文件路径</param>
-    /// <param name="systemClock">系统时钟</param>
-    public LiteDbWheelBindingsRepository(string databasePath, ISystemClock systemClock)
+    public LiteDbWheelBindingsRepository(string databasePath)
     {
-        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
-        
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
@@ -100,7 +95,7 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
 
         if (existing == null)
         {
-            var now = currentTime ?? _systemClock.LocalNow; // 使用本地时间
+            var now = currentTime ?? DateTime.Now; // 使用本地时间
             var defaultConfig = GetDefaultConfig();
             defaultConfig.CreatedAt = now;
             defaultConfig.UpdatedAt = now;
@@ -122,8 +117,8 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
         {
             ConfigName = DefaultConfigName,
             Bindings = new List<WheelHardwareBinding>(),
-            CreatedAt = _systemClock.LocalNow,
-            UpdatedAt = _systemClock.LocalNow
+            CreatedAt = DateTime.Now,
+            UpdatedAt = DateTime.Now
         };
     }
 }

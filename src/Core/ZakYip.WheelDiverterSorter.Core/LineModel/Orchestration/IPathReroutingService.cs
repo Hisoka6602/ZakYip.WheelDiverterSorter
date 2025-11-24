@@ -97,8 +97,7 @@ public record class ReroutingResult
     public static ReroutingResult Success(
         long parcelId,
         long originalTargetChuteId,
-        SwitchingPath newPath,
-        ISystemClock systemClock)
+        SwitchingPath newPath)
     {
         return new ReroutingResult
         {
@@ -106,7 +105,7 @@ public record class ReroutingResult
             ParcelId = parcelId,
             OriginalTargetChuteId = originalTargetChuteId,
             NewPath = newPath,
-            ReroutedAt = systemClock.LocalNowOffset
+            ReroutedAt = DateTimeOffset.Now
         };
     }
 
@@ -118,8 +117,7 @@ public record class ReroutingResult
         long parcelId,
         long originalTargetChuteId,
         long failedNodeId,
-        string reason,
-        ISystemClock systemClock)
+        string reason)
     {
         return new ReroutingResult
         {
@@ -128,7 +126,7 @@ public record class ReroutingResult
             OriginalTargetChuteId = originalTargetChuteId,
             FailedNodeId = failedNodeId,
             FailureReason = reason,
-            ReroutedAt = systemClock.LocalNowOffset
+            ReroutedAt = DateTimeOffset.Now
         };
     }
 }
