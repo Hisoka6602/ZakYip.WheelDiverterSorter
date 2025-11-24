@@ -50,7 +50,6 @@ public class HealthController : ControllerBase
     /// 只要进程能够响应请求，就认为是健康的。
     /// </remarks>
     [HttpGet("healthz")]
-    [HttpGet("health/live")]
     [SwaggerOperation(
         Summary = "进程级健康检查（Liveness）",
         Description = "用于容器编排平台的存活检查，只要进程能响应就返回健康状态",
@@ -83,65 +82,6 @@ public class HealthController : ControllerBase
             {
                 Status = "Unhealthy",
                 Reason = "进程内部错误",
-                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
-            };
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
-        }
-    }
-
-    /// <summary>
-    /// 启动阶段健康检查端点（Kubernetes startup probe）
-    /// </summary>
-    /// <returns>启动状态</returns>
-    /// <response code="200">启动完成</response>
-    /// <response code="503">仍在启动中</response>
-    /// <remarks>
-    /// 用于Kubernetes启动探测（startup probe）。
-    /// 检查系统是否已完成初始化和自检，进入Ready或Running状态。
-    /// </remarks>
-    [HttpGet("health/startup")]
-    [SwaggerOperation(
-        Summary = "启动阶段健康检查（Startup）",
-        Description = "检查系统是否已完成初始化，用于Kubernetes startup probe",
-        OperationId = "GetStartupHealth",
-        Tags = new[] { "健康检查" }
-    )]
-    [SwaggerResponse(200, "启动完成", typeof(ProcessHealthResponse))]
-    [SwaggerResponse(503, "仍在启动中", typeof(ProcessHealthResponse))]
-    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status503ServiceUnavailable)]
-    public IActionResult GetStartupHealth()
-    {
-        try
-        {
-            var currentState = _stateManager.CurrentState;
-            
-            // 启动检查：系统不在Booting状态即认为启动完成
-            var isStartupComplete = currentState != SystemState.Booting;
-            
-            var response = new ProcessHealthResponse
-            {
-                Status = isStartupComplete ? "Healthy" : "Starting",
-                Reason = isStartupComplete ? null : "系统正在启动中",
-                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
-            };
-
-            if (isStartupComplete)
-            {
-                return Ok(response);
-            }
-            else
-            {
-                return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "启动健康检查失败");
-            var response = new ProcessHealthResponse
-            {
-                Status = "Unhealthy",
-                Reason = "启动检查失败",
                 Timestamp = new DateTimeOffset(_systemClock.LocalNow)
             };
             return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
@@ -227,32 +167,6 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// 线体级健康检查端点（向后兼容）
-    /// </summary>
-    /// <returns>详细的系统健康状态</returns>
-    /// <response code="200">线体健康且自检成功</response>
-    /// <response code="503">线体故障或自检失败</response>
-    /// <remarks>
-    /// 此端点保持向后兼容性。建议使用 /health/ready 端点。
-    /// </remarks>
-    [HttpGet("health/line")]
-    [SwaggerOperation(
-        Summary = "线体级健康检查（向后兼容）",
-        Description = "返回详细的自检结果，建议使用 /health/ready 端点",
-        OperationId = "GetLineHealth",
-        Tags = new[] { "健康检查" }
-    )]
-    [SwaggerResponse(200, "线体健康且自检成功", typeof(LineHealthResponse))]
-    [SwaggerResponse(503, "线体故障或自检失败", typeof(LineHealthResponse))]
-    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(LineHealthResponse), StatusCodes.Status503ServiceUnavailable)]
-    public Task<IActionResult> GetLineHealth()
-    {
-        // 重定向到新的 ready 端点
-        return GetReadinessHealth();
-    }
-
-    /// <summary>
     /// 运行前健康检查端点（Pre-Run Check）
     /// </summary>
     /// <returns>运行前检查结果</returns>
@@ -266,6 +180,7 @@ public class HealthController : ControllerBase
     /// - 启动/停止/急停/面板灯等 IO 是否全部配置完毕
     /// - 摆轮拓扑是否完整（至少有一条从入口到首个摆轮的有效路径）
     /// - 线体拓扑中线体长度和线速度是否配置完整且合法
+    /// - 上游连接是否已配置
     /// - 其他关键基础运行条件是否满足
     /// 
     /// 返回结构化 JSON，包含 overallStatus 与逐项检查状态，所有 message 为中文描述。
@@ -274,7 +189,7 @@ public class HealthController : ControllerBase
     [HttpGet("health/prerun")]
     [SwaggerOperation(
         Summary = "运行前健康检查（Pre-Run Check）",
-        Description = "验证系统基础运行条件是否就绪，包括异常口、面板IO、拓扑、线体段配置等",
+        Description = "验证系统基础运行条件是否就绪，包括异常口、面板IO、拓扑、线体段配置、上游连接等",
         OperationId = "GetPreRunHealth",
         Tags = new[] { "健康检查" }
     )]
@@ -342,6 +257,84 @@ public class HealthController : ControllerBase
                     }
                 }
             });
+        }
+    }
+
+    /// <summary>
+    /// 驱动器健康检查端点
+    /// </summary>
+    /// <returns>驱动器健康状态</returns>
+    /// <response code="200">所有驱动器健康</response>
+    /// <response code="503">部分或全部驱动器不健康</response>
+    /// <remarks>
+    /// 返回所有驱动器的详细健康状态，包括：
+    /// - 驱动器名称
+    /// - 健康状态
+    /// - 错误代码（如果不健康）
+    /// - 错误消息（如果不健康）
+    /// - 检查时间
+    /// </remarks>
+    [HttpGet("health/drivers")]
+    [SwaggerOperation(
+        Summary = "驱动器健康检查",
+        Description = "返回所有驱动器的健康状态和错误详情",
+        OperationId = "GetDriversHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "所有驱动器健康", typeof(DriversHealthResponse))]
+    [SwaggerResponse(503, "部分或全部驱动器不健康", typeof(DriversHealthResponse))]
+    [ProducesResponseType(typeof(DriversHealthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DriversHealthResponse), StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> GetDriversHealth()
+    {
+        try
+        {
+            // 使用 IHealthStatusProvider 获取健康快照
+            var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
+
+            var drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
+            {
+                DriverName = d.DriverName,
+                IsHealthy = d.IsHealthy,
+                ErrorCode = d.ErrorCode,
+                ErrorMessage = d.ErrorMessage,
+                CheckedAt = d.CheckedAt
+            }).ToList() ?? new List<DriverHealthInfo>();
+
+            var allHealthy = drivers.All(d => d.IsHealthy);
+
+            var response = new DriversHealthResponse
+            {
+                OverallStatus = allHealthy ? "Healthy" : "Unhealthy",
+                TotalDrivers = drivers.Count,
+                HealthyDrivers = drivers.Count(d => d.IsHealthy),
+                UnhealthyDrivers = drivers.Count(d => !d.IsHealthy),
+                Drivers = drivers,
+                CheckedAt = new DateTimeOffset(_systemClock.LocalNow)
+            };
+
+            if (allHealthy)
+            {
+                return Ok(response);
+            }
+            else
+            {
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "驱动器健康检查失败");
+            var response = new DriversHealthResponse
+            {
+                OverallStatus = "Unknown",
+                TotalDrivers = 0,
+                HealthyDrivers = 0,
+                UnhealthyDrivers = 0,
+                Drivers = new List<DriverHealthInfo>(),
+                CheckedAt = new DateTimeOffset(_systemClock.LocalNow)
+            };
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }
     }
 
@@ -560,4 +553,28 @@ public class HealthCheckItemResponse
 
     /// <summary>检查结果描述（中文消息）</summary>
     public required string Message { get; init; }
+}
+
+/// <summary>
+/// 驱动器健康检查响应
+/// </summary>
+public class DriversHealthResponse
+{
+    /// <summary>整体状态: Healthy/Unhealthy/Unknown</summary>
+    public required string OverallStatus { get; init; }
+
+    /// <summary>驱动器总数</summary>
+    public int TotalDrivers { get; init; }
+
+    /// <summary>健康驱动器数量</summary>
+    public int HealthyDrivers { get; init; }
+
+    /// <summary>不健康驱动器数量</summary>
+    public int UnhealthyDrivers { get; init; }
+
+    /// <summary>驱动器详细信息列表</summary>
+    public required List<DriverHealthInfo> Drivers { get; init; }
+
+    /// <summary>检查时间</summary>
+    public DateTimeOffset CheckedAt { get; init; }
 }

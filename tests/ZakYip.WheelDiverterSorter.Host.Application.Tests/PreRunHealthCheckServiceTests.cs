@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -16,6 +17,7 @@ public class PreRunHealthCheckServiceTests
     private readonly Mock<ISystemConfigurationRepository> _mockSystemConfigRepo;
     private readonly Mock<IPanelConfigurationRepository> _mockPanelConfigRepo;
     private readonly Mock<ILineTopologyRepository> _mockTopologyRepo;
+    private readonly Mock<ICommunicationConfigurationRepository> _mockCommunicationConfigRepo;
     private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
     private readonly Mock<ILogger<PreRunHealthCheckService>> _mockLogger;
     private readonly PreRunHealthCheckService _service;
@@ -25,6 +27,7 @@ public class PreRunHealthCheckServiceTests
         _mockSystemConfigRepo = new Mock<ISystemConfigurationRepository>();
         _mockPanelConfigRepo = new Mock<IPanelConfigurationRepository>();
         _mockTopologyRepo = new Mock<ILineTopologyRepository>();
+        _mockCommunicationConfigRepo = new Mock<ICommunicationConfigurationRepository>();
         _mockSafeExecutor = new Mock<ISafeExecutionService>();
         _mockLogger = new Mock<ILogger<PreRunHealthCheckService>>();
 
@@ -38,10 +41,18 @@ public class PreRunHealthCheckServiceTests
             .Returns<Func<Task<HealthCheckItem>>, string, HealthCheckItem, CancellationToken>(
                 (func, _, _, _) => func());
 
+        // 设置默认的通信配置（有效配置）
+        _mockCommunicationConfigRepo.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "192.168.1.100:8000"
+        });
+
         _service = new PreRunHealthCheckService(
             _mockSystemConfigRepo.Object,
             _mockPanelConfigRepo.Object,
             _mockTopologyRepo.Object,
+            _mockCommunicationConfigRepo.Object,
             _mockSafeExecutor.Object,
             _mockLogger.Object
         );
@@ -605,6 +616,181 @@ public class PreRunHealthCheckServiceTests
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
+    }
+
+    #endregion
+
+    #region 线体段配置检查测试 - 新增：线体段为0检查
+
+    [Fact]
+    public async Task CheckLineSegments_WhenLineSegmentsCountIsZero_ShouldReturnUnhealthy()
+    {
+        // Arrange
+        var systemConfig = new SystemConfiguration { ExceptionChuteId = 999 };
+        _mockSystemConfigRepo.Setup(r => r.Get()).Returns(systemConfig);
+
+        var panelConfig = PanelConfiguration.GetDefault() with { Enabled = false };
+        _mockPanelConfigRepo.Setup(r => r.Get()).Returns(panelConfig);
+
+        // 创建一个没有线体段的拓扑
+        var topology = new LineTopologyConfig
+        {
+            TopologyId = "TEST-TOPOLOGY",
+            TopologyName = "Test Topology",
+            WheelNodes = new[]
+            {
+                new WheelNodeConfig
+                {
+                    NodeId = "WHEEL-1",
+                    PositionIndex = 0,
+                    NodeName = "First Wheel",
+                }
+            },
+            Chutes = new[]
+            {
+                new ChuteConfig
+                {
+                    ChuteId = "999",
+                    ChuteName = "Exception Chute",
+                    BoundNodeId = "WHEEL-1",
+                    BoundDirection = "Right"
+                }
+            },
+            LineSegments = Array.Empty<LineSegmentConfig>(), // 没有线体段
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+        _mockTopologyRepo.Setup(r => r.Get()).Returns(topology);
+
+        // Act
+        var result = await _service.ExecuteAsync();
+
+        // Assert
+        Assert.Equal("Unhealthy", result.OverallStatus);
+        var lineSegmentsCheck = result.Checks.FirstOrDefault(c => c.Name == "LineSegmentsLengthAndSpeedValid");
+        Assert.NotNull(lineSegmentsCheck);
+        Assert.Equal("Unhealthy", lineSegmentsCheck.Status);
+        Assert.Contains("线体段数量为0", lineSegmentsCheck.Message);
+    }
+
+    #endregion
+
+    #region 上游连接配置检查测试 - 新增
+
+    [Fact]
+    public async Task CheckUpstreamConnection_WhenConfigIsNull_ShouldReturnUnhealthy()
+    {
+        // Arrange
+        var systemConfig = new SystemConfiguration { ExceptionChuteId = 999 };
+        _mockSystemConfigRepo.Setup(r => r.Get()).Returns(systemConfig);
+
+        var panelConfig = PanelConfiguration.GetDefault() with { Enabled = false };
+        _mockPanelConfigRepo.Setup(r => r.Get()).Returns(panelConfig);
+
+        var topology = CreateMinimalValidTopology();
+        _mockTopologyRepo.Setup(r => r.Get()).Returns(topology);
+
+        _mockCommunicationConfigRepo.Setup(r => r.Get()).Returns((CommunicationConfiguration)null!);
+
+        // Act
+        var result = await _service.ExecuteAsync();
+
+        // Assert
+        Assert.Equal("Unhealthy", result.OverallStatus);
+        var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
+        Assert.NotNull(upstreamCheck);
+        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Contains("上游通信配置未初始化", upstreamCheck.Message);
+    }
+
+    [Fact]
+    public async Task CheckUpstreamConnection_WhenTcpModeButNoServer_ShouldReturnUnhealthy()
+    {
+        // Arrange
+        var systemConfig = new SystemConfiguration { ExceptionChuteId = 999 };
+        _mockSystemConfigRepo.Setup(r => r.Get()).Returns(systemConfig);
+
+        var panelConfig = PanelConfiguration.GetDefault() with { Enabled = false };
+        _mockPanelConfigRepo.Setup(r => r.Get()).Returns(panelConfig);
+
+        var topology = CreateMinimalValidTopology();
+        _mockTopologyRepo.Setup(r => r.Get()).Returns(topology);
+
+        // TCP模式但未配置服务器地址
+        _mockCommunicationConfigRepo.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            TcpServer = null // 未配置
+        });
+
+        // Act
+        var result = await _service.ExecuteAsync();
+
+        // Assert
+        Assert.Equal("Unhealthy", result.OverallStatus);
+        var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
+        Assert.NotNull(upstreamCheck);
+        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Contains("上游连接未配置", upstreamCheck.Message);
+        Assert.Contains("Tcp", upstreamCheck.Message);
+    }
+
+    [Fact]
+    public async Task CheckUpstreamConnection_WhenMqttModeButNoBroker_ShouldReturnUnhealthy()
+    {
+        // Arrange
+        var systemConfig = new SystemConfiguration { ExceptionChuteId = 999 };
+        _mockSystemConfigRepo.Setup(r => r.Get()).Returns(systemConfig);
+
+        var panelConfig = PanelConfiguration.GetDefault() with { Enabled = false };
+        _mockPanelConfigRepo.Setup(r => r.Get()).Returns(panelConfig);
+
+        var topology = CreateMinimalValidTopology();
+        _mockTopologyRepo.Setup(r => r.Get()).Returns(topology);
+
+        // MQTT模式但未配置Broker地址
+        _mockCommunicationConfigRepo.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Mqtt,
+            MqttBroker = "" // 未配置
+        });
+
+        // Act
+        var result = await _service.ExecuteAsync();
+
+        // Assert
+        Assert.Equal("Unhealthy", result.OverallStatus);
+        var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
+        Assert.NotNull(upstreamCheck);
+        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Contains("上游连接未配置", upstreamCheck.Message);
+        Assert.Contains("Mqtt", upstreamCheck.Message);
+    }
+
+    [Fact]
+    public async Task CheckUpstreamConnection_WhenProperlyConfigured_ShouldReturnHealthy()
+    {
+        // Arrange
+        SetupValidSystemConfig();
+        SetupValidPanelConfig();
+        SetupValidTopology();
+
+        // 正确配置
+        _mockCommunicationConfigRepo.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "192.168.1.100:8000"
+        });
+
+        // Act
+        var result = await _service.ExecuteAsync();
+
+        // Assert
+        Assert.Equal("Healthy", result.OverallStatus);
+        var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
+        Assert.NotNull(upstreamCheck);
+        Assert.Equal("Healthy", upstreamCheck.Status);
+        Assert.Contains("上游连接已配置", upstreamCheck.Message);
     }
 
     #endregion

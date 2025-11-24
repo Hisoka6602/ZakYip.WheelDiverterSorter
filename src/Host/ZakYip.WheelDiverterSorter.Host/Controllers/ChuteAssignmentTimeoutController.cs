@@ -38,10 +38,15 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
     /// <returns>当前超时配置</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回当前格口分配超时的配置参数，包括安全系数和计算出的有效超时时间。
+    /// 
+    /// **重要**: 当格口分配超时时，不会进行重试或降级，包裹将直接路由到异常格口。
+    /// </remarks>
     [HttpGet]
     [SwaggerOperation(
         Summary = "获取格口分配超时配置",
-        Description = "返回当前格口分配超时的配置参数，包括安全系数和计算出的有效超时时间",
+        Description = "返回当前格口分配超时的配置参数。超时/失败时包裹直接路由到异常格口，不进行重试或降级。",
         OperationId = "GetChuteAssignmentTimeout",
         Tags = new[] { "格口分配超时配置" }
     )]
@@ -106,13 +111,20 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 更新格口分配超时的配置参数。
+    /// 超时时间由线体拓扑（入口到第一个摆轮的距离和速度）× 安全系数计算。
+    /// 安全系数必须在0.1到1.0之间，不允许超过1.0（物理极限）。
+    /// 
+    /// **重要**: 当格口分配超时时，不会进行重试或降级，包裹将直接路由到异常格口。
+    /// 此超时配置用于确定等待上游分配指令的最大时间。
+    /// 
+    /// 配置会立即生效无需重启。
+    /// </remarks>
     [HttpPut]
     [SwaggerOperation(
         Summary = "更新格口分配超时配置",
-        Description = "更新格口分配超时的配置参数。" +
-                      "超时时间由线体拓扑（入口到第一个摆轮的距离和速度）× 安全系数计算。" +
-                      "安全系数必须在0.1到1.0之间，不允许超过1.0（物理极限）。" +
-                      "配置会立即生效无需重启。",
+        Description = "更新格口分配超时的配置参数。超时/失败时包裹直接路由到异常格口，不进行重试或降级。",
         OperationId = "UpdateChuteAssignmentTimeout",
         Tags = new[] { "格口分配超时配置" }
     )]
