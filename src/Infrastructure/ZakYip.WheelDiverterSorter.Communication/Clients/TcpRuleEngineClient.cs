@@ -158,7 +158,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     /// 通知RuleEngine包裹已到达
     /// </summary>
     /// <remarks>
-    /// TCP客户端使用请求/响应模型的内部实现来模拟推送模型
+    /// TCP客户端发送通知后不等待响应，响应通过服务器推送接收（如果启用了服务器模式）
     /// 根据系统规则：发送失败只记录日志，不进行重试
     /// </remarks>
     public override async Task<bool> NotifyParcelDetectedAsync(
@@ -175,7 +175,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
 
         try
         {
-            await SendRequestAsync(parcelId, cancellationToken);
+            await SendNotificationAsync(parcelId, cancellationToken);
             return true;
         }
         catch (Exception ex)
@@ -190,54 +190,28 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         }
     }
 
-    private async Task SendRequestAsync(long parcelId, CancellationToken cancellationToken)
+    /// <summary>
+    /// 发送包裹检测通知（不等待响应）
+    /// </summary>
+    private async Task SendNotificationAsync(long parcelId, CancellationToken cancellationToken)
     {
-        // 构造请求
-        var request = new ChuteAssignmentRequest 
+        // 构造通知
+        var notification = new ParcelDetectionNotification 
         { 
             ParcelId = parcelId,
-            RequestTime = SystemClock.LocalNowOffset
+            DetectionTime = SystemClock.LocalNowOffset
         };
-        var requestJson = JsonSerializer.Serialize(request);
-        var requestBytes = Encoding.UTF8.GetBytes(requestJson + "\n");
+        var notificationJson = JsonSerializer.Serialize(notification);
+        var notificationBytes = Encoding.UTF8.GetBytes(notificationJson + "\n");
 
-        // 发送请求
+        // 发送通知（不等待响应）
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(Options.TimeoutMs);
 
-        await _stream!.WriteAsync(requestBytes, cts.Token);
+        await _stream!.WriteAsync(notificationBytes, cts.Token);
         await _stream.FlushAsync(cts.Token);
 
-        // 读取响应
-        var buffer = new byte[Options.Tcp.ReceiveBufferSize];
-        var bytesRead = await _stream.ReadAsync(buffer, cts.Token);
-
-        if (bytesRead == 0)
-        {
-            throw new IOException("服务器关闭了连接");
-        }
-
-        var responseJson = Encoding.UTF8.GetString(buffer, 0, bytesRead).Trim();
-        var response = JsonSerializer.Deserialize<ChuteAssignmentResponse>(responseJson);
-
-        if (response == null)
-        {
-            throw new InvalidOperationException("响应反序列化失败");
-        }
-
-        Logger.LogInformation(
-            "成功获取包裹 {ParcelId} 的格口号: {ChuteId}",
-            parcelId,
-            response.ChuteId);
-
-        // 触发事件
-        var notification = new ChuteAssignmentNotificationEventArgs
-        {
-            ParcelId = response.ParcelId,
-            ChuteId = response.ChuteId,
-            NotificationTime = response.ResponseTime
-        };
-        OnChuteAssignmentReceived(notification);
+        Logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
     }
 
     /// <summary>
