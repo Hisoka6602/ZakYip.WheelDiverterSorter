@@ -436,16 +436,6 @@ public class HealthController : ControllerBase
             RecentCriticalAlerts = null // 可以从 AlertHistoryService 获取，但快照中已有计数
         };
     }
-
-    private static string? GetCongestionLevelDescription(SystemState state)
-    {
-        return state switch
-        {
-            SystemState.Faulted => "Critical",
-            SystemState.EmergencyStop => "Critical",
-            _ => "Normal"
-        };
-    }
 }
 
 /// <summary>
