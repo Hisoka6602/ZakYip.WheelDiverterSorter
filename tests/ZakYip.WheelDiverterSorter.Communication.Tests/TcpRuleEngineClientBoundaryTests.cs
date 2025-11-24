@@ -7,14 +7,7 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -134,7 +127,6 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 1000
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
         // Act
         var result = await client.ConnectAsync();
@@ -155,7 +147,6 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
         await client.ConnectAsync();
 
         // Create a large payload (1MB)
@@ -175,7 +166,6 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         {
             TcpServer = $"localhost:{_testPort}"
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
         // Act - Try to connect concurrently
         var tasks = Enumerable.Range(0, 10)
@@ -198,7 +188,6 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         {
             TcpServer = $"localhost:{_testPort}"
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
         await client.ConnectAsync();
 
         // Act - Try to disconnect concurrently
@@ -253,7 +242,6 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{port}",
             TimeoutMs = 500
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
         // Act
         var result = await client.ConnectAsync();

@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.IoBinding;
 

@@ -54,7 +54,6 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
     {
         // Arrange
         // Don't start mock server
-        using var client = CreateClient();
 
         // Act
         var result = await client.ConnectAsync();
@@ -71,7 +70,6 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await StartMockServerAsync();
         await ConfigureMockServerBehaviorAsync(MockServerBehavior.PushNormally);
         
-        using var client = CreateClient();
         await client.ConnectAsync();
 
         var tcs = new TaskCompletionSource<ChuteAssignmentNotificationEventArgs>();
@@ -103,7 +101,6 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await StartMockServerAsync();
         await ConfigureMockServerBehaviorAsync(MockServerBehavior.NeverPush);
         
-        using var client = CreateClient();
         await client.ConnectAsync();
 
         var tcs = new TaskCompletionSource<ChuteAssignmentNotificationEventArgs>();
@@ -145,7 +142,6 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
     {
         // Arrange
         await StartMockServerAsync();
-        using var client = CreateClient();
         await client.ConnectAsync();
 
         // Act - Simulate connection loss
@@ -166,7 +162,6 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
     {
         // Arrange
         await StartMockServerAsync();
-        using var client = CreateClient();
         await client.ConnectAsync();
 
         // Act
@@ -183,7 +178,6 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await StartMockServerAsync();
         await ConfigureMockServerBehaviorAsync(MockServerBehavior.PushNormally);
         
-        using var client = CreateClient();
         await client.ConnectAsync();
 
         var notifications = new List<ChuteAssignmentNotificationEventArgs>();

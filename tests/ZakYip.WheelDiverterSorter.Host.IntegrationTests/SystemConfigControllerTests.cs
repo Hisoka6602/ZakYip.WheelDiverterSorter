@@ -1,7 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 

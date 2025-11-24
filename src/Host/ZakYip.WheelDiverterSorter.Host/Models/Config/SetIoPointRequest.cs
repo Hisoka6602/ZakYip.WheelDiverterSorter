@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 

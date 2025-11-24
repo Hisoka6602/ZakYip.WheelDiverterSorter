@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Observability;
 using Swashbuckle.AspNetCore.Annotations;
-using ZakYip.WheelDiverterSorter.Core.Enums.Observability;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 

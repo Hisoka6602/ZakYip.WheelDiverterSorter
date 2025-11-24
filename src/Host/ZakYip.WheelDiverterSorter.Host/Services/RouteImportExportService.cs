@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -129,7 +129,6 @@ public class RouteImportExportService : IRouteImportExportService
 
     public List<RouteConfigRequest> ImportFromCsv(Stream stream)
     {
-        using var reader = new StreamReader(stream);
         var routes = new Dictionary<int, RouteConfigRequest>();
 
         // 跳过头部

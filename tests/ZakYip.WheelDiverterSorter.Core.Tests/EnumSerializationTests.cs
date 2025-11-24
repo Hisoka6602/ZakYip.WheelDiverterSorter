@@ -1,12 +1,7 @@
 using Xunit;
 using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
@@ -86,8 +81,8 @@ public class EnumSerializationTests : IDisposable
         repository.Update(config);
 
         // Assert - Read raw BSON to verify enum is stored as string
-        using var db = new LiteDatabase($"Filename={_testDbPath};Connection=shared", LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection("CommunicationConfiguration");
+        using var db2 = new LiteDatabase($"Filename={_testDbPath};Connection=shared", LiteDbMapperConfig.CreateConfiguredMapper());
+        var collection = db2.GetCollection("CommunicationConfiguration");
         var doc = collection.FindAll().FirstOrDefault();
         
         Assert.NotNull(doc);
@@ -125,8 +120,8 @@ public class EnumSerializationTests : IDisposable
         repository.Upsert(config);
 
         // Assert - Read raw BSON to verify enum is stored as string
-        using var db = new LiteDatabase($"Filename={_testDbPath};Connection=shared", LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection("ChuteRoutes");
+        using var db3 = new LiteDatabase($"Filename={_testDbPath};Connection=shared", LiteDbMapperConfig.CreateConfiguredMapper());
+        var collection = db3.GetCollection("ChuteRoutes");
         var doc = collection.FindAll().FirstOrDefault();
         
         Assert.NotNull(doc);

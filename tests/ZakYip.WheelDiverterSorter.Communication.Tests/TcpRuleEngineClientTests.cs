@@ -8,14 +8,7 @@ using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
-using ZakYip.WheelDiverterSorter.Core.Enums.Conveyor;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Enums.IoBinding;
-using ZakYip.WheelDiverterSorter.Core.Enums.Routing;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -97,7 +90,6 @@ public class TcpRuleEngineClientTests : IDisposable
             TcpServer = "localhost:19999",
             TimeoutMs = 1000
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
         // Act
         var result = await client.ConnectAsync();
@@ -116,7 +108,6 @@ public class TcpRuleEngineClientTests : IDisposable
         {
             TcpServer = $"localhost:{_testPort}"
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
         await client.ConnectAsync();
 
         // Act
@@ -136,7 +127,6 @@ public class TcpRuleEngineClientTests : IDisposable
         {
             TcpServer = $"localhost:{_testPort}"
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
         await client.ConnectAsync();
 
         // Act
@@ -154,7 +144,6 @@ public class TcpRuleEngineClientTests : IDisposable
         {
             TcpServer = "localhost:19999"
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
         // Act & Assert (should not throw)
         await client.DisconnectAsync();
@@ -171,7 +160,6 @@ public class TcpRuleEngineClientTests : IDisposable
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000
         };
-        using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
         var parcelId = 123456789L;
         ChuteAssignmentNotificationEventArgs? receivedNotification = null;
 

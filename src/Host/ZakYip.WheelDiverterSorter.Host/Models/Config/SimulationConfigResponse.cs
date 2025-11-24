@@ -1,5 +1,5 @@
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Enums.Simulation;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 

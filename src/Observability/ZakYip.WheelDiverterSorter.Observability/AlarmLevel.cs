@@ -2,7 +2,7 @@
 // The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Observability namespace.
 
 // Re-export the enum from Core.Enums.Observability for backward compatibility
-global using AlarmLevel = ZakYip.WheelDiverterSorter.Core.Enums.Observability.AlarmLevel;
+global using AlarmLevel = ZakYip.WheelDiverterSorter.Core.Enums.AlarmLevel;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 

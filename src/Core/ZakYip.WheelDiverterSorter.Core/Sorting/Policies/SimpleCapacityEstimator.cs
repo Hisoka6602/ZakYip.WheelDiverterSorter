@@ -1,5 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
