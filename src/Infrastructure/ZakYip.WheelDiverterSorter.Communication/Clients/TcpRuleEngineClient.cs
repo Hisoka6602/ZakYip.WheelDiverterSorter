@@ -23,6 +23,8 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     private TcpClient? _client;
     private NetworkStream? _stream;
     private bool _isConnected;
+    private Task? _receiveTask;
+    private CancellationTokenSource? _receiveCts;
 
     /// <summary>
     /// 客户端是否已连接
@@ -114,6 +116,9 @@ public class TcpRuleEngineClient : RuleEngineClientBase
             _stream = _client.GetStream();
             _isConnected = true;
 
+            // 启动后台消息接收任务
+            StartReceiveLoop();
+
             Logger.LogInformation(
                 "成功连接到RuleEngine TCP服务器 (缓冲区: {Buffer}KB, NoDelay: {NoDelay})",
                 Options.Tcp.ReceiveBufferSize / 1024,
@@ -141,6 +146,9 @@ public class TcpRuleEngineClient : RuleEngineClientBase
 
         try
         {
+            // 停止接收循环
+            StopReceiveLoop();
+            
             _stream?.Close();
             _client?.Close();
             _isConnected = false;
@@ -215,6 +223,311 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     }
 
     /// <summary>
+    /// 启动后台消息接收循环
+    /// </summary>
+    private void StartReceiveLoop()
+    {
+        // 如果已经有接收任务在运行，先停止
+        StopReceiveLoop();
+
+        _receiveCts = new CancellationTokenSource();
+        var cancellationToken = _receiveCts.Token;
+
+        _receiveTask = Task.Run(async () =>
+        {
+            try
+            {
+                await ReceiveLoopAsync(cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                Logger.LogDebug("TCP消息接收循环已取消");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "TCP消息接收循环发生异常");
+            }
+        }, cancellationToken);
+    }
+
+    /// <summary>
+    /// 停止后台消息接收循环
+    /// </summary>
+    private void StopReceiveLoop()
+    {
+        try
+        {
+            _receiveCts?.Cancel();
+            _receiveTask?.Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is OperationCanceledException))
+        {
+            // 预期的取消异常，忽略
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "停止接收循环时发生异常");
+        }
+        finally
+        {
+            _receiveCts?.Dispose();
+            _receiveCts = null;
+            _receiveTask = null;
+        }
+    }
+
+    /// <summary>
+    /// 消息接收循环（后台任务）
+    /// </summary>
+    private async Task ReceiveLoopAsync(CancellationToken cancellationToken)
+    {
+        var buffer = new byte[Options.Tcp.ReceiveBufferSize];
+        var messageBuffer = new StringBuilder();
+
+        Logger.LogDebug("TCP消息接收循环已启动");
+
+        while (!cancellationToken.IsCancellationRequested && IsConnected)
+        {
+            try
+            {
+                // 读取数据
+                var bytesRead = await _stream!.ReadAsync(buffer, cancellationToken);
+
+                if (bytesRead == 0)
+                {
+                    // 连接已关闭
+                    Logger.LogWarning("TCP连接已被服务器关闭");
+                    _isConnected = false;
+                    break;
+                }
+
+                // 解析消息
+                var receivedText = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                messageBuffer.Append(receivedText);
+
+                // 尝试处理缓冲区中的所有完整消息
+                ProcessMessagesInBuffer(messageBuffer);
+            }
+            catch (OperationCanceledException)
+            {
+                throw; // 传播取消异常
+            }
+            catch (IOException ex)
+            {
+                Logger.LogWarning(ex, "TCP读取数据时发生IO异常");
+                _isConnected = false;
+                break;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "TCP接收消息时发生异常");
+            }
+        }
+
+        Logger.LogDebug("TCP消息接收循环已结束");
+    }
+
+    /// <summary>
+    /// 处理缓冲区中的消息
+    /// </summary>
+    /// <remarks>
+    /// 支持两种消息格式：
+    /// 1. 以换行符分隔的多条消息
+    /// 2. 多条连续的JSON消息（无换行符）
+    /// </remarks>
+    private void ProcessMessagesInBuffer(StringBuilder messageBuffer)
+    {
+        var bufferContent = messageBuffer.ToString();
+        
+        // 如果包含换行符，按换行符分割处理
+        if (bufferContent.Contains('\n'))
+        {
+            var messages = bufferContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            
+            // 如果最后一个字符不是换行符，保留最后一条不完整的消息
+            if (!bufferContent.EndsWith('\n') && messages.Length > 0)
+            {
+                messageBuffer.Clear();
+                messageBuffer.Append(messages[^1]);
+                messages = messages[..^1];
+            }
+            else
+            {
+                messageBuffer.Clear();
+            }
+
+            // 处理完整消息
+            foreach (var message in messages)
+            {
+                if (!string.IsNullOrWhiteSpace(message))
+                {
+                    ProcessReceivedMessage(message.Trim());
+                }
+            }
+        }
+        else
+        {
+            // 尝试从缓冲区中提取所有完整的JSON对象
+            var extractedMessages = ExtractJsonMessages(bufferContent);
+            
+            if (extractedMessages.Count > 0)
+            {
+                // 处理所有提取的消息
+                foreach (var message in extractedMessages)
+                {
+                    ProcessReceivedMessage(message);
+                }
+                
+                // 清除已处理的部分，保留未完成的部分
+                var processedLength = extractedMessages.Sum(m => m.Length);
+                if (processedLength < bufferContent.Length)
+                {
+                    messageBuffer.Remove(0, processedLength);
+                }
+                else
+                {
+                    messageBuffer.Clear();
+                }
+            }
+            // 如果没有提取到完整的JSON，保持缓冲区不变，等待更多数据
+        }
+    }
+
+    /// <summary>
+    /// 从字符串中提取所有完整的JSON对象
+    /// </summary>
+    /// <remarks>
+    /// 处理可能连续的多个JSON对象，如: {"a":1}{"b":2}{"c":3}
+    /// </remarks>
+    private static List<string> ExtractJsonMessages(string text)
+    {
+        var messages = new List<string>();
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return messages;
+        }
+
+        var startIndex = 0;
+        while (startIndex < text.Length)
+        {
+            // 跳过空白字符
+            while (startIndex < text.Length && char.IsWhiteSpace(text[startIndex]))
+            {
+                startIndex++;
+            }
+
+            if (startIndex >= text.Length)
+            {
+                break;
+            }
+
+            // 查找JSON对象的开始
+            if (text[startIndex] != '{')
+            {
+                break; // 不是有效的JSON开始
+            }
+
+            // 查找匹配的结束括号
+            var braceCount = 0;
+            var endIndex = startIndex;
+            var inString = false;
+            var escapeNext = false;
+
+            for (int i = startIndex; i < text.Length; i++)
+            {
+                var c = text[i];
+
+                if (escapeNext)
+                {
+                    escapeNext = false;
+                    continue;
+                }
+
+                if (c == '\\')
+                {
+                    escapeNext = true;
+                    continue;
+                }
+
+                if (c == '"')
+                {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (!inString)
+                {
+                    if (c == '{')
+                    {
+                        braceCount++;
+                    }
+                    else if (c == '}')
+                    {
+                        braceCount--;
+                        if (braceCount == 0)
+                        {
+                            endIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 如果找到完整的JSON对象
+            if (braceCount == 0 && endIndex > startIndex)
+            {
+                var jsonMessage = text.Substring(startIndex, endIndex - startIndex + 1);
+                messages.Add(jsonMessage);
+                startIndex = endIndex + 1;
+            }
+            else
+            {
+                // 没有找到完整的JSON，退出循环
+                break;
+            }
+        }
+
+        return messages;
+    }
+
+    /// <summary>
+    /// 处理接收到的消息
+    /// </summary>
+    private void ProcessReceivedMessage(string messageJson)
+    {
+        try
+        {
+            Logger.LogDebug("收到TCP消息: {Message}", messageJson);
+
+            // 尝试解析为格口分配通知
+            var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(messageJson);
+
+            if (notification != null)
+            {
+                Logger.LogInformation(
+                    "收到包裹 {ParcelId} 的格口分配: {ChuteId}",
+                    notification.ParcelId,
+                    notification.ChuteId);
+
+                // 触发事件
+                OnChuteAssignmentReceived(notification);
+            }
+            else
+            {
+                Logger.LogWarning("无法解析TCP消息为格口分配通知: {Message}", messageJson);
+            }
+        }
+        catch (JsonException ex)
+        {
+            Logger.LogError(ex, "解析TCP消息时发生JSON异常: {Message}", messageJson);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "处理TCP消息时发生异常: {Message}", messageJson);
+        }
+    }
+
+    /// <summary>
     /// 释放托管和非托管资源
     /// </summary>
     protected override void Dispose(bool disposing)
@@ -223,6 +536,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         {
             try
             {
+                StopReceiveLoop();
                 _stream?.Close();
                 _client?.Close();
                 _isConnected = false;
