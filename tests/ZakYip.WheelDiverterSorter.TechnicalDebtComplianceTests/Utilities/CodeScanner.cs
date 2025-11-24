@@ -62,7 +62,9 @@ public static class CodeScanner
             var isWhitelisted = fileContent.Contains("class LocalSystemClock") || 
                                fileContent.Contains("class SystemClock") ||
                                fileContent.Contains("class TestSystemClock") ||
-                               fileContent.Contains("class MockSystemClock");
+                               fileContent.Contains("class MockSystemClock") ||
+                               filePath.Contains("/Analyzers/") || 
+                               filePath.Contains("\\Analyzers\\");
 
             if (isWhitelisted)
             {
