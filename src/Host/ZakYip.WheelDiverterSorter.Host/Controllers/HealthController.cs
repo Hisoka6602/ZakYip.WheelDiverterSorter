@@ -5,6 +5,8 @@ using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Runtime.Health;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Models;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -23,12 +25,14 @@ public class HealthController : ControllerBase
     private readonly IPreRunHealthCheckService? _preRunHealthCheckService;
     private readonly ISystemClock _systemClock;
     private readonly ILogger<HealthController> _logger;
+    private readonly ISimulationModeProvider _simulationModeProvider;
 
     public HealthController(
         ISystemStateManager stateManager,
         IHealthStatusProvider healthStatusProvider,
         ISystemClock systemClock,
         ILogger<HealthController> logger,
+        ISimulationModeProvider simulationModeProvider,
         IPreRunHealthCheckService? preRunHealthCheckService = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
@@ -36,6 +40,7 @@ public class HealthController : ControllerBase
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _preRunHealthCheckService = preRunHealthCheckService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _simulationModeProvider = simulationModeProvider ?? throw new ArgumentNullException(nameof(simulationModeProvider));
     }
 
     /// <summary>
@@ -86,6 +91,50 @@ public class HealthController : ControllerBase
             };
             return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
         }
+    }
+
+    /// <summary>
+    /// 系统状态查询端点（支持高并发）
+    /// </summary>
+    /// <returns>当前系统状态和运行环境模式</returns>
+    /// <response code="200">查询成功</response>
+    /// <remarks>
+    /// 用于快速查询系统当前状态和运行环境，支持超高并发查询（可能100ms会调用一次）。
+    /// 此端点设计为轻量级，仅返回系统状态和环境模式两个核心信息：
+    /// 
+    /// - **SystemState**: 当前系统状态（Ready/Running/Paused/Faulted/EmergencyStop/Booting）
+    /// - **EnvironmentMode**: 运行环境模式
+    ///   - "Production": 正式环境（使用真实硬件驱动）
+    ///   - "Simulation": 仿真环境（使用模拟驱动）
+    /// 
+    /// 此端点适用于：
+    /// - 前端UI实时状态显示
+    /// - 监控系统定时轮询
+    /// - 负载均衡器健康检查
+    /// - 第三方系统集成
+    /// </remarks>
+    [HttpGet("api/system/status")]
+    [SwaggerOperation(
+        Summary = "查询系统状态和环境模式",
+        Description = "快速查询系统当前状态和运行环境（正式/仿真），支持高并发查询",
+        OperationId = "GetSystemStatus",
+        Tags = new[] { "系统状态" }
+    )]
+    [SwaggerResponse(200, "查询成功", typeof(SystemStatusResponse))]
+    [ProducesResponseType(typeof(SystemStatusResponse), StatusCodes.Status200OK)]
+    public IActionResult GetSystemStatus()
+    {
+        var currentState = _stateManager.CurrentState;
+        var isSimulation = _simulationModeProvider.IsSimulationMode();
+        
+        var response = new SystemStatusResponse
+        {
+            SystemState = currentState.ToString(),
+            EnvironmentMode = isSimulation ? "Simulation" : "Production",
+            Timestamp = _systemClock.LocalNowOffset
+        };
+
+        return Ok(response);
     }
 
     /// <summary>
@@ -385,16 +434,6 @@ public class HealthController : ControllerBase
             DiagnosticsLevel = snapshot.DiagnosticsLevel,
             ConfigVersion = snapshot.ConfigVersion,
             RecentCriticalAlerts = null // 可以从 AlertHistoryService 获取，但快照中已有计数
-        };
-    }
-
-    private static string? GetCongestionLevelDescription(SystemState state)
-    {
-        return state switch
-        {
-            SystemState.Faulted => "Critical",
-            SystemState.EmergencyStop => "Critical",
-            _ => "Normal"
         };
     }
 }

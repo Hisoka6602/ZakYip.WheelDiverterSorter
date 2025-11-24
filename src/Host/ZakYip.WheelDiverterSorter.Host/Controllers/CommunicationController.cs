@@ -690,10 +690,10 @@ public class CommunicationController : ControllerBase {
         Tags = new[] { "通信管理" }
     )]
     [SwaggerResponse(200, "测试成功", typeof(TestParcelResponse))]
-    [SwaggerResponse(400, "请求参数无效或系统状态不允许")]
+    [SwaggerResponse(400, "请求参数无效或系统状态不允许", typeof(StateValidationErrorResponse))]
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(TestParcelResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(StateValidationErrorResponse), 400)]
     [ProducesResponseType(typeof(object), 500)]
     public async Task<ActionResult<TestParcelResponse>> SendTestParcel(
         [FromBody] TestParcelRequest request,
@@ -710,11 +710,12 @@ public class CommunicationController : ControllerBase {
             // 检查系统状态，只允许在Ready状态下发送测试
             var currentState = _stateManager.CurrentState;
             if (currentState != Core.Enums.System.SystemState.Ready) {
-                return BadRequest(new { 
-                    message = "系统当前状态不允许发送测试包裹 - Current system state does not allow test parcel sending",
-                    currentState = currentState.ToString(),
-                    requiredState = "Ready",
-                    hint = "请先停止系统运行，然后重试 - Please stop the system before sending test parcels"
+                return BadRequest(new StateValidationErrorResponse
+                {
+                    Message = "系统当前状态不允许发送测试包裹 - Current system state does not allow test parcel sending",
+                    CurrentState = currentState.ToString(),
+                    RequiredState = "Ready",
+                    Hint = "请先停止系统运行，然后重试 - Please stop the system before sending test parcels"
                 });
             }
 
