@@ -1,4 +1,5 @@
 using LiteDB;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -9,6 +10,7 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
 {
     private readonly LiteDatabase _database;
     private readonly ILiteCollection<SystemConfiguration> _collection;
+    private readonly ISystemClock _systemClock;
     private const string CollectionName = "SystemConfiguration";
     private const string SystemConfigName = "system";
 
@@ -16,12 +18,14 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
     /// 初始化LiteDB系统配置仓储
     /// </summary>
     /// <param name="databasePath">LiteDB数据库文件路径</param>
-    public LiteDbSystemConfigurationRepository(string databasePath)
+    /// <param name="systemClock">系统时钟</param>
+    public LiteDbSystemConfigurationRepository(string databasePath, ISystemClock systemClock)
     {
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<SystemConfiguration>(CollectionName);
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         
         // 为ConfigName字段创建唯一索引
         _collection.EnsureIndex(x => x.ConfigName, unique: true);
@@ -111,8 +115,8 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
         if (existing == null)
         {
             var defaultConfig = SystemConfiguration.GetDefault();
-            // 如果提供了当前时间，则使用；否则使用本地时间作为持久化时间戳
-            var now = currentTime ?? DateTime.Now;
+            // 如果提供了当前时间，则使用；否则使用系统时钟的本地时间
+            var now = currentTime ?? _systemClock.LocalNow;
             defaultConfig.CreatedAt = now;
             defaultConfig.UpdatedAt = now;
             _collection.Insert(defaultConfig);

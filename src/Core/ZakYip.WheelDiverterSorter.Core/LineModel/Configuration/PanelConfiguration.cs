@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using LiteDB;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
@@ -167,10 +168,11 @@ public sealed record class PanelConfiguration
     /// <summary>
     /// 获取默认面板配置
     /// </summary>
+    /// <param name="systemClock">系统时钟（可选，若为null则回退到DateTime.Now）</param>
     /// <returns>默认配置实例</returns>
-    public static PanelConfiguration GetDefault()
+    public static PanelConfiguration GetDefault(ISystemClock? systemClock = null)
     {
-        var now = DateTime.Now;
+        var now = systemClock?.LocalNow ?? DateTime.Now;
         return new PanelConfiguration
         {
             ConfigName = "panel",

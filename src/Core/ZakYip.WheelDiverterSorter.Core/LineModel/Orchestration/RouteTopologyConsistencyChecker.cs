@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 
@@ -15,15 +16,18 @@ public class RouteTopologyConsistencyChecker : IRouteTopologyConsistencyChecker
 {
     private readonly IRouteConfigurationRepository _routeRepository;
     private readonly ISwitchingPathGenerator _pathGenerator;
+    private readonly ISystemClock _systemClock;
     private readonly ILogger<RouteTopologyConsistencyChecker> _logger;
 
     public RouteTopologyConsistencyChecker(
         IRouteConfigurationRepository routeRepository,
         ISwitchingPathGenerator pathGenerator,
+        ISystemClock systemClock,
         ILogger<RouteTopologyConsistencyChecker> logger)
     {
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -80,7 +84,7 @@ public class RouteTopologyConsistencyChecker : IRouteTopologyConsistencyChecker
         }
 
         var validRouteChuteIds = totalRouteChuteIds - invalidChuteIds.Count;
-        var checkedAt = DateTime.Now; // 使用本地时间
+        var checkedAt = _systemClock.LocalNow;
 
         var result = new ConsistencyCheckResult
         {

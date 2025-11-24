@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Observability.Utilities;
+namespace ZakYip.WheelDiverterSorter.Core.Utilities;
 
 /// <summary>
 /// 系统时钟抽象接口 - 提供本地时间访问

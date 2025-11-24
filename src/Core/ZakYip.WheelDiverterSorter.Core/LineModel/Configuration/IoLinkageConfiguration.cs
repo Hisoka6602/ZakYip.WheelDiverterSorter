@@ -1,5 +1,6 @@
 using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -62,10 +63,11 @@ public sealed record class IoLinkageConfiguration
     /// <summary>
     /// 获取默认 IO 联动配置
     /// </summary>
+    /// <param name="systemClock">系统时钟（可选，若为null则回退到DateTime.Now）</param>
     /// <returns>默认配置实例</returns>
-    public static IoLinkageConfiguration GetDefault()
+    public static IoLinkageConfiguration GetDefault(ISystemClock? systemClock = null)
     {
-        var now = DateTime.Now;
+        var now = systemClock?.LocalNow ?? DateTime.Now;
         return new IoLinkageConfiguration
         {
             ConfigName = "io_linkage",
