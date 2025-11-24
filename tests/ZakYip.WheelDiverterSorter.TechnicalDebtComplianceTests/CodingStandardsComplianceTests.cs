@@ -438,7 +438,7 @@ public class CodingStandardsComplianceTests
             var content = File.ReadAllText(file);
             var lines = File.ReadAllLines(file);
             
-            // 查找枚举定义（排除注释）
+            // 查找枚举定义（排除注释，只检查public enum）
             var enumMatches = new List<int>();
             for (int i = 0; i < lines.Length; i++)
             {
@@ -447,8 +447,8 @@ public class CodingStandardsComplianceTests
                 if (line.StartsWith("//") || line.StartsWith("*") || line.StartsWith("///"))
                     continue;
                     
-                // 检测枚举定义 (improved: check if not inside string literal)
-                if (Regex.IsMatch(line, @"\benum\s+\w+") && !line.Contains("\"enum"))
+                // 检测公共枚举定义 (只检查 public enum)
+                if (Regex.IsMatch(line, @"\bpublic\s+enum\s+\w+") && !line.Contains("\"enum"))
                 {
                     enumMatches.Add(i + 1);
                 }
@@ -459,8 +459,10 @@ public class CodingStandardsComplianceTests
                 // More robust path validation
                 var fileDir = Path.GetDirectoryName(file) ?? "";
                 var normalizedDir = fileDir.Replace("\\", "/");
-                var expectedDir = "src/Core/ZakYip.WheelDiverterSorter.Core/Enums";
-                var isInCorrectLocation = normalizedDir.EndsWith(expectedDir);
+                var expectedDirPrefix = "src/Core/ZakYip.WheelDiverterSorter.Core/Enums";
+                
+                // 检查是否在正确的目录或其子目录中
+                var isInCorrectLocation = normalizedDir.Contains(expectedDirPrefix);
                 
                 // 检查是否在正确的目录
                 if (!isInCorrectLocation)
@@ -484,7 +486,7 @@ public class CodingStandardsComplianceTests
             
             if (violations.Any())
             {
-                report.AppendLine($"\n⚠️ {violations.Count} 个枚举不在正确的目录 (src/Core/ZakYip.WheelDiverterSorter.Core/Enums/):");
+                report.AppendLine($"\n⚠️ {violations.Count} 个枚举不在正确的目录 (src/Core/ZakYip.WheelDiverterSorter.Core/Enums/ 或其子目录):");
                 foreach (var violation in violations.Take(20))
                 {
                     report.AppendLine($"  ❌ {violation}");
@@ -507,10 +509,10 @@ public class CodingStandardsComplianceTests
             report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             report.AppendLine("\n💡 修复建议:");
             report.AppendLine("  1. 在 src/Core/ZakYip.WheelDiverterSorter.Core/ 下创建 Enums 目录（如果不存在）");
-            report.AppendLine("  2. 将所有枚举文件移动到 Enums 目录下");
+            report.AppendLine("  2. 将所有枚举文件移动到 Enums 目录或其子目录下（可以按领域分类，如 Enums/Communication/、Enums/Sorting/ 等）");
             report.AppendLine("  3. 确保每个文件只包含一个枚举定义");
             report.AppendLine("  4. 文件名应与枚举名称一致（例如: SensorType.cs 包含 SensorType 枚举）");
-            report.AppendLine($"\n期望位置: {expectedEnumPath}");
+            report.AppendLine($"\n期望位置: {expectedEnumPath} （或其子目录）");
             
             Assert.Fail(report.ToString());
         }

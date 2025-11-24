@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
 using ZakYip.WheelDiverterSorter.Core.Topology;
@@ -107,11 +108,21 @@ public class LeadshineIoMapper : IVendorIoMapper
 /// </summary>
 public class LeadshineIoMappingConfig
 {
+    private ImmutableDictionary<string, LeadshinePointMapping> _pointMappings = ImmutableDictionary<string, LeadshinePointMapping>.Empty;
+
     /// <summary>
     /// IO点映射表
     /// Key: 逻辑名称, Value: 雷赛点位映射
     /// </summary>
-    public Dictionary<string, LeadshinePointMapping> PointMappings { get; set; } = new();
+    /// <remarks>
+    /// 使用 ImmutableDictionary 确保线程安全。
+    /// 配置在初始化时设置，之后只读访问。
+    /// </remarks>
+    public ImmutableDictionary<string, LeadshinePointMapping> PointMappings 
+    { 
+        get => _pointMappings;
+        set => _pointMappings = value;
+    }
 
     /// <summary>
     /// 默认卡号
