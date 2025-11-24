@@ -52,19 +52,21 @@ public sealed record class IoLinkageConfiguration
     /// <summary>
     /// 配置创建时间
     /// </summary>
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; init; }
 
     /// <summary>
     /// 配置最后更新时间
     /// </summary>
-    public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; init; }
 
     /// <summary>
     /// 获取默认 IO 联动配置
     /// </summary>
+    /// <param name="systemClock">系统时钟（用于设置时间戳）</param>
     /// <returns>默认配置实例</returns>
-    public static IoLinkageConfiguration GetDefault()
+    public static IoLinkageConfiguration GetDefault(ISystemClock? systemClock = null)
     {
+        var now = systemClock?.LocalNow ?? DateTime.Now; // 兼容旧代码，允许不传入systemClock
         return new IoLinkageConfiguration
         {
             ConfigName = "io_linkage",
@@ -72,8 +74,8 @@ public sealed record class IoLinkageConfiguration
             Enabled = true,
             RunningStateIos = new List<IoLinkagePoint>(),
             StoppedStateIos = new List<IoLinkagePoint>(),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 
