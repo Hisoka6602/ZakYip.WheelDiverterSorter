@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -9,60 +11,59 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// 配置管理 API 控制器（已弃用，保留用于向后兼容）
+/// 策略管理 API 控制器
 /// </summary>
 /// <remarks>
-/// **此控制器已弃用**，其功能已迁移到 PolicyController (`/api/policy`)。
-/// 保留此控制器仅用于向后兼容，建议使用新的 `/api/policy` 端点。
-/// 
-/// 新端点映射：
-/// - `/api/config/exception-policy` → `/api/policy/exception-routing`
-/// - `/api/config/release-throttle` → `/api/policy/release-throttle`
+/// 提供分拣策略的统一管理接口，包括：
+/// - 异常路由策略
+/// - 放包节流策略
+/// - 超载处置策略
+/// 所有策略配置支持热更新，立即生效无需重启服务
 /// </remarks>
 [ApiController]
-[Route("api/config")]
+[Route("api/policy")]
 [Produces("application/json")]
-[Obsolete("此控制器已弃用，请使用 /api/policy 端点。保留仅用于向后兼容。")]
-public class ConfigurationController : ApiControllerBase
+public class PolicyController : ApiControllerBase
 {
     private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly IOptionsMonitor<OverloadPolicyConfiguration> _overloadPolicyOptions;
     private readonly ISystemClock _clock;
-    private readonly ILogger<ConfigurationController> _logger;
+    private readonly ILogger<PolicyController> _logger;
+    private static OverloadPolicyConfiguration? _runtimeOverloadConfig;
+    private static readonly object _overloadConfigLock = new();
 
-    public ConfigurationController(
+    public PolicyController(
         ISystemConfigurationRepository systemConfigRepository,
+        IOptionsMonitor<OverloadPolicyConfiguration> overloadPolicyOptions,
         ISystemClock clock,
-        ILogger<ConfigurationController> logger)
+        ILogger<PolicyController> logger)
     {
         _systemConfigRepository = systemConfigRepository;
+        _overloadPolicyOptions = overloadPolicyOptions;
         _clock = clock;
         _logger = logger;
     }
 
-    #region 异常策略配置 (已弃用，重定向到 PolicyController)
+    #region 异常路由策略
 
     /// <summary>
-    /// 获取异常路由策略（已弃用）
+    /// 获取异常路由策略
     /// </summary>
     /// <returns>异常路由策略</returns>
     /// <response code="200">成功返回异常策略</response>
     /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// **此端点已弃用**，请使用 GET /api/policy/exception-routing
-    /// </remarks>
-    [HttpGet("exception-policy")]
+    [HttpGet("exception-routing")]
     [SwaggerOperation(
-        Summary = "获取异常路由策略（已弃用）",
-        Description = "返回系统当前的异常路由策略配置。**此端点已弃用，请使用 GET /api/policy/exception-routing**",
-        OperationId = "GetExceptionPolicy",
-        Tags = new[] { "配置管理（已弃用）" }
+        Summary = "获取异常路由策略",
+        Description = "返回系统当前的异常路由策略配置",
+        OperationId = "GetExceptionRoutingPolicy",
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "成功返回异常策略", typeof(ApiResponse<ExceptionRoutingPolicy>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ExceptionRoutingPolicy>))]
     [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 200)]
     [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 500)]
-    [Obsolete("请使用 GET /api/policy/exception-routing")]
-    public ActionResult<ApiResponse<ExceptionRoutingPolicy>> GetExceptionPolicy()
+    public ActionResult<ApiResponse<ExceptionRoutingPolicy>> GetExceptionRoutingPolicy()
     {
         try
         {
@@ -72,7 +73,8 @@ public class ConfigurationController : ApiControllerBase
             {
                 ExceptionChuteId = config.ExceptionChuteId,
                 UpstreamTimeoutMs = config.ChuteAssignmentTimeoutMs,
-                RetryOnTimeout = false,
+                // 注意：重试相关配置已迁移到 CommunicationConfiguration
+                RetryOnTimeout = false,  // 默认不重试，通信重试由 CommunicationConfiguration 管理
                 RetryCount = 0,
                 RetryDelayMs = 1000,
                 UseExceptionOnTopologyUnreachable = true,
@@ -80,7 +82,7 @@ public class ConfigurationController : ApiControllerBase
             };
 #pragma warning restore CS0618
             
-            return Success(policy, "获取异常路由策略成功（注意：此端点已弃用，请使用 /api/policy/exception-routing）");
+            return Success(policy, "获取异常路由策略成功");
         }
         catch (Exception ex)
         {
@@ -90,7 +92,7 @@ public class ConfigurationController : ApiControllerBase
     }
 
     /// <summary>
-    /// 更新异常路由策略（已弃用）
+    /// 更新异常路由策略
     /// </summary>
     /// <param name="policy">异常路由策略</param>
     /// <returns>更新后的异常策略</returns>
@@ -98,14 +100,27 @@ public class ConfigurationController : ApiControllerBase
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// **此端点已弃用**，请使用 PUT /api/policy/exception-routing
+    /// 示例请求:
+    ///
+    ///     PUT /api/policy/exception-routing
+    ///     {
+    ///         "exceptionChuteId": 999,
+    ///         "upstreamTimeoutMs": 10000,
+    ///         "retryOnTimeout": true,
+    ///         "retryCount": 3,
+    ///         "retryDelayMs": 1000,
+    ///         "useExceptionOnTopologyUnreachable": true,
+    ///         "useExceptionOnTtlFailure": true
+    ///     }
+    ///
+    /// 配置更新后立即生效，无需重启服务。
     /// </remarks>
-    [HttpPut("exception-policy")]
+    [HttpPut("exception-routing")]
     [SwaggerOperation(
-        Summary = "更新异常路由策略（已弃用）",
-        Description = "更新系统异常路由策略。**此端点已弃用，请使用 PUT /api/policy/exception-routing**",
-        OperationId = "UpdateExceptionPolicy",
-        Tags = new[] { "配置管理（已弃用）" }
+        Summary = "更新异常路由策略",
+        Description = "更新系统异常路由策略，配置立即生效",
+        OperationId = "UpdateExceptionRoutingPolicy",
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(ApiResponse<ExceptionRoutingPolicy>))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<ExceptionRoutingPolicy>))]
@@ -113,8 +128,7 @@ public class ConfigurationController : ApiControllerBase
     [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 200)]
     [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 400)]
     [ProducesResponseType(typeof(ApiResponse<ExceptionRoutingPolicy>), 500)]
-    [Obsolete("请使用 PUT /api/policy/exception-routing")]
-    public ActionResult<ApiResponse<ExceptionRoutingPolicy>> UpdateExceptionPolicy([FromBody] ExceptionRoutingPolicy policy)
+    public ActionResult<ApiResponse<ExceptionRoutingPolicy>> UpdateExceptionRoutingPolicy([FromBody] ExceptionRoutingPolicy policy)
     {
         try
         {
@@ -123,6 +137,7 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ExceptionRoutingPolicy>();
             }
 
+            // 验证异常格口ID
             if (policy.ExceptionChuteId <= 0)
             {
                 return ValidationError<ExceptionRoutingPolicy>("异常格口ID必须大于0");
@@ -143,9 +158,10 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ExceptionRoutingPolicy>("重试延迟必须在100-10000毫秒之间");
             }
 
+            // 获取当前配置并更新
             var config = _systemConfigRepository.Get();
             config.ExceptionChuteId = policy.ExceptionChuteId;
-#pragma warning disable CS0618
+#pragma warning disable CS0618 // 向后兼容
             config.ChuteAssignmentTimeoutMs = policy.UpstreamTimeoutMs;
 #pragma warning restore CS0618
             config.UpdatedAt = _clock.LocalNow;
@@ -157,7 +173,7 @@ public class ConfigurationController : ApiControllerBase
                 policy.ExceptionChuteId,
                 policy.UpstreamTimeoutMs);
 
-            return Success(policy, "异常路由策略已更新（注意：此端点已弃用，请使用 /api/policy/exception-routing）");
+            return Success(policy, "异常路由策略已更新");
         }
         catch (Exception ex)
         {
@@ -166,32 +182,28 @@ public class ConfigurationController : ApiControllerBase
         }
     }
 
-    #endregion 异常策略配置
+    #endregion 异常路由策略
 
-    #region 放包节流配置 (已弃用，重定向到 PolicyController)
+    #region 放包节流策略
 
     /// <summary>
-    /// 获取放包节流配置（已弃用）
+    /// 获取放包节流策略
     /// </summary>
-    /// <returns>放包节流配置</returns>
-    /// <response code="200">成功返回节流配置</response>
+    /// <returns>放包节流策略</returns>
+    /// <response code="200">成功返回节流策略</response>
     /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// **此端点已弃用**，请使用 GET /api/policy/release-throttle
-    /// </remarks>
     [HttpGet("release-throttle")]
     [SwaggerOperation(
-        Summary = "获取放包节流配置（已弃用）",
-        Description = "返回当前的拥堵检测与放包节流配置。**此端点已弃用，请使用 GET /api/policy/release-throttle**",
-        OperationId = "GetReleaseThrottle",
-        Tags = new[] { "配置管理（已弃用）" }
+        Summary = "获取放包节流策略",
+        Description = "返回当前的拥堵检测与放包节流配置",
+        OperationId = "GetReleaseThrottlePolicy",
+        Tags = new[] { "策略管理" }
     )]
-    [SwaggerResponse(200, "成功返回节流配置", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
+    [SwaggerResponse(200, "成功返回节流策略", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
     [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 500)]
-    [Obsolete("请使用 GET /api/policy/release-throttle")]
-    public ActionResult<ApiResponse<ReleaseThrottleConfigResponse>> GetReleaseThrottle()
+    public ActionResult<ApiResponse<ReleaseThrottleConfigResponse>> GetReleaseThrottlePolicy()
     {
         try
         {
@@ -212,32 +224,54 @@ public class ConfigurationController : ApiControllerBase
                 MetricsTimeWindowSeconds = config.ThrottleMetricsWindowSeconds
             };
             
-            return Success(response, "获取放包节流配置成功（注意：此端点已弃用，请使用 /api/policy/release-throttle）");
+            return Success(response, "获取放包节流策略成功");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取放包节流配置失败");
-            return ServerError<ReleaseThrottleConfigResponse>("获取放包节流配置失败");
+            _logger.LogError(ex, "获取放包节流策略失败");
+            return ServerError<ReleaseThrottleConfigResponse>("获取放包节流策略失败");
         }
     }
 
     /// <summary>
-    /// 更新放包节流配置（已弃用）
+    /// 更新放包节流策略
     /// </summary>
-    /// <param name="request">放包节流配置请求</param>
-    /// <returns>更新后的节流配置</returns>
+    /// <param name="request">放包节流策略请求</param>
+    /// <returns>更新后的节流策略</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// **此端点已弃用**，请使用 PUT /api/policy/release-throttle
+    /// 示例请求:
+    ///
+    ///     PUT /api/policy/release-throttle
+    ///     {
+    ///         "warningThresholdLatencyMs": 5000,
+    ///         "severeThresholdLatencyMs": 10000,
+    ///         "warningThresholdSuccessRate": 0.9,
+    ///         "severeThresholdSuccessRate": 0.7,
+    ///         "warningThresholdInFlightParcels": 50,
+    ///         "severeThresholdInFlightParcels": 100,
+    ///         "normalReleaseIntervalMs": 300,
+    ///         "warningReleaseIntervalMs": 500,
+    ///         "severeReleaseIntervalMs": 1000,
+    ///         "shouldPauseOnSevere": false,
+    ///         "enableThrottling": true,
+    ///         "metricsTimeWindowSeconds": 60
+    ///     }
+    ///
+    /// 配置说明：
+    /// - 拥堵检测基于三个维度：延迟、成功率、在途包裹数
+    /// - 任一维度达到阈值即触发相应拥堵级别
+    /// - 根据拥堵级别动态调整放包间隔
+    /// - 可配置严重拥堵时是否暂停放包
     /// </remarks>
     [HttpPut("release-throttle")]
     [SwaggerOperation(
-        Summary = "更新放包节流配置（已弃用）",
-        Description = "更新拥堵检测与放包节流配置。**此端点已弃用，请使用 PUT /api/policy/release-throttle**",
-        OperationId = "UpdateReleaseThrottle",
-        Tags = new[] { "配置管理（已弃用）" }
+        Summary = "更新放包节流策略",
+        Description = "更新拥堵检测与放包节流配置，配置立即生效",
+        OperationId = "UpdateReleaseThrottlePolicy",
+        Tags = new[] { "策略管理" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<ReleaseThrottleConfigResponse>))]
@@ -245,8 +279,7 @@ public class ConfigurationController : ApiControllerBase
     [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 200)]
     [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 400)]
     [ProducesResponseType(typeof(ApiResponse<ReleaseThrottleConfigResponse>), 500)]
-    [Obsolete("请使用 PUT /api/policy/release-throttle")]
-    public ActionResult<ApiResponse<ReleaseThrottleConfigResponse>> UpdateReleaseThrottle([FromBody] ReleaseThrottleConfigRequest request)
+    public ActionResult<ApiResponse<ReleaseThrottleConfigResponse>> UpdateReleaseThrottlePolicy([FromBody] ReleaseThrottleConfigRequest request)
     {
         try
         {
@@ -255,6 +288,7 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ReleaseThrottleConfigResponse>();
             }
 
+            // 验证延迟阈值
             if (request.WarningThresholdLatencyMs < 1000 || request.WarningThresholdLatencyMs > 60000)
             {
                 return ValidationError<ReleaseThrottleConfigResponse>("警告延迟阈值必须在1000-60000毫秒之间");
@@ -265,6 +299,7 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ReleaseThrottleConfigResponse>("严重延迟阈值必须大于警告阈值且不超过120000毫秒");
             }
 
+            // 验证成功率阈值
             if (request.WarningThresholdSuccessRate < 0.5 || request.WarningThresholdSuccessRate > 1.0)
             {
                 return ValidationError<ReleaseThrottleConfigResponse>("警告成功率阈值必须在0.5-1.0之间");
@@ -275,6 +310,7 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ReleaseThrottleConfigResponse>("严重成功率阈值必须小于警告阈值且不低于0.0");
             }
 
+            // 验证在途包裹数阈值
             if (request.WarningThresholdInFlightParcels < 10 || request.WarningThresholdInFlightParcels > 1000)
             {
                 return ValidationError<ReleaseThrottleConfigResponse>("警告在途包裹数阈值必须在10-1000之间");
@@ -285,6 +321,7 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ReleaseThrottleConfigResponse>("严重在途包裹数阈值必须大于警告阈值且不超过2000");
             }
 
+            // 验证放包间隔
             if (request.NormalReleaseIntervalMs < 100 || request.NormalReleaseIntervalMs > 5000)
             {
                 return ValidationError<ReleaseThrottleConfigResponse>("正常放包间隔必须在100-5000毫秒之间");
@@ -300,11 +337,13 @@ public class ConfigurationController : ApiControllerBase
                 return ValidationError<ReleaseThrottleConfigResponse>("严重放包间隔必须大于警告间隔且不超过30000毫秒");
             }
 
+            // 验证指标时间窗口
             if (request.MetricsTimeWindowSeconds < 10 || request.MetricsTimeWindowSeconds > 600)
             {
                 return ValidationError<ReleaseThrottleConfigResponse>("指标时间窗口必须在10-600秒之间");
             }
 
+            // 获取当前配置并更新
             var config = _systemConfigRepository.Get();
             config.ThrottleWarningLatencyMs = request.WarningThresholdLatencyMs;
             config.ThrottleSevereLatencyMs = request.SevereThresholdLatencyMs;
@@ -323,7 +362,7 @@ public class ConfigurationController : ApiControllerBase
             _systemConfigRepository.Update(config);
 
             _logger.LogInformation(
-                "放包节流配置已更新: EnableThrottling={EnableThrottling}, NormalInterval={NormalInterval}ms",
+                "放包节流策略已更新: EnableThrottling={EnableThrottling}, NormalInterval={NormalInterval}ms",
                 request.EnableThrottling,
                 request.NormalReleaseIntervalMs);
 
@@ -343,44 +382,186 @@ public class ConfigurationController : ApiControllerBase
                 MetricsTimeWindowSeconds = config.ThrottleMetricsWindowSeconds
             };
             
-            return Success(response, "放包节流配置已更新（注意：此端点已弃用，请使用 /api/policy/release-throttle）");
+            return Success(response, "放包节流策略已更新");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "更新放包节流配置失败");
-            return ServerError<ReleaseThrottleConfigResponse>("更新放包节流配置失败");
+            _logger.LogError(ex, "更新放包节流策略失败");
+            return ServerError<ReleaseThrottleConfigResponse>("更新放包节流策略失败");
         }
     }
 
-    #endregion 放包节流配置
-}
+    #endregion 放包节流策略
 
-/// <summary>
-/// 分拣模式响应模型
-/// </summary>
-public class SortingModeResponse
-{
-    /// <summary>分拣模式</summary>
-    public SortingMode SortingMode { get; set; }
+    #region 超载处置策略
 
-    /// <summary>固定格口ID（仅在FixedChute模式下使用）</summary>
-    public long? FixedChuteId { get; set; }
+    /// <summary>
+    /// 获取超载处置策略
+    /// </summary>
+    /// <returns>超载处置策略</returns>
+    /// <response code="200">成功返回超载策略</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("overload")]
+    [SwaggerOperation(
+        Summary = "获取超载处置策略",
+        Description = "返回当前系统的超载处置策略配置，包括各项阈值和开关设置",
+        OperationId = "GetOverloadPolicy",
+        Tags = new[] { "策略管理" }
+    )]
+    [SwaggerResponse(200, "成功返回超载策略", typeof(OverloadPolicyDto))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(OverloadPolicyDto), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<OverloadPolicyDto> GetOverloadPolicy()
+    {
+        try
+        {
+            lock (_overloadConfigLock)
+            {
+                var config = _runtimeOverloadConfig ?? _overloadPolicyOptions.CurrentValue;
+                
+                return Ok(new OverloadPolicyDto
+                {
+                    Enabled = config.Enabled,
+                    ForceExceptionOnSevere = config.ForceExceptionOnSevere,
+                    ForceExceptionOnOverCapacity = config.ForceExceptionOnOverCapacity,
+                    ForceExceptionOnTimeout = config.ForceExceptionOnTimeout,
+                    ForceExceptionOnWindowMiss = config.ForceExceptionOnWindowMiss,
+                    MaxInFlightParcels = config.MaxInFlightParcels,
+                    MinRequiredTtlMs = config.MinRequiredTtlMs,
+                    MinArrivalWindowMs = config.MinArrivalWindowMs
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取超载处置策略失败");
+            return StatusCode(500, new { message = "获取超载处置策略失败" });
+        }
+    }
 
-    /// <summary>可用格口ID列表（仅在RoundRobin模式下使用）</summary>
-    public List<long> AvailableChuteIds { get; set; } = new();
-}
+    /// <summary>
+    /// 更新超载处置策略
+    /// </summary>
+    /// <param name="dto">超载处置策略</param>
+    /// <returns>更新后的超载策略</returns>
+    /// <response code="200">更新成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 示例请求:
+    /// 
+    ///     PUT /api/policy/overload
+    ///     {
+    ///         "enabled": true,
+    ///         "forceExceptionOnSevere": true,
+    ///         "forceExceptionOnOverCapacity": false,
+    ///         "forceExceptionOnTimeout": true,
+    ///         "forceExceptionOnWindowMiss": false,
+    ///         "maxInFlightParcels": 120,
+    ///         "minRequiredTtlMs": 500,
+    ///         "minArrivalWindowMs": 200
+    ///     }
+    /// 
+    /// 配置说明：
+    /// - enabled: 是否启用超载策略检查
+    /// - forceExceptionOnSevere: 严重拥堵时是否强制走异常格口
+    /// - forceExceptionOnOverCapacity: 超容量时是否强制走异常格口
+    /// - forceExceptionOnTimeout: 超时时是否强制走异常格口
+    /// - forceExceptionOnWindowMiss: 错过窗口期时是否强制走异常格口
+    /// - maxInFlightParcels: 最大在途包裹数
+    /// - minRequiredTtlMs: 最小所需TTL（毫秒）
+    /// - minArrivalWindowMs: 最小到达窗口（毫秒）
+    /// 
+    /// 配置更新后立即生效，无需重启服务。
+    /// </remarks>
+    [HttpPut("overload")]
+    [SwaggerOperation(
+        Summary = "更新超载处置策略",
+        Description = "更新系统超载处置策略配置，配置立即生效",
+        OperationId = "UpdateOverloadPolicy",
+        Tags = new[] { "策略管理" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(OverloadPolicyDto))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(OverloadPolicyDto), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<OverloadPolicyDto> UpdateOverloadPolicy([FromBody] OverloadPolicyDto dto)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效", errors });
+            }
 
-/// <summary>
-/// 分拣模式请求模型
-/// </summary>
-public class SortingModeRequest
-{
-    /// <summary>分拣模式</summary>
-    public SortingMode SortingMode { get; set; }
+            // 验证参数
+            if (dto.MaxInFlightParcels < 1 || dto.MaxInFlightParcels > 1000)
+            {
+                return BadRequest(new { message = "最大在途包裹数必须在1-1000之间" });
+            }
 
-    /// <summary>固定格口ID（仅在FixedChute模式下使用）</summary>
-    public long? FixedChuteId { get; set; }
+            if (dto.MinRequiredTtlMs < 100 || dto.MinRequiredTtlMs > 10000)
+            {
+                return BadRequest(new { message = "最小所需TTL必须在100-10000毫秒之间" });
+            }
 
-    /// <summary>可用格口ID列表（仅在RoundRobin模式下使用）</summary>
-    public List<long>? AvailableChuteIds { get; set; }
+            if (dto.MinArrivalWindowMs < 50 || dto.MinArrivalWindowMs > 5000)
+            {
+                return BadRequest(new { message = "最小到达窗口必须在50-5000毫秒之间" });
+            }
+
+            // 创建新的配置
+            var config = new OverloadPolicyConfiguration
+            {
+                Enabled = dto.Enabled,
+                ForceExceptionOnSevere = dto.ForceExceptionOnSevere,
+                ForceExceptionOnOverCapacity = dto.ForceExceptionOnOverCapacity,
+                ForceExceptionOnTimeout = dto.ForceExceptionOnTimeout,
+                ForceExceptionOnWindowMiss = dto.ForceExceptionOnWindowMiss,
+                MaxInFlightParcels = dto.MaxInFlightParcels,
+                MinRequiredTtlMs = dto.MinRequiredTtlMs,
+                MinArrivalWindowMs = dto.MinArrivalWindowMs
+            };
+
+            // 保存到运行时配置（热更新）
+            lock (_overloadConfigLock)
+            {
+                _runtimeOverloadConfig = config;
+            }
+
+            _logger.LogInformation(
+                "超载处置策略已更新: Enabled={Enabled}, MaxInFlightParcels={MaxInFlightParcels}, " +
+                "ForceExceptionOnSevere={ForceExceptionOnSevere}",
+                config.Enabled,
+                config.MaxInFlightParcels,
+                config.ForceExceptionOnSevere);
+
+            return Ok(dto);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新超载处置策略失败");
+            return StatusCode(500, new { message = "更新超载处置策略失败" });
+        }
+    }
+
+    /// <summary>
+    /// 获取当前运行时的超载策略配置（用于内部服务访问）
+    /// </summary>
+    /// <returns>超载策略配置</returns>
+    internal static OverloadPolicyConfiguration? GetRuntimeOverloadPolicy()
+    {
+        lock (_overloadConfigLock)
+        {
+            return _runtimeOverloadConfig;
+        }
+    }
+
+    #endregion 超载处置策略
 }
