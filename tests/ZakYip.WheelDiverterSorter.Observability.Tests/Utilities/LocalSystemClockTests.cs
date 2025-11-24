@@ -43,38 +43,6 @@ public class LocalSystemClockTests
     }
 
     [Fact]
-    public void UtcNow_ReturnsCurrentUtcTime()
-    {
-        // Arrange
-        var clock = new LocalSystemClock();
-        var before = DateTime.UtcNow;
-
-        // Act
-        var utcNow = clock.UtcNow;
-        var after = DateTime.UtcNow;
-
-        // Assert
-        Assert.InRange(utcNow, before.AddSeconds(-1), after.AddSeconds(1));
-        Assert.Equal(DateTimeKind.Utc, utcNow.Kind);
-    }
-
-    [Fact]
-    public void LocalNow_And_UtcNow_AreConsistent()
-    {
-        // Arrange
-        var clock = new LocalSystemClock();
-
-        // Act
-        var localNow = clock.LocalNow;
-        var utcNow = clock.UtcNow;
-
-        // Assert - convert to UTC and compare
-        var localAsUtc = localNow.ToUniversalTime();
-        var diff = Math.Abs((localAsUtc - utcNow).TotalSeconds);
-        Assert.True(diff < 1, "LocalNow and UtcNow should represent the same moment in time");
-    }
-
-    [Fact]
     public void TestSystemClock_CanReplaceLocalSystemClock()
     {
         // Arrange - create a test clock implementation
@@ -83,7 +51,6 @@ public class LocalSystemClockTests
         // Act
         var localNow = testClock.LocalNow;
         var localNowOffset = testClock.LocalNowOffset;
-        var utcNow = testClock.UtcNow;
 
         // Assert - verify the test clock returns the expected fixed time
         Assert.Equal(new DateTime(2024, 6, 15, 14, 30, 0), localNow);
@@ -150,7 +117,6 @@ public class LocalSystemClockTests
 
         public DateTime LocalNow => _currentTime;
         public DateTimeOffset LocalNowOffset => new(_currentTime);
-        public DateTime UtcNow => _currentTime.ToUniversalTime();
 
         public void AdvanceTime(TimeSpan duration)
         {

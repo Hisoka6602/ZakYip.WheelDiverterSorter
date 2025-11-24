@@ -21,10 +21,4 @@ public interface ISystemClock
     /// Get current local time as DateTimeOffset
     /// </summary>
     DateTimeOffset LocalNowOffset { get; }
-
-    /// <summary>
-    /// 获取当前 UTC 时间（仅用于与外部系统交互时的时间转换）
-    /// Get current UTC time (only for time conversion when interacting with external systems)
-    /// </summary>
-    DateTime UtcNow { get; }
 }

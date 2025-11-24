@@ -58,7 +58,6 @@ public class SortingOrchestratorTests : IDisposable
         _mockExceptionHandler = new Mock<ISortingExceptionHandler>();
 
         _testTime = new DateTimeOffset(2025, 11, 22, 12, 0, 0, TimeSpan.Zero);
-        _mockClock.Setup(c => c.UtcNow).Returns(_testTime.UtcDateTime);
         _mockClock.Setup(c => c.LocalNow).Returns(_testTime.LocalDateTime);
         _mockClock.Setup(c => c.LocalNowOffset).Returns(_testTime);
 

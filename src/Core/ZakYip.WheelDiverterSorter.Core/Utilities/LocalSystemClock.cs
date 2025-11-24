@@ -15,7 +15,4 @@ public sealed class LocalSystemClock : ISystemClock
 
     /// <inheritdoc/>
     public DateTimeOffset LocalNowOffset => DateTimeOffset.Now;
-
-    /// <inheritdoc/>
-    public DateTime UtcNow => DateTime.UtcNow;
 }
