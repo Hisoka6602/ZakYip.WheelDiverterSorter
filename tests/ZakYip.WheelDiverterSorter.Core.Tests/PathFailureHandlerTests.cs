@@ -22,7 +22,7 @@ public class PathFailureHandlerTests
         _pathGeneratorMock = new Mock<ISwitchingPathGenerator>();
         _handler = new PathFailureHandler(
             _pathGeneratorMock.Object,
-            NullLogger<PathFailureHandler>.Instance);
+            NullLogger<PathFailureHandler>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public class PathFailureHandlerTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new PathFailureHandler(null!, NullLogger<PathFailureHandler>.Instance));
+            new PathFailureHandler(null!, NullLogger<PathFailureHandler>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]
@@ -38,7 +38,7 @@ public class PathFailureHandlerTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() =>
-            new PathFailureHandler(_pathGeneratorMock.Object, null!));
+            new PathFailureHandler(_pathGeneratorMock.Object, null!, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock()));
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public class PathFailureHandlerTests
         {
             TargetChuteId = targetChuteId,
             FallbackChuteId = 999, // 异常格口
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment

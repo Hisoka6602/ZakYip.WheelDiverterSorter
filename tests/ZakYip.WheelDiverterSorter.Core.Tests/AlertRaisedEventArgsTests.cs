@@ -13,7 +13,7 @@ public class AlertRaisedEventArgsTests
         var alertCode = "TEST_ALERT";
         var severity = AlertSeverity.Warning;
         var message = "Test alert message";
-        var raisedAt = DateTimeOffset.UtcNow;
+        var raisedAt = DateTimeOffset.Now;
 
         // Act
         var alertEvent = new AlertRaisedEventArgs
@@ -40,7 +40,7 @@ public class AlertRaisedEventArgsTests
             AlertCode = "TEST",
             Severity = AlertSeverity.Info,
             Message = "Test",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Assert
@@ -69,7 +69,7 @@ public class AlertRaisedEventArgsTests
             AlertCode = "TEST",
             Severity = AlertSeverity.Critical,
             Message = "Test",
-            RaisedAt = DateTimeOffset.UtcNow,
+            RaisedAt = DateTimeOffset.Now,
             LineId = lineId,
             ChuteId = chuteId,
             NodeId = nodeId,
@@ -90,7 +90,7 @@ public class AlertRaisedEventArgsTests
     public void AlertRaisedEventArgs_RecordEquality_ShouldWorkCorrectly()
     {
         // Arrange
-        var raisedAt = DateTimeOffset.UtcNow;
+        var raisedAt = DateTimeOffset.Now;
         var alert1 = new AlertRaisedEventArgs
         {
             AlertCode = "TEST",

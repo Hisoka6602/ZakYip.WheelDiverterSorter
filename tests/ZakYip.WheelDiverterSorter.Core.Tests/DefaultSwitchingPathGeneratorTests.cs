@@ -234,11 +234,11 @@ public class DefaultSwitchingPathGeneratorTests
         };
 
         _mockRepository.Setup(r => r.GetByChuteId(chuteId)).Returns(config);
-        var before = DateTimeOffset.UtcNow;
+        var before = DateTimeOffset.Now;
 
         // Act
         var result = _generator.GeneratePath(chuteId);
-        var after = DateTimeOffset.UtcNow;
+        var after = DateTimeOffset.Now;
 
         // Assert
         Assert.NotNull(result);

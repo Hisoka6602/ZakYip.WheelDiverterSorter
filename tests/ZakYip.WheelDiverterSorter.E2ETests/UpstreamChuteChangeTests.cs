@@ -36,7 +36,7 @@ public class UpstreamChuteChangeTests
         var newChuteId = 20;
 
         // 创建初始路由计划
-        var routePlan = new RoutePlan(parcelId, originalChuteId, DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(parcelId, originalChuteId, DateTimeOffset.Now);
         await repository.SaveAsync(routePlan);
 
         // 配置路径生成器返回新路径
@@ -45,7 +45,7 @@ public class UpstreamChuteChangeTests
             {
                 TargetChuteId = newChuteId,
                 Segments = new List<SwitchingPathSegment>(),
-                GeneratedAt = DateTimeOffset.UtcNow,
+                GeneratedAt = DateTimeOffset.Now,
                 FallbackChuteId = 999
             });
 
@@ -83,8 +83,8 @@ public class UpstreamChuteChangeTests
         var newChuteId = 20;
 
         // 创建已完成的路由计划
-        var routePlan = new RoutePlan(parcelId, originalChuteId, DateTimeOffset.UtcNow);
-        routePlan.MarkAsCompleted(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(parcelId, originalChuteId, DateTimeOffset.Now);
+        routePlan.MarkAsCompleted(DateTimeOffset.Now);
         await repository.SaveAsync(routePlan);
 
         var command = new ChangeParcelChuteCommand
@@ -121,8 +121,8 @@ public class UpstreamChuteChangeTests
         var newChuteId = 20;
 
         // 创建已进入异常路径的路由计划
-        var routePlan = new RoutePlan(parcelId, originalChuteId, DateTimeOffset.UtcNow);
-        routePlan.MarkAsExceptionRouted(DateTimeOffset.UtcNow);
+        var routePlan = new RoutePlan(parcelId, originalChuteId, DateTimeOffset.Now);
+        routePlan.MarkAsExceptionRouted(DateTimeOffset.Now);
         await repository.SaveAsync(routePlan);
 
         var command = new ChangeParcelChuteCommand
@@ -158,7 +158,7 @@ public class UpstreamChuteChangeTests
         var originalChuteId = 10;
         var newChuteId = 20;
 
-        var createdAt = DateTimeOffset.UtcNow;
+        var createdAt = DateTimeOffset.Now;
         var deadline = createdAt.AddSeconds(10);
 
         // 创建有截止时间的路由计划

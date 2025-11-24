@@ -32,7 +32,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_INFO",
             Severity = AlertSeverity.Info,
             Message = "Test information alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -59,7 +59,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_WARNING",
             Severity = AlertSeverity.Warning,
             Message = "Test warning alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -86,7 +86,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_CRITICAL",
             Severity = AlertSeverity.Critical,
             Message = "Test critical alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -119,7 +119,7 @@ public class LogAlertSinkTests
             AlertCode = "EXCEPTION_CHUTE_RATIO_HIGH",
             Severity = AlertSeverity.Warning,
             Message = "Exception chute ratio too high",
-            RaisedAt = DateTimeOffset.UtcNow,
+            RaisedAt = DateTimeOffset.Now,
             LineId = "LINE-001",
             ChuteId = "CHUTE-42",
             NodeId = 101,
@@ -155,7 +155,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_ALERT",
             Severity = AlertSeverity.Warning,
             Message = "Test alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act & Assert - Should not throw when metrics are provided
@@ -174,7 +174,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_ALERT",
             Severity = AlertSeverity.Info,
             Message = "Test alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act & Assert - Should not throw
@@ -194,7 +194,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_ALERT",
             Severity = AlertSeverity.Info,
             Message = "Test alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -224,7 +224,7 @@ public class LogAlertSinkTests
             AlertCode = "TEST_CRITICAL",
             Severity = AlertSeverity.Critical,
             Message = "Test critical alert",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         };
 
         // Act & Assert - Should not throw even if logger throws
@@ -245,7 +245,7 @@ public class LogAlertSinkTests
             AlertCode = "ALERT_1",
             Severity = AlertSeverity.Info,
             Message = "Alert 1",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         });
 
         await sink.WriteAlertAsync(new AlertRaisedEventArgs
@@ -253,7 +253,7 @@ public class LogAlertSinkTests
             AlertCode = "ALERT_2",
             Severity = AlertSeverity.Warning,
             Message = "Alert 2",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         });
 
         await sink.WriteAlertAsync(new AlertRaisedEventArgs
@@ -261,7 +261,7 @@ public class LogAlertSinkTests
             AlertCode = "ALERT_3",
             Severity = AlertSeverity.Critical,
             Message = "Alert 3",
-            RaisedAt = DateTimeOffset.UtcNow
+            RaisedAt = DateTimeOffset.Now
         });
 
         // Assert - All three should be logged

@@ -41,7 +41,7 @@ public class FileBasedParcelTraceSinkTests : IDisposable
         {
             ItemId = 12345,
             BarCode = "BC12345",
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = DateTimeOffset.Now,
             Stage = "Created",
             Source = "Ingress",
             Details = "Test details"
@@ -74,7 +74,7 @@ public class FileBasedParcelTraceSinkTests : IDisposable
         {
             ItemId = 67890,
             BarCode = null,
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = DateTimeOffset.Now,
             Stage = "RoutePlanned",
             Source = "Execution",
             Details = null
@@ -122,7 +122,7 @@ public class FileBasedParcelTraceSinkTests : IDisposable
         var eventArgs = new ParcelTraceEventArgs
         {
             ItemId = 22222,
-            OccurredAt = DateTimeOffset.UtcNow,
+            OccurredAt = DateTimeOffset.Now,
             Stage = "ExceptionDiverted",
             Source = "Execution"
         };

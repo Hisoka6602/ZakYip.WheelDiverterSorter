@@ -106,7 +106,7 @@ public class SimulationRunner
         _logger.LogInformation("开始仿真...");
         _reportPrinter.PrintConfigurationSummary(_options);
 
-        var startTime = DateTimeOffset.UtcNow;
+        var startTime = DateTimeOffset.Now;
 
         // 连接到RuleEngine
         var connected = await _ruleEngineClient.ConnectAsync(cancellationToken);
@@ -127,7 +127,7 @@ public class SimulationRunner
             await RunNormalModeAsync(startTime, cancellationToken);
         }
 
-        var endTime = DateTimeOffset.UtcNow;
+        var endTime = DateTimeOffset.Now;
         var totalDuration = endTime - startTime;
 
         // 统计结果
@@ -205,7 +205,7 @@ public class SimulationRunner
             _options.MaxLongRunParcels?.ToString() ?? "无限制");
 
         int parcelIndex = 0;
-        var lastMetricsTime = DateTimeOffset.UtcNow;
+        var lastMetricsTime = DateTimeOffset.Now;
         
         // 场景切换：每1000个包裹更换一次摩擦配置（模拟不同工况）
         int scenarioBatchSize = 1000;
@@ -213,7 +213,7 @@ public class SimulationRunner
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            var currentTime = DateTimeOffset.UtcNow;
+            var currentTime = DateTimeOffset.Now;
             var elapsedTime = currentTime - startTime;
 
             // 检查是否达到持续时间限制
@@ -322,14 +322,14 @@ public class SimulationRunner
                 index + 1, parcelId);
         }
 
-        var processingStartTime = DateTimeOffset.UtcNow;
+        var processingStartTime = DateTimeOffset.Now;
 
         try
         {
             // 模拟包裹到达并处理分拣
             var result = await ProcessParcelAsync(parcelId, startTime.AddMilliseconds(index * _options.ParcelInterval.TotalMilliseconds), cancellationToken);
             
-            var processingEndTime = DateTimeOffset.UtcNow;
+            var processingEndTime = DateTimeOffset.Now;
             var latencyMs = (processingEndTime - processingStartTime).TotalMilliseconds;
             var isSuccess = result.Status == ParcelSimulationStatus.SortedToTargetChute;
             
@@ -358,7 +358,7 @@ public class SimulationRunner
         {
             _logger.LogError(ex, "处理包裹 {ParcelId} 时发生错误", parcelId);
             
-            var processingEndTime = DateTimeOffset.UtcNow;
+            var processingEndTime = DateTimeOffset.Now;
             var latencyMs = (processingEndTime - processingStartTime).TotalMilliseconds;
             
             // 记录包裹完成（失败）
@@ -522,7 +522,7 @@ public class SimulationRunner
     private long GenerateParcelId(int index)
     {
         // 使用当前时间戳加上索引作为包裹ID
-        var baseTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var baseTimestamp = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         return baseTimestamp + index;
     }
 
@@ -534,7 +534,7 @@ public class SimulationRunner
         DateTimeOffset entryTime,
         CancellationToken cancellationToken)
     {
-        var processingStartTime = DateTimeOffset.UtcNow;
+        var processingStartTime = DateTimeOffset.Now;
         
         // 创建等待格口分配的任务
         var tcs = new TaskCompletionSource<long>();
@@ -938,7 +938,7 @@ public class SimulationRunner
             ParcelId = parcelId,
             EntryTime = entryTime,
             TargetChuteId = targetChuteId,
-            EventTime = DateTimeOffset.UtcNow,
+            EventTime = DateTimeOffset.Now,
             IsSimulation = true
         });
     }
@@ -970,7 +970,7 @@ public class SimulationRunner
         {
             ParcelId = parcelId,
             TargetChuteId = chuteId,
-            EventTime = DateTimeOffset.UtcNow,
+            EventTime = DateTimeOffset.Now,
             IsSimulation = true
         }, chuteId);
     }
@@ -985,7 +985,7 @@ public class SimulationRunner
             ParcelId = parcelId,
             TargetChuteId = targetChuteId,
             ActualChuteId = actualChuteId,
-            EventTime = DateTimeOffset.UtcNow,
+            EventTime = DateTimeOffset.Now,
             IsSimulation = true
         }, status);
     }
@@ -999,7 +999,7 @@ public class SimulationRunner
         {
             ParcelId = parcelId,
             ActualChuteId = chuteId,
-            EventTime = DateTimeOffset.UtcNow,
+            EventTime = DateTimeOffset.Now,
             IsSimulation = true
         }, reason);
     }

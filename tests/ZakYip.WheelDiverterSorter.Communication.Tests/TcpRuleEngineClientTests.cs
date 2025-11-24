@@ -233,7 +233,7 @@ public class TcpRuleEngineClientTests : IDisposable
                             ParcelId = request?.ParcelId ?? 0,
                             ChuteId = 1,
                             IsSuccess = true,
-                            ResponseTime = DateTimeOffset.UtcNow
+                            ResponseTime = DateTimeOffset.Now
                         };
                         var responseJson = JsonSerializer.Serialize(response) + "\n";
                         var responseBytes = Encoding.UTF8.GetBytes(responseJson);
@@ -328,7 +328,7 @@ public class TcpRuleEngineClientTests : IDisposable
                                 ParcelId = request?.ParcelId ?? 0,
                                 ChuteId = 1,
                                 IsSuccess = true,
-                                ResponseTime = DateTimeOffset.UtcNow
+                                ResponseTime = DateTimeOffset.Now
                             };
                             var responseJson = JsonSerializer.Serialize(response) + "\n";
                             var responseBytes = Encoding.UTF8.GetBytes(responseJson);

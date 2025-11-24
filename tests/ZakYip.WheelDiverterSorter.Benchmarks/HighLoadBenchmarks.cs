@@ -47,7 +47,7 @@ public class HighLoadBenchmarks
         }
 
         _generator = new DefaultSwitchingPathGenerator(_repository);
-        _executor = new MockSwitchingPathExecutor();
+        _executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // 预生成路径用于执行测试
         _preCachedPaths = new List<SwitchingPath>();

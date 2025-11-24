@@ -80,6 +80,6 @@ public class ConveyorOperationResultTests
 
         // Assert
         Assert.NotEqual(default, result.Timestamp);
-        Assert.True((DateTimeOffset.UtcNow - result.Timestamp).TotalSeconds < 1);
+        Assert.True((DateTimeOffset.Now - result.Timestamp).TotalSeconds < 1);
     }
 }

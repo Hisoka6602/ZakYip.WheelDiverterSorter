@@ -22,7 +22,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
             {
                 ButtonType = buttonType,
                 IsPressed = false,
-                LastChangedAt = DateTimeOffset.UtcNow,
+                LastChangedAt = DateTimeOffset.Now,
                 PressedDurationMs = 0
             };
         }
@@ -37,7 +37,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
         {
             ButtonType = buttonType,
             IsPressed = false,
-            LastChangedAt = DateTimeOffset.UtcNow,
+            LastChangedAt = DateTimeOffset.Now,
             PressedDurationMs = 0
         }));
     }
@@ -60,7 +60,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
         {
             ButtonType = buttonType,
             IsPressed = true,
-            LastChangedAt = DateTimeOffset.UtcNow,
+            LastChangedAt = DateTimeOffset.Now,
             PressedDurationMs = 0
         };
     }
@@ -72,14 +72,14 @@ public class SimulatedPanelInputReader : IPanelInputReader
     {
         var currentState = _buttonStates.GetValueOrDefault(buttonType);
         var pressedDuration = currentState.IsPressed
-            ? (int)(DateTimeOffset.UtcNow - currentState.LastChangedAt).TotalMilliseconds
+            ? (int)(DateTimeOffset.Now - currentState.LastChangedAt).TotalMilliseconds
             : 0;
 
         _buttonStates[buttonType] = new PanelButtonState
         {
             ButtonType = buttonType,
             IsPressed = false,
-            LastChangedAt = DateTimeOffset.UtcNow,
+            LastChangedAt = DateTimeOffset.Now,
             PressedDurationMs = pressedDuration
         };
     }
@@ -95,7 +95,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
             {
                 ButtonType = buttonType,
                 IsPressed = false,
-                LastChangedAt = DateTimeOffset.UtcNow,
+                LastChangedAt = DateTimeOffset.Now,
                 PressedDurationMs = 0
             };
         }

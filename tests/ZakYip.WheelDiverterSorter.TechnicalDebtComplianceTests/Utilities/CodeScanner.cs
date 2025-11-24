@@ -113,14 +113,14 @@ public static class CodeScanner
                     });
                 }
 
-                // Check for DateTimeOffset.UtcNow
+                // Check for DateTimeOffset.Now
                 if (dateTimeOffsetUtcNowPattern.IsMatch(line))
                 {
                     violations.Add(new DateTimeUsageViolation
                     {
                         FilePath = filePath,
                         LineNumber = lineNumber,
-                        Usage = "DateTimeOffset.UtcNow",
+                        Usage = "DateTimeOffset.Now",
                         CodeSnippet = line.Trim(),
                         Severity = ViolationSeverity.Error
                     });

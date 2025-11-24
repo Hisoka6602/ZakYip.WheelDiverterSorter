@@ -40,7 +40,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         {
             TargetChuteId = targetChuteId,
             Segments = Array.Empty<SwitchingPathSegment>(),
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
 
@@ -58,7 +58,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     public async Task RuleEngineConnectionLoss_ShouldUseExceptionChute()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
@@ -102,7 +102,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     public async Task CommunicationTimeout_ShouldFallbackGracefully()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
@@ -192,7 +192,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         // Act - Multiple failed notifications
         for (int i = 0; i < attemptCount; i++)
         {
-            var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + i;
+            var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds() + i;
             await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
         }
 
@@ -236,7 +236,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
                     TtlMilliseconds = 5000
                 }
             },
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
 
@@ -253,7 +253,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
     public async Task DuplicateTrigger_ShouldBeHandledAsException()
     {
         // Arrange
-        var parcelId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
         Factory.MockRuleEngineClient!
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))

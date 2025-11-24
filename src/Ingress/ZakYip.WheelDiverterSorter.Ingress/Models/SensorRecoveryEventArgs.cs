@@ -19,7 +19,7 @@ public record SensorRecoveryEventArgs {
     /// <summary>
     /// 恢复时间
     /// </summary>
-    public DateTimeOffset RecoveryTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset RecoveryTime { get; init; } = DateTimeOffset.Now;
 
     /// <summary>
     /// 故障持续时间（秒）

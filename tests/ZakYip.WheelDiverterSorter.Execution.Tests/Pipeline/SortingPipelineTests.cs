@@ -18,7 +18,7 @@ public class SortingPipelineTests
         var context = new SortingPipelineContext
         {
             ParcelId = 123,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -45,7 +45,7 @@ public class SortingPipelineTests
         var context = new SortingPipelineContext
         {
             ParcelId = 123,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -73,7 +73,7 @@ public class SortingPipelineTests
         var context = new SortingPipelineContext
         {
             ParcelId = 123,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -99,7 +99,7 @@ public class SortingPipelineTests
         var context = new SortingPipelineContext
         {
             ParcelId = 123,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.Now
         };
 
         // Act
@@ -130,7 +130,7 @@ public class SortingPipelineTests
         var context = new SortingPipelineContext
         {
             ParcelId = 123,
-            CreatedAt = DateTimeOffset.UtcNow
+            CreatedAt = DateTimeOffset.Now
         };
 
         // Act

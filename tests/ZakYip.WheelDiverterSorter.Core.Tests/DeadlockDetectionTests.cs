@@ -41,7 +41,7 @@ public class DeadlockDetectionTests
             innerExecutorMock.Object,
             lockManager,
             options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         var path = CreateTestPath(1, new[] { 1 });
 
@@ -92,7 +92,7 @@ public class DeadlockDetectionTests
             innerExecutorMock.Object,
             lockManager,
             options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         var path = CreateTestPath(1, new[] { 1 });
 
@@ -137,7 +137,7 @@ public class DeadlockDetectionTests
             innerExecutorMock.Object,
             lockManager,
             options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         var path1 = CreateTestPath(1, new[] { 1, 2 });
         var path2 = CreateTestPath(2, new[] { 2, 3 });
@@ -178,7 +178,7 @@ public class DeadlockDetectionTests
                 MaxConcurrentParcels = 10,
                 DiverterLockTimeoutMs = 5000
             }),
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Create paths that all share diverter 1
         var path1 = CreateTestPath(1, new[] { 1, 2 });
@@ -272,7 +272,7 @@ public class DeadlockDetectionTests
             innerExecutorMock.Object,
             lockManager,
             options,
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - create many overlapping paths
         var random = new Random(42);
@@ -327,7 +327,7 @@ public class DeadlockDetectionTests
                 MaxConcurrentParcels = 5,
                 DiverterLockTimeoutMs = 2000
             }),
-            NullLogger<ConcurrentSwitchingPathExecutor>.Instance);
+            NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         var path = CreateTestPath(1, new[] { 1, 2 });
 
@@ -361,7 +361,7 @@ public class DeadlockDetectionTests
         {
             TargetChuteId = targetChuteId,
             Segments = segments,
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = 999
         };
     }

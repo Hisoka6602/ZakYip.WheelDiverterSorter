@@ -14,7 +14,7 @@ public class SortingEventsTests
     public void ParcelCreatedEventArgs_WithAllProperties_ShouldCreateSuccessfully()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new ParcelCreatedEventArgs
         {
             ParcelId = 12345,
@@ -34,7 +34,7 @@ public class SortingEventsTests
     public void ParcelCreatedEventArgs_WithoutOptionalProperties_ShouldCreateSuccessfully()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new ParcelCreatedEventArgs
         {
             ParcelId = 12345,
@@ -56,7 +56,7 @@ public class SortingEventsTests
     public void RoutePlannedEventArgs_WithAllProperties_ShouldCreateSuccessfully()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new RoutePlannedEventArgs
         {
             ParcelId = 12345,
@@ -82,7 +82,7 @@ public class SortingEventsTests
     public void RoutePlannedEventArgs_WithUnhealthyNodes_ShouldStoreUnhealthyInfo()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new RoutePlannedEventArgs
         {
             ParcelId = 12345,
@@ -107,7 +107,7 @@ public class SortingEventsTests
     public void ParcelDivertedEventArgs_WhenActualMatchesTarget_ShouldBeSuccessful()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new ParcelDivertedEventArgs
         {
             ParcelId = 12345,
@@ -130,7 +130,7 @@ public class SortingEventsTests
     public void ParcelDivertedEventArgs_WhenActualDiffersFromTarget_ShouldBeUnsuccessful()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new ParcelDivertedEventArgs
         {
             ParcelId = 12345,
@@ -150,7 +150,7 @@ public class SortingEventsTests
     public void ParcelDivertedEventArgs_WhenTargetIsZero_ShouldBeSuccessful()
     {
         // Arrange & Act - Target 0 means "any chute is fine"
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new ParcelDivertedEventArgs
         {
             ParcelId = 12345,
@@ -174,7 +174,7 @@ public class SortingEventsTests
     public void ParcelDivertedToExceptionEventArgs_ShouldStoreAllProperties()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new ParcelDivertedToExceptionEventArgs
         {
             ParcelId = 12345,
@@ -202,7 +202,7 @@ public class SortingEventsTests
     public void UpstreamAssignedEventArgs_WhenSuccessful_ShouldStoreAssignment()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new UpstreamAssignedEventArgs
         {
             ParcelId = 12345,
@@ -226,7 +226,7 @@ public class SortingEventsTests
     public void UpstreamAssignedEventArgs_WhenFailed_ShouldStoreError()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new UpstreamAssignedEventArgs
         {
             ParcelId = 12345,
@@ -252,7 +252,7 @@ public class SortingEventsTests
     public void EjectPlannedEventArgs_ShouldStoreAllProperties()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new EjectPlannedEventArgs
         {
             ParcelId = 12345,
@@ -278,7 +278,7 @@ public class SortingEventsTests
     public void EjectIssuedEventArgs_ShouldStoreAllProperties()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new EjectIssuedEventArgs
         {
             ParcelId = 12345,
@@ -304,7 +304,7 @@ public class SortingEventsTests
     public void OverloadEvaluatedEventArgs_WhenNotOverloaded_ShouldStoreDecision()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new OverloadEvaluatedEventArgs
         {
             ParcelId = 12345,
@@ -332,7 +332,7 @@ public class SortingEventsTests
     public void OverloadEvaluatedEventArgs_WhenOverloaded_ShouldStoreDecision()
     {
         // Arrange & Act
-        var timestamp = DateTimeOffset.UtcNow;
+        var timestamp = DateTimeOffset.Now;
         var args = new OverloadEvaluatedEventArgs
         {
             ParcelId = 12345,

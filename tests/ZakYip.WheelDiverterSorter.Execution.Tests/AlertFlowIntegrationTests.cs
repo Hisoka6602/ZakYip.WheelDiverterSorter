@@ -24,7 +24,7 @@ public class AlertFlowIntegrationTests
         var alertSink = new LogAlertSink(mockAlertSinkLogger.Object, metrics);
 
         var mockDetectorLogger = new Mock<ILogger<AnomalyDetector>>();
-        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object);
+        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - Simulate business scenario with high exception chute ratio
         for (int i = 0; i < 100; i++)
@@ -59,7 +59,7 @@ public class AlertFlowIntegrationTests
         var alertSink = new LogAlertSink(mockAlertSinkLogger.Object);
 
         var mockDetectorLogger = new Mock<ILogger<AnomalyDetector>>();
-        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object);
+        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - Simulate upstream timeout scenario (15% timeout rate, above 10% threshold)
         for (int i = 0; i < 100; i++)
@@ -95,7 +95,7 @@ public class AlertFlowIntegrationTests
         var alertSink = new LogAlertSink(mockAlertSinkLogger.Object);
 
         var mockDetectorLogger = new Mock<ILogger<AnomalyDetector>>();
-        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object);
+        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - Simulate multiple anomaly scenarios
         for (int i = 0; i < 100; i++)
@@ -145,7 +145,7 @@ public class AlertFlowIntegrationTests
         var alertSink = new LogAlertSink(mockAlertSinkLogger.Object);
 
         var mockDetectorLogger = new Mock<ILogger<AnomalyDetector>>();
-        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object);
+        var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - Simulate normal operation (5% exception rate, 3% timeout rate)
         for (int i = 0; i < 100; i++)
@@ -180,7 +180,7 @@ public class AlertFlowIntegrationTests
         var customSink = new TestAlertSink(receivedAlerts);
 
         var mockDetectorLogger = new Mock<ILogger<AnomalyDetector>>();
-        var detector = new AnomalyDetector(customSink, mockDetectorLogger.Object);
+        var detector = new AnomalyDetector(customSink, mockDetectorLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act - Trigger an anomaly
         for (int i = 0; i < 100; i++)

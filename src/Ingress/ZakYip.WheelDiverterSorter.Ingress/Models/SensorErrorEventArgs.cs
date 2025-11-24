@@ -29,5 +29,5 @@ public record SensorErrorEventArgs {
     /// <summary>
     /// 错误时间
     /// </summary>
-    public DateTimeOffset ErrorTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ErrorTime { get; init; } = DateTimeOffset.Now;
 }
