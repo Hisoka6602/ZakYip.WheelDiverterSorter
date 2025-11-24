@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -44,17 +45,20 @@ public class IoLinkageController : ControllerBase
     private readonly IIoLinkageConfigurationRepository _repository;
     private readonly IIoLinkageDriver _ioLinkageDriver;
     private readonly IIoLinkageCoordinator _ioLinkageCoordinator;
+    private readonly ISystemClock _systemClock;
     private readonly ILogger<IoLinkageController> _logger;
 
     public IoLinkageController(
         IIoLinkageConfigurationRepository repository,
         IIoLinkageDriver ioLinkageDriver,
         IIoLinkageCoordinator ioLinkageCoordinator,
+        ISystemClock systemClock,
         ILogger<IoLinkageController> logger)
     {
         _repository = repository;
         _ioLinkageDriver = ioLinkageDriver;
         _ioLinkageCoordinator = ioLinkageCoordinator;
+        _systemClock = systemClock;
         _logger = logger;
     }
 
@@ -684,8 +688,8 @@ public class IoLinkageController : ControllerBase
                     Level = p.Level
                 })
                 .ToList(),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = _systemClock.UtcNow,
+            UpdatedAt = _systemClock.UtcNow
         };
     }
 

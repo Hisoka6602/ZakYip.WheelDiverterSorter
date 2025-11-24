@@ -8,7 +8,7 @@ using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using Swashbuckle.AspNetCore.Annotations;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 

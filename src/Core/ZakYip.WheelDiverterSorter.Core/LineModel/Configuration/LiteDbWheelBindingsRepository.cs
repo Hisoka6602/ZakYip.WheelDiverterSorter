@@ -1,4 +1,5 @@
 using LiteDB;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -9,6 +10,7 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
 {
     private readonly LiteDatabase _database;
     private readonly ILiteCollection<WheelBindingsConfig> _collection;
+    private readonly ISystemClock _systemClock;
     private const string CollectionName = "WheelBindingsConfiguration";
     private const string DefaultConfigName = "wheel-bindings";
 
@@ -16,12 +18,14 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
     /// 初始化LiteDB摆轮硬件绑定配置仓储
     /// </summary>
     /// <param name="databasePath">LiteDB数据库文件路径</param>
-    public LiteDbWheelBindingsRepository(string databasePath)
+    /// <param name="systemClock">系统时钟</param>
+    public LiteDbWheelBindingsRepository(string databasePath, ISystemClock systemClock)
     {
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<WheelBindingsConfig>(CollectionName);
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         
         // 为ConfigName字段创建唯一索引
         _collection.EnsureIndex(x => x.ConfigName, unique: true);
@@ -95,7 +99,7 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
 
         if (existing == null)
         {
-            var now = currentTime ?? DateTime.Now; // 使用本地时间
+            var now = currentTime ?? _systemClock.LocalNow;
             var defaultConfig = GetDefaultConfig();
             defaultConfig.CreatedAt = now;
             defaultConfig.UpdatedAt = now;
@@ -111,14 +115,15 @@ public class LiteDbWheelBindingsRepository : IWheelBindingsRepository, IDisposab
         _database?.Dispose();
     }
 
-    private static WheelBindingsConfig GetDefaultConfig()
+    private WheelBindingsConfig GetDefaultConfig()
     {
+        var now = _systemClock.LocalNow;
         return new WheelBindingsConfig
         {
             ConfigName = DefaultConfigName,
             Bindings = new List<WheelHardwareBinding>(),
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 }

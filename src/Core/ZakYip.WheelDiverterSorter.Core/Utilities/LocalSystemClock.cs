@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Observability.Utilities;
+namespace ZakYip.WheelDiverterSorter.Core.Utilities;
 
 /// <summary>
 /// 本地系统时钟实现 - 提供本地时间访问

@@ -1,6 +1,6 @@
 using System.Globalization;
 using System.Text;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Strategies.Reports;
 

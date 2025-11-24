@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -11,7 +12,8 @@ public class DefaultCommunicationInfrastructure : ICommunicationInfrastructure
 {
     public DefaultCommunicationInfrastructure(
         RuleEngineConnectionOptions options,
-        ILogger logger)
+        ILogger logger,
+        ISystemClock systemClock)
     {
         if (options == null)
         {
@@ -21,10 +23,14 @@ public class DefaultCommunicationInfrastructure : ICommunicationInfrastructure
         {
             throw new ArgumentNullException(nameof(logger));
         }
+        if (systemClock == null)
+        {
+            throw new ArgumentNullException(nameof(systemClock));
+        }
 
         Logger = new CommunicationLoggerAdapter(logger);
         RetryPolicy = new ExponentialBackoffRetryPolicy(options, Logger);
-        CircuitBreaker = new SimpleCircuitBreaker(options, Logger);
+        CircuitBreaker = new SimpleCircuitBreaker(options, Logger, systemClock);
         Serializer = new JsonMessageSerializer();
     }
 

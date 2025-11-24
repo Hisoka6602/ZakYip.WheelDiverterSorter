@@ -1,4 +1,5 @@
 using LiteDB;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -14,18 +15,21 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     
     private readonly LiteDatabase _database;
     private readonly ILiteCollection<LineTopologyConfigEntity> _collection;
+    private readonly ISystemClock _systemClock;
     private const string CollectionName = "LineTopologyConfiguration";
 
     /// <summary>
     /// 初始化LiteDB线体拓扑配置仓储
     /// </summary>
     /// <param name="databasePath">LiteDB数据库文件路径</param>
-    public LiteDbLineTopologyRepository(string databasePath)
+    /// <param name="systemClock">系统时钟</param>
+    public LiteDbLineTopologyRepository(string databasePath, ISystemClock systemClock)
     {
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<LineTopologyConfigEntity>(CollectionName);
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         
         // 为TopologyId字段创建唯一索引
         _collection.EnsureIndex(x => x.TopologyId, unique: true);
@@ -102,7 +106,7 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
 
         if (existing == null)
         {
-            var now = currentTime ?? DateTime.Now; // 使用本地时间
+            var now = currentTime ?? _systemClock.LocalNow;
             var defaultConfig = GetDefaultConfig();
             var entity = MapToEntity(defaultConfig);
             entity.CreatedAt = now;
@@ -119,8 +123,9 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
         _database?.Dispose();
     }
 
-    private static LineTopologyConfig GetDefaultConfig()
+    private LineTopologyConfig GetDefaultConfig()
     {
+        var now = _systemClock.LocalNow;
         return new LineTopologyConfig
         {
             TopologyId = DefaultTopologyId,
@@ -132,8 +137,8 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             EntrySensorId = null,
             ExitSensorId = null,
             DefaultLineSpeedMmps = 500m,
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 

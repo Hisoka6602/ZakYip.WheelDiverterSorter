@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -17,18 +18,22 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly RuleEngineConnectionOptions _options;
+    private readonly ISystemClock _systemClock;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="loggerFactory">日志工厂</param>
     /// <param name="options">连接配置</param>
+    /// <param name="systemClock">系统时钟</param>
     public RuleEngineClientFactory(
         ILoggerFactory loggerFactory,
-        RuleEngineConnectionOptions options)
+        RuleEngineConnectionOptions options,
+        ISystemClock systemClock)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _options = options ?? throw new ArgumentNullException(nameof(options));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -42,19 +47,23 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
         {
             CommunicationMode.Tcp => new TcpRuleEngineClient(
                 _loggerFactory.CreateLogger<TcpRuleEngineClient>(),
-                _options),
+                _options,
+                _systemClock),
 
             CommunicationMode.SignalR => new SignalRRuleEngineClient(
                 _loggerFactory.CreateLogger<SignalRRuleEngineClient>(),
-                _options),
+                _options,
+                _systemClock),
 
             CommunicationMode.Mqtt => new MqttRuleEngineClient(
                 _loggerFactory.CreateLogger<MqttRuleEngineClient>(),
-                _options),
+                _options,
+                _systemClock),
 
             CommunicationMode.Http => new HttpRuleEngineClient(
                 _loggerFactory.CreateLogger<HttpRuleEngineClient>(),
-                _options),
+                _options,
+                _systemClock),
 
             _ => throw new NotSupportedException($"不支持的通信模式: {_options.Mode}")
         };

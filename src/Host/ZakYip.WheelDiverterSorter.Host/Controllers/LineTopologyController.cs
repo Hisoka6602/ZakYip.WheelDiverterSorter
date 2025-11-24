@@ -3,7 +3,7 @@ using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 

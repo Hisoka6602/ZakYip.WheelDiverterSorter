@@ -1,5 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -45,7 +45,7 @@ public static class ConfigurationRepositoryServiceExtensions
         services.AddSingleton<ISystemConfigurationRepository>(serviceProvider =>
         {
             var clock = serviceProvider.GetRequiredService<ISystemClock>();
-            var repository = new LiteDbSystemConfigurationRepository(fullDatabasePath);
+            var repository = new LiteDbSystemConfigurationRepository(fullDatabasePath, clock);
             // 初始化默认配置，使用本地时间
             repository.InitializeDefault(clock.LocalNow);
             return repository;
@@ -102,7 +102,7 @@ public static class ConfigurationRepositoryServiceExtensions
         services.AddSingleton<ILineTopologyRepository>(serviceProvider =>
         {
             var clock = serviceProvider.GetRequiredService<ISystemClock>();
-            var repository = new LiteDbLineTopologyRepository(fullDatabasePath);
+            var repository = new LiteDbLineTopologyRepository(fullDatabasePath, clock);
             // 初始化默认配置，使用本地时间
             repository.InitializeDefault(clock.LocalNow);
             return repository;
@@ -112,7 +112,7 @@ public static class ConfigurationRepositoryServiceExtensions
         services.AddSingleton<IWheelBindingsRepository>(serviceProvider =>
         {
             var clock = serviceProvider.GetRequiredService<ISystemClock>();
-            var repository = new LiteDbWheelBindingsRepository(fullDatabasePath);
+            var repository = new LiteDbWheelBindingsRepository(fullDatabasePath, clock);
             // 初始化默认配置，使用本地时间
             repository.InitializeDefault(clock.LocalNow);
             return repository;

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 

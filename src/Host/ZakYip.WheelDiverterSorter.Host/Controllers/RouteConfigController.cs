@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -40,14 +41,17 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class RouteConfigController : ControllerBase {
     private readonly IRouteConfigurationRepository _repository;
     private readonly IRouteImportExportService _importExportService;
+    private readonly ISystemClock _systemClock;
     private readonly ILogger<RouteConfigController> _logger;
 
     public RouteConfigController(
         IRouteConfigurationRepository repository,
         IRouteImportExportService importExportService,
+        ISystemClock systemClock,
         ILogger<RouteConfigController> logger) {
         _repository = repository;
         _importExportService = importExportService;
+        _systemClock = systemClock;
         _logger = logger;
     }
 
@@ -417,14 +421,14 @@ public class RouteConfigController : ControllerBase {
                 case "csv":
                     fileContent = _importExportService.ExportAsCsv(configs);
                     contentType = "text/csv";
-                    fileName = $"routes_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                    fileName = $"routes_{_systemClock.LocalNow:yyyyMMdd_HHmmss}.csv";
                     break;
 
                 case "json":
                 default:
                     fileContent = _importExportService.ExportAsJson(configs);
                     contentType = "application/json";
-                    fileName = $"routes_{DateTime.Now:yyyyMMdd_HHmmss}.json";
+                    fileName = $"routes_{_systemClock.LocalNow:yyyyMMdd_HHmmss}.json";
                     break;
             }
 

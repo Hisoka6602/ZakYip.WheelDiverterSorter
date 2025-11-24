@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 

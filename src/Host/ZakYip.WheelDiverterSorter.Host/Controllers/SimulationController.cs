@@ -6,7 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Host.Services;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models;
 
