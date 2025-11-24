@@ -117,7 +117,7 @@ public static class CommunicationServiceExtensions
         var options = new RuleEngineConnectionOptions();
         configuration.GetSection("RuleEngineConnection").Bind(options);
 
-        // 注册 UpstreamConnectionManager
+        // 注册 UpstreamConnectionManager（用于Client模式）
         services.AddSingleton<IUpstreamConnectionManager>(sp =>
         {
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpstreamConnectionManager>>();
@@ -135,8 +135,20 @@ public static class CommunicationServiceExtensions
                 options);
         });
 
-        // 注册后台服务，自动启动连接管理
-        services.AddHostedService<UpstreamConnectionBackgroundService>();
+        // 注册 RuleEngineServerFactory（用于Server模式）
+        services.AddSingleton<RuleEngineServerFactory>();
+
+        // 根据连接模式注册对应的后台服务
+        if (options.ConnectionMode == Core.Enums.Communication.ConnectionMode.Client)
+        {
+            // Client模式：注册客户端连接后台服务，自动启动连接管理
+            services.AddHostedService<UpstreamConnectionBackgroundService>();
+        }
+        else if (options.ConnectionMode == Core.Enums.Communication.ConnectionMode.Server)
+        {
+            // Server模式：注册服务器监听后台服务，自动启动服务器
+            services.AddHostedService<UpstreamServerBackgroundService>();
+        }
 
         return services;
     }
