@@ -20,6 +20,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Host.Swagger;
 
 // Early init of NLog to allow startup and shutdown logging
 var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
@@ -122,6 +123,9 @@ try
 
         // 配置枚举在Swagger中显示为字符串而不是数字
         options.UseInlineDefinitionsForEnums();
+
+        // 添加驱动配置的Schema过滤器，根据当前厂商动态显示配置参数
+        options.SchemaFilter<DriverConfigurationSchemaFilter>();
     });
 
     // 注册所有配置仓储（路由、系统、驱动器、传感器、通信）
