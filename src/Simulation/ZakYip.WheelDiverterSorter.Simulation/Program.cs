@@ -81,7 +81,7 @@ var host = Host.CreateDefaultBuilder(args)
                 _ => throw new InvalidOperationException($"不支持的分拣模式: {options.SortingMode}")
             };
 
-            return new InMemoryRuleEngineClient(chuteAssignmentFunc, logger);
+            return new InMemoryRuleEngineClient(chuteAssignmentFunc, sp.GetRequiredService<Core.Utilities.ISystemClock>(), logger);
         });
 
         // 注册Prometheus指标服务

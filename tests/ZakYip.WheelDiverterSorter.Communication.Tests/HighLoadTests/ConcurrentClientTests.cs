@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -29,6 +30,7 @@ public class ConcurrentClientTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1, // 简单的格口分配逻辑
+            Mock.Of<ISystemClock>(),
             logger);
         
         await client.ConnectAsync(); // 必须先连接
@@ -82,7 +84,7 @@ public class ConcurrentClientTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
-            logger);
+            Mock.Of<ISystemClock>(), logger);
         
         var requestCount = 1000;
         var latencies = new ConcurrentBag<long>();
@@ -123,7 +125,7 @@ public class ConcurrentClientTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
-            logger);
+            Mock.Of<ISystemClock>(), logger);
         
         await client.ConnectAsync(); // 必须先连接
         
@@ -159,7 +161,7 @@ public class ConcurrentClientTests
         {
             using var client = new InMemoryRuleEngineClient(
                 parcelId => (int)(parcelId % 10) + 1,
-                logger);
+                Mock.Of<ISystemClock>(), logger);
             
             var tasks = Enumerable.Range(1, 100).Select(async parcelId =>
             {
@@ -181,7 +183,7 @@ public class ConcurrentClientTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
-            logger);
+            Mock.Of<ISystemClock>(), logger);
 
         await client.ConnectAsync(); // 必须先连接
 
@@ -198,7 +200,7 @@ public class ConcurrentClientTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
-            logger);
+            Mock.Of<ISystemClock>(), logger);
         
         // Act
         client.Dispose();
@@ -217,7 +219,7 @@ public class ConcurrentClientTests
         var logger = Mock.Of<ILogger<InMemoryRuleEngineClient>>();
         var client = new InMemoryRuleEngineClient(
             parcelId => (int)(parcelId % 10) + 1,
-            logger);
+            Mock.Of<ISystemClock>(), logger);
         
         // Act & Assert - 多次 Dispose 不应该抛出异常
         client.Dispose();

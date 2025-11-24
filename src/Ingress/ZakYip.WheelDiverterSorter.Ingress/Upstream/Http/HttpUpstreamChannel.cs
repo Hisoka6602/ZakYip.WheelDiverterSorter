@@ -85,6 +85,7 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
         {
             _logger?.LogDebug("发送命令到 HTTP 通道 {Name}: {RequestType}", Name, typeof(TRequest).Name);
 
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(timeout);
 
             // 根据请求类型确定端点

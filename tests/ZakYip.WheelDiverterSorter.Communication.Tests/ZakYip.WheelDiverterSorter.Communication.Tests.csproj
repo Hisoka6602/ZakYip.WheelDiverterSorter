@@ -25,6 +25,7 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/ZakYip.WheelDiverterSorter.Communication.csproj" />
     <ProjectReference Include="../../src/Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
+    <ProjectReference Include="../../src/Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
   </ItemGroup>
 
   <!-- 临时排除已损坏的测试文件，这些文件在仓库中已损坏 -->

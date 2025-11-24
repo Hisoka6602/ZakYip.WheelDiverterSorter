@@ -700,7 +700,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated, // 默认模拟，可通过配置切换
+            VendorId = Core.Enums.VendorId.Simulated, // 默认模拟，可通过配置切换
             Topology = new SimulationTopology
             {
                 DiverterCount = 5,
@@ -757,7 +757,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             Topology = new SimulationTopology
             {
                 DiverterCount = 5,
@@ -819,7 +819,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             Topology = new SimulationTopology
             {
                 DiverterCount = 5,
@@ -885,7 +885,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             FaultInjection = new FaultInjectionConfig
             {
                 InjectUpstreamDelay = true,
@@ -936,7 +936,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             FaultInjection = new FaultInjectionConfig
             {
                 InjectNodeFailure = true,
@@ -1002,7 +1002,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             Expectations = null
         };
     }
@@ -1058,7 +1058,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             Expectations = null
         };
     }
@@ -1108,7 +1108,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             Topology = new SimulationTopology
             {
                 DiverterCount = 10,
@@ -1159,7 +1159,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = Core.Enums.VendorId.Simulated,
             FaultInjection = new FaultInjectionConfig
             {
                 InjectSensorFailure = true,

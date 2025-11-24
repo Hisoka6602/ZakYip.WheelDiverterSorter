@@ -12,7 +12,9 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
     public LiteDbSystemConfigurationRepositoryTests()
     {
         _testDatabasePath = Path.Combine(Path.GetTempPath(), $"test_system_config_{Guid.NewGuid()}.db");
-        _repository = new LiteDbSystemConfigurationRepository(_testDatabasePath);
+        var mockClock = new Moq.Mock<Utilities.ISystemClock>();
+        mockClock.Setup(c => c.LocalNow).Returns(DateTime.Now);
+        _repository = new LiteDbSystemConfigurationRepository(_testDatabasePath, mockClock.Object);
     }
 
     public void Dispose()

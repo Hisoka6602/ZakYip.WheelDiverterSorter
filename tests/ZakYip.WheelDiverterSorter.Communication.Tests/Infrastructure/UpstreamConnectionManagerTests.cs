@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Infrastructure;
@@ -154,6 +155,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         // Arrange
         var options = CreateDefaultOptions();
         options.ConnectionMode = ConnectionMode.Server;
+        using var manager = CreateManager(options);
 
         // Act
         await manager.StartAsync();
@@ -177,6 +179,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         // Arrange
         var options = CreateDefaultOptions();
         options.ConnectionMode = ConnectionMode.Client;
+        using var manager = CreateManager(options);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         // Act
@@ -199,6 +202,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     {
         // Arrange
         var options = CreateDefaultOptions();
+        using var manager = CreateManager(options);
 
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
@@ -236,6 +240,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         // Arrange
         var options = CreateDefaultOptions();
         options.ConnectionMode = ConnectionMode.Client;
+        using var manager = CreateManager(options);
         
         await manager.StartAsync();
         await Task.Delay(100);
@@ -259,6 +264,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     {
         // Arrange
         var options = CreateDefaultOptions();
+        using var manager = CreateManager(options);
         
         var eventFired = false;
         ConnectionStateChangedEventArgs? eventArgs = null;
