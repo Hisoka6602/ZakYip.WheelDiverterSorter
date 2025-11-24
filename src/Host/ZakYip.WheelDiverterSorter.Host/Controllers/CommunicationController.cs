@@ -248,23 +248,76 @@ public class CommunicationController : ControllerBase {
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 获取存储在数据库中的通信配置，与内存中的运行时配置可能不同
+    /// 获取存储在数据库中的通信配置，与内存中的运行时配置可能不同。
+    /// 配置参数按协议分组，便于理解和管理：
+    /// - TCP配置：包括服务器地址、缓冲区大小、Keep-Alive等
+    /// - HTTP配置：包括API地址、连接池设置、HTTP/2支持等
+    /// - MQTT配置：包括Broker地址、主题、QoS等级等
+    /// - SignalR配置：包括Hub地址、超时设置等
     /// </remarks>
     [HttpGet("config/persisted")]
     [SwaggerOperation(
         Summary = "获取持久化通信配置",
-        Description = "返回存储在数据库中的通信配置",
+        Description = "返回存储在数据库中的通信配置，参数按协议分组显示",
         OperationId = "GetPersistedConfiguration",
         Tags = new[] { "通信管理" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(CommunicationConfiguration))]
+    [SwaggerResponse(200, "成功返回配置", typeof(CommunicationConfigurationResponse))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
+    [ProducesResponseType(typeof(CommunicationConfigurationResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfiguration> GetPersistedConfiguration() {
+    public ActionResult<CommunicationConfigurationResponse> GetPersistedConfiguration() {
         try {
             var config = _configRepository.Get();
-            return Ok(config);
+            
+            var response = new CommunicationConfigurationResponse
+            {
+                Mode = config.Mode,
+                ConnectionMode = config.ConnectionMode,
+                TimeoutMs = config.TimeoutMs,
+                RetryCount = config.RetryCount,
+                RetryDelayMs = config.RetryDelayMs,
+                EnableAutoReconnect = config.EnableAutoReconnect,
+                Tcp = new TcpConfigDto
+                {
+                    TcpServer = config.TcpServer,
+                    ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
+                    SendBufferSize = config.Tcp.SendBufferSize,
+                    NoDelay = config.Tcp.NoDelay,
+                    KeepAliveInterval = config.Tcp.KeepAliveInterval
+                },
+                Http = new HttpConfigDto
+                {
+                    HttpApi = config.HttpApi,
+                    MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
+                    PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
+                    PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
+                    UseHttp2 = config.Http.UseHttp2
+                },
+                Mqtt = new MqttConfigDto
+                {
+                    MqttBroker = config.MqttBroker,
+                    MqttTopic = config.MqttTopic,
+                    QualityOfServiceLevel = config.Mqtt.QualityOfServiceLevel,
+                    CleanSession = config.Mqtt.CleanSession,
+                    SessionExpiryInterval = config.Mqtt.SessionExpiryInterval,
+                    MessageExpiryInterval = config.Mqtt.MessageExpiryInterval,
+                    ClientIdPrefix = config.Mqtt.ClientIdPrefix
+                },
+                SignalR = new SignalRConfigDto
+                {
+                    SignalRHub = config.SignalRHub,
+                    HandshakeTimeout = config.SignalR.HandshakeTimeout,
+                    KeepAliveInterval = config.SignalR.KeepAliveInterval,
+                    ServerTimeout = config.SignalR.ServerTimeout,
+                    SkipNegotiation = config.SignalR.SkipNegotiation
+                },
+                Version = config.Version,
+                CreatedAt = config.CreatedAt,
+                UpdatedAt = config.UpdatedAt
+            };
+            
+            return Ok(response);
         }
         catch (Exception ex) {
             _logger.LogError(ex, "获取持久化通信配置失败 - Failed to get persisted communication configuration");
@@ -275,20 +328,46 @@ public class CommunicationController : ControllerBase {
     /// <summary>
     /// 更新持久化通信配置（支持热更新）
     /// </summary>
-    /// <param name="request">通信配置请求，包含通信模式、服务器地址、超时时间等参数</param>
+    /// <param name="request">通信配置请求，包含按协议分组的参数</param>
     /// <returns>更新后的通信配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求:
+    /// 示例请求 - TCP模式:
     ///
     ///     PUT /api/communication/config/persisted
     ///     {
     ///         "mode": 1,
-    ///         "tcpServer": "192.168.1.100:8000",
+    ///         "connectionMode": 0,
     ///         "timeoutMs": 5000,
-    ///         "retryCount": 3
+    ///         "retryCount": 3,
+    ///         "retryDelayMs": 1000,
+    ///         "enableAutoReconnect": true,
+    ///         "tcp": {
+    ///             "tcpServer": "192.168.1.100:8000",
+    ///             "receiveBufferSize": 8192,
+    ///             "sendBufferSize": 8192,
+    ///             "noDelay": true,
+    ///             "keepAliveInterval": 60
+    ///         }
+    ///     }
+    ///
+    /// 示例请求 - MQTT模式:
+    ///
+    ///     PUT /api/communication/config/persisted
+    ///     {
+    ///         "mode": 3,
+    ///         "connectionMode": 0,
+    ///         "timeoutMs": 5000,
+    ///         "retryCount": 3,
+    ///         "mqtt": {
+    ///             "mqttBroker": "mqtt://192.168.1.100:1883",
+    ///             "mqttTopic": "sorting/chute/assignment",
+    ///             "qualityOfServiceLevel": 1,
+    ///             "cleanSession": true,
+    ///             "clientIdPrefix": "WheelDiverter"
+    ///         }
     ///     }
     ///
     /// 通信模式说明（mode字段）：
@@ -297,22 +376,27 @@ public class CommunicationController : ControllerBase {
     /// - 2: SignalR - SignalR实时通信
     /// - 3: Mqtt - MQTT消息队列通信
     /// 
+    /// 连接模式说明（connectionMode字段）：
+    /// - 0: Client - 本程序作为客户端，主动连接上游
+    /// - 1: Server - 本程序作为服务端，监听上游连接
+    /// 
     /// 配置更新后立即生效，无需重启服务。
+    /// 只需填写对应通信模式的配置项，其他协议的配置可以省略或保留默认值。
     /// </remarks>
     [HttpPut("config/persisted")]
     [SwaggerOperation(
         Summary = "更新持久化通信配置",
-        Description = "更新通信配置并持久化到数据库，配置立即生效无需重启",
+        Description = "更新通信配置并持久化到数据库，参数按协议分组。配置立即生效无需重启。",
         OperationId = "UpdatePersistedConfiguration",
         Tags = new[] { "通信管理" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(CommunicationConfiguration))]
+    [SwaggerResponse(200, "更新成功", typeof(CommunicationConfigurationResponse))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
+    [ProducesResponseType(typeof(CommunicationConfigurationResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfiguration> UpdatePersistedConfiguration([FromBody] CommunicationConfiguration request) {
+    public ActionResult<CommunicationConfigurationResponse> UpdatePersistedConfiguration([FromBody] CommunicationConfigurationRequest request) {
         try {
             if (!ModelState.IsValid) {
                 var errors = ModelState.Values
@@ -321,21 +405,66 @@ public class CommunicationController : ControllerBase {
                 return BadRequest(new { message = "请求参数无效 - Invalid request parameters", errors });
             }
 
+            // 将请求转换为 CommunicationConfiguration
+            var config = new CommunicationConfiguration
+            {
+                Mode = request.Mode,
+                ConnectionMode = request.ConnectionMode,
+                TimeoutMs = request.TimeoutMs,
+                RetryCount = request.RetryCount,
+                RetryDelayMs = request.RetryDelayMs,
+                EnableAutoReconnect = request.EnableAutoReconnect,
+                TcpServer = request.Tcp?.TcpServer,
+                HttpApi = request.Http?.HttpApi,
+                MqttBroker = request.Mqtt?.MqttBroker,
+                MqttTopic = request.Mqtt?.MqttTopic ?? "sorting/chute/assignment",
+                SignalRHub = request.SignalR?.SignalRHub,
+                Tcp = new Core.LineModel.Configuration.TcpConfig
+                {
+                    ReceiveBufferSize = request.Tcp?.ReceiveBufferSize ?? 8192,
+                    SendBufferSize = request.Tcp?.SendBufferSize ?? 8192,
+                    NoDelay = request.Tcp?.NoDelay ?? true,
+                    KeepAliveInterval = request.Tcp?.KeepAliveInterval ?? 60
+                },
+                Http = new Core.LineModel.Configuration.HttpConfig
+                {
+                    MaxConnectionsPerServer = request.Http?.MaxConnectionsPerServer ?? 10,
+                    PooledConnectionIdleTimeout = request.Http?.PooledConnectionIdleTimeout ?? 60,
+                    PooledConnectionLifetime = request.Http?.PooledConnectionLifetime ?? 0,
+                    UseHttp2 = request.Http?.UseHttp2 ?? false
+                },
+                Mqtt = new Core.LineModel.Configuration.MqttConfig
+                {
+                    QualityOfServiceLevel = request.Mqtt?.QualityOfServiceLevel ?? 1,
+                    CleanSession = request.Mqtt?.CleanSession ?? true,
+                    SessionExpiryInterval = request.Mqtt?.SessionExpiryInterval ?? 3600,
+                    MessageExpiryInterval = request.Mqtt?.MessageExpiryInterval ?? 0,
+                    ClientIdPrefix = request.Mqtt?.ClientIdPrefix ?? "WheelDiverter"
+                },
+                SignalR = new Core.LineModel.Configuration.SignalRConfig
+                {
+                    HandshakeTimeout = request.SignalR?.HandshakeTimeout ?? 15,
+                    KeepAliveInterval = request.SignalR?.KeepAliveInterval ?? 30,
+                    ServerTimeout = request.SignalR?.ServerTimeout ?? 60,
+                    SkipNegotiation = request.SignalR?.SkipNegotiation ?? false
+                }
+            };
+
             // 验证配置
-            var (isValid, errorMessage) = request.Validate();
+            var (isValid, errorMessage) = config.Validate();
             if (!isValid) {
                 return BadRequest(new { message = errorMessage });
             }
 
-            _configRepository.Update(request);
+            _configRepository.Update(config);
 
             _logger.LogInformation(
                 "通信配置已更新 - Communication configuration updated: Mode={Mode}, Version={Version}",
-                request.Mode,
-                request.Version);
+                config.Mode,
+                config.Version);
 
-            var updatedConfig = _configRepository.Get();
-            return Ok(updatedConfig);
+            // 返回更新后的配置（重新获取以确保返回持久化后的值）
+            return GetPersistedConfiguration();
         }
         catch (ArgumentException ex) {
             _logger.LogWarning(ex, "通信配置验证失败 - Communication configuration validation failed");
@@ -363,19 +492,18 @@ public class CommunicationController : ControllerBase {
         OperationId = "ResetPersistedConfiguration",
         Tags = new[] { "通信管理" }
     )]
-    [SwaggerResponse(200, "重置成功", typeof(CommunicationConfiguration))]
+    [SwaggerResponse(200, "重置成功", typeof(CommunicationConfigurationResponse))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(CommunicationConfiguration), 200)]
+    [ProducesResponseType(typeof(CommunicationConfigurationResponse), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<CommunicationConfiguration> ResetPersistedConfiguration() {
+    public ActionResult<CommunicationConfigurationResponse> ResetPersistedConfiguration() {
         try {
             var defaultConfig = CommunicationConfiguration.GetDefault();
             _configRepository.Update(defaultConfig);
 
             _logger.LogInformation("通信配置已重置为默认值 - Communication configuration reset to defaults");
 
-            var updatedConfig = _configRepository.Get();
-            return Ok(updatedConfig);
+            return GetPersistedConfiguration();
         }
         catch (Exception ex) {
             _logger.LogError(ex, "重置通信配置失败 - Failed to reset communication configuration");

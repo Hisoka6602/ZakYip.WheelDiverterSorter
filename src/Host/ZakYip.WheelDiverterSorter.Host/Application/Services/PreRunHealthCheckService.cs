@@ -1,6 +1,8 @@
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 
@@ -13,6 +15,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly ILineTopologyRepository _lineTopologyRepository;
+    private readonly ICommunicationConfigurationRepository _communicationConfigRepository;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<PreRunHealthCheckService> _logger;
 
@@ -20,12 +23,14 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         ISystemConfigurationRepository systemConfigRepository,
         IPanelConfigurationRepository panelConfigRepository,
         ILineTopologyRepository lineTopologyRepository,
+        ICommunicationConfigurationRepository communicationConfigRepository,
         ISafeExecutionService safeExecutor,
         ILogger<PreRunHealthCheckService> logger)
     {
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _lineTopologyRepository = lineTopologyRepository ?? throw new ArgumentNullException(nameof(lineTopologyRepository));
+        _communicationConfigRepository = communicationConfigRepository ?? throw new ArgumentNullException(nameof(communicationConfigRepository));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -47,8 +52,8 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         // 4. 线体长度与线速度合法性检查
         checks.Add(await CheckLineSegmentsValidityAsync(cancellationToken));
 
-        // TODO: 上游超时配置检查（待后续版本实现）
-        // checks.Add(await CheckUpstreamTimeoutConfigAsync(cancellationToken));
+        // 5. 上游连接配置检查
+        checks.Add(await CheckUpstreamConnectionConfigAsync(cancellationToken));
 
         // 计算整体状态
         var overallStatus = checks.All(c => c.IsHealthy) ? "Healthy" : "Unhealthy";
@@ -346,6 +351,17 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
+                // 检查是否有线体段配置
+                if (topology.LineSegments.Count == 0)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "LineSegmentsLengthAndSpeedValid",
+                        Status = "Unhealthy",
+                        Message = "线体段数量为0，必须至少配置一个线体段"
+                    };
+                }
+
                 var invalidSegments = new List<string>();
 
                 foreach (var segment in topology.LineSegments)
@@ -402,6 +418,64 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 Name = "LineSegmentsLengthAndSpeedValid",
                 Status = "Unhealthy",
                 Message = "检查线体段配置时发生异常"
+            },
+            cancellationToken: cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// 检查上游连接配置是否有效
+    /// </summary>
+    private async Task<HealthCheckItem> CheckUpstreamConnectionConfigAsync(CancellationToken cancellationToken)
+    {
+        return await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                await Task.Yield();
+                var config = _communicationConfigRepository.Get();
+                if (config == null)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "UpstreamConnectionConfigured",
+                        Status = "Unhealthy",
+                        Message = "上游通信配置未初始化"
+                    };
+                }
+
+                // 检查根据通信模式，相应的连接地址是否已配置
+                var isConfigured = config.Mode switch
+                {
+                    CommunicationMode.Tcp => !string.IsNullOrWhiteSpace(config.TcpServer),
+                    CommunicationMode.SignalR => !string.IsNullOrWhiteSpace(config.SignalRHub),
+                    CommunicationMode.Mqtt => !string.IsNullOrWhiteSpace(config.MqttBroker),
+                    CommunicationMode.Http => !string.IsNullOrWhiteSpace(config.HttpApi),
+                    _ => false
+                };
+
+                if (!isConfigured)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "UpstreamConnectionConfigured",
+                        Status = "Unhealthy",
+                        Message = $"上游连接未配置：当前通信模式为 {config.Mode}，但对应的连接地址未设置"
+                    };
+                }
+
+                return new HealthCheckItem
+                {
+                    Name = "UpstreamConnectionConfigured",
+                    Status = "Healthy",
+                    Message = $"上游连接已配置：通信模式 {config.Mode}"
+                };
+            },
+            operationName: "CheckUpstreamConnectionConfig",
+            defaultValue: new HealthCheckItem
+            {
+                Name = "UpstreamConnectionConfigured",
+                Status = "Unhealthy",
+                Message = "检查上游连接配置时发生异常"
             },
             cancellationToken: cancellationToken
         );
