@@ -154,10 +154,69 @@ public class MqttConnectionIntegrationTests : IDisposable
         Assert.False(server.IsRunning, "Server should not be running after stop");
     }
 
+    [Fact]
+    public async Task MqttClient_CanConnectToServer()
+    {
+        // Arrange
+        var port = GetAvailablePort();
+        var serverOptions = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Mqtt,
+            ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
+            MqttBroker = $"localhost:{port}",
+            MqttTopic = "test/sorting",
+            TimeoutMs = 5000
+        };
+
+        var server = new MqttRuleEngineServer(
+            _serverLoggerMock.Object,
+            serverOptions,
+            _systemClockMock.Object);
+        _disposables.Add(server);
+
+        var clientOptions = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Mqtt,
+            ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
+            MqttBroker = $"mqtt://localhost:{port}",
+            MqttTopic = "test/sorting",
+            TimeoutMs = 5000,
+            Mqtt = new MqttOptions
+            {
+                ClientIdPrefix = "test-receiver",
+                CleanSession = true
+            }
+        };
+
+        var client = new MqttRuleEngineClient(
+            _clientLoggerMock.Object,
+            clientOptions,
+            _systemClockMock.Object);
+        _disposables.Add(client);
+
+        // Act
+        await server.StartAsync();
+        await Task.Delay(1000);
+
+        var connected = await client.ConnectAsync();
+        await Task.Delay(1000);
+
+        // Assert
+        Assert.True(connected, "Client should connect successfully");
+        Assert.True(client.IsConnected, "Client should be connected");
+        Assert.True(server.IsRunning, "Server should be running");
+        Assert.True(server.ConnectedClientsCount >= 1, "Server should have at least 1 connected client");
+
+        // Cleanup
+        await client.DisconnectAsync();
+        await server.StopAsync();
+    }
+
     private static int GetAvailablePort()
     {
         // Use a random port in the dynamic/private port range (49152-65535)
-        return Random.Shared.Next(51000, 61000);
+        // Use different range for MQTT to avoid conflicts
+        return Random.Shared.Next(51883, 61883);
     }
 
     public void Dispose()

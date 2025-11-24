@@ -202,6 +202,64 @@ public class TcpConnectionIntegrationTests : IDisposable
         Assert.Equal(0, server.ConnectedClientsCount);
     }
 
+    [Fact]
+    public async Task TcpServer_ShouldReceiveParcelNotification()
+    {
+        // Arrange
+        var port = GetAvailablePort();
+        var serverOptions = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
+            TcpServer = $"127.0.0.1:{port}",
+            TimeoutMs = 5000
+        };
+
+        var server = new TcpRuleEngineServer(
+            _serverLoggerMock.Object,
+            serverOptions,
+            _systemClockMock.Object);
+        _disposables.Add(server);
+
+        var parcelNotificationReceived = false;
+        var receivedParcelId = 0L;
+
+        server.ParcelNotificationReceived += (sender, args) =>
+        {
+            parcelNotificationReceived = true;
+            receivedParcelId = args.ParcelId;
+        };
+
+        // Act
+        await server.StartAsync();
+        await Task.Delay(500);
+
+        // Manually send a TCP request to the server to simulate client
+        using var testClient = new System.Net.Sockets.TcpClient();
+        await testClient.ConnectAsync("127.0.0.1", port);
+        await Task.Delay(300);
+
+        var testParcelId = 1234567890L;
+        var request = new { ParcelId = testParcelId, RequestTime = DateTimeOffset.Now };
+        var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
+        var requestBytes = System.Text.Encoding.UTF8.GetBytes(requestJson + "\n");
+
+        var stream = testClient.GetStream();
+        await stream.WriteAsync(requestBytes);
+        await stream.FlushAsync();
+
+        // Wait for server to process
+        await Task.Delay(1000);
+
+        // Assert
+        Assert.True(parcelNotificationReceived, "Server should receive parcel notification");
+        Assert.Equal(testParcelId, receivedParcelId);
+
+        // Cleanup
+        testClient.Close();
+        await server.StopAsync();
+    }
+
     private static int GetAvailablePort()
     {
         // Use a random port in the dynamic/private port range (49152-65535)

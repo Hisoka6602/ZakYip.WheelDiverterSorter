@@ -127,6 +127,64 @@ public class SignalRConnectionIntegrationTests : IDisposable
     }
 
     [Fact]
+    public async Task SignalRServer_ShouldBroadcastChuteAssignment()
+    {
+        // Arrange
+        var serverOptions = new RuleEngineConnectionOptions
+        {
+            Mode = CommunicationMode.SignalR,
+            ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
+            SignalRHub = "http://localhost:5996/ruleengine",
+            TimeoutMs = 5000
+        };
+
+        var mockClients = new Mock<IHubClients>();
+        var mockClientProxy = new Mock<IClientProxy>();
+        
+        mockClients.Setup(c => c.All).Returns(mockClientProxy.Object);
+        
+        var mockHubContext = new Mock<IHubContext<RuleEngineHub>>();
+        mockHubContext.Setup(h => h.Clients).Returns(mockClients.Object);
+
+        var server = new SignalRRuleEngineServer(
+            _serverLoggerMock.Object,
+            serverOptions,
+            _systemClockMock.Object,
+            mockHubContext.Object);
+        _disposables.Add(server);
+
+        var broadcastCalled = false;
+        mockClientProxy
+            .Setup(c => c.SendCoreAsync(
+                It.IsAny<string>(),
+                It.IsAny<object[]>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, object[], CancellationToken>((method, args, ct) =>
+            {
+                if (method == "ReceiveChuteAssignment")
+                {
+                    broadcastCalled = true;
+                }
+            })
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await server.StartAsync();
+        await Task.Delay(300);
+
+        var testParcelId = 5555555555L;
+        await server.BroadcastChuteAssignmentAsync(testParcelId, "3");
+        await Task.Delay(300);
+
+        // Assert
+        Assert.True(server.IsRunning, "Server should be running");
+        Assert.True(broadcastCalled, "Broadcast should have been called");
+
+        // Cleanup
+        await server.StopAsync();
+    }
+
+    [Fact]
     public async Task SignalRClient_ShouldInitializeConnectionBuilder()
     {
         // Arrange
