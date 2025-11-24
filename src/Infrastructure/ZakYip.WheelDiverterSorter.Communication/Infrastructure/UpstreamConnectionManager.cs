@@ -104,22 +104,51 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         await _optionsLock.WaitAsync().ConfigureAwait(false);
         try
         {
+            var oldOptions = _currentOptions;
             _currentOptions = options;
+            
             _logger.LogInformation(
-                "[{LocalTime}] Connection options updated. Mode={Mode}, ConnectionMode={ConnectionMode}, Server={Server}",
+                "[{LocalTime}] 🔄 连接配置已更新 - Connection options updated. " +
+                "Old: Mode={OldMode}, Server={OldServer} → " +
+                "New: Mode={NewMode}, Server={NewServer}",
                 _systemClock.LocalNow,
+                oldOptions.Mode,
+                GetServerAddress(oldOptions),
                 options.Mode,
-                options.ConnectionMode,
                 GetServerAddress(options));
 
-            // 如果当前在运行，触发重新连接
-            // If currently running, trigger reconnection
+            // 🔴 关键修复：立即断开当前连接，强制使用新配置重新连接
+            // Critical fix: immediately disconnect current connection, force reconnection with new config
             if (_connectionTask != null && !_connectionTask.IsCompleted)
             {
-                // 连接循环会自动检测到新的配置并使用新参数
-                // Connection loop will automatically detect new config and use new parameters
+                try
+                {
+                    _logger.LogInformation(
+                        "[{LocalTime}] 🔌 断开当前连接以应用新配置 - Disconnecting current connection to apply new configuration",
+                        _systemClock.LocalNow);
+                    
+                    // 断开当前连接
+                    await _client.DisconnectAsync().ConfigureAwait(false);
+                    
+                    _logger.LogInformation(
+                        "[{LocalTime}] ✅ 连接已断开，将立即使用新配置重新连接 - " +
+                        "Connection disconnected, will reconnect immediately with new configuration",
+                        _systemClock.LocalNow);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "[{LocalTime}] ⚠️ 断开连接时发生异常（将继续尝试使用新配置重连） - " +
+                        "Exception while disconnecting (will continue to reconnect with new config)",
+                        _systemClock.LocalNow);
+                }
+            }
+            else
+            {
                 _logger.LogInformation(
-                    "[{LocalTime}] Active connection will switch to new parameters in next retry cycle",
+                    "[{LocalTime}] ℹ️ 当前无活动连接，新配置将在下次连接时生效 - " +
+                    "No active connection, new configuration will take effect on next connection",
                     _systemClock.LocalNow);
             }
         }
