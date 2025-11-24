@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Health;
 
@@ -11,16 +12,19 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
 {
     private readonly IRuleEngineClient? _client;
     private readonly ILogger<RuleEngineUpstreamHealthChecker> _logger;
+    private readonly ISystemClock _systemClock;
     private readonly string _connectionType;
 
     public RuleEngineUpstreamHealthChecker(
         IRuleEngineClient? client,
         string connectionType,
-        ILogger<RuleEngineUpstreamHealthChecker> logger)
+        ILogger<RuleEngineUpstreamHealthChecker> logger,
+        ISystemClock systemClock)
     {
         _client = client;
         _connectionType = connectionType;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <inheritdoc/>
@@ -42,7 +46,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
                     EndpointName = EndpointName,
                     IsHealthy = true, // 未配置视为健康（可选功能）
                     ErrorMessage = "未配置上游连接（可选功能）",
-                    CheckedAt = DateTimeOffset.UtcNow
+                    CheckedAt = _systemClock.LocalNowOffset
                 };
             }
 
@@ -58,7 +62,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
                     IsHealthy = false,
                     ErrorCode = "NOT_CONNECTED",
                     ErrorMessage = "上游连接未建立，请检查网络配置",
-                    CheckedAt = DateTimeOffset.UtcNow
+                    CheckedAt = _systemClock.LocalNowOffset
                 };
             }
 
@@ -67,7 +71,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
             {
                 EndpointName = EndpointName,
                 IsHealthy = true,
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = _systemClock.LocalNowOffset
             };
         }
         catch (OperationCanceledException)
@@ -79,7 +83,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
                 IsHealthy = false,
                 ErrorCode = "CANCELLED",
                 ErrorMessage = "健康检查操作被取消",
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = _systemClock.LocalNowOffset
             };
         }
         catch (Exception ex)
@@ -91,7 +95,7 @@ public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
                 IsHealthy = false,
                 ErrorCode = "CHECK_ERROR",
                 ErrorMessage = $"健康检查失败: {ex.Message}",
-                CheckedAt = DateTimeOffset.UtcNow
+                CheckedAt = _systemClock.LocalNowOffset
             };
         }
     }

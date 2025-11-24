@@ -21,7 +21,7 @@ public record CreateParcelRequest
     /// <summary>
     /// 检测时间
     /// </summary>
-    public DateTimeOffset DetectedAt { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset DetectedAt { get; init; }
 
     /// <summary>
     /// 检测传感器ID
@@ -55,7 +55,7 @@ public record CreateParcelResponse
     /// <summary>
     /// 响应时间
     /// </summary>
-    public DateTimeOffset ResponseTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ResponseTime { get; init; }
 
     /// <summary>
     /// 错误消息

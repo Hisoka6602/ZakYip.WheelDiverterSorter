@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -12,6 +13,7 @@ public abstract class RuleEngineClientBase : IRuleEngineClient
 {
     protected readonly ILogger Logger;
     protected readonly RuleEngineConnectionOptions Options;
+    protected readonly ISystemClock SystemClock;
     private bool _disposed;
 
     /// <summary>
@@ -29,10 +31,12 @@ public abstract class RuleEngineClientBase : IRuleEngineClient
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接配置</param>
-    protected RuleEngineClientBase(ILogger logger, RuleEngineConnectionOptions options)
+    /// <param name="systemClock">系统时钟</param>
+    protected RuleEngineClientBase(ILogger logger, RuleEngineConnectionOptions options, ISystemClock systemClock)
     {
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         Options = options ?? throw new ArgumentNullException(nameof(options));
+        SystemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>

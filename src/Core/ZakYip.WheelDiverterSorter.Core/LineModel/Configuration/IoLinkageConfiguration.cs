@@ -52,12 +52,12 @@ public sealed record class IoLinkageConfiguration
     /// <summary>
     /// 配置创建时间
     /// </summary>
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; init; }
 
     /// <summary>
     /// 配置最后更新时间
     /// </summary>
-    public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; init; }
 
     /// <summary>
     /// 获取默认 IO 联动配置
@@ -65,6 +65,7 @@ public sealed record class IoLinkageConfiguration
     /// <returns>默认配置实例</returns>
     public static IoLinkageConfiguration GetDefault()
     {
+        var now = DateTime.Now;
         return new IoLinkageConfiguration
         {
             ConfigName = "io_linkage",
@@ -72,8 +73,8 @@ public sealed record class IoLinkageConfiguration
             Enabled = true,
             RunningStateIos = new List<IoLinkagePoint>(),
             StoppedStateIos = new List<IoLinkagePoint>(),
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 

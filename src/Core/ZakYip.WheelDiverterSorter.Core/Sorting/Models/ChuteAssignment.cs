@@ -35,7 +35,7 @@ public record ChuteAssignment
     /// <summary>
     /// 分配时间
     /// </summary>
-    public DateTimeOffset AssignmentTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset AssignmentTime { get; init; }
 
     /// <summary>
     /// 来源

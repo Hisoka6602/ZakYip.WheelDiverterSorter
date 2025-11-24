@@ -1,6 +1,7 @@
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -14,6 +15,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 public class InMemoryRuleEngineClient : IRuleEngineClient
 {
     private readonly ILogger<InMemoryRuleEngineClient>? _logger;
+    private readonly ISystemClock _systemClock;
     private readonly Func<long, int> _chuteAssignmentFunc;
     private bool _isConnected;
     private bool _isDisposed;
@@ -32,12 +34,15 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
     /// 构造函数
     /// </summary>
     /// <param name="chuteAssignmentFunc">格口分配函数，输入包裹ID，返回格口号</param>
+    /// <param name="systemClock">系统时钟</param>
     /// <param name="logger">日志记录器</param>
     public InMemoryRuleEngineClient(
         Func<long, int> chuteAssignmentFunc,
+        ISystemClock systemClock,
         ILogger<InMemoryRuleEngineClient>? logger = null)
     {
         _chuteAssignmentFunc = chuteAssignmentFunc ?? throw new ArgumentNullException(nameof(chuteAssignmentFunc));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger;
     }
 
@@ -101,7 +106,8 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
         var eventArgs = new ChuteAssignmentNotificationEventArgs
         {
             ParcelId = parcelId,
-            ChuteId = chuteId
+            ChuteId = chuteId,
+            NotificationTime = _systemClock.LocalNowOffset
         };
 
         _logger?.LogDebug("内存模拟客户端：推送格口分配 {ParcelId} -> 格口 {ChuteId}", parcelId, chuteId);

@@ -105,7 +105,7 @@ public record class ReroutingResult
             ParcelId = parcelId,
             OriginalTargetChuteId = originalTargetChuteId,
             NewPath = newPath,
-            ReroutedAt = DateTimeOffset.UtcNow
+            ReroutedAt = DateTimeOffset.Now
         };
     }
 
@@ -126,7 +126,7 @@ public record class ReroutingResult
             OriginalTargetChuteId = originalTargetChuteId,
             FailedNodeId = failedNodeId,
             FailureReason = reason,
-            ReroutedAt = DateTimeOffset.UtcNow
+            ReroutedAt = DateTimeOffset.Now
         };
     }
 }

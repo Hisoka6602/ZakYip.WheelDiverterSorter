@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -33,9 +34,11 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接配置</param>
+    /// <param name="systemClock">系统时钟</param>
     public TcpRuleEngineClient(
         ILogger<TcpRuleEngineClient> logger,
-        RuleEngineConnectionOptions options) : base(logger, options)
+        RuleEngineConnectionOptions options,
+        ISystemClock systemClock) : base(logger, options, systemClock)
     {
         ValidateTcpOptions(options);
     }
@@ -193,7 +196,11 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     private async Task<bool> SendRequestAsync(long parcelId, CancellationToken cancellationToken)
     {
         // 构造请求
-        var request = new ChuteAssignmentRequest { ParcelId = parcelId };
+        var request = new ChuteAssignmentRequest 
+        { 
+            ParcelId = parcelId,
+            RequestTime = SystemClock.LocalNowOffset
+        };
         var requestJson = JsonSerializer.Serialize(request);
         var requestBytes = Encoding.UTF8.GetBytes(requestJson + "\n");
 

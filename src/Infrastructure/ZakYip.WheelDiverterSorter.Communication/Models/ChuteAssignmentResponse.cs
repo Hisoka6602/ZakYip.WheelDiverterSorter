@@ -29,5 +29,5 @@ public record ChuteAssignmentResponse
     /// <summary>
     /// 响应时间
     /// </summary>
-    public DateTimeOffset ResponseTime { get; init; } = DateTimeOffset.UtcNow;
+    public required DateTimeOffset ResponseTime { get; init; }
 }

@@ -22,7 +22,7 @@ public record ChuteAssignmentNotificationEventArgs
     /// <summary>
     /// 通知时间
     /// </summary>
-    public DateTimeOffset NotificationTime { get; init; } = DateTimeOffset.UtcNow;
+    public required DateTimeOffset NotificationTime { get; init; }
 
     /// <summary>
     /// 额外的元数据（可选）

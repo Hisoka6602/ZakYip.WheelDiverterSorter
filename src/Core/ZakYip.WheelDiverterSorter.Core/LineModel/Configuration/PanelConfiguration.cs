@@ -157,12 +157,12 @@ public sealed record class PanelConfiguration
     /// <summary>
     /// 配置创建时间
     /// </summary>
-    public DateTime CreatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; init; }
 
     /// <summary>
     /// 配置最后更新时间
     /// </summary>
-    public DateTime UpdatedAt { get; init; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; init; }
 
     /// <summary>
     /// 获取默认面板配置
@@ -170,6 +170,7 @@ public sealed record class PanelConfiguration
     /// <returns>默认配置实例</returns>
     public static PanelConfiguration GetDefault()
     {
+        var now = DateTime.Now;
         return new PanelConfiguration
         {
             ConfigName = "panel",
@@ -196,8 +197,8 @@ public sealed record class PanelConfiguration
             SignalTowerYellowOutputLevel = TriggerLevel.ActiveHigh,
             SignalTowerGreenOutputBit = null,
             SignalTowerGreenOutputLevel = TriggerLevel.ActiveHigh,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 

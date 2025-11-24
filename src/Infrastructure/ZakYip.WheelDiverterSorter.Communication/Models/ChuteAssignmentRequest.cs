@@ -13,5 +13,5 @@ public record ChuteAssignmentRequest
     /// <summary>
     /// 请求时间
     /// </summary>
-    public DateTimeOffset RequestTime { get; init; } = DateTimeOffset.UtcNow;
+    public required DateTimeOffset RequestTime { get; init; }
 }

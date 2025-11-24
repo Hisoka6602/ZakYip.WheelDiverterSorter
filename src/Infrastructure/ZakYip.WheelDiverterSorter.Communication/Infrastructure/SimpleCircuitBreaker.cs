@@ -1,5 +1,6 @@
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -11,12 +12,13 @@ public class SimpleCircuitBreaker : ICircuitBreaker
     private readonly int _failureThreshold;
     private readonly TimeSpan _breakDuration;
     private readonly ICommunicationLogger _logger;
+    private readonly ISystemClock _systemClock;
     private int _consecutiveFailures;
     private DateTime _lastFailureTime;
     private CircuitState _state;
     private readonly object _lock = new();
 
-    public SimpleCircuitBreaker(RuleEngineConnectionOptions options, ICommunicationLogger logger)
+    public SimpleCircuitBreaker(RuleEngineConnectionOptions options, ICommunicationLogger logger, ISystemClock systemClock)
     {
         if (options == null)
         {
@@ -28,6 +30,7 @@ public class SimpleCircuitBreaker : ICircuitBreaker
         // 熔断持续时间默认为超时时间的3倍
         _breakDuration = TimeSpan.FromMilliseconds(options.TimeoutMs * 3);
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _state = CircuitState.Closed;
     }
 
@@ -39,7 +42,7 @@ public class SimpleCircuitBreaker : ICircuitBreaker
             {
                 // 如果熔断器打开，检查是否应该进入半开状态
                 if (_state == CircuitState.Open && 
-                    DateTime.UtcNow - _lastFailureTime >= _breakDuration)
+                    _systemClock.LocalNow - _lastFailureTime >= _breakDuration)
                 {
                     _state = CircuitState.HalfOpen;
                     _logger.LogInformation("Circuit breaker entering HalfOpen state");
@@ -103,7 +106,7 @@ public class SimpleCircuitBreaker : ICircuitBreaker
         lock (_lock)
         {
             _consecutiveFailures++;
-            _lastFailureTime = DateTime.UtcNow;
+            _lastFailureTime = _systemClock.LocalNow;
 
             if (_consecutiveFailures >= _failureThreshold && _state != CircuitState.Open)
             {

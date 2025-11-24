@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -38,9 +39,11 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接配置</param>
+    /// <param name="systemClock">系统时钟</param>
     public MqttRuleEngineClient(
         ILogger<MqttRuleEngineClient> logger,
-        RuleEngineConnectionOptions options) : base(logger, options)
+        RuleEngineConnectionOptions options,
+        ISystemClock systemClock) : base(logger, options, systemClock)
     {
         if (string.IsNullOrWhiteSpace(options.MqttBroker))
         {
@@ -160,7 +163,11 @@ public class MqttRuleEngineClient : RuleEngineClientBase
         {
             Logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
 
-            var notification = new ParcelDetectionNotification { ParcelId = parcelId };
+            var notification = new ParcelDetectionNotification 
+            { 
+                ParcelId = parcelId,
+                DetectionTime = SystemClock.LocalNowOffset
+            };
             var notificationJson = JsonSerializer.Serialize(notification);
             
             var qosLevel = GetQosLevel();

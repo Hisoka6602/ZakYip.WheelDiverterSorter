@@ -50,7 +50,7 @@ public record SortingResponse
     /// <summary>
     /// 响应时间
     /// </summary>
-    public DateTimeOffset ResponseTime { get; init; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ResponseTime { get; init; }
 
     /// <summary>
     /// 来源

@@ -107,7 +107,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         {
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.UtcNow,
+            GeneratedAt = DateTimeOffset.Now,
             FallbackChuteId = WellKnownChuteIds.DefaultException
         };
     }

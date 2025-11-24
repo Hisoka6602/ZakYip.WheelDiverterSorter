@@ -111,8 +111,8 @@ public class LiteDbSystemConfigurationRepository : ISystemConfigurationRepositor
         if (existing == null)
         {
             var defaultConfig = SystemConfiguration.GetDefault();
-            // 如果提供了当前时间，则使用；否则使用 DateTime.UtcNow 作为持久化时间戳
-            var now = currentTime ?? DateTime.UtcNow;
+            // 如果提供了当前时间，则使用；否则使用本地时间作为持久化时间戳
+            var now = currentTime ?? DateTime.Now;
             defaultConfig.CreatedAt = now;
             defaultConfig.UpdatedAt = now;
             _collection.Insert(defaultConfig);

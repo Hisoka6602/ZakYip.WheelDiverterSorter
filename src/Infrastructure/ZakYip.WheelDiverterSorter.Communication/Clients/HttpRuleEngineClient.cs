@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -30,9 +31,11 @@ public class HttpRuleEngineClient : RuleEngineClientBase
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接配置</param>
+    /// <param name="systemClock">系统时钟</param>
     public HttpRuleEngineClient(
         ILogger<HttpRuleEngineClient> logger,
-        RuleEngineConnectionOptions options) : base(logger, options)
+        RuleEngineConnectionOptions options,
+        ISystemClock systemClock) : base(logger, options, systemClock)
     {
         if (string.IsNullOrWhiteSpace(options.HttpApi))
         {
@@ -103,7 +106,11 @@ public class HttpRuleEngineClient : RuleEngineClientBase
     private async Task<bool> SendHttpRequestAsync(long parcelId, CancellationToken cancellationToken)
     {
         // 构造请求
-        var request = new ChuteAssignmentRequest { ParcelId = parcelId };
+        var request = new ChuteAssignmentRequest 
+        { 
+            ParcelId = parcelId,
+            RequestTime = SystemClock.LocalNowOffset
+        };
         var requestJson = JsonSerializer.Serialize(request);
         var content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
