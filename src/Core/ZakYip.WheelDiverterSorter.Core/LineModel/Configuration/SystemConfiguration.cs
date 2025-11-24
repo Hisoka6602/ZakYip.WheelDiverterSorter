@@ -37,22 +37,6 @@ public class SystemConfiguration
     public long ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
-    /// MQTT默认端口
-    /// </summary>
-    /// <remarks>
-    /// 当MQTT Broker地址中未指定端口时使用的默认端口
-    /// </remarks>
-    public int MqttDefaultPort { get; set; } = 1883;
-
-    /// <summary>
-    /// TCP默认端口
-    /// </summary>
-    /// <remarks>
-    /// 当TCP服务器地址中未指定端口时使用的默认端口
-    /// </remarks>
-    public int TcpDefaultPort { get; set; } = 8888;
-
-    /// <summary>
     /// 格口分配超时时间（毫秒）[已弃用]
     /// </summary>
     /// <remarks>
@@ -69,38 +53,6 @@ public class SystemConfiguration
     /// 用于配置格口分配等待超时的动态计算参数
     /// </remarks>
     public ChuteAssignmentTimeoutOptions ChuteAssignmentTimeout { get; set; } = new();
-
-    /// <summary>
-    /// 请求超时时间（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 通用的请求超时时间，用于HTTP、TCP等协议
-    /// </remarks>
-    public int RequestTimeoutMs { get; set; } = 5000;
-
-    /// <summary>
-    /// 重试次数
-    /// </summary>
-    /// <remarks>
-    /// 请求失败时的重试次数
-    /// </remarks>
-    public int RetryCount { get; set; } = 3;
-
-    /// <summary>
-    /// 重试延迟（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 每次重试之间的延迟时间
-    /// </remarks>
-    public int RetryDelayMs { get; set; } = 1000;
-
-    /// <summary>
-    /// 是否启用自动重连
-    /// </summary>
-    /// <remarks>
-    /// 连接断开时是否自动尝试重连
-    /// </remarks>
-    public bool EnableAutoReconnect { get; set; } = true;
 
     /// <summary>
     /// 雷赛控制面板 IO 模块配置
@@ -239,37 +191,12 @@ public class SystemConfiguration
             return (false, "异常格口ID必须大于0");
         }
 
-        if (MqttDefaultPort < 1 || MqttDefaultPort > 65535)
-        {
-            return (false, "MQTT默认端口必须在1-65535之间");
-        }
-
-        if (TcpDefaultPort < 1 || TcpDefaultPort > 65535)
-        {
-            return (false, "TCP默认端口必须在1-65535之间");
-        }
-
 #pragma warning disable CS0618 // 向后兼容：保留旧字段验证
         if (ChuteAssignmentTimeoutMs < 1000 || ChuteAssignmentTimeoutMs > 60000)
         {
             return (false, "格口分配超时时间必须在1000-60000毫秒之间");
         }
 #pragma warning restore CS0618
-
-        if (RequestTimeoutMs < 1000 || RequestTimeoutMs > 60000)
-        {
-            return (false, "请求超时时间必须在1000-60000毫秒之间");
-        }
-
-        if (RetryCount < 0 || RetryCount > 10)
-        {
-            return (false, "重试次数必须在0-10之间");
-        }
-
-        if (RetryDelayMs < 100 || RetryDelayMs > 10000)
-        {
-            return (false, "重试延迟必须在100-10000毫秒之间");
-        }
 
         // 验证分拣模式相关配置
         if (SortingMode == SortingMode.FixedChute)
@@ -301,19 +228,13 @@ public class SystemConfiguration
     /// </summary>
     public static SystemConfiguration GetDefault()
     {
-#pragma warning disable CS0618 // 向后兼容：保留旧字段默认值
+#pragma warning disable CS0618 // 向后兼容：保留ChuteAssignmentTimeoutMs字段默认值
         return new SystemConfiguration
         {
             ConfigName = "system",
             ExceptionChuteId = 999,
-            MqttDefaultPort = 1883,
-            TcpDefaultPort = 8888,
             ChuteAssignmentTimeoutMs = 10000,
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions(),
-            RequestTimeoutMs = 5000,
-            RetryCount = 3,
-            RetryDelayMs = 1000,
-            EnableAutoReconnect = true,
             LeadshineCabinetIo = new LeadshineCabinetIoOptions(),
             IoLinkage = new IoLinkageOptions(),
             SortingMode = SortingMode.Formal,

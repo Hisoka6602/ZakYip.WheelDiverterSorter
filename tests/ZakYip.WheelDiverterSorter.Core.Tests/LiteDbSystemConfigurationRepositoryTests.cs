@@ -37,8 +37,7 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("system", config.ConfigName);
         Assert.Equal(999, config.ExceptionChuteId);
-        Assert.Equal(1883, config.MqttDefaultPort);
-        Assert.Equal(8888, config.TcpDefaultPort);
+        Assert.Equal(SortingMode.Formal, config.SortingMode);
     }
 
     [Fact]
@@ -73,7 +72,8 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         _repository.InitializeDefault();
         var newConfig = SystemConfiguration.GetDefault();
         newConfig.ExceptionChuteId = 888;
-        newConfig.MqttDefaultPort = 1884;
+        newConfig.SortingMode = SortingMode.FixedChute;
+        newConfig.FixedChuteId = 123;
 
         // Act
         _repository.Update(newConfig);
@@ -81,7 +81,8 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
 
         // Assert
         Assert.Equal(888, updated.ExceptionChuteId);
-        Assert.Equal(1884, updated.MqttDefaultPort);
+        Assert.Equal(SortingMode.FixedChute, updated.SortingMode);
+        Assert.Equal(123, updated.FixedChuteId);
         Assert.Equal(2, updated.Version); // Version should increment
     }
 
@@ -114,12 +115,12 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
         for (int i = 1; i <= 5; i++)
         {
             var config = SystemConfiguration.GetDefault();
-            config.RetryCount = i;
+            config.ExceptionChuteId = 900 + i;
             _repository.Update(config);
             
             var updated = _repository.Get();
             Assert.Equal(i + 1, updated.Version); // Version increments each time
-            Assert.Equal(i, updated.RetryCount);
+            Assert.Equal(900 + i, updated.ExceptionChuteId);
         }
     }
 
@@ -136,7 +137,7 @@ public class LiteDbSystemConfigurationRepositoryTests : IDisposable
 
         // Act
         var newConfig = SystemConfiguration.GetDefault();
-        newConfig.RetryCount = 5;
+        newConfig.ExceptionChuteId = 888;
         _repository.Update(newConfig);
         var updated = _repository.Get();
 

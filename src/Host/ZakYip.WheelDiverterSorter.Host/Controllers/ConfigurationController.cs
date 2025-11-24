@@ -62,9 +62,11 @@ public class ConfigurationController : ApiControllerBase
             {
                 ExceptionChuteId = config.ExceptionChuteId,
                 UpstreamTimeoutMs = config.ChuteAssignmentTimeoutMs,
-                RetryOnTimeout = config.RetryCount > 0,
-                RetryCount = config.RetryCount,
-                RetryDelayMs = config.RetryDelayMs,
+                // 注意：重试相关配置已迁移到 CommunicationConfiguration
+                // Note: Retry settings have been moved to CommunicationConfiguration
+                RetryOnTimeout = false,  // 默认不重试，通信重试由 CommunicationConfiguration 管理
+                RetryCount = 0,
+                RetryDelayMs = 1000,
                 UseExceptionOnTopologyUnreachable = true,
                 UseExceptionOnTtlFailure = true
             };
@@ -153,8 +155,8 @@ public class ConfigurationController : ApiControllerBase
 #pragma warning disable CS0618 // 向后兼容
             config.ChuteAssignmentTimeoutMs = policy.UpstreamTimeoutMs;
 #pragma warning restore CS0618
-            config.RetryCount = policy.RetryOnTimeout ? policy.RetryCount : 0;
-            config.RetryDelayMs = policy.RetryDelayMs;
+            // 注意：重试相关配置已迁移到 CommunicationConfiguration，此处不再保存
+            // Note: Retry settings have been moved to CommunicationConfiguration
             config.UpdatedAt = _clock.LocalNow;
 
             _systemConfigRepository.Update(config);
