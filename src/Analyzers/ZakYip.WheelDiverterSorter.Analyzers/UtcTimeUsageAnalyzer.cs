@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -13,7 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public class UtcTimeUsageAnalyzer : DiagnosticAnalyzer
 {
-    public const string DiagnosticId = "ZAKYIP002";
+    public const string DiagnosticId = "ZAKYIP004";
     private const string Category = "Usage";
 
     private static readonly LocalizableString Title = 
