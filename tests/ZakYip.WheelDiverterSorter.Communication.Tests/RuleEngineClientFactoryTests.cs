@@ -125,7 +125,7 @@ public class RuleEngineClientFactoryTests
     }
 
     [Fact]
-    public void CreateClient_WithInvalidMode_ThrowsNotSupportedException()
+    public void CreateClient_WithInvalidMode_UsesHttpFallback()
     {
         // Arrange
         var options = new RuleEngineConnectionOptions
@@ -135,9 +135,12 @@ public class RuleEngineClientFactoryTests
         };
         var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
-        // Act & Assert
-        var exception = Assert.Throws<NotSupportedException>(() => factory.CreateClient());
-        Assert.Contains("不支持的通信模式", exception.Message);
+        // Act
+        using var client = factory.CreateClient();
+
+        // Assert - should fallback to HttpRuleEngineClient instead of throwing
+        Assert.NotNull(client);
+        Assert.IsType<HttpRuleEngineClient>(client);
     }
 
     [Fact]
