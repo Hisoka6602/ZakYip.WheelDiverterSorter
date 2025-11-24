@@ -1,0 +1,166 @@
+using System.Buffers;
+
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
+
+/// <summary>
+/// 数递鸟协议工具类
+/// </summary>
+/// <remarks>
+/// 负责数递鸟TCP协议的打包和解析：
+/// - 报文固定7字节
+/// - 起始字节：0x51 0x52
+/// - 长度字节：0x57（固定）
+/// - 设备地址：0x51/0x52/...
+/// - 消息类型：0x51/0x52/0x53
+/// - 状态/命令码：根据消息类型不同
+/// - 结束字符：0xFE
+/// </remarks>
+internal static class ShuDiNiaoProtocol
+{
+    // 协议常量
+    private const byte StartByte1 = 0x51;
+    private const byte StartByte2 = 0x52;
+    private const byte LengthByte = 0x57;
+    private const byte EndByte = 0xFE;
+    private const int FrameLength = 7;
+
+    // 字节位置索引
+    private const int StartByte1Index = 0;
+    private const int StartByte2Index = 1;
+    private const int LengthByteIndex = 2;
+    private const int DeviceAddressIndex = 3;
+    private const int MessageTypeIndex = 4;
+    private const int DataByteIndex = 5;
+    private const int EndByteIndex = 6;
+
+    /// <summary>
+    /// 构造控制命令帧（信息二）
+    /// </summary>
+    /// <param name="deviceAddress">设备地址（0x51, 0x52, ...）</param>
+    /// <param name="command">控制命令码</param>
+    /// <returns>7字节命令帧</returns>
+    public static byte[] BuildCommandFrame(byte deviceAddress, ShuDiNiaoControlCommand command)
+    {
+        return new byte[]
+        {
+            StartByte1,                                 // [0] 起始字节1
+            StartByte2,                                 // [1] 起始字节2
+            LengthByte,                                 // [2] 长度字节
+            deviceAddress,                              // [3] 设备地址
+            (byte)ShuDiNiaoMessageType.ControlCommand, // [4] 消息类型：控制命令
+            (byte)command,                              // [5] 命令码
+            EndByte                                     // [6] 结束字符
+        };
+    }
+
+    /// <summary>
+    /// 尝试解析设备状态上报帧（信息一）
+    /// </summary>
+    /// <param name="frame">接收到的字节数据</param>
+    /// <param name="deviceAddress">解析出的设备地址</param>
+    /// <param name="deviceState">解析出的设备状态</param>
+    /// <returns>是否解析成功</returns>
+    public static bool TryParseDeviceStatus(
+        ReadOnlySpan<byte> frame,
+        out byte deviceAddress,
+        out ShuDiNiaoDeviceState deviceState)
+    {
+        deviceAddress = 0;
+        deviceState = default;
+
+        // 校验帧长度
+        if (frame.Length != FrameLength)
+        {
+            return false;
+        }
+
+        // 校验固定字节
+        if (!ValidateFixedBytes(frame))
+        {
+            return false;
+        }
+
+        // 校验消息类型
+        if (frame[MessageTypeIndex] != (byte)ShuDiNiaoMessageType.DeviceStatus)
+        {
+            return false;
+        }
+
+        // 校验状态码
+        byte stateByte = frame[DataByteIndex];
+        if (!Enum.IsDefined(typeof(ShuDiNiaoDeviceState), stateByte))
+        {
+            return false;
+        }
+
+        // 解析成功
+        deviceAddress = frame[DeviceAddressIndex];
+        deviceState = (ShuDiNiaoDeviceState)stateByte;
+        return true;
+    }
+
+    /// <summary>
+    /// 尝试解析应答与完成帧（信息三）
+    /// </summary>
+    /// <param name="frame">接收到的字节数据</param>
+    /// <param name="deviceAddress">解析出的设备地址</param>
+    /// <param name="responseCode">解析出的应答/完成码</param>
+    /// <returns>是否解析成功</returns>
+    public static bool TryParseResponse(
+        ReadOnlySpan<byte> frame,
+        out byte deviceAddress,
+        out ShuDiNiaoResponseCode responseCode)
+    {
+        deviceAddress = 0;
+        responseCode = default;
+
+        // 校验帧长度
+        if (frame.Length != FrameLength)
+        {
+            return false;
+        }
+
+        // 校验固定字节
+        if (!ValidateFixedBytes(frame))
+        {
+            return false;
+        }
+
+        // 校验消息类型
+        if (frame[MessageTypeIndex] != (byte)ShuDiNiaoMessageType.ResponseAndCompletion)
+        {
+            return false;
+        }
+
+        // 校验应答码
+        byte responseByte = frame[DataByteIndex];
+        if (!Enum.IsDefined(typeof(ShuDiNiaoResponseCode), responseByte))
+        {
+            return false;
+        }
+
+        // 解析成功
+        deviceAddress = frame[DeviceAddressIndex];
+        responseCode = (ShuDiNiaoResponseCode)responseByte;
+        return true;
+    }
+
+    /// <summary>
+    /// 校验固定字节（起始字节、长度字节、结束字节）
+    /// </summary>
+    private static bool ValidateFixedBytes(ReadOnlySpan<byte> frame)
+    {
+        return frame[StartByte1Index] == StartByte1 &&
+               frame[StartByte2Index] == StartByte2 &&
+               frame[LengthByteIndex] == LengthByte &&
+               frame[EndByteIndex] == EndByte;
+    }
+
+    /// <summary>
+    /// 格式化字节数组为十六进制字符串（用于日志）
+    /// </summary>
+    public static string FormatBytes(ReadOnlySpan<byte> bytes)
+    {
+        return string.Join(" ", bytes.ToArray().Select(b => $"{b:X2}"));
+    }
+}
