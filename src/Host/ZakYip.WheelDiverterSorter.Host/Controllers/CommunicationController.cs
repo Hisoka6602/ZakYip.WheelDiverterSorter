@@ -503,50 +503,7 @@ public class CommunicationController : ControllerBase {
             {
                 try
                 {
-                    // 将 CommunicationConfiguration 转换为 RuleEngineConnectionOptions
-                    var updatedOptions = new RuleEngineConnectionOptions
-                    {
-                        Mode = config.Mode,
-                        ConnectionMode = config.ConnectionMode,
-                        TcpServer = config.TcpServer,
-                        SignalRHub = config.SignalRHub,
-                        MqttBroker = config.MqttBroker,
-                        MqttTopic = config.MqttTopic,
-                        HttpApi = config.HttpApi,
-                        TimeoutMs = config.TimeoutMs,
-                        RetryCount = config.RetryCount,
-                        RetryDelayMs = config.RetryDelayMs,
-                        EnableAutoReconnect = config.EnableAutoReconnect,
-                        Tcp = new Communication.Configuration.TcpOptions
-                        {
-                            ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
-                            SendBufferSize = config.Tcp.SendBufferSize,
-                            NoDelay = config.Tcp.NoDelay
-                        },
-                        Http = new Communication.Configuration.HttpOptions
-                        {
-                            MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
-                            PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
-                            PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
-                            UseHttp2 = config.Http.UseHttp2
-                        },
-                        Mqtt = new Communication.Configuration.MqttOptions
-                        {
-                            QualityOfServiceLevel = config.Mqtt.QualityOfServiceLevel,
-                            CleanSession = config.Mqtt.CleanSession,
-                            SessionExpiryInterval = config.Mqtt.SessionExpiryInterval,
-                            MessageExpiryInterval = config.Mqtt.MessageExpiryInterval,
-                            ClientIdPrefix = config.Mqtt.ClientIdPrefix
-                        },
-                        SignalR = new Communication.Configuration.SignalROptions
-                        {
-                            HandshakeTimeout = config.SignalR.HandshakeTimeout,
-                            KeepAliveInterval = config.SignalR.KeepAliveInterval,
-                            ServerTimeout = config.SignalR.ServerTimeout,
-                            SkipNegotiation = config.SignalR.SkipNegotiation
-                        }
-                    };
-
+                    var updatedOptions = MapToRuleEngineConnectionOptions(config);
                     await _connectionManager.UpdateConnectionOptionsAsync(updatedOptions);
                     
                     _logger.LogInformation(
@@ -574,6 +531,56 @@ public class CommunicationController : ControllerBase {
             _logger.LogError(ex, "更新通信配置失败 - Failed to update communication configuration");
             return StatusCode(500, new { message = "更新通信配置失败 - Failed to update communication configuration" });
         }
+    }
+
+    /// <summary>
+    /// 将 CommunicationConfiguration 映射到 RuleEngineConnectionOptions
+    /// Map CommunicationConfiguration to RuleEngineConnectionOptions
+    /// </summary>
+    private static RuleEngineConnectionOptions MapToRuleEngineConnectionOptions(CommunicationConfiguration config)
+    {
+        return new RuleEngineConnectionOptions
+        {
+            Mode = config.Mode,
+            ConnectionMode = config.ConnectionMode,
+            TcpServer = config.TcpServer,
+            SignalRHub = config.SignalRHub,
+            MqttBroker = config.MqttBroker,
+            MqttTopic = config.MqttTopic,
+            HttpApi = config.HttpApi,
+            TimeoutMs = config.TimeoutMs,
+            RetryCount = config.RetryCount,
+            RetryDelayMs = config.RetryDelayMs,
+            EnableAutoReconnect = config.EnableAutoReconnect,
+            Tcp = new Communication.Configuration.TcpOptions
+            {
+                ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
+                SendBufferSize = config.Tcp.SendBufferSize,
+                NoDelay = config.Tcp.NoDelay
+            },
+            Http = new Communication.Configuration.HttpOptions
+            {
+                MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
+                PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
+                PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
+                UseHttp2 = config.Http.UseHttp2
+            },
+            Mqtt = new Communication.Configuration.MqttOptions
+            {
+                QualityOfServiceLevel = config.Mqtt.QualityOfServiceLevel,
+                CleanSession = config.Mqtt.CleanSession,
+                SessionExpiryInterval = config.Mqtt.SessionExpiryInterval,
+                MessageExpiryInterval = config.Mqtt.MessageExpiryInterval,
+                ClientIdPrefix = config.Mqtt.ClientIdPrefix
+            },
+            SignalR = new Communication.Configuration.SignalROptions
+            {
+                HandshakeTimeout = config.SignalR.HandshakeTimeout,
+                KeepAliveInterval = config.SignalR.KeepAliveInterval,
+                ServerTimeout = config.SignalR.ServerTimeout,
+                SkipNegotiation = config.SignalR.SkipNegotiation
+            }
+        };
     }
 
     /// <summary>

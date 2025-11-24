@@ -45,9 +45,13 @@ public sealed class UpstreamConnectionBackgroundService : BackgroundService
                 "[{LocalTime}] Upstream connection manager started successfully",
                 _systemClock.LocalNow);
 
-            // 等待取消信号
-            // Wait for cancellation signal
-            await Task.Delay(Timeout.Infinite, stoppingToken);
+            // 等待取消信号 - 使用 TaskCompletionSource 避免阻塞线程
+            // Wait for cancellation signal - using TaskCompletionSource to avoid blocking thread
+            var tcs = new TaskCompletionSource<bool>();
+            await using (stoppingToken.Register(() => tcs.TrySetResult(true)))
+            {
+                await tcs.Task;
+            }
         }
         catch (OperationCanceledException)
         {
