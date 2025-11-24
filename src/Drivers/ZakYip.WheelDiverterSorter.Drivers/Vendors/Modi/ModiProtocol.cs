@@ -1,32 +1,6 @@
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Modi;
 
 /// <summary>
-/// 莫迪摆轮控制命令枚举
-/// </summary>
-public enum ModiControlCommand : byte
-{
-    /// <summary>
-    /// 停止
-    /// </summary>
-    Stop = 0x00,
-    
-    /// <summary>
-    /// 左转
-    /// </summary>
-    TurnLeft = 0x01,
-    
-    /// <summary>
-    /// 右转
-    /// </summary>
-    TurnRight = 0x02,
-    
-    /// <summary>
-    /// 回中（直通）
-    /// </summary>
-    ReturnCenter = 0x03
-}
-
-/// <summary>
 /// 莫迪摆轮通信协议
 /// </summary>
 /// <remarks>
