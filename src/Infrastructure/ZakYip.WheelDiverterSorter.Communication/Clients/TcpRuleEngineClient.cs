@@ -120,15 +120,6 @@ public class TcpRuleEngineClient : RuleEngineClientBase
             _stream = _client.GetStream();
             _isConnected = true;
 
-            // 配置KeepAlive（如果启用）
-            if (Options.Tcp.KeepAliveInterval > 0)
-            {
-                _client.Client.SetSocketOption(
-                    SocketOptionLevel.Socket,
-                    SocketOptionName.KeepAlive,
-                    true);
-            }
-
             Logger.LogInformation(
                 "成功连接到RuleEngine TCP服务器 (缓冲区: {Buffer}KB, NoDelay: {NoDelay})",
                 Options.Tcp.ReceiveBufferSize / 1024,

@@ -178,8 +178,7 @@ public class CommunicationConfiguration
             {
                 ReceiveBufferSize = 8192,
                 SendBufferSize = 8192,
-                NoDelay = true,
-                KeepAliveInterval = 60
+                NoDelay = true
             },
             Http = new HttpConfig
             {
@@ -290,11 +289,6 @@ public class TcpConfig
     /// 禁用Nagle算法以减少延迟
     /// </summary>
     public bool NoDelay { get; set; } = true;
-    
-    /// <summary>
-    /// 保持连接心跳间隔（秒）
-    /// </summary>
-    public int KeepAliveInterval { get; set; } = 60;
 }
 
 /// <summary>
