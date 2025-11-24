@@ -35,7 +35,9 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
         }
         catch
         {
-            // If we can't get the configuration, don't filter
+            // If we can't get the configuration (e.g., during startup or if database is not initialized),
+            // we fail gracefully by not filtering. This ensures Swagger generation doesn't break.
+            // The schema will show all vendor properties, which is acceptable fallback behavior.
             return;
         }
 
