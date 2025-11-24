@@ -28,5 +28,6 @@ public sealed record SystemStatusResponse
     /// <summary>
     /// 查询时间戳 - Query timestamp
     /// </summary>
+    /// <example>2025-11-24T15:04:05.536+08:00</example>
     public DateTimeOffset Timestamp { get; init; }
 }

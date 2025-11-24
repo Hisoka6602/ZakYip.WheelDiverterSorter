@@ -131,7 +131,7 @@ public class HealthController : ControllerBase
         {
             SystemState = currentState.ToString(),
             EnvironmentMode = isSimulation ? "Simulation" : "Production",
-            Timestamp = new DateTimeOffset(_systemClock.LocalNow)
+            Timestamp = _systemClock.LocalNowOffset
         };
 
         return Ok(response);
