@@ -56,6 +56,7 @@ public class StartupSimulationTests : IClassFixture<WebApplicationFactory<Progra
     public async Task Startup_CurrentBootstrapStage_IsAvailable()
     {
         // Arrange
+        using var scope = _factory.Services.CreateScope();
         var stateManager = scope.ServiceProvider.GetRequiredService<ISystemStateManager>();
 
         // Act
@@ -131,6 +132,7 @@ public class StartupSimulationTests : IClassFixture<WebApplicationFactory<Progra
     public async Task Startup_MultipleBootCycles_MaintainHistory()
     {
         // Arrange
+        using var scope = _factory.Services.CreateScope();
         var stateManager = scope.ServiceProvider.GetRequiredService<ISystemStateManager>();
 
         // Act - 执行多次启动（模拟重启场景）
@@ -177,6 +179,7 @@ public class StartupSimulationTests : IClassFixture<WebApplicationFactory<Progra
     public async Task Startup_StateTransition_FromBootingToReady()
     {
         // Arrange
+        using var scope = _factory.Services.CreateScope();
         var stateManager = scope.ServiceProvider.GetRequiredService<ISystemStateManager>();
 
         // 确保初始状态

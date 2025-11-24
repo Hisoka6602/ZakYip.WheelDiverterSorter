@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 
@@ -151,7 +152,7 @@ public class SortingOrchestratorTests : IDisposable
                 {
                     await Task.Yield(); // Ensure we yield to allow TCS registration
                     await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
             });
@@ -348,7 +349,7 @@ public class SortingOrchestratorTests : IDisposable
                 Task.Run(async () =>
                 {
                     await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
             });
@@ -406,7 +407,7 @@ public class SortingOrchestratorTests : IDisposable
                 Task.Run(async () =>
                 {
                     await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
             });
@@ -463,7 +464,7 @@ public class SortingOrchestratorTests : IDisposable
                 Task.Run(async () =>
                 {
                     await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
             });
@@ -636,7 +637,7 @@ public class SortingOrchestratorTests : IDisposable
                 Task.Run(async () =>
                 {
                     await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId };
+                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
                     _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
                 });
             });

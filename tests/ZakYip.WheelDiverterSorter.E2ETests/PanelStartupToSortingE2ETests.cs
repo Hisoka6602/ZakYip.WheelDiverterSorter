@@ -179,11 +179,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _factory.MockRuleEngineClient
             .Raise(x => x.ChuteAssignmentReceived += null,
                 _factory.MockRuleEngineClient.Object,
-                new ChuteAssignmentNotificationEventArgs 
-                { 
-                    ParcelId = testParcelId, 
-                    ChuteId = targetChuteId 
-                });
+                new ChuteAssignmentNotificationEventArgs { ParcelId = testParcelId, ChuteId = targetChuteId 
+                , NotificationTime = DateTimeOffset.Now });
 
         _output.WriteLine($"✓ 上游分配格口: ParcelId={testParcelId}, ChuteId={targetChuteId}");
 
@@ -278,11 +275,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
                 _factory.MockRuleEngineClient
                     .Raise(x => x.ChuteAssignmentReceived += null,
                         _factory.MockRuleEngineClient.Object,
-                        new ChuteAssignmentNotificationEventArgs 
-                        { 
-                            ParcelId = testParcelId, 
-                            ChuteId = targetChuteId 
-                        });
+                        new ChuteAssignmentNotificationEventArgs { ParcelId = testParcelId, ChuteId = targetChuteId 
+                        , NotificationTime = DateTimeOffset.Now });
                 _output.WriteLine($"✓ 延迟{delayMs}ms后推送格口分配");
             }
             catch (Exception ex)
@@ -378,11 +372,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _factory.MockRuleEngineClient
             .Raise(x => x.ChuteAssignmentReceived += null,
                 _factory.MockRuleEngineClient.Object,
-                new ChuteAssignmentNotificationEventArgs 
-                { 
-                    ParcelId = firstParcelId, 
-                    ChuteId = targetChuteId 
-                });
+                new ChuteAssignmentNotificationEventArgs { ParcelId = firstParcelId, ChuteId = targetChuteId 
+                , NotificationTime = DateTimeOffset.Now });
 
         _output.WriteLine($"✓ 第一个包裹: ParcelId={firstParcelId}, ChuteId={targetChuteId}");
 

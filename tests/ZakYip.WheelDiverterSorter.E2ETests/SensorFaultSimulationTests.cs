@@ -55,7 +55,7 @@ public class SensorFaultSimulationTests : IDisposable
                 _mockRuleEngineClient.Raise(
                     x => x.ChuteAssignmentReceived += null,
                     _mockRuleEngineClient.Object,  // sender
-                    new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId }
+                    new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId , NotificationTime = DateTimeOffset.Now }
                 );
                 return true;
             });

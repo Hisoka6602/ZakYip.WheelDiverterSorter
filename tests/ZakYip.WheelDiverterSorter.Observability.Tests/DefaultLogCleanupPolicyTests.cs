@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 

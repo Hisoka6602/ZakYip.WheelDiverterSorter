@@ -3,6 +3,7 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 
@@ -148,7 +149,7 @@ public class LogAlertSinkTests
     public async Task WriteAlertAsync_WithMetrics_ShouldNotThrow()
     {
         // Arrange - Use real metrics instance (cannot mock because methods aren't virtual)
-        var realMetrics = new PrometheusMetrics();
+        var realMetrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
         var sink = new LogAlertSink(_mockLogger.Object, realMetrics);
         var alertEvent = new AlertRaisedEventArgs
         {

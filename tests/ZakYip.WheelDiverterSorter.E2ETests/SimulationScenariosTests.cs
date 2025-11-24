@@ -58,7 +58,7 @@ public class SimulationScenariosTests : IDisposable
                 {
                     _mockRuleEngineClient.Raise(
                         x => x.ChuteAssignmentReceived += null,
-                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId }
+                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId , NotificationTime = DateTimeOffset.Now }
                     );
                 });
                 return true;

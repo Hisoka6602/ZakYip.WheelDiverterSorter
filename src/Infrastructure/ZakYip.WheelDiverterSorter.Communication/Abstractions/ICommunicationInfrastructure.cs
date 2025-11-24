@@ -2,7 +2,7 @@
 // The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Communication namespace.
 
 // Re-export the enum from Core.Enums.Communication for backward compatibility
-global using CircuitState = ZakYip.WheelDiverterSorter.Core.Enums.CircuitState;
+global using CircuitState = ZakYip.WheelDiverterSorter.Core.Enums.Communication.CircuitState;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
