@@ -179,8 +179,11 @@ public class HealthController : ControllerBase
             // 使用 IHealthStatusProvider 获取健康快照
             var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
 
+            // 获取运行环境模式
+            var isSimulation = _simulationModeProvider.IsSimulationMode();
+
             // 映射到响应DTO
-            var response = MapSnapshotToResponse(snapshot);
+            var response = MapSnapshotToResponse(snapshot, isSimulation);
 
             // 判断HTTP状态码：检查所有关键模块
             var isReady = snapshot.IsLineAvailable && snapshot.IsSelfTestSuccess;
@@ -387,11 +390,12 @@ public class HealthController : ControllerBase
         }
     }
 
-    private static LineHealthResponse MapSnapshotToResponse(LineHealthSnapshot snapshot)
+    private static LineHealthResponse MapSnapshotToResponse(LineHealthSnapshot snapshot, bool isSimulation)
     {
         return new LineHealthResponse
         {
             SystemState = snapshot.SystemState,
+            EnvironmentMode = isSimulation ? "Simulation" : "Production",
             IsSelfTestSuccess = snapshot.IsSelfTestSuccess,
             LastSelfTestAt = snapshot.LastSelfTestAt,
             Drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
@@ -460,6 +464,9 @@ public class LineHealthResponse
 {
     /// <summary>系统状态</summary>
     public required string SystemState { get; init; }
+
+    /// <summary>运行环境模式: Production/Simulation</summary>
+    public string? EnvironmentMode { get; init; }
 
     /// <summary>自检是否成功</summary>
     public bool IsSelfTestSuccess { get; init; }
