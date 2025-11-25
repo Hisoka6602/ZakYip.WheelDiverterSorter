@@ -111,7 +111,7 @@ public class DenseTrafficSimulationTests : IDisposable
             .Returns(new SystemConfiguration
             {
                 ExceptionChuteId = 999,
-                ChuteAssignmentTimeoutMs = 10000
+                ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutSeconds = 10m }
             });
         services.AddSingleton(mockSystemRepo.Object);
 

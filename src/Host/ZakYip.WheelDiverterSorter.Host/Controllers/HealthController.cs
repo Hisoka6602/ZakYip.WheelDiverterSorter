@@ -58,59 +58,6 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// 进程级健康检查端点（Kubernetes liveness probe）
-    /// </summary>
-    /// <returns>简单的健康状态</returns>
-    /// <response code="200">进程健康</response>
-    /// <response code="503">进程不健康</response>
-    /// <remarks>
-    /// **[已弃用]** 此端点已弃用，请使用 GET /api/system/status 获取更完整的系统状态信息。
-    /// 
-    /// 用于Kubernetes/负载均衡器的存活检查（liveness probe）。
-    /// 只依赖进程与基础依赖存活，不依赖驱动自检结果。
-    /// 只要进程能够响应请求，就认为是健康的。
-    /// </remarks>
-    [Obsolete("此端点已弃用，请使用 GET /api/system/status")]
-    [HttpGet("healthz")]
-    [SwaggerOperation(
-        Summary = "【已弃用】进程级健康检查（Liveness）",
-        Description = "**[已弃用]** 请使用 GET /api/system/status 获取系统状态。此端点仅用于容器编排平台的存活检查。",
-        OperationId = "GetProcessHealth",
-        Tags = new[] { "健康检查" }
-    )]
-    [SwaggerResponse(200, "进程健康", typeof(ProcessHealthResponse))]
-    [SwaggerResponse(503, "进程不健康", typeof(ProcessHealthResponse))]
-    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status503ServiceUnavailable)]
-    public IActionResult GetProcessHealth()
-    {
-        try
-        {
-            var currentState = _stateManager.CurrentState;
-            
-            // 进程级健康检查：只要进程能响应就认为健康
-            var response = new ProcessHealthResponse
-            {
-                Status = HealthStatus.Healthy,
-                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
-            };
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "进程健康检查失败");
-            var response = new ProcessHealthResponse
-            {
-                Status = HealthStatus.Unhealthy,
-                Reason = "进程内部错误",
-                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
-            };
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
-        }
-    }
-
-    /// <summary>
     /// 系统状态查询端点（支持高并发）
     /// </summary>
     /// <returns>当前系统状态和运行环境模式</returns>

@@ -37,20 +37,6 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HealthStatus.Healthy, healthResponse.Status);
     }
 
-    [Fact]
-    public async Task Healthz_ReturnsOk()
-    {
-        // Act - test backward compatibility endpoint
-        var response = await _client.GetAsync("/healthz");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        
-        var healthResponse = await response.Content.ReadFromJsonAsync<ProcessHealthResponse>(TestJsonOptions.GetOptions());
-        Assert.NotNull(healthResponse);
-        Assert.Equal(HealthStatus.Healthy, healthResponse.Status);
-    }
-
     #endregion
 
     #region Startup Probe Tests

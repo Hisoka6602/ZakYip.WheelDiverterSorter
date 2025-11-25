@@ -37,16 +37,6 @@ public class SystemConfiguration
     public long ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
-    /// 格口分配超时时间（毫秒）[已弃用]
-    /// </summary>
-    /// <remarks>
-    /// <para><b>已弃用：</b>此字段保留用于向后兼容，实际超时时间现在通过 <see cref="ChuteAssignmentTimeout"/> 动态计算</para>
-    /// <para>新系统会根据线体拓扑配置（入口到第一个摆轮的距离和速度）自动计算超时时间</para>
-    /// </remarks>
-    [Obsolete("使用 ChuteAssignmentTimeout 配置进行动态超时计算")]
-    public int ChuteAssignmentTimeoutMs { get; set; } = 10000;
-
-    /// <summary>
     /// 格口分配超时配置
     /// </summary>
     /// <remarks>
@@ -191,12 +181,12 @@ public class SystemConfiguration
             return (false, "异常格口ID必须大于0");
         }
 
-#pragma warning disable CS0618 // 向后兼容：保留旧字段验证
-        if (ChuteAssignmentTimeoutMs < 1000 || ChuteAssignmentTimeoutMs > 60000)
+        // 验证格口分配超时配置
+        var timeoutValidation = ChuteAssignmentTimeout.Validate();
+        if (!timeoutValidation.IsValid)
         {
-            return (false, "格口分配超时时间必须在1000-60000毫秒之间");
+            return timeoutValidation;
         }
-#pragma warning restore CS0618
 
         // 验证分拣模式相关配置
         if (SortingMode == SortingMode.FixedChute)
@@ -228,12 +218,10 @@ public class SystemConfiguration
     /// </summary>
     public static SystemConfiguration GetDefault()
     {
-#pragma warning disable CS0618 // 向后兼容：保留ChuteAssignmentTimeoutMs字段默认值
         return new SystemConfiguration
         {
             ConfigName = "system",
             ExceptionChuteId = 999,
-            ChuteAssignmentTimeoutMs = 10000,
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions(),
             LeadshineCabinetIo = new LeadshineCabinetIoOptions(),
             IoLinkage = new IoLinkageOptions(),
@@ -243,6 +231,5 @@ public class SystemConfiguration
             Version = 1
             // CreatedAt 和 UpdatedAt 由仓储在插入时通过 ISystemClock.LocalNow 设置
         };
-#pragma warning restore CS0618
     }
 }
