@@ -312,7 +312,6 @@ public class LineTopologyController : ControllerBase
 
     private LineTopologyResponse MapToResponse(LineTopologyConfig config)
     {
-#pragma warning disable CS0618 // Type or member is obsolete
         return new LineTopologyResponse
         {
             TopologyId = config.TopologyId,
@@ -353,14 +352,12 @@ public class LineTopologyController : ControllerBase
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
-#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private LineTopologyConfig MapToConfig(LineTopologyRequest request)
     {
         var now = _clock.LocalNow;
         
-#pragma warning disable CS0618 // Type or member is obsolete
         return new LineTopologyConfig
         {
             TopologyId = LiteDbLineTopologyRepository.DefaultTopologyId,
@@ -401,6 +398,5 @@ public class LineTopologyController : ControllerBase
             CreatedAt = now,
             UpdatedAt = now
         };
-#pragma warning restore CS0618 // Type or member is obsolete
     }
 }

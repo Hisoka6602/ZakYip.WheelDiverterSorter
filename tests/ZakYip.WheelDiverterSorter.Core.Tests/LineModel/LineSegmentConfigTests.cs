@@ -14,7 +14,7 @@ public class LineSegmentConfigTests
         // Arrange & Act
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -24,7 +24,7 @@ public class LineSegmentConfigTests
 
         // Assert
         Assert.NotNull(segment);
-        Assert.Equal("SEG_001", segment.SegmentId);
+        Assert.Equal(1, segment.SegmentId);
         Assert.Equal(1, segment.StartIoId);
         Assert.Equal(2, segment.EndIoId);
         Assert.Equal(1000, segment.LengthMm);
@@ -38,7 +38,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -59,7 +59,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -80,7 +80,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -99,7 +99,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -118,7 +118,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -137,7 +137,7 @@ public class LineSegmentConfigTests
         // Arrange - 10mm segment at 500mm/s
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_SHORT",
+            SegmentId = 100,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 10,
@@ -158,7 +158,7 @@ public class LineSegmentConfigTests
         // Arrange - 10000mm (10m) segment at 500mm/s
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_LONG",
+            SegmentId = 200,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 10000,
@@ -179,7 +179,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -200,7 +200,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -221,7 +221,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment1 = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -230,7 +230,7 @@ public class LineSegmentConfigTests
 
         var segment2 = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -248,7 +248,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment1 = new LineSegmentConfig
         {
-            SegmentId = "SEG_001",
+            SegmentId = 1,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 1000,
@@ -257,7 +257,7 @@ public class LineSegmentConfigTests
 
         var segment2 = new LineSegmentConfig
         {
-            SegmentId = "SEG_002",
+            SegmentId = 2,
             StartIoId = 1,
             EndIoId = 3,
             LengthMm = 1500,
@@ -275,7 +275,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_END",
+            SegmentId = 999,
             StartIoId = 3,
             EndIoId = 0,
             LengthMm = 500,
@@ -292,7 +292,7 @@ public class LineSegmentConfigTests
         // Arrange
         var segment = new LineSegmentConfig
         {
-            SegmentId = "SEG_MID",
+            SegmentId = 50,
             StartIoId = 1,
             EndIoId = 2,
             LengthMm = 500,

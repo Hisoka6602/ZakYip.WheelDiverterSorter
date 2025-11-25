@@ -568,7 +568,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
         {
             new LineSegmentConfig
             {
-                SegmentId = "SEG_ENTRY_WHEEL1",
+                SegmentId = 1,
                 StartIoId = 1, // Entry IO
                 EndIoId = 2, // First wheel IO
                 LengthMm = segmentLength,
@@ -619,7 +619,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
         {
             new LineSegmentConfig
             {
-                SegmentId = "SEG_ENTRY_WHEEL1",
+                SegmentId = 1,
                 StartIoId = 1, // Entry IO
                 EndIoId = 2, // First wheel IO
                 LengthMm = 1000,
@@ -627,7 +627,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
             },
             new LineSegmentConfig
             {
-                SegmentId = "SEG_WHEEL1_WHEEL2",
+                SegmentId = 2,
                 StartIoId = 2, // First wheel IO
                 EndIoId = 3, // Second wheel IO
                 LengthMm = 1500,

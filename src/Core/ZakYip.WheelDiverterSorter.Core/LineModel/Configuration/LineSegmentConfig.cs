@@ -21,7 +21,7 @@ public record class LineSegmentConfig
     /// <summary>
     /// 线体段唯一标识符
     /// </summary>
-    public required string SegmentId { get; init; }
+    public required long SegmentId { get; init; }
 
     /// <summary>
     /// 线体段显示名称
