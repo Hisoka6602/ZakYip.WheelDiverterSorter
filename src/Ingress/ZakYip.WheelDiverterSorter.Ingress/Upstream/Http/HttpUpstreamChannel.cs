@@ -89,16 +89,17 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
             // 根据请求类型确定端点
             var endpoint = GetEndpointForRequest<TRequest>();
             
-            // 序列化请求内容用于日志记录
-            var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
-            
-            // 记录发送的完整请求内容
-            _logger?.LogInformation(
-                "[上游通信-发送] HTTP通道 {ChannelName} 发送命令 | Endpoint={Endpoint} | RequestType={RequestType} | 请求内容={RequestContent}",
-                Name,
-                endpoint,
-                typeof(TRequest).Name,
-                requestJson);
+            // 记录发送的完整请求内容（仅在日志级别启用时序列化）
+            if (_logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
+                _logger.LogInformation(
+                    "[上游通信-发送] HTTP通道 {ChannelName} 发送命令 | Endpoint={Endpoint} | RequestType={RequestType} | 请求内容={RequestContent}",
+                    Name,
+                    endpoint,
+                    typeof(TRequest).Name,
+                    requestJson);
+            }
 
             var response = await _httpClient.PostAsJsonAsync(endpoint, request, cts.Token);
             response.EnsureSuccessStatusCode();
@@ -111,17 +112,18 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
 
             sw.Stop();
             
-            // 序列化响应内容用于日志记录
-            var responseJson = System.Text.Json.JsonSerializer.Serialize(result);
-            
-            // 记录接收到的完整响应内容
-            _logger?.LogInformation(
-                "[上游通信-接收] HTTP通道 {ChannelName} 收到响应 | Endpoint={Endpoint} | ResponseType={ResponseType} | 耗时={ElapsedMs}ms | 响应内容={ResponseContent}",
-                Name,
-                endpoint,
-                typeof(TResponse).Name,
-                sw.ElapsedMilliseconds,
-                responseJson);
+            // 记录接收到的完整响应内容（仅在日志级别启用时序列化）
+            if (_logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                var responseJson = System.Text.Json.JsonSerializer.Serialize(result);
+                _logger.LogInformation(
+                    "[上游通信-接收] HTTP通道 {ChannelName} 收到响应 | Endpoint={Endpoint} | ResponseType={ResponseType} | 耗时={ElapsedMs}ms | 响应内容={ResponseContent}",
+                    Name,
+                    endpoint,
+                    typeof(TResponse).Name,
+                    sw.ElapsedMilliseconds,
+                    responseJson);
+            }
 
             return result;
         }
@@ -147,16 +149,17 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
         {
             var endpoint = GetEndpointForRequest<TRequest>();
             
-            // 序列化请求内容用于日志记录
-            var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
-            
-            // 记录发送的完整请求内容
-            _logger?.LogInformation(
-                "[上游通信-发送] HTTP通道 {ChannelName} 发送单向命令 | Endpoint={Endpoint} | RequestType={RequestType} | 请求内容={RequestContent}",
-                Name,
-                endpoint,
-                typeof(TRequest).Name,
-                requestJson);
+            // 记录发送的完整请求内容（仅在日志级别启用时序列化）
+            if (_logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
+                _logger.LogInformation(
+                    "[上游通信-发送] HTTP通道 {ChannelName} 发送单向命令 | Endpoint={Endpoint} | RequestType={RequestType} | 请求内容={RequestContent}",
+                    Name,
+                    endpoint,
+                    typeof(TRequest).Name,
+                    requestJson);
+            }
 
             var response = await _httpClient.PostAsJsonAsync(endpoint, request, cancellationToken);
             response.EnsureSuccessStatusCode();

@@ -170,13 +170,16 @@ public class MqttRuleEngineClient : RuleEngineClientBase
             
             var qosLevel = GetQosLevel();
 
-            // 记录发送的完整消息内容
-            Logger.LogInformation(
-                "[上游通信-发送] MQTT通道发送包裹检测通知 | ParcelId={ParcelId} | Topic={Topic} | QoS={QoS} | 消息内容={MessageContent}",
-                parcelId,
-                _detectionTopic,
-                Options.Mqtt.QualityOfServiceLevel,
-                notificationJson);
+            // 记录发送的完整消息内容（日志级别检查以避免不必要的字符串操作）
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation(
+                    "[上游通信-发送] MQTT通道发送包裹检测通知 | ParcelId={ParcelId} | Topic={Topic} | QoS={QoS} | 消息内容={MessageContent}",
+                    parcelId,
+                    _detectionTopic,
+                    Options.Mqtt.QualityOfServiceLevel,
+                    notificationJson);
+            }
 
             var messageBuilder = new MqttApplicationMessageBuilder()
                 .WithTopic(_detectionTopic)
