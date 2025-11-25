@@ -24,28 +24,40 @@ public class SimulatedWheelDiverterActuator : IWheelDiverterActuator
     public Task<bool> TurnLeftAsync(CancellationToken cancellationToken = default)
     {
         _currentState = "Left";
-        _logger.LogDebug("Diverter {DiverterId} turned left", DiverterId);
+        _logger.LogInformation(
+            "[摆轮通信-模拟] 摆轮 {DiverterId} 左转 | 当前状态={State}",
+            DiverterId,
+            _currentState);
         return Task.FromResult(true);
     }
 
     public Task<bool> TurnRightAsync(CancellationToken cancellationToken = default)
     {
         _currentState = "Right";
-        _logger.LogDebug("Diverter {DiverterId} turned right", DiverterId);
+        _logger.LogInformation(
+            "[摆轮通信-模拟] 摆轮 {DiverterId} 右转 | 当前状态={State}",
+            DiverterId,
+            _currentState);
         return Task.FromResult(true);
     }
 
     public Task<bool> PassThroughAsync(CancellationToken cancellationToken = default)
     {
         _currentState = "PassThrough";
-        _logger.LogDebug("Diverter {DiverterId} set to pass-through", DiverterId);
+        _logger.LogInformation(
+            "[摆轮通信-模拟] 摆轮 {DiverterId} 直通 | 当前状态={State}",
+            DiverterId,
+            _currentState);
         return Task.FromResult(true);
     }
 
     public Task<bool> StopAsync(CancellationToken cancellationToken = default)
     {
         _currentState = "Stopped";
-        _logger.LogDebug("Diverter {DiverterId} stopped", DiverterId);
+        _logger.LogInformation(
+            "[摆轮通信-模拟] 摆轮 {DiverterId} 停止 | 当前状态={State}",
+            DiverterId,
+            _currentState);
         return Task.FromResult(true);
     }
 

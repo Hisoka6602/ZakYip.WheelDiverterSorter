@@ -46,7 +46,13 @@ public class S7DiverterController : IDiverterController
     {
         try
         {
-            _logger.LogInformation("设置摆轮 {DiverterId} 角度为 {Angle}度", DiverterId, angle);
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 开始设置角度 | 目标角度={Angle}度 | DB地址=DB{DbNumber}.{StartByte}.{StartBit}",
+                DiverterId,
+                angle,
+                _config.OutputDbNumber,
+                _config.OutputStartByte,
+                _config.OutputStartBit);
 
             // 根据角度映射到对应的输出位组合
             var outputBits = MapAngleToOutputBits(angle);
@@ -57,10 +63,22 @@ public class S7DiverterController : IDiverterController
             // 写入输出端口
             foreach (var (bitOffset, value) in outputBits)
             {
-                var success = await _outputPort.WriteAsync(baseBitIndex + bitOffset, value);
+                var absoluteBitIndex = baseBitIndex + bitOffset;
+                
+                // 记录每个IO写入操作
+                _logger.LogInformation(
+                    "[摆轮通信-IO写入] 摆轮 {DiverterId} 写入S7输出位 | 位索引={BitIndex} | 值={Value}",
+                    DiverterId,
+                    absoluteBitIndex,
+                    value);
+
+                var success = await _outputPort.WriteAsync(absoluteBitIndex, value);
                 if (!success)
                 {
-                    _logger.LogError("写入输出位 {BitIndex} 失败", baseBitIndex + bitOffset);
+                    _logger.LogError(
+                        "[摆轮通信-IO写入] 摆轮 {DiverterId} 写入S7输出位失败 | 位索引={BitIndex}",
+                        DiverterId,
+                        absoluteBitIndex);
                     return false;
                 }
             }
@@ -69,12 +87,19 @@ public class S7DiverterController : IDiverterController
             await Task.Delay(100, cancellationToken);
 
             _currentAngle = angle;
-            _logger.LogInformation("摆轮 {DiverterId} 已设置为 {Angle}度", DiverterId, angle);
+            _logger.LogInformation(
+                "[摆轮通信-发送完成] 摆轮 {DiverterId} 角度设置成功 | 目标角度={Angle}度",
+                DiverterId,
+                angle);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "设置摆轮 {DiverterId} 角度失败", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 设置角度失败 | 目标角度={Angle}度",
+                DiverterId,
+                angle);
             return false;
         }
     }

@@ -67,24 +67,36 @@ public class RelayWheelDiverterDriver : IWheelDiverterDriver
     {
         try
         {
-            _logger.LogDebug("摆轮 {DiverterId} 执行左转", DiverterId);
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 执行左转 | 目标角度={Angle}度",
+                DiverterId,
+                _mapping.LeftTurnAngle);
+            
             var result = await _diverterController.SetAngleAsync(_mapping.LeftTurnAngle, cancellationToken);
 
             if (result)
             {
                 _currentStatus = "左转";
-                _logger.LogInformation("摆轮 {DiverterId} 左转成功", DiverterId);
+                _logger.LogInformation(
+                    "[摆轮通信-发送完成] 摆轮 {DiverterId} 左转成功 | 当前状态={Status}",
+                    DiverterId,
+                    _currentStatus);
             }
             else
             {
-                _logger.LogWarning("摆轮 {DiverterId} 左转失败", DiverterId);
+                _logger.LogWarning(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 左转失败",
+                    DiverterId);
             }
 
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 左转异常", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 左转异常",
+                DiverterId);
             return false;
         }
     }
@@ -94,24 +106,36 @@ public class RelayWheelDiverterDriver : IWheelDiverterDriver
     {
         try
         {
-            _logger.LogDebug("摆轮 {DiverterId} 执行右转", DiverterId);
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 执行右转 | 目标角度={Angle}度",
+                DiverterId,
+                _mapping.RightTurnAngle);
+            
             var result = await _diverterController.SetAngleAsync(_mapping.RightTurnAngle, cancellationToken);
 
             if (result)
             {
                 _currentStatus = "右转";
-                _logger.LogInformation("摆轮 {DiverterId} 右转成功", DiverterId);
+                _logger.LogInformation(
+                    "[摆轮通信-发送完成] 摆轮 {DiverterId} 右转成功 | 当前状态={Status}",
+                    DiverterId,
+                    _currentStatus);
             }
             else
             {
-                _logger.LogWarning("摆轮 {DiverterId} 右转失败", DiverterId);
+                _logger.LogWarning(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 右转失败",
+                    DiverterId);
             }
 
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 右转异常", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 右转异常",
+                DiverterId);
             return false;
         }
     }
@@ -121,24 +145,36 @@ public class RelayWheelDiverterDriver : IWheelDiverterDriver
     {
         try
         {
-            _logger.LogDebug("摆轮 {DiverterId} 执行直通", DiverterId);
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 执行直通 | 目标角度={Angle}度",
+                DiverterId,
+                _mapping.PassThroughAngle);
+            
             var result = await _diverterController.SetAngleAsync(_mapping.PassThroughAngle, cancellationToken);
 
             if (result)
             {
                 _currentStatus = "直通";
-                _logger.LogInformation("摆轮 {DiverterId} 直通成功", DiverterId);
+                _logger.LogInformation(
+                    "[摆轮通信-发送完成] 摆轮 {DiverterId} 直通成功 | 当前状态={Status}",
+                    DiverterId,
+                    _currentStatus);
             }
             else
             {
-                _logger.LogWarning("摆轮 {DiverterId} 直通失败", DiverterId);
+                _logger.LogWarning(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 直通失败",
+                    DiverterId);
             }
 
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 直通异常", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 直通异常",
+                DiverterId);
             return false;
         }
     }
@@ -148,24 +184,36 @@ public class RelayWheelDiverterDriver : IWheelDiverterDriver
     {
         try
         {
-            _logger.LogDebug("摆轮 {DiverterId} 执行停止", DiverterId);
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 执行停止 | 目标角度={Angle}度",
+                DiverterId,
+                _mapping.StopAngle);
+            
             var result = await _diverterController.SetAngleAsync(_mapping.StopAngle, cancellationToken);
 
             if (result)
             {
                 _currentStatus = "已停止";
-                _logger.LogInformation("摆轮 {DiverterId} 停止成功", DiverterId);
+                _logger.LogInformation(
+                    "[摆轮通信-发送完成] 摆轮 {DiverterId} 停止成功 | 当前状态={Status}",
+                    DiverterId,
+                    _currentStatus);
             }
             else
             {
-                _logger.LogWarning("摆轮 {DiverterId} 停止失败", DiverterId);
+                _logger.LogWarning(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 停止失败",
+                    DiverterId);
             }
 
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 停止异常", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 停止异常",
+                DiverterId);
             return false;
         }
     }

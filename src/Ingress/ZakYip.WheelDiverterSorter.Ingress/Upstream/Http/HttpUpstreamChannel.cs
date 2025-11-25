@@ -83,13 +83,23 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
         var sw = Stopwatch.StartNew();
         try
         {
-            _logger?.LogDebug("发送命令到 HTTP 通道 {Name}: {RequestType}", Name, typeof(TRequest).Name);
-
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(timeout);
 
             // 根据请求类型确定端点
             var endpoint = GetEndpointForRequest<TRequest>();
+            
+            // 序列化请求内容用于日志记录
+            var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
+            
+            // 记录发送的完整请求内容
+            _logger?.LogInformation(
+                "[上游通信-发送] HTTP通道 {ChannelName} 发送命令 | Endpoint={Endpoint} | RequestType={RequestType} | 请求内容={RequestContent}",
+                Name,
+                endpoint,
+                typeof(TRequest).Name,
+                requestJson);
+
             var response = await _httpClient.PostAsJsonAsync(endpoint, request, cts.Token);
             response.EnsureSuccessStatusCode();
 
@@ -100,14 +110,30 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
             }
 
             sw.Stop();
-            _logger?.LogDebug("HTTP 通道 {Name} 命令完成，耗时: {ElapsedMs}ms", Name, sw.ElapsedMilliseconds);
+            
+            // 序列化响应内容用于日志记录
+            var responseJson = System.Text.Json.JsonSerializer.Serialize(result);
+            
+            // 记录接收到的完整响应内容
+            _logger?.LogInformation(
+                "[上游通信-接收] HTTP通道 {ChannelName} 收到响应 | Endpoint={Endpoint} | ResponseType={ResponseType} | 耗时={ElapsedMs}ms | 响应内容={ResponseContent}",
+                Name,
+                endpoint,
+                typeof(TResponse).Name,
+                sw.ElapsedMilliseconds,
+                responseJson);
 
             return result;
         }
         catch (Exception ex)
         {
             sw.Stop();
-            _logger?.LogError(ex, "HTTP 通道 {Name} 发送命令失败，耗时: {ElapsedMs}ms", Name, sw.ElapsedMilliseconds);
+            _logger?.LogError(
+                ex,
+                "[上游通信-发送] HTTP通道 {ChannelName} 发送命令失败 | RequestType={RequestType} | 耗时={ElapsedMs}ms",
+                Name,
+                typeof(TRequest).Name,
+                sw.ElapsedMilliseconds);
             throw;
         }
     }
@@ -119,17 +145,35 @@ public class HttpUpstreamChannel : IUpstreamChannel, IUpstreamCommandSender
     {
         try
         {
-            _logger?.LogDebug("发送单向命令到 HTTP 通道 {Name}: {RequestType}", Name, typeof(TRequest).Name);
-
             var endpoint = GetEndpointForRequest<TRequest>();
+            
+            // 序列化请求内容用于日志记录
+            var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
+            
+            // 记录发送的完整请求内容
+            _logger?.LogInformation(
+                "[上游通信-发送] HTTP通道 {ChannelName} 发送单向命令 | Endpoint={Endpoint} | RequestType={RequestType} | 请求内容={RequestContent}",
+                Name,
+                endpoint,
+                typeof(TRequest).Name,
+                requestJson);
+
             var response = await _httpClient.PostAsJsonAsync(endpoint, request, cancellationToken);
             response.EnsureSuccessStatusCode();
 
-            _logger?.LogDebug("HTTP 通道 {Name} 单向命令发送成功", Name);
+            _logger?.LogInformation(
+                "[上游通信-发送完成] HTTP通道 {ChannelName} 单向命令发送成功 | Endpoint={Endpoint} | StatusCode={StatusCode}",
+                Name,
+                endpoint,
+                response.StatusCode);
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "HTTP 通道 {Name} 发送单向命令失败", Name);
+            _logger?.LogError(
+                ex,
+                "[上游通信-发送] HTTP通道 {ChannelName} 发送单向命令失败 | RequestType={RequestType}",
+                Name,
+                typeof(TRequest).Name);
             throw;
         }
     }
