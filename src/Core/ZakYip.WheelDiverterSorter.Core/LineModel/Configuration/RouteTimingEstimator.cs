@@ -79,6 +79,9 @@ public class RouteTimingEstimator : IRouteTimingEstimator
     /// <summary>
     /// 估算包裹到达指定格口的时间
     /// </summary>
+    /// <remarks>
+    /// 使用新的IO模型：通过线体段的起点IO和终点IO计算路径时间
+    /// </remarks>
     public RouteTimingEstimate EstimateArrivalTime(string chuteId, double? speedMmPerSec = null)
     {
         if (string.IsNullOrWhiteSpace(chuteId))
@@ -96,11 +99,9 @@ public class RouteTimingEstimator : IRouteTimingEstimator
         }
 
         var topology = _topologyRepository.Get();
-#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
-        var path = topology.GetPathToChute(chuteId);
-#pragma warning restore CS0618 // Type or member is obsolete
-
-        if (path == null)
+        var chute = topology.FindChuteById(chuteId);
+        
+        if (chute == null)
         {
             return new RouteTimingEstimate
             {
@@ -110,22 +111,34 @@ public class RouteTimingEstimator : IRouteTimingEstimator
                 SpeedMmPerSec = speedMmPerSec ?? (double)topology.DefaultLineSpeedMmps,
                 SegmentCount = 0,
                 IsSuccess = false,
-                ErrorMessage = $"无法找到到格口 {chuteId} 的路径 - Cannot find path to chute {chuteId}"
+                ErrorMessage = $"无法找到格口 {chuteId} - Cannot find chute {chuteId}"
             };
         }
 
-        var chute = topology.FindChuteById(chuteId);
-        var dropOffsetMm = chute?.DropOffsetMm ?? 0;
+        // 使用线体段计算距离和时间
+        if (topology.LineSegments.Count == 0)
+        {
+            return new RouteTimingEstimate
+            {
+                ChuteId = chuteId,
+                TotalDistanceMm = 0,
+                EstimatedArrivalTimeMs = 0,
+                SpeedMmPerSec = speedMmPerSec ?? (double)topology.DefaultLineSpeedMmps,
+                SegmentCount = 0,
+                IsSuccess = false,
+                ErrorMessage = "未配置线体段 - No line segments configured"
+            };
+        }
 
-        // 计算每段的时间
+        var dropOffsetMm = chute.DropOffsetMm;
+
+        // 计算所有线体段的时间和距离
         double totalTimeMs = 0;
         double totalDistanceMm = dropOffsetMm;
 
-        foreach (var segment in path)
+        foreach (var segment in topology.LineSegments)
         {
-#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
-            var segmentSpeed = speedMmPerSec ?? segment.NominalSpeedMmPerSec;
-#pragma warning restore CS0618 // Type or member is obsolete
+            var segmentSpeed = speedMmPerSec ?? segment.SpeedMmPerSec;
             if (segmentSpeed <= 0)
             {
                 return new RouteTimingEstimate
@@ -134,7 +147,7 @@ public class RouteTimingEstimator : IRouteTimingEstimator
                     TotalDistanceMm = 0,
                     EstimatedArrivalTimeMs = 0,
                     SpeedMmPerSec = segmentSpeed,
-                    SegmentCount = path.Count,
+                    SegmentCount = topology.LineSegments.Count,
                     IsSuccess = false,
                     ErrorMessage = "线速必须大于0 - Speed must be greater than 0"
                 };
@@ -156,7 +169,7 @@ public class RouteTimingEstimator : IRouteTimingEstimator
             TotalDistanceMm = totalDistanceMm,
             EstimatedArrivalTimeMs = totalTimeMs,
             SpeedMmPerSec = speedMmPerSec ?? (double)topology.DefaultLineSpeedMmps,
-            SegmentCount = path.Count,
+            SegmentCount = topology.LineSegments.Count,
             IsSuccess = true,
             ErrorMessage = null
         };
