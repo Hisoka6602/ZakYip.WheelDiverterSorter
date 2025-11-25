@@ -182,6 +182,8 @@ public class ShuDiNiaoConfigController : ControllerBase
                     Host = d.Host,
                     Port = d.Port,
                     DeviceAddress = d.DeviceAddress,
+                    LeftChuteId = d.LeftChuteId,
+                    RightChuteId = d.RightChuteId,
                     IsEnabled = d.IsEnabled
                 }).ToList(),
                 UseSimulation = request.UseSimulation
@@ -555,6 +557,26 @@ public record class ShuDiNiaoDeviceRequest
     /// <example>81</example>
     [Range(0x51, 0xFF, ErrorMessage = "设备地址必须在0x51到0xFF之间")]
     public required byte DeviceAddress { get; init; }
+
+    /// <summary>
+    /// 左转方向对应的格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮向左转时，包裹将被分流到此格口。
+    /// 如果为null，表示左侧没有格口。
+    /// </remarks>
+    /// <example>1</example>
+    public int? LeftChuteId { get; init; }
+
+    /// <summary>
+    /// 右转方向对应的格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮向右转时，包裹将被分流到此格口。
+    /// 如果为null，表示右侧没有格口。
+    /// </remarks>
+    /// <example>2</example>
+    public int? RightChuteId { get; init; }
 
     /// <summary>
     /// 是否启用该设备
