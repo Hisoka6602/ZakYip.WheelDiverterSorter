@@ -1,6 +1,3 @@
-// 本文件使用向后兼容API进行测试，抑制废弃警告
-#pragma warning disable CS0618 // Type or member is obsolete
-
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -367,10 +364,10 @@ public class PreRunHealthCheckServiceTests
                 new LineSegmentConfig
                 {
                     SegmentId = "SEG-1",
-                    FromNodeId = LineTopologyConfig.EntryNodeId,
-                    ToNodeId = "WHEEL-1",
+                    StartIoId = 1, // Entry IO
+                    EndIoId = 2, // Wheel-1 IO
                     LengthMm = -100,  // 无效长度
-                    NominalSpeedMmPerSec = 500
+                    SpeedMmPerSec = 500
                 }
             },
             CreatedAt = DateTime.UtcNow,
@@ -424,10 +421,10 @@ public class PreRunHealthCheckServiceTests
                 new LineSegmentConfig
                 {
                     SegmentId = "SEG-1",
-                    FromNodeId = LineTopologyConfig.EntryNodeId,
-                    ToNodeId = "WHEEL-1",
+                    StartIoId = 1, // Entry IO
+                    EndIoId = 2, // Wheel-1 IO
                     LengthMm = 1000,
-                    NominalSpeedMmPerSec = 0  // 无效速度
+                    SpeedMmPerSec = 0  // 无效速度
                 }
             },
             CreatedAt = DateTime.UtcNow,
@@ -570,10 +567,10 @@ public class PreRunHealthCheckServiceTests
                 new LineSegmentConfig
                 {
                     SegmentId = "SEG-ENTRY-WHEEL1",
-                    FromNodeId = LineTopologyConfig.EntryNodeId,
-                    ToNodeId = "WHEEL-1",
+                    StartIoId = 1, // Entry IO
+                    EndIoId = 2, // Wheel-1 IO
                     LengthMm = 1000,
-                    NominalSpeedMmPerSec = 500
+                    SpeedMmPerSec = 500
                 }
             },
             CreatedAt = DateTime.UtcNow,
@@ -618,10 +615,10 @@ public class PreRunHealthCheckServiceTests
                 new LineSegmentConfig
                 {
                     SegmentId = "SEG-ENTRY-WHEEL1",
-                    FromNodeId = LineTopologyConfig.EntryNodeId,
-                    ToNodeId = "WHEEL-1",
+                    StartIoId = 1, // Entry IO
+                    EndIoId = 2, // Wheel-1 IO
                     LengthMm = 1000,
-                    NominalSpeedMmPerSec = 500
+                    SpeedMmPerSec = 500
                 }
             },
             CreatedAt = DateTime.UtcNow,

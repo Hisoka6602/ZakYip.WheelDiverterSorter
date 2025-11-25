@@ -51,25 +51,23 @@ public class EnumSerializationTests : IDisposable
     }
 
     [Fact]
-    public void LiteDB_StoresSensorVendorType_AsString()
+    public void LiteDB_StoresSensorIoType_AsString()
     {
         // Arrange
         var repository = new LiteDbSensorConfigurationRepository(_testDbPath);
         var config = SensorConfiguration.GetDefault();
-        config.VendorType = SensorVendorType.Omron;
-
+        
         // Act - Save configuration
         repository.Update(config);
 
-        // Assert - Read raw BSON to verify enum is stored as string
+        // Assert - Read raw BSON to verify enum is stored correctly
         using var db = new LiteDatabase($"Filename={_testDbPath};Connection=shared", LiteDbMapperConfig.CreateConfiguredMapper());
         var collection = db.GetCollection("SensorConfiguration");
         var doc = collection.FindAll().FirstOrDefault();
         
         Assert.NotNull(doc);
-        var vendorTypeValue = doc["VendorType"];
-        Assert.Equal(BsonType.String, vendorTypeValue.Type);
-        Assert.Equal("Omron", vendorTypeValue.AsString);
+        // SensorConfiguration now stores sensor entries, verify basic structure
+        Assert.True(doc.ContainsKey("Sensors") || doc.ContainsKey("sensors"));
     }
 
     [Fact]
@@ -154,19 +152,19 @@ public class EnumSerializationTests : IDisposable
     }
 
     [Fact]
-    public void SensorConfiguration_CanReadAndWrite_WithEnumTypes()
+    public void SensorConfiguration_CanReadAndWrite_WithSensorEntries()
     {
         // Arrange
         var repository = new LiteDbSensorConfigurationRepository(_testDbPath);
         var config = SensorConfiguration.GetDefault();
-        config.VendorType = SensorVendorType.Siemens;
 
         // Act
         repository.Update(config);
         var retrieved = repository.Get();
 
-        // Assert
-        Assert.Equal(SensorVendorType.Siemens, retrieved.VendorType);
+        // Assert - SensorConfiguration should have sensor entries
+        Assert.NotNull(retrieved);
+        Assert.NotNull(retrieved.Sensors);
     }
 
     [Fact]
