@@ -16,7 +16,7 @@ public class ChuteSensorConfig
     /// <remarks>
     /// 关联到传感器配置中的传感器标识符
     /// </remarks>
-    public required int SensorId { get; set; }
+    public required long SensorId { get; set; }
 
     /// <summary>
     /// 传感器名称（可选）- Sensor Name (Optional)

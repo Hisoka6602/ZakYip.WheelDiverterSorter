@@ -19,7 +19,7 @@ public sealed class ModiSimulatedDevice : IWheelDiverterDriver
     private ModiControlCommand _lastCommand = ModiControlCommand.Stop;
 
     /// <inheritdoc/>
-    public string DiverterId => _config.DiverterId;
+    public string DiverterId => _config.DiverterId.ToString();
 
     /// <summary>
     /// 初始化莫迪模拟设备

@@ -116,7 +116,7 @@ public record SignalTowerResult(bool Success, string Message);
 /// <summary>
 /// 包裹创建结果
 /// </summary>
-public record ParcelCreationResult(bool Success, string Message, string? ParcelId = null, int? ActualChuteId = null);
+public record ParcelCreationResult(bool Success, string Message, string? ParcelId = null, long? ActualChuteId = null);
 
 /// <summary>
 /// 批量包裹创建结果

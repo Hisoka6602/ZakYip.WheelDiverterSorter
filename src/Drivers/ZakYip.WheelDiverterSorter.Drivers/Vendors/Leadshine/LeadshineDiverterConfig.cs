@@ -8,7 +8,7 @@ public class LeadshineDiverterConfig
     /// <summary>
     /// 摆轮ID
     /// </summary>
-    public int DiverterId { get; init; }
+    public long DiverterId { get; init; }
 
     /// <summary>
     /// 摆轮名称

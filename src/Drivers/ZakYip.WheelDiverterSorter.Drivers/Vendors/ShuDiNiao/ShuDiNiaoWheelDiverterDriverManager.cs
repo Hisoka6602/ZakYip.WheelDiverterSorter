@@ -118,7 +118,7 @@ public sealed class ShuDiNiaoWheelDiverterDriverManager : IWheelDiverterDriverMa
                 {
                     var driverLogger = _loggerFactory.CreateLogger<ShuDiNiaoWheelDiverterDriver>();
                     var driver = new ShuDiNiaoWheelDiverterDriver(device, driverLogger);
-                    newDrivers[device.DiverterId] = driver;
+                    newDrivers[device.DiverterId.ToString()] = driver;
 
                     _logger.LogInformation(
                         "已创建数递鸟驱动器 {DiverterId}，主机={Host}，端口={Port}，设备地址=0x{DeviceAddress:X2}",
@@ -129,7 +129,7 @@ public sealed class ShuDiNiaoWheelDiverterDriverManager : IWheelDiverterDriverMa
                     _logger.LogError(ex,
                         "创建数递鸟驱动器失败 {DiverterId}，主机={Host}，端口={Port}",
                         device.DiverterId, device.Host, device.Port);
-                    failedDriverIds.Add(device.DiverterId);
+                    failedDriverIds.Add(device.DiverterId.ToString());
                 }
             }
 

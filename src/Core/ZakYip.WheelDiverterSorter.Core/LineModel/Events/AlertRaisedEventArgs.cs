@@ -40,7 +40,7 @@ public record struct AlertRaisedEventArgs : IEquatable<AlertRaisedEventArgs>
     /// <summary>
     /// 节点ID（可选）/ Node ID (optional)
     /// </summary>
-    public int? NodeId { get; init; }
+    public long? NodeId { get; init; }
 
     /// <summary>
     /// 附加详情（可选）/ Additional details (optional)

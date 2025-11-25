@@ -26,7 +26,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     private string _currentStatus = "未连接";
 
     /// <inheritdoc/>
-    public string DiverterId => _config.DiverterId;
+    public string DiverterId => _config.DiverterId.ToString();
 
     /// <summary>
     /// 初始化数递鸟摆轮驱动器

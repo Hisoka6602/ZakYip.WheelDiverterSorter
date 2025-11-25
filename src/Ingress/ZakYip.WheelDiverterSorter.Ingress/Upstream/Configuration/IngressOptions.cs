@@ -79,7 +79,7 @@ public class IngressOptions
     /// <summary>
     /// 降级格口ID
     /// </summary>
-    public int FallbackChuteId { get; init; } = 999;
+    public long FallbackChuteId { get; init; } = 999;
 
     /// <summary>
     /// 是否启用熔断器

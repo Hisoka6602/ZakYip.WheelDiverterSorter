@@ -36,7 +36,7 @@ public class DebugSortService
     /// <returns>调试分拣响应</returns>
     public async Task<DebugSortResponse> ExecuteDebugSortAsync(
         string parcelId,
-        int targetChuteId,
+        long targetChuteId,
         CancellationToken cancellationToken = default)
     {
         var overallStopwatch = Stopwatch.StartNew();

@@ -13,7 +13,7 @@ public sealed record class ChangeParcelChuteCommand
     /// <summary>
     /// 请求的新目标格口ID
     /// </summary>
-    public required int RequestedChuteId { get; init; }
+    public required long RequestedChuteId { get; init; }
 
     /// <summary>
     /// 请求时间（可选，默认为服务器当前时间）

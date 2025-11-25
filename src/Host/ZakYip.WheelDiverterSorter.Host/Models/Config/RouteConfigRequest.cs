@@ -15,7 +15,7 @@ public class RouteConfigRequest
     /// <example>1</example>
     [Required(ErrorMessage = "格口ID不能为空")]
     [SwaggerSchema(Description = "目标格口的唯一编号")]
-    public required int ChuteId { get; set; }
+    public required long ChuteId { get; set; }
 
     /// <summary>
     /// 格口名称（可选）- Chute Name (Optional)

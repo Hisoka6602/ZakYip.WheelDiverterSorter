@@ -5,19 +5,19 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// 传感器配置管理API控制器
+/// 感应IO配置管理API控制器
 /// </summary>
 /// <remarks>
-/// 提供传感器配置的查询和更新功能，支持热更新。
+/// 提供感应IO配置的查询和更新功能，支持热更新。
 /// 
-/// **传感器配置说明**：
-/// - 配置传感器类型（硬件/仿真）
-/// - 配置传感器厂商（雷赛、研华、倍福等）
-/// - 配置传感器IO绑定和防抖参数
-/// - 配置传感器的轮询行为
+/// **感应IO配置说明**：
+/// - 配置感应IO类型（硬件/仿真）
+/// - 配置IO厂商（雷赛、研华、倍福等）
+/// - 配置IO绑定和防抖参数
+/// - 配置IO的轮询行为
 /// 
 /// **配置生效时机**：
-/// 配置更新后立即生效，无需重启服务。正在运行的传感器读取任务会在下一个轮询周期使用新配置。
+/// 配置更新后立即生效，无需重启服务。正在运行的IO读取任务会在下一个轮询周期使用新配置。
 /// 
 /// **注意事项**：
 /// - 切换硬件/仿真模式可能需要重启服务才能完全生效
@@ -41,17 +41,17 @@ public class SensorConfigController : ControllerBase
     }
 
     /// <summary>
-    /// 获取传感器配置
+    /// 获取感应IO配置
     /// </summary>
-    /// <returns>传感器配置信息</returns>
+    /// <returns>感应IO配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 返回当前系统的传感器配置，包括：
-    /// - 使用硬件传感器还是仿真传感器
-    /// - 传感器厂商类型（Leadshine、Advantech、Beckhoff等）
-    /// - 各传感器的 IO 绑定配置
-    /// - 传感器轮询间隔和防抖参数
+    /// 返回当前系统的感应IO配置，包括：
+    /// - 使用硬件IO还是仿真IO
+    /// - IO厂商类型（Leadshine、Advantech、Beckhoff等）
+    /// - 各IO的绑定配置
+    /// - IO轮询间隔和防抖参数
     /// 
     /// 示例响应：
     /// ```json
@@ -66,10 +66,10 @@ public class SensorConfigController : ControllerBase
     /// </remarks>
     [HttpGet]
     [SwaggerOperation(
-        Summary = "获取传感器配置",
-        Description = "返回当前系统的传感器配置，包括厂商类型、IO绑定、轮询参数等",
+        Summary = "获取感应IO配置",
+        Description = "返回当前系统的感应IO配置，包括厂商类型、IO绑定、轮询参数等",
         OperationId = "GetSensorConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "感应IO配置" }
     )]
     [SwaggerResponse(200, "成功返回配置", typeof(SensorConfiguration))]
     [SwaggerResponse(500, "服务器内部错误")]
@@ -84,16 +84,16 @@ public class SensorConfigController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取传感器配置失败");
-            return StatusCode(500, new { message = "获取传感器配置失败" });
+            _logger.LogError(ex, "获取感应IO配置失败");
+            return StatusCode(500, new { message = "获取感应IO配置失败" });
         }
     }
 
     /// <summary>
-    /// 更新传感器配置（支持热更新）
+    /// 更新感应IO配置（支持热更新）
     /// </summary>
-    /// <param name="request">传感器配置请求，包含厂商类型、IO绑定、轮询参数等</param>
-    /// <returns>更新后的传感器配置</returns>
+    /// <param name="request">感应IO配置请求，包含厂商类型、IO绑定、轮询参数等</param>
+    /// <returns>更新后的感应IO配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
@@ -112,14 +112,14 @@ public class SensorConfigController : ControllerBase
     /// 
     /// **重要提示**：
     /// - 切换硬件/仿真模式（useHardwareSensor）可能需要重启服务才能完全生效
-    /// - 修改轮询间隔会影响传感器响应速度和CPU占用
-    /// - 防抖时间设置需要根据实际传感器特性调整
+    /// - 修改轮询间隔会影响IO响应速度和CPU占用
+    /// - 防抖时间设置需要根据实际IO特性调整
     /// 
     /// **支持的厂商类型（vendorType）**：
-    /// - 0: Simulated（仿真传感器）
-    /// - 1: Leadshine（雷赛传感器）
-    /// - 2: Advantech（研华传感器）
-    /// - 3: Beckhoff（倍福传感器）
+    /// - 0: Simulated（仿真IO）
+    /// - 1: Leadshine（雷赛IO）
+    /// - 2: Advantech（研华IO）
+    /// - 3: Beckhoff（倍福IO）
     /// 
     /// **参数验证规则**：
     /// - pollingIntervalMs: 10-1000 毫秒
@@ -128,10 +128,10 @@ public class SensorConfigController : ControllerBase
     /// </remarks>
     [HttpPut]
     [SwaggerOperation(
-        Summary = "更新传感器配置",
-        Description = "更新系统传感器配置，配置立即生效无需重启。支持配置硬件/仿真传感器切换、厂商选择和传感器参数",
+        Summary = "更新感应IO配置",
+        Description = "更新系统感应IO配置，配置立即生效无需重启。支持配置硬件/仿真IO切换、厂商选择和IO参数",
         OperationId = "UpdateSensorConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "感应IO配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(SensorConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
@@ -161,7 +161,7 @@ public class SensorConfigController : ControllerBase
             _repository.Update(request);
 
             _logger.LogInformation(
-                "传感器配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
+                "感应IO配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
                 request.VendorType,
                 request.UseHardwareSensor,
                 request.Version);
@@ -171,61 +171,13 @@ public class SensorConfigController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "传感器配置验证失败");
+            _logger.LogWarning(ex, "感应IO配置验证失败");
             return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "更新传感器配置失败");
-            return StatusCode(500, new { message = "更新传感器配置失败" });
-        }
-    }
-
-    /// <summary>
-    /// 重置传感器配置为默认值
-    /// </summary>
-    /// <returns>重置后的传感器配置</returns>
-    /// <response code="200">重置成功</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 将传感器配置重置为系统默认值：
-    /// - 使用仿真传感器（useHardwareSensor: false）
-    /// - 默认厂商类型：Simulated
-    /// - 轮询间隔：100ms
-    /// - 防抖时间：50ms
-    /// 
-    /// 重置操作会立即生效，适用于：
-    /// - 配置出错需要恢复默认
-    /// - 切换回仿真模式进行测试
-    /// - 清除不正确的配置参数
-    /// </remarks>
-    [HttpPost("reset")]
-    [SwaggerOperation(
-        Summary = "重置传感器配置",
-        Description = "将传感器配置重置为系统默认值（仿真模式）",
-        OperationId = "ResetSensorConfig",
-        Tags = new[] { "传感器配置" }
-    )]
-    [SwaggerResponse(200, "重置成功", typeof(SensorConfiguration))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SensorConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SensorConfiguration> ResetSensorConfig()
-    {
-        try
-        {
-            var defaultConfig = SensorConfiguration.GetDefault();
-            _repository.Update(defaultConfig);
-
-            _logger.LogInformation("传感器配置已重置为默认值");
-
-            var updatedConfig = _repository.Get();
-            return Ok(updatedConfig);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "重置传感器配置失败");
-            return StatusCode(500, new { message = "重置传感器配置失败" });
+            _logger.LogError(ex, "更新感应IO配置失败");
+            return StatusCode(500, new { message = "更新感应IO配置失败" });
         }
     }
 }

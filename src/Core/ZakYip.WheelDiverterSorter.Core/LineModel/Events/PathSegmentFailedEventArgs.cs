@@ -18,7 +18,7 @@ public record class PathSegmentFailedEventArgs
     /// 当前节点ID（失败的摆轮ID）
     /// Current node ID (failed diverter ID)
     /// </summary>
-    public required int CurrentNodeId { get; init; }
+    public required long CurrentNodeId { get; init; }
 
     /// <summary>
     /// 失败原因

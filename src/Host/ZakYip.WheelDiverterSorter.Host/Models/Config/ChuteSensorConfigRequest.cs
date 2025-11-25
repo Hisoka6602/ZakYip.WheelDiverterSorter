@@ -18,7 +18,7 @@ public record ChuteSensorConfigRequest
     /// <example>1</example>
     [Required(ErrorMessage = "传感器ID不能为空")]
     [SwaggerSchema(Description = "传感器的唯一编号，关联到传感器配置表")]
-    public required int SensorId { get; init; }
+    public required long SensorId { get; init; }
 
     /// <summary>
     /// 传感器类型 (Photoelectric/Laser)
