@@ -126,6 +126,7 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     private LineTopologyConfig GetDefaultConfig()
     {
         var now = _systemClock.LocalNow;
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         return new LineTopologyConfig
         {
             TopologyId = DefaultTopologyId,
@@ -140,10 +141,12 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             CreatedAt = now,
             UpdatedAt = now
         };
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private static LineTopologyConfig MapToConfig(LineTopologyConfigEntity entity)
     {
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         return new LineTopologyConfig
         {
             TopologyId = entity.TopologyId,
@@ -158,10 +161,12 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private static LineTopologyConfigEntity MapToEntity(LineTopologyConfig config)
     {
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         return new LineTopologyConfigEntity
         {
             TopologyId = config.TopologyId,
@@ -176,6 +181,7 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     /// <summary>

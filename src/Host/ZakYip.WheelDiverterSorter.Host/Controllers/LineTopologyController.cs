@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -13,6 +14,15 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// <remarks>
 /// 提供线体拓扑配置的管理接口，包括线体段、摆轮节点、格口映射等
 /// 用于配置整条分拣线的物理拓扑结构，支持超时/丢失计算
+/// 
+/// **拓扑组成规则**：
+/// 一个最简的摆轮分拣拓扑由以下元素组成：
+/// - 创建包裹感应IO -> 线体段 -> 摆轮 -> 格口（摆轮方向=格口）
+/// 
+/// **线体段规则**：
+/// - 第一段线体的起点IO必须是创建包裹感应IO（ParcelCreation类型）
+/// - 最后一段线体的终点IO Id应该是0（表示已到达末端）
+/// - 线体段的起点IO和终点IO必须引用已配置的感应IO
 /// </remarks>
 [ApiController]
 [Route("api/config/line-topology")]
@@ -20,15 +30,18 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class LineTopologyController : ControllerBase
 {
     private readonly ILineTopologyRepository _topologyRepository;
+    private readonly ISensorConfigurationRepository _sensorRepository;
     private readonly ISystemClock _clock;
     private readonly ILogger<LineTopologyController> _logger;
 
     public LineTopologyController(
         ILineTopologyRepository topologyRepository,
+        ISensorConfigurationRepository sensorRepository,
         ISystemClock clock,
         ILogger<LineTopologyController> logger)
     {
         _topologyRepository = topologyRepository;
+        _sensorRepository = sensorRepository;
         _clock = clock;
         _logger = logger;
     }
@@ -83,6 +96,7 @@ public class LineTopologyController : ControllerBase
     ///                 "nodeId": "WHEEL-1",
     ///                 "nodeName": "第一摆轮",
     ///                 "positionIndex": 1,
+    ///                 "frontIoId": 2,
     ///                 "hasLeftChute": true,
     ///                 "hasRightChute": true
     ///             }
@@ -94,36 +108,36 @@ public class LineTopologyController : ControllerBase
     ///                 "isExceptionChute": false,
     ///                 "boundNodeId": "WHEEL-1",
     ///                 "boundDirection": "Left",
+    ///                 "lockIoId": 3,
     ///                 "dropOffsetMm": 500.0,
     ///                 "isEnabled": true
     ///             }
     ///         ],
     ///         "lineSegments": [
     ///             {
-    ///                 "segmentId": "ENTRY-TO-WHEEL1",
-    ///                 "fromNodeId": "ENTRY",
-    ///                 "toNodeId": "WHEEL-1",
+    ///                 "segmentId": "SEG-1",
+    ///                 "segmentName": "入口到第一摆轮段",
+    ///                 "startIoId": 1,
+    ///                 "endIoId": 2,
     ///                 "lengthMm": 5000.0,
-    ///                 "nominalSpeedMmPerSec": 1000.0,
-    ///                 "description": "入口到第一个摆轮"
+    ///                 "speedMmPerSec": 1000.0,
+    ///                 "description": "从创建包裹IO到第一摆轮前IO"
     ///             }
     ///         ],
-    ///         "entrySensorId": "SENSOR-ENTRY",
-    ///         "exitSensorId": "SENSOR-EXIT",
     ///         "defaultLineSpeedMmps": 1000.0
     ///     }
     ///
     /// 配置说明：
-    /// - 线体段（LineSegments）描述节点之间的物理连接，包括长度和速度
+    /// - 线体段（LineSegments）通过起点IO和终点IO定义，必须引用已配置的感应IO
+    /// - 第一段线体的起点IO必须是创建包裹感应IO（ParcelCreation类型）
+    /// - 最后一段线体的终点IO Id为0（表示末端）
     /// - 摆轮节点（WheelNodes）按物理位置顺序排列，positionIndex从1开始
     /// - 格口（Chutes）必须绑定到某个摆轮节点的某个方向
-    /// - 落格偏移（DropOffsetMm）用于精确计算包裹到达格口的时间
-    /// - 系统会根据这些配置计算理论到达时间和超时阈值
     /// </remarks>
     [HttpPut]
     [SwaggerOperation(
         Summary = "更新线体拓扑配置",
-        Description = "更新完整的线体拓扑配置，配置立即生效",
+        Description = "更新完整的线体拓扑配置，配置立即生效。线体段的起点IO和终点IO必须引用已配置的感应IO。",
         OperationId = "UpdateLineTopology",
         Tags = new[] { "线体拓扑配置" }
     )]
@@ -164,26 +178,58 @@ public class LineTopologyController : ControllerBase
                 }
             }
 
-            // 验证线体段的节点必须存在
-            if (request.LineSegments != null)
-            {
-                var allNodeIds = nodeIds.ToHashSet();
-                allNodeIds.Add(LineTopologyConfig.EntryNodeId); // 使用常量
-                
-                foreach (var chute in request.Chutes)
-                {
-                    allNodeIds.Add(chute.ChuteId); // 添加格口作为可能的目标节点
-                }
+            // 获取已配置的感应IO列表用于验证
+            var sensorConfig = _sensorRepository.Get();
+            var configuredSensorIds = sensorConfig.Sensors?.Select(s => s.SensorId).ToHashSet() ?? new HashSet<long>();
 
-                foreach (var segment in request.LineSegments)
+            // 验证线体段的IO引用
+            if (request.LineSegments != null && request.LineSegments.Count > 0)
+            {
+                var validationResult = ValidateLineSegments(request.LineSegments, configuredSensorIds, sensorConfig);
+                if (!validationResult.IsValid)
                 {
-                    if (!allNodeIds.Contains(segment.FromNodeId))
+                    return BadRequest(ApiResponse<object>.BadRequest(validationResult.ErrorMessage!));
+                }
+            }
+
+            // 验证摆轮节点的FrontIoId引用
+            foreach (var node in request.WheelNodes)
+            {
+                if (node.FrontIoId.HasValue && node.FrontIoId.Value != 0)
+                {
+                    if (!configuredSensorIds.Contains(node.FrontIoId.Value))
                     {
-                        return BadRequest(ApiResponse<object>.BadRequest($"线体段 {segment.SegmentId} 的起始节点 {segment.FromNodeId} 不存在"));
+                        return BadRequest(ApiResponse<object>.BadRequest(
+                            $"摆轮节点 {node.NodeId} 的摆轮前感应IO (FrontIoId={node.FrontIoId}) 未配置，请先在感应IO配置中添加"));
                     }
-                    if (!allNodeIds.Contains(segment.ToNodeId))
+
+                    // 验证FrontIoId必须是WheelFront类型
+                    var sensor = sensorConfig.Sensors?.FirstOrDefault(s => s.SensorId == node.FrontIoId.Value);
+                    if (sensor != null && sensor.IoType != SensorIoType.WheelFront)
                     {
-                        return BadRequest(ApiResponse<object>.BadRequest($"线体段 {segment.SegmentId} 的目标节点 {segment.ToNodeId} 不存在"));
+                        return BadRequest(ApiResponse<object>.BadRequest(
+                            $"摆轮节点 {node.NodeId} 的摆轮前感应IO (FrontIoId={node.FrontIoId}) 类型必须是 WheelFront，当前类型为 {sensor.IoType}"));
+                    }
+                }
+            }
+
+            // 验证格口的LockIoId引用
+            foreach (var chute in request.Chutes)
+            {
+                if (chute.LockIoId.HasValue && chute.LockIoId.Value != 0)
+                {
+                    if (!configuredSensorIds.Contains(chute.LockIoId.Value))
+                    {
+                        return BadRequest(ApiResponse<object>.BadRequest(
+                            $"格口 {chute.ChuteId} 的锁格感应IO (LockIoId={chute.LockIoId}) 未配置，请先在感应IO配置中添加"));
+                    }
+
+                    // 验证LockIoId必须是ChuteLock类型
+                    var sensor = sensorConfig.Sensors?.FirstOrDefault(s => s.SensorId == chute.LockIoId.Value);
+                    if (sensor != null && sensor.IoType != SensorIoType.ChuteLock)
+                    {
+                        return BadRequest(ApiResponse<object>.BadRequest(
+                            $"格口 {chute.ChuteId} 的锁格感应IO (LockIoId={chute.LockIoId}) 类型必须是 ChuteLock，当前类型为 {sensor.IoType}"));
                     }
                 }
             }
@@ -208,8 +254,65 @@ public class LineTopologyController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 验证线体段配置
+    /// </summary>
+    private (bool IsValid, string? ErrorMessage) ValidateLineSegments(
+        List<LineSegmentRequest> segments, 
+        HashSet<long> configuredSensorIds,
+        SensorConfiguration sensorConfig)
+    {
+        for (int i = 0; i < segments.Count; i++)
+        {
+            var segment = segments[i];
+
+            // 验证起点IO（EndIoId为0表示末端，不需要验证）
+            if (segment.StartIoId != 0)
+            {
+                if (!configuredSensorIds.Contains(segment.StartIoId))
+                {
+                    return (false, $"线体段 {segment.SegmentId} 的起点IO (StartIoId={segment.StartIoId}) 未配置，请先在感应IO配置中添加");
+                }
+            }
+
+            // 验证终点IO（0表示末端，允许）
+            if (segment.EndIoId != 0)
+            {
+                if (!configuredSensorIds.Contains(segment.EndIoId))
+                {
+                    return (false, $"线体段 {segment.SegmentId} 的终点IO (EndIoId={segment.EndIoId}) 未配置，请先在感应IO配置中添加");
+                }
+            }
+
+            // 验证第一段线体的起点IO必须是创建包裹感应IO
+            if (i == 0)
+            {
+                var startSensor = sensorConfig.Sensors?.FirstOrDefault(s => s.SensorId == segment.StartIoId);
+                if (startSensor == null)
+                {
+                    return (false, $"第一段线体 {segment.SegmentId} 的起点IO (StartIoId={segment.StartIoId}) 未配置");
+                }
+                if (startSensor.IoType != SensorIoType.ParcelCreation)
+                {
+                    return (false, $"第一段线体 {segment.SegmentId} 的起点IO必须是创建包裹感应IO (ParcelCreation)，当前类型为 {startSensor.IoType}");
+                }
+            }
+
+            // 验证最后一段线体的终点IO应该是0
+            if (i == segments.Count - 1 && segment.EndIoId != 0)
+            {
+                _logger.LogWarning(
+                    "线体段配置提示: 最后一段线体 {SegmentId} 的终点IO不是0，建议设为0表示末端",
+                    segment.SegmentId);
+            }
+        }
+
+        return (true, null);
+    }
+
     private LineTopologyResponse MapToResponse(LineTopologyConfig config)
     {
+#pragma warning disable CS0618 // Type or member is obsolete
         return new LineTopologyResponse
         {
             TopologyId = config.TopologyId,
@@ -238,27 +341,35 @@ public class LineTopologyController : ControllerBase
             LineSegments = config.LineSegments.Select(s => new LineSegmentRequest
             {
                 SegmentId = s.SegmentId,
+                SegmentName = s.SegmentName,
+                StartIoId = s.StartIoId,
+                EndIoId = s.EndIoId,
+                LengthMm = s.LengthMm,
+                SpeedMmPerSec = s.SpeedMmPerSec,
+                Description = s.Description,
+                // 向后兼容字段
                 FromNodeId = s.FromNodeId,
                 ToNodeId = s.ToNodeId,
-                LengthMm = s.LengthMm,
-                NominalSpeedMmPerSec = s.NominalSpeedMmPerSec,
-                Description = s.Description
+                NominalSpeedMmPerSec = s.SpeedMmPerSec
             }).ToList(),
-            EntrySensorId = config.EntrySensorId,
-            ExitSensorId = config.ExitSensorId,
             DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
-            UpdatedAt = config.UpdatedAt
+            UpdatedAt = config.UpdatedAt,
+            // 向后兼容字段
+            EntrySensorId = config.EntrySensorId,
+            ExitSensorId = config.ExitSensorId
         };
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private LineTopologyConfig MapToConfig(LineTopologyRequest request)
     {
         var now = _clock.LocalNow;
         
+#pragma warning disable CS0618 // Type or member is obsolete
         return new LineTopologyConfig
         {
-            TopologyId = LiteDbLineTopologyRepository.DefaultTopologyId, // 使用常量
+            TopologyId = LiteDbLineTopologyRepository.DefaultTopologyId,
             TopologyName = request.TopologyName,
             Description = request.Description,
             WheelNodes = request.WheelNodes.Select(n => new WheelNodeConfig
@@ -284,17 +395,23 @@ public class LineTopologyController : ControllerBase
             LineSegments = request.LineSegments?.Select(s => new LineSegmentConfig
             {
                 SegmentId = s.SegmentId,
-                FromNodeId = s.FromNodeId,
-                ToNodeId = s.ToNodeId,
+                SegmentName = s.SegmentName,
+                StartIoId = s.StartIoId,
+                EndIoId = s.EndIoId,
                 LengthMm = s.LengthMm,
-                NominalSpeedMmPerSec = s.NominalSpeedMmPerSec,
-                Description = s.Description
+                SpeedMmPerSec = s.SpeedMmPerSec,
+                Description = s.Description,
+                // 向后兼容字段
+                FromNodeId = s.FromNodeId,
+                ToNodeId = s.ToNodeId
             }).ToList() ?? new List<LineSegmentConfig>(),
+            DefaultLineSpeedMmps = request.DefaultLineSpeedMmps,
+            // 向后兼容字段
             EntrySensorId = request.EntrySensorId,
             ExitSensorId = request.ExitSensorId,
-            DefaultLineSpeedMmps = request.DefaultLineSpeedMmps,
-            CreatedAt = now, // Will be overridden by repository if updating
+            CreatedAt = now,
             UpdatedAt = now
         };
+#pragma warning restore CS0618 // Type or member is obsolete
     }
 }

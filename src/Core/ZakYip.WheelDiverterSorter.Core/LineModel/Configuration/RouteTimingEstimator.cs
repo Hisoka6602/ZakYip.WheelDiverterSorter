@@ -96,7 +96,9 @@ public class RouteTimingEstimator : IRouteTimingEstimator
         }
 
         var topology = _topologyRepository.Get();
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         var path = topology.GetPathToChute(chuteId);
+#pragma warning restore CS0618 // Type or member is obsolete
 
         if (path == null)
         {
@@ -121,7 +123,9 @@ public class RouteTimingEstimator : IRouteTimingEstimator
 
         foreach (var segment in path)
         {
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
             var segmentSpeed = speedMmPerSec ?? segment.NominalSpeedMmPerSec;
+#pragma warning restore CS0618 // Type or member is obsolete
             if (segmentSpeed <= 0)
             {
                 return new RouteTimingEstimate

@@ -61,6 +61,7 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
             var totalTimeSeconds = 0.0m;
             foreach (var segment in pathToFirstWheel)
             {
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
                 if (segment.NominalSpeedMmPerSec <= 0)
                 {
                     _logger.LogError(
@@ -82,6 +83,7 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
                     segment.LengthMm,
                     segment.NominalSpeedMmPerSec,
                     segmentTimeSeconds);
+#pragma warning restore CS0618 // Type or member is obsolete
             }
 
             // 4. 应用安全系数（clamp到0.1-1.0范围）
@@ -137,6 +139,7 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
         var firstWheel = sortedNodes[0];
         var path = new List<LineSegmentConfig>();
 
+#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         // 从入口到第一个摆轮的路径
         var currentNodeId = LineTopologyConfig.EntryNodeId;
         
@@ -149,6 +152,7 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
             }
 
             var segment = topology.FindSegment(currentNodeId, node.NodeId);
+#pragma warning restore CS0618 // Type or member is obsolete
             if (segment == null)
             {
                 _logger.LogError(
