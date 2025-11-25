@@ -45,50 +45,6 @@ public class SensorConfiguration
     /// </summary>
     public DateTime UpdatedAt { get; set; }
 
-    #region 向后兼容 - 废弃字段
-
-    /// <summary>
-    /// [废弃] 是否使用硬件传感器 - 已移至IO驱动器配置
-    /// </summary>
-    /// <remarks>
-    /// 此字段已废弃，请使用 /api/config/io-driver 中的 UseHardwareDriver 配置。
-    /// 保留此字段仅为向后兼容，在未来版本中将被移除。
-    /// </remarks>
-    [Obsolete("请使用 /api/config/io-driver 中的 UseHardwareDriver 配置")]
-    public bool UseHardwareSensor { get; set; } = false;
-
-    /// <summary>
-    /// [废弃] 传感器厂商类型 - 已移至IO驱动器配置
-    /// </summary>
-    /// <remarks>
-    /// 此字段已废弃，请使用 /api/config/io-driver 中的 VendorType 配置。
-    /// 保留此字段仅为向后兼容，在未来版本中将被移除。
-    /// </remarks>
-    [Obsolete("请使用 /api/config/io-driver 中的 VendorType 配置")]
-    public SensorVendorType VendorType { get; set; } = SensorVendorType.Leadshine;
-
-    /// <summary>
-    /// [废弃] 雷赛传感器配置 - 已移至IO驱动器配置
-    /// </summary>
-    /// <remarks>
-    /// 此字段已废弃，请使用 /api/config/io-driver 中的 Leadshine 配置。
-    /// 保留此字段仅为向后兼容，在未来版本中将被移除。
-    /// </remarks>
-    [Obsolete("请使用 /api/config/io-driver 中的 Leadshine 配置")]
-    public LeadshineSensorConfig? Leadshine { get; set; }
-
-    /// <summary>
-    /// [废弃] 模拟传感器配置列表 - 已迁移到 Sensors 列表
-    /// </summary>
-    /// <remarks>
-    /// 此字段已废弃，请使用 Sensors 列表。
-    /// 保留此字段仅为向后兼容，在未来版本中将被移除。
-    /// </remarks>
-    [Obsolete("请使用 Sensors 列表")]
-    public List<MockSensorEntry> MockSensors { get; set; } = new();
-
-    #endregion
-
     /// <summary>
     /// 获取默认配置
     /// </summary>
@@ -124,26 +80,7 @@ public class SensorConfiguration
                     BoundChuteId = "CHUTE-001",
                     IsEnabled = true 
                 }
-            },
-            // 向后兼容的废弃字段
-#pragma warning disable CS0618 // Type or member is obsolete
-            UseHardwareSensor = false,
-            VendorType = SensorVendorType.Leadshine,
-            Leadshine = new LeadshineSensorConfig
-            {
-                CardNo = 0,
-                Sensors = new List<HardwareSensorEntry>
-                {
-                    new() { SensorId = 1, SensorName = "SENSOR_PE_01", Type = "Photoelectric", InputBit = 0, IsEnabled = true },
-                    new() { SensorId = 2, SensorName = "SENSOR_LASER_01", Type = "Laser", InputBit = 1, IsEnabled = true }
-                }
-            },
-            MockSensors = new List<MockSensorEntry>
-            {
-                new() { SensorId = 1, SensorName = "SENSOR_PE_01", Type = "Photoelectric", IsEnabled = true },
-                new() { SensorId = 2, SensorName = "SENSOR_LASER_01", Type = "Laser", IsEnabled = true }
             }
-#pragma warning restore CS0618 // Type or member is obsolete
         };
     }
 
@@ -196,44 +133,6 @@ public class SensorConfiguration
                 return (false, $"锁格感应IO必须绑定格口: {string.Join(", ", chuteLockWithoutBinding.Select(s => s.SensorName ?? s.SensorId.ToString()))}");
             }
         }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-        // 向后兼容验证 - 仅当使用旧配置时验证
-        if (!Enum.IsDefined(typeof(SensorVendorType), VendorType))
-        {
-            return (false, "传感器厂商类型无效");
-        }
-
-        if (Leadshine != null && Leadshine.Sensors != null)
-        {
-            // 检查SensorId不能重复
-            var duplicateIds = Leadshine.Sensors
-                .GroupBy(s => s.SensorId)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-
-            if (duplicateIds.Any())
-            {
-                return (false, $"传感器ID重复: {string.Join(", ", duplicateIds)}");
-            }
-        }
-
-        if (MockSensors != null)
-        {
-            // 检查模拟传感器ID不能重复
-            var duplicateIds = MockSensors
-                .GroupBy(s => s.SensorId)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-
-            if (duplicateIds.Any())
-            {
-                return (false, $"模拟传感器ID重复: {string.Join(", ", duplicateIds)}");
-            }
-        }
-#pragma warning restore CS0618 // Type or member is obsolete
 
         return (true, null);
     }
@@ -308,95 +207,6 @@ public class SensorIoEntry
     /// - ActiveLow: 低电平有效（常闭按键）
     /// </remarks>
     public TriggerLevel TriggerLevel { get; set; } = TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 是否启用
-    /// </summary>
-    public bool IsEnabled { get; set; } = true;
-}
-
-/// <summary>
-/// 雷赛传感器配置
-/// </summary>
-public class LeadshineSensorConfig
-{
-    /// <summary>
-    /// 控制器卡号
-    /// </summary>
-    public ushort CardNo { get; set; } = 0;
-
-    /// <summary>
-    /// 传感器配置列表
-    /// </summary>
-    public List<HardwareSensorEntry> Sensors { get; set; } = new();
-}
-
-/// <summary>
-/// 硬件传感器配置条目
-/// </summary>
-public class HardwareSensorEntry
-{
-    /// <summary>
-    /// 传感器标识符（数字ID）
-    /// </summary>
-    public required long SensorId { get; set; }
-
-    /// <summary>
-    /// 传感器名称（可选）- Sensor Name (Optional)
-    /// </summary>
-    /// <remarks>
-    /// 用于显示的友好名称，例如 "SENSOR_PE_01"、"入口传感器"
-    /// </remarks>
-    public string? SensorName { get; set; }
-
-    /// <summary>
-    /// 传感器类型 (Photoelectric/Laser)
-    /// </summary>
-    public required string Type { get; set; }
-
-    /// <summary>
-    /// 输入位
-    /// </summary>
-    public int InputBit { get; set; }
-
-    /// <summary>
-    /// IO触发电平配置（高电平有效/低电平有效）
-    /// </summary>
-    /// <remarks>
-    /// 默认值：ActiveHigh（高电平有效）
-    /// - ActiveHigh: 高电平有效（常开按键）
-    /// - ActiveLow: 低电平有效（常闭按键）
-    /// </remarks>
-    public TriggerLevel TriggerLevel { get; set; } = TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 是否启用
-    /// </summary>
-    public bool IsEnabled { get; set; } = true;
-}
-
-/// <summary>
-/// 模拟传感器配置条目
-/// </summary>
-public class MockSensorEntry
-{
-    /// <summary>
-    /// 传感器标识符（数字ID）
-    /// </summary>
-    public required long SensorId { get; set; }
-
-    /// <summary>
-    /// 传感器名称（可选）- Sensor Name (Optional)
-    /// </summary>
-    /// <remarks>
-    /// 用于显示的友好名称，例如 "SENSOR_PE_01"、"模拟入口传感器"
-    /// </remarks>
-    public string? SensorName { get; set; }
-
-    /// <summary>
-    /// 传感器类型 (Photoelectric/Laser)
-    /// </summary>
-    public required string Type { get; set; }
 
     /// <summary>
     /// 是否启用

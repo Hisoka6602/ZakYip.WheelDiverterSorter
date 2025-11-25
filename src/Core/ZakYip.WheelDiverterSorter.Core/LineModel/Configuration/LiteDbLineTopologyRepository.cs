@@ -126,7 +126,6 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     private LineTopologyConfig GetDefaultConfig()
     {
         var now = _systemClock.LocalNow;
-#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         return new LineTopologyConfig
         {
             TopologyId = DefaultTopologyId,
@@ -135,18 +134,14 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             WheelNodes = Array.Empty<WheelNodeConfig>(),
             Chutes = Array.Empty<ChuteConfig>(),
             LineSegments = Array.Empty<LineSegmentConfig>(),
-            EntrySensorId = null,
-            ExitSensorId = null,
             DefaultLineSpeedMmps = 500m,
             CreatedAt = now,
             UpdatedAt = now
         };
-#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private static LineTopologyConfig MapToConfig(LineTopologyConfigEntity entity)
     {
-#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         return new LineTopologyConfig
         {
             TopologyId = entity.TopologyId,
@@ -155,18 +150,14 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             WheelNodes = entity.WheelNodes,
             Chutes = entity.Chutes,
             LineSegments = entity.LineSegments,
-            EntrySensorId = entity.EntrySensorId,
-            ExitSensorId = entity.ExitSensorId,
             DefaultLineSpeedMmps = entity.DefaultLineSpeedMmps,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };
-#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     private static LineTopologyConfigEntity MapToEntity(LineTopologyConfig config)
     {
-#pragma warning disable CS0618 // Type or member is obsolete - backward compatibility
         return new LineTopologyConfigEntity
         {
             TopologyId = config.TopologyId,
@@ -175,13 +166,10 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             WheelNodes = config.WheelNodes.ToList(),
             Chutes = config.Chutes.ToList(),
             LineSegments = config.LineSegments.ToList(),
-            EntrySensorId = config.EntrySensorId,
-            ExitSensorId = config.ExitSensorId,
             DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
-#pragma warning restore CS0618 // Type or member is obsolete
     }
 
     /// <summary>
@@ -198,8 +186,6 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
         public required List<WheelNodeConfig> WheelNodes { get; set; }
         public required List<ChuteConfig> Chutes { get; set; }
         public required List<LineSegmentConfig> LineSegments { get; set; }
-        public string? EntrySensorId { get; set; }
-        public string? ExitSensorId { get; set; }
         public decimal DefaultLineSpeedMmps { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

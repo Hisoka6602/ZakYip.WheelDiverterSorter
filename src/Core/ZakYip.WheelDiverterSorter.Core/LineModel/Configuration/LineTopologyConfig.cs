@@ -22,12 +22,6 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 public record class LineTopologyConfig
 {
     /// <summary>
-    /// 入口节点ID常量（向后兼容）
-    /// </summary>
-    [Obsolete("使用新的感应IO模型，请通过 LineSegments 中的 StartIoId/EndIoId 定义拓扑")]
-    public const string EntryNodeId = "ENTRY";
-
-    /// <summary>
     /// 拓扑配置唯一标识符
     /// </summary>
     public required string TopologyId { get; init; }
@@ -77,22 +71,6 @@ public record class LineTopologyConfig
     /// 最后更新时间
     /// </summary>
     public DateTime UpdatedAt { get; init; }
-
-    #region 向后兼容 - 废弃字段
-
-    /// <summary>
-    /// [废弃] 入口传感器ID - 使用 LineSegments 中第一段的 StartIoId
-    /// </summary>
-    [Obsolete("请使用 LineSegments 中第一段的 StartIoId")]
-    public string? EntrySensorId { get; init; }
-
-    /// <summary>
-    /// [废弃] 出口传感器ID - 使用 LineSegments 中最后一段的 EndIoId
-    /// </summary>
-    [Obsolete("请使用 LineSegments 中最后一段的 EndIoId")]
-    public string? ExitSensorId { get; init; }
-
-    #endregion
 
     /// <summary>
     /// 获取异常格口配置
@@ -210,104 +188,4 @@ public record class LineTopologyConfig
 
         return path.Sum(s => s.CalculateTransitTimeMs());
     }
-
-    #region 向后兼容方法
-
-    /// <summary>
-    /// [废弃] 根据起始和目标节点ID查找线体段
-    /// </summary>
-    [Obsolete("请使用 FindSegmentByStartIoId 或 FindSegmentByEndIoId")]
-    public LineSegmentConfig? FindSegment(string fromNodeId, string toNodeId)
-    {
-#pragma warning disable CS0618 // Type or member is obsolete
-        return LineSegments.FirstOrDefault(s => 
-            s.FromNodeId == fromNodeId && s.ToNodeId == toNodeId);
-#pragma warning restore CS0618 // Type or member is obsolete
-    }
-
-    /// <summary>
-    /// [废弃] 获取指定格口的完整路径（从入口到格口的所有线体段）
-    /// </summary>
-    /// <param name="chuteId">格口ID</param>
-    /// <returns>路径上的所有线体段，如果路径不存在则返回null</returns>
-    [Obsolete("请使用 GetPathBetweenIos，通过感应IO Id定义路径")]
-    public IReadOnlyList<LineSegmentConfig>? GetPathToChute(string chuteId)
-    {
-        var chute = FindChuteById(chuteId);
-        if (chute == null)
-        {
-            return null;
-        }
-
-        var path = new List<LineSegmentConfig>();
-#pragma warning disable CS0618 // Type or member is obsolete
-        var currentNodeId = EntryNodeId;
-#pragma warning restore CS0618 // Type or member is obsolete
-        var targetNodeId = chute.BoundNodeId;
-
-        // 遍历摆轮节点，按位置索引顺序
-        var sortedNodes = WheelNodes.OrderBy(n => n.PositionIndex).ToList();
-        
-        // 找到目标摆轮节点的位置
-        var targetNode = WheelNodes.FirstOrDefault(n => n.NodeId == targetNodeId);
-        if (targetNode == null)
-        {
-            return null;
-        }
-
-        // 从入口到目标摆轮，添加所有线体段
-        foreach (var node in sortedNodes)
-        {
-            if (node.PositionIndex > targetNode.PositionIndex)
-            {
-                break;
-            }
-
-#pragma warning disable CS0618 // Type or member is obsolete
-            var segment = FindSegment(currentNodeId, node.NodeId);
-#pragma warning restore CS0618 // Type or member is obsolete
-            if (segment == null)
-            {
-                return null; // 路径不完整
-            }
-            
-            path.Add(segment);
-            currentNodeId = node.NodeId;
-        }
-
-        // 添加从最后一个摆轮到格口的线体段（如果存在）
-#pragma warning disable CS0618 // Type or member is obsolete
-        var finalSegment = FindSegment(targetNodeId, chuteId);
-#pragma warning restore CS0618 // Type or member is obsolete
-        if (finalSegment != null)
-        {
-            path.Add(finalSegment);
-        }
-
-        return path;
-    }
-
-    /// <summary>
-    /// [废弃] 计算指定格口的路径总距离（毫米）
-    /// </summary>
-    /// <param name="chuteId">格口ID</param>
-    /// <returns>路径总距离（毫米），如果路径不存在则返回null</returns>
-    [Obsolete("请使用 CalculateDistanceBetweenIos，通过感应IO Id计算距离")]
-    public double? CalculateTotalDistance(string chuteId)
-    {
-#pragma warning disable CS0618 // Type or member is obsolete
-        var path = GetPathToChute(chuteId);
-#pragma warning restore CS0618 // Type or member is obsolete
-        if (path == null)
-        {
-            return null;
-        }
-
-        var chute = FindChuteById(chuteId);
-        var dropOffsetMm = chute?.DropOffsetMm ?? 0;
-
-        return path.Sum(s => s.LengthMm) + dropOffsetMm;
-    }
-
-    #endregion
 }
