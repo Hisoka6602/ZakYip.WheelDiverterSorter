@@ -6,7 +6,7 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 /// 摆轮节点配置
 /// </summary>
 /// <remarks>
-/// 描述摆轮节点的逻辑结构，不包含IO板通道号等硬件细节
+/// 描述摆轮节点的逻辑结构，包括摆轮前感应IO的引用
 /// </remarks>
 public record class WheelNodeConfig
 {
@@ -24,6 +24,15 @@ public record class WheelNodeConfig
     /// 物理位置索引（从入口开始的顺序）
     /// </summary>
     public required int PositionIndex { get; init; }
+
+    /// <summary>
+    /// 摆轮前感应IO的Id（引用感应IO配置中的SensorId）
+    /// </summary>
+    /// <remarks>
+    /// 必须引用一个 WheelFront 类型的感应IO。
+    /// 用于检测包裹即将到达摆轮，触发摆轮提前动作。
+    /// </remarks>
+    public long? FrontIoId { get; init; }
 
     /// <summary>
     /// 左侧出口是否连接格口

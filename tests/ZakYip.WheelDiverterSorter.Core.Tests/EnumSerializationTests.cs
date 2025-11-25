@@ -1,3 +1,6 @@
+// 本文件使用向后兼容API进行测试，抑制废弃警告
+#pragma warning disable CS0618 // Type or member is obsolete
+
 using Xunit;
 using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;

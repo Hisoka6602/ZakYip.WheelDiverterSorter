@@ -134,8 +134,6 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             WheelNodes = Array.Empty<WheelNodeConfig>(),
             Chutes = Array.Empty<ChuteConfig>(),
             LineSegments = Array.Empty<LineSegmentConfig>(),
-            EntrySensorId = null,
-            ExitSensorId = null,
             DefaultLineSpeedMmps = 500m,
             CreatedAt = now,
             UpdatedAt = now
@@ -152,8 +150,6 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             WheelNodes = entity.WheelNodes,
             Chutes = entity.Chutes,
             LineSegments = entity.LineSegments,
-            EntrySensorId = entity.EntrySensorId,
-            ExitSensorId = entity.ExitSensorId,
             DefaultLineSpeedMmps = entity.DefaultLineSpeedMmps,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
@@ -170,8 +166,6 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
             WheelNodes = config.WheelNodes.ToList(),
             Chutes = config.Chutes.ToList(),
             LineSegments = config.LineSegments.ToList(),
-            EntrySensorId = config.EntrySensorId,
-            ExitSensorId = config.ExitSensorId,
             DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
@@ -192,8 +186,6 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
         public required List<WheelNodeConfig> WheelNodes { get; set; }
         public required List<ChuteConfig> Chutes { get; set; }
         public required List<LineSegmentConfig> LineSegments { get; set; }
-        public string? EntrySensorId { get; set; }
-        public string? ExitSensorId { get; set; }
         public decimal DefaultLineSpeedMmps { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }

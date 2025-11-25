@@ -52,7 +52,7 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
             {
                 _logger.LogError(
                     "无法解析从入口到第一个摆轮决策点的路径，使用降级超时时间 {FallbackTimeout}秒。" +
-                    "请检查线体拓扑配置：确保入口节点 (ENTRY) 和第一个摆轮节点已正确配置。",
+                    "请检查线体拓扑配置：确保线体段配置正确。",
                     options.FallbackTimeoutSeconds);
                 return options.FallbackTimeoutSeconds;
             }
@@ -61,26 +61,26 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
             var totalTimeSeconds = 0.0m;
             foreach (var segment in pathToFirstWheel)
             {
-                if (segment.NominalSpeedMmPerSec <= 0)
+                if (segment.SpeedMmPerSec <= 0)
                 {
                     _logger.LogError(
                         "线体段 {SegmentId} 的速度配置无效（{Speed} mm/s），使用降级超时时间 {FallbackTimeout}秒。" +
                         "请检查线体段速度配置，速度必须大于0。",
                         segment.SegmentId,
-                        segment.NominalSpeedMmPerSec,
+                        segment.SpeedMmPerSec,
                         options.FallbackTimeoutSeconds);
                     return options.FallbackTimeoutSeconds;
                 }
 
                 // 计算每段的时间：时间（秒） = 长度（mm） / 速度（mm/s）
-                var segmentTimeSeconds = (decimal)(segment.LengthMm / segment.NominalSpeedMmPerSec);
+                var segmentTimeSeconds = (decimal)(segment.LengthMm / segment.SpeedMmPerSec);
                 totalTimeSeconds += segmentTimeSeconds;
 
                 _logger.LogTrace(
                     "线体段 {SegmentId}: 长度={Length}mm, 速度={Speed}mm/s, 时间={Time:F3}秒",
                     segment.SegmentId,
                     segment.LengthMm,
-                    segment.NominalSpeedMmPerSec,
+                    segment.SpeedMmPerSec,
                     segmentTimeSeconds);
             }
 
@@ -135,42 +135,39 @@ public class ChuteAssignmentTimeoutCalculator : IChuteAssignmentTimeoutCalculato
 
         // 第一个摆轮节点即为决策点
         var firstWheel = sortedNodes[0];
-        var path = new List<LineSegmentConfig>();
-
-        // 从入口到第一个摆轮的路径
-        var currentNodeId = LineTopologyConfig.EntryNodeId;
         
-        // 遍历直到第一个摆轮
-        foreach (var node in sortedNodes)
+        // 获取第一个摆轮的前置IO（FrontIoId）
+        if (firstWheel.FrontIoId == null || firstWheel.FrontIoId == 0)
         {
-            if (node.PositionIndex > firstWheel.PositionIndex)
-            {
-                break;
-            }
-
-            var segment = topology.FindSegment(currentNodeId, node.NodeId);
-            if (segment == null)
-            {
-                _logger.LogError(
-                    "无法找到从 {From} 到 {To} 的线体段，路径不完整",
-                    currentNodeId,
-                    node.NodeId);
-                return null;
-            }
-
-            path.Add(segment);
-            currentNodeId = node.NodeId;
-
-            // 只添加到第一个摆轮为止
-            if (node.NodeId == firstWheel.NodeId)
-            {
-                break;
-            }
+            _logger.LogError("第一个摆轮节点 {NodeId} 未配置摆轮前感应IO (FrontIoId)", firstWheel.NodeId);
+            return null;
         }
 
-        if (path.Count == 0)
+        // 找到第一段线体的起点IO（应该是ParcelCreation类型）
+        if (topology.LineSegments.Count == 0)
         {
-            _logger.LogError("未找到从入口到第一个摆轮的有效路径");
+            _logger.LogError("线体拓扑配置中没有线体段");
+            return null;
+        }
+
+        var firstSegment = topology.LineSegments.FirstOrDefault();
+        if (firstSegment == null)
+        {
+            _logger.LogError("无法找到第一段线体");
+            return null;
+        }
+
+        var startIoId = firstSegment.StartIoId;
+        var targetIoId = firstWheel.FrontIoId.Value;
+
+        // 获取从起点IO到第一个摆轮前IO的路径
+        var path = topology.GetPathBetweenIos(startIoId, targetIoId);
+        if (path == null || path.Count == 0)
+        {
+            _logger.LogError(
+                "无法找到从起点IO {StartIoId} 到摆轮前IO {EndIoId} 的路径",
+                startIoId,
+                targetIoId);
             return null;
         }
 
