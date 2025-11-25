@@ -61,6 +61,15 @@ public class ShuDiNiaoConfigController : ControllerBase
         try
         {
             var config = _repository.Get();
+            if (config.ShuDiNiao == null)
+            {
+                // 返回默认空配置对象，而不是null（避免204 No Content）
+                return Ok(new ShuDiNiaoWheelDiverterConfig
+                {
+                    Devices = new List<ShuDiNiaoDeviceEntry>(),
+                    UseSimulation = false
+                });
+            }
             return Ok(config.ShuDiNiao);
         }
         catch (Exception ex)

@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 
@@ -18,6 +19,7 @@ public class PreRunHealthCheckServiceTests
     private readonly Mock<IPanelConfigurationRepository> _mockPanelConfigRepo;
     private readonly Mock<ILineTopologyRepository> _mockTopologyRepo;
     private readonly Mock<ICommunicationConfigurationRepository> _mockCommunicationConfigRepo;
+    private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
     private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
     private readonly Mock<ILogger<PreRunHealthCheckService>> _mockLogger;
     private readonly PreRunHealthCheckService _service;
@@ -28,6 +30,7 @@ public class PreRunHealthCheckServiceTests
         _mockPanelConfigRepo = new Mock<IPanelConfigurationRepository>();
         _mockTopologyRepo = new Mock<ILineTopologyRepository>();
         _mockCommunicationConfigRepo = new Mock<ICommunicationConfigurationRepository>();
+        _mockRuleEngineClient = new Mock<IRuleEngineClient>();
         _mockSafeExecutor = new Mock<ISafeExecutionService>();
         _mockLogger = new Mock<ILogger<PreRunHealthCheckService>>();
 
@@ -48,11 +51,15 @@ public class PreRunHealthCheckServiceTests
             TcpServer = "192.168.1.100:8000"
         });
 
+        // 设置默认的 RuleEngineClient 连接状态为已连接
+        _mockRuleEngineClient.Setup(c => c.IsConnected).Returns(true);
+
         _service = new PreRunHealthCheckService(
             _mockSystemConfigRepo.Object,
             _mockPanelConfigRepo.Object,
             _mockTopologyRepo.Object,
             _mockCommunicationConfigRepo.Object,
+            _mockRuleEngineClient.Object,
             _mockSafeExecutor.Object,
             _mockLogger.Object
         );
@@ -782,6 +789,9 @@ public class PreRunHealthCheckServiceTests
             TcpServer = "192.168.1.100:8000"
         });
 
+        // 设置连接状态为已连接
+        _mockRuleEngineClient.Setup(c => c.IsConnected).Returns(true);
+
         // Act
         var result = await _service.ExecuteAsync();
 
@@ -790,7 +800,36 @@ public class PreRunHealthCheckServiceTests
         var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
         Assert.NotNull(upstreamCheck);
         Assert.Equal("Healthy", upstreamCheck.Status);
-        Assert.Contains("上游连接已配置", upstreamCheck.Message);
+        Assert.Contains("上游连接已建立", upstreamCheck.Message);
+    }
+
+    [Fact]
+    public async Task CheckUpstreamConnection_WhenNotConnected_ShouldReturnUnhealthy()
+    {
+        // Arrange
+        SetupValidSystemConfig();
+        SetupValidPanelConfig();
+        SetupValidTopology();
+
+        // 正确配置
+        _mockCommunicationConfigRepo.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "192.168.1.100:8000"
+        });
+
+        // 设置连接状态为未连接
+        _mockRuleEngineClient.Setup(c => c.IsConnected).Returns(false);
+
+        // Act
+        var result = await _service.ExecuteAsync();
+
+        // Assert
+        Assert.Equal("Unhealthy", result.OverallStatus);
+        var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
+        Assert.NotNull(upstreamCheck);
+        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Contains("上游连接未建立", upstreamCheck.Message);
     }
 
     #endregion

@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 
@@ -16,6 +17,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly ILineTopologyRepository _lineTopologyRepository;
     private readonly ICommunicationConfigurationRepository _communicationConfigRepository;
+    private readonly IRuleEngineClient _ruleEngineClient;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<PreRunHealthCheckService> _logger;
 
@@ -24,6 +26,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         IPanelConfigurationRepository panelConfigRepository,
         ILineTopologyRepository lineTopologyRepository,
         ICommunicationConfigurationRepository communicationConfigRepository,
+        IRuleEngineClient ruleEngineClient,
         ISafeExecutionService safeExecutor,
         ILogger<PreRunHealthCheckService> logger)
     {
@@ -31,6 +34,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _lineTopologyRepository = lineTopologyRepository ?? throw new ArgumentNullException(nameof(lineTopologyRepository));
         _communicationConfigRepository = communicationConfigRepository ?? throw new ArgumentNullException(nameof(communicationConfigRepository));
+        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -463,11 +467,23 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
+                // 检查实际连接状态
+                var isConnected = _ruleEngineClient.IsConnected;
+                if (!isConnected)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "UpstreamConnectionConfigured",
+                        Status = "Unhealthy",
+                        Message = $"上游连接未建立：通信模式 {config.Mode}，配置已设置但尚未连接到 RuleEngine"
+                    };
+                }
+
                 return new HealthCheckItem
                 {
                     Name = "UpstreamConnectionConfigured",
                     Status = "Healthy",
-                    Message = $"上游连接已配置：通信模式 {config.Mode}"
+                    Message = $"上游连接已建立：通信模式 {config.Mode}"
                 };
             },
             operationName: "CheckUpstreamConnectionConfig",

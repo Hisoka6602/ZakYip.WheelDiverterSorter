@@ -190,29 +190,22 @@ public class CommunicationController : ControllerBase {
             // 从持久化配置读取通信模式，确保与其他端点一致
             var persistedConfig = _configRepository.Get();
             
-            // 检查是否为 Server 模式
-            if (persistedConfig.ConnectionMode == ConnectionMode.Server)
-            {
-                _logger.LogWarning(
-                    "尝试获取 Server 模式的连接状态。注意：Server 模式下 IsConnected 状态可能不准确，因为服务器监听功能尚未完全实现");
-                
-                return Ok(new CommunicationStatusResponse
-                {
-                    Mode = persistedConfig.Mode.ToString(),
-                    IsConnected = false, // Server 模式当前不支持连接状态检测
-                    MessagesSent = _statsService.MessagesSent,
-                    MessagesReceived = _statsService.MessagesReceived,
-                    ConnectionDurationSeconds = _statsService.ConnectionDurationSeconds,
-                    LastConnectedAt = _statsService.LastConnectedAt,
-                    LastDisconnectedAt = _statsService.LastDisconnectedAt,
-                    ServerAddress = GetServerAddress(persistedConfig),
-                    ErrorMessage = "Server 模式下连接状态不可用。系统当前版本仅完全支持 Client 模式的连接状态监控。" +
-                                   "如需监听上游连接，请使用专用的监听服务。"
-                });
-            }
-            
-            // Client 模式：检查实际连接状态
+            // 检查实际连接状态（无论是 Client 还是 Server 模式）
             var isConnected = _ruleEngineClient.IsConnected;
+            
+            // 根据连接模式生成适当的消息
+            string? errorMessage = null;
+            if (!isConnected)
+            {
+                if (persistedConfig.ConnectionMode == ConnectionMode.Server)
+                {
+                    errorMessage = "Server 模式下尚无上游客户端连接。等待上游系统连接。";
+                }
+                else
+                {
+                    errorMessage = "当前未连接到上游。Client 模式下会自动重试连接。";
+                }
+            }
 
             var response = new CommunicationStatusResponse {
                 Mode = persistedConfig.Mode.ToString(),
@@ -223,7 +216,7 @@ public class CommunicationController : ControllerBase {
                 LastConnectedAt = _statsService.LastConnectedAt,
                 LastDisconnectedAt = _statsService.LastDisconnectedAt,
                 ServerAddress = GetServerAddress(persistedConfig),
-                ErrorMessage = isConnected ? null : "当前未连接到上游。Client 模式下会自动重试连接。"
+                ErrorMessage = errorMessage
             };
 
             return Ok(response);
