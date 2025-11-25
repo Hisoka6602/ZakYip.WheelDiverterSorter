@@ -3,8 +3,21 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
-/// 驱动器配置（存储在LiteDB中，支持热更新）
+/// IO驱动器配置（存储在LiteDB中，支持热更新）
 /// </summary>
+/// <remarks>
+/// 此配置用于【IO驱动器】，而非【摆轮驱动器】。两者是不同的概念：
+/// 
+/// - **IO驱动器**（本配置）: 控制IO端点（输入/输出位），用于传感器信号读取和继电器控制
+///   - 雷赛（Leadshine）: 雷赛运动控制卡的IO接口
+///   - 西门子（Siemens）: S7系列PLC的IO模块
+///   - 三菱（Mitsubishi）: 三菱PLC的IO模块
+///   - 欧姆龙（Omron）: 欧姆龙PLC的IO模块
+/// 
+/// - **摆轮驱动器**（WheelDiverterConfiguration）: 控制摆轮转向（左转、右转、回中）
+///   - 数递鸟（ShuDiNiao）: 通过TCP协议直接控制
+///   - 莫迪（Modi）: 通过TCP协议直接控制
+/// </remarks>
 public class DriverConfiguration
 {
     /// <summary>
@@ -18,12 +31,12 @@ public class DriverConfiguration
     public bool UseHardwareDriver { get; set; } = false;
 
     /// <summary>
-    /// 驱动器厂商类型
+    /// IO驱动器厂商类型
     /// </summary>
     /// <remarks>
     /// 可选值:
     /// - Mock: 模拟驱动器（用于测试）
-    /// - Leadshine: 雷赛控制器
+    /// - Leadshine: 雷赛运动控制卡
     /// - Siemens: 西门子PLC
     /// - Mitsubishi: 三菱PLC
     /// - Omron: 欧姆龙PLC
@@ -33,7 +46,7 @@ public class DriverConfiguration
     public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
 
     /// <summary>
-    /// 雷赛控制器配置
+    /// 雷赛运动控制卡配置
     /// </summary>
     public LeadshineDriverConfig? Leadshine { get; set; }
 
