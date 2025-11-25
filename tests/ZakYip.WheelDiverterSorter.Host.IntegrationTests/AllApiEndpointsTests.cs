@@ -124,13 +124,13 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
 
     #endregion
 
-    #region Driver Config API Tests
+    #region IO Driver Config API Tests
 
     [Fact]
-    public async Task GetDriverConfig_ReturnsSuccess()
+    public async Task GetIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/driver");
+        var response = await _client.GetAsync("/api/config/io-driver");
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
@@ -141,10 +141,10 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
     }
 
     [Fact]
-    public async Task ResetDriverConfig_ReturnsSuccess()
+    public async Task ResetIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.PostAsync("/api/config/driver/reset", null);
+        var response = await _client.PostAsync("/api/config/io-driver/reset", null);
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
