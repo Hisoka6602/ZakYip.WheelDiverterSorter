@@ -111,10 +111,12 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
     /// </summary>
     private void HandleChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
     {
+        // 记录接收到的完整消息内容
         Logger.LogInformation(
-            "收到包裹 {ParcelId} 的格口分配: {ChuteId}",
+            "[上游通信-接收] SignalR通道收到格口分配响应 | ParcelId={ParcelId} | ChuteId={ChuteId} | NotificationTime={NotificationTime}",
             notification.ParcelId,
-            notification.ChuteId);
+            notification.ChuteId,
+            notification.NotificationTime);
 
         OnChuteAssignmentReceived(notification);
     }
@@ -179,32 +181,41 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
         // 尝试连接（如果未连接）
         if (!await EnsureConnectedAsync(cancellationToken))
         {
-            Logger.LogError("无法连接到RuleEngine SignalR Hub，无法发送包裹检测通知");
+            Logger.LogError("[上游通信-发送] SignalR通道无法连接 | ParcelId={ParcelId}", parcelId);
             return false;
         }
 
         try
         {
-            Logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
-
             var notification = new ParcelDetectionNotification 
             { 
                 ParcelId = parcelId,
                 DetectionTime = SystemClock.LocalNowOffset
             };
             
+            // 记录发送的完整消息内容
+            Logger.LogInformation(
+                "[上游通信-发送] SignalR通道发送包裹检测通知 | ParcelId={ParcelId} | DetectionTime={DetectionTime} | HubMethod=NotifyParcelDetected",
+                notification.ParcelId,
+                notification.DetectionTime);
+
             // 调用Hub方法通知包裹到达，不等待响应
             await _connection!.InvokeAsync(
                 "NotifyParcelDetected",
                 notification,
                 cancellationToken);
 
-            Logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+            Logger.LogInformation(
+                "[上游通信-发送完成] SignalR通道成功发送包裹检测通知 | ParcelId={ParcelId}",
+                parcelId);
             return true;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
+            Logger.LogError(
+                ex,
+                "[上游通信-发送] SignalR通道发送包裹检测通知失败 | ParcelId={ParcelId}",
+                parcelId);
             return false;
         }
     }

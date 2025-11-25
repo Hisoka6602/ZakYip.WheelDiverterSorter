@@ -175,22 +175,35 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
             // 确保连接建立
             if (!await EnsureConnectedAsync(cancellationToken))
             {
-                _logger.LogWarning("摆轮 {DiverterId} 未连接，无法发送命令 {Command}",
-                    DiverterId, command);
+                _logger.LogWarning(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 未连接，无法发送命令 | 命令={Command}",
+                    DiverterId,
+                    command);
                 return false;
             }
 
             // 构造命令帧
             var frame = ShuDiNiaoProtocol.BuildCommandFrame(_config.DeviceAddress, command);
             
-            _logger.LogDebug("摆轮 {DiverterId} 发送命令: {Frame}",
-                DiverterId, ShuDiNiaoProtocol.FormatBytes(frame));
+            // 记录发送的完整命令帧内容
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送命令 | 命令={Command} | 设备地址=0x{DeviceAddress:X2} | 命令帧={Frame}",
+                DiverterId,
+                command,
+                _config.DeviceAddress,
+                ShuDiNiaoProtocol.FormatBytes(frame));
 
             // 发送命令
             if (_stream != null)
             {
                 await _stream.WriteAsync(frame, cancellationToken);
                 await _stream.FlushAsync(cancellationToken);
+                
+                _logger.LogInformation(
+                    "[摆轮通信-发送完成] 摆轮 {DiverterId} 命令发送成功 | 命令={Command} | 字节数={ByteCount}",
+                    DiverterId,
+                    command,
+                    frame.Length);
                 return true;
             }
 
@@ -198,19 +211,31 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
         }
         catch (SocketException ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 发送命令失败（网络异常）", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送命令失败（网络异常） | 命令={Command}",
+                DiverterId,
+                command);
             await CloseConnectionAsync();
             return false;
         }
         catch (IOException ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 发送命令失败（IO异常）", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送命令失败（IO异常） | 命令={Command}",
+                DiverterId,
+                command);
             await CloseConnectionAsync();
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "摆轮 {DiverterId} 发送命令失败（未知异常）", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送命令失败（未知异常） | 命令={Command}",
+                DiverterId,
+                command);
             return false;
         }
     }

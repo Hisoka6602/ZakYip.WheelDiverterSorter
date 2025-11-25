@@ -47,7 +47,11 @@ public class LeadshineDiverterController : IDiverterController
     {
         try
         {
-            _logger.LogInformation("设置摆轮 {DiverterId} 角度为 {Angle}度", DiverterId, angle);
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 开始设置角度 | 目标角度={Angle}度 | 卡号={CardNo}",
+                DiverterId,
+                angle,
+                _cardNo);
 
             // 根据角度映射到对应的输出端口组合
             var outputBits = MapAngleToOutputBits(angle);
@@ -56,9 +60,22 @@ public class LeadshineDiverterController : IDiverterController
             foreach (var (bitIndex, value) in outputBits)
             {
                 var result = LTDMC.dmc_write_outbit(_cardNo, (ushort)bitIndex, (ushort)(value ? 1 : 0));
+                
+                // 记录每个IO写入操作
+                _logger.LogInformation(
+                    "[摆轮通信-IO写入] 摆轮 {DiverterId} 写入输出位 | 位索引={BitIndex} | 值={Value} | 返回码={ResultCode}",
+                    DiverterId,
+                    bitIndex,
+                    value ? 1 : 0,
+                    result);
+                
                 if (result != 0)
                 {
-                    _logger.LogError("写入输出位 {BitIndex} 失败，错误码: {ErrorCode}", bitIndex, result);
+                    _logger.LogError(
+                        "[摆轮通信-IO写入] 摆轮 {DiverterId} 写入输出位失败 | 位索引={BitIndex} | 错误码={ErrorCode}",
+                        DiverterId,
+                        bitIndex,
+                        result);
                     return false;
                 }
             }
@@ -67,12 +84,19 @@ public class LeadshineDiverterController : IDiverterController
             await Task.Delay(100, cancellationToken);
 
             _currentAngle = angle;
-            _logger.LogInformation("摆轮 {DiverterId} 已设置为 {Angle}度", DiverterId, angle);
+            _logger.LogInformation(
+                "[摆轮通信-发送完成] 摆轮 {DiverterId} 角度设置成功 | 目标角度={Angle}度",
+                DiverterId,
+                angle);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "设置摆轮 {DiverterId} 角度失败", DiverterId);
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 设置角度失败 | 目标角度={Angle}度",
+                DiverterId,
+                angle);
             return false;
         }
     }

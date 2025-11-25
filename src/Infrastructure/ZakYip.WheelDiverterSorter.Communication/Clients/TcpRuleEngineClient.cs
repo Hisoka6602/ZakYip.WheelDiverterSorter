@@ -212,6 +212,12 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         var notificationJson = JsonSerializer.Serialize(notification);
         var notificationBytes = Encoding.UTF8.GetBytes(notificationJson + "\n");
 
+        // 记录发送的完整消息内容
+        Logger.LogInformation(
+            "[上游通信-发送] TCP通道发送包裹检测通知 | ParcelId={ParcelId} | 消息内容={MessageContent}",
+            parcelId,
+            notificationJson);
+
         // 发送通知（不等待响应）
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(Options.TimeoutMs);
@@ -219,7 +225,10 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         await _stream!.WriteAsync(notificationBytes, cts.Token);
         await _stream.FlushAsync(cts.Token);
 
-        Logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+        Logger.LogInformation(
+            "[上游通信-发送完成] TCP通道成功发送包裹检测通知 | ParcelId={ParcelId} | 字节数={ByteCount}",
+            parcelId,
+            notificationBytes.Length);
     }
 
     /// <summary>
@@ -506,7 +515,10 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     {
         try
         {
-            Logger.LogDebug("收到TCP消息: {Message}", messageJson);
+            // 记录接收到的完整消息内容
+            Logger.LogInformation(
+                "[上游通信-接收] TCP通道收到消息 | 消息内容={MessageContent}",
+                messageJson);
 
             // 尝试解析为格口分配通知
             var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(messageJson);
@@ -514,25 +526,34 @@ public class TcpRuleEngineClient : RuleEngineClientBase
             if (notification != null)
             {
                 Logger.LogInformation(
-                    "收到包裹 {ParcelId} 的格口分配: {ChuteId}",
+                    "[上游通信-接收] TCP通道收到格口分配响应 | ParcelId={ParcelId} | ChuteId={ChuteId} | 消息内容={MessageContent}",
                     notification.ParcelId,
-                    notification.ChuteId);
+                    notification.ChuteId,
+                    messageJson);
 
                 // 触发事件
                 OnChuteAssignmentReceived(notification);
             }
             else
             {
-                Logger.LogWarning("无法解析TCP消息为格口分配通知: {Message}", messageJson);
+                Logger.LogWarning(
+                    "[上游通信-接收] TCP通道无法解析消息为格口分配通知 | 消息内容={MessageContent}",
+                    messageJson);
             }
         }
         catch (JsonException ex)
         {
-            Logger.LogError(ex, "解析TCP消息时发生JSON异常: {Message}", messageJson);
+            Logger.LogError(
+                ex,
+                "[上游通信-接收] TCP通道解析消息时发生JSON异常 | 消息内容={MessageContent}",
+                messageJson);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "处理TCP消息时发生异常: {Message}", messageJson);
+            Logger.LogError(
+                ex,
+                "[上游通信-接收] TCP通道处理消息时发生异常 | 消息内容={MessageContent}",
+                messageJson);
         }
     }
 

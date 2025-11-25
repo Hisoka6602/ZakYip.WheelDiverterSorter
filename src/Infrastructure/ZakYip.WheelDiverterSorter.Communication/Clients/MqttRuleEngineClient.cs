@@ -155,14 +155,12 @@ public class MqttRuleEngineClient : RuleEngineClientBase
         // 尝试连接（如果未连接）
         if (!await EnsureConnectedAsync(cancellationToken))
         {
-            Logger.LogError("无法连接到MQTT Broker，无法发送包裹检测通知");
+            Logger.LogError("[上游通信-发送] MQTT通道无法连接 | ParcelId={ParcelId}", parcelId);
             return false;
         }
 
         try
         {
-            Logger.LogDebug("向RuleEngine发送包裹检测通知: {ParcelId}", parcelId);
-
             var notification = new ParcelDetectionNotification 
             { 
                 ParcelId = parcelId,
@@ -171,6 +169,17 @@ public class MqttRuleEngineClient : RuleEngineClientBase
             var notificationJson = JsonSerializer.Serialize(notification);
             
             var qosLevel = GetQosLevel();
+
+            // 记录发送的完整消息内容（日志级别检查以避免不必要的字符串操作）
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation(
+                    "[上游通信-发送] MQTT通道发送包裹检测通知 | ParcelId={ParcelId} | Topic={Topic} | QoS={QoS} | 消息内容={MessageContent}",
+                    parcelId,
+                    _detectionTopic,
+                    Options.Mqtt.QualityOfServiceLevel,
+                    notificationJson);
+            }
 
             var messageBuilder = new MqttApplicationMessageBuilder()
                 .WithTopic(_detectionTopic)
@@ -186,12 +195,18 @@ public class MqttRuleEngineClient : RuleEngineClientBase
 
             await _mqttClient!.PublishAsync(message, cancellationToken);
 
-            Logger.LogInformation("成功发送包裹检测通知: {ParcelId}", parcelId);
+            Logger.LogInformation(
+                "[上游通信-发送完成] MQTT通道成功发送包裹检测通知 | ParcelId={ParcelId} | Topic={Topic}",
+                parcelId,
+                _detectionTopic);
             return true;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "发送包裹检测通知失败: {ParcelId}", parcelId);
+            Logger.LogError(
+                ex,
+                "[上游通信-发送] MQTT通道发送包裹检测通知失败 | ParcelId={ParcelId}",
+                parcelId);
             return false;
         }
     }
@@ -218,21 +233,41 @@ public class MqttRuleEngineClient : RuleEngineClientBase
         {
             var payload = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
             
+            // 记录接收到的完整消息内容
+            Logger.LogInformation(
+                "[上游通信-接收] MQTT通道收到消息 | Topic={Topic} | 消息内容={MessageContent}",
+                args.ApplicationMessage.Topic,
+                payload);
+
             // 尝试解析为格口分配通知
             var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(payload);
 
             if (notification != null)
             {
-                Logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", 
-                    notification.ParcelId, notification.ChuteId);
+                Logger.LogInformation(
+                    "[上游通信-接收] MQTT通道收到格口分配响应 | ParcelId={ParcelId} | ChuteId={ChuteId} | Topic={Topic} | 消息内容={MessageContent}",
+                    notification.ParcelId,
+                    notification.ChuteId,
+                    args.ApplicationMessage.Topic,
+                    payload);
                 
                 // 触发事件
                 OnChuteAssignmentReceived(notification);
             }
+            else
+            {
+                Logger.LogWarning(
+                    "[上游通信-接收] MQTT通道无法解析消息为格口分配通知 | Topic={Topic} | 消息内容={MessageContent}",
+                    args.ApplicationMessage.Topic,
+                    payload);
+            }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "处理MQTT消息时发生异常");
+            Logger.LogError(
+                ex,
+                "[上游通信-接收] MQTT通道处理消息时发生异常 | Topic={Topic}",
+                args.ApplicationMessage.Topic);
         }
 
         return Task.CompletedTask;
