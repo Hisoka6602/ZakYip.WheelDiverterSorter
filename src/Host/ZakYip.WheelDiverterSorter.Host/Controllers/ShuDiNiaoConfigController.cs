@@ -38,6 +38,18 @@ public class ShuDiNiaoConfigController : ControllerBase
     private readonly IWheelDiverterDriverManager? _driverManager;
     private readonly ILogger<ShuDiNiaoConfigController> _logger;
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="repository">摆轮配置仓储</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="driverManager">
+    /// 驱动管理器（可选）。
+    /// 在以下情况下可能为null：
+    /// - 仿真模式运行时，不需要真实驱动管理器
+    /// - 服务启动阶段，驱动管理器尚未注册
+    /// 当驱动管理器为null时，配置更新只会持久化，不会执行热更新连接操作。
+    /// </param>
     public ShuDiNiaoConfigController(
         IWheelDiverterConfigurationRepository repository,
         ILogger<ShuDiNiaoConfigController> logger,

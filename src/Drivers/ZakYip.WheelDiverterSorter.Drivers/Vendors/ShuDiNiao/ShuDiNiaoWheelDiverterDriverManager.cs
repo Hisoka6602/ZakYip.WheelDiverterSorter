@@ -270,13 +270,25 @@ public sealed class ShuDiNiaoWheelDiverterDriverManager : IWheelDiverterDriverMa
 
         _disposed = true;
 
-        try
+        // 同步释放驱动器资源，避免使用 GetAwaiter().GetResult() 可能导致的死锁
+        Dictionary<string, ShuDiNiaoWheelDiverterDriver> driversToDispose;
+        lock (_lock)
         {
-            DisconnectAllAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            driversToDispose = new Dictionary<string, ShuDiNiaoWheelDiverterDriver>(_drivers);
+            _drivers.Clear();
         }
-        catch (Exception ex)
+
+        foreach (var kvp in driversToDispose)
         {
-            _logger.LogWarning(ex, "释放数递鸟驱动管理器资源时出现异常");
+            try
+            {
+                kvp.Value.Dispose();
+                _logger.LogDebug("已释放数递鸟驱动器 {DiverterId}", kvp.Key);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "释放数递鸟驱动器时出现异常 {DiverterId}", kvp.Key);
+            }
         }
     }
 }
