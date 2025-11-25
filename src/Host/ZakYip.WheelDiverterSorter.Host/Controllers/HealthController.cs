@@ -74,7 +74,7 @@ public class HealthController : ControllerBase
     /// 此端点适用于：
     /// - 前端UI实时状态显示
     /// - 监控系统定时轮询
-    /// - 负载均衡器健康检查
+    /// - 负载均衡器健康检查（Kubernetes liveness probe）
     /// - 第三方系统集成
     /// </remarks>
     [HttpGet("api/system/status")]
@@ -82,7 +82,7 @@ public class HealthController : ControllerBase
         Summary = "查询系统状态和环境模式",
         Description = "快速查询系统当前状态和运行环境（正式/仿真），支持高并发查询",
         OperationId = "GetSystemStatus",
-        Tags = new[] { "系统状态" }
+        Tags = new[] { "健康检查" }
     )]
     [SwaggerResponse(200, "查询成功", typeof(SystemStatusResponse))]
     [ProducesResponseType(typeof(SystemStatusResponse), StatusCodes.Status200OK)]
@@ -321,17 +321,19 @@ public class HealthController : ControllerBase
                 try
                 {
                     var ioConfig = _ioDriverConfigRepository.Get();
+                    var ioVendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
                     var ioDriverStatus = new DriverHealthInfo
                     {
-                        DriverName = $"IO驱动器 ({ioConfig.VendorType})",
+                        DriverName = $"IO驱动器 ({ioVendorDisplayName})",
                         DriverType = DriverCategory.IoDriver,
                         VendorType = ioConfig.VendorType.ToString(),
+                        VendorDisplayName = ioVendorDisplayName,
                         IsConnected = ioConfig.UseHardwareDriver,
                         IsSimulationMode = !ioConfig.UseHardwareDriver,
                         IsHealthy = true, // IO驱动器配置存在即视为健康
                         ErrorCode = null,
                         ErrorMessage = ioConfig.UseHardwareDriver 
-                            ? $"硬件模式已启用，厂商: {ioConfig.VendorType}" 
+                            ? $"硬件模式已启用，厂商: {ioVendorDisplayName}" 
                             : "仿真模式运行中",
                         CheckedAt = now
                     };
@@ -378,6 +380,7 @@ public class HealthController : ControllerBase
                                         DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
                                         DriverType = DriverCategory.WheelDiverter,
                                         VendorType = "ShuDiNiao",
+                                        VendorDisplayName = "数递鸟",
                                         IsConnected = isSimulation ? false : isConnected,
                                         IsSimulationMode = isSimulation,
                                         IsHealthy = isSimulation || isConnected,
@@ -406,6 +409,7 @@ public class HealthController : ControllerBase
                                         DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",
                                         DriverType = DriverCategory.WheelDiverter,
                                         VendorType = "Modi",
+                                        VendorDisplayName = "莫迪",
                                         IsConnected = isSimulation ? false : isConnected,
                                         IsSimulationMode = isSimulation,
                                         IsHealthy = isSimulation || isConnected,
@@ -417,20 +421,6 @@ public class HealthController : ControllerBase
                                     });
                                 }
                             }
-                            break;
-                            
-                        case WheelDiverterVendorType.Mock:
-                            drivers.Add(new DriverHealthInfo
-                            {
-                                DriverName = "摆轮驱动器 (模拟)",
-                                DriverType = DriverCategory.WheelDiverter,
-                                VendorType = "Mock",
-                                IsConnected = false,
-                                IsSimulationMode = true,
-                                IsHealthy = true,
-                                ErrorMessage = "模拟驱动器运行中",
-                                CheckedAt = now
-                            });
                             break;
                     }
                 }
@@ -551,6 +541,22 @@ public class HealthController : ControllerBase
             RecentCriticalAlerts = null // 可以从 AlertHistoryService 获取，但快照中已有计数
         };
     }
+
+    /// <summary>
+    /// 获取IO驱动厂商显示名称
+    /// </summary>
+    private static string GetIoVendorDisplayName(DriverVendorType vendorType)
+    {
+        return vendorType switch
+        {
+            DriverVendorType.Mock => "模拟驱动",
+            DriverVendorType.Leadshine => "雷赛",
+            DriverVendorType.Siemens => "西门子",
+            DriverVendorType.Mitsubishi => "三菱",
+            DriverVendorType.Omron => "欧姆龙",
+            _ => vendorType.ToString()
+        };
+    }
 }
 
 /// <summary>
@@ -629,6 +635,9 @@ public class DriverHealthInfo
     
     /// <summary>厂商类型（Leadshine/Siemens/ShuDiNiao/Modi等）</summary>
     public string? VendorType { get; init; }
+    
+    /// <summary>厂商/品牌显示名称（如：数递鸟、莫迪、雷赛等）</summary>
+    public string? VendorDisplayName { get; init; }
     
     /// <summary>是否已连接</summary>
     public bool IsConnected { get; init; }

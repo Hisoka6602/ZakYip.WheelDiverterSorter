@@ -23,10 +23,10 @@ public class WheelDiverterConfiguration
     /// <remarks>
     /// 可选值:
     /// - Mock: 模拟摆轮（用于测试）
-    /// - ShuDiNiao: 数递鸟摆轮设备
+    /// - ShuDiNiao: 数递鸟摆轮设备（默认）
     /// - Modi: 莫迪摆轮设备
     /// </remarks>
-    public WheelDiverterVendorType VendorType { get; set; } = WheelDiverterVendorType.Mock;
+    public WheelDiverterVendorType VendorType { get; set; } = WheelDiverterVendorType.ShuDiNiao;
 
     /// <summary>
     /// 数递鸟摆轮设备配置
@@ -60,7 +60,7 @@ public class WheelDiverterConfiguration
     {
         return new WheelDiverterConfiguration
         {
-            VendorType = WheelDiverterVendorType.Mock
+            VendorType = WheelDiverterVendorType.ShuDiNiao
         };
     }
 
