@@ -1,4 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Runtime.Health;
 
@@ -12,7 +14,7 @@ public record LineHealthSnapshot
     /// <summary>
     /// 系统状态 / System State
     /// </summary>
-    public required string SystemState { get; init; }
+    public required SystemState SystemState { get; init; }
 
     /// <summary>
     /// 自检是否成功 / Whether self-test was successful
@@ -42,7 +44,7 @@ public record LineHealthSnapshot
     /// <summary>
     /// 降级模式 / Degradation mode
     /// </summary>
-    public string? DegradationMode { get; init; }
+    public DegradationMode? DegradationMode { get; init; }
 
     /// <summary>
     /// 降级节点数量 / Degraded node count
@@ -57,7 +59,7 @@ public record LineHealthSnapshot
     /// <summary>
     /// 当前诊断级别 / Current diagnostics level
     /// </summary>
-    public string? DiagnosticsLevel { get; init; }
+    public DiagnosticsLevel? DiagnosticsLevel { get; init; }
 
     /// <summary>
     /// 配置版本号 / Configuration version
@@ -72,7 +74,7 @@ public record LineHealthSnapshot
     /// <summary>
     /// 当前拥堵级别 / Current congestion level
     /// </summary>
-    public string? CurrentCongestionLevel { get; init; }
+    public CongestionLevel? CurrentCongestionLevel { get; init; }
 
     /// <summary>
     /// 线体是否可用 / Whether the line is available

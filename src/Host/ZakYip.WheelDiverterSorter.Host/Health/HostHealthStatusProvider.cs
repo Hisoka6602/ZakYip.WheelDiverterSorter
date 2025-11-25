@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
@@ -51,7 +53,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                                   (lastReport?.IsSuccess ?? true);
 
             // 提取降级信息
-            var degradationMode = lastReport?.DegradationMode.ToString() ?? "None";
+            var degradationMode = lastReport?.DegradationMode ?? DegradationMode.None;
             var degradedNodes = lastReport?.NodeStatuses?
                 .Where(n => !n.IsHealthy)
                 .ToList();
@@ -66,7 +68,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
 
             var snapshot = new LineHealthSnapshot
             {
-                SystemState = currentState.ToString(),
+                SystemState = currentState,
                 IsSelfTestSuccess = lastReport?.IsSuccess ?? false,
                 LastSelfTestAt = lastReport?.PerformedAt,
                 Drivers = lastReport?.Drivers?.ToList(),
@@ -75,10 +77,10 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 DegradationMode = degradationMode,
                 DegradedNodesCount = degradedNodes?.Count ?? 0,
                 DegradedNodes = degradedNodes,
-                DiagnosticsLevel = _diagnosticsOptions?.Level.ToString() ?? "Basic",
+                DiagnosticsLevel = _diagnosticsOptions?.Level ?? DiagnosticsLevel.Basic,
                 ConfigVersion = _systemConfigRepository?.Get()?.ConfigName,
                 RecentCriticalAlertCount = recentCriticalAlertCount,
-                CurrentCongestionLevel = GetCongestionLevelDescription(currentState),
+                CurrentCongestionLevel = GetCongestionLevelFromState(currentState),
                 IsLineAvailable = isLineAvailable,
                 ExceptionChuteRatio = exceptionChuteRatio
             };
@@ -95,7 +97,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
             // 返回最小健康快照
             return Task.FromResult(new LineHealthSnapshot
             {
-                SystemState = "Unknown",
+                SystemState = SystemState.Faulted,
                 IsSelfTestSuccess = false,
                 LastSelfTestAt = null,
                 RecentCriticalAlertCount = 0,
@@ -104,13 +106,13 @@ public class HostHealthStatusProvider : IHealthStatusProvider
         }
     }
 
-    private static string? GetCongestionLevelDescription(SystemState state)
+    private static CongestionLevel? GetCongestionLevelFromState(SystemState state)
     {
         return state switch
         {
-            SystemState.Faulted => "Critical",
-            SystemState.EmergencyStop => "Critical",
-            _ => "Normal"
+            SystemState.Faulted => CongestionLevel.Severe,
+            SystemState.EmergencyStop => CongestionLevel.Severe,
+            _ => CongestionLevel.Normal
         };
     }
 

@@ -556,44 +556,9 @@ public class HealthController : ControllerBase
 
     private static LineHealthResponse MapSnapshotToResponse(LineHealthSnapshot snapshot, bool isSimulation)
     {
-        // Parse SystemState from string
-        var systemState = Enum.TryParse<SystemState>(snapshot.SystemState, out var parsedState) 
-            ? parsedState 
-            : SystemState.Faulted;
-
-        // Parse CongestionLevel from string
-        CongestionLevel? congestionLevel = null;
-        if (!string.IsNullOrEmpty(snapshot.CurrentCongestionLevel))
-        {
-            if (Enum.TryParse<CongestionLevel>(snapshot.CurrentCongestionLevel, out var parsedCongestion))
-            {
-                congestionLevel = parsedCongestion;
-            }
-        }
-
-        // Parse DegradationMode from string
-        DegradationMode? degradationMode = null;
-        if (!string.IsNullOrEmpty(snapshot.DegradationMode))
-        {
-            if (Enum.TryParse<DegradationMode>(snapshot.DegradationMode, out var parsedDegradation))
-            {
-                degradationMode = parsedDegradation;
-            }
-        }
-
-        // Parse DiagnosticsLevel from string
-        DiagnosticsLevel? diagnosticsLevel = null;
-        if (!string.IsNullOrEmpty(snapshot.DiagnosticsLevel))
-        {
-            if (Enum.TryParse<DiagnosticsLevel>(snapshot.DiagnosticsLevel, out var parsedDiagnostics))
-            {
-                diagnosticsLevel = parsedDiagnostics;
-            }
-        }
-
         return new LineHealthResponse
         {
-            SystemState = systemState,
+            SystemState = snapshot.SystemState,
             EnvironmentMode = isSimulation ? EnvironmentMode.Simulation : EnvironmentMode.Production,
             IsSelfTestSuccess = snapshot.IsSelfTestSuccess,
             LastSelfTestAt = snapshot.LastSelfTestAt,
@@ -620,10 +585,10 @@ public class HealthController : ControllerBase
             } : null,
             Summary = new SystemSummary
             {
-                CurrentCongestionLevel = congestionLevel,
+                CurrentCongestionLevel = snapshot.CurrentCongestionLevel,
                 RecommendedCapacityParcelsPerMinute = null
             },
-            DegradationMode = degradationMode,
+            DegradationMode = snapshot.DegradationMode,
             DegradedNodesCount = snapshot.DegradedNodesCount,
             DegradedNodes = snapshot.DegradedNodes?.Select(n => new NodeHealthInfo
             {
@@ -634,7 +599,7 @@ public class HealthController : ControllerBase
                 ErrorMessage = n.ErrorMessage,
                 CheckedAt = n.CheckedAt
             }).ToList(),
-            DiagnosticsLevel = diagnosticsLevel,
+            DiagnosticsLevel = snapshot.DiagnosticsLevel,
             ConfigVersion = snapshot.ConfigVersion,
             RecentCriticalAlerts = null // 可以从 AlertHistoryService 获取，但快照中已有计数
         };
