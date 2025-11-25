@@ -128,7 +128,7 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
             if (driverConfigSchema.TryGetProperty("description", out var description))
             {
                 var descriptionText = description.GetString() ?? "";
-                Assert.Contains("当前配置的驱动厂商", descriptionText);
+                Assert.Contains("当前配置的IO驱动厂商", descriptionText);
                 Assert.Contains("Leadshine", descriptionText);
             }
         }
