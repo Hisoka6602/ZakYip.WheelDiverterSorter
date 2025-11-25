@@ -30,9 +30,8 @@ public class WheelDiverterControllerDocumentFilter : IDocumentFilter
         catch
         {
             // If we can't get the configuration (e.g., during startup or if database is not initialized),
-            // we fail gracefully by not filtering. This ensures Swagger generation doesn't break.
-            // All vendor endpoints will be shown, which is acceptable fallback behavior.
-            return;
+            // we fail gracefully by defaulting to ShuDiNiao. This ensures Swagger generation doesn't break.
+            currentConfig = new WheelDiverterConfiguration { VendorType = WheelDiverterVendorType.ShuDiNiao };
         }
 
         var currentVendor = currentConfig.VendorType;
@@ -77,9 +76,6 @@ public class WheelDiverterControllerDocumentFilter : IDocumentFilter
                 break;
             case WheelDiverterVendorType.Modi:
                 vendorTagsToKeep.Add("莫迪摆轮配置");
-                break;
-            default:
-                // For Mock mode, don't show any vendor-specific tags
                 break;
         }
 

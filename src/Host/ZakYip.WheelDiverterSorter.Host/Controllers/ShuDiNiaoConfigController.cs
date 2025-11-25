@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -181,6 +182,8 @@ public class ShuDiNiaoConfigController : ControllerBase
                     Host = d.Host,
                     Port = d.Port,
                     DeviceAddress = d.DeviceAddress,
+                    LeftChuteId = d.LeftChuteId,
+                    RightChuteId = d.RightChuteId,
                     IsEnabled = d.IsEnabled
                 }).ToList(),
                 UseSimulation = request.UseSimulation
@@ -345,6 +348,157 @@ public class ShuDiNiaoConfigController : ControllerBase
             return StatusCode(500, new { message = "切换数递鸟摆轮仿真模式失败" });
         }
     }
+
+    /// <summary>
+    /// 测试摆轮转向（调试/测试用）
+    /// </summary>
+    /// <param name="request">测试请求，包含摆轮ID列表和转向方向</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>测试执行结果</returns>
+    /// <response code="200">测试执行成功</response>
+    /// <response code="400">请求参数无效或驱动管理器未注册</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// **此接口用于测试/调试摆轮转向功能，在系统未启动或故障状态下也可用**
+    /// 
+    /// 示例请求（测试单个摆轮）:
+    /// 
+    ///     POST /api/config/wheeldiverter/shudiniao/test
+    ///     {
+    ///         "diverterIds": ["D1"],
+    ///         "direction": "Left"
+    ///     }
+    /// 
+    /// 示例请求（测试多个摆轮）:
+    /// 
+    ///     POST /api/config/wheeldiverter/shudiniao/test
+    ///     {
+    ///         "diverterIds": ["D1", "D2", "D3"],
+    ///         "direction": "Right"
+    ///     }
+    /// 
+    /// **支持的方向**:
+    /// - Left: 左转
+    /// - Right: 右转
+    /// - Straight: 直行/回中
+    /// 
+    /// **注意事项**:
+    /// - 此接口在任何系统状态下都可用（包括未启动、故障等状态）
+    /// - 用于验证摆轮硬件连接和控制是否正常
+    /// - 每个摆轮的执行结果会单独返回
+    /// </remarks>
+    [HttpPost("test")]
+    [SwaggerOperation(
+        Summary = "测试摆轮转向（任何状态可用）",
+        Description = "测试指定摆轮的转向功能，可同时测试多个摆轮。在系统未启动或故障状态下也可用。",
+        OperationId = "TestShuDiNiaoDiverters",
+        Tags = new[] { "数递鸟摆轮配置" }
+    )]
+    [SwaggerResponse(200, "测试执行成功", typeof(WheelDiverterTestResponse))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(WheelDiverterTestResponse), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<ActionResult<WheelDiverterTestResponse>> TestDiverters(
+        [FromBody] WheelDiverterTestRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(new { message = "请求参数无效", errors });
+            }
+
+            if (request.DiverterIds == null || !request.DiverterIds.Any())
+            {
+                return BadRequest(new { message = "摆轮ID列表不能为空" });
+            }
+
+            if (_driverManager == null)
+            {
+                return BadRequest(new { message = "摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段" });
+            }
+
+            var results = new List<WheelDiverterTestResult>();
+            var activeDrivers = _driverManager.GetActiveDrivers();
+
+            foreach (var diverterId in request.DiverterIds)
+            {
+                WheelDiverterTestResult result;
+
+                try
+                {
+                    if (!activeDrivers.TryGetValue(diverterId, out var driver))
+                    {
+                        result = new WheelDiverterTestResult
+                        {
+                            DiverterId = diverterId,
+                            Direction = request.Direction,
+                            IsSuccess = false,
+                            Message = $"未找到摆轮 {diverterId} 的驱动器"
+                        };
+                        results.Add(result);
+                        continue;
+                    }
+
+                    bool operationSuccess = request.Direction switch
+                    {
+                        DiverterDirection.Left => await driver.TurnLeftAsync(cancellationToken),
+                        DiverterDirection.Right => await driver.TurnRightAsync(cancellationToken),
+                        DiverterDirection.Straight => await driver.PassThroughAsync(cancellationToken),
+                        _ => false
+                    };
+
+                    result = new WheelDiverterTestResult
+                    {
+                        DiverterId = diverterId,
+                        Direction = request.Direction,
+                        IsSuccess = operationSuccess,
+                        Message = operationSuccess 
+                            ? $"摆轮 {diverterId} 已执行 {request.Direction} 操作" 
+                            : $"摆轮 {diverterId} 执行 {request.Direction} 操作失败"
+                    };
+
+                    _logger.LogInformation(
+                        "测试摆轮转向: DiverterId={DiverterId}, Direction={Direction}, Success={Success}",
+                        diverterId, request.Direction, operationSuccess);
+                }
+                catch (Exception ex)
+                {
+                    result = new WheelDiverterTestResult
+                    {
+                        DiverterId = diverterId,
+                        Direction = request.Direction,
+                        IsSuccess = false,
+                        Message = $"摆轮 {diverterId} 执行异常: {ex.Message}"
+                    };
+                    _logger.LogError(ex, "测试摆轮转向异常: DiverterId={DiverterId}", diverterId);
+                }
+
+                results.Add(result);
+            }
+
+            var response = new WheelDiverterTestResponse
+            {
+                TotalCount = results.Count,
+                SuccessCount = results.Count(r => r.IsSuccess),
+                FailedCount = results.Count(r => !r.IsSuccess),
+                Results = results
+            };
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "测试数递鸟摆轮转向失败");
+            return StatusCode(500, new { message = "测试摆轮转向失败" });
+        }
+    }
 }
 
 /// <summary>
@@ -405,8 +559,124 @@ public record class ShuDiNiaoDeviceRequest
     public required byte DeviceAddress { get; init; }
 
     /// <summary>
+    /// 左转方向对应的格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮向左转时，包裹将被分流到此格口。
+    /// 如果为null，表示左侧没有格口。
+    /// </remarks>
+    /// <example>1</example>
+    public int? LeftChuteId { get; init; }
+
+    /// <summary>
+    /// 右转方向对应的格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮向右转时，包裹将被分流到此格口。
+    /// 如果为null，表示右侧没有格口。
+    /// </remarks>
+    /// <example>2</example>
+    public int? RightChuteId { get; init; }
+
+    /// <summary>
     /// 是否启用该设备
     /// </summary>
     /// <example>true</example>
     public bool IsEnabled { get; init; } = true;
+}
+
+/// <summary>
+/// 摆轮测试请求
+/// </summary>
+/// <remarks>
+/// 用于测试数递鸟摆轮转向功能，可同时测试多个摆轮。
+/// 此接口在系统未启动或故障状态下也可用，用于验证硬件连接。
+/// </remarks>
+public record class WheelDiverterTestRequest
+{
+    /// <summary>
+    /// 摆轮ID列表
+    /// </summary>
+    /// <remarks>
+    /// 要测试的摆轮设备ID列表，可以同时测试多个摆轮。
+    /// ID需与配置中的DiverterId一致。
+    /// </remarks>
+    /// <example>["D1", "D2"]</example>
+    [Required(ErrorMessage = "摆轮ID列表不能为空")]
+    public required List<string> DiverterIds { get; init; }
+
+    /// <summary>
+    /// 转向方向
+    /// </summary>
+    /// <remarks>
+    /// 支持的方向：
+    /// - Straight (0): 直行/回中 - 让包裹直行通过
+    /// - Left (1): 左转 - 将包裹分流到左侧格口
+    /// - Right (2): 右转 - 将包裹分流到右侧格口
+    /// </remarks>
+    /// <example>Left</example>
+    [Required(ErrorMessage = "转向方向不能为空")]
+    public required DiverterDirection Direction { get; init; }
+}
+
+/// <summary>
+/// 摆轮测试响应
+/// </summary>
+/// <remarks>
+/// 包含测试执行的汇总信息和每个摆轮的详细结果。
+/// </remarks>
+public record class WheelDiverterTestResponse
+{
+    /// <summary>
+    /// 测试摆轮总数
+    /// </summary>
+    /// <example>3</example>
+    public int TotalCount { get; init; }
+
+    /// <summary>
+    /// 成功数量
+    /// </summary>
+    /// <example>2</example>
+    public int SuccessCount { get; init; }
+
+    /// <summary>
+    /// 失败数量
+    /// </summary>
+    /// <example>1</example>
+    public int FailedCount { get; init; }
+
+    /// <summary>
+    /// 各摆轮测试结果详情
+    /// </summary>
+    public required List<WheelDiverterTestResult> Results { get; init; }
+}
+
+/// <summary>
+/// 单个摆轮测试结果
+/// </summary>
+public record class WheelDiverterTestResult
+{
+    /// <summary>
+    /// 摆轮ID
+    /// </summary>
+    /// <example>D1</example>
+    public required string DiverterId { get; init; }
+
+    /// <summary>
+    /// 测试的转向方向
+    /// </summary>
+    /// <example>Left</example>
+    public DiverterDirection Direction { get; init; }
+
+    /// <summary>
+    /// 是否成功
+    /// </summary>
+    /// <example>true</example>
+    public bool IsSuccess { get; init; }
+
+    /// <summary>
+    /// 结果消息
+    /// </summary>
+    /// <example>摆轮 D1 已执行 Left 操作</example>
+    public string? Message { get; init; }
 }

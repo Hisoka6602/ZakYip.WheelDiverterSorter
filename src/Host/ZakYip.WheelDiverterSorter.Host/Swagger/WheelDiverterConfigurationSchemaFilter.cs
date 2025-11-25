@@ -36,9 +36,8 @@ public class WheelDiverterConfigurationSchemaFilter : ISchemaFilter
         catch
         {
             // If we can't get the configuration (e.g., during startup or if database is not initialized),
-            // we fail gracefully by not filtering. This ensures Swagger generation doesn't break.
-            // The schema will show all vendor properties, which is acceptable fallback behavior.
-            return;
+            // we fail gracefully by defaulting to ShuDiNiao. This ensures Swagger generation doesn't break.
+            currentConfig = new WheelDiverterConfiguration { VendorType = WheelDiverterVendorType.ShuDiNiao };
         }
 
         var currentVendor = currentConfig.VendorType;
@@ -69,13 +68,15 @@ public class WheelDiverterConfigurationSchemaFilter : ISchemaFilter
             }
 
             // Add description indicating which vendor is currently active
+            var displayName = GetVendorDisplayName(currentVendor);
+            
             if (schema.Description != null)
             {
-                schema.Description += $"\n\n**当前配置的摆轮厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
+                schema.Description += $"\n\n**当前配置的摆轮厂商**: {currentVendor} ({displayName})";
             }
             else
             {
-                schema.Description = $"**当前配置的摆轮厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
+                schema.Description = $"**当前配置的摆轮厂商**: {currentVendor} ({displayName})";
             }
         }
     }
@@ -84,7 +85,6 @@ public class WheelDiverterConfigurationSchemaFilter : ISchemaFilter
     {
         return vendorType switch
         {
-            WheelDiverterVendorType.Mock => "模拟摆轮",
             WheelDiverterVendorType.ShuDiNiao => "数递鸟摆轮设备",
             WheelDiverterVendorType.Modi => "莫迪摆轮设备",
             _ => "未知"

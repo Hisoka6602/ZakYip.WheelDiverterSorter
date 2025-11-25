@@ -69,7 +69,7 @@ public class SensorConfigController : ControllerBase
         Summary = "获取传感器配置",
         Description = "返回当前系统的传感器配置，包括厂商类型、IO绑定、轮询参数等",
         OperationId = "GetSensorConfig",
-        Tags = new[] { "传感器配置" }
+        Tags = new[] { "IO驱动器配置" }
     )]
     [SwaggerResponse(200, "成功返回配置", typeof(SensorConfiguration))]
     [SwaggerResponse(500, "服务器内部错误")]
@@ -131,7 +131,7 @@ public class SensorConfigController : ControllerBase
         Summary = "更新传感器配置",
         Description = "更新系统传感器配置，配置立即生效无需重启。支持配置硬件/仿真传感器切换、厂商选择和传感器参数",
         OperationId = "UpdateSensorConfig",
-        Tags = new[] { "传感器配置" }
+        Tags = new[] { "IO驱动器配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(SensorConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
