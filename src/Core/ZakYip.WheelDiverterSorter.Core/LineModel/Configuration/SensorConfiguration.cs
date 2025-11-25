@@ -154,7 +154,7 @@ public class HardwareSensorEntry
     /// <summary>
     /// 传感器标识符（数字ID）
     /// </summary>
-    public required int SensorId { get; set; }
+    public required long SensorId { get; set; }
 
     /// <summary>
     /// 传感器名称（可选）- Sensor Name (Optional)
@@ -198,7 +198,7 @@ public class MockSensorEntry
     /// <summary>
     /// 传感器标识符（数字ID）
     /// </summary>
-    public required int SensorId { get; set; }
+    public required long SensorId { get; set; }
 
     /// <summary>
     /// 传感器名称（可选）- Sensor Name (Optional)

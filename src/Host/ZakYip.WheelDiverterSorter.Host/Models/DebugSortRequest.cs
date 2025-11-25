@@ -24,5 +24,5 @@ public record DebugSortRequest
     [Required(ErrorMessage = "目标格口ID不能为空")]
     [Range(1, int.MaxValue, ErrorMessage = "目标格口ID必须大于0")]
     [SwaggerSchema(Description = "目标格口的编号，必须是已配置的有效格口")]
-    public required int TargetChuteId { get; init; }
+    public required long TargetChuteId { get; init; }
 }

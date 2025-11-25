@@ -14,7 +14,7 @@ public record ChuteAssignmentResponse
     /// <summary>
     /// 目标格口ID（数字ID）
     /// </summary>
-    public required int ChuteId { get; init; }
+    public required long ChuteId { get; init; }
 
     /// <summary>
     /// 是否成功

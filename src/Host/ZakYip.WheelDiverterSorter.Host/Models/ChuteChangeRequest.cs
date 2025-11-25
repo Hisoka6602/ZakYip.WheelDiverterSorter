@@ -20,7 +20,7 @@ public record ChuteChangeRequest
     /// </summary>
     /// <example>5</example>
     [SwaggerSchema(Description = "包裹需要改为的新目标格口编号")]
-    public required int RequestedChuteId { get; init; }
+    public required long RequestedChuteId { get; init; }
 
     /// <summary>
     /// 请求时间（可选，默认为服务器当前时间）

@@ -10,7 +10,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 /// <summary>
 /// 上游分配中间件的委托，负责获取目标格口
 /// </summary>
-public delegate Task<(int? ChuteId, double LatencyMs, string Status, string Source)> UpstreamAssignmentDelegate(long parcelId);
+public delegate Task<(long? ChuteId, double LatencyMs, string Status, string Source)> UpstreamAssignmentDelegate(long parcelId);
 
 /// <summary>
 /// 上游分配中间件，负责从上游系统获取目标格口

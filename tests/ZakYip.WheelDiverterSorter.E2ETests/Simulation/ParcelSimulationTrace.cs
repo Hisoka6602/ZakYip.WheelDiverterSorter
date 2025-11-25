@@ -46,7 +46,7 @@ public sealed record ParcelSimulationTrace
     /// <summary>
     /// 实际落格格口ID
     /// </summary>
-    public int? ActualChuteId { get; init; }
+    public long? ActualChuteId { get; init; }
 
     /// <summary>
     /// 是否成功分拣到目标格口
