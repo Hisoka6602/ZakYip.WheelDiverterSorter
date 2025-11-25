@@ -222,7 +222,7 @@ public class LineTopologyController : ControllerBase
         Summary = "获取摆轮硬件绑定配置",
         Description = "返回摆轮逻辑ID与物理驱动器的绑定关系配置",
         OperationId = "GetWheelBindings",
-        Tags = new[] { "摆轮硬件绑定" }
+        Tags = new[] { "数递鸟摆轮配置" }
     )]
     [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<WheelBindingsResponse>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
@@ -324,7 +324,7 @@ public class LineTopologyController : ControllerBase
         Summary = "更新摆轮硬件绑定配置",
         Description = "更新摆轮逻辑ID与物理驱动器的绑定关系（包含IO驱动和摆轮驱动两部分配置），配置立即生效",
         OperationId = "UpdateWheelBindings",
-        Tags = new[] { "摆轮硬件绑定" }
+        Tags = new[] { "数递鸟摆轮配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(ApiResponse<WheelBindingsResponse>))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]

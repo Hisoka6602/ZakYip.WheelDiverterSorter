@@ -566,11 +566,19 @@ public record class ShuDiNiaoDeviceRequest
 /// <summary>
 /// 摆轮测试请求
 /// </summary>
+/// <remarks>
+/// 用于测试数递鸟摆轮转向功能，可同时测试多个摆轮。
+/// 此接口在系统未启动或故障状态下也可用，用于验证硬件连接。
+/// </remarks>
 public record class WheelDiverterTestRequest
 {
     /// <summary>
     /// 摆轮ID列表
     /// </summary>
+    /// <remarks>
+    /// 要测试的摆轮设备ID列表，可以同时测试多个摆轮。
+    /// ID需与配置中的DiverterId一致。
+    /// </remarks>
     /// <example>["D1", "D2"]</example>
     [Required(ErrorMessage = "摆轮ID列表不能为空")]
     public required List<string> DiverterIds { get; init; }
@@ -578,6 +586,12 @@ public record class WheelDiverterTestRequest
     /// <summary>
     /// 转向方向
     /// </summary>
+    /// <remarks>
+    /// 支持的方向：
+    /// - Straight (0): 直行/回中 - 让包裹直行通过
+    /// - Left (1): 左转 - 将包裹分流到左侧格口
+    /// - Right (2): 右转 - 将包裹分流到右侧格口
+    /// </remarks>
     /// <example>Left</example>
     [Required(ErrorMessage = "转向方向不能为空")]
     public required DiverterDirection Direction { get; init; }
@@ -586,25 +600,31 @@ public record class WheelDiverterTestRequest
 /// <summary>
 /// 摆轮测试响应
 /// </summary>
+/// <remarks>
+/// 包含测试执行的汇总信息和每个摆轮的详细结果。
+/// </remarks>
 public record class WheelDiverterTestResponse
 {
     /// <summary>
     /// 测试摆轮总数
     /// </summary>
+    /// <example>3</example>
     public int TotalCount { get; init; }
 
     /// <summary>
     /// 成功数量
     /// </summary>
+    /// <example>2</example>
     public int SuccessCount { get; init; }
 
     /// <summary>
     /// 失败数量
     /// </summary>
+    /// <example>1</example>
     public int FailedCount { get; init; }
 
     /// <summary>
-    /// 各摆轮测试结果
+    /// 各摆轮测试结果详情
     /// </summary>
     public required List<WheelDiverterTestResult> Results { get; init; }
 }
@@ -617,20 +637,24 @@ public record class WheelDiverterTestResult
     /// <summary>
     /// 摆轮ID
     /// </summary>
+    /// <example>D1</example>
     public required string DiverterId { get; init; }
 
     /// <summary>
     /// 测试的转向方向
     /// </summary>
+    /// <example>Left</example>
     public DiverterDirection Direction { get; init; }
 
     /// <summary>
     /// 是否成功
     /// </summary>
+    /// <example>true</example>
     public bool IsSuccess { get; init; }
 
     /// <summary>
     /// 结果消息
     /// </summary>
+    /// <example>摆轮 D1 已执行 Left 操作</example>
     public string? Message { get; init; }
 }
