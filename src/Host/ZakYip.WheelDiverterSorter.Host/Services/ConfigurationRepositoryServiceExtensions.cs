@@ -134,6 +134,16 @@ public static class ConfigurationRepositoryServiceExtensions
             return new RouteTimingEstimator(topologyRepository);
         });
 
+        // 注册日志配置仓储为单例
+        services.AddSingleton<ILoggingConfigurationRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbLoggingConfigurationRepository(fullDatabasePath, clock);
+            // 初始化默认配置，使用本地时间
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
         return services;
     }
 }
