@@ -323,6 +323,7 @@ public class LineTopologyController : ControllerBase
                 NodeId = n.NodeId,
                 NodeName = n.NodeName,
                 PositionIndex = n.PositionIndex,
+                FrontIoId = n.FrontIoId,
                 HasLeftChute = n.HasLeftChute,
                 HasRightChute = n.HasRightChute,
                 Remarks = n.Remarks
@@ -370,6 +371,7 @@ public class LineTopologyController : ControllerBase
                 NodeId = n.NodeId,
                 NodeName = n.NodeName,
                 PositionIndex = n.PositionIndex,
+                FrontIoId = n.FrontIoId,
                 HasLeftChute = n.HasLeftChute,
                 HasRightChute = n.HasRightChute,
                 Remarks = n.Remarks
