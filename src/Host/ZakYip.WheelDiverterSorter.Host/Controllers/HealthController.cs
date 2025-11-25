@@ -375,7 +375,7 @@ public class HealthController : ControllerBase
                     var ioDriverStatus = new DriverHealthInfo
                     {
                         DriverName = $"IO驱动器 ({ioConfig.VendorType})",
-                        DriverType = DriverType.IoDriver,
+                        DriverType = DriverCategory.IoDriver,
                         VendorType = ioConfig.VendorType.ToString(),
                         IsConnected = ioConfig.UseHardwareDriver,
                         IsSimulationMode = !ioConfig.UseHardwareDriver,
@@ -394,7 +394,7 @@ public class HealthController : ControllerBase
                     drivers.Add(new DriverHealthInfo
                     {
                         DriverName = "IO驱动器",
-                        DriverType = DriverType.IoDriver,
+                        DriverType = DriverCategory.IoDriver,
                         IsHealthy = false,
                         IsConnected = false,
                         ErrorCode = "CONFIG_ERROR",
@@ -427,7 +427,7 @@ public class HealthController : ControllerBase
                                     drivers.Add(new DriverHealthInfo
                                     {
                                         DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
-                                        DriverType = DriverType.WheelDiverter,
+                                        DriverType = DriverCategory.WheelDiverter,
                                         VendorType = "ShuDiNiao",
                                         IsConnected = isSimulation ? false : isConnected,
                                         IsSimulationMode = isSimulation,
@@ -455,7 +455,7 @@ public class HealthController : ControllerBase
                                     drivers.Add(new DriverHealthInfo
                                     {
                                         DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",
-                                        DriverType = DriverType.WheelDiverter,
+                                        DriverType = DriverCategory.WheelDiverter,
                                         VendorType = "Modi",
                                         IsConnected = isSimulation ? false : isConnected,
                                         IsSimulationMode = isSimulation,
@@ -474,7 +474,7 @@ public class HealthController : ControllerBase
                             drivers.Add(new DriverHealthInfo
                             {
                                 DriverName = "摆轮驱动器 (模拟)",
-                                DriverType = DriverType.WheelDiverter,
+                                DriverType = DriverCategory.WheelDiverter,
                                 VendorType = "Mock",
                                 IsConnected = false,
                                 IsSimulationMode = true,
@@ -491,7 +491,7 @@ public class HealthController : ControllerBase
                     drivers.Add(new DriverHealthInfo
                     {
                         DriverName = "摆轮驱动器",
-                        DriverType = DriverType.WheelDiverter,
+                        DriverType = DriverCategory.WheelDiverter,
                         IsHealthy = false,
                         IsConnected = false,
                         ErrorCode = "CONFIG_ERROR",
@@ -676,7 +676,7 @@ public class DriverHealthInfo
     public required string DriverName { get; init; }
     
     /// <summary>驱动器类型（IoDriver/WheelDiverter）</summary>
-    public DriverType? DriverType { get; init; }
+    public DriverCategory? DriverType { get; init; }
     
     /// <summary>厂商类型（Leadshine/Siemens/ShuDiNiao/Modi等）</summary>
     public string? VendorType { get; init; }
@@ -698,18 +698,6 @@ public class DriverHealthInfo
     
     /// <summary>检查时间</summary>
     public DateTimeOffset CheckedAt { get; init; }
-}
-
-/// <summary>
-/// 驱动器类型枚举
-/// </summary>
-public enum DriverType
-{
-    /// <summary>IO驱动器（用于传感器和继电器控制）</summary>
-    IoDriver,
-    
-    /// <summary>摆轮驱动器（用于摆轮转向控制）</summary>
-    WheelDiverter
 }
 
 /// <summary>
