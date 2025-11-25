@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -9,12 +10,13 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
 /// IO驱动器配置管理API控制器
+/// IO driver configuration management API controller
 /// </summary>
 /// <remarks>
-/// 提供IO驱动器配置的查询和更新功能，支持热更新。
+/// 提供IO驱动器配置和感应IO配置的查询和更新功能，支持热更新。
 /// 
 /// **重要说明**：
-/// 此API用于配置【IO驱动器】，而非【摆轮驱动器】。两者是不同的概念：
+/// 此API用于配置【IO驱动器】和【感应IO】，而非【摆轮驱动器】。概念区分：
 /// 
 /// - **IO驱动器**（本API）: 控制IO端点（输入/输出位），用于传感器信号读取和继电器控制
 ///   - 雷赛（Leadshine）: 雷赛运动控制卡的IO接口
@@ -22,32 +24,44 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 ///   - 三菱（Mitsubishi）: 三菱PLC的IO模块
 ///   - 欧姆龙（Omron）: 欧姆龙PLC的IO模块
 /// 
+/// - **感应IO**（本API /sensors 子路径）: 配置感应IO的业务类型和绑定关系
+///   - ParcelCreation: 创建包裹感应IO
+///   - WheelFront: 摆轮前感应IO
+///   - ChuteLock: 锁格感应IO
+/// 
 /// - **摆轮驱动器**（/api/config/wheeldiverter/* API）: 控制摆轮转向（左转、右转、回中）
 ///   - 数递鸟（ShuDiNiao）: 通过TCP协议直接控制
 ///   - 莫迪（Modi）: 通过TCP协议直接控制
 /// 
 /// **配置生效时机**：
 /// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
-/// 
-/// **与摆轮硬件绑定的关系**：
-/// - 本API配置IO驱动器的硬件参数（卡号、IO映射等）
-/// - /api/config/wheel-bindings API配置逻辑摆轮节点与驱动器的映射关系
 /// </remarks>
 [ApiController]
 [Route("api/config/io-driver")]
 [Produces("application/json")]
 public class IoDriverConfigController : ControllerBase
 {
-    private readonly IDriverConfigurationRepository _repository;
+    private readonly IDriverConfigurationRepository _driverRepository;
+    private readonly ISensorConfigurationRepository _sensorRepository;
     private readonly ILogger<IoDriverConfigController> _logger;
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="driverRepository">IO驱动器配置仓储</param>
+    /// <param name="sensorRepository">感应IO配置仓储</param>
+    /// <param name="logger">日志记录器</param>
     public IoDriverConfigController(
-        IDriverConfigurationRepository repository,
+        IDriverConfigurationRepository driverRepository,
+        ISensorConfigurationRepository sensorRepository,
         ILogger<IoDriverConfigController> logger)
     {
-        _repository = repository;
+        _driverRepository = driverRepository;
+        _sensorRepository = sensorRepository;
         _logger = logger;
     }
+
+    #region IO驱动器配置
 
     /// <summary>
     /// 获取IO驱动器配置
@@ -55,6 +69,23 @@ public class IoDriverConfigController : ControllerBase
     /// <returns>当前IO驱动器配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回当前系统的IO驱动器配置，包括：
+    /// - 是否使用硬件驱动
+    /// - 厂商类型（雷赛、西门子等）
+    /// - 厂商特定参数
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "id": 1,
+    ///   "useHardwareDriver": false,
+    ///   "vendorType": "Leadshine",
+    ///   "leadshine": { "cardNo": 0, "diverters": [...] },
+    ///   "version": 1
+    /// }
+    /// ```
+    /// </remarks>
     [HttpGet]
     [SwaggerOperation(
         Summary = "获取IO驱动器配置",
@@ -63,20 +94,20 @@ public class IoDriverConfigController : ControllerBase
         Tags = new[] { "IO驱动器配置" }
     )]
     [SwaggerResponse(200, "成功返回配置", typeof(IoDriverConfiguration))]
-    [SwaggerResponse(500, "服务器内部错误")]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
     [ProducesResponseType(typeof(IoDriverConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 500)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
     public ActionResult<IoDriverConfiguration> GetIoDriverConfig()
     {
         try
         {
-            var config = _repository.Get();
+            var config = _driverRepository.Get();
             return Ok(MapToIoDriverConfiguration(config));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取IO驱动器配置失败");
-            return StatusCode(500, new { message = "获取IO驱动器配置失败" });
+            return StatusCode(500, ApiResponse<object>.ServerError("获取IO驱动器配置失败 - Failed to get IO driver configuration"));
         }
     }
 
@@ -93,27 +124,23 @@ public class IoDriverConfigController : ControllerBase
     /// - IO驱动器: 用于控制传感器信号读取和继电器输出
     /// - 摆轮驱动器: 请使用 /api/config/wheeldiverter/* API
     /// 
-    /// 示例请求:
-    /// 
-    ///     PUT /api/config/io-driver
-    ///     {
-    ///         "useHardwareDriver": false,
-    ///         "vendorType": "Leadshine",
-    ///         "leadshine": {
-    ///             "cardNo": 0,
-    ///             "ioMappings": [
-    ///                 {
-    ///                     "pointId": "IN_START",
-    ///                     "bitIndex": 0
-    ///                 }
-    ///             ]
-    ///         }
+    /// **示例请求**:
+    /// ```json
+    /// {
+    ///     "useHardwareDriver": false,
+    ///     "vendorType": "Leadshine",
+    ///     "leadshine": {
+    ///         "cardNo": 0,
+    ///         "diverters": [
+    ///             { "diverterId": 1, "diverterName": "D1", "outputStartBit": 0, "feedbackInputBit": 10 }
+    ///         ]
     ///     }
+    /// }
+    /// ```
     /// 
     /// 配置更新后立即生效，无需重启服务。
-    /// 注意：正在运行中的分拣任务不受影响，只对新的分拣任务生效。
     /// 
-    /// 支持的IO驱动厂商类型（vendorType）：
+    /// **支持的IO驱动厂商类型（vendorType）**：
     /// - Mock: 模拟驱动器（用于测试）
     /// - Leadshine: 雷赛运动控制卡
     /// - Siemens: 西门子PLC
@@ -123,17 +150,18 @@ public class IoDriverConfigController : ControllerBase
     [HttpPut]
     [SwaggerOperation(
         Summary = "更新IO驱动器配置",
-        Description = "更新系统IO驱动器配置，配置立即生效无需重启。支持配置硬件/模拟驱动器切换、厂商选择和厂商特定参数。注意：这是IO驱动器，摆轮驱动器请使用 /api/config/wheeldiverter/* API。",
+        Description = "更新系统IO驱动器配置，配置立即生效无需重启。支持配置硬件/模拟驱动器切换、厂商选择和厂商特定参数。",
         OperationId = "UpdateIoDriverConfig",
         Tags = new[] { "IO驱动器配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(IoDriverConfiguration))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
     [ProducesResponseType(typeof(IoDriverConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<IoDriverConfiguration> UpdateIoDriverConfig([FromBody] DriverConfiguration request)
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<IoDriverConfiguration> UpdateIoDriverConfig(
+        [FromBody, SwaggerRequestBody("IO驱动器配置请求", Required = true)] DriverConfiguration request)
     {
         try
         {
@@ -142,17 +170,17 @@ public class IoDriverConfigController : ControllerBase
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                return BadRequest(ApiResponse<object>.BadRequest($"请求参数无效: {string.Join(", ", errors)}"));
             }
 
             // 验证配置
             var (isValid, errorMessage) = request.Validate();
             if (!isValid)
             {
-                return BadRequest(new { message = errorMessage });
+                return BadRequest(ApiResponse<object>.BadRequest(errorMessage ?? "配置验证失败"));
             }
 
-            _repository.Update(request);
+            _driverRepository.Update(request);
 
             _logger.LogInformation(
                 "IO驱动器配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
@@ -161,18 +189,18 @@ public class IoDriverConfigController : ControllerBase
                 request.Version);
 
             // 重新获取更新后的配置
-            var updatedConfig = _repository.Get();
+            var updatedConfig = _driverRepository.Get();
             return Ok(MapToIoDriverConfiguration(updatedConfig));
         }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "IO驱动器配置验证失败");
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse<object>.BadRequest(ex.Message));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新IO驱动器配置失败");
-            return StatusCode(500, new { message = "更新IO驱动器配置失败" });
+            return StatusCode(500, ApiResponse<object>.ServerError("更新IO驱动器配置失败 - Failed to update IO driver configuration"));
         }
     }
 
@@ -203,27 +231,218 @@ public class IoDriverConfigController : ControllerBase
         Tags = new[] { "IO驱动器配置" }
     )]
     [SwaggerResponse(200, "重置成功", typeof(IoDriverConfiguration))]
-    [SwaggerResponse(500, "服务器内部错误")]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
     [ProducesResponseType(typeof(IoDriverConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 500)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
     public ActionResult<IoDriverConfiguration> ResetIoDriverConfig()
     {
         try
         {
             var defaultConfig = DriverConfiguration.GetDefault();
-            _repository.Update(defaultConfig);
+            _driverRepository.Update(defaultConfig);
 
             _logger.LogInformation("IO驱动器配置已重置为默认值");
 
-            var updatedConfig = _repository.Get();
+            var updatedConfig = _driverRepository.Get();
             return Ok(MapToIoDriverConfiguration(updatedConfig));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "重置IO驱动器配置失败");
-            return StatusCode(500, new { message = "重置IO驱动器配置失败" });
+            return StatusCode(500, ApiResponse<object>.ServerError("重置IO驱动器配置失败 - Failed to reset IO driver configuration"));
         }
     }
+
+    #endregion
+
+    #region 感应IO配置
+
+    /// <summary>
+    /// 获取感应IO配置
+    /// </summary>
+    /// <returns>感应IO配置信息</returns>
+    /// <response code="200">成功返回配置</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回当前系统的感应IO配置，包括所有感应IO的业务类型和绑定关系。
+    /// 
+    /// **感应IO类型**：
+    /// - ParcelCreation: 创建包裹感应IO（只能有一个激活）
+    /// - WheelFront: 摆轮前感应IO（必须绑定摆轮节点）
+    /// - ChuteLock: 锁格感应IO（必须绑定格口）
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "success": true,
+    ///   "code": "Ok",
+    ///   "data": {
+    ///     "sensors": [
+    ///       { "sensorId": 1, "sensorName": "创建包裹IO", "ioType": "ParcelCreation", "ioPointId": 0 },
+    ///       { "sensorId": 2, "sensorName": "摆轮1前IO", "ioType": "WheelFront", "ioPointId": 1, "boundWheelNodeId": "WHEEL-1" }
+    ///     ],
+    ///     "version": 1
+    ///   }
+    /// }
+    /// ```
+    /// </remarks>
+    [HttpGet("sensors")]
+    [SwaggerOperation(
+        Summary = "获取感应IO配置",
+        Description = "返回当前系统的感应IO配置，包括所有感应IO的业务类型、关联的IO点位和绑定关系",
+        OperationId = "GetSensorIoConfig",
+        Tags = new[] { "IO驱动器配置" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<SensorConfiguration>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<SensorConfiguration>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SensorConfiguration>> GetSensorIoConfig()
+    {
+        try
+        {
+            var config = _sensorRepository.Get();
+            return Ok(ApiResponse<SensorConfiguration>.Ok(config));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取感应IO配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("获取感应IO配置失败 - Failed to get sensor IO configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 更新感应IO配置（支持热更新）
+    /// </summary>
+    /// <param name="request">感应IO配置请求，包含感应IO列表及其业务类型和绑定关系</param>
+    /// <returns>更新后的感应IO配置</returns>
+    /// <response code="200">更新成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 更新系统感应IO配置，配置立即生效无需重启。
+    /// 
+    /// **配置规则**：
+    /// - 只能有一个激活的 ParcelCreation 类型感应IO
+    /// - WheelFront 类型必须绑定摆轮节点（boundWheelNodeId）
+    /// - ChuteLock 类型必须绑定格口（boundChuteId）
+    /// - SensorId 不能重复
+    /// 
+    /// **示例请求**：
+    /// ```json
+    /// {
+    ///   "sensors": [
+    ///     { "sensorId": 1, "sensorName": "创建包裹IO", "ioType": "ParcelCreation", "ioPointId": 0, "isEnabled": true },
+    ///     { "sensorId": 2, "sensorName": "摆轮1前IO", "ioType": "WheelFront", "ioPointId": 1, "boundWheelNodeId": "WHEEL-1", "isEnabled": true }
+    ///   ]
+    /// }
+    /// ```
+    /// </remarks>
+    [HttpPut("sensors")]
+    [SwaggerOperation(
+        Summary = "更新感应IO配置",
+        Description = "更新系统感应IO配置，配置立即生效无需重启。支持配置感应IO的业务类型、IO点位和绑定关系。",
+        OperationId = "UpdateSensorIoConfig",
+        Tags = new[] { "IO驱动器配置" }
+    )]
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<SensorConfiguration>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<SensorConfiguration>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SensorConfiguration>> UpdateSensorIoConfig(
+        [FromBody, SwaggerRequestBody("感应IO配置请求", Required = true)] SensorConfiguration request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(ApiResponse<object>.BadRequest($"请求参数无效: {string.Join(", ", errors)}"));
+            }
+
+            // 验证配置
+            var (isValid, errorMessage) = request.Validate();
+            if (!isValid)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest(errorMessage ?? "配置验证失败"));
+            }
+
+            _sensorRepository.Update(request);
+
+            _logger.LogInformation(
+                "感应IO配置已更新: SensorCount={SensorCount}, Version={Version}",
+                request.Sensors?.Count ?? 0,
+                request.Version);
+
+            var updatedConfig = _sensorRepository.Get();
+            return Ok(ApiResponse<SensorConfiguration>.Ok(updatedConfig, "感应IO配置已更新 - Sensor IO configuration updated"));
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "感应IO配置验证失败");
+            return BadRequest(ApiResponse<object>.BadRequest(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新感应IO配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("更新感应IO配置失败 - Failed to update sensor IO configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 重置感应IO配置为默认值
+    /// </summary>
+    /// <returns>重置后的感应IO配置</returns>
+    /// <response code="200">重置成功</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 将感应IO配置重置为系统默认值：
+    /// - 创建包裹感应IO (SensorId=1)
+    /// - 摆轮1前感应IO (SensorId=2)
+    /// - 格口1锁格感应IO (SensorId=3)
+    /// 
+    /// 重置操作会立即生效，适用于：
+    /// - 配置出错需要恢复默认
+    /// - 快速初始化测试环境
+    /// - 清除不正确的配置参数
+    /// </remarks>
+    [HttpPost("sensors/reset")]
+    [SwaggerOperation(
+        Summary = "重置感应IO配置",
+        Description = "将感应IO配置重置为系统默认值",
+        OperationId = "ResetSensorIoConfig",
+        Tags = new[] { "IO驱动器配置" }
+    )]
+    [SwaggerResponse(200, "重置成功", typeof(ApiResponse<SensorConfiguration>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<SensorConfiguration>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SensorConfiguration>> ResetSensorIoConfig()
+    {
+        try
+        {
+            var defaultConfig = SensorConfiguration.GetDefault();
+            _sensorRepository.Update(defaultConfig);
+
+            _logger.LogInformation("感应IO配置已重置为默认值");
+
+            var updatedConfig = _sensorRepository.Get();
+            return Ok(ApiResponse<SensorConfiguration>.Ok(updatedConfig, "感应IO配置已重置为默认值 - Sensor IO configuration reset to default"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "重置感应IO配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("重置感应IO配置失败 - Failed to reset sensor IO configuration"));
+        }
+    }
+
+    #endregion
+
+    #region 私有方法
     
     /// <summary>
     /// 将 DriverConfiguration 映射到 IoDriverConfiguration（更语义化的名称）
@@ -241,45 +460,62 @@ public class IoDriverConfigController : ControllerBase
             UpdatedAt = config.UpdatedAt
         };
     }
+
+    #endregion
 }
 
 /// <summary>
-/// IO驱动器配置响应模型（与DriverConfiguration结构相同，但命名更清晰）
+/// IO驱动器配置响应模型
+/// IO driver configuration response model
 /// </summary>
+/// <remarks>
+/// 与DriverConfiguration结构相同，但命名更清晰
+/// </remarks>
 public class IoDriverConfiguration
 {
     /// <summary>
     /// 配置唯一标识
+    /// Unique identifier of the configuration
     /// </summary>
+    /// <example>1</example>
     public int Id { get; set; }
 
     /// <summary>
     /// 是否使用硬件驱动器（false则使用模拟驱动器）
+    /// Whether to use hardware driver (false uses simulated driver)
     /// </summary>
+    /// <example>false</example>
     public bool UseHardwareDriver { get; set; }
 
     /// <summary>
     /// IO驱动器厂商类型
+    /// IO driver vendor type
     /// </summary>
+    /// <example>Leadshine</example>
     public DriverVendorType VendorType { get; set; }
 
     /// <summary>
     /// 雷赛运动控制卡配置
+    /// Leadshine motion controller configuration
     /// </summary>
     public LeadshineDriverConfig? Leadshine { get; set; }
 
     /// <summary>
     /// 配置版本号
+    /// Configuration version number
     /// </summary>
+    /// <example>1</example>
     public int Version { get; set; }
 
     /// <summary>
     /// 配置创建时间
+    /// Configuration creation time
     /// </summary>
     public DateTime CreatedAt { get; set; }
 
     /// <summary>
     /// 配置最后更新时间
+    /// Configuration last update time
     /// </summary>
     public DateTime UpdatedAt { get; set; }
 }

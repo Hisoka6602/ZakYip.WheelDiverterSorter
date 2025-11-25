@@ -288,29 +288,83 @@ public record LineTopologyRequest
 
 /// <summary>
 /// 线体拓扑配置响应
+/// Line topology configuration response
 /// </summary>
+/// <remarks>
+/// 包含完整的线体拓扑配置信息
+/// </remarks>
 public record LineTopologyResponse
 {
+    /// <summary>
+    /// 拓扑配置唯一标识符
+    /// Unique identifier of the topology configuration
+    /// </summary>
+    /// <example>default-topology</example>
     public required string TopologyId { get; init; }
+
+    /// <summary>
+    /// 拓扑配置名称
+    /// Name of the topology configuration
+    /// </summary>
+    /// <example>标准线体拓扑</example>
     public required string TopologyName { get; init; }
+
+    /// <summary>
+    /// 拓扑描述
+    /// Description of the topology
+    /// </summary>
+    /// <example>包含3个摆轮和10个格口的标准配置</example>
     public string? Description { get; init; }
+
+    /// <summary>
+    /// 摆轮节点配置列表
+    /// List of wheel node configurations
+    /// </summary>
     public required List<WheelNodeRequest> WheelNodes { get; init; }
+
+    /// <summary>
+    /// 格口配置列表
+    /// List of chute configurations
+    /// </summary>
     public required List<ChuteConfigRequest> Chutes { get; init; }
+
+    /// <summary>
+    /// 线体段配置列表
+    /// List of line segment configurations
+    /// </summary>
     public required List<LineSegmentRequest> LineSegments { get; init; }
+
+    /// <summary>
+    /// 默认线速（毫米/秒）
+    /// Default line speed (mm/s)
+    /// </summary>
+    /// <example>1000</example>
     public decimal DefaultLineSpeedMmps { get; init; }
+
+    /// <summary>
+    /// 配置创建时间
+    /// Configuration creation time
+    /// </summary>
     public DateTime CreatedAt { get; init; }
+
+    /// <summary>
+    /// 配置最后更新时间
+    /// Configuration last update time
+    /// </summary>
     public DateTime UpdatedAt { get; init; }
 
     #region 向后兼容 - 废弃字段
 
     /// <summary>
     /// [废弃] 入口传感器ID
+    /// [Obsolete] Entry sensor ID
     /// </summary>
     [Obsolete("请使用 LineSegments 中第一段的 StartIoId")]
     public string? EntrySensorId { get; init; }
 
     /// <summary>
     /// [废弃] 出口传感器ID
+    /// [Obsolete] Exit sensor ID
     /// </summary>
     [Obsolete("请使用 LineSegments 中最后一段的 EndIoId")]
     public string? ExitSensorId { get; init; }
