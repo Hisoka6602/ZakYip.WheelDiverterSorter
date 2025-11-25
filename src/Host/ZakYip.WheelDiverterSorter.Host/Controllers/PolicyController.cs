@@ -68,11 +68,10 @@ public class PolicyController : ApiControllerBase
         try
         {
             var config = _systemConfigRepository.Get();
-#pragma warning disable CS0618 // 向后兼容
             var policy = new ExceptionRoutingPolicy
             {
                 ExceptionChuteId = config.ExceptionChuteId,
-                UpstreamTimeoutMs = config.ChuteAssignmentTimeoutMs,
+                UpstreamTimeoutMs = (int)(config.ChuteAssignmentTimeout?.FallbackTimeoutSeconds ?? 5m) * 1000,
                 // 注意：重试相关配置已迁移到 CommunicationConfiguration
                 RetryOnTimeout = false,  // 默认不重试，通信重试由 CommunicationConfiguration 管理
                 RetryCount = 0,
@@ -80,7 +79,6 @@ public class PolicyController : ApiControllerBase
                 UseExceptionOnTopologyUnreachable = true,
                 UseExceptionOnTtlFailure = true
             };
-#pragma warning restore CS0618
             
             return Success(policy, "获取异常路由策略成功");
         }
@@ -161,9 +159,12 @@ public class PolicyController : ApiControllerBase
             // 获取当前配置并更新
             var config = _systemConfigRepository.Get();
             config.ExceptionChuteId = policy.ExceptionChuteId;
-#pragma warning disable CS0618 // 向后兼容
-            config.ChuteAssignmentTimeoutMs = policy.UpstreamTimeoutMs;
-#pragma warning restore CS0618
+            // 更新超时配置 - 将毫秒转换为秒
+            if (config.ChuteAssignmentTimeout == null)
+            {
+                config.ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions();
+            }
+            config.ChuteAssignmentTimeout.FallbackTimeoutSeconds = policy.UpstreamTimeoutMs / 1000m;
             config.UpdatedAt = _clock.LocalNow;
 
             _systemConfigRepository.Update(config);

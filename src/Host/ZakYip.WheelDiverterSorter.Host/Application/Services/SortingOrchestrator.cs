@@ -605,10 +605,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return _timeoutCalculator.CalculateTimeoutSeconds(context);
         }
         
-        // 降级：使用旧的固定超时配置
-#pragma warning disable CS0618 // 向后兼容
-        return systemConfig.ChuteAssignmentTimeoutMs / 1000m;
-#pragma warning restore CS0618
+        // 降级：使用配置的固定超时时间
+        return systemConfig.ChuteAssignmentTimeout?.FallbackTimeoutSeconds ?? 5m;
     }
 
     /// <summary>

@@ -3,6 +3,8 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Host.Controllers;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 
@@ -32,21 +34,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
         
         var healthResponse = await response.Content.ReadFromJsonAsync<ProcessHealthResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(healthResponse);
-        Assert.Equal("Healthy", healthResponse.Status);
-    }
-
-    [Fact]
-    public async Task Healthz_ReturnsOk()
-    {
-        // Act - test backward compatibility endpoint
-        var response = await _client.GetAsync("/healthz");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        
-        var healthResponse = await response.Content.ReadFromJsonAsync<ProcessHealthResponse>(TestJsonOptions.GetOptions());
-        Assert.NotNull(healthResponse);
-        Assert.Equal("Healthy", healthResponse.Status);
+        Assert.Equal(HealthStatus.Healthy, healthResponse.Status);
     }
 
     #endregion
@@ -66,7 +54,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
         
         var healthResponse = await response.Content.ReadFromJsonAsync<ProcessHealthResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(healthResponse);
-        Assert.Equal("Healthy", healthResponse.Status);
+        Assert.Equal(HealthStatus.Healthy, healthResponse.Status);
     }
 
     #endregion
@@ -88,7 +76,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
         
         var healthResponse = await response.Content.ReadFromJsonAsync<LineHealthResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(healthResponse);
-        Assert.NotNull(healthResponse.SystemState);
+        Assert.True(Enum.IsDefined(healthResponse.SystemState));
     }
 
     [Fact]
@@ -100,8 +88,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.NotNull(healthResponse);
-        Assert.NotNull(healthResponse.SystemState);
-        Assert.NotEmpty(healthResponse.SystemState);
+        Assert.True(Enum.IsDefined(healthResponse.SystemState));
     }
 
     [Fact]
@@ -192,8 +179,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.NotNull(healthResponse);
-        Assert.NotNull(healthResponse.Status);
-        Assert.NotEmpty(healthResponse.Status);
+        Assert.True(Enum.IsDefined(healthResponse.Status));
         Assert.True(healthResponse.Timestamp != default(DateTimeOffset));
     }
 
@@ -206,8 +192,7 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
 
         // Assert
         Assert.NotNull(healthResponse);
-        Assert.NotNull(healthResponse.SystemState);
-        Assert.NotEmpty(healthResponse.SystemState);
+        Assert.True(Enum.IsDefined(healthResponse.SystemState));
         // Verify boolean field exists
         _ = healthResponse.IsSelfTestSuccess;
     }

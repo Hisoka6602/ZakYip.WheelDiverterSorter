@@ -10,6 +10,8 @@ using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -56,59 +58,6 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// 进程级健康检查端点（Kubernetes liveness probe）
-    /// </summary>
-    /// <returns>简单的健康状态</returns>
-    /// <response code="200">进程健康</response>
-    /// <response code="503">进程不健康</response>
-    /// <remarks>
-    /// **[已弃用]** 此端点已弃用，请使用 GET /api/system/status 获取更完整的系统状态信息。
-    /// 
-    /// 用于Kubernetes/负载均衡器的存活检查（liveness probe）。
-    /// 只依赖进程与基础依赖存活，不依赖驱动自检结果。
-    /// 只要进程能够响应请求，就认为是健康的。
-    /// </remarks>
-    [Obsolete("此端点已弃用，请使用 GET /api/system/status")]
-    [HttpGet("healthz")]
-    [SwaggerOperation(
-        Summary = "【已弃用】进程级健康检查（Liveness）",
-        Description = "**[已弃用]** 请使用 GET /api/system/status 获取系统状态。此端点仅用于容器编排平台的存活检查。",
-        OperationId = "GetProcessHealth",
-        Tags = new[] { "健康检查" }
-    )]
-    [SwaggerResponse(200, "进程健康", typeof(ProcessHealthResponse))]
-    [SwaggerResponse(503, "进程不健康", typeof(ProcessHealthResponse))]
-    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status503ServiceUnavailable)]
-    public IActionResult GetProcessHealth()
-    {
-        try
-        {
-            var currentState = _stateManager.CurrentState;
-            
-            // 进程级健康检查：只要进程能响应就认为健康
-            var response = new ProcessHealthResponse
-            {
-                Status = "Healthy",
-                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
-            };
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "进程健康检查失败");
-            var response = new ProcessHealthResponse
-            {
-                Status = "Unhealthy",
-                Reason = "进程内部错误",
-                Timestamp = new DateTimeOffset(_systemClock.LocalNow)
-            };
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, response);
-        }
-    }
-
-    /// <summary>
     /// 系统状态查询端点（支持高并发）
     /// </summary>
     /// <returns>当前系统状态和运行环境模式</returns>
@@ -144,8 +93,8 @@ public class HealthController : ControllerBase
         
         var response = new SystemStatusResponse
         {
-            SystemState = currentState.ToString(),
-            EnvironmentMode = isSimulation ? "Simulation" : "Production",
+            SystemState = currentState,
+            EnvironmentMode = isSimulation ? EnvironmentMode.Simulation : EnvironmentMode.Production,
             Timestamp = _systemClock.LocalNowOffset
         };
 
@@ -225,7 +174,7 @@ public class HealthController : ControllerBase
             _logger.LogError(ex, "就绪状态健康检查失败");
             var response = new LineHealthResponse
             {
-                SystemState = "Unknown",
+                SystemState = SystemState.Faulted,
                 IsSelfTestSuccess = false,
                 LastSelfTestAt = null
             };
@@ -273,13 +222,13 @@ public class HealthController : ControllerBase
                 _logger.LogWarning("PreRunHealthCheckService 未注册，返回服务不可用");
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new PreRunHealthCheckResponse
                 {
-                    OverallStatus = "Unhealthy",
+                    OverallStatus = HealthStatus.Unhealthy,
                     Checks = new List<HealthCheckItemResponse>
                     {
                         new HealthCheckItemResponse
                         {
                             Name = "ServiceAvailability",
-                            Status = "Unhealthy",
+                            Status = HealthStatus.Unhealthy,
                             Message = "运行前健康检查服务未启用"
                         }
                     }
@@ -313,13 +262,13 @@ public class HealthController : ControllerBase
             _logger.LogError(ex, "运行前健康检查失败");
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new PreRunHealthCheckResponse
             {
-                OverallStatus = "Unhealthy",
+                OverallStatus = HealthStatus.Unhealthy,
                 Checks = new List<HealthCheckItemResponse>
                 {
                     new HealthCheckItemResponse
                     {
                         Name = "PreRunCheck",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "运行前健康检查执行时发生异常"
                     }
                 }
@@ -519,7 +468,7 @@ public class HealthController : ControllerBase
 
             var response = new DriversHealthResponse
             {
-                OverallStatus = allHealthy ? "Healthy" : "Unhealthy",
+                OverallStatus = allHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,
                 TotalDrivers = drivers.Count,
                 HealthyDrivers = drivers.Count(d => d.IsHealthy),
                 UnhealthyDrivers = drivers.Count(d => !d.IsHealthy),
@@ -541,7 +490,7 @@ public class HealthController : ControllerBase
             _logger.LogError(ex, "驱动器健康检查失败");
             var response = new DriversHealthResponse
             {
-                OverallStatus = "Unknown",
+                OverallStatus = HealthStatus.Unknown,
                 TotalDrivers = 0,
                 HealthyDrivers = 0,
                 UnhealthyDrivers = 0,
@@ -557,7 +506,7 @@ public class HealthController : ControllerBase
         return new LineHealthResponse
         {
             SystemState = snapshot.SystemState,
-            EnvironmentMode = isSimulation ? "Simulation" : "Production",
+            EnvironmentMode = isSimulation ? EnvironmentMode.Simulation : EnvironmentMode.Production,
             IsSelfTestSuccess = snapshot.IsSelfTestSuccess,
             LastSelfTestAt = snapshot.LastSelfTestAt,
             Drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
@@ -609,8 +558,8 @@ public class HealthController : ControllerBase
 /// </summary>
 public class ProcessHealthResponse
 {
-    /// <summary>健康状态: Healthy/Unhealthy</summary>
-    public required string Status { get; init; }
+    /// <summary>健康状态</summary>
+    public required HealthStatus Status { get; init; }
 
     /// <summary>失败原因（如果不健康）</summary>
     public string? Reason { get; init; }
@@ -625,10 +574,10 @@ public class ProcessHealthResponse
 public class LineHealthResponse
 {
     /// <summary>系统状态</summary>
-    public required string SystemState { get; init; }
+    public required SystemState SystemState { get; init; }
 
-    /// <summary>运行环境模式: Production/Simulation</summary>
-    public string? EnvironmentMode { get; init; }
+    /// <summary>运行环境模式</summary>
+    public EnvironmentMode? EnvironmentMode { get; init; }
 
     /// <summary>自检是否成功</summary>
     public bool IsSelfTestSuccess { get; init; }
@@ -649,7 +598,7 @@ public class LineHealthResponse
     public SystemSummary? Summary { get; init; }
 
     /// <summary>降级模式（PR-14：节点级降级）</summary>
-    public string? DegradationMode { get; init; }
+    public DegradationMode? DegradationMode { get; init; }
 
     /// <summary>降级节点数量（PR-14：节点级降级）</summary>
     public int? DegradedNodesCount { get; init; }
@@ -658,7 +607,7 @@ public class LineHealthResponse
     public List<NodeHealthInfo>? DegradedNodes { get; init; }
 
     /// <summary>当前诊断级别（PR-23：可观测性）</summary>
-    public string? DiagnosticsLevel { get; init; }
+    public DiagnosticsLevel? DiagnosticsLevel { get; init; }
 
     /// <summary>配置版本号（PR-23：可观测性）</summary>
     public string? ConfigVersion { get; init; }
@@ -727,7 +676,7 @@ public class ConfigHealthInfo
 public class SystemSummary
 {
     /// <summary>当前拥堵级别</summary>
-    public string? CurrentCongestionLevel { get; init; }
+    public CongestionLevel? CurrentCongestionLevel { get; init; }
 
     /// <summary>推荐产能（包裹/分钟）</summary>
     public double? RecommendedCapacityParcelsPerMinute { get; init; }
@@ -762,8 +711,8 @@ public class AlertSummary
 /// </summary>
 public class PreRunHealthCheckResponse
 {
-    /// <summary>整体状态: Healthy/Unhealthy</summary>
-    public required string OverallStatus { get; init; }
+    /// <summary>整体状态</summary>
+    public required HealthStatus OverallStatus { get; init; }
 
     /// <summary>各项检查结果列表</summary>
     public required List<HealthCheckItemResponse> Checks { get; init; }
@@ -777,8 +726,8 @@ public class HealthCheckItemResponse
     /// <summary>检查项名称（英文标识符）</summary>
     public required string Name { get; init; }
 
-    /// <summary>检查状态: Healthy/Unhealthy</summary>
-    public required string Status { get; init; }
+    /// <summary>检查状态</summary>
+    public required HealthStatus Status { get; init; }
 
     /// <summary>检查结果描述（中文消息）</summary>
     public required string Message { get; init; }
@@ -789,8 +738,8 @@ public class HealthCheckItemResponse
 /// </summary>
 public class DriversHealthResponse
 {
-    /// <summary>整体状态: Healthy/Unhealthy/Unknown</summary>
-    public required string OverallStatus { get; init; }
+    /// <summary>整体状态</summary>
+    public required HealthStatus OverallStatus { get; init; }
 
     /// <summary>驱动器总数</summary>
     public int TotalDrivers { get; init; }

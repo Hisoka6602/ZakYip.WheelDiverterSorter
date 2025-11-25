@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Host.Models;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 
@@ -29,9 +30,8 @@ public class SystemStatusEndpointTests : IClassFixture<WebApplicationFactory<Pro
         
         var statusResponse = await response.Content.ReadFromJsonAsync<SystemStatusResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(statusResponse);
-        Assert.NotNull(statusResponse.SystemState);
-        Assert.NotNull(statusResponse.EnvironmentMode);
-        Assert.Contains(statusResponse.EnvironmentMode, new[] { "Production", "Simulation" });
+        Assert.True(Enum.IsDefined(statusResponse.SystemState));
+        Assert.True(Enum.IsDefined(statusResponse.EnvironmentMode));
     }
 
     [Fact]
@@ -47,8 +47,7 @@ public class SystemStatusEndpointTests : IClassFixture<WebApplicationFactory<Pro
         Assert.NotNull(statusResponse);
         
         // System state should be one of the valid enum values
-        var validStates = new[] { "Booting", "Ready", "Running", "Paused", "Faulted", "EmergencyStop" };
-        Assert.Contains(statusResponse.SystemState, validStates);
+        Assert.True(Enum.IsDefined(statusResponse.SystemState));
     }
 
     [Fact]
@@ -73,8 +72,8 @@ public class SystemStatusEndpointTests : IClassFixture<WebApplicationFactory<Pro
         {
             var statusResponse = await response.Content.ReadFromJsonAsync<SystemStatusResponse>(TestJsonOptions.GetOptions());
             Assert.NotNull(statusResponse);
-            Assert.NotNull(statusResponse.SystemState);
-            Assert.NotNull(statusResponse.EnvironmentMode);
+            Assert.True(Enum.IsDefined(statusResponse.SystemState));
+            Assert.True(Enum.IsDefined(statusResponse.EnvironmentMode));
         }
     }
 }

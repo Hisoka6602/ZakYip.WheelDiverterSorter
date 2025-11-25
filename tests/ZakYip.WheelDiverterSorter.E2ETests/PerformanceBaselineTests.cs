@@ -100,7 +100,7 @@ public class PerformanceBaselineTests : IDisposable
             .Returns(new SystemConfiguration
             {
                 ExceptionChuteId = 21,
-                ChuteAssignmentTimeoutMs = 10000
+                ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutSeconds = 10m }
             });
         services.AddSingleton(mockSystemRepo.Object);
 

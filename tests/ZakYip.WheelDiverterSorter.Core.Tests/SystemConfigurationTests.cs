@@ -1,4 +1,3 @@
-#pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
@@ -16,7 +15,9 @@ public class SystemConfigurationTests
         // Assert
         Assert.Equal("system", config.ConfigName);
         Assert.Equal(999, config.ExceptionChuteId);
-        Assert.Equal(10000, config.ChuteAssignmentTimeoutMs);
+        Assert.NotNull(config.ChuteAssignmentTimeout);
+        Assert.Equal(0.9m, config.ChuteAssignmentTimeout.SafetyFactor);
+        Assert.Equal(5m, config.ChuteAssignmentTimeout.FallbackTimeoutSeconds);
         Assert.Equal(1, config.Version);
         Assert.Equal(SortingMode.Formal, config.SortingMode);
     }
@@ -53,13 +54,13 @@ public class SystemConfigurationTests
     }
 
     [Theory]
-    [InlineData(999, "格口分配超时时间必须在1000-60000毫秒之间")]
-    [InlineData(60001, "格口分配超时时间必须在1000-60000毫秒之间")]
-    public void Validate_WithInvalidChuteAssignmentTimeout_ReturnsFalse(int timeout, string expectedError)
+    [InlineData(0.05, "安全系数必须在0.1到1.0之间")]
+    [InlineData(1.5, "安全系数必须在0.1到1.0之间")]
+    public void Validate_WithInvalidChuteAssignmentTimeout_ReturnsFalse(decimal safetyFactor, string expectedError)
     {
         // Arrange
         var config = SystemConfiguration.GetDefault();
-        config.ChuteAssignmentTimeoutMs = timeout;
+        config.ChuteAssignmentTimeout.SafetyFactor = safetyFactor;
 
         // Act
         var (isValid, errorMessage) = config.Validate();
