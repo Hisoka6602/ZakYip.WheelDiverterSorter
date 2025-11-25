@@ -1,6 +1,3 @@
-// 本文件使用向后兼容API进行测试，抑制废弃警告
-#pragma warning disable CS0618 // Type or member is obsolete
-
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -560,6 +557,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
                 NodeId = "WHEEL_1",
                 NodeName = "First Wheel",
                 PositionIndex = 0,
+                FrontIoId = 2, // Reference to EndIoId of first segment
                 HasLeftChute = true,
                 LeftChuteIds = new[] { "CHUTE_1" },
                 SupportedSides = new[] { DiverterSide.Left, DiverterSide.Straight }
@@ -571,10 +569,10 @@ public class ChuteAssignmentTimeoutCalculatorTests
             new LineSegmentConfig
             {
                 SegmentId = "SEG_ENTRY_WHEEL1",
-                FromNodeId = LineTopologyConfig.EntryNodeId,
-                ToNodeId = "WHEEL_1",
+                StartIoId = 1, // Entry IO
+                EndIoId = 2, // First wheel IO
                 LengthMm = segmentLength,
-                NominalSpeedMmPerSec = segmentSpeed
+                SpeedMmPerSec = segmentSpeed
             }
         };
 
@@ -601,6 +599,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
                 NodeId = "WHEEL_1",
                 NodeName = "First Wheel",
                 PositionIndex = 0,
+                FrontIoId = 2, // Reference to EndIoId of first segment
                 HasLeftChute = false,
                 SupportedSides = new[] { DiverterSide.Straight }
             },
@@ -609,6 +608,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
                 NodeId = "WHEEL_2",
                 NodeName = "Second Wheel",
                 PositionIndex = 1,
+                FrontIoId = 3, // Reference to EndIoId of second segment
                 HasLeftChute = true,
                 LeftChuteIds = new[] { "CHUTE_2" },
                 SupportedSides = new[] { DiverterSide.Left, DiverterSide.Straight }
@@ -620,18 +620,18 @@ public class ChuteAssignmentTimeoutCalculatorTests
             new LineSegmentConfig
             {
                 SegmentId = "SEG_ENTRY_WHEEL1",
-                FromNodeId = LineTopologyConfig.EntryNodeId,
-                ToNodeId = "WHEEL_1",
+                StartIoId = 1, // Entry IO
+                EndIoId = 2, // First wheel IO
                 LengthMm = 1000,
-                NominalSpeedMmPerSec = 500.0
+                SpeedMmPerSec = 500.0
             },
             new LineSegmentConfig
             {
                 SegmentId = "SEG_WHEEL1_WHEEL2",
-                FromNodeId = "WHEEL_1",
-                ToNodeId = "WHEEL_2",
+                StartIoId = 2, // First wheel IO
+                EndIoId = 3, // Second wheel IO
                 LengthMm = 1500,
-                NominalSpeedMmPerSec = 500.0
+                SpeedMmPerSec = 500.0
             }
         };
 
@@ -674,6 +674,7 @@ public class ChuteAssignmentTimeoutCalculatorTests
                 NodeId = "WHEEL_1",
                 NodeName = "First Wheel",
                 PositionIndex = 0,
+                FrontIoId = 2, // Reference to a wheel IO
                 HasLeftChute = true,
                 LeftChuteIds = new[] { "CHUTE_1" },
                 SupportedSides = new[] { DiverterSide.Left, DiverterSide.Straight }

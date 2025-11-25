@@ -1,6 +1,3 @@
-// 本文件使用向后兼容API进行测试，抑制废弃警告
-#pragma warning disable CS0618 // Type or member is obsolete
-
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
@@ -78,7 +75,7 @@ public class RouteTimingEstimatorTests
 
         // Assert
         Assert.False(result.IsSuccess);
-        Assert.Contains("无法找到到格口", result.ErrorMessage);
+        Assert.Contains("无法找到格口", result.ErrorMessage);
         Assert.Contains("NON_EXISTENT_CHUTE", result.ErrorMessage);
         Assert.Equal("NON_EXISTENT_CHUTE", result.ChuteId);
         Assert.Equal(0, result.TotalDistanceMm);
@@ -297,6 +294,7 @@ public class RouteTimingEstimatorTests
                 NodeId = "NODE_1",
                 NodeName = "Node 1",
                 PositionIndex = 0,
+                FrontIoId = 2, // Reference to EndIoId of first segment
                 HasLeftChute = true,
                 LeftChuteIds = new[] { "CHUTE_1" },
                 SupportedSides = new[] { DiverterSide.Left, DiverterSide.Straight }
@@ -321,10 +319,10 @@ public class RouteTimingEstimatorTests
             new LineSegmentConfig
             {
                 SegmentId = "SEG_ENTRY_NODE1",
-                FromNodeId = LineTopologyConfig.EntryNodeId,
-                ToNodeId = "NODE_1",
+                StartIoId = 1, // Entry IO
+                EndIoId = 2, // First node IO
                 LengthMm = 1000,
-                NominalSpeedMmPerSec = 500.0
+                SpeedMmPerSec = 500.0
             }
         };
 
@@ -348,6 +346,7 @@ public class RouteTimingEstimatorTests
                 NodeId = "NODE_1",
                 NodeName = "Node 1",
                 PositionIndex = 0,
+                FrontIoId = 2, // Reference to EndIoId of first segment
                 HasLeftChute = false,
                 SupportedSides = new[] { DiverterSide.Straight }
             },
@@ -356,6 +355,7 @@ public class RouteTimingEstimatorTests
                 NodeId = "NODE_2",
                 NodeName = "Node 2",
                 PositionIndex = 1,
+                FrontIoId = 3, // Reference to EndIoId of second segment
                 HasLeftChute = true,
                 LeftChuteIds = new[] { "CHUTE_2" },
                 SupportedSides = new[] { DiverterSide.Left, DiverterSide.Straight }
@@ -380,18 +380,18 @@ public class RouteTimingEstimatorTests
             new LineSegmentConfig
             {
                 SegmentId = "SEG_ENTRY_NODE1",
-                FromNodeId = LineTopologyConfig.EntryNodeId,
-                ToNodeId = "NODE_1",
+                StartIoId = 1, // Entry IO
+                EndIoId = 2, // First node IO
                 LengthMm = 1000,
-                NominalSpeedMmPerSec = 500.0
+                SpeedMmPerSec = 500.0
             },
             new LineSegmentConfig
             {
                 SegmentId = "SEG_NODE1_NODE2",
-                FromNodeId = "NODE_1",
-                ToNodeId = "NODE_2",
+                StartIoId = 2, // First node IO
+                EndIoId = 3, // Second node IO
                 LengthMm = 1500,
-                NominalSpeedMmPerSec = 500.0
+                SpeedMmPerSec = 500.0
             }
         };
 
@@ -415,6 +415,7 @@ public class RouteTimingEstimatorTests
                 NodeId = "NODE_1",
                 NodeName = "Node 1",
                 PositionIndex = 0,
+                FrontIoId = 2, // Reference to EndIoId of first segment
                 HasLeftChute = true,
                 LeftChuteIds = new[] { "CHUTE_1" },
                 SupportedSides = new[] { DiverterSide.Left, DiverterSide.Straight }
@@ -439,10 +440,10 @@ public class RouteTimingEstimatorTests
             new LineSegmentConfig
             {
                 SegmentId = "SEG_ENTRY_NODE1",
-                FromNodeId = LineTopologyConfig.EntryNodeId,
-                ToNodeId = "NODE_1",
+                StartIoId = 1, // Entry IO
+                EndIoId = 2, // First node IO
                 LengthMm = 1000,
-                NominalSpeedMmPerSec = 500.0
+                SpeedMmPerSec = 500.0
             }
         };
 

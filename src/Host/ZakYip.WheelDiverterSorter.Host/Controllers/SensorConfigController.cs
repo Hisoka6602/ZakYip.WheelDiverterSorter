@@ -164,9 +164,8 @@ public class SensorConfigController : ControllerBase
             _repository.Update(request);
 
             _logger.LogInformation(
-                "感应IO配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
-                request.VendorType,
-                request.UseHardwareSensor,
+                "感应IO配置已更新: SensorCount={SensorCount}, Version={Version}",
+                request.Sensors?.Count ?? 0,
                 request.Version);
 
             var updatedConfig = _repository.Get();

@@ -129,15 +129,15 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
-                // 检查异常口是否有有效路径
-                var path = topology.GetPathToChute(exceptionChuteId.ToString());
-                if (path == null || path.Count == 0)
+                // 检查异常口是否有有效路径 - 确认格口在拓扑中且可被绑定
+                var exceptionChute = topology.FindChuteById(exceptionChuteId.ToString());
+                if (exceptionChute == null)
                 {
                     return new HealthCheckItem
                     {
                         Name = "ExceptionChuteConfigured",
                         Status = HealthStatus.Unhealthy,
-                        Message = $"异常口 {exceptionChuteId} 无可达路径"
+                        Message = $"异常口 {exceptionChuteId} 无法通过拓扑配置访问"
                     };
                 }
 
@@ -289,35 +289,35 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
-                var entryToFirstWheelSegment = topology.FindSegment(LineTopologyConfig.EntryNodeId, firstWheel.NodeId);
-                if (entryToFirstWheelSegment == null)
+                // 检查是否有线体段配置
+                if (topology.LineSegments == null || topology.LineSegments.Count == 0)
                 {
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
                         Status = HealthStatus.Unhealthy,
-                        Message = $"找不到从入口到首个摆轮 {firstWheel.NodeId} 的路径"
+                        Message = "线体段配置为空，无法验证拓扑路径"
                     };
                 }
 
-                // 检查每个配置的格口是否能通过拓扑反查到路径
-                var unreachableChutes = new List<string>();
+                // 检查每个配置的格口是否绑定到了摆轮节点
+                var unboundChutes = new List<string>();
                 foreach (var chute in topology.Chutes)
                 {
-                    var path = topology.GetPathToChute(chute.ChuteId);
-                    if (path == null || path.Count == 0)
+                    var boundNode = topology.FindNodeById(chute.BoundNodeId);
+                    if (boundNode == null)
                     {
-                        unreachableChutes.Add(chute.ChuteId);
+                        unboundChutes.Add(chute.ChuteId);
                     }
                 }
 
-                if (unreachableChutes.Any())
+                if (unboundChutes.Any())
                 {
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
                         Status = HealthStatus.Unhealthy,
-                        Message = $"以下格口无可达路径：{string.Join("、", unreachableChutes)}"
+                        Message = $"以下格口未正确绑定到摆轮节点：{string.Join("、", unboundChutes)}"
                     };
                 }
 
@@ -325,7 +325,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 {
                     Name = "LineTopologyValid",
                     Status = HealthStatus.Healthy,
-                    Message = $"拓扑配置完整，共 {topology.WheelNodes.Count} 个摆轮节点，{topology.Chutes.Count} 个格口，所有路径可达"
+                    Message = $"拓扑配置完整，共 {topology.WheelNodes.Count} 个摆轮节点，{topology.Chutes.Count} 个格口"
                 };
             },
             operationName: "CheckTopologyCompleteness",
@@ -378,9 +378,9 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     {
                         invalidSegments.Add($"{segment.SegmentId}(长度={segment.LengthMm}mm)");
                     }
-                    else if (segment.NominalSpeedMmPerSec <= 0)
+                    else if (segment.SpeedMmPerSec <= 0)
                     {
-                        invalidSegments.Add($"{segment.SegmentId}(速度={segment.NominalSpeedMmPerSec}mm/s)");
+                        invalidSegments.Add($"{segment.SegmentId}(速度={segment.SpeedMmPerSec}mm/s)");
                     }
                 }
 
@@ -394,22 +394,18 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
-                // 特别检查入口到首个摆轮的路径上的线体段
-                var firstWheel = topology.WheelNodes.OrderBy(n => n.PositionIndex).FirstOrDefault();
-                if (firstWheel != null)
+                // 检查第一个线体段（入口段）是否配置正确
+                var firstSegment = topology.LineSegments.FirstOrDefault();
+                if (firstSegment != null)
                 {
-                    var criticalSegment = topology.FindSegment(LineTopologyConfig.EntryNodeId, firstWheel.NodeId);
-                    if (criticalSegment != null)
+                    if (firstSegment.LengthMm <= 0 || firstSegment.SpeedMmPerSec <= 0)
                     {
-                        if (criticalSegment.LengthMm <= 0 || criticalSegment.NominalSpeedMmPerSec <= 0)
+                        return new HealthCheckItem
                         {
-                            return new HealthCheckItem
-                            {
-                                Name = "LineSegmentsLengthAndSpeedValid",
-                                Status = HealthStatus.Unhealthy,
-                                Message = $"关键路径段 {criticalSegment.SegmentId} 配置无效（长度={criticalSegment.LengthMm}mm，速度={criticalSegment.NominalSpeedMmPerSec}mm/s）"
-                            };
-                        }
+                            Name = "LineSegmentsLengthAndSpeedValid",
+                            Status = HealthStatus.Unhealthy,
+                            Message = $"入口线体段 {firstSegment.SegmentId} 配置无效（长度={firstSegment.LengthMm}mm，速度={firstSegment.SpeedMmPerSec}mm/s）"
+                        };
                     }
                 }
 

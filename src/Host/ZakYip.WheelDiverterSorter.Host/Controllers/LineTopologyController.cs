@@ -323,6 +323,7 @@ public class LineTopologyController : ControllerBase
                 NodeId = n.NodeId,
                 NodeName = n.NodeName,
                 PositionIndex = n.PositionIndex,
+                FrontIoId = n.FrontIoId,
                 HasLeftChute = n.HasLeftChute,
                 HasRightChute = n.HasRightChute,
                 Remarks = n.Remarks
@@ -346,18 +347,11 @@ public class LineTopologyController : ControllerBase
                 EndIoId = s.EndIoId,
                 LengthMm = s.LengthMm,
                 SpeedMmPerSec = s.SpeedMmPerSec,
-                Description = s.Description,
-                // 向后兼容字段
-                FromNodeId = s.FromNodeId,
-                ToNodeId = s.ToNodeId,
-                NominalSpeedMmPerSec = s.SpeedMmPerSec
+                Description = s.Description
             }).ToList(),
             DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
-            UpdatedAt = config.UpdatedAt,
-            // 向后兼容字段
-            EntrySensorId = config.EntrySensorId,
-            ExitSensorId = config.ExitSensorId
+            UpdatedAt = config.UpdatedAt
         };
 #pragma warning restore CS0618 // Type or member is obsolete
     }
@@ -377,6 +371,7 @@ public class LineTopologyController : ControllerBase
                 NodeId = n.NodeId,
                 NodeName = n.NodeName,
                 PositionIndex = n.PositionIndex,
+                FrontIoId = n.FrontIoId,
                 HasLeftChute = n.HasLeftChute,
                 HasRightChute = n.HasRightChute,
                 Remarks = n.Remarks
@@ -400,15 +395,9 @@ public class LineTopologyController : ControllerBase
                 EndIoId = s.EndIoId,
                 LengthMm = s.LengthMm,
                 SpeedMmPerSec = s.SpeedMmPerSec,
-                Description = s.Description,
-                // 向后兼容字段
-                FromNodeId = s.FromNodeId,
-                ToNodeId = s.ToNodeId
+                Description = s.Description
             }).ToList() ?? new List<LineSegmentConfig>(),
             DefaultLineSpeedMmps = request.DefaultLineSpeedMmps,
-            // 向后兼容字段
-            EntrySensorId = request.EntrySensorId,
-            ExitSensorId = request.ExitSensorId,
             CreatedAt = now,
             UpdatedAt = now
         };

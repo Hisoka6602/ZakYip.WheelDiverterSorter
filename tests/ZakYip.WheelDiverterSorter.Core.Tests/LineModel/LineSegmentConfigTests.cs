@@ -1,6 +1,3 @@
-// 本文件使用向后兼容API进行测试，抑制废弃警告
-#pragma warning disable CS0618 // Type or member is obsolete
-
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
@@ -18,20 +15,20 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0,
+            SpeedMmPerSec = 500.0,
             Description = "从入口到第一个摆轮"
         };
 
         // Assert
         Assert.NotNull(segment);
         Assert.Equal("SEG_001", segment.SegmentId);
-        Assert.Equal("ENTRY", segment.FromNodeId);
-        Assert.Equal("WHEEL-1", segment.ToNodeId);
+        Assert.Equal(1, segment.StartIoId);
+        Assert.Equal(2, segment.EndIoId);
         Assert.Equal(1000, segment.LengthMm);
-        Assert.Equal(500.0, segment.NominalSpeedMmPerSec);
+        Assert.Equal(500.0, segment.SpeedMmPerSec);
         Assert.Equal("从入口到第一个摆轮", segment.Description);
     }
 
@@ -42,10 +39,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act
@@ -63,10 +60,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act - Use custom speed of 1000 mm/s
@@ -84,10 +81,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act & Assert
@@ -103,10 +100,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act & Assert
@@ -122,10 +119,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 0 // Invalid but allowed in construction
+            SpeedMmPerSec = 0 // Invalid but allowed in construction
         };
 
         // Act & Assert
@@ -141,10 +138,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_SHORT",
-            FromNodeId = "NODE_A",
-            ToNodeId = "NODE_B",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 10,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act
@@ -162,10 +159,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_LONG",
-            FromNodeId = "NODE_A",
-            ToNodeId = "NODE_B",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 10000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act
@@ -183,10 +180,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 50.0 // Very slow: 50mm/s
+            SpeedMmPerSec = 50.0 // Very slow: 50mm/s
         };
 
         // Act
@@ -204,10 +201,10 @@ public class LineSegmentConfigTests
         var segment = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 5000.0 // Very fast: 5000mm/s
+            SpeedMmPerSec = 5000.0 // Very fast: 5000mm/s
         };
 
         // Act
@@ -225,19 +222,19 @@ public class LineSegmentConfigTests
         var segment1 = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         var segment2 = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         // Act & Assert
@@ -252,23 +249,57 @@ public class LineSegmentConfigTests
         var segment1 = new LineSegmentConfig
         {
             SegmentId = "SEG_001",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-1",
+            StartIoId = 1,
+            EndIoId = 2,
             LengthMm = 1000,
-            NominalSpeedMmPerSec = 500.0
+            SpeedMmPerSec = 500.0
         };
 
         var segment2 = new LineSegmentConfig
         {
             SegmentId = "SEG_002",
-            FromNodeId = "ENTRY",
-            ToNodeId = "WHEEL-2",
+            StartIoId = 1,
+            EndIoId = 3,
             LengthMm = 1500,
-            NominalSpeedMmPerSec = 600.0
+            SpeedMmPerSec = 600.0
         };
 
         // Act & Assert
         Assert.NotEqual(segment1, segment2);
         Assert.False(segment1 == segment2);
+    }
+
+    [Fact]
+    public void IsEndSegment_WithZeroEndIoId_ReturnsTrue()
+    {
+        // Arrange
+        var segment = new LineSegmentConfig
+        {
+            SegmentId = "SEG_END",
+            StartIoId = 3,
+            EndIoId = 0,
+            LengthMm = 500,
+            SpeedMmPerSec = 500.0
+        };
+
+        // Act & Assert
+        Assert.True(segment.IsEndSegment);
+    }
+
+    [Fact]
+    public void IsEndSegment_WithNonZeroEndIoId_ReturnsFalse()
+    {
+        // Arrange
+        var segment = new LineSegmentConfig
+        {
+            SegmentId = "SEG_MID",
+            StartIoId = 1,
+            EndIoId = 2,
+            LengthMm = 500,
+            SpeedMmPerSec = 500.0
+        };
+
+        // Act & Assert
+        Assert.False(segment.IsEndSegment);
     }
 }
