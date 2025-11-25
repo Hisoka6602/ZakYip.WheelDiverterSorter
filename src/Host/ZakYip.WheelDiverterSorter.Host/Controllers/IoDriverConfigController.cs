@@ -33,16 +33,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - /api/config/wheel-bindings API配置逻辑摆轮节点与驱动器的映射关系
 /// </remarks>
 [ApiController]
-[Route("api/config/driver")]
+[Route("api/config/io-driver")]
 [Produces("application/json")]
-public class DriverConfigController : ControllerBase
+public class IoDriverConfigController : ControllerBase
 {
     private readonly IDriverConfigurationRepository _repository;
-    private readonly ILogger<DriverConfigController> _logger;
+    private readonly ILogger<IoDriverConfigController> _logger;
 
-    public DriverConfigController(
+    public IoDriverConfigController(
         IDriverConfigurationRepository repository,
-        ILogger<DriverConfigController> logger)
+        ILogger<IoDriverConfigController> logger)
     {
         _repository = repository;
         _logger = logger;
@@ -58,19 +58,19 @@ public class DriverConfigController : ControllerBase
     [SwaggerOperation(
         Summary = "获取IO驱动器配置",
         Description = "返回当前系统的IO驱动器配置，包括是否使用硬件驱动、厂商类型和厂商特定参数。注意：这是IO驱动器（用于传感器和继电器），而非摆轮驱动器。",
-        OperationId = "GetDriverConfig",
+        OperationId = "GetIoDriverConfig",
         Tags = new[] { "IO驱动器配置" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "成功返回配置", typeof(IoDriverConfiguration))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(IoDriverConfiguration), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> GetDriverConfig()
+    public ActionResult<IoDriverConfiguration> GetIoDriverConfig()
     {
         try
         {
             var config = _repository.Get();
-            return Ok(config);
+            return Ok(MapToIoDriverConfiguration(config));
         }
         catch (Exception ex)
         {
@@ -94,18 +94,16 @@ public class DriverConfigController : ControllerBase
     /// 
     /// 示例请求:
     /// 
-    ///     PUT /api/config/driver
+    ///     PUT /api/config/io-driver
     ///     {
     ///         "useHardwareDriver": false,
     ///         "vendorType": "Leadshine",
     ///         "leadshine": {
     ///             "cardNo": 0,
-    ///             "diverters": [
+    ///             "ioMappings": [
     ///                 {
-    ///                     "diverterId": 1,
-    ///                     "diverterName": "D1",
-    ///                     "outputStartBit": 0,
-    ///                     "feedbackInputBit": 10
+    ///                     "pointId": "IN_START",
+    ///                     "bitIndex": 0
     ///                 }
     ///             ]
     ///         }
@@ -125,16 +123,16 @@ public class DriverConfigController : ControllerBase
     [SwaggerOperation(
         Summary = "更新IO驱动器配置",
         Description = "更新系统IO驱动器配置，配置立即生效无需重启。支持配置硬件/模拟驱动器切换、厂商选择和厂商特定参数。注意：这是IO驱动器，摆轮驱动器请使用 /api/config/wheeldiverter/* API。",
-        OperationId = "UpdateDriverConfig",
+        OperationId = "UpdateIoDriverConfig",
         Tags = new[] { "IO驱动器配置" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "更新成功", typeof(IoDriverConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(IoDriverConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> UpdateDriverConfig([FromBody] DriverConfiguration request)
+    public ActionResult<IoDriverConfiguration> UpdateIoDriverConfig([FromBody] DriverConfiguration request)
     {
         try
         {
@@ -156,18 +154,18 @@ public class DriverConfigController : ControllerBase
             _repository.Update(request);
 
             _logger.LogInformation(
-                "驱动器配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
+                "IO驱动器配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
                 request.VendorType,
                 request.UseHardwareDriver,
                 request.Version);
 
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();
-            return Ok(updatedConfig);
+            return Ok(MapToIoDriverConfiguration(updatedConfig));
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "驱动器配置验证失败");
+            _logger.LogWarning(ex, "IO驱动器配置验证失败");
             return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
@@ -200,14 +198,14 @@ public class DriverConfigController : ControllerBase
     [SwaggerOperation(
         Summary = "重置IO驱动器配置",
         Description = "将IO驱动器配置重置为系统默认值（仿真模式）",
-        OperationId = "ResetDriverConfig",
+        OperationId = "ResetIoDriverConfig",
         Tags = new[] { "IO驱动器配置" }
     )]
-    [SwaggerResponse(200, "重置成功", typeof(DriverConfiguration))]
+    [SwaggerResponse(200, "重置成功", typeof(IoDriverConfiguration))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DriverConfiguration), 200)]
+    [ProducesResponseType(typeof(IoDriverConfiguration), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<DriverConfiguration> ResetDriverConfig()
+    public ActionResult<IoDriverConfiguration> ResetIoDriverConfig()
     {
         try
         {
@@ -217,7 +215,7 @@ public class DriverConfigController : ControllerBase
             _logger.LogInformation("IO驱动器配置已重置为默认值");
 
             var updatedConfig = _repository.Get();
-            return Ok(updatedConfig);
+            return Ok(MapToIoDriverConfiguration(updatedConfig));
         }
         catch (Exception ex)
         {
@@ -225,4 +223,62 @@ public class DriverConfigController : ControllerBase
             return StatusCode(500, new { message = "重置IO驱动器配置失败" });
         }
     }
+    
+    /// <summary>
+    /// 将 DriverConfiguration 映射到 IoDriverConfiguration（更语义化的名称）
+    /// </summary>
+    private static IoDriverConfiguration MapToIoDriverConfiguration(DriverConfiguration config)
+    {
+        return new IoDriverConfiguration
+        {
+            Id = config.Id,
+            UseHardwareDriver = config.UseHardwareDriver,
+            VendorType = config.VendorType,
+            Leadshine = config.Leadshine,
+            Version = config.Version,
+            CreatedAt = config.CreatedAt,
+            UpdatedAt = config.UpdatedAt
+        };
+    }
+}
+
+/// <summary>
+/// IO驱动器配置响应模型（与DriverConfiguration结构相同，但命名更清晰）
+/// </summary>
+public class IoDriverConfiguration
+{
+    /// <summary>
+    /// 配置唯一标识
+    /// </summary>
+    public int Id { get; set; }
+
+    /// <summary>
+    /// 是否使用硬件驱动器（false则使用模拟驱动器）
+    /// </summary>
+    public bool UseHardwareDriver { get; set; }
+
+    /// <summary>
+    /// IO驱动器厂商类型
+    /// </summary>
+    public DriverVendorType VendorType { get; set; }
+
+    /// <summary>
+    /// 雷赛运动控制卡配置
+    /// </summary>
+    public LeadshineDriverConfig? Leadshine { get; set; }
+
+    /// <summary>
+    /// 配置版本号
+    /// </summary>
+    public int Version { get; set; }
+
+    /// <summary>
+    /// 配置创建时间
+    /// </summary>
+    public DateTime CreatedAt { get; set; }
+
+    /// <summary>
+    /// 配置最后更新时间
+    /// </summary>
+    public DateTime UpdatedAt { get; set; }
 }

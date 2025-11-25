@@ -7,6 +7,9 @@ using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Services;
 using ZakYip.WheelDiverterSorter.Host.Models;
+using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -26,6 +29,9 @@ public class HealthController : ControllerBase
     private readonly ISystemClock _systemClock;
     private readonly ILogger<HealthController> _logger;
     private readonly ISimulationModeProvider _simulationModeProvider;
+    private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
+    private readonly IWheelDiverterConfigurationRepository? _wheelDiverterConfigRepository;
+    private readonly IDriverConfigurationRepository? _ioDriverConfigRepository;
 
     public HealthController(
         ISystemStateManager stateManager,
@@ -33,7 +39,10 @@ public class HealthController : ControllerBase
         ISystemClock systemClock,
         ILogger<HealthController> logger,
         ISimulationModeProvider simulationModeProvider,
-        IPreRunHealthCheckService? preRunHealthCheckService = null)
+        IPreRunHealthCheckService? preRunHealthCheckService = null,
+        IWheelDiverterDriverManager? wheelDiverterDriverManager = null,
+        IWheelDiverterConfigurationRepository? wheelDiverterConfigRepository = null,
+        IDriverConfigurationRepository? ioDriverConfigRepository = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _healthStatusProvider = healthStatusProvider ?? throw new ArgumentNullException(nameof(healthStatusProvider));
@@ -41,6 +50,9 @@ public class HealthController : ControllerBase
         _preRunHealthCheckService = preRunHealthCheckService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _simulationModeProvider = simulationModeProvider ?? throw new ArgumentNullException(nameof(simulationModeProvider));
+        _wheelDiverterDriverManager = wheelDiverterDriverManager;
+        _wheelDiverterConfigRepository = wheelDiverterConfigRepository;
+        _ioDriverConfigRepository = ioDriverConfigRepository;
     }
 
     /// <summary>
@@ -50,14 +62,17 @@ public class HealthController : ControllerBase
     /// <response code="200">进程健康</response>
     /// <response code="503">进程不健康</response>
     /// <remarks>
+    /// **[已弃用]** 此端点已弃用，请使用 GET /api/system/status 获取更完整的系统状态信息。
+    /// 
     /// 用于Kubernetes/负载均衡器的存活检查（liveness probe）。
     /// 只依赖进程与基础依赖存活，不依赖驱动自检结果。
     /// 只要进程能够响应请求，就认为是健康的。
     /// </remarks>
+    [Obsolete("此端点已弃用，请使用 GET /api/system/status")]
     [HttpGet("healthz")]
     [SwaggerOperation(
-        Summary = "进程级健康检查（Liveness）",
-        Description = "用于容器编排平台的存活检查，只要进程能响应就返回健康状态",
+        Summary = "【已弃用】进程级健康检查（Liveness）",
+        Description = "**[已弃用]** 请使用 GET /api/system/status 获取系统状态。此端点仅用于容器编排平台的存活检查。",
         OperationId = "GetProcessHealth",
         Tags = new[] { "健康检查" }
     )]
@@ -320,16 +335,23 @@ public class HealthController : ControllerBase
     /// <response code="503">部分或全部驱动器不健康</response>
     /// <remarks>
     /// 返回所有驱动器的详细健康状态，包括：
-    /// - 驱动器名称
-    /// - 健康状态
-    /// - 错误代码（如果不健康）
-    /// - 错误消息（如果不健康）
-    /// - 检查时间
+    /// 
+    /// **IO驱动器状态**：
+    /// - 驱动器类型（IO）
+    /// - 厂商类型（Leadshine/Siemens等）
+    /// - 是否使用硬件模式
+    /// - 连接状态
+    /// 
+    /// **摆轮驱动器状态**：
+    /// - 驱动器类型（WheelDiverter）
+    /// - 厂商类型（ShuDiNiao/Modi等）
+    /// - 各设备连接状态
+    /// - 仿真模式状态
     /// </remarks>
     [HttpGet("health/drivers")]
     [SwaggerOperation(
         Summary = "驱动器健康检查",
-        Description = "返回所有驱动器的健康状态和错误详情",
+        Description = "返回IO驱动器和摆轮驱动器的实时连接状态和健康详情",
         OperationId = "GetDriversHealth",
         Tags = new[] { "健康检查" }
     )]
@@ -341,19 +363,159 @@ public class HealthController : ControllerBase
     {
         try
         {
-            // 使用 IHealthStatusProvider 获取健康快照
-            var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
-
-            var drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
+            var drivers = new List<DriverHealthInfo>();
+            var now = new DateTimeOffset(_systemClock.LocalNow);
+            
+            // 1. 获取IO驱动器状态
+            if (_ioDriverConfigRepository != null)
             {
-                DriverName = d.DriverName,
-                IsHealthy = d.IsHealthy,
-                ErrorCode = d.ErrorCode,
-                ErrorMessage = d.ErrorMessage,
-                CheckedAt = d.CheckedAt
-            }).ToList() ?? new List<DriverHealthInfo>();
+                try
+                {
+                    var ioConfig = _ioDriverConfigRepository.Get();
+                    var ioDriverStatus = new DriverHealthInfo
+                    {
+                        DriverName = $"IO驱动器 ({ioConfig.VendorType})",
+                        DriverType = DriverType.IoDriver,
+                        VendorType = ioConfig.VendorType.ToString(),
+                        IsConnected = ioConfig.UseHardwareDriver,
+                        IsSimulationMode = !ioConfig.UseHardwareDriver,
+                        IsHealthy = true, // IO驱动器配置存在即视为健康
+                        ErrorCode = null,
+                        ErrorMessage = ioConfig.UseHardwareDriver 
+                            ? $"硬件模式已启用，厂商: {ioConfig.VendorType}" 
+                            : "仿真模式运行中",
+                        CheckedAt = now
+                    };
+                    drivers.Add(ioDriverStatus);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "获取IO驱动器配置失败");
+                    drivers.Add(new DriverHealthInfo
+                    {
+                        DriverName = "IO驱动器",
+                        DriverType = DriverType.IoDriver,
+                        IsHealthy = false,
+                        IsConnected = false,
+                        ErrorCode = "CONFIG_ERROR",
+                        ErrorMessage = "无法获取IO驱动器配置",
+                        CheckedAt = now
+                    });
+                }
+            }
+            
+            // 2. 获取摆轮驱动器状态
+            if (_wheelDiverterConfigRepository != null)
+            {
+                try
+                {
+                    var wheelConfig = _wheelDiverterConfigRepository.Get();
+                    
+                    // 根据厂商类型获取设备状态
+                    switch (wheelConfig.VendorType)
+                    {
+                        case WheelDiverterVendorType.ShuDiNiao:
+                            if (wheelConfig.ShuDiNiao != null)
+                            {
+                                var isSimulation = wheelConfig.ShuDiNiao.UseSimulation;
+                                var activeDrivers = _wheelDiverterDriverManager?.GetActiveDrivers() 
+                                    ?? new Dictionary<string, IWheelDiverterDriver>();
+                                
+                                foreach (var device in wheelConfig.ShuDiNiao.Devices.Where(d => d.IsEnabled))
+                                {
+                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId);
+                                    drivers.Add(new DriverHealthInfo
+                                    {
+                                        DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
+                                        DriverType = DriverType.WheelDiverter,
+                                        VendorType = "ShuDiNiao",
+                                        IsConnected = isSimulation ? false : isConnected,
+                                        IsSimulationMode = isSimulation,
+                                        IsHealthy = isSimulation || isConnected,
+                                        ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
+                                        ErrorMessage = isSimulation 
+                                            ? "仿真模式运行中" 
+                                            : (isConnected ? $"已连接 ({device.Host}:{device.Port})" : $"未连接 ({device.Host}:{device.Port})"),
+                                        CheckedAt = now
+                                    });
+                                }
+                            }
+                            break;
+                            
+                        case WheelDiverterVendorType.Modi:
+                            if (wheelConfig.Modi != null)
+                            {
+                                var isSimulation = wheelConfig.Modi.UseSimulation;
+                                var activeDrivers = _wheelDiverterDriverManager?.GetActiveDrivers() 
+                                    ?? new Dictionary<string, IWheelDiverterDriver>();
+                                
+                                foreach (var device in wheelConfig.Modi.Devices.Where(d => d.IsEnabled))
+                                {
+                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId);
+                                    drivers.Add(new DriverHealthInfo
+                                    {
+                                        DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",
+                                        DriverType = DriverType.WheelDiverter,
+                                        VendorType = "Modi",
+                                        IsConnected = isSimulation ? false : isConnected,
+                                        IsSimulationMode = isSimulation,
+                                        IsHealthy = isSimulation || isConnected,
+                                        ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
+                                        ErrorMessage = isSimulation 
+                                            ? "仿真模式运行中" 
+                                            : (isConnected ? $"已连接 ({device.Host}:{device.Port})" : $"未连接 ({device.Host}:{device.Port})"),
+                                        CheckedAt = now
+                                    });
+                                }
+                            }
+                            break;
+                            
+                        case WheelDiverterVendorType.Mock:
+                            drivers.Add(new DriverHealthInfo
+                            {
+                                DriverName = "摆轮驱动器 (模拟)",
+                                DriverType = DriverType.WheelDiverter,
+                                VendorType = "Mock",
+                                IsConnected = false,
+                                IsSimulationMode = true,
+                                IsHealthy = true,
+                                ErrorMessage = "模拟驱动器运行中",
+                                CheckedAt = now
+                            });
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "获取摆轮驱动器配置失败");
+                    drivers.Add(new DriverHealthInfo
+                    {
+                        DriverName = "摆轮驱动器",
+                        DriverType = DriverType.WheelDiverter,
+                        IsHealthy = false,
+                        IsConnected = false,
+                        ErrorCode = "CONFIG_ERROR",
+                        ErrorMessage = "无法获取摆轮驱动器配置",
+                        CheckedAt = now
+                    });
+                }
+            }
+            
+            // 如果没有任何驱动器信息，从健康快照中获取（向后兼容）
+            if (drivers.Count == 0)
+            {
+                var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
+                drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
+                {
+                    DriverName = d.DriverName,
+                    IsHealthy = d.IsHealthy,
+                    ErrorCode = d.ErrorCode,
+                    ErrorMessage = d.ErrorMessage,
+                    CheckedAt = d.CheckedAt
+                }).ToList() ?? new List<DriverHealthInfo>();
+            }
 
-            var allHealthy = drivers.All(d => d.IsHealthy);
+            var allHealthy = drivers.Count == 0 || drivers.All(d => d.IsHealthy);
 
             var response = new DriversHealthResponse
             {
@@ -362,7 +524,7 @@ public class HealthController : ControllerBase
                 HealthyDrivers = drivers.Count(d => d.IsHealthy),
                 UnhealthyDrivers = drivers.Count(d => !d.IsHealthy),
                 Drivers = drivers,
-                CheckedAt = new DateTimeOffset(_systemClock.LocalNow)
+                CheckedAt = now
             };
 
             if (allHealthy)
@@ -510,11 +672,44 @@ public class LineHealthResponse
 /// </summary>
 public class DriverHealthInfo
 {
+    /// <summary>驱动器名称</summary>
     public required string DriverName { get; init; }
+    
+    /// <summary>驱动器类型（IoDriver/WheelDiverter）</summary>
+    public DriverType? DriverType { get; init; }
+    
+    /// <summary>厂商类型（Leadshine/Siemens/ShuDiNiao/Modi等）</summary>
+    public string? VendorType { get; init; }
+    
+    /// <summary>是否已连接</summary>
+    public bool IsConnected { get; init; }
+    
+    /// <summary>是否处于仿真模式</summary>
+    public bool IsSimulationMode { get; init; }
+    
+    /// <summary>是否健康</summary>
     public bool IsHealthy { get; init; }
+    
+    /// <summary>错误代码（如果不健康）</summary>
     public string? ErrorCode { get; init; }
+    
+    /// <summary>错误消息或状态描述</summary>
     public string? ErrorMessage { get; init; }
+    
+    /// <summary>检查时间</summary>
     public DateTimeOffset CheckedAt { get; init; }
+}
+
+/// <summary>
+/// 驱动器类型枚举
+/// </summary>
+public enum DriverType
+{
+    /// <summary>IO驱动器（用于传感器和继电器控制）</summary>
+    IoDriver,
+    
+    /// <summary>摆轮驱动器（用于摆轮转向控制）</summary>
+    WheelDiverter
 }
 
 /// <summary>

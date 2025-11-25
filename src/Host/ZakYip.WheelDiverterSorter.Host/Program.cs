@@ -124,11 +124,14 @@ try
         // 配置枚举在Swagger中显示为字符串而不是数字
         options.UseInlineDefinitionsForEnums();
 
-        // 添加驱动配置的Schema过滤器，根据当前厂商动态显示配置参数
-        options.SchemaFilter<DriverConfigurationSchemaFilter>();
+        // 添加IO驱动配置的Schema过滤器，根据当前厂商动态显示配置参数
+        options.SchemaFilter<IoDriverConfigurationSchemaFilter>();
         
         // 添加摆轮配置的Schema过滤器，根据当前厂商动态显示配置参数
         options.SchemaFilter<WheelDiverterConfigurationSchemaFilter>();
+        
+        // 添加摆轮配置的文档过滤器，根据当前厂商动态显示/隐藏API端点
+        options.DocumentFilter<WheelDiverterControllerDocumentFilter>();
     });
 
     // 注册所有配置仓储（路由、系统、驱动器、传感器、通信、日志）

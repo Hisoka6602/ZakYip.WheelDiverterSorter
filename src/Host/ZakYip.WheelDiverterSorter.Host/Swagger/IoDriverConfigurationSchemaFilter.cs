@@ -7,14 +7,14 @@ namespace ZakYip.WheelDiverterSorter.Host.Swagger;
 
 /// <summary>
 /// Swagger Schema Filter that dynamically filters vendor-specific properties
-/// in DriverConfiguration based on the currently configured VendorType.
+/// in IO Driver Configuration based on the currently configured VendorType.
 /// This ensures that only the relevant vendor configuration is shown in Swagger UI.
 /// </summary>
-public class DriverConfigurationSchemaFilter : ISchemaFilter
+public class IoDriverConfigurationSchemaFilter : ISchemaFilter
 {
     private readonly IDriverConfigurationRepository _repository;
 
-    public DriverConfigurationSchemaFilter(IDriverConfigurationRepository repository)
+    public IoDriverConfigurationSchemaFilter(IDriverConfigurationRepository repository)
     {
         _repository = repository;
     }
@@ -51,7 +51,6 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
             {
                 { DriverVendorType.Leadshine, new[] { "leadshine" } }
                 // Note: Siemens, Mitsubishi, Omron properties will be added when their configurations are implemented
-                // ShuDiNiao and Modi have been moved to WheelDiverterConfiguration
             };
 
             // Remove all vendor-specific properties except the current vendor's
@@ -72,11 +71,11 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
             // Add description indicating which vendor is currently active
             if (schema.Description != null)
             {
-                schema.Description += $"\n\n**当前配置的驱动厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
+                schema.Description += $"\n\n**当前配置的IO驱动厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
             }
             else
             {
-                schema.Description = $"**当前配置的驱动厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
+                schema.Description = $"**当前配置的IO驱动厂商**: {currentVendor} ({GetVendorDisplayName(currentVendor)})";
             }
         }
     }
@@ -85,8 +84,8 @@ public class DriverConfigurationSchemaFilter : ISchemaFilter
     {
         return vendorType switch
         {
-            DriverVendorType.Mock => "模拟驱动器",
-            DriverVendorType.Leadshine => "雷赛控制器",
+            DriverVendorType.Mock => "模拟IO驱动器",
+            DriverVendorType.Leadshine => "雷赛运动控制卡",
             DriverVendorType.Siemens => "西门子PLC",
             DriverVendorType.Mitsubishi => "三菱PLC",
             DriverVendorType.Omron => "欧姆龙PLC",
