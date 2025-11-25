@@ -26,7 +26,7 @@ public sealed class ModiWheelDiverterDriver : IWheelDiverterDriver, IDisposable
     private string _currentStatus = "未连接";
 
     /// <inheritdoc/>
-    public string DiverterId => _config.DiverterId;
+    public string DiverterId => _config.DiverterId.ToString();
 
     /// <summary>
     /// 初始化莫迪摆轮驱动器

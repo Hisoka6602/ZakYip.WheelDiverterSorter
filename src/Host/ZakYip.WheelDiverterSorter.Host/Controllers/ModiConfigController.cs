@@ -285,9 +285,10 @@ public class ModiConfigController : ControllerBase
     /// <returns>测试执行结果</returns>
     /// <response code="200">测试执行成功</response>
     /// <response code="400">请求参数无效或驱动管理器未注册</response>
+    /// <response code="409">系统正在运行中或处于急停状态，禁止使用测试端点</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// **此接口用于测试/调试摆轮转向功能，在系统未启动或故障状态下也可用**
+    /// **此接口用于测试/调试摆轮转向功能，仅在系统非运行状态下可用**
     /// 
     /// 示例请求（测试单个摆轮）:
     /// 
@@ -311,22 +312,24 @@ public class ModiConfigController : ControllerBase
     /// - Straight: 直行/回中
     /// 
     /// **注意事项**:
-    /// - 此接口在任何系统状态下都可用（包括未启动、故障等状态）
+    /// - 此接口在系统运行中（Running）或急停（EmergencyStop）状态下禁止使用，否则会干扰正常流程或存在安全隐患
     /// - 用于验证摆轮硬件连接和控制是否正常
     /// - 每个摆轮的执行结果会单独返回
     /// </remarks>
     [HttpPost("test")]
     [SwaggerOperation(
-        Summary = "测试摆轮转向（任何状态可用）",
-        Description = "测试指定摆轮的转向功能，可同时测试多个摆轮。在系统未启动或故障状态下也可用。",
+        Summary = "测试摆轮转向（非运行状态可用）",
+        Description = "测试指定摆轮的转向功能，可同时测试多个摆轮。系统运行中或急停状态下禁止使用。",
         OperationId = "TestModiDiverters",
         Tags = new[] { "莫迪摆轮配置" }
     )]
     [SwaggerResponse(200, "测试执行成功", typeof(ModiWheelDiverterTestResponse))]
     [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(409, "系统正在运行中或处于急停状态")]
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(ModiWheelDiverterTestResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 409)]
     [ProducesResponseType(typeof(object), 500)]
     public async Task<ActionResult<ModiWheelDiverterTestResponse>> TestDiverters(
         [FromBody] ModiWheelDiverterTestRequest request,
@@ -334,6 +337,15 @@ public class ModiConfigController : ControllerBase
     {
         try
         {
+            // 检查系统状态：运行中或急停状态时禁止使用测试端点
+            var currentState = _stateManager.CurrentState;
+            if (currentState == SystemState.Running || currentState == SystemState.EmergencyStop)
+            {
+                var stateMessage = currentState == SystemState.Running ? "运行中" : "急停";
+                _logger.LogWarning("系统处于{State}状态，禁止使用摆轮测试端点", stateMessage);
+                return Conflict(new { message = $"系统处于{stateMessage}状态，禁止使用摆轮测试端点，否则会干扰正常流程或存在安全隐患" });
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values
@@ -361,7 +373,7 @@ public class ModiConfigController : ControllerBase
 
                 try
                 {
-                    if (!activeDrivers.TryGetValue(diverterId, out var driver))
+                    if (!activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
                     {
                         result = new ModiWheelDiverterTestResult
                         {
@@ -452,12 +464,12 @@ public record class UpdateModiConfigRequest
 public record class ModiDeviceRequest
 {
     /// <summary>
-    /// 摆轮标识符
+    /// 摆轮标识符（数字ID）
     /// </summary>
-    /// <example>D1</example>
+    /// <example>1</example>
     [Required(ErrorMessage = "摆轮标识符不能为空")]
-    [StringLength(50, ErrorMessage = "摆轮标识符长度不能超过50个字符")]
-    public required string DiverterId { get; init; }
+    [Range(1, long.MaxValue, ErrorMessage = "摆轮标识符必须大于0")]
+    public required long DiverterId { get; init; }
 
     /// <summary>
     /// TCP连接主机地址
@@ -492,7 +504,7 @@ public record class ModiDeviceRequest
     /// 如果为null，表示左侧没有格口。
     /// </remarks>
     /// <example>1</example>
-    public int? LeftChuteId { get; init; }
+    public long? LeftChuteId { get; init; }
 
     /// <summary>
     /// 右转方向对应的格口ID
@@ -502,7 +514,26 @@ public record class ModiDeviceRequest
     /// 如果为null，表示右侧没有格口。
     /// </remarks>
     /// <example>2</example>
-    public int? RightChuteId { get; init; }
+    public long? RightChuteId { get; init; }
+
+    /// <summary>
+    /// 直行/向前对应的格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮保持直行时，包裹将继续向前。
+    /// 如果为null，表示直行方向没有格口。
+    /// </remarks>
+    /// <example>3</example>
+    public long? StraightChuteId { get; init; }
+
+    /// <summary>
+    /// 摆轮前IO的ID（与IO驱动器配置的IO相关）
+    /// </summary>
+    /// <remarks>
+    /// 用于检测包裹到达摆轮前的传感器IO编号。
+    /// </remarks>
+    /// <example>10</example>
+    public long? FrontIoId { get; init; }
 
     /// <summary>
     /// 是否启用该设备
@@ -522,9 +553,9 @@ public record class ModiWheelDiverterTestRequest
     /// <remarks>
     /// 要测试的摆轮设备ID列表，可以同时测试多个摆轮
     /// </remarks>
-    /// <example>["D1", "D2"]</example>
+    /// <example>[1, 2]</example>
     [Required(ErrorMessage = "摆轮ID列表不能为空")]
-    public required List<string> DiverterIds { get; init; }
+    public required List<long> DiverterIds { get; init; }
 
     /// <summary>
     /// 转向方向
@@ -577,8 +608,8 @@ public record class ModiWheelDiverterTestResult
     /// <summary>
     /// 摆轮ID
     /// </summary>
-    /// <example>D1</example>
-    public required string DiverterId { get; init; }
+    /// <example>1</example>
+    public required long DiverterId { get; init; }
 
     /// <summary>
     /// 测试的转向方向
@@ -595,6 +626,6 @@ public record class ModiWheelDiverterTestResult
     /// <summary>
     /// 结果消息
     /// </summary>
-    /// <example>摆轮 D1 已执行 Left 操作</example>
+    /// <example>摆轮 1 已执行 Left 操作</example>
     public string? Message { get; init; }
 }

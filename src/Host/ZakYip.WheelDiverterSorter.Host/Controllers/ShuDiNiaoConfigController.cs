@@ -451,7 +451,7 @@ public class ShuDiNiaoConfigController : ControllerBase
 
                 try
                 {
-                    if (!activeDrivers.TryGetValue(diverterId, out var driver))
+                    if (!activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
                     {
                         result = new WheelDiverterTestResult
                         {
@@ -542,12 +542,12 @@ public record class UpdateShuDiNiaoConfigRequest
 public record class ShuDiNiaoDeviceRequest
 {
     /// <summary>
-    /// 摆轮标识符
+    /// 摆轮标识符（数字ID）
     /// </summary>
-    /// <example>D1</example>
+    /// <example>1</example>
     [Required(ErrorMessage = "摆轮标识符不能为空")]
-    [StringLength(50, ErrorMessage = "摆轮标识符长度不能超过50个字符")]
-    public required string DiverterId { get; init; }
+    [Range(1, long.MaxValue, ErrorMessage = "摆轮标识符必须大于0")]
+    public required long DiverterId { get; init; }
 
     /// <summary>
     /// TCP连接主机地址
@@ -584,7 +584,7 @@ public record class ShuDiNiaoDeviceRequest
     /// 如果为null，表示左侧没有格口。
     /// </remarks>
     /// <example>1</example>
-    public int? LeftChuteId { get; init; }
+    public long? LeftChuteId { get; init; }
 
     /// <summary>
     /// 右转方向对应的格口ID
@@ -594,7 +594,26 @@ public record class ShuDiNiaoDeviceRequest
     /// 如果为null，表示右侧没有格口。
     /// </remarks>
     /// <example>2</example>
-    public int? RightChuteId { get; init; }
+    public long? RightChuteId { get; init; }
+
+    /// <summary>
+    /// 直行/向前对应的格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮保持直行时，包裹将继续向前。
+    /// 如果为null，表示直行方向没有格口。
+    /// </remarks>
+    /// <example>3</example>
+    public long? StraightChuteId { get; init; }
+
+    /// <summary>
+    /// 摆轮前IO的ID（与IO驱动器配置的IO相关）
+    /// </summary>
+    /// <remarks>
+    /// 用于检测包裹到达摆轮前的传感器IO编号。
+    /// </remarks>
+    /// <example>10</example>
+    public long? FrontIoId { get; init; }
 
     /// <summary>
     /// 是否启用该设备
@@ -619,9 +638,9 @@ public record class WheelDiverterTestRequest
     /// 要测试的摆轮设备ID列表，可以同时测试多个摆轮。
     /// ID需与配置中的DiverterId一致。
     /// </remarks>
-    /// <example>["D1", "D2"]</example>
+    /// <example>[1, 2]</example>
     [Required(ErrorMessage = "摆轮ID列表不能为空")]
-    public required List<string> DiverterIds { get; init; }
+    public required List<long> DiverterIds { get; init; }
 
     /// <summary>
     /// 转向方向
@@ -677,8 +696,8 @@ public record class WheelDiverterTestResult
     /// <summary>
     /// 摆轮ID
     /// </summary>
-    /// <example>D1</example>
-    public required string DiverterId { get; init; }
+    /// <example>1</example>
+    public required long DiverterId { get; init; }
 
     /// <summary>
     /// 测试的转向方向
@@ -695,6 +714,6 @@ public record class WheelDiverterTestResult
     /// <summary>
     /// 结果消息
     /// </summary>
-    /// <example>摆轮 D1 已执行 Left 操作</example>
+    /// <example>摆轮 1 已执行 Left 操作</example>
     public string? Message { get; init; }
 }

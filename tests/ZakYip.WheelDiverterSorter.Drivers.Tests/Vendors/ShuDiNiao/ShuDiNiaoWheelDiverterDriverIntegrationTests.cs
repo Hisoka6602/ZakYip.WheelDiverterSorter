@@ -51,7 +51,7 @@ public class ShuDiNiaoWheelDiverterDriverIntegrationTests : IDisposable
         // 创建驱动器配置
         var config = new ShuDiNiaoDeviceEntry
         {
-            DiverterId = "TestDiverter",
+            DiverterId = 1,
             Host = TestHost,
             Port = TestPort,
             DeviceAddress = TestDeviceAddress,
@@ -135,7 +135,7 @@ public class ShuDiNiaoWheelDiverterDriverIntegrationTests : IDisposable
         // Arrange - 创建连接到错误端口的驱动器
         var wrongConfig = new ShuDiNiaoDeviceEntry
         {
-            DiverterId = "WrongDiverter",
+            DiverterId = 2,
             Host = TestHost,
             Port = TestPort + 1, // 错误的端口
             DeviceAddress = TestDeviceAddress,

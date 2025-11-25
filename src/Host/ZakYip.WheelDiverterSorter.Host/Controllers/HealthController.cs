@@ -374,7 +374,7 @@ public class HealthController : ControllerBase
                                 
                                 foreach (var device in wheelConfig.ShuDiNiao.Devices.Where(d => d.IsEnabled))
                                 {
-                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId);
+                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
                                     drivers.Add(new DriverHealthInfo
                                     {
                                         DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
@@ -403,7 +403,7 @@ public class HealthController : ControllerBase
                                 
                                 foreach (var device in wheelConfig.Modi.Devices.Where(d => d.IsEnabled))
                                 {
-                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId);
+                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
                                     drivers.Add(new DriverHealthInfo
                                     {
                                         DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",

@@ -71,7 +71,7 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         {
             Devices = new List<ShuDiNiaoDeviceEntry>
             {
-                new() { DiverterId = "D1", Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
+                new() { DiverterId = 1, Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
             }
         };
         config.Modi = null;
@@ -144,7 +144,7 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         {
             Devices = new List<ShuDiNiaoDeviceEntry>
             {
-                new() { DiverterId = "D1", Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
+                new() { DiverterId = 1, Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
             }
         };
         _wheelDiverterRepository.Update(config);
@@ -159,7 +159,7 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         {
             Devices = new List<ModiDeviceEntry>
             {
-                new() { DiverterId = "D1", Host = "192.168.1.100", Port = 8000, DeviceId = 1 }
+                new() { DiverterId = 1, Host = "192.168.1.100", Port = 8000, DeviceId = 1 }
             }
         };
         _wheelDiverterRepository.Update(config);
