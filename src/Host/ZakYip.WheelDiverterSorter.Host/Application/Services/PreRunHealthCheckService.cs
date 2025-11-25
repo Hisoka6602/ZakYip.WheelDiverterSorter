@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
@@ -60,7 +61,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         checks.Add(await CheckUpstreamConnectionConfigAsync(cancellationToken));
 
         // 计算整体状态
-        var overallStatus = checks.All(c => c.IsHealthy) ? "Healthy" : "Unhealthy";
+        var overallStatus = checks.All(c => c.IsHealthy) ? HealthStatus.Healthy : HealthStatus.Unhealthy;
 
         return new PreRunHealthCheckResult
         {
@@ -84,7 +85,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "ExceptionChuteConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "系统配置未初始化"
                     };
                 }
@@ -95,7 +96,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "ExceptionChuteConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "异常口ID未配置或配置为无效值"
                     };
                 }
@@ -107,7 +108,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "ExceptionChuteConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "线体拓扑未配置，无法验证异常口"
                     };
                 }
@@ -120,7 +121,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "ExceptionChuteConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"异常口 {exceptionChuteId} 不存在于线体拓扑中"
                     };
                 }
@@ -132,7 +133,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "ExceptionChuteConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"异常口 {exceptionChuteId} 无可达路径"
                     };
                 }
@@ -140,7 +141,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 return new HealthCheckItem
                 {
                     Name = "ExceptionChuteConfigured",
-                    Status = "Healthy",
+                    Status = HealthStatus.Healthy,
                     Message = $"异常口 {exceptionChuteId} 已配置且存在于拓扑中"
                 };
             },
@@ -148,7 +149,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
             defaultValue: new HealthCheckItem
             {
                 Name = "ExceptionChuteConfigured",
-                Status = "Unhealthy",
+                Status = HealthStatus.Unhealthy,
                 Message = "检查异常口配置时发生异常"
             },
             cancellationToken: cancellationToken
@@ -171,7 +172,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "PanelIoConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "面板 IO 配置未启用或未配置"
                     };
                 }
@@ -207,7 +208,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "PanelIoConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"缺少面板 IO 配置：{string.Join("、", missingConfigs)}"
                     };
                 }
@@ -219,7 +220,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "PanelIoConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"面板配置验证失败：{errorMessage}"
                     };
                 }
@@ -227,7 +228,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 return new HealthCheckItem
                 {
                     Name = "PanelIoConfigured",
-                    Status = "Healthy",
+                    Status = HealthStatus.Healthy,
                     Message = "面板 IO 配置完整且有效"
                 };
             },
@@ -235,7 +236,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
             defaultValue: new HealthCheckItem
             {
                 Name = "PanelIoConfigured",
-                Status = "Unhealthy",
+                Status = HealthStatus.Unhealthy,
                 Message = "检查面板 IO 配置时发生异常"
             },
             cancellationToken: cancellationToken
@@ -257,7 +258,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "线体拓扑未配置"
                     };
                 }
@@ -268,7 +269,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "拓扑中未配置任何摆轮节点"
                     };
                 }
@@ -280,7 +281,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "无法找到首个摆轮节点"
                     };
                 }
@@ -291,7 +292,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"找不到从入口到首个摆轮 {firstWheel.NodeId} 的路径"
                     };
                 }
@@ -312,7 +313,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineTopologyValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"以下格口无可达路径：{string.Join("、", unreachableChutes)}"
                     };
                 }
@@ -320,7 +321,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 return new HealthCheckItem
                 {
                     Name = "LineTopologyValid",
-                    Status = "Healthy",
+                    Status = HealthStatus.Healthy,
                     Message = $"拓扑配置完整，共 {topology.WheelNodes.Count} 个摆轮节点，{topology.Chutes.Count} 个格口，所有路径可达"
                 };
             },
@@ -328,7 +329,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
             defaultValue: new HealthCheckItem
             {
                 Name = "LineTopologyValid",
-                Status = "Unhealthy",
+                Status = HealthStatus.Unhealthy,
                 Message = "检查拓扑完整性时发生异常"
             },
             cancellationToken: cancellationToken
@@ -350,7 +351,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineSegmentsLengthAndSpeedValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "线体拓扑未配置，无法检查线体段"
                     };
                 }
@@ -361,7 +362,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineSegmentsLengthAndSpeedValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "线体段数量为0，必须至少配置一个线体段"
                     };
                 }
@@ -385,7 +386,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "LineSegmentsLengthAndSpeedValid",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"发现 {invalidSegments.Count} 个非法线体段配置：{string.Join("、", invalidSegments)}"
                     };
                 }
@@ -402,7 +403,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                             return new HealthCheckItem
                             {
                                 Name = "LineSegmentsLengthAndSpeedValid",
-                                Status = "Unhealthy",
+                                Status = HealthStatus.Unhealthy,
                                 Message = $"关键路径段 {criticalSegment.SegmentId} 配置无效（长度={criticalSegment.LengthMm}mm，速度={criticalSegment.NominalSpeedMmPerSec}mm/s）"
                             };
                         }
@@ -412,7 +413,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 return new HealthCheckItem
                 {
                     Name = "LineSegmentsLengthAndSpeedValid",
-                    Status = "Healthy",
+                    Status = HealthStatus.Healthy,
                     Message = $"所有 {topology.LineSegments.Count} 个线体段的长度与速度配置有效"
                 };
             },
@@ -420,7 +421,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
             defaultValue: new HealthCheckItem
             {
                 Name = "LineSegmentsLengthAndSpeedValid",
-                Status = "Unhealthy",
+                Status = HealthStatus.Unhealthy,
                 Message = "检查线体段配置时发生异常"
             },
             cancellationToken: cancellationToken
@@ -442,7 +443,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "UpstreamConnectionConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = "上游通信配置未初始化"
                     };
                 }
@@ -462,7 +463,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "UpstreamConnectionConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"上游连接未配置：当前通信模式为 {config.Mode}，但对应的连接地址未设置"
                     };
                 }
@@ -474,7 +475,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     return new HealthCheckItem
                     {
                         Name = "UpstreamConnectionConfigured",
-                        Status = "Unhealthy",
+                        Status = HealthStatus.Unhealthy,
                         Message = $"上游连接未建立：通信模式 {config.Mode}，配置已设置但尚未连接到 RuleEngine"
                     };
                 }
@@ -482,7 +483,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 return new HealthCheckItem
                 {
                     Name = "UpstreamConnectionConfigured",
-                    Status = "Healthy",
+                    Status = HealthStatus.Healthy,
                     Message = $"上游连接已建立：通信模式 {config.Mode}"
                 };
             },
@@ -490,7 +491,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
             defaultValue: new HealthCheckItem
             {
                 Name = "UpstreamConnectionConfigured",
-                Status = "Unhealthy",
+                Status = HealthStatus.Unhealthy,
                 Message = "检查上游连接配置时发生异常"
             },
             cancellationToken: cancellationToken

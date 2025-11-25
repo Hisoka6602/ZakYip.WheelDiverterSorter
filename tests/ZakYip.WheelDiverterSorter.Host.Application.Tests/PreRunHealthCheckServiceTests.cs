@@ -3,6 +3,7 @@ using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -77,10 +78,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var exceptionChuteCheck = result.Checks.FirstOrDefault(c => c.Name == "ExceptionChuteConfigured");
         Assert.NotNull(exceptionChuteCheck);
-        Assert.Equal("Unhealthy", exceptionChuteCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, exceptionChuteCheck.Status);
         Assert.Contains("系统配置未初始化", exceptionChuteCheck.Message);
     }
 
@@ -95,10 +96,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var exceptionChuteCheck = result.Checks.FirstOrDefault(c => c.Name == "ExceptionChuteConfigured");
         Assert.NotNull(exceptionChuteCheck);
-        Assert.Equal("Unhealthy", exceptionChuteCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, exceptionChuteCheck.Status);
         Assert.Contains("异常口ID未配置或配置为无效值", exceptionChuteCheck.Message);
     }
 
@@ -117,10 +118,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var exceptionChuteCheck = result.Checks.FirstOrDefault(c => c.Name == "ExceptionChuteConfigured");
         Assert.NotNull(exceptionChuteCheck);
-        Assert.Equal("Unhealthy", exceptionChuteCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, exceptionChuteCheck.Status);
         Assert.Contains("不存在于线体拓扑中", exceptionChuteCheck.Message);
     }
 
@@ -143,7 +144,7 @@ public class PreRunHealthCheckServiceTests
         // Assert
         var exceptionChuteCheck = result.Checks.FirstOrDefault(c => c.Name == "ExceptionChuteConfigured");
         Assert.NotNull(exceptionChuteCheck);
-        Assert.Equal("Healthy", exceptionChuteCheck.Status);
+        Assert.Equal(HealthStatus.Healthy, exceptionChuteCheck.Status);
         Assert.Contains("已配置且存在于拓扑中", exceptionChuteCheck.Message);
     }
 
@@ -167,7 +168,7 @@ public class PreRunHealthCheckServiceTests
         // Assert
         var panelCheck = result.Checks.FirstOrDefault(c => c.Name == "PanelIoConfigured");
         Assert.NotNull(panelCheck);
-        Assert.Equal("Healthy", panelCheck.Status);
+        Assert.Equal(HealthStatus.Healthy, panelCheck.Status);
         Assert.Contains("面板功能未启用", panelCheck.Message);
     }
 
@@ -191,10 +192,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var panelCheck = result.Checks.FirstOrDefault(c => c.Name == "PanelIoConfigured");
         Assert.NotNull(panelCheck);
-        Assert.Equal("Unhealthy", panelCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, panelCheck.Status);
         Assert.Contains("缺少面板 IO 配置", panelCheck.Message);
         Assert.Contains("开始按钮 IO", panelCheck.Message);
     }
@@ -213,7 +214,7 @@ public class PreRunHealthCheckServiceTests
         // Assert
         var panelCheck = result.Checks.FirstOrDefault(c => c.Name == "PanelIoConfigured");
         Assert.NotNull(panelCheck);
-        Assert.Equal("Healthy", panelCheck.Status);
+        Assert.Equal(HealthStatus.Healthy, panelCheck.Status);
         Assert.Contains("面板 IO 配置完整且有效", panelCheck.Message);
     }
 
@@ -234,10 +235,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var topologyCheck = result.Checks.FirstOrDefault(c => c.Name == "LineTopologyValid");
         Assert.NotNull(topologyCheck);
-        Assert.Equal("Unhealthy", topologyCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, topologyCheck.Status);
         Assert.Contains("线体拓扑未配置", topologyCheck.Message);
     }
 
@@ -264,10 +265,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var topologyCheck = result.Checks.FirstOrDefault(c => c.Name == "LineTopologyValid");
         Assert.NotNull(topologyCheck);
-        Assert.Equal("Unhealthy", topologyCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, topologyCheck.Status);
         Assert.Contains("未配置任何摆轮节点", topologyCheck.Message);
     }
 
@@ -302,10 +303,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var topologyCheck = result.Checks.FirstOrDefault(c => c.Name == "LineTopologyValid");
         Assert.NotNull(topologyCheck);
-        Assert.Equal("Unhealthy", topologyCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, topologyCheck.Status);
         Assert.Contains("找不到从入口到首个摆轮", topologyCheck.Message);
     }
 
@@ -323,7 +324,7 @@ public class PreRunHealthCheckServiceTests
         // Assert
         var topologyCheck = result.Checks.FirstOrDefault(c => c.Name == "LineTopologyValid");
         Assert.NotNull(topologyCheck);
-        Assert.Equal("Healthy", topologyCheck.Status);
+        Assert.Equal(HealthStatus.Healthy, topologyCheck.Status);
         Assert.Contains("拓扑配置完整", topologyCheck.Message);
     }
 
@@ -381,10 +382,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var segmentCheck = result.Checks.FirstOrDefault(c => c.Name == "LineSegmentsLengthAndSpeedValid");
         Assert.NotNull(segmentCheck);
-        Assert.Equal("Unhealthy", segmentCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, segmentCheck.Status);
         Assert.Contains("非法线体段配置", segmentCheck.Message);
     }
 
@@ -438,10 +439,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var segmentCheck = result.Checks.FirstOrDefault(c => c.Name == "LineSegmentsLengthAndSpeedValid");
         Assert.NotNull(segmentCheck);
-        Assert.Equal("Unhealthy", segmentCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, segmentCheck.Status);
         Assert.Contains("非法线体段配置", segmentCheck.Message);
     }
 
@@ -459,7 +460,7 @@ public class PreRunHealthCheckServiceTests
         // Assert
         var segmentCheck = result.Checks.FirstOrDefault(c => c.Name == "LineSegmentsLengthAndSpeedValid");
         Assert.NotNull(segmentCheck);
-        Assert.Equal("Healthy", segmentCheck.Status);
+        Assert.Equal(HealthStatus.Healthy, segmentCheck.Status);
         Assert.Contains("所有", segmentCheck.Message);
         Assert.Contains("线体段的长度与速度配置有效", segmentCheck.Message);
     }
@@ -480,9 +481,9 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Healthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Healthy, result.OverallStatus);
         Assert.True(result.IsHealthy);
-        Assert.All(result.Checks, check => Assert.Equal("Healthy", check.Status));
+        Assert.All(result.Checks, check => Assert.Equal(HealthStatus.Healthy, check.Status));
     }
 
     [Fact]
@@ -497,9 +498,9 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         Assert.False(result.IsHealthy);
-        Assert.Contains(result.Checks, check => check.Status == "Unhealthy");
+        Assert.Contains(result.Checks, check => check.Status == HealthStatus.Unhealthy);
     }
 
     #endregion
@@ -673,10 +674,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var lineSegmentsCheck = result.Checks.FirstOrDefault(c => c.Name == "LineSegmentsLengthAndSpeedValid");
         Assert.NotNull(lineSegmentsCheck);
-        Assert.Equal("Unhealthy", lineSegmentsCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, lineSegmentsCheck.Status);
         Assert.Contains("线体段数量为0", lineSegmentsCheck.Message);
     }
 
@@ -703,10 +704,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
         Assert.NotNull(upstreamCheck);
-        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, upstreamCheck.Status);
         Assert.Contains("上游通信配置未初始化", upstreamCheck.Message);
     }
 
@@ -734,10 +735,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
         Assert.NotNull(upstreamCheck);
-        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, upstreamCheck.Status);
         Assert.Contains("上游连接未配置", upstreamCheck.Message);
         Assert.Contains("Tcp", upstreamCheck.Message);
     }
@@ -766,10 +767,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
         Assert.NotNull(upstreamCheck);
-        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, upstreamCheck.Status);
         Assert.Contains("上游连接未配置", upstreamCheck.Message);
         Assert.Contains("Mqtt", upstreamCheck.Message);
     }
@@ -796,10 +797,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Healthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Healthy, result.OverallStatus);
         var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
         Assert.NotNull(upstreamCheck);
-        Assert.Equal("Healthy", upstreamCheck.Status);
+        Assert.Equal(HealthStatus.Healthy, upstreamCheck.Status);
         Assert.Contains("上游连接已建立", upstreamCheck.Message);
     }
 
@@ -825,10 +826,10 @@ public class PreRunHealthCheckServiceTests
         var result = await _service.ExecuteAsync();
 
         // Assert
-        Assert.Equal("Unhealthy", result.OverallStatus);
+        Assert.Equal(HealthStatus.Unhealthy, result.OverallStatus);
         var upstreamCheck = result.Checks.FirstOrDefault(c => c.Name == "UpstreamConnectionConfigured");
         Assert.NotNull(upstreamCheck);
-        Assert.Equal("Unhealthy", upstreamCheck.Status);
+        Assert.Equal(HealthStatus.Unhealthy, upstreamCheck.Status);
         Assert.Contains("上游连接未建立", upstreamCheck.Message);
     }
 

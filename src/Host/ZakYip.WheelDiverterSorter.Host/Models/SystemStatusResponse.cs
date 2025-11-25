@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
+
 namespace ZakYip.WheelDiverterSorter.Host.Models;
 
 /// <summary>
@@ -12,18 +14,16 @@ public sealed record SystemStatusResponse
     /// 当前系统状态 - Current system state
     /// </summary>
     /// <example>Ready</example>
-    public required string SystemState { get; init; }
+    public required SystemState SystemState { get; init; }
 
     /// <summary>
     /// 运行环境模式 - Environment mode
     /// </summary>
     /// <remarks>
     /// 指示当前是正式环境还是仿真环境
-    /// - "Production": 正式环境（使用真实硬件驱动）
-    /// - "Simulation": 仿真环境（使用模拟驱动）
     /// </remarks>
     /// <example>Simulation</example>
-    public required string EnvironmentMode { get; init; }
+    public required EnvironmentMode EnvironmentMode { get; init; }
 
     /// <summary>
     /// 查询时间戳 - Query timestamp

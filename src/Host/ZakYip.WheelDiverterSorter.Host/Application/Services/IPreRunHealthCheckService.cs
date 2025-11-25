@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 
 /// <summary>
@@ -26,9 +28,9 @@ public interface IPreRunHealthCheckService
 public record PreRunHealthCheckResult
 {
     /// <summary>
-    /// 整体状态：Healthy/Unhealthy
+    /// 整体状态
     /// </summary>
-    public required string OverallStatus { get; init; }
+    public required HealthStatus OverallStatus { get; init; }
 
     /// <summary>
     /// 各项检查结果列表
@@ -38,7 +40,7 @@ public record PreRunHealthCheckResult
     /// <summary>
     /// 是否所有检查都通过
     /// </summary>
-    public bool IsHealthy => OverallStatus == "Healthy";
+    public bool IsHealthy => OverallStatus == HealthStatus.Healthy;
 }
 
 /// <summary>
@@ -53,9 +55,9 @@ public record HealthCheckItem
     public required string Name { get; init; }
 
     /// <summary>
-    /// 检查状态：Healthy/Unhealthy
+    /// 检查状态
     /// </summary>
-    public required string Status { get; init; }
+    public required HealthStatus Status { get; init; }
 
     /// <summary>
     /// 检查结果描述（中文消息）
@@ -65,5 +67,5 @@ public record HealthCheckItem
     /// <summary>
     /// 是否健康
     /// </summary>
-    public bool IsHealthy => Status == "Healthy";
+    public bool IsHealthy => Status == HealthStatus.Healthy;
 }
