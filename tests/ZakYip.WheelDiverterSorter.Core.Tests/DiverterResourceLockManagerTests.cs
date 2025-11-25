@@ -115,21 +115,26 @@ public class DiverterResourceLockManagerTests
     {
         // Arrange
         var manager = new DiverterResourceLockManager();
-        var lock1 = manager.GetLock(1);
-        var lock2 = manager.GetLock(1); // Same diverter ID - should return same instance
-        
-        Assert.Same(lock1, lock2); // Verify they're the same instance
+        var diverterLock = manager.GetLock(1);
         
         var executionCount = 0;
         var maxConcurrent = 0;
+        var lockObject = new object();
 
-        // Act - try to execute multiple operations on the same diverter
+        // Act - try to execute multiple operations on the same diverter using the write lock
         var tasks = Enumerable.Range(1, 3).Select(async _ =>
         {
-            var current = Interlocked.Increment(ref executionCount);
-            maxConcurrent = Math.Max(maxConcurrent, current);
+            using var handle = await diverterLock.AcquireWriteLockAsync();
+            lock (lockObject)
+            {
+                executionCount++;
+                maxConcurrent = Math.Max(maxConcurrent, executionCount);
+            }
             await Task.Delay(50);
-            Interlocked.Decrement(ref executionCount);
+            lock (lockObject)
+            {
+                executionCount--;
+            }
         });
 
         await Task.WhenAll(tasks);
