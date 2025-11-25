@@ -409,11 +409,11 @@ public class PolicyController : ApiControllerBase
         OperationId = "GetOverloadPolicy",
         Tags = new[] { "策略管理" }
     )]
-    [SwaggerResponse(200, "成功返回超载策略", typeof(OverloadPolicyDto))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(OverloadPolicyDto), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<OverloadPolicyDto> GetOverloadPolicy()
+    [SwaggerResponse(200, "成功返回超载策略", typeof(ApiResponse<OverloadPolicyDto>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<OverloadPolicyDto>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<OverloadPolicyDto>> GetOverloadPolicy()
     {
         try
         {
@@ -421,7 +421,7 @@ public class PolicyController : ApiControllerBase
             {
                 var config = _runtimeOverloadConfig ?? _overloadPolicyOptions.CurrentValue;
                 
-                return Ok(new OverloadPolicyDto
+                var dto = new OverloadPolicyDto
                 {
                     Enabled = config.Enabled,
                     ForceExceptionOnSevere = config.ForceExceptionOnSevere,
@@ -431,13 +431,14 @@ public class PolicyController : ApiControllerBase
                     MaxInFlightParcels = config.MaxInFlightParcels,
                     MinRequiredTtlMs = config.MinRequiredTtlMs,
                     MinArrivalWindowMs = config.MinArrivalWindowMs
-                });
+                };
+                return Success(dto, "获取超载处置策略成功");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取超载处置策略失败");
-            return StatusCode(500, new { message = "获取超载处置策略失败" });
+            return ServerError<OverloadPolicyDto>("获取超载处置策略失败");
         }
     }
 
@@ -483,38 +484,35 @@ public class PolicyController : ApiControllerBase
         OperationId = "UpdateOverloadPolicy",
         Tags = new[] { "策略管理" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(OverloadPolicyDto))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(OverloadPolicyDto), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<OverloadPolicyDto> UpdateOverloadPolicy([FromBody] OverloadPolicyDto dto)
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<OverloadPolicyDto>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<OverloadPolicyDto>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<OverloadPolicyDto>))]
+    [ProducesResponseType(typeof(ApiResponse<OverloadPolicyDto>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<OverloadPolicyDto>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<OverloadPolicyDto>), 500)]
+    public ActionResult<ApiResponse<OverloadPolicyDto>> UpdateOverloadPolicy([FromBody] OverloadPolicyDto dto)
     {
         try
         {
             if (!ModelState.IsValid)
             {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                return ValidationError<OverloadPolicyDto>();
             }
 
             // 验证参数
             if (dto.MaxInFlightParcels < 1 || dto.MaxInFlightParcels > 1000)
             {
-                return BadRequest(new { message = "最大在途包裹数必须在1-1000之间" });
+                return ValidationError<OverloadPolicyDto>("最大在途包裹数必须在1-1000之间");
             }
 
             if (dto.MinRequiredTtlMs < 100 || dto.MinRequiredTtlMs > 10000)
             {
-                return BadRequest(new { message = "最小所需TTL必须在100-10000毫秒之间" });
+                return ValidationError<OverloadPolicyDto>("最小所需TTL必须在100-10000毫秒之间");
             }
 
             if (dto.MinArrivalWindowMs < 50 || dto.MinArrivalWindowMs > 5000)
             {
-                return BadRequest(new { message = "最小到达窗口必须在50-5000毫秒之间" });
+                return ValidationError<OverloadPolicyDto>("最小到达窗口必须在50-5000毫秒之间");
             }
 
             // 创建新的配置
@@ -543,12 +541,12 @@ public class PolicyController : ApiControllerBase
                 config.MaxInFlightParcels,
                 config.ForceExceptionOnSevere);
 
-            return Ok(dto);
+            return Success(dto, "超载处置策略已更新");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新超载处置策略失败");
-            return StatusCode(500, new { message = "更新超载处置策略失败" });
+            return ServerError<OverloadPolicyDto>("更新超载处置策略失败");
         }
     }
 

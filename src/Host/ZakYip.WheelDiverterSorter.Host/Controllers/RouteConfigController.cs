@@ -9,35 +9,25 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// 路由配置管理API控制器（拓扑与路由配置的唯一权威入口）
+/// 路由配置管理API控制器
 /// </summary>
 /// <remarks>
-/// 提供格口路由配置的增删改查功能，支持热更新。
-///
-/// **重要说明：本控制器是系统中路由/拓扑配置的唯一权威入口。**
-///
-/// **配置内容：**
-/// - 格口路由规则（包裹如何分拣到各个格口）
-/// - 摆轮切换序列（每个格口对应的摆轮动作）
-/// - 皮带速度和长度参数
-/// - 容错时间配置
-///
-/// **与物理拓扑的关系：**
-/// 路由配置引用拓扑配置中定义的格口ID和摆轮ID。
-/// 必须确保引用的格口和摆轮在拓扑配置中已定义。
-///
-/// **使用场景：**
-/// - 新增格口分拣规则
-/// - 调整摆轮切换顺序
-/// - 优化分拣路径
-/// - 修改容错时间
-///
-/// **变更频率**：
-/// 路由配置属于业务规则层，变更频率较高，支持热更新无需重启。
+/// <para><strong>⚠️ 已废弃警告：本控制器已被标记为废弃，计划在未来版本移除。</strong></para>
+/// <para>路由配置的相关功能已被分散到以下API端点：</para>
+/// <list type="bullet">
+/// <item><description>/api/config/line-topology - 线体拓扑配置（包含格口配置）</description></item>
+/// <item><description>/api/config/line-segments - 线体段配置（包含长度、速度计算）</description></item>
+/// <item><description>/api/policy/release-throttle - 放包节流策略（包含超时配置）</description></item>
+/// </list>
+/// <para>请迁移到上述新的API端点。</para>
+/// <para>---</para>
+/// <para>本控制器原本提供格口路由配置的增删改查功能。</para>
+/// <para>配置内容包括：格口路由规则、摆轮切换序列、皮带速度和长度参数、容错时间配置。</para>
 /// </remarks>
 [ApiController]
 [Route("api/config/routes")]
 [Produces("application/json")]
+[Obsolete("本控制器已废弃，路由配置功能已迁移到 /api/config/line-topology、/api/config/line-segments 和 /api/policy/release-throttle 端点。计划在未来版本移除。")]
 public class RouteConfigController : ControllerBase
 {
     private readonly IRouteConfigurationRepository _repository;

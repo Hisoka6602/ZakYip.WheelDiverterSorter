@@ -399,4 +399,278 @@ public class LineTopologyController : ControllerBase
             UpdatedAt = now
         };
     }
+
+    /// <summary>
+    /// 模拟包裹从指定格口落格的整个生命周期
+    /// </summary>
+    /// <param name="chuteId">目标格口ID</param>
+    /// <param name="toleranceTimeMs">容差时间（毫秒），用于包裹摩擦力补偿，默认为0</param>
+    /// <returns>包裹生命周期模拟结果</returns>
+    /// <response code="200">模拟成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="404">未找到指定格口或无法生成路径</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 根据当前线体拓扑配置，模拟包裹从创建到落格的整个生命周期。
+    /// 
+    /// **计算逻辑**：
+    /// - 理论通过时间 = Σ(线体段长度 / 线体段速度) * 1000
+    /// - 实际通过时间 = 理论通过时间 + 容差时间
+    /// 
+    /// **容差时间验证**：
+    /// - 容差时间应小于放包间隔时间（normalReleaseIntervalMs，默认300ms）的一半
+    /// - 即：容差时间 &lt; normalReleaseIntervalMs / 2
+    /// - 这样可以确保相邻包裹的超时检测窗口不会重叠
+    /// 
+    /// **示例请求**：
+    /// ```
+    /// GET /api/config/line-topology/simulate-lifecycle?chuteId=CHUTE-001&amp;toleranceTimeMs=100
+    /// ```
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "success": true,
+    ///   "code": "Ok",
+    ///   "message": "模拟成功",
+    ///   "data": {
+    ///     "chuteId": "CHUTE-001",
+    ///     "chuteName": "A区01号口",
+    ///     "totalTheoreticalTimeMs": 5000.0,
+    ///     "toleranceTimeMs": 100,
+    ///     "totalActualTimeMs": 5100.0,
+    ///     "normalReleaseIntervalMs": 300,
+    ///     "isToleranceValid": true,
+    ///     "toleranceValidationMessage": "容差时间配置合理",
+    ///     "nodeTimings": [
+    ///       {
+    ///         "nodeType": "LineSegment",
+    ///         "nodeId": "1",
+    ///         "nodeName": "入口到第一摆轮段",
+    ///         "distanceMm": 5000.0,
+    ///         "speedMmPerSec": 1000.0,
+    ///         "theoreticalTimeMs": 5000.0
+    ///       }
+    ///     ]
+    ///   }
+    /// }
+    /// ```
+    /// </remarks>
+    [HttpGet("simulate-lifecycle")]
+    [SwaggerOperation(
+        Summary = "模拟包裹生命周期",
+        Description = "根据当前配置模拟包裹从创建到指定格口落格的整个生命周期，包括总耗时和各节点耗时",
+        OperationId = "SimulateParcelLifecycle",
+        Tags = new[] { "线体拓扑配置" }
+    )]
+    [SwaggerResponse(200, "模拟成功", typeof(ApiResponse<ParcelLifecycleSimulationResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(404, "未找到指定格口", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<ParcelLifecycleSimulationResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<ParcelLifecycleSimulationResponse>> SimulateParcelLifecycle(
+        [FromQuery, SwaggerParameter("目标格口ID", Required = true)] string chuteId,
+        [FromQuery, SwaggerParameter("容差时间（毫秒），用于包裹摩擦力补偿，默认为0")] int toleranceTimeMs = 0)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(chuteId))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("格口ID不能为空 - Chute ID cannot be empty"));
+            }
+
+            if (toleranceTimeMs < 0 || toleranceTimeMs > 60000)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("容差时间必须在0-60000毫秒之间 - Tolerance time must be between 0-60000ms"));
+            }
+
+            var topology = _topologyRepository.Get();
+            var chute = topology.FindChuteById(chuteId);
+
+            if (chute == null)
+            {
+                return NotFound(ApiResponse<object>.NotFound($"未找到格口 {chuteId} - Chute {chuteId} not found"));
+            }
+
+            if (topology.LineSegments.Count == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("未配置线体段 - No line segments configured"));
+            }
+
+            // 计算各节点耗时
+            var nodeTimings = new List<NodeTimingInfo>();
+            double totalTheoreticalTimeMs = 0;
+
+            foreach (var segment in topology.LineSegments)
+            {
+                var transitTimeMs = segment.CalculateTransitTimeMs();
+                totalTheoreticalTimeMs += transitTimeMs;
+
+                nodeTimings.Add(new NodeTimingInfo
+                {
+                    NodeType = "LineSegment",
+                    NodeId = segment.SegmentId.ToString(),
+                    NodeName = segment.SegmentName ?? $"线体段-{segment.SegmentId}",
+                    DistanceMm = segment.LengthMm,
+                    SpeedMmPerSec = segment.SpeedMmPerSec,
+                    TheoreticalTimeMs = transitTimeMs
+                });
+            }
+
+            // 如果格口有落格偏移，也计算其时间
+            if (chute.DropOffsetMm > 0)
+            {
+                var dropSpeed = (double)topology.DefaultLineSpeedMmps;
+                var dropTimeMs = (chute.DropOffsetMm / dropSpeed) * 1000.0;
+                totalTheoreticalTimeMs += dropTimeMs;
+
+                nodeTimings.Add(new NodeTimingInfo
+                {
+                    NodeType = "DropOffset",
+                    NodeId = chuteId,
+                    NodeName = $"落格偏移-{chute.ChuteName}",
+                    DistanceMm = chute.DropOffsetMm,
+                    SpeedMmPerSec = dropSpeed,
+                    TheoreticalTimeMs = dropTimeMs
+                });
+            }
+
+            // 获取当前放包间隔配置（默认300ms）
+            const int DefaultNormalReleaseIntervalMs = 300;
+
+            // 验证容差时间是否合理
+            // 容差时间应小于放包间隔时间的一半，以确保相邻包裹的超时检测窗口不会重叠
+            var maxAllowedToleranceMs = DefaultNormalReleaseIntervalMs / 2.0;
+            var isToleranceValid = toleranceTimeMs < maxAllowedToleranceMs;
+            var toleranceValidationMessage = isToleranceValid
+                ? "容差时间配置合理 - Tolerance time is valid"
+                : $"容差时间过大，可能导致相邻包裹超时窗口重叠。建议小于 {maxAllowedToleranceMs:F0}ms - Tolerance time is too large, may cause overlapping timeout windows. Recommended < {maxAllowedToleranceMs:F0}ms";
+
+            var response = new ParcelLifecycleSimulationResponse
+            {
+                ChuteId = chuteId,
+                ChuteName = chute.ChuteName,
+                TotalTheoreticalTimeMs = totalTheoreticalTimeMs,
+                ToleranceTimeMs = toleranceTimeMs,
+                TotalActualTimeMs = totalTheoreticalTimeMs + toleranceTimeMs,
+                NormalReleaseIntervalMs = DefaultNormalReleaseIntervalMs,
+                IsToleranceValid = isToleranceValid,
+                ToleranceValidationMessage = toleranceValidationMessage,
+                NodeTimings = nodeTimings
+            };
+
+            return Ok(ApiResponse<ParcelLifecycleSimulationResponse>.Ok(response, "模拟成功 - Simulation successful"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "模拟包裹生命周期失败: ChuteId={ChuteId}", chuteId);
+            return StatusCode(500, ApiResponse<object>.ServerError("模拟包裹生命周期失败 - Failed to simulate parcel lifecycle"));
+        }
+    }
+}
+
+/// <summary>
+/// 包裹生命周期模拟响应
+/// </summary>
+public record ParcelLifecycleSimulationResponse
+{
+    /// <summary>
+    /// 目标格口ID
+    /// </summary>
+    public required string ChuteId { get; init; }
+
+    /// <summary>
+    /// 格口名称
+    /// </summary>
+    public string? ChuteName { get; init; }
+
+    /// <summary>
+    /// 理论总通过时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 计算公式：Σ(线体段长度 / 线体段速度) * 1000
+    /// </remarks>
+    public required double TotalTheoreticalTimeMs { get; init; }
+
+    /// <summary>
+    /// 容差时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于补偿包裹摩擦力等因素造成的时间误差
+    /// </remarks>
+    public required int ToleranceTimeMs { get; init; }
+
+    /// <summary>
+    /// 实际总通过时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 计算公式：理论总通过时间 + 容差时间
+    /// </remarks>
+    public required double TotalActualTimeMs { get; init; }
+
+    /// <summary>
+    /// 正常放包间隔时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认值为300ms，表示至少间隔300ms才能创建一个包裹
+    /// </remarks>
+    public required int NormalReleaseIntervalMs { get; init; }
+
+    /// <summary>
+    /// 容差时间是否合理
+    /// </summary>
+    /// <remarks>
+    /// 容差时间应小于放包间隔时间的一半（即 &lt; normalReleaseIntervalMs / 2），
+    /// 以确保相邻包裹的超时检测窗口不会重叠
+    /// </remarks>
+    public required bool IsToleranceValid { get; init; }
+
+    /// <summary>
+    /// 容差时间验证消息
+    /// </summary>
+    public required string ToleranceValidationMessage { get; init; }
+
+    /// <summary>
+    /// 各节点耗时详情
+    /// </summary>
+    public required List<NodeTimingInfo> NodeTimings { get; init; }
+}
+
+/// <summary>
+/// 节点耗时信息
+/// </summary>
+public record NodeTimingInfo
+{
+    /// <summary>
+    /// 节点类型（LineSegment - 线体段, DropOffset - 落格偏移）
+    /// </summary>
+    public required string NodeType { get; init; }
+
+    /// <summary>
+    /// 节点ID
+    /// </summary>
+    public required string NodeId { get; init; }
+
+    /// <summary>
+    /// 节点名称
+    /// </summary>
+    public required string NodeName { get; init; }
+
+    /// <summary>
+    /// 距离（毫米）
+    /// </summary>
+    public required double DistanceMm { get; init; }
+
+    /// <summary>
+    /// 速度（毫米/秒）
+    /// </summary>
+    public required double SpeedMmPerSec { get; init; }
+
+    /// <summary>
+    /// 理论通过时间（毫秒）
+    /// </summary>
+    public required double TheoreticalTimeMs { get; init; }
 }
