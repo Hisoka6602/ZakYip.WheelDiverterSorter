@@ -131,12 +131,16 @@ try
         options.SchemaFilter<WheelDiverterConfigurationSchemaFilter>();
     });
 
-    // 注册所有配置仓储（路由、系统、驱动器、传感器、通信）
+    // 注册所有配置仓储（路由、系统、驱动器、传感器、通信、日志）
     builder.Services.AddConfigurationRepositories(builder.Configuration);
 
     // PR-1: 注册应用层服务
     builder.Services.AddScoped<ZakYip.WheelDiverterSorter.Host.Application.Services.ISystemConfigService,
         ZakYip.WheelDiverterSorter.Host.Application.Services.SystemConfigService>();
+
+    // 注册日志配置服务
+    builder.Services.AddScoped<ZakYip.WheelDiverterSorter.Host.Application.Services.ILoggingConfigService,
+        ZakYip.WheelDiverterSorter.Host.Application.Services.LoggingConfigService>();
 
     // 注册分拣相关服务（路径生成、路径执行、分拣编排）
     builder.Services.AddSortingServices(builder.Configuration);
