@@ -17,10 +17,12 @@ public record LineSegmentRequest
 {
     /// <summary>
     /// 线体段唯一标识符
+    /// Unique identifier of the line segment
     /// </summary>
+    /// <example>1</example>
     [Required]
-    [StringLength(100)]
-    public required string SegmentId { get; init; }
+    [Range(1, long.MaxValue)]
+    public required long SegmentId { get; init; }
 
     /// <summary>
     /// 线体段显示名称
@@ -65,34 +67,11 @@ public record LineSegmentRequest
 
     /// <summary>
     /// 线体段描述（可选）
+    /// Description of the line segment (optional)
     /// </summary>
+    /// <example>从创建包裹IO到第一摆轮前IO</example>
     [StringLength(500)]
     public string? Description { get; init; }
-
-    #region 向后兼容 - 废弃字段
-
-    /// <summary>
-    /// [废弃] 起始节点ID - 已改用 StartIoId
-    /// </summary>
-    [Obsolete("请使用 StartIoId")]
-    [StringLength(100)]
-    public string? FromNodeId { get; init; }
-
-    /// <summary>
-    /// [废弃] 目标节点ID - 已改用 EndIoId
-    /// </summary>
-    [Obsolete("请使用 EndIoId")]
-    [StringLength(100)]
-    public string? ToNodeId { get; init; }
-
-    /// <summary>
-    /// [废弃] 标称运行速度 - 已改用 SpeedMmPerSec
-    /// </summary>
-    [Obsolete("请使用 SpeedMmPerSec")]
-    [Range(1.0, 10000.0)]
-    public double? NominalSpeedMmPerSec { get; init; }
-
-    #endregion
 }
 
 /// <summary>
@@ -263,27 +242,11 @@ public record LineTopologyRequest
 
     /// <summary>
     /// 默认线速（毫米/秒）
+    /// Default line speed (millimeters per second)
     /// </summary>
+    /// <example>500</example>
     [Range(1.0, 10000.0)]
     public decimal DefaultLineSpeedMmps { get; init; } = 500m;
-
-    #region 向后兼容 - 废弃字段
-
-    /// <summary>
-    /// [废弃] 入口传感器ID - 使用 LineSegments 中第一段的 StartIoId
-    /// </summary>
-    [Obsolete("请使用 LineSegments 中第一段的 StartIoId")]
-    [StringLength(100)]
-    public string? EntrySensorId { get; init; }
-
-    /// <summary>
-    /// [废弃] 出口传感器ID - 使用 LineSegments 中最后一段的 EndIoId
-    /// </summary>
-    [Obsolete("请使用 LineSegments 中最后一段的 EndIoId")]
-    [StringLength(100)]
-    public string? ExitSensorId { get; init; }
-
-    #endregion
 }
 
 /// <summary>
@@ -352,22 +315,4 @@ public record LineTopologyResponse
     /// Configuration last update time
     /// </summary>
     public DateTime UpdatedAt { get; init; }
-
-    #region 向后兼容 - 废弃字段
-
-    /// <summary>
-    /// [废弃] 入口传感器ID
-    /// [Obsolete] Entry sensor ID
-    /// </summary>
-    [Obsolete("请使用 LineSegments 中第一段的 StartIoId")]
-    public string? EntrySensorId { get; init; }
-
-    /// <summary>
-    /// [废弃] 出口传感器ID
-    /// [Obsolete] Exit sensor ID
-    /// </summary>
-    [Obsolete("请使用 LineSegments 中最后一段的 EndIoId")]
-    public string? ExitSensorId { get; init; }
-
-    #endregion
 }

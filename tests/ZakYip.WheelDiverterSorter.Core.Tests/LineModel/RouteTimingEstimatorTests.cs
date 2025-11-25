@@ -318,7 +318,7 @@ public class RouteTimingEstimatorTests
         {
             new LineSegmentConfig
             {
-                SegmentId = "SEG_ENTRY_NODE1",
+                SegmentId = 1,
                 StartIoId = 1, // Entry IO
                 EndIoId = 2, // First node IO
                 LengthMm = 1000,
@@ -379,7 +379,7 @@ public class RouteTimingEstimatorTests
         {
             new LineSegmentConfig
             {
-                SegmentId = "SEG_ENTRY_NODE1",
+                SegmentId = 1,
                 StartIoId = 1, // Entry IO
                 EndIoId = 2, // First node IO
                 LengthMm = 1000,
@@ -387,7 +387,7 @@ public class RouteTimingEstimatorTests
             },
             new LineSegmentConfig
             {
-                SegmentId = "SEG_NODE1_NODE2",
+                SegmentId = 2,
                 StartIoId = 2, // First node IO
                 EndIoId = 3, // Second node IO
                 LengthMm = 1500,
@@ -439,7 +439,7 @@ public class RouteTimingEstimatorTests
         {
             new LineSegmentConfig
             {
-                SegmentId = "SEG_ENTRY_NODE1",
+                SegmentId = 1,
                 StartIoId = 1, // Entry IO
                 EndIoId = 2, // First node IO
                 LengthMm = 1000,

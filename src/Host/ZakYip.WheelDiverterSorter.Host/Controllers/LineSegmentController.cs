@@ -63,18 +63,20 @@ public class LineSegmentController : ControllerBase
 
     /// <summary>
     /// 获取所有线体段配置
+    /// Get all line segment configurations
     /// </summary>
-    /// <returns>线体段配置列表</returns>
-    /// <response code="200">成功返回线体段配置列表</response>
-    /// <response code="500">服务器内部错误</response>
+    /// <returns>线体段配置列表 / List of line segment configurations</returns>
+    /// <response code="200">成功返回线体段配置列表 / Successfully returned line segment configuration list</response>
+    /// <response code="500">服务器内部错误 / Internal server error</response>
     /// <remarks>
     /// 返回当前配置的所有线体段信息，包括：
-    /// - 线体段ID和名称
-    /// - 起点IO和终点IO的引用
-    /// - 线体长度（毫米）和速度（毫米/秒）
-    /// - 理论通过时间（毫秒）
+    /// Returns all configured line segment information, including:
+    /// - 线体段ID和名称 / Line segment ID and name
+    /// - 起点IO和终点IO的引用 / Start and end IO references
+    /// - 线体长度（毫米）和速度（毫米/秒） / Length (mm) and speed (mm/s)
+    /// - 理论通过时间（毫秒） / Theoretical transit time (ms)
     /// 
-    /// **示例响应**：
+    /// **示例响应 / Example response**：
     /// ```json
     /// {
     ///   "success": true,
@@ -82,7 +84,7 @@ public class LineSegmentController : ControllerBase
     ///   "message": "操作成功",
     ///   "data": [
     ///     {
-    ///       "segmentId": "SEG-1",
+    ///       "segmentId": 1,
     ///       "segmentName": "入口到第一摆轮段",
     ///       "startIoId": 1,
     ///       "endIoId": 2,
@@ -123,26 +125,28 @@ public class LineSegmentController : ControllerBase
 
     /// <summary>
     /// 根据ID获取线体段配置
+    /// Get line segment configuration by ID
     /// </summary>
-    /// <param name="segmentId">线体段ID</param>
-    /// <returns>线体段配置</returns>
-    /// <response code="200">成功返回线体段配置</response>
-    /// <response code="404">未找到指定的线体段</response>
-    /// <response code="500">服务器内部错误</response>
+    /// <param name="segmentId">线体段ID / Line segment ID</param>
+    /// <returns>线体段配置 / Line segment configuration</returns>
+    /// <response code="200">成功返回线体段配置 / Successfully returned line segment configuration</response>
+    /// <response code="404">未找到指定的线体段 / Line segment not found</response>
+    /// <response code="500">服务器内部错误 / Internal server error</response>
     /// <remarks>
     /// 根据线体段ID获取单个线体段的详细配置信息。
+    /// Get detailed configuration of a single line segment by its ID.
     /// 
-    /// **参数说明**：
-    /// - segmentId: 线体段唯一标识符，例如 "SEG-1"
+    /// **参数说明 / Parameter description**：
+    /// - segmentId: 线体段唯一标识符（long类型） / Unique identifier of the line segment (long type)
     /// 
-    /// **示例响应**：
+    /// **示例响应 / Example response**：
     /// ```json
     /// {
     ///   "success": true,
     ///   "code": "Ok",
     ///   "message": "操作成功",
     ///   "data": {
-    ///     "segmentId": "SEG-1",
+    ///     "segmentId": 1,
     ///     "segmentName": "入口到第一摆轮段",
     ///     "startIoId": 1,
     ///     "endIoId": 2,
@@ -154,7 +158,7 @@ public class LineSegmentController : ControllerBase
     /// }
     /// ```
     /// </remarks>
-    [HttpGet("{segmentId}")]
+    [HttpGet("{segmentId:long}")]
     [SwaggerOperation(
         Summary = "根据ID获取线体段配置",
         Description = "根据线体段ID获取单个线体段的详细配置信息",
@@ -168,7 +172,7 @@ public class LineSegmentController : ControllerBase
     [ProducesResponseType(typeof(ApiResponse<object>), 404)]
     [ProducesResponseType(typeof(ApiResponse<object>), 500)]
     public ActionResult<ApiResponse<LineSegmentResponse>> GetLineSegmentById(
-        [FromRoute, SwaggerParameter("线体段唯一标识符", Required = true)] string segmentId)
+        [FromRoute, SwaggerParameter("线体段唯一标识符（long类型）", Required = true)] long segmentId)
     {
         try
         {
@@ -191,31 +195,34 @@ public class LineSegmentController : ControllerBase
 
     /// <summary>
     /// 添加或更新线体段配置
+    /// Add or update line segment configuration
     /// </summary>
-    /// <param name="request">线体段配置请求</param>
-    /// <returns>添加或更新后的线体段配置</returns>
-    /// <response code="200">添加或更新成功</response>
-    /// <response code="400">请求参数无效</response>
-    /// <response code="500">服务器内部错误</response>
+    /// <param name="request">线体段配置请求 / Line segment configuration request</param>
+    /// <returns>添加或更新后的线体段配置 / Updated line segment configuration</returns>
+    /// <response code="200">添加或更新成功 / Add or update successful</response>
+    /// <response code="400">请求参数无效 / Invalid request parameters</response>
+    /// <response code="500">服务器内部错误 / Internal server error</response>
     /// <remarks>
-    /// 添加新的线体段或更新现有线体段配置。
+    /// 添加新的线体段或更新现有线体段配置。删除操作也通过此接口完成（不传入要删除的线体段即可）。
+    /// Add a new line segment or update an existing one. Delete operation is also handled through this interface.
     /// 
-    /// **线体段配置规则**：
-    /// - 起点IO必须引用已配置的感应IO
-    /// - 终点IO为0表示末端，否则必须引用已配置的感应IO
-    /// - 第一段线体的起点IO必须是创建包裹感应IO（ParcelCreation类型）
-    /// - 线体长度必须大于0（范围：0.1-100000毫米）
-    /// - 线体速度必须大于0（范围：1-10000毫米/秒）
+    /// **线体段配置规则 / Line segment configuration rules**：
+    /// - 起点IO必须引用已配置的感应IO / Start IO must reference configured sensor IO
+    /// - 终点IO为0表示末端，否则必须引用已配置的感应IO / End IO 0 means end, otherwise must reference configured sensor IO
+    /// - 第一段线体的起点IO必须是创建包裹感应IO（ParcelCreation类型） / First segment's start IO must be ParcelCreation type
+    /// - 线体长度必须大于0（范围：0.1-100000毫米） / Length must be between 0.1-100000 mm
+    /// - 线体速度必须大于0（范围：1-10000毫米/秒） / Speed must be between 1-10000 mm/s
     /// 
-    /// **理论通过时间计算**：
+    /// **理论通过时间计算 / Transit time calculation**：
     /// ```
     /// 通过时间(ms) = (线体长度mm / 线体速度mm/s) * 1000
+    /// Transit time(ms) = (length mm / speed mm/s) * 1000
     /// ```
     /// 
-    /// **示例请求**：
+    /// **示例请求 / Example request**：
     /// ```json
     /// {
-    ///   "segmentId": "SEG-1",
+    ///   "segmentId": 1,
     ///   "segmentName": "入口到第一摆轮段",
     ///   "startIoId": 1,
     ///   "endIoId": 2,
@@ -228,7 +235,7 @@ public class LineSegmentController : ControllerBase
     [HttpPut]
     [SwaggerOperation(
         Summary = "添加或更新线体段配置",
-        Description = "添加新的线体段或更新现有线体段配置。起点IO和终点IO必须引用已配置的感应IO（终点IO为0表示末端）。",
+        Description = "添加新的线体段或更新现有线体段配置。起点IO和终点IO必须引用已配置的感应IO（终点IO为0表示末端）。删除操作通过更新整体线体拓扑配置完成。",
         OperationId = "UpsertLineSegment",
         Tags = new[] { "线体段配置" }
     )]
@@ -299,98 +306,35 @@ public class LineSegmentController : ControllerBase
     }
 
     /// <summary>
-    /// 删除线体段配置
-    /// </summary>
-    /// <param name="segmentId">线体段ID</param>
-    /// <returns>操作结果</returns>
-    /// <response code="200">删除成功</response>
-    /// <response code="404">未找到指定的线体段</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 根据线体段ID删除指定的线体段配置。
-    /// 
-    /// **参数说明**：
-    /// - segmentId: 线体段唯一标识符，例如 "SEG-1"
-    /// 
-    /// **注意事项**：
-    /// - 删除线体段可能影响超时和丢包判断逻辑
-    /// - 建议在删除前确认该线体段不再使用
-    /// </remarks>
-    [HttpDelete("{segmentId}")]
-    [SwaggerOperation(
-        Summary = "删除线体段配置",
-        Description = "根据线体段ID删除指定的线体段配置。删除线体段可能影响超时和丢包判断逻辑。",
-        OperationId = "DeleteLineSegment",
-        Tags = new[] { "线体段配置" }
-    )]
-    [SwaggerResponse(200, "删除成功", typeof(ApiResponse<object>))]
-    [SwaggerResponse(404, "未找到指定的线体段", typeof(ApiResponse<object>))]
-    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
-    [ProducesResponseType(typeof(ApiResponse<object>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
-    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
-    public ActionResult<ApiResponse<object>> DeleteLineSegment(
-        [FromRoute, SwaggerParameter("线体段唯一标识符", Required = true)] string segmentId)
-    {
-        try
-        {
-            var topology = _topologyRepository.Get();
-            var segments = topology.LineSegments.ToList();
-
-            var segmentToRemove = segments.FirstOrDefault(s => s.SegmentId == segmentId);
-            if (segmentToRemove == null)
-            {
-                return NotFound(ApiResponse<object>.NotFound($"未找到线体段 {segmentId} - Line segment {segmentId} not found"));
-            }
-
-            segments.Remove(segmentToRemove);
-
-            // 更新拓扑配置
-            var updatedTopology = topology with
-            {
-                LineSegments = segments,
-                UpdatedAt = _clock.LocalNow
-            };
-            _topologyRepository.Update(updatedTopology);
-
-            _logger.LogInformation("线体段配置已删除: SegmentId={SegmentId}", segmentId);
-
-            return Ok(ApiResponse<object>.Ok(new { deleted = true }, $"线体段 {segmentId} 已删除 - Line segment {segmentId} deleted"));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "删除线体段配置失败: {SegmentId}", segmentId);
-            return StatusCode(500, ApiResponse<object>.ServerError("删除线体段配置失败 - Failed to delete line segment configuration"));
-        }
-    }
-
-    /// <summary>
     /// 计算两个IO之间的理论通过时间
+    /// Calculate theoretical transit time between two IOs
     /// </summary>
-    /// <param name="startIoId">起点IO ID</param>
-    /// <param name="endIoId">终点IO ID (0表示到末端)</param>
-    /// <returns>计算结果</returns>
-    /// <response code="200">计算成功</response>
-    /// <response code="400">IO路径不存在</response>
-    /// <response code="500">服务器内部错误</response>
+    /// <param name="startIoId">起点IO ID / Start IO ID</param>
+    /// <param name="endIoId">终点IO ID (0表示到末端) / End IO ID (0 means end of line)</param>
+    /// <returns>计算结果 / Calculation result</returns>
+    /// <response code="200">计算成功 / Calculation successful</response>
+    /// <response code="400">IO路径不存在 / IO path not found</response>
+    /// <response code="500">服务器内部错误 / Internal server error</response>
     /// <remarks>
     /// 计算从起点IO到终点IO之间所有线体段的理论通过时间总和。
+    /// Calculate total theoretical transit time for all line segments between start and end IOs.
     /// 
-    /// **参数说明**：
-    /// - startIoId: 起点感应IO的ID
-    /// - endIoId: 终点感应IO的ID，设为0表示计算到末端
+    /// **参数说明 / Parameter description**：
+    /// - startIoId: 起点感应IO的ID / Start sensor IO ID
+    /// - endIoId: 终点感应IO的ID，设为0表示计算到末端 / End sensor IO ID, 0 means calculate to end
     /// 
-    /// **计算公式**：
+    /// **计算公式 / Calculation formula**：
     /// ```
     /// 总通过时间 = Σ(线体段长度 / 线体段速度) * 1000
+    /// Total transit time = Σ(segment length / segment speed) * 1000
     /// ```
     /// 
-    /// **示例请求**：
+    /// **示例请求 / Example request**：
     /// ```
     /// GET /api/config/line-segments/transit-time?startIoId=1&amp;endIoId=2
     /// ```
     /// 
-    /// **示例响应**：
+    /// **示例响应 / Example response**：
     /// ```json
     /// {
     ///   "success": true,
@@ -527,6 +471,7 @@ public class LineSegmentController : ControllerBase
 /// </summary>
 /// <remarks>
 /// 包含线体段的所有配置信息和计算的理论通过时间
+/// Contains all line segment configuration and calculated theoretical transit time
 /// </remarks>
 public record LineSegmentResponse
 {
@@ -534,8 +479,8 @@ public record LineSegmentResponse
     /// 线体段唯一标识符
     /// Unique identifier of the line segment
     /// </summary>
-    /// <example>SEG-1</example>
-    public required string SegmentId { get; init; }
+    /// <example>1</example>
+    public required long SegmentId { get; init; }
 
     /// <summary>
     /// 线体段显示名称
@@ -550,6 +495,7 @@ public record LineSegmentResponse
     /// </summary>
     /// <remarks>
     /// 第一段线体的起点IO必须是创建包裹感应IO（ParcelCreation类型）
+    /// First segment's start IO must be ParcelCreation type
     /// </remarks>
     /// <example>1</example>
     public required long StartIoId { get; init; }
@@ -560,6 +506,7 @@ public record LineSegmentResponse
     /// </summary>
     /// <remarks>
     /// 值为0表示末端线体段
+    /// Value 0 means end segment
     /// </remarks>
     /// <example>2</example>
     public required long EndIoId { get; init; }
@@ -584,6 +531,7 @@ public record LineSegmentResponse
     /// </summary>
     /// <remarks>
     /// 计算公式：(LengthMm / SpeedMmPerSec) * 1000
+    /// Formula: (LengthMm / SpeedMmPerSec) * 1000
     /// </remarks>
     /// <example>5000.0</example>
     public required double TransitTimeMs { get; init; }

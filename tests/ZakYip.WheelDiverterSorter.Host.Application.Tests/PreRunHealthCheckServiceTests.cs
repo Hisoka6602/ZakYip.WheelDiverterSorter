@@ -363,7 +363,7 @@ public class PreRunHealthCheckServiceTests
             {
                 new LineSegmentConfig
                 {
-                    SegmentId = "SEG-1",
+                    SegmentId = 1,
                     StartIoId = 1, // Entry IO
                     EndIoId = 2, // Wheel-1 IO
                     LengthMm = -100,  // 无效长度
@@ -420,7 +420,7 @@ public class PreRunHealthCheckServiceTests
             {
                 new LineSegmentConfig
                 {
-                    SegmentId = "SEG-1",
+                    SegmentId = 1,
                     StartIoId = 1, // Entry IO
                     EndIoId = 2, // Wheel-1 IO
                     LengthMm = 1000,
@@ -566,7 +566,7 @@ public class PreRunHealthCheckServiceTests
             {
                 new LineSegmentConfig
                 {
-                    SegmentId = "SEG-ENTRY-WHEEL1",
+                    SegmentId = 1,
                     StartIoId = 1, // Entry IO
                     EndIoId = 2, // Wheel-1 IO
                     LengthMm = 1000,
@@ -614,7 +614,7 @@ public class PreRunHealthCheckServiceTests
             {
                 new LineSegmentConfig
                 {
-                    SegmentId = "SEG-ENTRY-WHEEL1",
+                    SegmentId = 1,
                     StartIoId = 1, // Entry IO
                     EndIoId = 2, // Wheel-1 IO
                     LengthMm = 1000,
