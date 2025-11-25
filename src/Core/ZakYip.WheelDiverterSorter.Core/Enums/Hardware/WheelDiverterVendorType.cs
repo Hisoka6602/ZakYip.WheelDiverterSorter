@@ -18,11 +18,11 @@ public enum WheelDiverterVendorType
     /// 数递鸟（ShuDiNiao）摆轮设备（默认）
     /// </summary>
     [Description("数递鸟（ShuDiNiao）摆轮设备")]
-    ShuDiNiao = 0,
+    ShuDiNiao = 1,
 
     /// <summary>
     /// 莫迪（Modi）摆轮设备
     /// </summary>
     [Description("莫迪（Modi）摆轮设备")]
-    Modi = 1
+    Modi = 2
 }
