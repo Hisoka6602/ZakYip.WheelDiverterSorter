@@ -6,74 +6,74 @@ using Swashbuckle.AspNetCore.Annotations;
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// 数递鸟摆轮配置管理API控制器
+/// 莫迪摆轮配置管理API控制器
 /// </summary>
 /// <remarks>
-/// 提供数递鸟摆轮设备的专用配置管理功能，包括：
-/// - 查询数递鸟摆轮设备配置
-/// - 添加/更新/删除数递鸟设备
+/// 提供莫迪摆轮设备的专用配置管理功能，包括：
+/// - 查询莫迪摆轮设备配置
+/// - 添加/更新/删除莫迪设备
 /// - 切换仿真模式
 /// 
-/// **数递鸟摆轮设备说明**：
+/// **莫迪摆轮设备说明**：
 /// - 通过TCP协议通信
-/// - 每个设备有独立的IP、端口和设备地址
-/// - 支持多设备配置（不同设备地址）
+/// - 每个设备有独立的IP、端口和设备编号
+/// - 支持多设备配置（不同设备编号）
 /// - 支持仿真模式用于测试
 /// 
 /// **配置生效时机**：
 /// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
 /// </remarks>
 [ApiController]
-[Route("api/config/wheeldiverter/shudiniao")]
+[Route("api/config/wheeldiverter/modi")]
 [Produces("application/json")]
-public class ShuDiNiaoConfigController : ControllerBase
+public class ModiConfigController : ControllerBase
 {
     private readonly IWheelDiverterConfigurationRepository _repository;
-    private readonly ILogger<ShuDiNiaoConfigController> _logger;
+    private readonly ILogger<ModiConfigController> _logger;
 
-    public ShuDiNiaoConfigController(
+    public ModiConfigController(
         IWheelDiverterConfigurationRepository repository,
-        ILogger<ShuDiNiaoConfigController> logger)
+        ILogger<ModiConfigController> logger)
     {
         _repository = repository;
         _logger = logger;
     }
 
     /// <summary>
-    /// 获取数递鸟摆轮配置
+    /// 获取莫迪摆轮配置
     /// </summary>
-    /// <returns>数递鸟摆轮配置信息，如果未配置则返回null</returns>
+    /// <returns>莫迪摆轮配置信息，如果未配置则返回null</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     [HttpGet]
     [SwaggerOperation(
-        Summary = "获取数递鸟摆轮配置",
-        Description = "返回当前系统的数递鸟摆轮设备配置，包括所有设备列表和仿真模式设置",
-        OperationId = "GetShuDiNiaoConfig",
-        Tags = new[] { "数递鸟摆轮配置" }
+        Summary = "获取莫迪摆轮配置",
+        Description = "返回当前系统的莫迪摆轮设备配置，包括所有设备列表和仿真模式设置",
+        OperationId = "GetModiConfig",
+        Tags = new[] { "莫迪摆轮配置" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(ShuDiNiaoWheelDiverterConfig))]
+    [SwaggerResponse(200, "成功返回配置", typeof(ModiWheelDiverterConfig))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ShuDiNiaoWheelDiverterConfig), 200)]
+    [ProducesResponseType(typeof(ModiWheelDiverterConfig), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ShuDiNiaoWheelDiverterConfig?> GetShuDiNiaoConfig()
+    public ActionResult<ModiWheelDiverterConfig?> GetModiConfig()
     {
         try
         {
             var config = _repository.Get();
-            return Ok(config.ShuDiNiao);
+            return Ok(config.Modi);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取数递鸟摆轮配置失败");
-            return StatusCode(500, new { message = "获取数递鸟摆轮配置失败" });
+            _logger.LogError(ex, "获取莫迪摆轮配置失败");
+            return StatusCode(500, new { message = "获取莫迪摆轮配置失败" });
         }
     }
 
     /// <summary>
-    /// 更新数递鸟摆轮配置
+    /// 更新莫迪摆轮配置
     /// </summary>
-    /// <param name="request">数递鸟摆轮配置请求</param>
+    /// <param name="request">莫迪摆轮配置请求</param>
     /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
@@ -81,21 +81,21 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     PUT /api/config/wheeldiverter/shudiniao
+    ///     PUT /api/config/wheeldiverter/modi
     ///     {
     ///         "devices": [
     ///             {
     ///                 "diverterId": "D1",
-    ///                 "host": "192.168.0.100",
-    ///                 "port": 2000,
-    ///                 "deviceAddress": 81,
+    ///                 "host": "192.168.1.100",
+    ///                 "port": 8000,
+    ///                 "deviceId": 1,
     ///                 "isEnabled": true
     ///             },
     ///             {
     ///                 "diverterId": "D2",
-    ///                 "host": "192.168.0.100",
-    ///                 "port": 2000,
-    ///                 "deviceAddress": 82,
+    ///                 "host": "192.168.1.100",
+    ///                 "port": 8000,
+    ///                 "deviceId": 2,
     ///                 "isEnabled": true
     ///             }
     ///         ],
@@ -104,19 +104,13 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// 
     /// 配置更新后立即生效，无需重启服务。
     /// 注意：正在运行的分拣任务不受影响，只对新的分拣任务生效。
-    /// 
-    /// **设备地址说明**：
-    /// - 0x51 (十进制81) 表示 1 号设备
-    /// - 0x52 (十进制82) 表示 2 号设备
-    /// - 0x53 (十进制83) 表示 3 号设备
-    /// - 依次类推
     /// </remarks>
     [HttpPut]
     [SwaggerOperation(
-        Summary = "更新数递鸟摆轮配置",
-        Description = "更新数递鸟摆轮设备配置，支持多设备和仿真模式切换",
-        OperationId = "UpdateShuDiNiaoConfig",
-        Tags = new[] { "数递鸟摆轮配置" }
+        Summary = "更新莫迪摆轮配置",
+        Description = "更新莫迪摆轮设备配置，支持多设备和仿真模式切换",
+        OperationId = "UpdateModiConfig",
+        Tags = new[] { "莫迪摆轮配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(WheelDiverterConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
@@ -124,8 +118,8 @@ public class ShuDiNiaoConfigController : ControllerBase
     [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<WheelDiverterConfiguration> UpdateShuDiNiaoConfig(
-        [FromBody] UpdateShuDiNiaoConfigRequest request)
+    public ActionResult<WheelDiverterConfiguration> UpdateModiConfig(
+        [FromBody] UpdateModiConfigRequest request)
     {
         try
         {
@@ -140,24 +134,24 @@ public class ShuDiNiaoConfigController : ControllerBase
             // 获取当前配置
             var config = _repository.Get();
 
-            // 更新数递鸟配置
-            config.ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
+            // 更新莫迪配置
+            config.Modi = new ModiWheelDiverterConfig
             {
-                Devices = request.Devices.Select(d => new ShuDiNiaoDeviceEntry
+                Devices = request.Devices.Select(d => new ModiDeviceEntry
                 {
                     DiverterId = d.DiverterId,
                     Host = d.Host,
                     Port = d.Port,
-                    DeviceAddress = d.DeviceAddress,
+                    DeviceId = d.DeviceId,
                     IsEnabled = d.IsEnabled
                 }).ToList(),
                 UseSimulation = request.UseSimulation
             };
 
-            // 如果启用了数递鸟配置，则将厂商类型设置为ShuDiNiao
+            // 如果启用了莫迪配置，则将厂商类型设置为Modi
             if (request.Devices.Any())
             {
-                config.VendorType = Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao;
+                config.VendorType = Core.Enums.Hardware.WheelDiverterVendorType.Modi;
             }
 
             // 验证配置
@@ -171,7 +165,7 @@ public class ShuDiNiaoConfigController : ControllerBase
             _repository.Update(config);
 
             _logger.LogInformation(
-                "数递鸟摆轮配置已更新: 设备数量={DeviceCount}, 仿真模式={UseSimulation}",
+                "莫迪摆轮配置已更新: 设备数量={DeviceCount}, 仿真模式={UseSimulation}",
                 request.Devices.Count,
                 request.UseSimulation);
 
@@ -181,41 +175,41 @@ public class ShuDiNiaoConfigController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "数递鸟摆轮配置验证失败");
+            _logger.LogWarning(ex, "莫迪摆轮配置验证失败");
             return BadRequest(new { message = ex.Message });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "更新数递鸟摆轮配置失败");
-            return StatusCode(500, new { message = "更新数递鸟摆轮配置失败" });
+            _logger.LogError(ex, "更新莫迪摆轮配置失败");
+            return StatusCode(500, new { message = "更新莫迪摆轮配置失败" });
         }
     }
 
     /// <summary>
-    /// 切换数递鸟摆轮仿真模式
+    /// 切换莫迪摆轮仿真模式
     /// </summary>
     /// <param name="useSimulation">是否使用仿真模式</param>
     /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">切换成功</response>
-    /// <response code="400">请求参数无效或未配置数递鸟设备</response>
+    /// <response code="400">请求参数无效或未配置莫迪设备</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
     /// 示例请求:
     /// 
-    ///     POST /api/config/wheeldiverter/shudiniao/simulation?useSimulation=true
+    ///     POST /api/config/wheeldiverter/modi/simulation?useSimulation=true
     /// 
     /// 仿真模式说明：
     /// - true：使用仿真设备，不连接真实硬件
-    /// - false：连接真实数递鸟摆轮设备
+    /// - false：连接真实莫迪摆轮设备
     /// 
     /// 切换后立即生效，无需重启服务。
     /// </remarks>
     [HttpPost("simulation")]
     [SwaggerOperation(
         Summary = "切换仿真模式",
-        Description = "切换数递鸟摆轮设备的仿真模式，用于测试和实际运行切换",
-        OperationId = "ToggleShuDiNiaoSimulation",
-        Tags = new[] { "数递鸟摆轮配置" }
+        Description = "切换莫迪摆轮设备的仿真模式，用于测试和实际运行切换",
+        OperationId = "ToggleModiSimulation",
+        Tags = new[] { "莫迪摆轮配置" }
     )]
     [SwaggerResponse(200, "切换成功", typeof(WheelDiverterConfiguration))]
     [SwaggerResponse(400, "请求参数无效")]
@@ -231,19 +225,19 @@ public class ShuDiNiaoConfigController : ControllerBase
             // 获取当前配置
             var config = _repository.Get();
 
-            if (config.ShuDiNiao == null)
+            if (config.Modi == null)
             {
-                return BadRequest(new { message = "未配置数递鸟摆轮设备" });
+                return BadRequest(new { message = "未配置莫迪摆轮设备" });
             }
 
             // 更新仿真模式
-            config.ShuDiNiao = config.ShuDiNiao with { UseSimulation = useSimulation };
+            config.Modi = config.Modi with { UseSimulation = useSimulation };
 
             // 保存配置
             _repository.Update(config);
 
             _logger.LogInformation(
-                "数递鸟摆轮仿真模式已切换: UseSimulation={UseSimulation}",
+                "莫迪摆轮仿真模式已切换: UseSimulation={UseSimulation}",
                 useSimulation);
 
             // 重新获取更新后的配置
@@ -252,22 +246,22 @@ public class ShuDiNiaoConfigController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "切换数递鸟摆轮仿真模式失败");
-            return StatusCode(500, new { message = "切换数递鸟摆轮仿真模式失败" });
+            _logger.LogError(ex, "切换莫迪摆轮仿真模式失败");
+            return StatusCode(500, new { message = "切换莫迪摆轮仿真模式失败" });
         }
     }
 }
 
 /// <summary>
-/// 更新数递鸟摆轮配置请求
+/// 更新莫迪摆轮配置请求
 /// </summary>
-public record class UpdateShuDiNiaoConfigRequest
+public record class UpdateModiConfigRequest
 {
     /// <summary>
-    /// 数递鸟摆轮设备列表
+    /// 莫迪摆轮设备列表
     /// </summary>
     [Required(ErrorMessage = "设备列表不能为空")]
-    public required List<ShuDiNiaoDeviceRequest> Devices { get; init; }
+    public required List<ModiDeviceRequest> Devices { get; init; }
 
     /// <summary>
     /// 是否启用仿真模式
@@ -276,9 +270,9 @@ public record class UpdateShuDiNiaoConfigRequest
 }
 
 /// <summary>
-/// 数递鸟摆轮设备请求
+/// 莫迪摆轮设备请求
 /// </summary>
-public record class ShuDiNiaoDeviceRequest
+public record class ModiDeviceRequest
 {
     /// <summary>
     /// 摆轮标识符
@@ -291,7 +285,7 @@ public record class ShuDiNiaoDeviceRequest
     /// <summary>
     /// TCP连接主机地址
     /// </summary>
-    /// <example>192.168.0.100</example>
+    /// <example>192.168.1.100</example>
     [Required(ErrorMessage = "主机地址不能为空")]
     [StringLength(255, ErrorMessage = "主机地址长度不能超过255个字符")]
     public required string Host { get; init; }
@@ -299,21 +293,19 @@ public record class ShuDiNiaoDeviceRequest
     /// <summary>
     /// TCP连接端口
     /// </summary>
-    /// <example>2000</example>
+    /// <example>8000</example>
     [Range(1, 65535, ErrorMessage = "端口号必须在1到65535之间")]
     public required int Port { get; init; }
 
     /// <summary>
-    /// 设备地址（协议中的设备地址字节）
+    /// 设备编号
     /// </summary>
     /// <remarks>
-    /// 81 (0x51) 表示 1 号设备
-    /// 82 (0x52) 表示 2 号设备
-    /// 依次类推
+    /// 莫迪设备的内部编号，用于协议通信
     /// </remarks>
-    /// <example>81</example>
-    [Range(0x51, 0xFF, ErrorMessage = "设备地址必须在0x51到0xFF之间")]
-    public required byte DeviceAddress { get; init; }
+    /// <example>1</example>
+    [Range(1, int.MaxValue, ErrorMessage = "设备编号必须大于0")]
+    public required int DeviceId { get; init; }
 
     /// <summary>
     /// 是否启用该设备

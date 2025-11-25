@@ -60,6 +60,15 @@ public static class ConfigurationRepositoryServiceExtensions
             return repository;
         });
 
+        // 注册摆轮配置仓储为单例
+        services.AddSingleton<IWheelDiverterConfigurationRepository>(serviceProvider =>
+        {
+            var repository = new LiteDbWheelDiverterConfigurationRepository(fullDatabasePath);
+            // 初始化默认配置
+            repository.InitializeDefault();
+            return repository;
+        });
+
         // 注册传感器配置仓储为单例
         services.AddSingleton<ISensorConfigurationRepository>(serviceProvider =>
         {

@@ -126,6 +126,9 @@ try
 
         // 添加驱动配置的Schema过滤器，根据当前厂商动态显示配置参数
         options.SchemaFilter<DriverConfigurationSchemaFilter>();
+        
+        // 添加摆轮配置的Schema过滤器，根据当前厂商动态显示配置参数
+        options.SchemaFilter<WheelDiverterConfigurationSchemaFilter>();
     });
 
     // 注册所有配置仓储（路由、系统、驱动器、传感器、通信）
