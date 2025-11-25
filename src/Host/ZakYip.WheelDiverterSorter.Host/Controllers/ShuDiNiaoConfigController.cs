@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -37,12 +39,14 @@ public class ShuDiNiaoConfigController : ControllerBase
 {
     private readonly IWheelDiverterConfigurationRepository _repository;
     private readonly IWheelDiverterDriverManager? _driverManager;
+    private readonly ISystemStateManager _stateManager;
     private readonly ILogger<ShuDiNiaoConfigController> _logger;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="repository">摆轮配置仓储</param>
+    /// <param name="stateManager">系统状态管理器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="driverManager">
     /// 驱动管理器（可选）。
@@ -53,10 +57,12 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// </param>
     public ShuDiNiaoConfigController(
         IWheelDiverterConfigurationRepository repository,
+        ISystemStateManager stateManager,
         ILogger<ShuDiNiaoConfigController> logger,
         IWheelDiverterDriverManager? driverManager = null)
     {
         _repository = repository;
+        _stateManager = stateManager;
         _logger = logger;
         _driverManager = driverManager;
     }
@@ -357,9 +363,10 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// <returns>测试执行结果</returns>
     /// <response code="200">测试执行成功</response>
     /// <response code="400">请求参数无效或驱动管理器未注册</response>
+    /// <response code="409">系统正在运行中或处于急停状态，禁止使用测试端点</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// **此接口用于测试/调试摆轮转向功能，在系统未启动或故障状态下也可用**
+    /// **此接口用于测试/调试摆轮转向功能，仅在系统非运行状态下可用**
     /// 
     /// 示例请求（测试单个摆轮）:
     /// 
@@ -383,22 +390,24 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// - Straight: 直行/回中
     /// 
     /// **注意事项**:
-    /// - 此接口在任何系统状态下都可用（包括未启动、故障等状态）
+    /// - 此接口在系统运行中（Running）或急停（EmergencyStop）状态下禁止使用，否则会干扰正常流程或存在安全隐患
     /// - 用于验证摆轮硬件连接和控制是否正常
     /// - 每个摆轮的执行结果会单独返回
     /// </remarks>
     [HttpPost("test")]
     [SwaggerOperation(
-        Summary = "测试摆轮转向（任何状态可用）",
-        Description = "测试指定摆轮的转向功能，可同时测试多个摆轮。在系统未启动或故障状态下也可用。",
+        Summary = "测试摆轮转向（非运行状态可用）",
+        Description = "测试指定摆轮的转向功能，可同时测试多个摆轮。系统运行中或急停状态下禁止使用。",
         OperationId = "TestShuDiNiaoDiverters",
         Tags = new[] { "数递鸟摆轮配置" }
     )]
     [SwaggerResponse(200, "测试执行成功", typeof(WheelDiverterTestResponse))]
     [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(409, "系统正在运行中或处于急停状态")]
     [SwaggerResponse(500, "服务器内部错误")]
     [ProducesResponseType(typeof(WheelDiverterTestResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 409)]
     [ProducesResponseType(typeof(object), 500)]
     public async Task<ActionResult<WheelDiverterTestResponse>> TestDiverters(
         [FromBody] WheelDiverterTestRequest request,
@@ -406,6 +415,15 @@ public class ShuDiNiaoConfigController : ControllerBase
     {
         try
         {
+            // 检查系统状态：运行中或急停状态时禁止使用测试端点
+            var currentState = _stateManager.CurrentState;
+            if (currentState == SystemState.Running || currentState == SystemState.EmergencyStop)
+            {
+                var stateMessage = currentState == SystemState.Running ? "运行中" : "急停";
+                _logger.LogWarning("系统处于{State}状态，禁止使用摆轮测试端点", stateMessage);
+                return Conflict(new { message = $"系统处于{stateMessage}状态，禁止使用摆轮测试端点，否则会干扰正常流程或存在安全隐患" });
+            }
+
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values

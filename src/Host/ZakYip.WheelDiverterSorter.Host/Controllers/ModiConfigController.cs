@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -33,12 +35,14 @@ public class ModiConfigController : ControllerBase
 {
     private readonly IWheelDiverterConfigurationRepository _repository;
     private readonly IWheelDiverterDriverManager? _driverManager;
+    private readonly ISystemStateManager _stateManager;
     private readonly ILogger<ModiConfigController> _logger;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="repository">摆轮配置仓储</param>
+    /// <param name="stateManager">系统状态管理器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="driverManager">
     /// 驱动管理器（可选）。
@@ -49,10 +53,12 @@ public class ModiConfigController : ControllerBase
     /// </param>
     public ModiConfigController(
         IWheelDiverterConfigurationRepository repository,
+        ISystemStateManager stateManager,
         ILogger<ModiConfigController> logger,
         IWheelDiverterDriverManager? driverManager = null)
     {
         _repository = repository;
+        _stateManager = stateManager;
         _logger = logger;
         _driverManager = driverManager;
     }
