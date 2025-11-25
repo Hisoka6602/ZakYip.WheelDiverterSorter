@@ -75,10 +75,10 @@ public class SensorConfigController : ControllerBase
     {
         try
         {
-            _logger.LogWarning("使用已废弃的API: GET /api/config/sensor，请迁移到 GET /api/config/io-driver/sensors");
+            _logger.LogWarning("使用已废弃的API: GET /api/config/sensor，请迁移到 GET /api/config/io-driver/sensors - Deprecated API: GET /api/config/sensor, please migrate to GET /api/config/io-driver/sensors");
             
             var config = _repository.Get();
-            return Ok(ApiResponse<SensorConfiguration>.Ok(config, "成功（此API已废弃，请使用 /api/config/io-driver/sensors）"));
+            return Ok(ApiResponse<SensorConfiguration>.Ok(config, "成功（此API已废弃，请使用 /api/config/io-driver/sensors）- Success (this API is deprecated, please use /api/config/io-driver/sensors)"));
         }
         catch (Exception ex)
         {
@@ -119,7 +119,7 @@ public class SensorConfigController : ControllerBase
     {
         try
         {
-            _logger.LogWarning("使用已废弃的API: PUT /api/config/sensor，请迁移到 PUT /api/config/io-driver/sensors");
+            _logger.LogWarning("使用已废弃的API: PUT /api/config/sensor，请迁移到 PUT /api/config/io-driver/sensors - Deprecated API: PUT /api/config/sensor, please migrate to PUT /api/config/io-driver/sensors");
             
             if (!ModelState.IsValid)
             {

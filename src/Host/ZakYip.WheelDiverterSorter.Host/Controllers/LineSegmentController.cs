@@ -355,7 +355,7 @@ public class LineSegmentController : ControllerBase
 
             _logger.LogInformation("线体段配置已删除: SegmentId={SegmentId}", segmentId);
 
-            return Ok(ApiResponse<object>.Ok(null!, $"线体段 {segmentId} 已删除 - Line segment {segmentId} deleted"));
+            return Ok(ApiResponse<object>.Ok(new { deleted = true }, $"线体段 {segmentId} 已删除 - Line segment {segmentId} deleted"));
         }
         catch (Exception ex)
         {

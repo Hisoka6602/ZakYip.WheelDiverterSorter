@@ -166,9 +166,10 @@ public class SimulationScenariosTests : IDisposable
         services.AddSingleton<SimulationReportPrinter>();
         
         // 添加系统时钟服务（PrometheusMetrics 需要此依赖）
+        // Add system clock service (required by PrometheusMetrics)
         services.AddSingleton<ISystemClock, LocalSystemClock>();
         
-        // 添加 Prometheus 指标服务
+        // 添加 Prometheus 指标服务 - Add Prometheus metrics service
         services.AddSingleton<PrometheusMetrics>();
 
         _serviceProvider = services.BuildServiceProvider();
