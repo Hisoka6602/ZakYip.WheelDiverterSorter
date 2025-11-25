@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
@@ -163,6 +164,9 @@ public class SimulationScenariosTests : IDisposable
         // 添加仿真服务（初始配置为空，后续通过 IOptions 覆盖）
         services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<SimulationReportPrinter>();
+        
+        // 添加系统时钟服务（PrometheusMetrics 需要此依赖）
+        services.AddSingleton<ISystemClock, LocalSystemClock>();
         
         // 添加 Prometheus 指标服务
         services.AddSingleton<PrometheusMetrics>();

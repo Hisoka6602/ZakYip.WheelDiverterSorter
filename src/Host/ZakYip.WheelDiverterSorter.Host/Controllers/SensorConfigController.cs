@@ -3,38 +3,40 @@
 
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Host.Models;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// 感应IO配置管理API控制器
+/// [已废弃] 感应IO配置管理API控制器
+/// [Obsolete] Sensor IO configuration management API controller
 /// </summary>
 /// <remarks>
-/// 提供感应IO配置的查询和更新功能，支持热更新。
+/// **此API已废弃，请使用 /api/config/io-driver/sensors 代替。**
 /// 
-/// **感应IO配置说明**：
-/// - 配置感应IO类型（硬件/仿真）
-/// - 配置IO厂商（雷赛、研华、倍福等）
-/// - 配置IO绑定和防抖参数
-/// - 配置IO的轮询行为
+/// 感应IO配置已并入IO驱动器配置中，以提供统一的IO配置管理体验。
 /// 
-/// **配置生效时机**：
-/// 配置更新后立即生效，无需重启服务。正在运行的IO读取任务会在下一个轮询周期使用新配置。
+/// **迁移指南**：
+/// - GET /api/config/sensor → GET /api/config/io-driver/sensors
+/// - PUT /api/config/sensor → PUT /api/config/io-driver/sensors
 /// 
-/// **注意事项**：
-/// - 切换硬件/仿真模式可能需要重启服务才能完全生效
-/// - 修改 IO 绑定配置时，请确保 IO 地址未被其他设备占用
-/// - 防抖时间设置过小可能导致误触发，过大可能导致响应迟钝
+/// 此API仍可使用，但将在未来版本中移除。
 /// </remarks>
 [ApiController]
 [Route("api/config/sensor")]
 [Produces("application/json")]
+[Obsolete("此API已废弃，请使用 /api/config/io-driver/sensors 代替 - This API is obsolete, please use /api/config/io-driver/sensors instead")]
 public class SensorConfigController : ControllerBase
 {
     private readonly ISensorConfigurationRepository _repository;
     private readonly ILogger<SensorConfigController> _logger;
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="repository">感应IO配置仓储</param>
+    /// <param name="logger">日志记录器</param>
     public SensorConfigController(
         ISensorConfigurationRepository repository,
         ILogger<SensorConfigController> logger)
@@ -44,121 +46,94 @@ public class SensorConfigController : ControllerBase
     }
 
     /// <summary>
-    /// 获取感应IO配置
+    /// [已废弃] 获取感应IO配置
+    /// [Obsolete] Get sensor IO configuration
     /// </summary>
     /// <returns>感应IO配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 返回当前系统的感应IO配置，包括：
-    /// - 使用硬件IO还是仿真IO
-    /// - IO厂商类型（Leadshine、Advantech、Beckhoff等）
-    /// - 各IO的绑定配置
-    /// - IO轮询间隔和防抖参数
+    /// **此API已废弃，请使用 GET /api/config/io-driver/sensors 代替。**
     /// 
-    /// 示例响应：
-    /// ```json
-    /// {
-    ///   "useHardwareSensor": true,
-    ///   "vendorType": 1,
-    ///   "pollingIntervalMs": 50,
-    ///   "debounceMs": 10,
-    ///   "version": 1
-    /// }
-    /// ```
+    /// 返回当前系统的感应IO配置，包括：
+    /// - 感应IO列表及其业务类型
+    /// - IO点位绑定关系
+    /// - 配置版本号
     /// </remarks>
     [HttpGet]
     [SwaggerOperation(
-        Summary = "获取感应IO配置",
-        Description = "返回当前系统的感应IO配置，包括厂商类型、IO绑定、轮询参数等",
+        Summary = "[已废弃] 获取感应IO配置",
+        Description = "此API已废弃，请使用 GET /api/config/io-driver/sensors 代替。返回当前系统的感应IO配置。",
         OperationId = "GetSensorConfig",
-        Tags = new[] { "感应IO配置" }
+        Tags = new[] { "感应IO配置（已废弃）" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(SensorConfiguration))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SensorConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SensorConfiguration> GetSensorConfig()
+    [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<SensorConfiguration>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<SensorConfiguration>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SensorConfiguration>> GetSensorConfig()
     {
         try
         {
+            _logger.LogWarning("使用已废弃的API: GET /api/config/sensor，请迁移到 GET /api/config/io-driver/sensors");
+            
             var config = _repository.Get();
-            return Ok(config);
+            return Ok(ApiResponse<SensorConfiguration>.Ok(config, "成功（此API已废弃，请使用 /api/config/io-driver/sensors）"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取感应IO配置失败");
-            return StatusCode(500, new { message = "获取感应IO配置失败" });
+            return StatusCode(500, ApiResponse<object>.ServerError("获取感应IO配置失败 - Failed to get sensor configuration"));
         }
     }
 
     /// <summary>
-    /// 更新感应IO配置（支持热更新）
+    /// [已废弃] 更新感应IO配置（支持热更新）
+    /// [Obsolete] Update sensor IO configuration (hot reload supported)
     /// </summary>
-    /// <param name="request">感应IO配置请求，包含厂商类型、IO绑定、轮询参数等</param>
+    /// <param name="request">感应IO配置请求</param>
     /// <returns>更新后的感应IO配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 示例请求：
+    /// **此API已废弃，请使用 PUT /api/config/io-driver/sensors 代替。**
     /// 
-    ///     PUT /api/config/sensor
-    ///     {
-    ///         "useHardwareSensor": true,
-    ///         "vendorType": 1,
-    ///         "pollingIntervalMs": 50,
-    ///         "debounceMs": 10
-    ///     }
-    /// 
-    /// 配置更新后立即生效，无需重启服务。
-    /// 
-    /// **重要提示**：
-    /// - 切换硬件/仿真模式（useHardwareSensor）可能需要重启服务才能完全生效
-    /// - 修改轮询间隔会影响IO响应速度和CPU占用
-    /// - 防抖时间设置需要根据实际IO特性调整
-    /// 
-    /// **支持的厂商类型（vendorType）**：
-    /// - 0: Simulated（仿真IO）
-    /// - 1: Leadshine（雷赛IO）
-    /// - 2: Advantech（研华IO）
-    /// - 3: Beckhoff（倍福IO）
-    /// 
-    /// **参数验证规则**：
-    /// - pollingIntervalMs: 10-1000 毫秒
-    /// - debounceMs: 5-500 毫秒
-    /// - debounceMs 必须小于 pollingIntervalMs
+    /// 更新系统感应IO配置，配置立即生效无需重启。
     /// </remarks>
     [HttpPut]
     [SwaggerOperation(
-        Summary = "更新感应IO配置",
-        Description = "更新系统感应IO配置，配置立即生效无需重启。支持配置硬件/仿真IO切换、厂商选择和IO参数",
+        Summary = "[已废弃] 更新感应IO配置",
+        Description = "此API已废弃，请使用 PUT /api/config/io-driver/sensors 代替。更新系统感应IO配置。",
         OperationId = "UpdateSensorConfig",
-        Tags = new[] { "感应IO配置" }
+        Tags = new[] { "感应IO配置（已废弃）" }
     )]
-    [SwaggerResponse(200, "更新成功", typeof(SensorConfiguration))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(SensorConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<SensorConfiguration> UpdateSensorConfig([FromBody] SensorConfiguration request)
+    [SwaggerResponse(200, "更新成功", typeof(ApiResponse<SensorConfiguration>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<SensorConfiguration>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<SensorConfiguration>> UpdateSensorConfig(
+        [FromBody, SwaggerRequestBody("感应IO配置请求", Required = true)] SensorConfiguration request)
     {
         try
         {
+            _logger.LogWarning("使用已废弃的API: PUT /api/config/sensor，请迁移到 PUT /api/config/io-driver/sensors");
+            
             if (!ModelState.IsValid)
             {
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                return BadRequest(ApiResponse<object>.BadRequest($"请求参数无效: {string.Join(", ", errors)}"));
             }
 
             // 验证配置
             var (isValid, errorMessage) = request.Validate();
             if (!isValid)
             {
-                return BadRequest(new { message = errorMessage });
+                return BadRequest(ApiResponse<object>.BadRequest(errorMessage ?? "配置验证失败"));
             }
 
             _repository.Update(request);
@@ -169,17 +144,17 @@ public class SensorConfigController : ControllerBase
                 request.Version);
 
             var updatedConfig = _repository.Get();
-            return Ok(updatedConfig);
+            return Ok(ApiResponse<SensorConfiguration>.Ok(updatedConfig, "更新成功（此API已废弃，请使用 /api/config/io-driver/sensors）"));
         }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "感应IO配置验证失败");
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ApiResponse<object>.BadRequest(ex.Message));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新感应IO配置失败");
-            return StatusCode(500, new { message = "更新感应IO配置失败" });
+            return StatusCode(500, ApiResponse<object>.ServerError("更新感应IO配置失败 - Failed to update sensor configuration"));
         }
     }
 }
