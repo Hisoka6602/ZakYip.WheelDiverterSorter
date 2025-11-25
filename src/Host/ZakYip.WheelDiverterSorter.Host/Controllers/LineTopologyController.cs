@@ -239,8 +239,17 @@ public class LineTopologyController : ControllerBase
                     WheelName = b.WheelName,
                     DriverId = b.DriverId,
                     DriverName = b.DriverName,
+                    // IO驱动配置
+                    IoDriverType = b.IoDriverType,
                     IoAddress = b.IoAddress,
                     IoChannel = b.IoChannel,
+                    OutputStartBit = b.OutputStartBit,
+                    FeedbackInputBit = b.FeedbackInputBit,
+                    // 摆轮驱动配置
+                    WheelDriverType = b.WheelDriverType,
+                    WheelDriverHost = b.WheelDriverHost,
+                    WheelDriverPort = b.WheelDriverPort,
+                    WheelDeviceAddress = b.WheelDeviceAddress,
                     IsEnabled = b.IsEnabled,
                     Remarks = b.Remarks
                 }).ToList(),
@@ -265,6 +274,22 @@ public class LineTopologyController : ControllerBase
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
+    /// **摆轮硬件绑定说明**：
+    /// 每个摆轮节点需要配置两部分硬件绑定：
+    /// 
+    /// 1. **IO驱动配置**（用于传感器信号和继电器控制）：
+    ///    - ioDriverType: IO驱动厂商类型（Leadshine/Siemens/Mitsubishi/Omron）
+    ///    - ioAddress: IO板地址（例如：192.168.1.100 或雷赛卡号）
+    ///    - ioChannel: IO通道号
+    ///    - outputStartBit: 输出起始位（用于继电器控制）
+    ///    - feedbackInputBit: 反馈输入位（用于传感器信号读取）
+    /// 
+    /// 2. **摆轮驱动配置**（用于摆轮方向控制）：
+    ///    - wheelDriverType: 摆轮驱动厂商类型（ShuDiNiao/Modi）
+    ///    - wheelDriverHost: 摆轮驱动TCP主机地址
+    ///    - wheelDriverPort: 摆轮驱动TCP端口
+    ///    - wheelDeviceAddress: 摆轮设备地址
+    /// 
     /// 示例请求:
     ///
     ///     PUT /api/config/wheel-bindings
@@ -274,9 +299,16 @@ public class LineTopologyController : ControllerBase
     ///                 "wheelNodeId": "WHEEL-1",
     ///                 "wheelName": "第一摆轮",
     ///                 "driverId": 1,
-    ///                 "driverName": "雷赛驱动器-1",
-    ///                 "ioAddress": "192.168.1.100",
+    ///                 "driverName": "1号摆轮",
+    ///                 "ioDriverType": "Leadshine",
+    ///                 "ioAddress": "0",
     ///                 "ioChannel": 1,
+    ///                 "outputStartBit": 0,
+    ///                 "feedbackInputBit": 10,
+    ///                 "wheelDriverType": "ShuDiNiao",
+    ///                 "wheelDriverHost": "192.168.0.100",
+    ///                 "wheelDriverPort": 2000,
+    ///                 "wheelDeviceAddress": 81,
     ///                 "isEnabled": true,
     ///                 "remarks": "入口第一个摆轮"
     ///             }
@@ -285,13 +317,12 @@ public class LineTopologyController : ControllerBase
     ///
     /// 配置说明：
     /// - wheelNodeId 必须与线体拓扑配置中的摆轮节点ID一致
-    /// - driverId 对应硬件驱动配置中的摆轮ID
-    /// - ioAddress 和 ioChannel 为可选的物理IO配置信息
+    /// - IO驱动和摆轮驱动共同组成完整的摆轮控制拓扑
     /// </remarks>
     [HttpPut("~/api/config/wheel-bindings")]
     [SwaggerOperation(
         Summary = "更新摆轮硬件绑定配置",
-        Description = "更新摆轮逻辑ID与物理驱动器的绑定关系，配置立即生效",
+        Description = "更新摆轮逻辑ID与物理驱动器的绑定关系（包含IO驱动和摆轮驱动两部分配置），配置立即生效",
         OperationId = "UpdateWheelBindings",
         Tags = new[] { "摆轮硬件绑定" }
     )]
@@ -341,8 +372,17 @@ public class LineTopologyController : ControllerBase
                     WheelName = b.WheelName,
                     DriverId = b.DriverId,
                     DriverName = b.DriverName,
+                    // IO驱动配置
+                    IoDriverType = b.IoDriverType,
                     IoAddress = b.IoAddress,
                     IoChannel = b.IoChannel,
+                    OutputStartBit = b.OutputStartBit,
+                    FeedbackInputBit = b.FeedbackInputBit,
+                    // 摆轮驱动配置
+                    WheelDriverType = b.WheelDriverType,
+                    WheelDriverHost = b.WheelDriverHost,
+                    WheelDriverPort = b.WheelDriverPort,
+                    WheelDeviceAddress = b.WheelDeviceAddress,
                     IsEnabled = b.IsEnabled,
                     Remarks = b.Remarks
                 }).ToList(),
@@ -364,8 +404,17 @@ public class LineTopologyController : ControllerBase
                     WheelName = b.WheelName,
                     DriverId = b.DriverId,
                     DriverName = b.DriverName,
+                    // IO驱动配置
+                    IoDriverType = b.IoDriverType,
                     IoAddress = b.IoAddress,
                     IoChannel = b.IoChannel,
+                    OutputStartBit = b.OutputStartBit,
+                    FeedbackInputBit = b.FeedbackInputBit,
+                    // 摆轮驱动配置
+                    WheelDriverType = b.WheelDriverType,
+                    WheelDriverHost = b.WheelDriverHost,
+                    WheelDriverPort = b.WheelDriverPort,
+                    WheelDeviceAddress = b.WheelDeviceAddress,
                     IsEnabled = b.IsEnabled,
                     Remarks = b.Remarks
                 }).ToList(),

@@ -10,8 +10,25 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 日志配置管理API控制器
 /// </summary>
 /// <remarks>
-/// 提供日志开关配置的查询和更新功能，用于控制各类日志的输出
-/// 异常日志始终输出，不受开关控制
+/// 提供日志开关配置的查询和更新功能，用于控制各类日志的输出。
+/// 
+/// **日志文件分类**：
+/// 每个日志分类对应独立的日志文件，便于查看和分析：
+/// 
+/// | 配置项 | 日志文件 | 说明 |
+/// |--------|----------|------|
+/// | - | error-{date}.log | 异常日志（始终输出，不受开关控制） |
+/// | EnableParcelLifecycleLog | parcel-lifecycle-{date}.log | 包裹生命周期日志 |
+/// | EnableParcelTraceLog | parcel-trace-{date}.log | 包裹追踪日志 |
+/// | EnablePathExecutionLog | path-execution-{date}.log | 路径执行日志 |
+/// | EnableCommunicationLog | communication-{date}.log | 通信日志 |
+/// | EnableDriverLog | driver-{date}.log | 硬件驱动日志 |
+/// | EnablePerformanceLog | performance-{date}.log | 性能监控日志 |
+/// | EnableAlarmLog | alarm-{date}.log | 告警日志 |
+/// | EnableDebugLog | debug-{date}.log | 调试日志 |
+/// | - | all-{date}.log | 汇总日志（所有日志的备份） |
+/// 
+/// **注意**：异常日志始终输出到 error-{date}.log，不受任何开关控制。
 /// </remarks>
 [ApiController]
 [Route("api/config/logging")]

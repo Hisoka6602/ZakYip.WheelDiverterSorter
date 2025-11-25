@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -21,7 +22,12 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - 支持仿真模式用于测试
 /// 
 /// **配置生效时机**：
-/// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
+/// 配置更新后立即生效，无需重启服务。系统会自动断开旧连接并建立新连接。
+/// 正在运行的分拣任务不受影响，只对新的分拣任务生效。
+/// 
+/// **注意**：此API与 /api/config/wheel-bindings（摆轮硬件绑定）配合使用。
+/// - 本API配置数递鸟设备的TCP连接参数
+/// - 摆轮硬件绑定API配置逻辑摆轮节点与驱动器的映射关系
 /// </remarks>
 [ApiController]
 [Route("api/config/wheeldiverter/shudiniao")]
@@ -29,14 +35,29 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class ShuDiNiaoConfigController : ControllerBase
 {
     private readonly IWheelDiverterConfigurationRepository _repository;
+    private readonly IWheelDiverterDriverManager? _driverManager;
     private readonly ILogger<ShuDiNiaoConfigController> _logger;
 
+    /// <summary>
+    /// 构造函数
+    /// </summary>
+    /// <param name="repository">摆轮配置仓储</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="driverManager">
+    /// 驱动管理器（可选）。
+    /// 在以下情况下可能为null：
+    /// - 仿真模式运行时，不需要真实驱动管理器
+    /// - 服务启动阶段，驱动管理器尚未注册
+    /// 当驱动管理器为null时，配置更新只会持久化，不会执行热更新连接操作。
+    /// </param>
     public ShuDiNiaoConfigController(
         IWheelDiverterConfigurationRepository repository,
-        ILogger<ShuDiNiaoConfigController> logger)
+        ILogger<ShuDiNiaoConfigController> logger,
+        IWheelDiverterDriverManager? driverManager = null)
     {
         _repository = repository;
         _logger = logger;
+        _driverManager = driverManager;
     }
 
     /// <summary>
@@ -83,6 +104,7 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// 更新数递鸟摆轮配置
     /// </summary>
     /// <param name="request">数递鸟摆轮配置请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
     /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
@@ -111,7 +133,7 @@ public class ShuDiNiaoConfigController : ControllerBase
     ///         "useSimulation": false
     ///     }
     /// 
-    /// 配置更新后立即生效，无需重启服务。
+    /// 配置更新后立即生效，无需重启服务。系统会自动断开旧连接并建立新连接。
     /// 注意：正在运行的分拣任务不受影响，只对新的分拣任务生效。
     /// 
     /// **设备地址说明**：
@@ -123,7 +145,7 @@ public class ShuDiNiaoConfigController : ControllerBase
     [HttpPut]
     [SwaggerOperation(
         Summary = "更新数递鸟摆轮配置",
-        Description = "更新数递鸟摆轮设备配置，支持多设备和仿真模式切换",
+        Description = "更新数递鸟摆轮设备配置，支持多设备和仿真模式切换。配置更新后会自动执行热更新（断开旧连接并建立新连接）。",
         OperationId = "UpdateShuDiNiaoConfig",
         Tags = new[] { "数递鸟摆轮配置" }
     )]
@@ -133,8 +155,9 @@ public class ShuDiNiaoConfigController : ControllerBase
     [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<WheelDiverterConfiguration> UpdateShuDiNiaoConfig(
-        [FromBody] UpdateShuDiNiaoConfigRequest request)
+    public async Task<ActionResult<WheelDiverterConfiguration>> UpdateShuDiNiaoConfig(
+        [FromBody] UpdateShuDiNiaoConfigRequest request,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -184,6 +207,31 @@ public class ShuDiNiaoConfigController : ControllerBase
                 request.Devices.Count,
                 request.UseSimulation);
 
+            // 应用热更新：断开旧连接并建立新连接
+            if (_driverManager != null)
+            {
+                var applyResult = await _driverManager.ApplyConfigurationAsync(config, cancellationToken);
+                
+                if (applyResult.IsSuccess)
+                {
+                    _logger.LogInformation(
+                        "数递鸟摆轮驱动器热更新成功: 已连接={ConnectedCount}/{TotalCount}",
+                        applyResult.ConnectedCount,
+                        applyResult.TotalCount);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "数递鸟摆轮驱动器热更新部分失败: {ErrorMessage}, 失败设备={FailedDrivers}",
+                        applyResult.ErrorMessage,
+                        string.Join(", ", applyResult.FailedDriverIds));
+                }
+            }
+            else
+            {
+                _logger.LogDebug("驱动管理器未注册，跳过热更新（可能是仿真模式或启动阶段）");
+            }
+
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();
             return Ok(updatedConfig);
@@ -204,6 +252,7 @@ public class ShuDiNiaoConfigController : ControllerBase
     /// 切换数递鸟摆轮仿真模式
     /// </summary>
     /// <param name="useSimulation">是否使用仿真模式</param>
+    /// <param name="cancellationToken">取消令牌</param>
     /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">切换成功</response>
     /// <response code="400">请求参数无效或未配置数递鸟设备</response>
@@ -214,15 +263,15 @@ public class ShuDiNiaoConfigController : ControllerBase
     ///     POST /api/config/wheeldiverter/shudiniao/simulation?useSimulation=true
     /// 
     /// 仿真模式说明：
-    /// - true：使用仿真设备，不连接真实硬件
-    /// - false：连接真实数递鸟摆轮设备
+    /// - true：使用仿真设备，不连接真实硬件（会断开现有连接）
+    /// - false：连接真实数递鸟摆轮设备（会建立新连接）
     /// 
-    /// 切换后立即生效，无需重启服务。
+    /// 切换后立即生效，系统会自动执行连接/断连操作。
     /// </remarks>
     [HttpPost("simulation")]
     [SwaggerOperation(
         Summary = "切换仿真模式",
-        Description = "切换数递鸟摆轮设备的仿真模式，用于测试和实际运行切换",
+        Description = "切换数递鸟摆轮设备的仿真模式，用于测试和实际运行切换。切换时会自动执行连接/断连操作。",
         OperationId = "ToggleShuDiNiaoSimulation",
         Tags = new[] { "数递鸟摆轮配置" }
     )]
@@ -232,8 +281,9 @@ public class ShuDiNiaoConfigController : ControllerBase
     [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<WheelDiverterConfiguration> ToggleSimulation(
-        [FromQuery, Required] bool useSimulation)
+    public async Task<ActionResult<WheelDiverterConfiguration>> ToggleSimulation(
+        [FromQuery, Required] bool useSimulation,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -254,6 +304,36 @@ public class ShuDiNiaoConfigController : ControllerBase
             _logger.LogInformation(
                 "数递鸟摆轮仿真模式已切换: UseSimulation={UseSimulation}",
                 useSimulation);
+
+            // 应用热更新：根据仿真模式切换连接状态
+            if (_driverManager != null)
+            {
+                if (useSimulation)
+                {
+                    // 切换到仿真模式，断开所有真实连接
+                    await _driverManager.DisconnectAllAsync(cancellationToken);
+                    _logger.LogInformation("已断开所有数递鸟摆轮真实连接（切换到仿真模式）");
+                }
+                else
+                {
+                    // 切换到真实模式，应用配置重建连接
+                    var applyResult = await _driverManager.ApplyConfigurationAsync(config, cancellationToken);
+                    
+                    if (applyResult.IsSuccess)
+                    {
+                        _logger.LogInformation(
+                            "数递鸟摆轮驱动器已重连: 已连接={ConnectedCount}/{TotalCount}",
+                            applyResult.ConnectedCount,
+                            applyResult.TotalCount);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "数递鸟摆轮驱动器重连部分失败: {ErrorMessage}",
+                            applyResult.ErrorMessage);
+                    }
+                }
+            }
 
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();

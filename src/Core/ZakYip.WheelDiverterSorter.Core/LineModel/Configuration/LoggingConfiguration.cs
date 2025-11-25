@@ -6,8 +6,23 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 /// 日志配置模型
 /// </summary>
 /// <remarks>
-/// 存储各类日志的开关配置，用于控制哪些日志需要输出
-/// 异常日志始终输出，不受开关控制
+/// 存储各类日志的开关配置，用于控制哪些日志需要输出。
+/// 每个日志分类对应独立的日志文件：
+/// 
+/// | 配置项 | 日志文件 | 说明 |
+/// |--------|----------|------|
+/// | - | error-{date}.log | 异常日志（始终输出，不受开关控制） |
+/// | EnableParcelLifecycleLog | parcel-lifecycle-{date}.log | 包裹生命周期日志 |
+/// | EnableParcelTraceLog | parcel-trace-{date}.log | 包裹追踪日志 |
+/// | EnablePathExecutionLog | path-execution-{date}.log | 路径执行日志 |
+/// | EnableCommunicationLog | communication-{date}.log | 通信日志 |
+/// | EnableDriverLog | driver-{date}.log | 硬件驱动日志 |
+/// | EnablePerformanceLog | performance-{date}.log | 性能监控日志 |
+/// | EnableAlarmLog | alarm-{date}.log | 告警日志 |
+/// | EnableDebugLog | debug-{date}.log | 调试日志 |
+/// | - | all-{date}.log | 汇总日志（所有日志的备份） |
+/// 
+/// 异常日志始终输出，不受开关控制。
 /// </remarks>
 public class LoggingConfiguration
 {
@@ -29,7 +44,8 @@ public class LoggingConfiguration
     /// 是否启用包裹生命周期日志
     /// </summary>
     /// <remarks>
-    /// 记录包裹从创建到完成的完整生命周期事件
+    /// 记录包裹从创建到完成的完整生命周期事件。
+    /// 对应日志文件: parcel-lifecycle-{date}.log
     /// </remarks>
     public bool EnableParcelLifecycleLog { get; set; } = true;
 
@@ -37,7 +53,8 @@ public class LoggingConfiguration
     /// 是否启用包裹追踪日志
     /// </summary>
     /// <remarks>
-    /// 记录包裹的详细追踪信息，用于调试和分析
+    /// 记录包裹的详细追踪信息，用于调试和分析。
+    /// 对应日志文件: parcel-trace-{date}.log
     /// </remarks>
     public bool EnableParcelTraceLog { get; set; } = true;
 
@@ -45,7 +62,8 @@ public class LoggingConfiguration
     /// 是否启用路径执行日志
     /// </summary>
     /// <remarks>
-    /// 记录分拣路径的生成和执行过程
+    /// 记录分拣路径的生成和执行过程。
+    /// 对应日志文件: path-execution-{date}.log
     /// </remarks>
     public bool EnablePathExecutionLog { get; set; } = true;
 
@@ -53,7 +71,8 @@ public class LoggingConfiguration
     /// 是否启用通信日志
     /// </summary>
     /// <remarks>
-    /// 记录与上游规则引擎的通信过程
+    /// 记录与上游规则引擎的通信过程。
+    /// 对应日志文件: communication-{date}.log
     /// </remarks>
     public bool EnableCommunicationLog { get; set; } = true;
 
@@ -61,7 +80,8 @@ public class LoggingConfiguration
     /// 是否启用硬件驱动日志
     /// </summary>
     /// <remarks>
-    /// 记录硬件设备（摆轮、传感器等）的操作日志
+    /// 记录硬件设备（摆轮、传感器等）的操作日志。
+    /// 对应日志文件: driver-{date}.log
     /// </remarks>
     public bool EnableDriverLog { get; set; } = true;
 
@@ -69,7 +89,8 @@ public class LoggingConfiguration
     /// 是否启用性能监控日志
     /// </summary>
     /// <remarks>
-    /// 记录系统性能指标和监控数据
+    /// 记录系统性能指标和监控数据。
+    /// 对应日志文件: performance-{date}.log
     /// </remarks>
     public bool EnablePerformanceLog { get; set; } = true;
 
@@ -77,7 +98,8 @@ public class LoggingConfiguration
     /// 是否启用告警日志
     /// </summary>
     /// <remarks>
-    /// 记录系统告警事件（非异常级别告警）
+    /// 记录系统告警事件（非异常级别告警）。
+    /// 对应日志文件: alarm-{date}.log
     /// </remarks>
     public bool EnableAlarmLog { get; set; } = true;
 
@@ -85,7 +107,8 @@ public class LoggingConfiguration
     /// 是否启用调试日志
     /// </summary>
     /// <remarks>
-    /// 记录调试级别的详细日志信息
+    /// 记录调试级别的详细日志信息。
+    /// 对应日志文件: debug-{date}.log
     /// </remarks>
     public bool EnableDebugLog { get; set; } = false;
 
