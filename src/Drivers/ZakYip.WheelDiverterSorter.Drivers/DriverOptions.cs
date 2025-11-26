@@ -11,7 +11,10 @@ public class DriverOptions
     /// <summary>
     /// 是否使用硬件驱动器（false则使用模拟驱动器）
     /// </summary>
-    public bool UseHardwareDriver { get; set; } = false;
+    /// <remarks>
+    /// 默认为 true（使用硬件驱动，不使用仿真）
+    /// </remarks>
+    public bool UseHardwareDriver { get; set; } = true;
 
     /// <summary>
     /// 驱动器厂商类型（旧版，保留向后兼容）

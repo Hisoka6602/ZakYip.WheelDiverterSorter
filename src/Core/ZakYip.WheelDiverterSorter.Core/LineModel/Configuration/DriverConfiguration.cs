@@ -28,7 +28,10 @@ public class DriverConfiguration
     /// <summary>
     /// 是否使用硬件驱动器（false则使用模拟驱动器）
     /// </summary>
-    public bool UseHardwareDriver { get; set; } = false;
+    /// <remarks>
+    /// 默认为 true（使用硬件驱动，不使用仿真）
+    /// </remarks>
+    public bool UseHardwareDriver { get; set; } = true;
 
     /// <summary>
     /// IO驱动器厂商类型
@@ -68,15 +71,22 @@ public class DriverConfiguration
     /// <summary>
     /// 获取默认配置
     /// </summary>
+    /// <remarks>
+    /// 默认配置：
+    /// - UseHardwareDriver = true（使用硬件驱动，不使用仿真）
+    /// - VendorType = Leadshine（默认雷赛控制器）
+    /// </remarks>
     public static DriverConfiguration GetDefault()
     {
         return new DriverConfiguration
         {
-            UseHardwareDriver = false,
+            UseHardwareDriver = true,
             VendorType = DriverVendorType.Leadshine,
             Leadshine = new LeadshineDriverConfig
             {
+                ControllerIp = null,
                 CardNo = 0,
+                PortNo = 0,
                 Diverters = new List<DiverterDriverEntry>
                 {
                     new() { DiverterId = 1, DiverterName = "D1", OutputStartBit = 0, FeedbackInputBit = 10 },
@@ -129,12 +139,34 @@ public class DriverConfiguration
 /// <summary>
 /// 雷赛控制器配置
 /// </summary>
+/// <remarks>
+/// 基于 ZakYip.Singulation 项目的 LeadshineLtdmcBusAdapter 实现。
+/// 支持以太网模式（需要 ControllerIp）和本地 PCI 模式（ControllerIp 为空）。
+/// </remarks>
 public class LeadshineDriverConfig
 {
     /// <summary>
+    /// 控制器IP地址（以太网模式）
+    /// </summary>
+    /// <remarks>
+    /// 以太网模式需要配置控制器的IP地址。
+    /// 如果为空或null，则使用本地PCI模式（dmc_board_init）。
+    /// 如果配置了IP，则使用以太网模式（dmc_board_init_eth）。
+    /// </remarks>
+    /// <example>192.168.1.100</example>
+    public string? ControllerIp { get; set; }
+
+    /// <summary>
     /// 控制器卡号
     /// </summary>
+    /// <example>0</example>
     public ushort CardNo { get; set; } = 0;
+
+    /// <summary>
+    /// 端口号（CAN/EtherCAT端口编号）
+    /// </summary>
+    /// <example>0</example>
+    public ushort PortNo { get; set; } = 0;
 
     /// <summary>
     /// 摆轮配置列表

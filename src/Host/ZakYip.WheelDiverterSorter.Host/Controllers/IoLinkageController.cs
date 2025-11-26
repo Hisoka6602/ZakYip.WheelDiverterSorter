@@ -123,6 +123,12 @@ public class IoLinkageController : ControllerBase
     ///         ],
     ///         "diverterExceptionStateIos": [
     ///             { "bitNumber": 12, "level": "ActiveHigh" }
+    ///         ],
+    ///         "postPreStartWarningStateIos": [
+    ///             { "bitNumber": 13, "level": "ActiveHigh" }
+    ///         ],
+    ///         "wheelDiverterDisconnectedStateIos": [
+    ///             { "bitNumber": 14, "level": "ActiveHigh" }
     ///         ]
     ///     }
     /// 
@@ -137,6 +143,8 @@ public class IoLinkageController : ControllerBase
     /// - emergencyStopStateIos：急停时
     /// - upstreamConnectionExceptionStateIos：上游连接异常时
     /// - diverterExceptionStateIos：摆轮异常时
+    /// - postPreStartWarningStateIos：运行前预警结束后（preStartWarning durationSeconds 等待完成后触发）
+    /// - wheelDiverterDisconnectedStateIos：摆轮断联/异常时（首次连接成功后，摆轮断联或异常触发）
     /// </remarks>
     [HttpPut]
     [SwaggerOperation(
@@ -171,13 +179,16 @@ public class IoLinkageController : ControllerBase
 
             _logger.LogInformation(
                 "IO 联动配置已更新: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}, " + 
-                "EmergencyStopIos={EmergencyStopCount}, UpstreamExceptionIos={UpstreamExceptionCount}, DiverterExceptionIos={DiverterExceptionCount}",
+                "EmergencyStopIos={EmergencyStopCount}, UpstreamExceptionIos={UpstreamExceptionCount}, DiverterExceptionIos={DiverterExceptionCount}, " +
+                "PostPreStartWarningIos={PostPreStartWarningCount}, WheelDiverterDisconnectedIos={WheelDiverterDisconnectedCount}",
                 config.Enabled,
                 config.RunningStateIos.Count,
                 config.StoppedStateIos.Count,
                 config.EmergencyStopStateIos.Count,
                 config.UpstreamConnectionExceptionStateIos.Count,
-                config.DiverterExceptionStateIos.Count);
+                config.DiverterExceptionStateIos.Count,
+                config.PostPreStartWarningStateIos.Count,
+                config.WheelDiverterDisconnectedStateIos.Count);
 
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();
@@ -752,6 +763,20 @@ public class IoLinkageController : ControllerBase
                     Level = p.Level
                 })
                 .ToList(),
+            PostPreStartWarningStateIos = request.PostPreStartWarningStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
+            WheelDiverterDisconnectedStateIos = request.WheelDiverterDisconnectedStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
             CreatedAt = _systemClock.LocalNow,
             UpdatedAt = _systemClock.LocalNow
         };
@@ -794,6 +819,20 @@ public class IoLinkageController : ControllerBase
                 })
                 .ToList(),
             DiverterExceptionStateIos = config.DiverterExceptionStateIos
+                .Select(p => new IoLinkagePointResponse
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level.ToString()
+                })
+                .ToList(),
+            PostPreStartWarningStateIos = config.PostPreStartWarningStateIos
+                .Select(p => new IoLinkagePointResponse
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level.ToString()
+                })
+                .ToList(),
+            WheelDiverterDisconnectedStateIos = config.WheelDiverterDisconnectedStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
