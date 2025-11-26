@@ -62,6 +62,8 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task UpdateLeadshineIoDriverConfig_AcceptsStringEnumValue()
     {
         // Arrange - JSON with string enum value
+        // Note: While diverter mappings conceptually belong to wheeldiverter APIs,
+        // the DriverConfiguration model still contains them for historical reasons
         var json = """
         {
             "useHardwareDriver": false,
@@ -99,6 +101,8 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task UpdateLeadshineIoDriverConfig_AcceptsNumericEnumValue_ForBackwardCompatibility()
     {
         // Arrange - JSON with numeric enum value
+        // Note: While diverter mappings conceptually belong to wheeldiverter APIs,
+        // the DriverConfiguration model still contains them for historical reasons
         var json = """
         {
             "useHardwareDriver": false,

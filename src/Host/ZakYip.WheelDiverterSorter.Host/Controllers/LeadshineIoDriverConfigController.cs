@@ -355,14 +355,8 @@ public class LeadshineIoDriverConfigController : ControllerBase
             else
             {
                 _logger.LogError("雷赛IO驱动器{ResetType}失败，卡号: {CardNo}", resetType, _emcController.CardNo);
-                return Ok(ApiResponse<LeadshineRestartResult>.Ok(
-                    new LeadshineRestartResult
-                    {
-                        IsSuccess = false,
-                        ResetType = coldReset ? "Cold" : "Hot",
-                        CardNo = _emcController.CardNo,
-                        Message = $"雷赛IO驱动器{resetType}失败"
-                    },
+                // Return 500 status code for failed operation as suggested by code review
+                return StatusCode(500, ApiResponse<LeadshineRestartResult>.ServerError(
                     $"雷赛IO驱动器{resetType}失败 - Leadshine IO driver {(coldReset ? "cold" : "hot")} reset failed"));
             }
         }
