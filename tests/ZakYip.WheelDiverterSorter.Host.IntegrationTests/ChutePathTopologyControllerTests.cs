@@ -226,4 +226,233 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
         Assert.Contains("DiverterId", content);
         Assert.Contains("PositionIndex", content);
     }
+
+    [Fact]
+    public async Task SimulateParcelPath_WithValidChuteId_ShouldReturnSimulationResult()
+    {
+        // First, set up a topology with nodes
+        var topologyRequest = new ChutePathTopologyRequest
+        {
+            TopologyName = "测试拓扑",
+            Description = "用于模拟测试",
+            EntrySensorId = 1,
+            DiverterNodes = new List<DiverterPathNodeRequest>
+            {
+                new()
+                {
+                    DiverterId = 1,
+                    DiverterName = "摆轮D1",
+                    PositionIndex = 1,
+                    SegmentId = 1,
+                    FrontSensorId = 2,
+                    LeftChuteIds = new List<long> { 1 },
+                    RightChuteIds = new List<long> { 2 }
+                },
+                new()
+                {
+                    DiverterId = 2,
+                    DiverterName = "摆轮D2",
+                    PositionIndex = 2,
+                    SegmentId = 2,
+                    FrontSensorId = 3,
+                    LeftChuteIds = new List<long> { 3 },
+                    RightChuteIds = new List<long> { 4 }
+                }
+            },
+            ExceptionChuteId = 999
+        };
+
+        var setupContent = new StringContent(
+            JsonSerializer.Serialize(topologyRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+        await _client.PutAsync("/api/config/chute-path-topology", setupContent);
+
+        // Arrange
+        var simulationRequest = new TopologySimulationRequest
+        {
+            TargetChuteId = 1,
+            LineSpeedMmps = 1000m,
+            DefaultSegmentLengthMm = 5000,
+            SimulateTimeout = false,
+            SimulateParcelLoss = false
+        };
+
+        var content = new StringContent(
+            JsonSerializer.Serialize(simulationRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PostAsync("/api/config/chute-path-topology/simulate", content);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<TopologySimulationResult>>(responseContent, _jsonOptions);
+        
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.Equal(1, result.Data.TargetChuteId);
+        Assert.NotEmpty(result.Data.Steps);
+        Assert.True(result.Data.IsSuccess);
+        Assert.False(result.Data.IsParcelLost);
+        Assert.False(result.Data.IsTimeout);
+    }
+
+    [Fact]
+    public async Task SimulateParcelPath_WithTimeout_ShouldRouteToExceptionChute()
+    {
+        // First, set up a topology with nodes
+        var topologyRequest = new ChutePathTopologyRequest
+        {
+            TopologyName = "测试拓扑",
+            Description = "用于超时测试",
+            EntrySensorId = 1,
+            DiverterNodes = new List<DiverterPathNodeRequest>
+            {
+                new()
+                {
+                    DiverterId = 1,
+                    DiverterName = "摆轮D1",
+                    PositionIndex = 1,
+                    SegmentId = 1,
+                    LeftChuteIds = new List<long> { 1 },
+                    RightChuteIds = new List<long> { 2 }
+                }
+            },
+            ExceptionChuteId = 999
+        };
+
+        var setupContent = new StringContent(
+            JsonSerializer.Serialize(topologyRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+        await _client.PutAsync("/api/config/chute-path-topology", setupContent);
+
+        // Arrange
+        var simulationRequest = new TopologySimulationRequest
+        {
+            TargetChuteId = 1,
+            LineSpeedMmps = 1000m,
+            DefaultSegmentLengthMm = 5000,
+            SimulateTimeout = true,
+            TimeoutExtraDelayMs = 5000,
+            SimulateParcelLoss = false
+        };
+
+        var content = new StringContent(
+            JsonSerializer.Serialize(simulationRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PostAsync("/api/config/chute-path-topology/simulate", content);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<TopologySimulationResult>>(responseContent, _jsonOptions);
+        
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsSuccess);
+        Assert.True(result.Data.IsTimeout);
+        Assert.Equal(999, result.Data.ActualChuteId); // Should route to exception chute
+    }
+
+    [Fact]
+    public async Task SimulateParcelPath_WithParcelLoss_ShouldIndicateLoss()
+    {
+        // First, set up a topology with nodes
+        var topologyRequest = new ChutePathTopologyRequest
+        {
+            TopologyName = "测试拓扑",
+            Description = "用于丢包测试",
+            EntrySensorId = 1,
+            DiverterNodes = new List<DiverterPathNodeRequest>
+            {
+                new()
+                {
+                    DiverterId = 1,
+                    DiverterName = "摆轮D1",
+                    PositionIndex = 1,
+                    SegmentId = 1,
+                    LeftChuteIds = new List<long> { 1 },
+                    RightChuteIds = new List<long> { 2 }
+                },
+                new()
+                {
+                    DiverterId = 2,
+                    DiverterName = "摆轮D2",
+                    PositionIndex = 2,
+                    SegmentId = 2,
+                    LeftChuteIds = new List<long> { 3 },
+                    RightChuteIds = new List<long> { 4 }
+                }
+            },
+            ExceptionChuteId = 999
+        };
+
+        var setupContent = new StringContent(
+            JsonSerializer.Serialize(topologyRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+        await _client.PutAsync("/api/config/chute-path-topology", setupContent);
+
+        // Arrange
+        var simulationRequest = new TopologySimulationRequest
+        {
+            TargetChuteId = 3,
+            LineSpeedMmps = 1000m,
+            DefaultSegmentLengthMm = 5000,
+            SimulateTimeout = false,
+            SimulateParcelLoss = true,
+            ParcelLossAtDiverterIndex = 1
+        };
+
+        var content = new StringContent(
+            JsonSerializer.Serialize(simulationRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PostAsync("/api/config/chute-path-topology/simulate", content);
+
+        // Assert
+        response.EnsureSuccessStatusCode();
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var result = JsonSerializer.Deserialize<ApiResponse<TopologySimulationResult>>(responseContent, _jsonOptions);
+        
+        Assert.NotNull(result);
+        Assert.True(result.Success);
+        Assert.NotNull(result.Data);
+        Assert.False(result.Data.IsSuccess);
+        Assert.True(result.Data.IsParcelLost);
+        Assert.Null(result.Data.ActualChuteId); // No chute reached
+    }
+
+    [Fact]
+    public async Task SimulateParcelPath_WithInvalidChuteId_ShouldReturnBadRequest()
+    {
+        // Arrange
+        var simulationRequest = new TopologySimulationRequest
+        {
+            TargetChuteId = 99999, // Non-existent chute
+            LineSpeedMmps = 1000m
+        };
+
+        var content = new StringContent(
+            JsonSerializer.Serialize(simulationRequest, _jsonOptions),
+            Encoding.UTF8,
+            "application/json");
+
+        // Act
+        var response = await _client.PostAsync("/api/config/chute-path-topology/simulate", content);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
 }
