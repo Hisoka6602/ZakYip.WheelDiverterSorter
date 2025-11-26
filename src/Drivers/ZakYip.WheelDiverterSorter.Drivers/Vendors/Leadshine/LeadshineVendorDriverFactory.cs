@@ -107,10 +107,23 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
             throw new InvalidOperationException("EMC 控制器未初始化");
         }
 
-        // 这里需要一个 ConveyorIoMapping 配置，实际使用时应从配置中获取
-        // 暂时返回 null，表示需要额外配置
-        var logger = _loggerFactory.CreateLogger<LeadshineConveyorSegmentDriver>();
-        return null;
+        // 从配置中查找对应的传送带段映射
+        var mapping = _options.ConveyorSegmentMappings
+            .FirstOrDefault(m => m.SegmentKey == segmentId);
+
+        if (mapping == null)
+        {
+            // 没有找到对应的配置，记录日志并返回 null
+            var logger = _loggerFactory.CreateLogger<LeadshineVendorDriverFactory>();
+            logger.LogWarning(
+                "未找到传送带段映射配置: SegmentId={SegmentId}，已配置的段: [{ConfiguredSegments}]",
+                segmentId,
+                string.Join(", ", _options.ConveyorSegmentMappings.Select(m => m.SegmentKey)));
+            return null;
+        }
+
+        var driverLogger = _loggerFactory.CreateLogger<LeadshineConveyorSegmentDriver>();
+        return new LeadshineConveyorSegmentDriver(mapping, _emcController, driverLogger);
     }
 
     public IReadOnlyList<IWheelDiverterActuator> CreateWheelDiverterActuators()
@@ -123,9 +136,12 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 
     public ISensorInputReader? CreateSensorInputReader()
     {
-        // Leadshine 传感器读取通过 EMC 控制器和 IO 联动驱动器实现
-        // 硬件抽象层主要用于模拟和测试场景
-        // 实际硬件使用时返回 null
-        return null;
+        if (_emcController == null)
+        {
+            return null;
+        }
+
+        var logger = _loggerFactory.CreateLogger<LeadshineSensorInputReader>();
+        return new LeadshineSensorInputReader(_emcController, logger);
     }
 }

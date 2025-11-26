@@ -158,6 +158,7 @@ public class CommunicationConfiguration
     /// </summary>
     public static CommunicationConfiguration GetDefault()
     {
+        var now = ConfigurationDefaults.DefaultTimestamp;
         return new CommunicationConfiguration
         {
             Mode = CommunicationMode.Tcp,  // 默认使用TCP
@@ -201,7 +202,9 @@ public class CommunicationConfiguration
                 KeepAliveInterval = 30,
                 ServerTimeout = 60,
                 SkipNegotiation = false
-            }
+            },
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 

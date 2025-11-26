@@ -58,9 +58,12 @@ public class WheelDiverterConfiguration
     /// </summary>
     public static WheelDiverterConfiguration GetDefault()
     {
+        var now = ConfigurationDefaults.DefaultTimestamp;
         return new WheelDiverterConfiguration
         {
-            VendorType = WheelDiverterVendorType.ShuDiNiao
+            VendorType = WheelDiverterVendorType.ShuDiNiao,
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 

@@ -75,25 +75,31 @@ public class DriverConfiguration
     /// 默认配置：
     /// - UseHardwareDriver = true（使用硬件驱动，不使用仿真）
     /// - VendorType = Leadshine（默认雷赛控制器）
+    /// - ControllerIp = "192.168.5.11"
+    /// - CardNo = 8
+    /// - PortNo = 2
     /// </remarks>
     public static DriverConfiguration GetDefault()
     {
+        var now = ConfigurationDefaults.DefaultTimestamp;
         return new DriverConfiguration
         {
             UseHardwareDriver = true,
             VendorType = DriverVendorType.Leadshine,
             Leadshine = new LeadshineDriverConfig
             {
-                ControllerIp = null,
-                CardNo = 0,
-                PortNo = 0,
+                ControllerIp = "192.168.5.11",
+                CardNo = 8,
+                PortNo = 2,
                 Diverters = new List<DiverterDriverEntry>
                 {
                     new() { DiverterId = 1, DiverterName = "D1", OutputStartBit = 0, FeedbackInputBit = 10 },
                     new() { DiverterId = 2, DiverterName = "D2", OutputStartBit = 2, FeedbackInputBit = 11 },
                     new() { DiverterId = 3, DiverterName = "D3", OutputStartBit = 4, FeedbackInputBit = 12 }
                 }
-            }
+            },
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 
@@ -152,21 +158,28 @@ public class LeadshineDriverConfig
     /// 以太网模式需要配置控制器的IP地址。
     /// 如果为空或null，则使用本地PCI模式（dmc_board_init）。
     /// 如果配置了IP，则使用以太网模式（dmc_board_init_eth）。
+    /// 默认值为 "192.168.5.11"。
     /// </remarks>
-    /// <example>192.168.1.100</example>
-    public string? ControllerIp { get; set; }
+    /// <example>192.168.5.11</example>
+    public string? ControllerIp { get; set; } = "192.168.5.11";
 
     /// <summary>
     /// 控制器卡号
     /// </summary>
-    /// <example>0</example>
-    public ushort CardNo { get; set; } = 0;
+    /// <remarks>
+    /// 默认值为 8。
+    /// </remarks>
+    /// <example>8</example>
+    public ushort CardNo { get; set; } = 8;
 
     /// <summary>
     /// 端口号（CAN/EtherCAT端口编号）
     /// </summary>
-    /// <example>0</example>
-    public ushort PortNo { get; set; } = 0;
+    /// <remarks>
+    /// 默认值为 2。
+    /// </remarks>
+    /// <example>2</example>
+    public ushort PortNo { get; set; } = 2;
 
     /// <summary>
     /// 摆轮配置列表

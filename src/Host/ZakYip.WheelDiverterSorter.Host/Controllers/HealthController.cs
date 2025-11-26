@@ -380,19 +380,38 @@ public class HealthController : ControllerBase
                 {
                     var ioConfig = _ioDriverConfigRepository.Get();
                     var ioVendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
+                    var isSimulationMode = !ioConfig.UseHardwareDriver;
+                    
+                    // 检查配置是否完整（非仿真模式下需要）
+                    var isConfigured = true;
+                    var configError = string.Empty;
+                    if (!isSimulationMode)
+                    {
+                        if (ioConfig.VendorType == DriverVendorType.Leadshine && ioConfig.Leadshine == null)
+                        {
+                            isConfigured = false;
+                            configError = "雷赛控制卡参数未配置";
+                        }
+                    }
+                    
+                    // 非仿真模式下，未配置或未连接都是不健康的
+                    var isHealthy = isSimulationMode || (isConfigured);
+                    
                     var ioDriverStatus = new DriverHealthInfo
                     {
                         DriverName = $"IO驱动器 ({ioVendorDisplayName})",
                         DriverType = DriverCategory.IoDriver,
                         VendorType = ioConfig.VendorType.ToString(),
                         VendorDisplayName = ioVendorDisplayName,
-                        IsConnected = ioConfig.UseHardwareDriver,
-                        IsSimulationMode = !ioConfig.UseHardwareDriver,
-                        IsHealthy = true, // IO驱动器配置存在即视为健康
-                        ErrorCode = null,
-                        ErrorMessage = ioConfig.UseHardwareDriver 
-                            ? $"硬件模式已启用，厂商: {ioVendorDisplayName}" 
-                            : "仿真模式运行中",
+                        IsConnected = !isSimulationMode && isConfigured,
+                        IsSimulationMode = isSimulationMode,
+                        IsHealthy = isHealthy,
+                        ErrorCode = !isHealthy ? "NOT_CONFIGURED" : null,
+                        ErrorMessage = isSimulationMode 
+                            ? "仿真模式运行中" 
+                            : (isConfigured 
+                                ? $"硬件模式已启用，厂商: {ioVendorDisplayName}" 
+                                : configError),
                         CheckedAt = now
                     };
                     drivers.Add(ioDriverStatus);
@@ -406,11 +425,27 @@ public class HealthController : ControllerBase
                         DriverType = DriverCategory.IoDriver,
                         IsHealthy = false,
                         IsConnected = false,
+                        IsSimulationMode = false,
                         ErrorCode = "CONFIG_ERROR",
                         ErrorMessage = "无法获取IO驱动器配置",
                         CheckedAt = now
                     });
                 }
+            }
+            else
+            {
+                // 未注入IO驱动器配置仓储时，不健康
+                drivers.Add(new DriverHealthInfo
+                {
+                    DriverName = "IO驱动器",
+                    DriverType = DriverCategory.IoDriver,
+                    IsHealthy = false,
+                    IsConnected = false,
+                    IsSimulationMode = false,
+                    ErrorCode = "NOT_CONFIGURED",
+                    ErrorMessage = "IO驱动器配置服务未初始化",
+                    CheckedAt = now
+                });
             }
             
             // 2. 获取摆轮驱动器状态
@@ -438,6 +473,8 @@ public class HealthController : ControllerBase
                                     foreach (var device in enabledDevices)
                                     {
                                         var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
+                                        // 非仿真模式下，未连接是不健康的
+                                        var isHealthy = isSimulation || isConnected;
                                         drivers.Add(new DriverHealthInfo
                                         {
                                             DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
@@ -446,7 +483,7 @@ public class HealthController : ControllerBase
                                             VendorDisplayName = "数递鸟",
                                             IsConnected = isSimulation ? false : isConnected,
                                             IsSimulationMode = isSimulation,
-                                            IsHealthy = isSimulation || isConnected,
+                                            IsHealthy = isHealthy,
                                             ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
                                             ErrorMessage = isSimulation 
                                                 ? "仿真模式运行中" 
@@ -472,6 +509,8 @@ public class HealthController : ControllerBase
                                     foreach (var device in enabledDevices)
                                     {
                                         var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
+                                        // 非仿真模式下，未连接是不健康的
+                                        var isHealthy = isSimulation || isConnected;
                                         drivers.Add(new DriverHealthInfo
                                         {
                                             DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",
@@ -480,7 +519,7 @@ public class HealthController : ControllerBase
                                             VendorDisplayName = "莫迪",
                                             IsConnected = isSimulation ? false : isConnected,
                                             IsSimulationMode = isSimulation,
-                                            IsHealthy = isSimulation || isConnected,
+                                            IsHealthy = isHealthy,
                                             ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
                                             ErrorMessage = isSimulation 
                                                 ? "仿真模式运行中" 

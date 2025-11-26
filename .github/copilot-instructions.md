@@ -225,6 +225,58 @@ public async Task<ActionResult<ChuteDto>> CreateChute(  // ❌ 未使用 ApiResp
 
 **相关文档**: [CONFIGURATION_API.md](../CONFIGURATION_API.md)
 
+### 6. 配置模型的 CreatedAt/UpdatedAt 默认值
+
+**规则**: 所有配置模型的 `CreatedAt` 和 `UpdatedAt` 字段必须有有效的默认值，不能是 `"0001-01-01T00:00:00"`。
+
+**时间默认值规范**:
+- 在仓储层创建/更新记录时，由仓储通过 `ISystemClock.LocalNow` 设置时间
+- 在 `GetDefault()` 静态方法中，使用 `ConfigurationDefaults.DefaultTimestamp` 作为默认值
+- 如果没有更新，`UpdatedAt` 应该等于 `CreatedAt`
+
+**实施要求**:
+```csharp
+// ✅ 正确：在 GetDefault() 中设置默认时间
+public static SystemConfiguration GetDefault()
+{
+    var now = ConfigurationDefaults.DefaultTimestamp;
+    return new SystemConfiguration
+    {
+        ConfigName = "system",
+        ExceptionChuteId = 999,
+        Version = 1,
+        CreatedAt = now,
+        UpdatedAt = now  // 未更新时等于 CreatedAt
+    };
+}
+
+// ✅ 正确：仓储在插入时使用 ISystemClock
+public void Insert(SystemConfiguration config)
+{
+    config.CreatedAt = _clock.LocalNow;
+    config.UpdatedAt = _clock.LocalNow;
+    _collection.Insert(config);
+}
+
+// ✅ 正确：仓储在更新时使用 ISystemClock
+public void Update(SystemConfiguration config)
+{
+    config.UpdatedAt = _clock.LocalNow;
+    _collection.Update(config);
+}
+
+// ❌ 错误：GetDefault() 未设置时间，导致 "0001-01-01T00:00:00"
+public static SystemConfiguration GetDefault()
+{
+    return new SystemConfiguration
+    {
+        ConfigName = "system",
+        ExceptionChuteId = 999
+        // CreatedAt 和 UpdatedAt 未设置，将是默认值 DateTime.MinValue
+    };
+}
+```
+
 ---
 
 ## 二、代码风格与类型使用

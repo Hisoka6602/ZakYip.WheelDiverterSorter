@@ -517,6 +517,11 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     /// <summary>
     /// 检查IO驱动器连接状态
     /// </summary>
+    /// <remarks>
+    /// 运行前检查是针对正式环境的检查，因此：
+    /// - 仿真模式返回 Unhealthy（正式环境不应使用仿真驱动）
+    /// - 未配置或配置不完整返回 Unhealthy
+    /// </remarks>
     private async Task<HealthCheckItem> CheckIoDriverConnectivityAsync(CancellationToken cancellationToken)
     {
         return await _safeExecutor.ExecuteAsync(
@@ -538,14 +543,14 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 // 获取厂商显示名称
                 var vendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
 
-                // 如果是仿真模式（不使用硬件驱动），直接返回健康
+                // 如果是仿真模式（不使用硬件驱动），返回不健康（正式环境运行准备检查）
                 if (!ioConfig.UseHardwareDriver)
                 {
                     return new HealthCheckItem
                     {
                         Name = "IoDriverConnected",
-                        Status = HealthStatus.Healthy,
-                        Message = $"IO驱动器处于仿真模式，厂商类型: {vendorDisplayName}"
+                        Status = HealthStatus.Unhealthy,
+                        Message = $"IO驱动器处于仿真模式，厂商类型: {vendorDisplayName}（正式环境不应使用仿真驱动）"
                     };
                 }
 
@@ -582,6 +587,11 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     /// <summary>
     /// 检查摆轮驱动器连接状态
     /// </summary>
+    /// <remarks>
+    /// 运行前检查是针对正式环境的检查，因此：
+    /// - 仿真模式返回 Unhealthy（正式环境不应使用仿真驱动）
+    /// - 未配置或未连接返回 Unhealthy
+    /// </remarks>
     private async Task<HealthCheckItem> CheckWheelDiverterConnectivityAsync(CancellationToken cancellationToken)
     {
         return await _safeExecutor.ExecuteAsync(
@@ -611,13 +621,14 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     _ => true
                 };
 
+                // 仿真模式返回不健康（正式环境运行准备检查）
                 if (isSimulation)
                 {
                     return new HealthCheckItem
                     {
                         Name = "WheelDiverterDriverConnected",
-                        Status = HealthStatus.Healthy,
-                        Message = $"摆轮驱动器处于仿真模式，厂商类型: {vendorDisplayName}"
+                        Status = HealthStatus.Unhealthy,
+                        Message = $"摆轮驱动器处于仿真模式，厂商类型: {vendorDisplayName}（正式环境不应使用仿真驱动）"
                     };
                 }
 
