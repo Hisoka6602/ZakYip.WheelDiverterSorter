@@ -34,6 +34,26 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class ChutePathTopologyController : ControllerBase
 {
+    /// <summary>
+    /// 模拟使用的默认线速（毫米/秒）= 1 m/s
+    /// </summary>
+    private const decimal SimulationDefaultLineSpeedMmps = 1000m;
+    
+    /// <summary>
+    /// 模拟使用的默认线体段长度（毫米）= 5 m
+    /// </summary>
+    private const double SimulationDefaultSegmentLengthMm = 5000;
+    
+    /// <summary>
+    /// 拓扑图中每列的宽度（字符数）
+    /// </summary>
+    private const int DiagramColumnWidth = 12;
+    
+    /// <summary>
+    /// 拓扑图中箭头符号的额外占用宽度（" →" 占用3字符）
+    /// </summary>
+    private const int DiagramArrowPadding = 3;
+
     private readonly IChutePathTopologyRepository _topologyRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
     private readonly ISystemClock _clock;
@@ -399,10 +419,6 @@ public class ChutePathTopologyController : ControllerBase
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
     public ActionResult<ApiResponse<TopologySimulationResult>> SimulateParcelPath([FromBody] TopologySimulationRequest request)
     {
-        // 模拟使用的默认参数（来自线体配置的默认值）
-        const decimal DefaultLineSpeedMmps = 1000m;  // 默认线速 1m/s
-        const double DefaultSegmentLengthMm = 5000;   // 默认线体段长度 5m
-        
         try
         {
             var config = _topologyRepository.Get();
@@ -510,9 +526,9 @@ public class ChutePathTopologyController : ControllerBase
             // Process each diverter node
             foreach (var node in pathNodes)
             {
-                // Use default values from configuration (line segment config not injected, use defaults)
-                var segmentLengthMm = DefaultSegmentLengthMm;
-                var lineSpeedMmps = DefaultLineSpeedMmps;
+                // Use class-level default values for simulation
+                var segmentLengthMm = SimulationDefaultSegmentLengthMm;
+                var lineSpeedMmps = SimulationDefaultLineSpeedMmps;
                 var transitTimeMs = (segmentLengthMm / (double)lineSpeedMmps) * 1000;
                 
                 // Add tolerance for variation
@@ -1160,9 +1176,6 @@ public class ChutePathTopologyController : ControllerBase
             return sb.ToString();
         }
 
-        // 计算每列的宽度
-        const int columnWidth = 12;
-        
         // 第一行：左侧格口（在摆轮上方）
         sb.Append("".PadLeft(8)); // 入口前的空格
         foreach (var node in nodes)
@@ -1170,7 +1183,7 @@ public class ChutePathTopologyController : ControllerBase
             var leftChutes = node.LeftChuteIds.Count > 0 
                 ? $"格口{string.Join(",", node.LeftChuteIds)}" 
                 : "";
-            sb.Append(leftChutes.PadLeft(columnWidth));
+            sb.Append(leftChutes.PadLeft(DiagramColumnWidth));
         }
         sb.AppendLine();
         
@@ -1179,7 +1192,7 @@ public class ChutePathTopologyController : ControllerBase
         foreach (var node in nodes)
         {
             var arrow = node.LeftChuteIds.Count > 0 ? "↑" : "";
-            sb.Append(arrow.PadLeft(columnWidth));
+            sb.Append(arrow.PadLeft(DiagramColumnWidth));
         }
         sb.AppendLine();
         
@@ -1188,12 +1201,12 @@ public class ChutePathTopologyController : ControllerBase
         foreach (var node in nodes)
         {
             var diverterName = node.DiverterName ?? $"摆轮D{node.DiverterId}";
-            // 截取名称使其适合宽度
-            if (diverterName.Length > columnWidth - 3)
+            // 截取名称使其适合宽度（减去箭头占用的空间）
+            if (diverterName.Length > DiagramColumnWidth - DiagramArrowPadding)
             {
-                diverterName = diverterName.Substring(0, columnWidth - 3);
+                diverterName = diverterName.Substring(0, DiagramColumnWidth - DiagramArrowPadding);
             }
-            sb.Append($" {diverterName} →".PadLeft(columnWidth));
+            sb.Append($" {diverterName} →".PadLeft(DiagramColumnWidth));
         }
         sb.AppendLine($" 末端(异常口{config.ExceptionChuteId})");
         
@@ -1202,7 +1215,7 @@ public class ChutePathTopologyController : ControllerBase
         foreach (var node in nodes)
         {
             var arrow = node.RightChuteIds.Count > 0 ? "↓" : "";
-            sb.Append(arrow.PadLeft(columnWidth));
+            sb.Append(arrow.PadLeft(DiagramColumnWidth));
         }
         sb.AppendLine();
         
@@ -1213,7 +1226,7 @@ public class ChutePathTopologyController : ControllerBase
             var rightChutes = node.RightChuteIds.Count > 0 
                 ? $"格口{string.Join(",", node.RightChuteIds)}" 
                 : "";
-            sb.Append(rightChutes.PadLeft(columnWidth));
+            sb.Append(rightChutes.PadLeft(DiagramColumnWidth));
         }
         sb.AppendLine();
         
