@@ -144,6 +144,16 @@ public static class ConfigurationRepositoryServiceExtensions
             return repository;
         });
 
+        // 注册格口路径拓扑配置仓储为单例
+        services.AddSingleton<IChutePathTopologyRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbChutePathTopologyRepository(fullDatabasePath, clock);
+            // 初始化默认配置，使用本地时间
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
         return services;
     }
 }
