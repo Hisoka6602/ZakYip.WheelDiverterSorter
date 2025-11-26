@@ -3,8 +3,10 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
@@ -16,6 +18,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Services;
 /// </summary>
 /// <remarks>
 /// 统一注册分拣相关的核心服务，包括路径生成、路径执行、分拣编排等
+/// PR-1: Host 层只负责 DI 注册，实际实现位于 Execution/Core 层
 /// </remarks>
 public static class SortingServiceExtensions
 {
@@ -58,10 +61,11 @@ public static class SortingServiceExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
-        // 注册分拣异常处理器
+        // PR-1: 注册分拣异常处理器（实现位于 Execution.Orchestration）
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
 
-        // 注册 Application 层分拣编排服务
+        // PR-1: 注册分拣编排服务（接口位于 Core.Sorting.Orchestration，实现位于 Host.Application.Services）
+        // 注意：SortingOrchestrator 因依赖 Communication、Ingress 等多个层，暂时保留在 Host.Application
         services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
 
         // 注册路由-拓扑一致性检查器（编排层服务）
