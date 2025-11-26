@@ -219,6 +219,10 @@ public class DiverterDriverEntry
 /// <summary>
 /// 数递鸟摆轮设备条目
 /// </summary>
+/// <remarks>
+/// 摆轮的路由配置（左/右/直行格口、前感应IO）已在格口路径拓扑配置中定义，
+/// 此处仅包含设备通信相关配置。
+/// </remarks>
 public record class ShuDiNiaoDeviceEntry
 {
     /// <summary>
@@ -248,45 +252,6 @@ public record class ShuDiNiaoDeviceEntry
     public required byte DeviceAddress { get; init; }
 
     /// <summary>
-    /// 左转方向对应的格口ID
-    /// </summary>
-    /// <remarks>
-    /// 摆轮向左转时，包裹将被分流到此格口。
-    /// 如果为null，表示左侧没有格口。
-    /// </remarks>
-    /// <example>1</example>
-    public long? LeftChuteId { get; init; }
-
-    /// <summary>
-    /// 右转方向对应的格口ID
-    /// </summary>
-    /// <remarks>
-    /// 摆轮向右转时，包裹将被分流到此格口。
-    /// 如果为null，表示右侧没有格口。
-    /// </remarks>
-    /// <example>2</example>
-    public long? RightChuteId { get; init; }
-
-    /// <summary>
-    /// 直行/向前对应的格口ID
-    /// </summary>
-    /// <remarks>
-    /// 摆轮保持直行时，包裹将继续向前。
-    /// 如果为null，表示直行方向没有格口。
-    /// </remarks>
-    /// <example>3</example>
-    public long? StraightChuteId { get; init; }
-
-    /// <summary>
-    /// 摆轮前IO的ID（与IO驱动器配置的IO相关）
-    /// </summary>
-    /// <remarks>
-    /// 用于检测包裹到达摆轮前的传感器IO编号。
-    /// </remarks>
-    /// <example>10</example>
-    public long? FrontIoId { get; init; }
-
-    /// <summary>
     /// 是否启用该设备
     /// </summary>
     public bool IsEnabled { get; init; } = true;
@@ -295,6 +260,10 @@ public record class ShuDiNiaoDeviceEntry
 /// <summary>
 /// 莫迪摆轮设备条目
 /// </summary>
+/// <remarks>
+/// 摆轮的路由配置（左/右/直行格口、前感应IO）已在格口路径拓扑配置中定义，
+/// 此处仅包含设备通信相关配置。
+/// </remarks>
 public record class ModiDeviceEntry
 {
     /// <summary>
@@ -323,45 +292,6 @@ public record class ModiDeviceEntry
     /// </remarks>
     /// <example>1</example>
     public required int DeviceId { get; init; }
-
-    /// <summary>
-    /// 左转方向对应的格口ID
-    /// </summary>
-    /// <remarks>
-    /// 摆轮向左转时，包裹将被分流到此格口。
-    /// 如果为null，表示左侧没有格口。
-    /// </remarks>
-    /// <example>1</example>
-    public long? LeftChuteId { get; init; }
-
-    /// <summary>
-    /// 右转方向对应的格口ID
-    /// </summary>
-    /// <remarks>
-    /// 摆轮向右转时，包裹将被分流到此格口。
-    /// 如果为null，表示右侧没有格口。
-    /// </remarks>
-    /// <example>2</example>
-    public long? RightChuteId { get; init; }
-
-    /// <summary>
-    /// 直行/向前对应的格口ID
-    /// </summary>
-    /// <remarks>
-    /// 摆轮保持直行时，包裹将继续向前。
-    /// 如果为null，表示直行方向没有格口。
-    /// </remarks>
-    /// <example>3</example>
-    public long? StraightChuteId { get; init; }
-
-    /// <summary>
-    /// 摆轮前IO的ID（与IO驱动器配置的IO相关）
-    /// </summary>
-    /// <remarks>
-    /// 用于检测包裹到达摆轮前的传感器IO编号。
-    /// </remarks>
-    /// <example>10</example>
-    public long? FrontIoId { get; init; }
 
     /// <summary>
     /// 是否启用该设备

@@ -147,13 +147,6 @@ public record ChutePathTopologyRequest
     [Required]
     [Range(1, long.MaxValue)]
     public required long ExceptionChuteId { get; init; }
-
-    /// <summary>
-    /// 默认线速（毫米/秒）
-    /// </summary>
-    /// <example>500</example>
-    [Range(1.0, 10000.0)]
-    public decimal DefaultLineSpeedMmps { get; init; } = 500m;
 }
 
 /// <summary>
@@ -198,12 +191,6 @@ public record ChutePathTopologyResponse
     /// </summary>
     /// <example>999</example>
     public required long ExceptionChuteId { get; init; }
-
-    /// <summary>
-    /// 默认线速（毫米/秒）
-    /// </summary>
-    /// <example>500</example>
-    public decimal DefaultLineSpeedMmps { get; init; }
 
     /// <summary>
     /// 配置创建时间

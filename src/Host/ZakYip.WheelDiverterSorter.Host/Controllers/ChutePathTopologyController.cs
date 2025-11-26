@@ -129,13 +129,12 @@ public class ChutePathTopologyController : ControllerBase
     ///                 "rightChuteIds": [5]
     ///             }
     ///         ],
-    ///         "exceptionChuteId": 999,
-    ///         "defaultLineSpeedMmps": 500
+    ///         "exceptionChuteId": 999
     ///     }
     ///
     /// 配置说明：
     /// - entrySensorId 必须引用一个已配置的 ParcelCreation 类型的感应IO
-    /// - diverterNodes 中的 segmentId 必须引用已配置的线体段
+    /// - diverterNodes 中的 segmentId 必须引用已配置的线体段（线体速度在线体段配置中定义）
     /// - diverterNodes 中的 frontSensorId（可选）必须引用 WheelFront 类型的感应IO
     /// </remarks>
     [HttpPut]
@@ -249,6 +248,341 @@ public class ChutePathTopologyController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 导出格口路径拓扑配置为JSON格式
+    /// </summary>
+    /// <returns>JSON格式的配置文件</returns>
+    /// <response code="200">成功导出配置</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("export/json")]
+    [SwaggerOperation(
+        Summary = "导出格口路径拓扑配置为JSON格式",
+        Description = "导出当前格口路径拓扑配置为JSON文件，可用于备份或迁移",
+        OperationId = "ExportChutePathTopologyJson",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "成功导出配置")]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Produces("application/json")]
+    public ActionResult ExportAsJson()
+    {
+        try
+        {
+            var config = _topologyRepository.Get();
+            var response = MapToResponse(config);
+            
+            var json = System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            });
+
+            var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+            return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出格口路径拓扑配置为JSON失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导出格口路径拓扑配置失败 - Failed to export chute path topology configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 导出格口路径拓扑配置为CSV格式
+    /// </summary>
+    /// <returns>CSV格式的配置文件</returns>
+    /// <response code="200">成功导出配置</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// CSV格式说明：
+    /// - 第一行为摆轮节点的列头
+    /// - 每行代表一个摆轮节点
+    /// - LeftChuteIds和RightChuteIds使用分号分隔多个值
+    /// </remarks>
+    [HttpGet("export/csv")]
+    [SwaggerOperation(
+        Summary = "导出格口路径拓扑配置为CSV格式",
+        Description = "导出当前格口路径拓扑配置为CSV文件，便于在Excel等工具中查看和编辑",
+        OperationId = "ExportChutePathTopologyCsv",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "成功导出配置")]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Produces("text/csv")]
+    public ActionResult ExportAsCsv()
+    {
+        try
+        {
+            var config = _topologyRepository.Get();
+            
+            var sb = new System.Text.StringBuilder();
+            
+            // 添加配置元数据注释
+            sb.AppendLine($"# TopologyName: {config.TopologyName}");
+            sb.AppendLine($"# Description: {config.Description ?? ""}");
+            sb.AppendLine($"# EntrySensorId: {config.EntrySensorId}");
+            sb.AppendLine($"# ExceptionChuteId: {config.ExceptionChuteId}");
+            sb.AppendLine();
+            
+            // CSV列头
+            sb.AppendLine("DiverterId,DiverterName,PositionIndex,SegmentId,FrontSensorId,LeftChuteIds,RightChuteIds,Remarks");
+            
+            // 数据行
+            foreach (var node in config.DiverterNodes)
+            {
+                var leftChutes = string.Join(";", node.LeftChuteIds);
+                var rightChutes = string.Join(";", node.RightChuteIds);
+                var name = EscapeCsvField(node.DiverterName ?? "");
+                var remarks = EscapeCsvField(node.Remarks ?? "");
+                
+                sb.AppendLine($"{node.DiverterId},{name},{node.PositionIndex},{node.SegmentId},{node.FrontSensorId?.ToString() ?? ""},{leftChutes},{rightChutes},{remarks}");
+            }
+
+            var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+            return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出格口路径拓扑配置为CSV失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导出格口路径拓扑配置为CSV失败 - Failed to export chute path topology configuration as CSV"));
+        }
+    }
+
+    /// <summary>
+    /// 从JSON文件导入格口路径拓扑配置
+    /// </summary>
+    /// <param name="file">JSON配置文件</param>
+    /// <returns>导入后的格口路径拓扑配置</returns>
+    /// <response code="200">导入成功</response>
+    /// <response code="400">文件格式无效</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("import/json")]
+    [SwaggerOperation(
+        Summary = "从JSON文件导入格口路径拓扑配置",
+        Description = "从JSON文件导入格口路径拓扑配置，将覆盖当前配置",
+        OperationId = "ImportChutePathTopologyJson",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "导入成功", typeof(ApiResponse<ChutePathTopologyResponse>))]
+    [SwaggerResponse(400, "文件格式无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ApiResponse<ChutePathTopologyResponse>>> ImportFromJson(IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("请选择要导入的JSON文件 - Please select a JSON file to import"));
+            }
+
+            if (!file.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("文件必须是JSON格式 - File must be in JSON format"));
+            }
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var json = await reader.ReadToEndAsync();
+
+            var request = System.Text.Json.JsonSerializer.Deserialize<ChutePathTopologyRequest>(json, new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (request == null)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("JSON文件内容无效 - Invalid JSON file content"));
+            }
+
+            // 重用更新逻辑进行验证和保存
+            return await Task.FromResult(UpdateChutePathTopology(request));
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger.LogWarning(ex, "导入的JSON文件格式无效");
+            return BadRequest(ApiResponse<object>.BadRequest($"JSON文件格式无效: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "从JSON导入格口路径拓扑配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导入格口路径拓扑配置失败 - Failed to import chute path topology configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 从CSV文件导入格口路径拓扑配置
+    /// </summary>
+    /// <param name="file">CSV配置文件</param>
+    /// <param name="topologyName">拓扑配置名称</param>
+    /// <param name="entrySensorId">入口传感器ID</param>
+    /// <param name="exceptionChuteId">异常格口ID</param>
+    /// <param name="description">拓扑描述（可选）</param>
+    /// <returns>导入后的格口路径拓扑配置</returns>
+    /// <response code="200">导入成功</response>
+    /// <response code="400">文件格式无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// CSV格式要求：
+    /// - 第一行为列头（可以有#开头的注释行）
+    /// - 列: DiverterId,DiverterName,PositionIndex,SegmentId,FrontSensorId,LeftChuteIds,RightChuteIds,Remarks
+    /// - LeftChuteIds和RightChuteIds使用分号分隔多个值
+    /// </remarks>
+    [HttpPost("import/csv")]
+    [SwaggerOperation(
+        Summary = "从CSV文件导入格口路径拓扑配置",
+        Description = "从CSV文件导入摆轮节点配置，需要提供拓扑元数据参数",
+        OperationId = "ImportChutePathTopologyCsv",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "导入成功", typeof(ApiResponse<ChutePathTopologyResponse>))]
+    [SwaggerResponse(400, "文件格式无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ApiResponse<ChutePathTopologyResponse>>> ImportFromCsv(
+        IFormFile file,
+        [FromQuery] string topologyName,
+        [FromQuery] long entrySensorId,
+        [FromQuery] long exceptionChuteId,
+        [FromQuery] string? description = null)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("请选择要导入的CSV文件 - Please select a CSV file to import"));
+            }
+
+            if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("文件必须是CSV格式 - File must be in CSV format"));
+            }
+
+            if (string.IsNullOrWhiteSpace(topologyName))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("拓扑配置名称不能为空 - Topology name is required"));
+            }
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var content = await reader.ReadToEndAsync();
+            var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            var diverterNodes = new List<DiverterPathNodeRequest>();
+            var isHeader = true;
+
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                
+                // 跳过注释行和空行
+                if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith('#'))
+                {
+                    continue;
+                }
+
+                // 跳过列头行
+                if (isHeader && trimmedLine.StartsWith("DiverterId", StringComparison.OrdinalIgnoreCase))
+                {
+                    isHeader = false;
+                    continue;
+                }
+
+                var fields = ParseCsvLine(trimmedLine);
+                if (fields.Length < 7)
+                {
+                    continue; // 跳过格式不正确的行
+                }
+
+                var node = new DiverterPathNodeRequest
+                {
+                    DiverterId = long.Parse(fields[0].Trim()),
+                    DiverterName = fields[1].Trim(),
+                    PositionIndex = int.Parse(fields[2].Trim()),
+                    SegmentId = long.Parse(fields[3].Trim()),
+                    FrontSensorId = string.IsNullOrWhiteSpace(fields[4]) ? null : long.Parse(fields[4].Trim()),
+                    LeftChuteIds = ParseChuteIds(fields[5]),
+                    RightChuteIds = ParseChuteIds(fields[6]),
+                    Remarks = fields.Length > 7 ? fields[7].Trim() : null
+                };
+
+                diverterNodes.Add(node);
+            }
+
+            if (diverterNodes.Count == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("CSV文件中没有有效的摆轮节点数据 - No valid diverter node data found in CSV file"));
+            }
+
+            var request = new ChutePathTopologyRequest
+            {
+                TopologyName = topologyName,
+                Description = description,
+                EntrySensorId = entrySensorId,
+                DiverterNodes = diverterNodes,
+                ExceptionChuteId = exceptionChuteId
+            };
+
+            // 重用更新逻辑进行验证和保存
+            return UpdateChutePathTopology(request);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "导入的CSV文件数据格式无效");
+            return BadRequest(ApiResponse<object>.BadRequest($"CSV文件数据格式无效: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "从CSV导入格口路径拓扑配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导入格口路径拓扑配置失败 - Failed to import chute path topology configuration from CSV"));
+        }
+    }
+
+    private static string EscapeCsvField(string field)
+    {
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
+        {
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        }
+        return field;
+    }
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var result = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuotes = false;
+
+        foreach (var c in line)
+        {
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+        result.Add(current.ToString());
+        
+        return result.ToArray();
+    }
+
+    private static List<long>? ParseChuteIds(string field)
+    {
+        if (string.IsNullOrWhiteSpace(field))
+        {
+            return null;
+        }
+
+        var ids = field.Trim().Split(';', StringSplitOptions.RemoveEmptyEntries);
+        return ids.Select(id => long.Parse(id.Trim())).ToList();
+    }
+
     private ChutePathTopologyResponse MapToResponse(ChutePathTopologyConfig config)
     {
         return new ChutePathTopologyResponse
@@ -269,7 +603,6 @@ public class ChutePathTopologyController : ControllerBase
                 Remarks = n.Remarks
             }).ToList(),
             ExceptionChuteId = config.ExceptionChuteId,
-            DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
@@ -297,7 +630,6 @@ public class ChutePathTopologyController : ControllerBase
                 Remarks = n.Remarks
             }).ToList(),
             ExceptionChuteId = request.ExceptionChuteId,
-            DefaultLineSpeedMmps = request.DefaultLineSpeedMmps,
             CreatedAt = now,
             UpdatedAt = now
         };
