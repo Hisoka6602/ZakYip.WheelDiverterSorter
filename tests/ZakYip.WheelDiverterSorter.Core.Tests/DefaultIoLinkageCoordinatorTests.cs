@@ -213,6 +213,70 @@ public class DefaultIoLinkageCoordinatorTests
     }
 
     [Fact]
+    public void DetermineIoLinkagePoints_WhenEmergencyStoppedWithCustomIos_ShouldReturnEmergencyStopStateIos()
+    {
+        // Arrange - Configure custom EmergencyStopStateIos
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            RunningStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveLow }
+            },
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh }
+            },
+            EmergencyStopStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 7, Level = TriggerLevel.ActiveHigh },
+                new() { BitNumber = 8, Level = TriggerLevel.ActiveLow }
+            }
+        };
+
+        // Act - EmergencyStopped with custom EmergencyStopStateIos should use them
+        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.EmergencyStopped, options);
+
+        // Assert - Should return custom emergency stop IOs, not stopped state IOs
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, p => p.BitNumber == 7 && p.Level == TriggerLevel.ActiveHigh);
+        Assert.Contains(result, p => p.BitNumber == 8 && p.Level == TriggerLevel.ActiveLow);
+        Assert.DoesNotContain(result, p => p.BitNumber == 3);
+    }
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenFaultedWithCustomDiverterExceptionIos_ShouldReturnDiverterExceptionStateIos()
+    {
+        // Arrange - Configure custom DiverterExceptionStateIos
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            RunningStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveLow }
+            },
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh }
+            },
+            DiverterExceptionStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 9, Level = TriggerLevel.ActiveHigh },
+                new() { BitNumber = 10, Level = TriggerLevel.ActiveHigh }
+            }
+        };
+
+        // Act - Faulted with custom DiverterExceptionStateIos should use them
+        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Faulted, options);
+
+        // Assert - Should return custom diverter exception IOs, not stopped state IOs
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, p => p.BitNumber == 9 && p.Level == TriggerLevel.ActiveHigh);
+        Assert.Contains(result, p => p.BitNumber == 10 && p.Level == TriggerLevel.ActiveHigh);
+        Assert.DoesNotContain(result, p => p.BitNumber == 3);
+    }
+
+    [Fact]
     public void DetermineIoLinkagePoints_WhenWaitingUpstream_ShouldReturnUpstreamConnectionExceptionIos()
     {
         // Arrange

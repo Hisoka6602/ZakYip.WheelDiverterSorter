@@ -4,25 +4,24 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
+using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
 /// <summary>
-/// IO驱动器配置管理API控制器
-/// IO driver configuration management API controller
+/// 雷赛IO驱动器配置管理API控制器
+/// Leadshine IO driver configuration management API controller
 /// </summary>
 /// <remarks>
-/// 提供IO驱动器配置和感应IO配置的查询和更新功能，支持热更新。
+/// 提供雷赛IO驱动器配置和感应IO配置的查询和更新功能，支持热更新。
 /// 
 /// **重要说明**：
-/// 此API用于配置【IO驱动器】和【感应IO】，而非【摆轮驱动器】。概念区分：
+/// 此API用于配置【雷赛IO驱动器】和【感应IO】，而非【摆轮驱动器】。概念区分：
 /// 
-/// - **IO驱动器**（本API）: 控制IO端点（输入/输出位），用于传感器信号读取和继电器控制
+/// - **雷赛IO驱动器**（本API）: 基于雷赛运动控制卡，控制IO端点（输入/输出位），用于传感器信号读取和继电器控制
 ///   - 雷赛（Leadshine）: 雷赛运动控制卡的IO接口
-///   - 西门子（Siemens）: S7系列PLC的IO模块
-///   - 三菱（Mitsubishi）: 三菱PLC的IO模块
-///   - 欧姆龙（Omron）: 欧姆龙PLC的IO模块
+///   - 支持以太网模式（需要 ControllerIp）和本地 PCI 模式
 /// 
 /// - **感应IO**（本API /sensors 子路径）: 配置感应IO的业务类型和绑定关系
 ///   - ParcelCreation: 创建包裹感应IO
@@ -39,26 +38,36 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [ApiController]
 [Route("api/config/io-driver/leadshine")]
 [Produces("application/json")]
-public class IoDriverConfigController : ControllerBase
+public class LeadshineIoDriverConfigController : ControllerBase
 {
     private readonly IDriverConfigurationRepository _driverRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
-    private readonly ILogger<IoDriverConfigController> _logger;
+    private readonly IEmcController? _emcController;
+    private readonly ILogger<LeadshineIoDriverConfigController> _logger;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="driverRepository">IO驱动器配置仓储</param>
+    /// <param name="driverRepository">雷赛IO驱动器配置仓储</param>
     /// <param name="sensorRepository">感应IO配置仓储</param>
     /// <param name="logger">日志记录器</param>
-    public IoDriverConfigController(
+    /// <param name="emcController">
+    /// EMC控制器（可选）。
+    /// 在以下情况下可能为null：
+    /// - 仿真模式运行时，不需要真实EMC控制器
+    /// - 服务启动阶段，EMC控制器尚未注册
+    /// 当EMC控制器为null时，重启操作将不可用。
+    /// </param>
+    public LeadshineIoDriverConfigController(
         IDriverConfigurationRepository driverRepository,
         ISensorConfigurationRepository sensorRepository,
-        ILogger<IoDriverConfigController> logger)
+        ILogger<LeadshineIoDriverConfigController> logger,
+        IEmcController? emcController = null)
     {
         _driverRepository = driverRepository;
         _sensorRepository = sensorRepository;
         _logger = logger;
+        _emcController = emcController;
     }
 
     #region IO驱动器配置
@@ -96,7 +105,7 @@ public class IoDriverConfigController : ControllerBase
         Summary = "获取IO驱动器配置（雷赛等）",
         Description = "返回当前系统的IO驱动器连接配置，包括是否使用硬件驱动、厂商类型和连接参数。注意：此API仅返回连接配置，不包含摆轮映射（diverters）信息。",
         OperationId = "GetIoDriverConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "雷赛IO驱动器配置" }
     )]
     [SwaggerResponse(200, "成功返回配置", typeof(IoDriverConfiguration))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
@@ -157,7 +166,7 @@ public class IoDriverConfigController : ControllerBase
         Summary = "更新IO驱动器配置",
         Description = "更新系统IO驱动器配置，配置立即生效无需重启。支持配置硬件/模拟驱动器切换、厂商选择和厂商特定参数。",
         OperationId = "UpdateIoDriverConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "雷赛IO驱动器配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(IoDriverConfiguration))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
@@ -233,7 +242,7 @@ public class IoDriverConfigController : ControllerBase
         Summary = "重置IO驱动器配置",
         Description = "将IO驱动器配置重置为系统默认值（仿真模式）",
         OperationId = "ResetIoDriverConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "雷赛IO驱动器配置" }
     )]
     [SwaggerResponse(200, "重置成功", typeof(IoDriverConfiguration))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
@@ -255,6 +264,106 @@ public class IoDriverConfigController : ControllerBase
         {
             _logger.LogError(ex, "重置IO驱动器配置失败");
             return StatusCode(500, ApiResponse<object>.ServerError("重置IO驱动器配置失败 - Failed to reset IO driver configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 重启雷赛IO驱动器（热重置）
+    /// </summary>
+    /// <param name="coldReset">是否执行冷重置（硬件重启，耗时较长约10秒）。默认为false执行热重置（软件重置，约1-2秒）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>重启操作结果</returns>
+    /// <response code="200">重启成功</response>
+    /// <response code="400">EMC控制器不可用（可能是仿真模式）</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 重启雷赛IO驱动器，支持两种重置模式：
+    /// 
+    /// **热重置（默认）**：
+    /// - 软件层面的重置，耗时约1-2秒
+    /// - 重置通信状态机，不断电
+    /// - 适用于通信异常或需要刷新连接的场景
+    /// 
+    /// **冷重置**：
+    /// - 硬件层面的重启，耗时约10秒
+    /// - 完全断电重启控制器
+    /// - 适用于硬件故障或严重通信异常的场景
+    /// 
+    /// **多进程协调**：
+    /// 重启操作会通知其他共享同一EMC控制器的进程实例，确保它们在重置期间暂停使用EMC，
+    /// 并在重置完成后恢复使用。参考 ZakYip.Singulation 项目的 LeadshineLtdmcBusAdapter 实现。
+    /// 
+    /// **示例请求**：
+    /// - 热重置：POST /api/config/io-driver/leadshine/restart
+    /// - 冷重置：POST /api/config/io-driver/leadshine/restart?coldReset=true
+    /// 
+    /// **注意**：
+    /// - 在仿真模式下此接口不可用
+    /// - 重启期间正在运行的IO操作可能会受到影响
+    /// </remarks>
+    [HttpPost("restart")]
+    [SwaggerOperation(
+        Summary = "重启雷赛IO驱动器",
+        Description = "重启雷赛IO驱动器，支持热重置（默认）和冷重置两种模式。会通知其他共享EMC的进程实例进行协调。",
+        OperationId = "RestartLeadshineIoDriver",
+        Tags = new[] { "雷赛IO驱动器配置" }
+    )]
+    [SwaggerResponse(200, "重启成功", typeof(ApiResponse<LeadshineRestartResult>))]
+    [SwaggerResponse(400, "EMC控制器不可用", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<LeadshineRestartResult>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<LeadshineRestartResult>>> RestartLeadshineIoDriver(
+        [FromQuery] bool coldReset = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (_emcController == null)
+            {
+                _logger.LogWarning("尝试重启IO驱动器，但EMC控制器不可用（可能是仿真模式）");
+                return BadRequest(ApiResponse<object>.BadRequest("EMC控制器不可用，可能是仿真模式或服务启动阶段"));
+            }
+
+            var resetType = coldReset ? "冷重置" : "热重置";
+            _logger.LogInformation("开始执行雷赛IO驱动器{ResetType}，卡号: {CardNo}", resetType, _emcController.CardNo);
+
+            bool success;
+            if (coldReset)
+            {
+                success = await _emcController.ColdResetAsync(cancellationToken);
+            }
+            else
+            {
+                success = await _emcController.HotResetAsync(cancellationToken);
+            }
+
+            if (success)
+            {
+                _logger.LogInformation("雷赛IO驱动器{ResetType}成功，卡号: {CardNo}", resetType, _emcController.CardNo);
+                return Ok(ApiResponse<LeadshineRestartResult>.Ok(
+                    new LeadshineRestartResult
+                    {
+                        IsSuccess = true,
+                        ResetType = coldReset ? "Cold" : "Hot",
+                        CardNo = _emcController.CardNo,
+                        Message = $"雷赛IO驱动器{resetType}成功"
+                    },
+                    $"雷赛IO驱动器{resetType}成功 - Leadshine IO driver {(coldReset ? "cold" : "hot")} reset successful"));
+            }
+            else
+            {
+                _logger.LogError("雷赛IO驱动器{ResetType}失败，卡号: {CardNo}", resetType, _emcController.CardNo);
+                // Return 500 status code for failed operation as suggested by code review
+                return StatusCode(500, ApiResponse<LeadshineRestartResult>.ServerError(
+                    $"雷赛IO驱动器{resetType}失败 - Leadshine IO driver {(coldReset ? "cold" : "hot")} reset failed"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "重启雷赛IO驱动器时发生异常");
+            return StatusCode(500, ApiResponse<object>.ServerError($"重启雷赛IO驱动器失败 - Failed to restart Leadshine IO driver: {ex.Message}"));
         }
     }
 
@@ -296,7 +405,7 @@ public class IoDriverConfigController : ControllerBase
         Summary = "获取感应IO配置",
         Description = "返回当前系统的感应IO配置，包括所有感应IO的业务类型、关联的IO点位和绑定关系",
         OperationId = "GetSensorIoConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "雷赛IO驱动器配置" }
     )]
     [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<SensorConfiguration>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
@@ -348,7 +457,7 @@ public class IoDriverConfigController : ControllerBase
         Summary = "更新感应IO配置",
         Description = "更新系统感应IO配置，配置立即生效无需重启。支持配置感应IO的业务类型、IO点位和绑定关系。",
         OperationId = "UpdateSensorIoConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "雷赛IO驱动器配置" }
     )]
     [SwaggerResponse(200, "更新成功", typeof(ApiResponse<SensorConfiguration>))]
     [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
@@ -420,7 +529,7 @@ public class IoDriverConfigController : ControllerBase
         Summary = "重置感应IO配置",
         Description = "将感应IO配置重置为系统默认值",
         OperationId = "ResetSensorIoConfig",
-        Tags = new[] { "IO驱动器配置" }
+        Tags = new[] { "雷赛IO驱动器配置" }
     )]
     [SwaggerResponse(200, "重置成功", typeof(ApiResponse<SensorConfiguration>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
@@ -609,4 +718,42 @@ public class LeadshineIoConnectionConfig
     /// </remarks>
     /// <example>2</example>
     public ushort PortNo { get; set; } = 2;
+}
+
+/// <summary>
+/// 雷赛IO驱动器重启结果
+/// Leadshine IO driver restart result
+/// </summary>
+/// <remarks>
+/// 包含重启操作的结果信息，包括是否成功、重置类型和控制器卡号。
+/// </remarks>
+public record LeadshineRestartResult
+{
+    /// <summary>
+    /// 重启操作是否成功
+    /// Whether the restart operation was successful
+    /// </summary>
+    /// <example>true</example>
+    public bool IsSuccess { get; init; }
+
+    /// <summary>
+    /// 重置类型（Hot=热重置，Cold=冷重置）
+    /// Reset type (Hot=hot reset, Cold=cold reset)
+    /// </summary>
+    /// <example>Hot</example>
+    public string ResetType { get; init; } = string.Empty;
+
+    /// <summary>
+    /// 控制器卡号
+    /// Controller card number
+    /// </summary>
+    /// <example>8</example>
+    public ushort CardNo { get; init; }
+
+    /// <summary>
+    /// 操作结果消息
+    /// Operation result message
+    /// </summary>
+    /// <example>雷赛IO驱动器热重置成功</example>
+    public string? Message { get; init; }
 }
