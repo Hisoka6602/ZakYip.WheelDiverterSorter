@@ -20,6 +20,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting;
 using ZakYip.WheelDiverterSorter.Host.Swagger;
 
 // Early init of NLog to allow startup and shutdown logging
@@ -47,6 +48,15 @@ try
 
     // PR-37: 添加基础设施服务（安全执行器、系统时钟、日志去重）
     builder.Services.AddInfrastructureServices();
+
+    // PR-2: 注册分拣系统强类型配置选项（带启动时校验）
+    builder.Services.AddSortingSystemOptions(options =>
+    {
+        // 从数据库配置仓储加载时会覆盖这些默认值
+        // 这里设置合理的启动默认值
+    });
+    builder.Services.AddUpstreamConnectionOptions();
+    builder.Services.AddRoutingOptions();
 
     // 添加性能监控和优化服务
     builder.Services.AddMemoryCache(options =>

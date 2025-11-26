@@ -266,6 +266,67 @@ curl -X PUT http://localhost:5000/api/config/system \
   }'
 ```
 
+### 强类型配置选项（PR-2）🆕
+
+系统使用强类型 Options 模式管理配置，通过 `IValidateOptions<T>` 实现启动时校验。当配置非法时，应用启动失败并输出清晰的中文错误信息。
+
+#### SortingSystemOptions（分拣系统配置）
+
+| 属性 | 类型 | 默认值 | 说明 |
+|-----|------|-------|------|
+| `SortingMode` | `SortingMode` | `Formal` | 分拣模式 |
+| `ExceptionChuteId` | `long` | `999` | 异常格口ID（必须大于0） |
+| `FixedChuteId` | `long?` | `null` | 固定格口ID（FixedChute模式必填） |
+| `AvailableChuteIds` | `List<long>` | `[]` | 可用格口列表（RoundRobin模式必填） |
+| `ChuteAssignmentTimeoutSafetyFactor` | `decimal` | `0.9` | 超时安全系数（0.1-1.0） |
+| `ChuteAssignmentFallbackTimeoutSeconds` | `decimal` | `5` | 降级超时时间（1-60秒） |
+
+**校验规则**：
+- `ExceptionChuteId` 必须大于0
+- `FixedChute` 模式下 `FixedChuteId` 必须配置且大于0
+- `RoundRobin` 模式下 `AvailableChuteIds` 必须包含至少一个大于0的格口ID
+
+#### UpstreamConnectionOptions（上游连接配置）
+
+| 属性 | 类型 | 默认值 | 说明 |
+|-----|------|-------|------|
+| `Mode` | `CommunicationMode` | `Tcp` | 通信模式（Tcp/SignalR/Mqtt/Http） |
+| `ConnectionMode` | `ConnectionMode` | `Client` | 连接模式（Client/Server） |
+| `TcpServer` | `string?` | `null` | TCP服务器地址（TCP模式必填） |
+| `SignalRHub` | `string?` | `null` | SignalR Hub URL（SignalR模式必填） |
+| `MqttBroker` | `string?` | `null` | MQTT Broker地址（MQTT模式必填） |
+| `HttpApi` | `string?` | `null` | HTTP API URL（HTTP模式必填） |
+| `TimeoutMs` | `int` | `5000` | 请求超时时间 |
+| `InitialBackoffMs` | `int` | `200` | 初始退避延迟 |
+| `MaxBackoffMs` | `int` | `2000` | 最大退避延迟（硬编码上限2秒） |
+
+**校验规则**：
+- 根据 `Mode` 校验对应的必填配置项
+- `TimeoutMs`、`InitialBackoffMs`、`MaxBackoffMs` 必须大于0
+- `MaxBackoffMs` 不能小于 `InitialBackoffMs`
+
+#### RoutingOptions（路径生成配置）
+
+| 属性 | 类型 | 默认值 | 说明 |
+|-----|------|-------|------|
+| `EnablePathCaching` | `bool` | `true` | 启用路径缓存 |
+| `PathCacheExpirationSeconds` | `int` | `300` | 缓存过期时间（1-3600秒） |
+| `MaxPathSegments` | `int` | `50` | 最大路径段数（1-100） |
+| `DefaultTtlMs` | `int` | `30000` | 默认TTL（1000-120000毫秒） |
+| `EnablePathRerouting` | `bool` | `true` | 启用路径重规划 |
+| `EnableNodeHealthCheck` | `bool` | `true` | 启用节点健康检查 |
+
+**程序注册示例**：
+```csharp
+// Program.cs
+builder.Services.AddSortingSystemOptions();
+builder.Services.AddUpstreamConnectionOptions();
+builder.Services.AddRoutingOptions();
+
+// 或一次性注册所有配置
+builder.Services.AddAllSortingOptions();
+```
+
 ## 异常纠错机制
 
 系统实现了完整的异常纠错机制，确保在任何异常情况下，包裹都能安全到达异常格口，**不会错分到其他格口**。
@@ -856,6 +917,33 @@ PUT /api/communication/config/persisted
 **重要提示**：以上规则是系统架构的核心约束，违反这些规则可能导致系统不稳定、数据不一致或业务错误。所有 PR 必须遵守这些规则，Code Review 时会重点检查。
 
 ## 本次更新的内容（2025-11-26）
+
+### PR-2: 强类型配置选项与启动时校验 🆕
+
+本次更新实现了分拣系统配置的强类型 Options 模式，通过 `IValidateOptions<T>` 实现启动时集中校验：
+
+#### 1. 新增三个强类型配置 record ✅
+
+- **SortingSystemOptions**：分拣模式、异常格口、固定格口、可用格口列表等
+- **UpstreamConnectionOptions**：TCP/SignalR/MQTT/HTTP 连接参数
+- **RoutingOptions**：路径缓存、TTL、最大路径段数等
+
+#### 2. 实现 IValidateOptions 校验器 ✅
+
+- **SortingSystemOptionsValidator**：校验分拣模式相关配置（FixedChute 需要 FixedChuteId，RoundRobin 需要 AvailableChuteIds）
+- **UpstreamConnectionOptionsValidator**：根据通信模式校验必填配置（TCP 需要 TcpServer，SignalR 需要 SignalRHub 等）
+- **RoutingOptionsValidator**：校验 TTL、缓存过期时间等参数范围
+
+#### 3. 启动时配置校验 ✅
+
+- 配置非法时，应用启动失败并输出清晰的中文错误信息
+- 避免运行时因配置缺失导致的异常
+
+#### 4. 单元测试覆盖 ✅
+
+- SortingSystemOptionsTests：30+ 测试用例
+- UpstreamConnectionOptionsTests：20+ 测试用例
+- RoutingOptionsTests：20+ 测试用例
 
 ### 格口路径拓扑配置 API 优化 🎯
 
