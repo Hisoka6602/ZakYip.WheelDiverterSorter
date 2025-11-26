@@ -13,6 +13,10 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// 雷赛厂商驱动工厂
 /// Leadshine Vendor Driver Factory
 /// </summary>
+/// <remarks>
+/// 基于 ZakYip.Singulation 项目的 LeadshineLtdmcBusAdapter 实现。
+/// 支持以太网模式（需要 ControllerIp）和本地 PCI 模式（ControllerIp 为空）。
+/// </remarks>
 public class LeadshineVendorDriverFactory : IVendorDriverFactory
 {
     private readonly ILoggerFactory _loggerFactory;
@@ -28,9 +32,13 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
         _loggerFactory = loggerFactory;
         _options = options;
 
-        // 初始化 EMC 控制器
+        // 初始化 EMC 控制器（传入 ControllerIp 和 PortNo）
         var emcLogger = _loggerFactory.CreateLogger<LeadshineEmcController>();
-        _emcController = new LeadshineEmcController(emcLogger, options.CardNo);
+        _emcController = new LeadshineEmcController(
+            emcLogger, 
+            options.CardNo, 
+            options.PortNo, 
+            options.ControllerIp);
         
         // 同步初始化
         var initTask = _emcController.InitializeAsync();
@@ -38,7 +46,11 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
         
         if (!initTask.Result)
         {
-            emcLogger.LogWarning("EMC 控制器初始化失败，IO 联动功能可能无法正常工作");
+            emcLogger.LogWarning(
+                "EMC 控制器初始化失败，IO 联动功能可能无法正常工作。CardNo: {CardNo}, PortNo: {PortNo}, ControllerIp: {ControllerIp}",
+                options.CardNo,
+                options.PortNo,
+                options.ControllerIp ?? "N/A (PCI Mode)");
         }
     }
 

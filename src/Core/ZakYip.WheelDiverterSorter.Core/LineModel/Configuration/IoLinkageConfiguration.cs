@@ -85,6 +85,16 @@ public sealed record class IoLinkageConfiguration
     public List<IoLinkagePoint> PostPreStartWarningStateIos { get; init; } = new();
 
     /// <summary>
+    /// 摆轮断联/异常状态时联动的 IO 点列表
+    /// </summary>
+    /// <remarks>
+    /// 当摆轮首次连接成功后，如果摆轮断联或发生异常，将触发这些 IO 点。
+    /// 用于通知外部设备摆轮出现连接问题或异常情况。
+    /// 注意：只有在摆轮首次连接成功后才会触发此联动。
+    /// </remarks>
+    public List<IoLinkagePoint> WheelDiverterDisconnectedStateIos { get; init; } = new();
+
+    /// <summary>
     /// 配置创建时间
     /// </summary>
     public DateTime CreatedAt { get; init; }
@@ -113,6 +123,7 @@ public sealed record class IoLinkageConfiguration
             UpstreamConnectionExceptionStateIos = new List<IoLinkagePoint>(),
             DiverterExceptionStateIos = new List<IoLinkagePoint>(),
             PostPreStartWarningStateIos = new List<IoLinkagePoint>(),
+            WheelDiverterDisconnectedStateIos = new List<IoLinkagePoint>(),
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -249,6 +260,27 @@ public sealed record class IoLinkageConfiguration
         if (duplicatePostPreStartWarningBits.Any())
         {
             return (false, $"运行前预警结束后 IO 点存在重复: {string.Join(", ", duplicatePostPreStartWarningBits)}");
+        }
+
+        // 验证摆轮断联/异常 IO 点
+        foreach (var ioPoint in WheelDiverterDisconnectedStateIos)
+        {
+            if (ioPoint.BitNumber < 0 || ioPoint.BitNumber > 1023)
+            {
+                return (false, $"摆轮断联/异常 IO 点 {ioPoint.BitNumber} 必须在 0-1023 范围内");
+            }
+
+            if (!Enum.IsDefined(typeof(TriggerLevel), ioPoint.Level))
+            {
+                return (false, $"摆轮断联/异常 IO 点 {ioPoint.BitNumber} 的电平配置无效");
+            }
+        }
+
+        var wheelDiverterDisconnectedBits = WheelDiverterDisconnectedStateIos.Select(io => io.BitNumber).ToList();
+        var duplicateWheelDiverterDisconnectedBits = wheelDiverterDisconnectedBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateWheelDiverterDisconnectedBits.Any())
+        {
+            return (false, $"摆轮断联/异常 IO 点存在重复: {string.Join(", ", duplicateWheelDiverterDisconnectedBits)}");
         }
 
         return (true, null);
