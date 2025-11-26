@@ -71,12 +71,11 @@ public class SimulationScenarioRunner : ISimulationScenarioRunner
 
             // 读取拓扑配置
             var topology = _topologyRepository.Get();
-            var chuteCount = topology.DiverterNodes.Sum(n => n.LeftChuteIds.Count + n.RightChuteIds.Count);
             _logger.LogInformation(
                 "已加载拓扑配置: {TopologyId}, 摆轮数: {WheelCount}, 格口数: {ChuteCount}",
                 topology.TopologyId,
                 topology.DiverterNodes.Count,
-                chuteCount);
+                topology.TotalChuteCount);
 
             // 读取仿真配置（优先使用运行时配置）
             var options = _runtimeOptions ?? _simulationOptions.CurrentValue;

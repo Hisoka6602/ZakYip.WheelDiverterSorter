@@ -304,12 +304,11 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     };
                 }
 
-                var totalChuteCount = topology.DiverterNodes.Sum(n => n.LeftChuteIds.Count + n.RightChuteIds.Count);
                 return new HealthCheckItem
                 {
                     Name = "ChutePathTopologyValid",
                     Status = HealthStatus.Healthy,
-                    Message = $"拓扑配置完整，共 {topology.DiverterNodes.Count} 个摆轮节点，{totalChuteCount} 个格口"
+                    Message = $"拓扑配置完整，共 {topology.DiverterNodes.Count} 个摆轮节点，{topology.TotalChuteCount} 个格口"
                 };
             },
             operationName: "CheckTopologyCompleteness",

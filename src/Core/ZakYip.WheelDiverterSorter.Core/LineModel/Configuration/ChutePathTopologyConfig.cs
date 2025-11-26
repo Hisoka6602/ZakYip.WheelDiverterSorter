@@ -146,6 +146,11 @@ public record class ChutePathTopologyConfig
 
         return null;
     }
+
+    /// <summary>
+    /// 获取所有格口的总数
+    /// </summary>
+    public int TotalChuteCount => DiverterNodes.Sum(n => n.LeftChuteIds.Count + n.RightChuteIds.Count);
 }
 
 /// <summary>
