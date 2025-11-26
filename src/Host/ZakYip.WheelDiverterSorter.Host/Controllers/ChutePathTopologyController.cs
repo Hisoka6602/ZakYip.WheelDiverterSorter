@@ -36,7 +36,6 @@ public class ChutePathTopologyController : ControllerBase
 {
     private readonly IChutePathTopologyRepository _topologyRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
-    private readonly ILineTopologyRepository _lineTopologyRepository;
     private readonly ISystemClock _clock;
     private readonly ILogger<ChutePathTopologyController> _logger;
 
@@ -46,13 +45,11 @@ public class ChutePathTopologyController : ControllerBase
     public ChutePathTopologyController(
         IChutePathTopologyRepository topologyRepository,
         ISensorConfigurationRepository sensorRepository,
-        ILineTopologyRepository lineTopologyRepository,
         ISystemClock clock,
         ILogger<ChutePathTopologyController> logger)
     {
         _topologyRepository = topologyRepository;
         _sensorRepository = sensorRepository;
-        _lineTopologyRepository = lineTopologyRepository;
         _clock = clock;
         _logger = logger;
     }
@@ -188,20 +185,9 @@ public class ChutePathTopologyController : ControllerBase
                     $"入口传感器ID ({request.EntrySensorId}) 类型必须是 ParcelCreation，当前类型为 {entrySensor.IoType}"));
             }
 
-            // 获取已配置的线体段列表用于验证
-            var lineTopologyConfig = _lineTopologyRepository.Get();
-            var configuredSegmentIds = lineTopologyConfig.LineSegments?.Select(s => s.SegmentId).ToHashSet() ?? new HashSet<long>();
-
             // 验证每个摆轮节点
             foreach (var node in request.DiverterNodes)
             {
-                // 验证线体段ID
-                if (!configuredSegmentIds.Contains(node.SegmentId))
-                {
-                    return BadRequest(ApiResponse<object>.BadRequest(
-                        $"摆轮节点 {node.DiverterId} 的线体段ID ({node.SegmentId}) 未配置，请先在线体拓扑配置中添加线体段"));
-                }
-
                 // 验证摆轮前感应IO（可选）
                 if (node.FrontSensorId.HasValue && node.FrontSensorId.Value > 0)
                 {

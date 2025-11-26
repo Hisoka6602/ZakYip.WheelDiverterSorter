@@ -196,9 +196,6 @@ try
     // 注册通信统计服务
     builder.Services.AddSingleton<CommunicationStatsService>();
 
-    // 注册线体拓扑配置提供者
-    builder.Services.AddTopologyConfiguration(builder.Configuration);
-
     // 注册改口功能相关服务
     builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
     builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();

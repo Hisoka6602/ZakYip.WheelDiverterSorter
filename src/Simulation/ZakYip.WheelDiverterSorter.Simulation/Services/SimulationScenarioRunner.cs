@@ -15,19 +15,19 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 /// </remarks>
 public class SimulationScenarioRunner : ISimulationScenarioRunner
 {
-    private readonly ILineTopologyConfigProvider _topologyProvider;
+    private readonly IChutePathTopologyRepository _topologyRepository;
     private readonly IOptionsMonitor<SimulationOptions> _simulationOptions;
     private readonly SimulationRunner _simulationRunner;
     private readonly ILogger<SimulationScenarioRunner> _logger;
     private static SimulationOptions? _runtimeOptions;
 
     public SimulationScenarioRunner(
-        ILineTopologyConfigProvider topologyProvider,
+        IChutePathTopologyRepository topologyRepository,
         IOptionsMonitor<SimulationOptions> simulationOptions,
         SimulationRunner simulationRunner,
         ILogger<SimulationScenarioRunner> logger)
     {
-        _topologyProvider = topologyProvider;
+        _topologyRepository = topologyRepository;
         _simulationOptions = simulationOptions;
         _simulationRunner = simulationRunner;
         _logger = logger;
@@ -70,12 +70,13 @@ public class SimulationScenarioRunner : ISimulationScenarioRunner
             _logger.LogInformation("准备运行场景 E 长跑仿真...");
 
             // 读取拓扑配置
-            var topology = await _topologyProvider.GetTopologyAsync();
+            var topology = _topologyRepository.Get();
+            var chuteCount = topology.DiverterNodes.Sum(n => n.LeftChuteIds.Count + n.RightChuteIds.Count);
             _logger.LogInformation(
                 "已加载拓扑配置: {TopologyId}, 摆轮数: {WheelCount}, 格口数: {ChuteCount}",
                 topology.TopologyId,
-                topology.WheelNodes.Count,
-                topology.Chutes.Count);
+                topology.DiverterNodes.Count,
+                chuteCount);
 
             // 读取仿真配置（优先使用运行时配置）
             var options = _runtimeOptions ?? _simulationOptions.CurrentValue;
