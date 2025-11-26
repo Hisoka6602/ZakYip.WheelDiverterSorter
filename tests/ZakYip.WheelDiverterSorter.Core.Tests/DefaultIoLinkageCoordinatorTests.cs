@@ -157,12 +157,88 @@ public class DefaultIoLinkageCoordinatorTests
             }
         };
 
-        // Act & Assert - Test various states that should not trigger IO linkage
+        // Act & Assert - Only Initializing and Paused states should not trigger IO linkage
         Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.Initializing, options));
         Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.Paused, options));
-        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.Faulted, options));
-        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.EmergencyStopped, options));
-        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.WaitingUpstream, options));
+    }
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenFaultedAndNoDiverterExceptionIos_ShouldReturnStoppedStateIos()
+    {
+        // Arrange
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            RunningStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveLow }
+            },
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh }
+            }
+        };
+
+        // Act - Faulted state with empty DiverterExceptionStateIos should use StoppedStateIos
+        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Faulted, options);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Contains(result, p => p.BitNumber == 3 && p.Level == TriggerLevel.ActiveHigh);
+    }
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenEmergencyStopped_ShouldReturnEmergencyStopOrStoppedStateIos()
+    {
+        // Arrange
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            RunningStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveLow }
+            },
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh }
+            }
+        };
+
+        // Act - EmergencyStopped with empty EmergencyStopStateIos should use StoppedStateIos
+        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.EmergencyStopped, options);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Contains(result, p => p.BitNumber == 3 && p.Level == TriggerLevel.ActiveHigh);
+    }
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenWaitingUpstream_ShouldReturnUpstreamConnectionExceptionIos()
+    {
+        // Arrange
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            RunningStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveLow }
+            },
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh }
+            },
+            UpstreamConnectionExceptionStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 5, Level = TriggerLevel.ActiveHigh }
+            }
+        };
+
+        // Act
+        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.WaitingUpstream, options);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Contains(result, p => p.BitNumber == 5 && p.Level == TriggerLevel.ActiveHigh);
     }
 
     [Fact]
@@ -208,11 +284,38 @@ public class DefaultIoLinkageCoordinatorTests
     [Fact]
     public void ShouldActivateIoLinkage_WhenOtherStates_ShouldReturnFalse()
     {
-        // Act & Assert
+        // Act & Assert - Only Initializing and Paused should return false
         Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.Initializing));
         Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.Paused));
-        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.Faulted));
-        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.EmergencyStopped));
-        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.WaitingUpstream));
+    }
+
+    [Fact]
+    public void ShouldActivateIoLinkage_WhenEmergencyStopped_ShouldReturnTrue()
+    {
+        // Act
+        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.EmergencyStopped);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void ShouldActivateIoLinkage_WhenWaitingUpstream_ShouldReturnTrue()
+    {
+        // Act
+        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.WaitingUpstream);
+
+        // Assert
+        Assert.True(result);
+    }
+
+    [Fact]
+    public void ShouldActivateIoLinkage_WhenFaulted_ShouldReturnTrue()
+    {
+        // Act
+        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.Faulted);
+
+        // Assert
+        Assert.True(result);
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using csLTDMC;
+using Polly;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
@@ -48,86 +49,112 @@ public class LeadshineEmcController : IEmcController
     /// <inheritdoc/>
     public async Task<bool> InitializeAsync(CancellationToken cancellationToken = default)
     {
-        try
+        // 重试策略：0ms → 300ms → 1s → 2s（参考 ZakYip.Singulation 项目）
+        var delays = new[]
         {
-            var isEthernet = _controllerIp != null;
-            var methodName = isEthernet ? "dmc_board_init_eth" : "dmc_board_init";
-            
-            _logger.LogInformation(
-                "正在初始化EMC，卡号: {CardNo}, 端口: {PortNo}, 模式: {Mode}, IP: {IP}",
-                _cardNo,
-                _portNo,
-                isEthernet ? "以太网" : "PCI",
-                _controllerIp ?? "N/A");
+            TimeSpan.Zero,
+            TimeSpan.FromMilliseconds(300),
+            TimeSpan.FromSeconds(1),
+            TimeSpan.FromSeconds(2),
+        };
 
-            // 根据是否配置IP选择初始化方式
-            short result;
-            if (isEthernet)
-            {
-                // 以太网模式：使用 dmc_board_init_eth
-                result = LTDMC.dmc_board_init_eth(_cardNo, _controllerIp!);
-                if (result != 0)
+        var policy = Policy
+            .HandleResult<bool>(r => r == false)
+            .Or<Exception>()
+            .WaitAndRetryAsync(
+                delays,
+                onRetryAsync: (outcome, delay, retryAttempt, _) =>
                 {
-                    _logger.LogError(
-                        "【EMC初始化失败】方法: {Method}, 返回值: {ErrorCode}（预期: 0），卡号: {CardNo}, IP: {IP}",
-                        methodName, result, _cardNo, _controllerIp);
-                    return false;
-                }
-            }
-            else
+                    var reason = outcome.Exception?.Message ?? "初始化失败";
+                    _logger.LogWarning(
+                        "EMC初始化重试 #{RetryAttempt}，等待 {Delay}ms，原因: {Reason}",
+                        retryAttempt, delay.TotalMilliseconds, reason);
+                    return Task.CompletedTask;
+                });
+
+        return await policy.ExecuteAsync(async () =>
+        {
+            try
             {
-                // PCI 模式：使用 dmc_board_init
-                result = LTDMC.dmc_board_init();
-                if (result != 0)
+                var isEthernet = _controllerIp != null;
+                var methodName = isEthernet ? "dmc_board_init_eth" : "dmc_board_init";
+                
+                _logger.LogInformation(
+                    "正在初始化EMC，卡号: {CardNo}, 端口: {PortNo}, 模式: {Mode}, IP: {IP}",
+                    _cardNo,
+                    _portNo,
+                    isEthernet ? "以太网" : "PCI",
+                    _controllerIp ?? "N/A");
+
+                // 根据是否配置IP选择初始化方式
+                short result;
+                if (isEthernet)
                 {
-                    _logger.LogError(
-                        "【EMC初始化失败】方法: {Method}, 返回值: {ErrorCode}（预期: 0），卡号: {CardNo}",
-                        methodName, result, _cardNo);
-                    return false;
+                    // 以太网模式：使用 dmc_board_init_eth
+                    result = LTDMC.dmc_board_init_eth(_cardNo, _controllerIp!);
+                    if (result != 0)
+                    {
+                        _logger.LogError(
+                            "【EMC初始化失败】方法: {Method}, 返回值: {ErrorCode}（预期: 0），卡号: {CardNo}, IP: {IP}",
+                            methodName, result, _cardNo, _controllerIp);
+                        return false;
+                    }
                 }
-            }
+                else
+                {
+                    // PCI 模式：使用 dmc_board_init
+                    result = LTDMC.dmc_board_init();
+                    if (result != 0)
+                    {
+                        _logger.LogError(
+                            "【EMC初始化失败】方法: {Method}, 返回值: {ErrorCode}（预期: 0），卡号: {CardNo}",
+                            methodName, result, _cardNo);
+                        return false;
+                    }
+                }
 
-            _logger.LogInformation(
-                "【EMC初始化成功】方法: {Method}, 返回值: {Result}, 卡号: {CardNo}",
-                methodName, result, _cardNo);
+                _logger.LogInformation(
+                    "【EMC初始化成功】方法: {Method}, 返回值: {Result}, 卡号: {CardNo}",
+                    methodName, result, _cardNo);
 
-            // 检查总线状态
-            ushort errcode = 0;
-            LTDMC.nmc_get_errcode(_cardNo, _portNo, ref errcode);
-            if (errcode != 0)
-            {
-                _logger.LogWarning(
-                    "【EMC总线异常检测】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}，尝试软复位",
-                    errcode, _cardNo, _portNo);
-
-                // 尝试软复位
-                LTDMC.dmc_soft_reset(_cardNo);
-                await Task.Delay(500, cancellationToken);
-
-                // 再次检查
+                // 检查总线状态
+                ushort errcode = 0;
                 LTDMC.nmc_get_errcode(_cardNo, _portNo, ref errcode);
                 if (errcode != 0)
                 {
-                    _logger.LogError(
-                        "【EMC总线异常未恢复】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}",
+                    _logger.LogWarning(
+                        "【EMC总线异常检测】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}，尝试软复位",
                         errcode, _cardNo, _portNo);
-                    return false;
-                }
-                _logger.LogInformation(
-                    "【EMC总线异常已恢复】错误码: {ErrorCode}, 卡号: {CardNo}, 端口: {PortNo}",
-                    errcode, _cardNo, _portNo);
-            }
 
-            _isInitialized = true;
-            _isAvailable = true;
-            _logger.LogInformation("EMC初始化完成，卡号: {CardNo}, 端口: {PortNo}", _cardNo, _portNo);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "初始化EMC时发生异常");
-            return false;
-        }
+                    // 尝试软复位
+                    LTDMC.dmc_soft_reset(_cardNo);
+                    await Task.Delay(500, cancellationToken);
+
+                    // 再次检查
+                    LTDMC.nmc_get_errcode(_cardNo, _portNo, ref errcode);
+                    if (errcode != 0)
+                    {
+                        _logger.LogError(
+                            "【EMC总线异常未恢复】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}",
+                            errcode, _cardNo, _portNo);
+                        return false;
+                    }
+                    _logger.LogInformation(
+                        "【EMC总线异常已恢复】错误码: {ErrorCode}, 卡号: {CardNo}, 端口: {PortNo}",
+                        errcode, _cardNo, _portNo);
+                }
+
+                _isInitialized = true;
+                _isAvailable = true;
+                _logger.LogInformation("EMC初始化完成，卡号: {CardNo}, 端口: {PortNo}", _cardNo, _portNo);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "初始化EMC时发生异常");
+                return false;
+            }
+        });
     }
 
     /// <inheritdoc/>
