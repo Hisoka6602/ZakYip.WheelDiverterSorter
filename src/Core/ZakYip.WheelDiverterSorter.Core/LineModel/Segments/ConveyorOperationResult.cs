@@ -30,11 +30,11 @@ public record class ConveyorOperationResult
     /// 创建成功结果
     /// </summary>
     public static ConveyorOperationResult Success(ConveyorSegmentId? segmentId = null) =>
-        new() { IsSuccess = true, SegmentId = segmentId };
+        new() { IsSuccess = true, SegmentId = segmentId, Timestamp = DateTimeOffset.Now };
 
     /// <summary>
     /// 创建失败结果
     /// </summary>
     public static ConveyorOperationResult Failure(string reason, ConveyorSegmentId? segmentId = null) =>
-        new() { IsSuccess = false, FailureReason = reason, SegmentId = segmentId };
+        new() { IsSuccess = false, FailureReason = reason, SegmentId = segmentId, Timestamp = DateTimeOffset.Now };
 }

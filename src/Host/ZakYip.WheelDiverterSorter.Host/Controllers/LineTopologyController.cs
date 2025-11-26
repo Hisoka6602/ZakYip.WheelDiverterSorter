@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -31,17 +32,23 @@ public class LineTopologyController : ControllerBase
 {
     private readonly ILineTopologyRepository _topologyRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
+    private readonly IRouteConfigurationRepository _routeRepository;
+    private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ISystemClock _clock;
     private readonly ILogger<LineTopologyController> _logger;
 
     public LineTopologyController(
         ILineTopologyRepository topologyRepository,
         ISensorConfigurationRepository sensorRepository,
+        IRouteConfigurationRepository routeRepository,
+        ISystemConfigurationRepository systemConfigRepository,
         ISystemClock clock,
         ILogger<LineTopologyController> logger)
     {
         _topologyRepository = topologyRepository;
         _sensorRepository = sensorRepository;
+        _routeRepository = routeRepository;
+        _systemConfigRepository = systemConfigRepository;
         _clock = clock;
         _logger = logger;
     }
@@ -399,4 +406,370 @@ public class LineTopologyController : ControllerBase
             UpdatedAt = now
         };
     }
+
+    /// <summary>
+    /// 模拟包裹从指定格口落格的整个生命周期
+    /// </summary>
+    /// <param name="chuteId">目标格口ID（数字ID，如：1, 2, 3）</param>
+    /// <param name="toleranceTimeMs">容差时间（毫秒），用于包裹摩擦力补偿，默认为0</param>
+    /// <returns>包裹生命周期模拟结果</returns>
+    /// <response code="200">模拟成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="404">未找到指定格口或无法生成路径</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 根据当前线体拓扑配置，模拟包裹从创建到落格的整个生命周期。
+    /// 
+    /// **计算逻辑**：
+    /// - 理论通过时间 = Σ(线体段长度 / 线体段速度) * 1000
+    /// - 实际通过时间 = 理论总通过时间 + 容差时间
+    /// 
+    /// **模拟步骤详情**：
+    /// 每个步骤包含以下信息：
+    /// - 步骤序号和类型（WaitOnConveyor 等待线体运行、DiverterCommand 摆轮指令、DropToChute 落格）
+    /// - 动作描述（如：等待线体运行 5000ms、发送摆轮指令 Left）
+    /// - 累计耗时
+    /// 
+    /// **容差时间验证**：
+    /// - 容差时间应小于放包间隔时间（normalReleaseIntervalMs，默认300ms）的一半
+    /// - 即：容差时间 &lt; normalReleaseIntervalMs / 2
+    /// - 这样可以确保相邻包裹的超时检测窗口不会重叠
+    /// 
+    /// **示例请求**：
+    /// ```
+    /// GET /api/config/line-topology/simulate-lifecycle?chuteId=1&amp;toleranceTimeMs=100
+    /// ```
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "success": true,
+    ///   "code": "Ok",
+    ///   "message": "模拟成功",
+    ///   "data": {
+    ///     "chuteId": 1,
+    ///     "chuteName": "A区01号口",
+    ///     "totalTheoreticalTimeMs": 7500.0,
+    ///     "toleranceTimeMs": 100,
+    ///     "totalActualTimeMs": 7600.0,
+    ///     "normalReleaseIntervalMs": 300,
+    ///     "isToleranceValid": true,
+    ///     "toleranceValidationMessage": "容差时间配置合理",
+    ///     "simulationSteps": [
+    ///       {
+    ///         "stepNumber": 1,
+    ///         "stepType": "WaitOnConveyor",
+    ///         "action": "等待线体运行 5000ms (入口到第一摆轮段，长度5000mm，速度1000mm/s)",
+    ///         "durationMs": 5000.0,
+    ///         "cumulativeTimeMs": 5000.0,
+    ///         "details": { "segmentId": 1, "lengthMm": 5000.0, "speedMmPerSec": 1000.0 }
+    ///       },
+    ///       {
+    ///         "stepNumber": 2,
+    ///         "stepType": "DiverterCommand",
+    ///         "action": "发送摆轮指令: 摆轮#1 转向 Right",
+    ///         "durationMs": 0,
+    ///         "cumulativeTimeMs": 5000.0,
+    ///         "details": { "diverterId": 1, "direction": "Right" }
+    ///       },
+    ///       {
+    ///         "stepNumber": 3,
+    ///         "stepType": "WaitOnConveyor",
+    ///         "action": "等待线体运行 2500ms (第一摆轮到落格，长度2500mm，速度1000mm/s)",
+    ///         "durationMs": 2500.0,
+    ///         "cumulativeTimeMs": 7500.0,
+    ///         "details": { "segmentId": 2, "lengthMm": 2500.0, "speedMmPerSec": 1000.0 }
+    ///       },
+    ///       {
+    ///         "stepNumber": 4,
+    ///         "stepType": "DropToChute",
+    ///         "action": "包裹落入格口 A区01号口 (ChuteId=1)",
+    ///         "durationMs": 0,
+    ///         "cumulativeTimeMs": 7500.0,
+    ///         "details": { "chuteId": 1, "chuteName": "A区01号口" }
+    ///       }
+    ///     ]
+    ///   }
+    /// }
+    /// ```
+    /// </remarks>
+    [HttpGet("simulate-lifecycle")]
+    [SwaggerOperation(
+        Summary = "模拟包裹生命周期",
+        Description = "根据当前配置模拟包裹从创建到指定格口落格的整个生命周期，包括详细的各步骤信息（等待线体运行时间、摆轮指令等）",
+        OperationId = "SimulateParcelLifecycle",
+        Tags = new[] { "线体拓扑配置" }
+    )]
+    [SwaggerResponse(200, "模拟成功", typeof(ApiResponse<ParcelLifecycleSimulationResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(404, "未找到指定格口", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<ParcelLifecycleSimulationResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<ParcelLifecycleSimulationResponse>> SimulateParcelLifecycle(
+        [FromQuery, SwaggerParameter("目标格口ID（数字ID，如1、2、3）", Required = true)] long chuteId,
+        [FromQuery, SwaggerParameter("容差时间（毫秒），用于包裹摩擦力补偿，默认为0")] int toleranceTimeMs = 0)
+    {
+        try
+        {
+            if (chuteId <= 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("格口ID必须大于0 - Chute ID must be greater than 0"));
+            }
+
+            if (toleranceTimeMs < 0 || toleranceTimeMs > 60000)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("容差时间必须在0-60000毫秒之间 - Tolerance time must be between 0-60000ms"));
+            }
+
+            var topology = _topologyRepository.Get();
+            
+            // 获取路由配置
+            var routeConfig = _routeRepository.GetByChuteId(chuteId);
+            if (routeConfig == null)
+            {
+                return NotFound(ApiResponse<object>.NotFound($"未找到格口 {chuteId} 的路由配置 - Route configuration for chute {chuteId} not found"));
+            }
+
+            if (topology.LineSegments.Count == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("未配置线体段 - No line segments configured"));
+            }
+
+            // 获取系统配置中的放包间隔时间
+            var systemConfig = _systemConfigRepository.Get();
+            var normalReleaseIntervalMs = systemConfig?.ThrottleNormalIntervalMs ?? 300;
+
+            // 构建详细的模拟步骤
+            var simulationSteps = new List<SimulationStep>();
+            int stepNumber = 0;
+            double cumulativeTimeMs = 0;
+
+            // 按顺序处理每个摆轮配置
+            var sortedDiverters = routeConfig.DiverterConfigurations
+                .OrderBy(d => d.SequenceNumber)
+                .ToList();
+
+            foreach (var diverterConfig in sortedDiverters)
+            {
+                // 步骤1：等待线体运行（使用摆轮配置中的段长度和速度）
+                var segmentTimeMs = (diverterConfig.SegmentLengthMm / diverterConfig.SegmentSpeedMmPerSecond) * 1000.0;
+                cumulativeTimeMs += segmentTimeMs;
+                stepNumber++;
+
+                simulationSteps.Add(new SimulationStep
+                {
+                    StepNumber = stepNumber,
+                    StepType = "WaitOnConveyor",
+                    Action = $"等待线体运行 {segmentTimeMs:F0}ms (段{diverterConfig.SequenceNumber}，长度{diverterConfig.SegmentLengthMm}mm，速度{diverterConfig.SegmentSpeedMmPerSecond}mm/s)",
+                    DurationMs = segmentTimeMs,
+                    CumulativeTimeMs = cumulativeTimeMs,
+                    Details = new Dictionary<string, object>
+                    {
+                        { "segmentSequence", diverterConfig.SequenceNumber },
+                        { "lengthMm", diverterConfig.SegmentLengthMm },
+                        { "speedMmPerSec", diverterConfig.SegmentSpeedMmPerSecond },
+                        { "toleranceTimeMs", diverterConfig.SegmentToleranceTimeMs }
+                    }
+                });
+
+                // 步骤2：发送摆轮指令
+                stepNumber++;
+                var directionName = diverterConfig.TargetDirection.ToString();
+                var directionChinese = diverterConfig.TargetDirection switch
+                {
+                    DiverterDirection.Left => "左转",
+                    DiverterDirection.Right => "右转",
+                    DiverterDirection.Straight => "直行",
+                    _ => directionName
+                };
+
+                simulationSteps.Add(new SimulationStep
+                {
+                    StepNumber = stepNumber,
+                    StepType = "DiverterCommand",
+                    Action = $"发送摆轮指令: 摆轮#{diverterConfig.DiverterId} {directionChinese} ({directionName})",
+                    DurationMs = 0,
+                    CumulativeTimeMs = cumulativeTimeMs,
+                    Details = new Dictionary<string, object>
+                    {
+                        { "diverterId", diverterConfig.DiverterId },
+                        { "direction", directionName },
+                        { "directionChinese", directionChinese }
+                    }
+                });
+            }
+
+            // 最后一步：落格
+            stepNumber++;
+            simulationSteps.Add(new SimulationStep
+            {
+                StepNumber = stepNumber,
+                StepType = "DropToChute",
+                Action = $"包裹落入格口 {routeConfig.ChuteName ?? $"Chute-{chuteId}"} (ChuteId={chuteId})",
+                DurationMs = 0,
+                CumulativeTimeMs = cumulativeTimeMs,
+                Details = new Dictionary<string, object>
+                {
+                    { "chuteId", chuteId },
+                    { "chuteName", routeConfig.ChuteName ?? $"Chute-{chuteId}" }
+                }
+            });
+
+            // 验证容差时间是否合理
+            var maxAllowedToleranceMs = normalReleaseIntervalMs / 2.0;
+            var isToleranceValid = toleranceTimeMs < maxAllowedToleranceMs;
+            var toleranceValidationMessage = isToleranceValid
+                ? "容差时间配置合理 - Tolerance time is valid"
+                : $"容差时间过大，可能导致相邻包裹超时窗口重叠。建议小于 {maxAllowedToleranceMs:F0}ms - Tolerance time is too large, may cause overlapping timeout windows. Recommended < {maxAllowedToleranceMs:F0}ms";
+
+            var response = new ParcelLifecycleSimulationResponse
+            {
+                ChuteId = chuteId,
+                ChuteName = routeConfig.ChuteName,
+                TotalTheoreticalTimeMs = cumulativeTimeMs,
+                ToleranceTimeMs = toleranceTimeMs,
+                TotalActualTimeMs = cumulativeTimeMs + toleranceTimeMs,
+                NormalReleaseIntervalMs = normalReleaseIntervalMs,
+                IsToleranceValid = isToleranceValid,
+                ToleranceValidationMessage = toleranceValidationMessage,
+                SimulationSteps = simulationSteps
+            };
+
+            return Ok(ApiResponse<ParcelLifecycleSimulationResponse>.Ok(response, "模拟成功 - Simulation successful"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "模拟包裹生命周期失败: ChuteId={ChuteId}", chuteId);
+            return StatusCode(500, ApiResponse<object>.ServerError("模拟包裹生命周期失败 - Failed to simulate parcel lifecycle"));
+        }
+    }
+}
+
+/// <summary>
+/// 包裹生命周期模拟响应
+/// </summary>
+public record ParcelLifecycleSimulationResponse
+{
+    /// <summary>
+    /// 目标格口ID（数字ID）
+    /// </summary>
+    public required long ChuteId { get; init; }
+
+    /// <summary>
+    /// 格口名称
+    /// </summary>
+    public string? ChuteName { get; init; }
+
+    /// <summary>
+    /// 理论总通过时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 计算公式：Σ(线体段长度 / 线体段速度) * 1000
+    /// </remarks>
+    public required double TotalTheoreticalTimeMs { get; init; }
+
+    /// <summary>
+    /// 容差时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于补偿包裹摩擦力等因素造成的时间误差
+    /// </remarks>
+    public required int ToleranceTimeMs { get; init; }
+
+    /// <summary>
+    /// 实际总通过时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 计算公式：理论总通过时间 + 容差时间
+    /// </remarks>
+    public required double TotalActualTimeMs { get; init; }
+
+    /// <summary>
+    /// 正常放包间隔时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认值为300ms，表示至少间隔300ms才能创建一个包裹
+    /// </remarks>
+    public required int NormalReleaseIntervalMs { get; init; }
+
+    /// <summary>
+    /// 容差时间是否合理
+    /// </summary>
+    /// <remarks>
+    /// 容差时间应小于放包间隔时间的一半（即 &lt; normalReleaseIntervalMs / 2），
+    /// 以确保相邻包裹的超时检测窗口不会重叠
+    /// </remarks>
+    public required bool IsToleranceValid { get; init; }
+
+    /// <summary>
+    /// 容差时间验证消息
+    /// </summary>
+    public required string ToleranceValidationMessage { get; init; }
+
+    /// <summary>
+    /// 详细模拟步骤列表
+    /// </summary>
+    /// <remarks>
+    /// 包含每个步骤的详细信息：等待线体运行时间、摆轮指令、落格等
+    /// </remarks>
+    public required List<SimulationStep> SimulationSteps { get; init; }
+}
+
+/// <summary>
+/// 模拟步骤信息
+/// </summary>
+public record SimulationStep
+{
+    /// <summary>
+    /// 步骤序号（从1开始）
+    /// </summary>
+    public required int StepNumber { get; init; }
+
+    /// <summary>
+    /// 步骤类型
+    /// </summary>
+    /// <remarks>
+    /// 可能的值：
+    /// - WaitOnConveyor: 等待线体运行
+    /// - DiverterCommand: 发送摆轮指令
+    /// - DropToChute: 落格到格口
+    /// </remarks>
+    public required string StepType { get; init; }
+
+    /// <summary>
+    /// 动作描述
+    /// </summary>
+    /// <example>等待线体运行 5000ms (入口到第一摆轮段，长度5000mm，速度1000mm/s)</example>
+    public required string Action { get; init; }
+
+    /// <summary>
+    /// 本步骤持续时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 对于WaitOnConveyor类型，表示等待时间；
+    /// 对于DiverterCommand和DropToChute类型，通常为0
+    /// </remarks>
+    public required double DurationMs { get; init; }
+
+    /// <summary>
+    /// 累计时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 从包裹创建到当前步骤结束的累计时间
+    /// </remarks>
+    public required double CumulativeTimeMs { get; init; }
+
+    /// <summary>
+    /// 步骤详情
+    /// </summary>
+    /// <remarks>
+    /// 包含步骤的具体参数，不同类型的步骤有不同的详情字段：
+    /// - WaitOnConveyor: segmentSequence, lengthMm, speedMmPerSec, toleranceTimeMs
+    /// - DiverterCommand: diverterId, direction, directionChinese
+    /// - DropToChute: chuteId, chuteName
+    /// </remarks>
+    public required Dictionary<string, object> Details { get; init; }
 }

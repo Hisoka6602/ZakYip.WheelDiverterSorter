@@ -204,9 +204,6 @@ try
     builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
     builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
-    // 注册路由导入导出服务
-    builder.Services.AddScoped<IRouteImportExportService, RouteImportExportService>();
-
     // 注册中段皮带 IO 联动服务
     builder.Services.AddMiddleConveyorServices(builder.Configuration);
 

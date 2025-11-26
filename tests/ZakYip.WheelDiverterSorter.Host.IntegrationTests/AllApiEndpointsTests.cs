@@ -67,63 +67,6 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
 
     #endregion
 
-    #region Route Config API Tests
-
-    [Fact]
-    public async Task GetAllRoutes_ReturnsSuccess()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/config/routes");
-
-        // Assert
-        Assert.True(response.IsSuccessStatusCode,
-            $"Expected success status code but got {response.StatusCode}");
-        
-        var routes = await response.Content.ReadFromJsonAsync<List<RouteConfigResponse>>(TestJsonOptions.GetOptions());
-        Assert.NotNull(routes);
-    }
-
-    [Fact]
-    public async Task GetRouteById_WithValidId_ReturnsSuccess()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/config/routes/1");
-
-        // Assert
-        Assert.True(response.IsSuccessStatusCode,
-            $"Expected success status code but got {response.StatusCode}");
-        
-        var route = await response.Content.ReadFromJsonAsync<RouteConfigResponse>(TestJsonOptions.GetOptions());
-        Assert.NotNull(route);
-        Assert.Equal(1, route.ChuteId);
-    }
-
-    [Fact]
-    public async Task GetRouteById_WithInvalidId_ReturnsNotFound()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/config/routes/99999");
-
-        // Assert
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task ExportRoutes_ReturnsSuccess()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/config/routes/export");
-
-        // Assert
-        Assert.True(response.IsSuccessStatusCode,
-            $"Expected success status code but got {response.StatusCode}");
-        
-        var routes = await response.Content.ReadFromJsonAsync<List<RouteConfigResponse>>(TestJsonOptions.GetOptions());
-        Assert.NotNull(routes);
-    }
-
-    #endregion
-
     #region IO Driver Config API Tests
 
     [Fact]
