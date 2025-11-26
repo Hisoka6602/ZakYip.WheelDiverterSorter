@@ -855,7 +855,78 @@ PUT /api/communication/config/persisted
 
 **重要提示**：以上规则是系统架构的核心约束，违反这些规则可能导致系统不稳定、数据不一致或业务错误。所有 PR 必须遵守这些规则，Code Review 时会重点检查。
 
-## 本次更新的内容（2025-11-19）
+## 本次更新的内容（2025-11-26）
+
+### 格口路径拓扑配置 API 优化 🎯
+
+本次更新重点优化了格口路径拓扑配置相关的 API，增强了验证逻辑和可视化功能：
+
+#### 1. 模拟测试接口优化 ✅
+
+**变更**：`POST /api/config/chute-path-topology/simulate` 移除了 `lineSpeedMmps` 和 `defaultSegmentLengthMm` 参数
+
+- **原因**：模拟测试应基于已配置的拓扑配置，而非每次请求时指定参数
+- **新行为**：模拟将使用系统默认值（线速 1000mm/s，线体段长度 5000mm）
+- **前置条件**：必须先完成拓扑配置（至少配置一个摆轮节点）才能进行模拟
+- **影响**：简化 API 调用，确保模拟结果与实际配置一致
+
+**新请求体示例**：
+```json
+{
+  "targetChuteId": 1,
+  "simulateTimeout": false,
+  "simulateParcelLoss": false,
+  "parcelLossAtDiverterIndex": 1,
+  "routingRequestDelayMs": 50,
+  "sensorDetectionDelayMs": 10,
+  "diverterActionDelayMs": 100
+}
+```
+
+#### 2. 摆轮前传感器必须配置 ✅
+
+**变更**：`DiverterPathNodeRequest.FrontSensorId` 从可选变为必填
+
+- **原因**：摆轮前传感器是判断包裹是否到达摆轮的关键依据，缺少此配置会导致分拣逻辑无法正确执行
+- **验证**：系统会验证传感器 ID 是否已在感应 IO 配置中注册，且类型必须为 `WheelFront`
+- **影响**：更新拓扑配置时，每个摆轮节点必须指定有效的 `FrontSensorId`
+
+#### 3. 增强配置验证 ✅
+
+新增以下验证规则，防止配置错误：
+
+| 验证项 | 说明 | 错误提示 |
+|-------|------|---------|
+| 摆轮 ID 重复 | 同一拓扑中不能有重复的摆轮 ID | `摆轮ID {id} 重复配置` |
+| 格口 ID 重复 | 同一格口不能配置在多个摆轮上 | `格口ID {id} 在多个摆轮节点中重复配置` |
+| 线体段 ID 重复 | 每个摆轮应有独立的线体段 | `线体段ID {id} 在多个摆轮节点中重复配置` |
+| 异常格口重复 | 异常格口不能与普通格口重复 | `异常格口ID不能与普通格口重复` |
+| 位置索引非连续 | 位置索引必须从 1 开始连续递增 | `位置索引应从1开始连续递增` |
+
+#### 4. 新增拓扑图可视化接口 ✅
+
+**新接口**：`GET /api/config/chute-path-topology/diagram`
+
+返回 ASCII 格式的拓扑图，便于可视化查看当前配置：
+
+```json
+{
+  "success": true,
+  "data": {
+    "topologyName": "标准格口路径拓扑",
+    "description": "3摆轮6格口的标准配置",
+    "diagram": "      格口2        格口4        格口6\n        ↑            ↑            ↑\n入口 →  摆轮D1 →    摆轮D2 →    摆轮D3 → 末端(异常口999)\n  ↓        ↓            ↓            ↓\n传感器1   格口1        格口3        格口5\n\n摆轮前传感器配置:\n  摆轮D1 → 传感器ID: 2\n  摆轮D2 → 传感器ID: 3\n  摆轮D3 → 传感器ID: 4",
+    "diverterCount": 3,
+    "totalChuteCount": 6,
+    "entrySensorId": 1,
+    "exceptionChuteId": 999
+  }
+}
+```
+
+---
+
+## 上次更新的内容（2025-11-19）
 
 ### PR-39: Execution/Drivers 抽象优化 + 复杂仿真场景 + 文档导航整理 🎯
 
@@ -883,7 +954,7 @@ PUT /api/communication/config/persisted
 - ✅ **规划详细度提升**：每个PR包含具体技术选型、实现细节和验收标准
 - ✅ **文档准确性提升**：确保README.md准确反映项目当前真实状态
 
-## 上次更新的内容（历史记录）
+## 历史更新记录
 - ✅ **新增三种分拣模式**：支持正式分拣模式（默认）、指定落格分拣模式、循环格口落格模式，可通过API动态切换
 - ✅ **新增分拣模式章节**：详细说明三种模式的适用场景、工作原理和配置示例
 - ✅ **更新项目完成度**：整体完成度从92%提升到93%，新增分拣模式模块100%完成
@@ -1229,6 +1300,6 @@ curl -X POST http://localhost:5000/api/config/routes \
 
 ---
 
-**文档版本：** v3.4  
-**最后更新：** 2025-11-22  
+**文档版本：** v3.5  
+**最后更新：** 2025-11-26  
 **维护团队：** ZakYip Development Team

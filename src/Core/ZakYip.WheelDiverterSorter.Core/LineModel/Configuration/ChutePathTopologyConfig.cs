@@ -186,12 +186,13 @@ public record class DiverterPathNode
     public required long SegmentId { get; init; }
 
     /// <summary>
-    /// 摆轮前感应IO的ID（引用 SensorConfiguration 中的 SensorId，可选）
+    /// 摆轮前感应IO的ID（引用 SensorConfiguration 中的 SensorId，必须配置）
     /// </summary>
     /// <remarks>
-    /// 类型应为 WheelFront，用于检测包裹即将到达摆轮，触发摆轮提前动作
+    /// 类型必须为 WheelFront，用于检测包裹是否已经到达摆轮前。
+    /// 此字段为必填项，因为需要依靠感应器来判断包裹是否已经到达摆轮前。
     /// </remarks>
-    public long? FrontSensorId { get; init; }
+    public required long FrontSensorId { get; init; }
 
     /// <summary>
     /// 左侧格口ID列表

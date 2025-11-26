@@ -34,6 +34,26 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class ChutePathTopologyController : ControllerBase
 {
+    /// <summary>
+    /// 模拟使用的默认线速（毫米/秒）= 1 m/s
+    /// </summary>
+    private const decimal SimulationDefaultLineSpeedMmps = 1000m;
+    
+    /// <summary>
+    /// 模拟使用的默认线体段长度（毫米）= 5 m
+    /// </summary>
+    private const double SimulationDefaultSegmentLengthMm = 5000;
+    
+    /// <summary>
+    /// 拓扑图中每列的宽度（字符数）
+    /// </summary>
+    private const int DiagramColumnWidth = 12;
+    
+    /// <summary>
+    /// 拓扑图中箭头符号的额外占用宽度（" →" 占用3字符）
+    /// </summary>
+    private const int DiagramArrowPadding = 3;
+
     private readonly IChutePathTopologyRepository _topologyRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
     private readonly ISystemClock _clock;
@@ -81,6 +101,59 @@ public class ChutePathTopologyController : ControllerBase
         {
             _logger.LogError(ex, "获取格口路径拓扑配置失败");
             return StatusCode(500, ApiResponse<object>.ServerError("获取格口路径拓扑配置失败 - Failed to get chute path topology configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 获取格口路径拓扑图（ASCII文本格式）
+    /// </summary>
+    /// <returns>ASCII格式的拓扑图</returns>
+    /// <response code="200">成功返回拓扑图</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// <para>返回当前配置的拓扑结构的ASCII文本图表，便于可视化理解配置。</para>
+    /// <para>示例输出：</para>
+    /// <code>
+    ///       格口B     格口D     格口F
+    ///         ↑         ↑         ↑
+    /// 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(异常口999)
+    ///   ↓     ↓         ↓         ↓
+    /// 传感器  格口A      格口C     格口E
+    /// </code>
+    /// </remarks>
+    [HttpGet("diagram")]
+    [SwaggerOperation(
+        Summary = "获取格口路径拓扑图",
+        Description = "返回ASCII格式的拓扑图，便于可视化查看当前配置的拓扑结构",
+        OperationId = "GetChutePathTopologyDiagram",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "成功返回拓扑图", typeof(ApiResponse<TopologyDiagramResponse>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    public ActionResult<ApiResponse<TopologyDiagramResponse>> GetTopologyDiagram()
+    {
+        try
+        {
+            var config = _topologyRepository.Get();
+            var diagram = GenerateTopologyDiagram(config);
+            
+            var response = new TopologyDiagramResponse
+            {
+                TopologyName = config.TopologyName,
+                Description = config.Description,
+                Diagram = diagram,
+                DiverterCount = config.DiverterNodes.Count,
+                TotalChuteCount = config.TotalChuteCount,
+                EntrySensorId = config.EntrySensorId,
+                ExceptionChuteId = config.ExceptionChuteId
+            };
+            
+            return Ok(ApiResponse<TopologyDiagramResponse>.Ok(response, "拓扑图生成成功 - Topology diagram generated successfully"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "生成格口路径拓扑图失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("生成格口路径拓扑图失败 - Failed to generate chute path topology diagram"));
         }
     }
 
@@ -185,24 +258,32 @@ public class ChutePathTopologyController : ControllerBase
             }
 
             // 验证每个摆轮节点
+            var allChuteIds = new HashSet<long>();
+            var allDiverterIds = new HashSet<long>();
+            var allSegmentIds = new HashSet<long>();
+
             foreach (var node in request.DiverterNodes)
             {
-                // 验证摆轮前感应IO（可选）
-                if (node.FrontSensorId.HasValue && node.FrontSensorId.Value > 0)
+                // 验证摆轮ID不重复
+                if (!allDiverterIds.Add(node.DiverterId))
                 {
-                    if (!configuredSensorIds.Contains(node.FrontSensorId.Value))
-                    {
-                        return BadRequest(ApiResponse<object>.BadRequest(
-                            $"摆轮节点 {node.DiverterId} 的摆轮前感应IO ({node.FrontSensorId}) 未配置，请先在感应IO配置中添加"));
-                    }
+                    return BadRequest(ApiResponse<object>.BadRequest(
+                        $"摆轮ID {node.DiverterId} 重复配置 - Duplicate diverter ID"));
+                }
 
-                    // 验证类型必须是 WheelFront
-                    var frontSensor = sensorConfig.Sensors?.FirstOrDefault(s => s.SensorId == node.FrontSensorId.Value);
-                    if (frontSensor != null && frontSensor.IoType != SensorIoType.WheelFront)
-                    {
-                        return BadRequest(ApiResponse<object>.BadRequest(
-                            $"摆轮节点 {node.DiverterId} 的摆轮前感应IO ({node.FrontSensorId}) 类型必须是 WheelFront，当前类型为 {frontSensor.IoType}"));
-                    }
+                // 验证摆轮前感应IO（必须配置）
+                if (!configuredSensorIds.Contains(node.FrontSensorId))
+                {
+                    return BadRequest(ApiResponse<object>.BadRequest(
+                        $"摆轮节点 {node.DiverterId} 的摆轮前感应IO ({node.FrontSensorId}) 未配置，请先在感应IO配置中添加"));
+                }
+
+                // 验证类型必须是 WheelFront
+                var frontSensor = sensorConfig.Sensors?.FirstOrDefault(s => s.SensorId == node.FrontSensorId);
+                if (frontSensor != null && frontSensor.IoType != SensorIoType.WheelFront)
+                {
+                    return BadRequest(ApiResponse<object>.BadRequest(
+                        $"摆轮节点 {node.DiverterId} 的摆轮前感应IO ({node.FrontSensorId}) 类型必须是 WheelFront，当前类型为 {frontSensor.IoType}"));
                 }
 
                 // 验证至少有一侧有格口
@@ -213,6 +294,44 @@ public class ChutePathTopologyController : ControllerBase
                     return BadRequest(ApiResponse<object>.BadRequest(
                         $"摆轮节点 {node.DiverterId} 必须至少配置一侧格口"));
                 }
+
+                // 收集所有格口ID用于后续验证
+                if (node.LeftChuteIds != null)
+                {
+                    foreach (var chuteId in node.LeftChuteIds)
+                    {
+                        if (!allChuteIds.Add(chuteId))
+                        {
+                            return BadRequest(ApiResponse<object>.BadRequest(
+                                $"格口ID {chuteId} 在多个摆轮节点中重复配置 - Duplicate chute ID"));
+                        }
+                    }
+                }
+                if (node.RightChuteIds != null)
+                {
+                    foreach (var chuteId in node.RightChuteIds)
+                    {
+                        if (!allChuteIds.Add(chuteId))
+                        {
+                            return BadRequest(ApiResponse<object>.BadRequest(
+                                $"格口ID {chuteId} 在多个摆轮节点中重复配置 - Duplicate chute ID"));
+                        }
+                    }
+                }
+
+                // 验证线体段ID不重复
+                if (!allSegmentIds.Add(node.SegmentId))
+                {
+                    return BadRequest(ApiResponse<object>.BadRequest(
+                        $"线体段ID {node.SegmentId} 在多个摆轮节点中重复配置 - Duplicate segment ID"));
+                }
+            }
+
+            // 验证异常格口不能与普通格口重复
+            if (allChuteIds.Contains(request.ExceptionChuteId))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest(
+                    $"异常格口ID ({request.ExceptionChuteId}) 不能与普通格口重复 - Exception chute ID cannot duplicate with normal chutes"));
             }
 
             // 验证摆轮节点的位置索引不能重复
@@ -226,6 +345,17 @@ public class ChutePathTopologyController : ControllerBase
             {
                 return BadRequest(ApiResponse<object>.BadRequest(
                     $"摆轮节点位置索引重复: {string.Join(", ", duplicatePositions)}"));
+            }
+
+            // 验证位置索引是否连续（从1开始）
+            var sortedPositions = request.DiverterNodes.Select(n => n.PositionIndex).OrderBy(p => p).ToList();
+            for (int i = 0; i < sortedPositions.Count; i++)
+            {
+                if (sortedPositions[i] != i + 1)
+                {
+                    return BadRequest(ApiResponse<object>.BadRequest(
+                        $"摆轮节点位置索引应从1开始连续递增，当前索引 {sortedPositions[i]} 不符合要求 - Position index should start from 1 and be consecutive"));
+                }
             }
 
             var config = MapToConfig(request);
@@ -254,39 +384,51 @@ public class ChutePathTopologyController : ControllerBase
     /// <param name="request">模拟测试请求参数</param>
     /// <returns>模拟的包裹分拣全过程详情</returns>
     /// <response code="200">模拟测试成功</response>
-    /// <response code="400">请求参数无效或格口不存在</response>
+    /// <response code="400">请求参数无效、格口不存在或拓扑配置不完整</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 此端点用于测试拓扑配置是否正确，模拟包裹从入口到指定格口的完整分拣过程。
+    /// <para>此端点用于测试拓扑配置是否正确，模拟包裹从入口到指定格口的完整分拣过程。</para>
     /// 
-    /// 可配置的模拟参数：
-    /// - targetChuteId: 目标格口ID
-    /// - simulateTimeout: 是否模拟超时场景
-    /// - simulateParcelLoss: 是否模拟丢包场景
-    /// - lineSpeedMmps: 线体速度（毫米/秒）
-    /// - parcelLossAtDiverterIndex: 在第几个摆轮处丢包（从1开始）
+    /// <para><b>重要</b>：必须先完成拓扑配置才能进行模拟测试。线体速度和长度参数从已配置的拓扑中读取。</para>
     /// 
-    /// 返回结果包含：
-    /// - 包裹基本信息
-    /// - 完整的路径节点列表及每个节点的详细信息
-    /// - 每个节点的耗时统计
-    /// - 最终分拣结果
+    /// <para>可配置的模拟参数：</para>
+    /// <list type="bullet">
+    /// <item>targetChuteId: 目标格口ID</item>
+    /// <item>simulateTimeout: 是否模拟超时场景</item>
+    /// <item>simulateParcelLoss: 是否模拟丢包场景</item>
+    /// <item>parcelLossAtDiverterIndex: 在第几个摆轮处丢包（从1开始）</item>
+    /// </list>
+    /// 
+    /// <para>返回结果包含：</para>
+    /// <list type="bullet">
+    /// <item>包裹基本信息</item>
+    /// <item>完整的路径节点列表及每个节点的详细信息</item>
+    /// <item>每个节点的耗时统计</item>
+    /// <item>最终分拣结果</item>
+    /// </list>
     /// </remarks>
     [HttpPost("simulate")]
     [SwaggerOperation(
         Summary = "模拟包裹分拣路径测试",
-        Description = "模拟包裹从入口到指定格口的完整分拣过程，用于验证拓扑配置是否正确",
+        Description = "模拟包裹从入口到指定格口的完整分拣过程，用于验证拓扑配置是否正确。必须先完成拓扑配置（至少配置一个摆轮节点）才能进行模拟。",
         OperationId = "SimulateChutePathTopology",
         Tags = new[] { "格口路径拓扑配置" }
     )]
     [SwaggerResponse(200, "模拟测试成功", typeof(ApiResponse<TopologySimulationResult>))]
-    [SwaggerResponse(400, "请求参数无效或格口不存在", typeof(ApiResponse<object>))]
+    [SwaggerResponse(400, "请求参数无效、格口不存在或拓扑配置不完整", typeof(ApiResponse<object>))]
     [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
     public ActionResult<ApiResponse<TopologySimulationResult>> SimulateParcelPath([FromBody] TopologySimulationRequest request)
     {
         try
         {
             var config = _topologyRepository.Get();
+            
+            // 验证拓扑配置是否完整
+            if (config.DiverterNodes.Count == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest(
+                    "拓扑配置不完整，至少需要配置一个摆轮节点才能进行模拟测试 - Topology configuration is incomplete. At least one diverter node must be configured before simulation."));
+            }
             
             // Validate target chute exists in topology
             var targetNode = config.FindNodeByChuteId(request.TargetChuteId);
@@ -325,7 +467,6 @@ public class ChutePathTopologyController : ControllerBase
                 TargetChuteId = request.TargetChuteId,
                 IsExceptionChute = isExceptionChute,
                 SimulationStartTime = simulationStartTime,
-                LineSpeedMmps = request.LineSpeedMmps,
                 SimulateTimeout = request.SimulateTimeout,
                 SimulateParcelLoss = request.SimulateParcelLoss,
                 Steps = new List<SimulationStep>()
@@ -385,9 +526,10 @@ public class ChutePathTopologyController : ControllerBase
             // Process each diverter node
             foreach (var node in pathNodes)
             {
-                // Calculate transit time based on segment
-                var segmentLengthMm = request.DefaultSegmentLengthMm; // Use default or could lookup from LineSegmentConfig
-                var transitTimeMs = (segmentLengthMm / (double)request.LineSpeedMmps) * 1000;
+                // Use class-level default values for simulation
+                var segmentLengthMm = SimulationDefaultSegmentLengthMm;
+                var lineSpeedMmps = SimulationDefaultLineSpeedMmps;
+                var transitTimeMs = (segmentLengthMm / (double)lineSpeedMmps) * 1000;
                 
                 // Add tolerance for variation
                 if (request.SimulateTimeout && node.DiverterId == pathNodes.Last().DiverterId)
@@ -416,7 +558,7 @@ public class ChutePathTopologyController : ControllerBase
                     {
                         ["segmentId"] = node.SegmentId,
                         ["segmentLengthMm"] = segmentLengthMm,
-                        ["speedMmps"] = request.LineSpeedMmps
+                        ["speedMmps"] = lineSpeedMmps
                     }
                 };
                 
@@ -444,30 +586,27 @@ public class ChutePathTopologyController : ControllerBase
 
                 result.Steps.Add(transitStep);
 
-                // Front sensor detection (if configured)
-                if (node.FrontSensorId.HasValue)
+                // Front sensor detection (FrontSensorId is now required)
+                var sensorDetectionStep = new SimulationStep
                 {
-                    var sensorDetectionStep = new SimulationStep
+                    StepNumber = stepNumber++,
+                    StepType = SimulationStepType.SensorDetection,
+                    Description = $"摆轮前感应器(ID:{node.FrontSensorId})检测到包裹 - Front sensor detected parcel",
+                    NodeId = node.DiverterId,
+                    NodeName = $"感应器 (Sensor ID: {node.FrontSensorId})",
+                    StartTime = currentTime,
+                    EndTime = currentTime.AddMilliseconds(request.SensorDetectionDelayMs),
+                    DurationMs = request.SensorDetectionDelayMs,
+                    CumulativeTimeMs = cumulativeTimeMs + request.SensorDetectionDelayMs,
+                    Status = isTimeout ? StepStatus.Timeout : StepStatus.Success,
+                    Details = new Dictionary<string, object>
                     {
-                        StepNumber = stepNumber++,
-                        StepType = SimulationStepType.SensorDetection,
-                        Description = $"摆轮前感应器(ID:{node.FrontSensorId})检测到包裹 - Front sensor detected parcel",
-                        NodeId = node.DiverterId,
-                        NodeName = $"感应器 (Sensor ID: {node.FrontSensorId})",
-                        StartTime = currentTime,
-                        EndTime = currentTime.AddMilliseconds(request.SensorDetectionDelayMs),
-                        DurationMs = request.SensorDetectionDelayMs,
-                        CumulativeTimeMs = cumulativeTimeMs + request.SensorDetectionDelayMs,
-                        Status = isTimeout ? StepStatus.Timeout : StepStatus.Success,
-                        Details = new Dictionary<string, object>
-                        {
-                            ["sensorId"] = node.FrontSensorId.Value
-                        }
-                    };
-                    currentTime = sensorDetectionStep.EndTime;
-                    cumulativeTimeMs += request.SensorDetectionDelayMs;
-                    result.Steps.Add(sensorDetectionStep);
-                }
+                        ["sensorId"] = node.FrontSensorId
+                    }
+                };
+                currentTime = sensorDetectionStep.EndTime;
+                cumulativeTimeMs += request.SensorDetectionDelayMs;
+                result.Steps.Add(sensorDetectionStep);
 
                 // Diverter action (determine direction based on target chute)
                 var isTargetDiverter = node.LeftChuteIds.Contains(request.TargetChuteId) || 
@@ -670,7 +809,7 @@ public class ChutePathTopologyController : ControllerBase
                 var name = EscapeCsvField(node.DiverterName ?? "");
                 var remarks = EscapeCsvField(node.Remarks ?? "");
                 
-                sb.AppendLine($"{node.DiverterId},{name},{node.PositionIndex},{node.SegmentId},{node.FrontSensorId?.ToString() ?? ""},{leftChutes},{rightChutes},{remarks}");
+                sb.AppendLine($"{node.DiverterId},{name},{node.PositionIndex},{node.SegmentId},{node.FrontSensorId},{leftChutes},{rightChutes},{remarks}");
             }
 
             var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
@@ -856,14 +995,14 @@ public class ChutePathTopologyController : ControllerBase
                     throw new FormatException($"Line {lineNumber}: Invalid SegmentId value '{fields[ColSegmentId]}'");
                 }
 
-                long? frontSensorId = null;
-                if (!string.IsNullOrWhiteSpace(fields[ColFrontSensorId]))
+                // FrontSensorId is now required
+                if (string.IsNullOrWhiteSpace(fields[ColFrontSensorId]))
                 {
-                    if (!long.TryParse(fields[ColFrontSensorId].Trim(), out var parsedFrontSensorId))
-                    {
-                        throw new FormatException($"Line {lineNumber}: Invalid FrontSensorId value '{fields[ColFrontSensorId]}'");
-                    }
-                    frontSensorId = parsedFrontSensorId;
+                    throw new FormatException($"Line {lineNumber}: FrontSensorId is required but not provided");
+                }
+                if (!long.TryParse(fields[ColFrontSensorId].Trim(), out var frontSensorId))
+                {
+                    throw new FormatException($"Line {lineNumber}: Invalid FrontSensorId value '{fields[ColFrontSensorId]}'");
                 }
 
                 var node = new DiverterPathNodeRequest
@@ -1018,5 +1157,88 @@ public class ChutePathTopologyController : ControllerBase
             CreatedAt = now,
             UpdatedAt = now
         };
+    }
+
+    /// <summary>
+    /// 生成ASCII格式的拓扑图
+    /// </summary>
+    /// <param name="config">拓扑配置</param>
+    /// <returns>ASCII拓扑图字符串</returns>
+    private static string GenerateTopologyDiagram(ChutePathTopologyConfig config)
+    {
+        var sb = new System.Text.StringBuilder();
+        var nodes = config.DiverterNodes.OrderBy(n => n.PositionIndex).ToList();
+        
+        if (nodes.Count == 0)
+        {
+            sb.AppendLine("拓扑配置为空，请先配置摆轮节点");
+            sb.AppendLine("Topology configuration is empty, please configure diverter nodes first");
+            return sb.ToString();
+        }
+
+        // 第一行：左侧格口（在摆轮上方）
+        sb.Append("".PadLeft(8)); // 入口前的空格
+        foreach (var node in nodes)
+        {
+            var leftChutes = node.LeftChuteIds.Count > 0 
+                ? $"格口{string.Join(",", node.LeftChuteIds)}" 
+                : "";
+            sb.Append(leftChutes.PadLeft(DiagramColumnWidth));
+        }
+        sb.AppendLine();
+        
+        // 第二行：上箭头
+        sb.Append("".PadLeft(8));
+        foreach (var node in nodes)
+        {
+            var arrow = node.LeftChuteIds.Count > 0 ? "↑" : "";
+            sb.Append(arrow.PadLeft(DiagramColumnWidth));
+        }
+        sb.AppendLine();
+        
+        // 第三行：主线（入口 → 摆轮1 → 摆轮2 → ... → 末端(异常口)）
+        sb.Append($"入口 →");
+        foreach (var node in nodes)
+        {
+            var diverterName = node.DiverterName ?? $"摆轮D{node.DiverterId}";
+            // 截取名称使其适合宽度（减去箭头占用的空间）
+            if (diverterName.Length > DiagramColumnWidth - DiagramArrowPadding)
+            {
+                diverterName = diverterName.Substring(0, DiagramColumnWidth - DiagramArrowPadding);
+            }
+            sb.Append($" {diverterName} →".PadLeft(DiagramColumnWidth));
+        }
+        sb.AppendLine($" 末端(异常口{config.ExceptionChuteId})");
+        
+        // 第四行：下箭头
+        sb.Append("  ↓".PadLeft(8));
+        foreach (var node in nodes)
+        {
+            var arrow = node.RightChuteIds.Count > 0 ? "↓" : "";
+            sb.Append(arrow.PadLeft(DiagramColumnWidth));
+        }
+        sb.AppendLine();
+        
+        // 第五行：传感器和右侧格口
+        sb.Append($"传感器{config.EntrySensorId}".PadLeft(8));
+        foreach (var node in nodes)
+        {
+            var rightChutes = node.RightChuteIds.Count > 0 
+                ? $"格口{string.Join(",", node.RightChuteIds)}" 
+                : "";
+            sb.Append(rightChutes.PadLeft(DiagramColumnWidth));
+        }
+        sb.AppendLine();
+        
+        // 添加摆轮前传感器信息
+        sb.AppendLine();
+        sb.AppendLine("摆轮前传感器配置:");
+        foreach (var node in nodes)
+        {
+            var diverterName = node.DiverterName ?? $"摆轮D{node.DiverterId}";
+            sb.AppendLine($"  {diverterName} → 传感器ID: {node.FrontSensorId}");
+        }
+        
+        return sb.ToString();
     }
 }

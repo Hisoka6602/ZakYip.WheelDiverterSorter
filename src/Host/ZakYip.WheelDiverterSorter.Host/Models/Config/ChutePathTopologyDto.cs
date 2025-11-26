@@ -51,14 +51,16 @@ public record DiverterPathNodeRequest
     public required long SegmentId { get; init; }
 
     /// <summary>
-    /// 摆轮前感应IO的ID（引用感应IO配置中的SensorId，可选）
+    /// 摆轮前感应IO的ID（引用感应IO配置中的SensorId，必须配置）
     /// </summary>
     /// <remarks>
-    /// 类型应为 WheelFront，用于检测包裹即将到达摆轮
+    /// 类型必须为 WheelFront，用于检测包裹是否已经到达摆轮前。
+    /// 此字段为必填项，因为需要依靠感应器来判断包裹是否已经到达摆轮前。
     /// </remarks>
     /// <example>2</example>
-    [Range(0, long.MaxValue)]
-    public long? FrontSensorId { get; init; }
+    [Required]
+    [Range(1, long.MaxValue)]
+    public required long FrontSensorId { get; init; }
 
     /// <summary>
     /// 左侧格口ID列表
@@ -207,7 +209,9 @@ public record ChutePathTopologyResponse
 /// 拓扑模拟测试请求
 /// </summary>
 /// <remarks>
-/// 用于测试格口路径拓扑配置，模拟包裹从入口到指定格口的完整分拣过程
+/// <para>用于测试格口路径拓扑配置，模拟包裹从入口到指定格口的完整分拣过程。</para>
+/// <para><b>重要</b>：线体速度和线体段长度参数已从此请求中移除。</para>
+/// <para>模拟将使用已配置的拓扑配置中的参数。如果拓扑配置未完成，模拟将返回错误。</para>
 /// </remarks>
 public record TopologySimulationRequest
 {
@@ -218,23 +222,6 @@ public record TopologySimulationRequest
     [Required]
     [Range(1, long.MaxValue)]
     public required long TargetChuteId { get; init; }
-
-    /// <summary>
-    /// 线体速度（毫米/秒）
-    /// </summary>
-    /// <example>1000</example>
-    [Range(100, 10000)]
-    public decimal LineSpeedMmps { get; init; } = 1000m;
-
-    /// <summary>
-    /// 默认线体段长度（毫米）
-    /// </summary>
-    /// <remarks>
-    /// 当无法从线体段配置获取长度时使用的默认值
-    /// </remarks>
-    /// <example>5000</example>
-    [Range(100, 100000)]
-    public double DefaultSegmentLengthMm { get; init; } = 5000;
 
     /// <summary>
     /// 是否模拟超时场景
@@ -336,11 +323,6 @@ public record TopologySimulationResult
     /// 经过的摆轮数量
     /// </summary>
     public int DiverterCount { get; set; }
-
-    /// <summary>
-    /// 线体速度（毫米/秒）
-    /// </summary>
-    public decimal LineSpeedMmps { get; init; }
 
     /// <summary>
     /// 是否模拟超时
@@ -499,4 +481,59 @@ public enum StepStatus
     /// 路由到异常格口
     /// </summary>
     RoutedToException
+}
+
+/// <summary>
+/// 拓扑图响应
+/// </summary>
+/// <remarks>
+/// 返回ASCII格式的拓扑图，便于可视化查看配置的拓扑结构
+/// </remarks>
+public record TopologyDiagramResponse
+{
+    /// <summary>
+    /// 拓扑配置名称
+    /// </summary>
+    /// <example>标准格口路径拓扑</example>
+    public required string TopologyName { get; init; }
+
+    /// <summary>
+    /// 拓扑描述
+    /// </summary>
+    public string? Description { get; init; }
+
+    /// <summary>
+    /// ASCII格式的拓扑图
+    /// </summary>
+    /// <remarks>
+    /// <para>示例：</para>
+    /// <code>
+    ///       格口B     格口D     格口F
+    ///         ↑         ↑         ↑
+    /// 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(异常口999)
+    ///   ↓     ↓         ↓         ↓
+    /// 传感器  格口A      格口C     格口E
+    /// </code>
+    /// </remarks>
+    public required string Diagram { get; init; }
+
+    /// <summary>
+    /// 摆轮数量
+    /// </summary>
+    public int DiverterCount { get; init; }
+
+    /// <summary>
+    /// 格口总数
+    /// </summary>
+    public int TotalChuteCount { get; init; }
+
+    /// <summary>
+    /// 入口传感器ID
+    /// </summary>
+    public long EntrySensorId { get; init; }
+
+    /// <summary>
+    /// 异常格口ID
+    /// </summary>
+    public long ExceptionChuteId { get; init; }
 }
