@@ -129,6 +129,119 @@ Content-Type: multipart/form-data
 
 ---
 
+## 模拟测试
+
+### 模拟包裹分拣路径
+
+```
+POST /api/config/chute-path-topology/simulate
+Content-Type: application/json
+
+{
+  "targetChuteId": 1,
+  "lineSpeedMmps": 1000,
+  "defaultSegmentLengthMm": 5000,
+  "simulateTimeout": false,
+  "timeoutExtraDelayMs": 5000,
+  "simulateParcelLoss": false,
+  "parcelLossAtDiverterIndex": 1,
+  "routingRequestDelayMs": 50,
+  "sensorDetectionDelayMs": 10,
+  "diverterActionDelayMs": 100
+}
+```
+
+用于测试拓扑配置是否正确，模拟包裹从入口到指定格口的完整分拣过程。
+
+**请求参数说明:**
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| targetChuteId | long | 是 | - | 目标格口ID |
+| lineSpeedMmps | decimal | 否 | 1000 | 线体速度（毫米/秒） |
+| defaultSegmentLengthMm | double | 否 | 5000 | 默认线体段长度（毫米） |
+| simulateTimeout | bool | 否 | false | 是否模拟超时场景 |
+| timeoutExtraDelayMs | int | 否 | 5000 | 超时额外延迟（毫秒） |
+| simulateParcelLoss | bool | 否 | false | 是否模拟丢包场景 |
+| parcelLossAtDiverterIndex | int | 否 | 1 | 丢包位置（第几个摆轮） |
+
+**返回结果:**
+
+```json
+{
+  "success": true,
+  "data": {
+    "parcelId": "SIM-20241126193000-1",
+    "targetChuteId": 1,
+    "actualChuteId": 1,
+    "isExceptionChute": false,
+    "simulationStartTime": "2024-11-26T19:30:00",
+    "simulationEndTime": "2024-11-26T19:30:05.250",
+    "totalDurationMs": 5250,
+    "totalDistanceMm": 5000,
+    "diverterCount": 1,
+    "isSuccess": true,
+    "isParcelLost": false,
+    "isTimeout": false,
+    "steps": [
+      {
+        "stepNumber": 1,
+        "stepType": "ParcelCreation",
+        "description": "包裹在入口传感器创建",
+        "nodeName": "入口传感器",
+        "durationMs": 0,
+        "cumulativeTimeMs": 0,
+        "status": "Success"
+      },
+      {
+        "stepNumber": 2,
+        "stepType": "RoutingRequest",
+        "description": "向上游请求路由",
+        "durationMs": 50,
+        "cumulativeTimeMs": 50,
+        "status": "Success"
+      },
+      {
+        "stepNumber": 3,
+        "stepType": "Transit",
+        "description": "包裹运输到摆轮D1",
+        "nodeId": 1,
+        "nodeName": "摆轮D1",
+        "durationMs": 5000,
+        "cumulativeTimeMs": 5050,
+        "status": "Success"
+      },
+      {
+        "stepNumber": 4,
+        "stepType": "DiverterAction",
+        "description": "摆轮D1执行左转分拣",
+        "nodeId": 1,
+        "durationMs": 100,
+        "cumulativeTimeMs": 5150,
+        "status": "Success"
+      },
+      {
+        "stepNumber": 5,
+        "stepType": "ChuteArrival",
+        "description": "包裹成功落入格口1",
+        "nodeId": 1,
+        "cumulativeTimeMs": 5150,
+        "status": "Success"
+      }
+    ],
+    "summary": "包裹成功分拣到格口1，耗时5250ms"
+  }
+}
+```
+
+**模拟场景:**
+
+1. **正常分拣**: `simulateTimeout=false, simulateParcelLoss=false`
+2. **超时场景**: `simulateTimeout=true` - 包裹将被路由到异常格口
+3. **丢包场景**: `simulateParcelLoss=true, parcelLossAtDiverterIndex=2` - 在第2个摆轮处模拟丢包
+
+---
+
 ## 与其他配置的关系
 
 ### 依赖关系图
