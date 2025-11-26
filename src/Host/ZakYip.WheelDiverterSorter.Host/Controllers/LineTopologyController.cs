@@ -424,11 +424,12 @@ public class LineTopologyController : ControllerBase
     /// - 理论通过时间 = Σ(线体段长度 / 线体段速度) * 1000
     /// - 实际通过时间 = 理论总通过时间 + 容差时间
     /// 
-    /// **模拟步骤详情**：
-    /// 每个步骤包含以下信息：
-    /// - 步骤序号和类型（WaitOnConveyor 等待线体运行、DiverterCommand 摆轮指令、DropToChute 落格）
-    /// - 动作描述（如：等待线体运行 5000ms、发送摆轮指令 Left）
-    /// - 累计耗时
+    /// **模拟步骤类型**：
+    /// - **ParcelCreation**: 包裹创建 - 感应IO触发，创建包裹实体，请求上游路由
+    /// - **WaitOnConveyor**: 等待线体运行 - 包裹在线体上运行的时间
+    /// - **DiverterCommand**: 摆轮指令 - 发送摆轮转向指令
+    /// - **PassDiverter**: 通过摆轮 - 包裹通过摆轮，执行转向
+    /// - **DropToChute**: 落格 - 包裹落入目标格口
     /// 
     /// **容差时间验证**：
     /// - 容差时间应小于放包间隔时间（normalReleaseIntervalMs，默认300ms）的一半
@@ -449,44 +450,52 @@ public class LineTopologyController : ControllerBase
     ///   "data": {
     ///     "chuteId": 1,
     ///     "chuteName": "A区01号口",
-    ///     "totalTheoreticalTimeMs": 7500.0,
+    ///     "totalTheoreticalTimeMs": 5000.0,
     ///     "toleranceTimeMs": 100,
-    ///     "totalActualTimeMs": 7600.0,
+    ///     "totalActualTimeMs": 5100.0,
     ///     "normalReleaseIntervalMs": 300,
     ///     "isToleranceValid": true,
     ///     "toleranceValidationMessage": "容差时间配置合理",
     ///     "simulationSteps": [
     ///       {
     ///         "stepNumber": 1,
-    ///         "stepType": "WaitOnConveyor",
-    ///         "action": "等待线体运行 5000ms (入口到第一摆轮段，长度5000mm，速度1000mm/s)",
-    ///         "durationMs": 5000.0,
-    ///         "cumulativeTimeMs": 5000.0,
-    ///         "details": { "segmentId": 1, "lengthMm": 5000.0, "speedMmPerSec": 1000.0 }
+    ///         "stepType": "ParcelCreation",
+    ///         "action": "感应IO触发，创建包裹实体，分配ParcelId，请求上游路由",
+    ///         "durationMs": 0,
+    ///         "cumulativeTimeMs": 0,
+    ///         "details": { "event": "SensorTriggered", "description": "..." }
     ///       },
     ///       {
     ///         "stepNumber": 2,
-    ///         "stepType": "DiverterCommand",
-    ///         "action": "发送摆轮指令: 摆轮#1 转向 Right",
-    ///         "durationMs": 0,
+    ///         "stepType": "WaitOnConveyor",
+    ///         "action": "等待线体运行 5000ms (段1，长度5000mm，速度1000mm/s)",
+    ///         "durationMs": 5000.0,
     ///         "cumulativeTimeMs": 5000.0,
-    ///         "details": { "diverterId": 1, "direction": "Right" }
+    ///         "details": { "segmentSequence": 1, "lengthMm": 5000.0, "speedMmPerSec": 1000.0 }
     ///       },
     ///       {
     ///         "stepNumber": 3,
-    ///         "stepType": "WaitOnConveyor",
-    ///         "action": "等待线体运行 2500ms (第一摆轮到落格，长度2500mm，速度1000mm/s)",
-    ///         "durationMs": 2500.0,
-    ///         "cumulativeTimeMs": 7500.0,
-    ///         "details": { "segmentId": 2, "lengthMm": 2500.0, "speedMmPerSec": 1000.0 }
+    ///         "stepType": "DiverterCommand",
+    ///         "action": "发送摆轮指令: 摆轮#1 右转 (Right)",
+    ///         "durationMs": 0,
+    ///         "cumulativeTimeMs": 5000.0,
+    ///         "details": { "diverterId": 1, "direction": "Right", "directionChinese": "右转" }
     ///       },
     ///       {
     ///         "stepNumber": 4,
+    ///         "stepType": "PassDiverter",
+    ///         "action": "包裹通过摆轮#1，执行右转",
+    ///         "durationMs": 0,
+    ///         "cumulativeTimeMs": 5000.0,
+    ///         "details": { "diverterId": 1, "direction": "Right", "description": "..." }
+    ///       },
+    ///       {
+    ///         "stepNumber": 5,
     ///         "stepType": "DropToChute",
     ///         "action": "包裹落入格口 A区01号口 (ChuteId=1)",
     ///         "durationMs": 0,
-    ///         "cumulativeTimeMs": 7500.0,
-    ///         "details": { "chuteId": 1, "chuteName": "A区01号口" }
+    ///         "cumulativeTimeMs": 5000.0,
+    ///         "details": { "chuteId": 1, "chuteName": "A区01号口", "description": "..." }
     ///       }
     ///     ]
     ///   }
@@ -547,6 +556,22 @@ public class LineTopologyController : ControllerBase
             int stepNumber = 0;
             double cumulativeTimeMs = 0;
 
+            // 步骤0：包裹创建（感应IO触发，创建包裹实体）
+            stepNumber++;
+            simulationSteps.Add(new SimulationStep
+            {
+                StepNumber = stepNumber,
+                StepType = "ParcelCreation",
+                Action = "感应IO触发，创建包裹实体，分配ParcelId，请求上游路由",
+                DurationMs = 0,
+                CumulativeTimeMs = 0,
+                Details = new Dictionary<string, object>
+                {
+                    { "event", "SensorTriggered" },
+                    { "description", "包裹到达创建包裹感应IO，系统创建Parcel实体并向RuleEngine请求路由" }
+                }
+            });
+
             // 按顺序处理每个摆轮配置
             var sortedDiverters = routeConfig.DiverterConfigurations
                 .OrderBy(d => d.SequenceNumber)
@@ -554,7 +579,7 @@ public class LineTopologyController : ControllerBase
 
             foreach (var diverterConfig in sortedDiverters)
             {
-                // 步骤1：等待线体运行（使用摆轮配置中的段长度和速度）
+                // 步骤N.1：等待线体运行（使用摆轮配置中的段长度和速度）
                 var segmentTimeMs = (diverterConfig.SegmentLengthMm / diverterConfig.SegmentSpeedMmPerSecond) * 1000.0;
                 cumulativeTimeMs += segmentTimeMs;
                 stepNumber++;
@@ -575,7 +600,7 @@ public class LineTopologyController : ControllerBase
                     }
                 });
 
-                // 步骤2：发送摆轮指令
+                // 步骤N.2：发送摆轮指令（提前发送，确保摆轮在包裹到达前就位）
                 stepNumber++;
                 var directionName = diverterConfig.TargetDirection.ToString();
                 var directionChinese = diverterConfig.TargetDirection switch
@@ -597,12 +622,30 @@ public class LineTopologyController : ControllerBase
                     {
                         { "diverterId", diverterConfig.DiverterId },
                         { "direction", directionName },
-                        { "directionChinese", directionChinese }
+                        { "directionChinese", directionChinese },
+                        { "description", $"包裹即将通过摆轮#{diverterConfig.DiverterId}，发送转向指令使摆轮{directionChinese}" }
+                    }
+                });
+
+                // 步骤N.3：包裹通过摆轮（转向执行）
+                stepNumber++;
+                simulationSteps.Add(new SimulationStep
+                {
+                    StepNumber = stepNumber,
+                    StepType = "PassDiverter",
+                    Action = $"包裹通过摆轮#{diverterConfig.DiverterId}，执行{directionChinese}",
+                    DurationMs = 0,
+                    CumulativeTimeMs = cumulativeTimeMs,
+                    Details = new Dictionary<string, object>
+                    {
+                        { "diverterId", diverterConfig.DiverterId },
+                        { "direction", directionName },
+                        { "description", "包裹通过摆轮，摆轮转向完成，包裹被导向目标方向" }
                     }
                 });
             }
 
-            // 最后一步：落格
+            // 最后一步：落格（包裹进入格口）
             stepNumber++;
             simulationSteps.Add(new SimulationStep
             {
@@ -614,7 +657,8 @@ public class LineTopologyController : ControllerBase
                 Details = new Dictionary<string, object>
                 {
                     { "chuteId", chuteId },
-                    { "chuteName", routeConfig.ChuteName ?? $"Chute-{chuteId}" }
+                    { "chuteName", routeConfig.ChuteName ?? $"Chute-{chuteId}" },
+                    { "description", "包裹成功落入目标格口，生命周期结束" }
                 }
             });
 
