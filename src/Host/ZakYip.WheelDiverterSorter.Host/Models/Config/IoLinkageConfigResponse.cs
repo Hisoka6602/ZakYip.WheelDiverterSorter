@@ -34,6 +34,16 @@ public sealed record class IoLinkageConfigResponse
     /// 摆轮异常状态时联动的 IO 点列表
     /// </summary>
     public required List<IoLinkagePointResponse> DiverterExceptionStateIos { get; init; }
+
+    /// <summary>
+    /// 运行前预警结束后联动的 IO 点列表
+    /// </summary>
+    /// <remarks>
+    /// 当系统按下启动按钮后，先进行运行前预警（preStartWarning），
+    /// 等待 durationSeconds 秒后，预警结束，此时触发这些 IO 点。
+    /// 用于在预警结束后通知外部设备可以开始工作。
+    /// </remarks>
+    public required List<IoLinkagePointResponse> PostPreStartWarningStateIos { get; init; }
 }
 
 /// <summary>

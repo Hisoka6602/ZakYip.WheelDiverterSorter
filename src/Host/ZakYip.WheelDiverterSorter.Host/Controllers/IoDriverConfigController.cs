@@ -37,7 +37,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
 /// </remarks>
 [ApiController]
-[Route("api/config/io-driver")]
+[Route("api/config/io-driver/leadshine")]
 [Produces("application/json")]
 public class IoDriverConfigController : ControllerBase
 {
@@ -462,7 +462,9 @@ public class IoDriverConfigController : ControllerBase
             VendorDisplayName = GetVendorDisplayName(config.VendorType),
             Leadshine = config.Leadshine != null ? new LeadshineIoConnectionConfig
             {
-                CardNo = config.Leadshine.CardNo
+                ControllerIp = config.Leadshine.ControllerIp,
+                CardNo = config.Leadshine.CardNo,
+                PortNo = config.Leadshine.PortNo
             } : null,
             Version = config.Version,
             CreatedAt = config.CreatedAt,
@@ -516,7 +518,7 @@ public class IoDriverConfiguration
     /// 是否使用硬件驱动器（false则使用模拟驱动器）
     /// Whether to use hardware driver (false uses simulated driver)
     /// </summary>
-    /// <example>false</example>
+    /// <example>true</example>
     public bool UseHardwareDriver { get; set; }
 
     /// <summary>
@@ -538,7 +540,8 @@ public class IoDriverConfiguration
     /// Leadshine motion controller connection configuration
     /// </summary>
     /// <remarks>
-    /// 仅包含连接参数（如卡号），不包含摆轮映射（diverters）信息
+    /// 包含与雷赛运动控制卡建立连接所需的参数（ControllerIp, CardNo, PortNo）。
+    /// 摆轮IO映射（输出位、反馈输入位）等信息请参考摆轮配置API。
     /// </remarks>
     public LeadshineIoConnectionConfig? Leadshine { get; set; }
 
@@ -567,15 +570,36 @@ public class IoDriverConfiguration
 /// Leadshine IO driver connection configuration (connection parameters only, no diverter mappings)
 /// </summary>
 /// <remarks>
-/// 此配置仅包含与雷赛运动控制卡建立连接所需的参数。
+/// 此配置基于 ZakYip.Singulation 项目的 LeadshineLtdmcBusAdapter 实现。
+/// 包含与雷赛运动控制卡建立连接所需的参数。
+/// 支持以太网模式（需要 ControllerIp）和本地 PCI 模式（ControllerIp 为空）。
 /// 摆轮IO映射（输出位、反馈输入位）等信息请参考摆轮配置API。
 /// </remarks>
 public class LeadshineIoConnectionConfig
 {
+    /// <summary>
+    /// 控制器IP地址（以太网模式）
+    /// Controller IP address for Ethernet mode
+    /// </summary>
+    /// <remarks>
+    /// 以太网模式需要配置控制器的IP地址。
+    /// 如果为空或null，则使用本地PCI模式（dmc_board_init）。
+    /// 如果配置了IP，则使用以太网模式（dmc_board_init_eth）。
+    /// </remarks>
+    /// <example>192.168.1.100</example>
+    public string? ControllerIp { get; set; }
+
     /// <summary>
     /// 控制器卡号
     /// Controller card number
     /// </summary>
     /// <example>0</example>
     public ushort CardNo { get; set; } = 0;
+
+    /// <summary>
+    /// 端口号（CAN/EtherCAT端口编号）
+    /// Port number (CAN/EtherCAT port number)
+    /// </summary>
+    /// <example>0</example>
+    public ushort PortNo { get; set; } = 0;
 }
