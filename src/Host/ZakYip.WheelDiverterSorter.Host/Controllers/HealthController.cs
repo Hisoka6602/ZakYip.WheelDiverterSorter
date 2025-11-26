@@ -419,6 +419,7 @@ public class HealthController : ControllerBase
                 try
                 {
                     var wheelConfig = _wheelDiverterConfigRepository.Get();
+                    var wheelDriversAdded = false;
                     
                     // 根据厂商类型获取设备状态
                     switch (wheelConfig.VendorType)
@@ -429,25 +430,30 @@ public class HealthController : ControllerBase
                                 var isSimulation = wheelConfig.ShuDiNiao.UseSimulation;
                                 var activeDrivers = _wheelDiverterDriverManager?.GetActiveDrivers() 
                                     ?? new Dictionary<string, IWheelDiverterDriver>();
+                                var enabledDevices = wheelConfig.ShuDiNiao.Devices.Where(d => d.IsEnabled).ToList();
                                 
-                                foreach (var device in wheelConfig.ShuDiNiao.Devices.Where(d => d.IsEnabled))
+                                if (enabledDevices.Count > 0)
                                 {
-                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
-                                    drivers.Add(new DriverHealthInfo
+                                    wheelDriversAdded = true;
+                                    foreach (var device in enabledDevices)
                                     {
-                                        DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
-                                        DriverType = DriverCategory.WheelDiverter,
-                                        VendorType = "ShuDiNiao",
-                                        VendorDisplayName = "数递鸟",
-                                        IsConnected = isSimulation ? false : isConnected,
-                                        IsSimulationMode = isSimulation,
-                                        IsHealthy = isSimulation || isConnected,
-                                        ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
-                                        ErrorMessage = isSimulation 
-                                            ? "仿真模式运行中" 
-                                            : (isConnected ? $"已连接 ({device.Host}:{device.Port})" : $"未连接 ({device.Host}:{device.Port})"),
-                                        CheckedAt = now
-                                    });
+                                        var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
+                                        drivers.Add(new DriverHealthInfo
+                                        {
+                                            DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
+                                            DriverType = DriverCategory.WheelDiverter,
+                                            VendorType = "ShuDiNiao",
+                                            VendorDisplayName = "数递鸟",
+                                            IsConnected = isSimulation ? false : isConnected,
+                                            IsSimulationMode = isSimulation,
+                                            IsHealthy = isSimulation || isConnected,
+                                            ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
+                                            ErrorMessage = isSimulation 
+                                                ? "仿真模式运行中" 
+                                                : (isConnected ? $"已连接 ({device.Host}:{device.Port})" : $"未连接 ({device.Host}:{device.Port})"),
+                                            CheckedAt = now
+                                        });
+                                    }
                                 }
                             }
                             break;
@@ -458,28 +464,52 @@ public class HealthController : ControllerBase
                                 var isSimulation = wheelConfig.Modi.UseSimulation;
                                 var activeDrivers = _wheelDiverterDriverManager?.GetActiveDrivers() 
                                     ?? new Dictionary<string, IWheelDiverterDriver>();
+                                var enabledDevices = wheelConfig.Modi.Devices.Where(d => d.IsEnabled).ToList();
                                 
-                                foreach (var device in wheelConfig.Modi.Devices.Where(d => d.IsEnabled))
+                                if (enabledDevices.Count > 0)
                                 {
-                                    var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
-                                    drivers.Add(new DriverHealthInfo
+                                    wheelDriversAdded = true;
+                                    foreach (var device in enabledDevices)
                                     {
-                                        DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",
-                                        DriverType = DriverCategory.WheelDiverter,
-                                        VendorType = "Modi",
-                                        VendorDisplayName = "莫迪",
-                                        IsConnected = isSimulation ? false : isConnected,
-                                        IsSimulationMode = isSimulation,
-                                        IsHealthy = isSimulation || isConnected,
-                                        ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
-                                        ErrorMessage = isSimulation 
-                                            ? "仿真模式运行中" 
-                                            : (isConnected ? $"已连接 ({device.Host}:{device.Port})" : $"未连接 ({device.Host}:{device.Port})"),
-                                        CheckedAt = now
-                                    });
+                                        var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
+                                        drivers.Add(new DriverHealthInfo
+                                        {
+                                            DriverName = $"摆轮驱动器 {device.DiverterId} (莫迪)",
+                                            DriverType = DriverCategory.WheelDiverter,
+                                            VendorType = "Modi",
+                                            VendorDisplayName = "莫迪",
+                                            IsConnected = isSimulation ? false : isConnected,
+                                            IsSimulationMode = isSimulation,
+                                            IsHealthy = isSimulation || isConnected,
+                                            ErrorCode = (!isSimulation && !isConnected) ? "DISCONNECTED" : null,
+                                            ErrorMessage = isSimulation 
+                                                ? "仿真模式运行中" 
+                                                : (isConnected ? $"已连接 ({device.Host}:{device.Port})" : $"未连接 ({device.Host}:{device.Port})"),
+                                            CheckedAt = now
+                                        });
+                                    }
                                 }
                             }
                             break;
+                    }
+                    
+                    // 如果没有添加任何摆轮驱动器条目，添加一个汇总状态
+                    if (!wheelDriversAdded)
+                    {
+                        var vendorDisplayName = GetWheelDiverterVendorDisplayName(wheelConfig.VendorType);
+                        drivers.Add(new DriverHealthInfo
+                        {
+                            DriverName = $"摆轮驱动器 ({vendorDisplayName})",
+                            DriverType = DriverCategory.WheelDiverter,
+                            VendorType = wheelConfig.VendorType.ToString(),
+                            VendorDisplayName = vendorDisplayName,
+                            IsHealthy = true,
+                            IsConnected = false,
+                            IsSimulationMode = true,
+                            ErrorCode = null,
+                            ErrorMessage = "未配置启用的摆轮设备",
+                            CheckedAt = now
+                        });
                     }
                 }
                 catch (Exception ex)
@@ -496,6 +526,21 @@ public class HealthController : ControllerBase
                         CheckedAt = now
                     });
                 }
+            }
+            else
+            {
+                // 未注入摆轮驱动器配置仓储时，添加提示信息
+                drivers.Add(new DriverHealthInfo
+                {
+                    DriverName = "摆轮驱动器",
+                    DriverType = DriverCategory.WheelDiverter,
+                    IsHealthy = true,
+                    IsConnected = false,
+                    IsSimulationMode = true,
+                    ErrorCode = null,
+                    ErrorMessage = "摆轮驱动器配置服务未初始化",
+                    CheckedAt = now
+                });
             }
             
             // 如果没有任何驱动器信息，从健康快照中获取（向后兼容）
@@ -612,6 +657,19 @@ public class HealthController : ControllerBase
             DriverVendorType.Siemens => "西门子",
             DriverVendorType.Mitsubishi => "三菱",
             DriverVendorType.Omron => "欧姆龙",
+            _ => vendorType.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取摆轮驱动厂商显示名称
+    /// </summary>
+    private static string GetWheelDiverterVendorDisplayName(WheelDiverterVendorType vendorType)
+    {
+        return vendorType switch
+        {
+            WheelDiverterVendorType.ShuDiNiao => "数递鸟",
+            WheelDiverterVendorType.Modi => "莫迪",
             _ => vendorType.ToString()
         };
     }

@@ -66,6 +66,20 @@ public record LineSegmentRequest
     public required double SpeedMmPerSec { get; init; }
 
     /// <summary>
+    /// 容差时间（单位：毫秒），考虑包裹摩擦力等因素的额外时间
+    /// Tolerance time (in milliseconds), additional time considering parcel friction
+    /// </summary>
+    /// <remarks>
+    /// 此值会加到理论通过时间上，得到实际预期通过时间。
+    /// 默认值为200毫秒。
+    /// 注意：设置此值时需确保(理论通过时间 + 容差时间)不超过正常放包间隔，
+    /// 否则可能导致包裹重叠。
+    /// </remarks>
+    /// <example>200</example>
+    [Range(0.0, 10000.0)]
+    public double ToleranceTimeMs { get; init; } = 200.0;
+
+    /// <summary>
     /// 线体段描述（可选）
     /// Description of the line segment (optional)
     /// </summary>
