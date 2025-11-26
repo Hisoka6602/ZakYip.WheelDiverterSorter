@@ -113,12 +113,17 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 
         if (mapping == null)
         {
-            // 没有找到对应的配置，返回 null
+            // 没有找到对应的配置，记录日志并返回 null
+            var logger = _loggerFactory.CreateLogger<LeadshineVendorDriverFactory>();
+            logger.LogWarning(
+                "未找到传送带段映射配置: SegmentId={SegmentId}，已配置的段: [{ConfiguredSegments}]",
+                segmentId,
+                string.Join(", ", _options.ConveyorSegmentMappings.Select(m => m.SegmentKey)));
             return null;
         }
 
-        var logger = _loggerFactory.CreateLogger<LeadshineConveyorSegmentDriver>();
-        return new LeadshineConveyorSegmentDriver(mapping, _emcController, logger);
+        var driverLogger = _loggerFactory.CreateLogger<LeadshineConveyorSegmentDriver>();
+        return new LeadshineConveyorSegmentDriver(mapping, _emcController, driverLogger);
     }
 
     public IReadOnlyList<IWheelDiverterActuator> CreateWheelDiverterActuators()

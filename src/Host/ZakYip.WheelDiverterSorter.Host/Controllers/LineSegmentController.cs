@@ -355,7 +355,7 @@ public class LineSegmentController : ControllerBase
     [HttpGet("transit-time")]
     [SwaggerOperation(
         Summary = "计算两个IO之间的理论通过时间",
-        Description = "计算从起点IO到终点IO之间所有线体段的理论通过时间总和（含容差时间）。用于超时检测和丢包判断。",
+        Description = "计算从起点IO到终点IO之间所有线体段的实际通过时间总和（理论时间加容差时间）。用于超时检测和丢包判断。",
         OperationId = "CalculateTransitTime",
         Tags = new[] { "线体段配置" }
     )]

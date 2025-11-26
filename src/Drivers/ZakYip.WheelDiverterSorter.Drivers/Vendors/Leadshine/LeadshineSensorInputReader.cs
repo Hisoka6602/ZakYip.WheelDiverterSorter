@@ -31,6 +31,16 @@ public sealed class LeadshineSensorInputReader : ISensorInputReader
     {
         try
         {
+            // 验证逻辑点位范围
+            if (logicalPoint < 0 || logicalPoint > ushort.MaxValue)
+            {
+                _logger.LogWarning(
+                    "逻辑点位超出有效范围: 点位={Point}, 有效范围=0-{MaxValue}",
+                    logicalPoint,
+                    ushort.MaxValue);
+                return Task.FromResult(false);
+            }
+
             if (!_emcController.IsAvailable())
             {
                 _logger.LogWarning(
