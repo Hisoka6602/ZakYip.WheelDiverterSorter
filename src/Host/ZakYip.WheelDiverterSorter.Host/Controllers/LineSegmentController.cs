@@ -325,8 +325,8 @@ public class LineSegmentController : ControllerBase
     /// 
     /// **计算公式 / Calculation formula**：
     /// ```
-    /// 总通过时间 = Σ(线体段长度 / 线体段速度) * 1000
-    /// Total transit time = Σ(segment length / segment speed) * 1000
+    /// 理论通过时间 = Σ(线体段长度 / 线体段速度) * 1000
+    /// 实际通过时间 = 理论通过时间 + Σ(线体段容差时间)
     /// ```
     /// 
     /// **示例请求 / Example request**：
@@ -345,6 +345,8 @@ public class LineSegmentController : ControllerBase
     ///     "endIoId": 2,
     ///     "totalDistanceMm": 5000.0,
     ///     "totalTransitTimeMs": 5000.0,
+    ///     "totalToleranceTimeMs": 200.0,
+    ///     "totalActualTransitTimeMs": 5200.0,
     ///     "segmentCount": 1
     ///   }
     /// }
@@ -353,7 +355,7 @@ public class LineSegmentController : ControllerBase
     [HttpGet("transit-time")]
     [SwaggerOperation(
         Summary = "计算两个IO之间的理论通过时间",
-        Description = "计算从起点IO到终点IO之间所有线体段的理论通过时间总和。用于超时检测和丢包判断。",
+        Description = "计算从起点IO到终点IO之间所有线体段的理论通过时间总和（含容差时间）。用于超时检测和丢包判断。",
         OperationId = "CalculateTransitTime",
         Tags = new[] { "线体段配置" }
     )]
@@ -380,6 +382,8 @@ public class LineSegmentController : ControllerBase
 
             var totalDistance = path.Sum(s => s.LengthMm);
             var totalTime = path.Sum(s => s.CalculateTransitTimeMs());
+            var totalTolerance = path.Sum(s => s.ToleranceTimeMs);
+            var totalActualTime = path.Sum(s => s.CalculateActualTransitTimeMs());
 
             var response = new TransitTimeResponse
             {
@@ -387,6 +391,8 @@ public class LineSegmentController : ControllerBase
                 EndIoId = endIoId,
                 TotalDistanceMm = totalDistance,
                 TotalTransitTimeMs = totalTime,
+                TotalToleranceTimeMs = totalTolerance,
+                TotalActualTransitTimeMs = totalActualTime,
                 SegmentCount = path.Count
             };
 
@@ -580,7 +586,7 @@ public record LineSegmentResponse
 /// Transit time calculation response
 /// </summary>
 /// <remarks>
-/// 包含从起点IO到终点IO的路径信息和计算的总通过时间
+/// 包含从起点IO到终点IO的路径信息和计算的总通过时间（含容差时间）
 /// </remarks>
 public record TransitTimeResponse
 {
@@ -606,11 +612,34 @@ public record TransitTimeResponse
     public required double TotalDistanceMm { get; init; }
 
     /// <summary>
-    /// 理论总通过时间（单位：毫秒）
-    /// Total theoretical transit time (in milliseconds)
+    /// 理论总通过时间（单位：毫秒，不含容差）
+    /// Total theoretical transit time (in milliseconds, without tolerance)
     /// </summary>
+    /// <remarks>
+    /// 计算公式：Σ(线体段长度 / 线体段速度) * 1000
+    /// </remarks>
     /// <example>5000.0</example>
     public required double TotalTransitTimeMs { get; init; }
+
+    /// <summary>
+    /// 总容差时间（单位：毫秒）
+    /// Total tolerance time (in milliseconds)
+    /// </summary>
+    /// <remarks>
+    /// 所有线体段的容差时间之和
+    /// </remarks>
+    /// <example>200.0</example>
+    public required double TotalToleranceTimeMs { get; init; }
+
+    /// <summary>
+    /// 实际总通过时间（单位：毫秒，含容差）
+    /// Total actual transit time (in milliseconds, with tolerance)
+    /// </summary>
+    /// <remarks>
+    /// 计算公式：TotalTransitTimeMs + TotalToleranceTimeMs
+    /// </remarks>
+    /// <example>5200.0</example>
+    public required double TotalActualTransitTimeMs { get; init; }
 
     /// <summary>
     /// 路径上的线体段数量

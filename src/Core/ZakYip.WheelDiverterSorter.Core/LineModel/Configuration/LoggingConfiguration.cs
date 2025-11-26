@@ -151,6 +151,7 @@ public class LoggingConfiguration
     /// </summary>
     public static LoggingConfiguration GetDefault()
     {
+        var now = ConfigurationDefaults.DefaultTimestamp;
         return new LoggingConfiguration
         {
             ConfigName = "logging",
@@ -162,8 +163,9 @@ public class LoggingConfiguration
             EnablePerformanceLog = true,
             EnableAlarmLog = true,
             EnableDebugLog = false,
-            Version = 1
-            // CreatedAt 和 UpdatedAt 由仓储在插入时通过 ISystemClock.LocalNow 设置
+            Version = 1,
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 }

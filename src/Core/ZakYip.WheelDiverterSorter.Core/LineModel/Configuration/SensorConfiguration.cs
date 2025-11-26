@@ -50,6 +50,7 @@ public class SensorConfiguration
     /// </summary>
     public static SensorConfiguration GetDefault()
     {
+        var now = ConfigurationDefaults.DefaultTimestamp;
         return new SensorConfiguration
         {
             Sensors = new List<SensorIoEntry>
@@ -80,7 +81,9 @@ public class SensorConfiguration
                     BoundChuteId = "CHUTE-001",
                     IsEnabled = true 
                 }
-            }
+            },
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 

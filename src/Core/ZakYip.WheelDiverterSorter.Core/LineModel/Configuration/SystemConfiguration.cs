@@ -218,6 +218,7 @@ public class SystemConfiguration
     /// </summary>
     public static SystemConfiguration GetDefault()
     {
+        var now = ConfigurationDefaults.DefaultTimestamp;
         return new SystemConfiguration
         {
             ConfigName = "system",
@@ -228,8 +229,9 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
-            Version = 1
-            // CreatedAt 和 UpdatedAt 由仓储在插入时通过 ISystemClock.LocalNow 设置
+            Version = 1,
+            CreatedAt = now,
+            UpdatedAt = now
         };
     }
 }

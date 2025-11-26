@@ -16,21 +16,28 @@ public class LeadshineOptions
     /// 以太网模式需要配置控制器的IP地址。
     /// 如果为空或null，则使用本地PCI模式（dmc_board_init）。
     /// 如果配置了IP，则使用以太网模式（dmc_board_init_eth）。
+    /// 默认值为 "192.168.5.11"。
     /// </remarks>
-    /// <example>192.168.1.100</example>
-    public string? ControllerIp { get; set; }
+    /// <example>192.168.5.11</example>
+    public string? ControllerIp { get; set; } = "192.168.5.11";
 
     /// <summary>
     /// 控制器卡号
     /// </summary>
-    /// <example>0</example>
-    public ushort CardNo { get; set; } = 0;
+    /// <remarks>
+    /// 默认值为 8。
+    /// </remarks>
+    /// <example>8</example>
+    public ushort CardNo { get; set; } = 8;
 
     /// <summary>
     /// 端口号（CAN/EtherCAT端口编号）
     /// </summary>
-    /// <example>0</example>
-    public ushort PortNo { get; set; } = 0;
+    /// <remarks>
+    /// 默认值为 2。
+    /// </remarks>
+    /// <example>2</example>
+    public ushort PortNo { get; set; } = 2;
 
     /// <summary>
     /// 摆轮配置列表
