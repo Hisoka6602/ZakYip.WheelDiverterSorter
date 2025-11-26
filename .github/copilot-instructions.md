@@ -225,7 +225,76 @@ public async Task<ActionResult<ChuteDto>> CreateChute(  // ❌ 未使用 ApiResp
 
 **相关文档**: [CONFIGURATION_API.md](../CONFIGURATION_API.md)
 
-### 6. 配置模型的 CreatedAt/UpdatedAt 默认值
+### 6. Swagger API 文档注释规范
+
+**规则**: 所有 API 端点必须具有完整的 Swagger 注释，确保 API 文档清晰、准确。
+
+**Swagger 注释要求**:
+- 每个 Controller 类必须有完整的 `/// <summary>` 和 `/// <remarks>` 注释
+- 每个 Action 方法必须使用 `[SwaggerOperation]` 特性，包含 `Summary`、`Description`、`OperationId` 和 `Tags`
+- 每个 Action 方法必须使用 `[SwaggerResponse]` 特性标注所有可能的响应码
+- 请求/响应 DTO 的所有属性必须有 `/// <summary>` 注释
+- 复杂字段应使用 `/// <remarks>` 提供详细说明
+- 使用 `/// <example>` 提供示例值
+
+**实施要求**:
+```csharp
+// ✅ 正确：完整的 Swagger 注释
+/// <summary>
+/// 获取系统配置
+/// </summary>
+/// <returns>当前系统配置信息</returns>
+/// <response code="200">成功返回配置</response>
+/// <response code="500">服务器内部错误</response>
+[HttpGet]
+[SwaggerOperation(
+    Summary = "获取系统配置",
+    Description = "返回当前系统的配置信息，包括基本参数和运行状态",
+    OperationId = "GetSystemConfig",
+    Tags = new[] { "系统配置" }
+)]
+[SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<SystemConfigDto>))]
+[SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+public ActionResult<ApiResponse<SystemConfigDto>> GetSystemConfig()
+
+// ✅ 正确：DTO 属性的完整注释
+/// <summary>
+/// 系统配置响应模型
+/// </summary>
+public record SystemConfigDto
+{
+    /// <summary>
+    /// 配置唯一标识
+    /// </summary>
+    /// <example>1</example>
+    public int Id { get; init; }
+    
+    /// <summary>
+    /// 异常格口编号
+    /// </summary>
+    /// <remarks>
+    /// 当分拣失败或路由超时时，包裹会被分配到此格口。
+    /// 默认值为 999。
+    /// </remarks>
+    /// <example>999</example>
+    public int ExceptionChuteId { get; init; }
+}
+
+// ❌ 错误：缺少 Swagger 注释
+[HttpGet]
+public ActionResult<SystemConfigDto> GetSystemConfig()  // ❌ 缺少 SwaggerOperation
+{
+    // ...
+}
+```
+
+**Code Review 检查点**:
+- 新增或修改的 API 端点是否有完整的 Swagger 注释
+- DTO 字段是否有 `<summary>` 注释
+- 复杂字段是否有 `<remarks>` 说明
+- 是否提供了 `<example>` 示例值
+
+### 7. 配置模型的 CreatedAt/UpdatedAt 默认值
 
 **规则**: 所有配置模型的 `CreatedAt` 和 `UpdatedAt` 字段必须有有效的默认值，不能是 `"0001-01-01T00:00:00"`。
 
@@ -703,14 +772,15 @@ Code Review 时会重点检查：
 3. 是否使用 `ISafeExecutionService` 包裹后台任务
 4. 是否使用线程安全容器或明确的锁
 5. API 端点是否遵循 DTO + 验证 + `ApiResponse<T>` 规范
-6. 是否启用可空引用类型且未新增 `#nullable disable`
-7. 是否使用 `record` / `readonly struct` / `file class` 等现代 C# 特性
-8. 是否遵守分层架构，Host 层不包含业务逻辑
-9. 是否通过接口访问硬件驱动
-10. 是否保持所有仿真和 E2E 测试通过
+6. **是否具有完整的 Swagger 注释**（`SwaggerOperation`、`SwaggerResponse`、属性 `<summary>` 等）
+7. 是否启用可空引用类型且未新增 `#nullable disable`
+8. 是否使用 `record` / `readonly struct` / `file class` 等现代 C# 特性
+9. 是否遵守分层架构，Host 层不包含业务逻辑
+10. 是否通过接口访问硬件驱动
+11. 是否保持所有仿真和 E2E 测试通过
 
 ---
 
-**文档版本**: 1.0  
-**最后更新**: 2025-11-21  
+**文档版本**: 1.1  
+**最后更新**: 2025-11-26  
 **维护团队**: ZakYip Development Team

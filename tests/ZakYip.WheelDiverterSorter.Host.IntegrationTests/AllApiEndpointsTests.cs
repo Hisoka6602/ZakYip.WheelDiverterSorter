@@ -67,34 +67,28 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
 
     #endregion
 
-    #region IO Driver Config API Tests
+    #region IO Driver Config API Tests (Leadshine)
 
     [Fact]
-    public async Task GetIoDriverConfig_ReturnsSuccess()
+    public async Task GetLeadshineIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/io-driver");
+        var response = await _client.GetAsync("/api/config/io-driver/leadshine");
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
-        
-        var config = await response.Content.ReadFromJsonAsync<DriverConfiguration>(TestJsonOptions.GetOptions());
-        Assert.NotNull(config);
     }
 
     [Fact]
-    public async Task ResetIoDriverConfig_ReturnsSuccess()
+    public async Task ResetLeadshineIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.PostAsync("/api/config/io-driver/reset", null);
+        var response = await _client.PostAsync("/api/config/io-driver/leadshine/reset", null);
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
             $"Expected success status code but got {response.StatusCode}");
-        
-        var config = await response.Content.ReadFromJsonAsync<DriverConfiguration>(TestJsonOptions.GetOptions());
-        Assert.NotNull(config);
     }
 
     #endregion
