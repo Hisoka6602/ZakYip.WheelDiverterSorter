@@ -123,6 +123,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
                     DiverterName = "摆轮1",
                     PositionIndex = 1,
                     SegmentId = 1,
+                    FrontSensorId = 2,
                     LeftChuteIds = new List<long> { 1 },
                     RightChuteIds = new List<long> { 2 }
                 },
@@ -132,6 +133,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
                     DiverterName = "摆轮2",
                     PositionIndex = 1, // Duplicate position index
                     SegmentId = 2,
+                    FrontSensorId = 3,
                     LeftChuteIds = new List<long> { 3 },
                     RightChuteIds = new List<long> { 4 }
                 }
@@ -170,6 +172,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
                     DiverterName = "摆轮1",
                     PositionIndex = 1,
                     SegmentId = 1,
+                    FrontSensorId = 2,
                     LeftChuteIds = null, // No chutes on either side
                     RightChuteIds = null
                 }
@@ -268,12 +271,10 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
             "application/json");
         await _client.PutAsync("/api/config/chute-path-topology", setupContent);
 
-        // Arrange
+        // Arrange - LineSpeedMmps and DefaultSegmentLengthMm removed, now use config values
         var simulationRequest = new TopologySimulationRequest
         {
             TargetChuteId = 1,
-            LineSpeedMmps = 1000m,
-            DefaultSegmentLengthMm = 5000,
             SimulateTimeout = false,
             SimulateParcelLoss = false
         };
@@ -318,6 +319,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
                     DiverterName = "摆轮D1",
                     PositionIndex = 1,
                     SegmentId = 1,
+                    FrontSensorId = 2,
                     LeftChuteIds = new List<long> { 1 },
                     RightChuteIds = new List<long> { 2 }
                 }
@@ -331,12 +333,10 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
             "application/json");
         await _client.PutAsync("/api/config/chute-path-topology", setupContent);
 
-        // Arrange
+        // Arrange - LineSpeedMmps and DefaultSegmentLengthMm removed, now use config values
         var simulationRequest = new TopologySimulationRequest
         {
             TargetChuteId = 1,
-            LineSpeedMmps = 1000m,
-            DefaultSegmentLengthMm = 5000,
             SimulateTimeout = true,
             TimeoutExtraDelayMs = 5000,
             SimulateParcelLoss = false
@@ -380,6 +380,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
                     DiverterName = "摆轮D1",
                     PositionIndex = 1,
                     SegmentId = 1,
+                    FrontSensorId = 2,
                     LeftChuteIds = new List<long> { 1 },
                     RightChuteIds = new List<long> { 2 }
                 },
@@ -389,6 +390,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
                     DiverterName = "摆轮D2",
                     PositionIndex = 2,
                     SegmentId = 2,
+                    FrontSensorId = 3,
                     LeftChuteIds = new List<long> { 3 },
                     RightChuteIds = new List<long> { 4 }
                 }
@@ -402,12 +404,10 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
             "application/json");
         await _client.PutAsync("/api/config/chute-path-topology", setupContent);
 
-        // Arrange
+        // Arrange - LineSpeedMmps and DefaultSegmentLengthMm removed, now use config values
         var simulationRequest = new TopologySimulationRequest
         {
             TargetChuteId = 3,
-            LineSpeedMmps = 1000m,
-            DefaultSegmentLengthMm = 5000,
             SimulateTimeout = false,
             SimulateParcelLoss = true,
             ParcelLossAtDiverterIndex = 1
@@ -437,11 +437,10 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
     [Fact]
     public async Task SimulateParcelPath_WithInvalidChuteId_ShouldReturnBadRequest()
     {
-        // Arrange
+        // Arrange - simulation should fail if topology is not configured
         var simulationRequest = new TopologySimulationRequest
         {
-            TargetChuteId = 99999, // Non-existent chute
-            LineSpeedMmps = 1000m
+            TargetChuteId = 99999 // Non-existent chute
         };
 
         var content = new StringContent(

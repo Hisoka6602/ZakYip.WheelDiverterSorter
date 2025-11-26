@@ -204,6 +204,7 @@ public class ChutePathTopologyConfigTests
             DiverterId = 1,
             PositionIndex = 1,
             SegmentId = 1,
+            FrontSensorId = 2,
             LeftChuteIds = new List<long> { 1, 2 }
         };
 
@@ -220,6 +221,7 @@ public class ChutePathTopologyConfigTests
             DiverterId = 1,
             PositionIndex = 1,
             SegmentId = 1,
+            FrontSensorId = 2,
             LeftChuteIds = Array.Empty<long>()
         };
 
@@ -236,6 +238,7 @@ public class ChutePathTopologyConfigTests
             DiverterId = 1,
             PositionIndex = 1,
             SegmentId = 1,
+            FrontSensorId = 2,
             RightChuteIds = new List<long> { 1, 2 }
         };
 
@@ -252,6 +255,7 @@ public class ChutePathTopologyConfigTests
             DiverterId = 1,
             PositionIndex = 1,
             SegmentId = 1,
+            FrontSensorId = 2,
             RightChuteIds = Array.Empty<long>()
         };
 
