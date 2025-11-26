@@ -129,13 +129,12 @@ public class ChutePathTopologyController : ControllerBase
     ///                 "rightChuteIds": [5]
     ///             }
     ///         ],
-    ///         "exceptionChuteId": 999,
-    ///         "defaultLineSpeedMmps": 500
+    ///         "exceptionChuteId": 999
     ///     }
     ///
     /// 配置说明：
     /// - entrySensorId 必须引用一个已配置的 ParcelCreation 类型的感应IO
-    /// - diverterNodes 中的 segmentId 必须引用已配置的线体段
+    /// - diverterNodes 中的 segmentId 必须引用已配置的线体段（线体速度在线体段配置中定义）
     /// - diverterNodes 中的 frontSensorId（可选）必须引用 WheelFront 类型的感应IO
     /// </remarks>
     [HttpPut]
@@ -249,6 +248,726 @@ public class ChutePathTopologyController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 模拟包裹分拣路径测试
+    /// </summary>
+    /// <param name="request">模拟测试请求参数</param>
+    /// <returns>模拟的包裹分拣全过程详情</returns>
+    /// <response code="200">模拟测试成功</response>
+    /// <response code="400">请求参数无效或格口不存在</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 此端点用于测试拓扑配置是否正确，模拟包裹从入口到指定格口的完整分拣过程。
+    /// 
+    /// 可配置的模拟参数：
+    /// - targetChuteId: 目标格口ID
+    /// - simulateTimeout: 是否模拟超时场景
+    /// - simulateParcelLoss: 是否模拟丢包场景
+    /// - lineSpeedMmps: 线体速度（毫米/秒）
+    /// - parcelLossAtDiverterIndex: 在第几个摆轮处丢包（从1开始）
+    /// 
+    /// 返回结果包含：
+    /// - 包裹基本信息
+    /// - 完整的路径节点列表及每个节点的详细信息
+    /// - 每个节点的耗时统计
+    /// - 最终分拣结果
+    /// </remarks>
+    [HttpPost("simulate")]
+    [SwaggerOperation(
+        Summary = "模拟包裹分拣路径测试",
+        Description = "模拟包裹从入口到指定格口的完整分拣过程，用于验证拓扑配置是否正确",
+        OperationId = "SimulateChutePathTopology",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "模拟测试成功", typeof(ApiResponse<TopologySimulationResult>))]
+    [SwaggerResponse(400, "请求参数无效或格口不存在", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    public ActionResult<ApiResponse<TopologySimulationResult>> SimulateParcelPath([FromBody] TopologySimulationRequest request)
+    {
+        try
+        {
+            var config = _topologyRepository.Get();
+            
+            // Validate target chute exists in topology
+            var targetNode = config.FindNodeByChuteId(request.TargetChuteId);
+            if (targetNode == null && request.TargetChuteId != config.ExceptionChuteId)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest(
+                    $"格口 {request.TargetChuteId} 不存在于拓扑配置中 - Chute {request.TargetChuteId} does not exist in topology configuration"));
+            }
+
+            // Get path to target chute
+            var pathNodes = config.GetPathToChute(request.TargetChuteId);
+            var isExceptionChute = request.TargetChuteId == config.ExceptionChuteId;
+            
+            if (pathNodes == null && !isExceptionChute)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest(
+                    $"无法找到到达格口 {request.TargetChuteId} 的路径 - Cannot find path to chute {request.TargetChuteId}"));
+            }
+
+            // If targeting exception chute, path goes through all nodes
+            if (isExceptionChute || pathNodes == null)
+            {
+                pathNodes = config.DiverterNodes.OrderBy(n => n.PositionIndex).ToList();
+            }
+
+            // Get sorting direction for target chute
+            var sortingDirection = config.GetChuteDirection(request.TargetChuteId);
+
+            // Start simulation
+            var simulationStartTime = _clock.LocalNow;
+            var parcelId = $"SIM-{simulationStartTime:yyyyMMddHHmmss}-{request.TargetChuteId}";
+            
+            var result = new TopologySimulationResult
+            {
+                ParcelId = parcelId,
+                TargetChuteId = request.TargetChuteId,
+                IsExceptionChute = isExceptionChute,
+                SimulationStartTime = simulationStartTime,
+                LineSpeedMmps = request.LineSpeedMmps,
+                SimulateTimeout = request.SimulateTimeout,
+                SimulateParcelLoss = request.SimulateParcelLoss,
+                Steps = new List<SimulationStep>()
+            };
+
+            var currentTime = simulationStartTime;
+            var totalDistanceMm = 0.0;
+            var isParcelLost = false;
+            var isTimeout = false;
+
+            // Step 1: Parcel Creation at Entry Sensor
+            var creationStep = new SimulationStep
+            {
+                StepNumber = 1,
+                StepType = SimulationStepType.ParcelCreation,
+                Description = $"包裹在入口传感器(ID:{config.EntrySensorId})处创建 - Parcel created at entry sensor",
+                NodeId = null,
+                NodeName = $"入口传感器 (Sensor ID: {config.EntrySensorId})",
+                StartTime = currentTime,
+                EndTime = currentTime,
+                DurationMs = 0,
+                CumulativeTimeMs = 0,
+                Status = StepStatus.Success,
+                Details = new Dictionary<string, object>
+                {
+                    ["parcelId"] = parcelId,
+                    ["entrySensorId"] = config.EntrySensorId
+                }
+            };
+            result.Steps.Add(creationStep);
+
+            // Step 2: Request routing from upstream
+            currentTime = currentTime.AddMilliseconds(request.RoutingRequestDelayMs);
+            var routingStep = new SimulationStep
+            {
+                StepNumber = 2,
+                StepType = SimulationStepType.RoutingRequest,
+                Description = $"向上游请求路由，目标格口: {request.TargetChuteId} - Requesting routing from upstream",
+                NodeId = null,
+                NodeName = "上游路由服务 (Upstream Routing Service)",
+                StartTime = creationStep.EndTime,
+                EndTime = currentTime,
+                DurationMs = request.RoutingRequestDelayMs,
+                CumulativeTimeMs = request.RoutingRequestDelayMs,
+                Status = StepStatus.Success,
+                Details = new Dictionary<string, object>
+                {
+                    ["targetChuteId"] = request.TargetChuteId,
+                    ["routingDirection"] = sortingDirection?.ToString() ?? "Straight"
+                }
+            };
+            result.Steps.Add(routingStep);
+
+            long cumulativeTimeMs = request.RoutingRequestDelayMs;
+            var stepNumber = 3;
+
+            // Process each diverter node
+            foreach (var node in pathNodes)
+            {
+                // Calculate transit time based on segment
+                var segmentLengthMm = request.DefaultSegmentLengthMm; // Use default or could lookup from LineSegmentConfig
+                var transitTimeMs = (segmentLengthMm / (double)request.LineSpeedMmps) * 1000;
+                
+                // Add tolerance for variation
+                if (request.SimulateTimeout && node.DiverterId == pathNodes.Last().DiverterId)
+                {
+                    transitTimeMs += request.TimeoutExtraDelayMs;
+                }
+
+                totalDistanceMm += segmentLengthMm;
+                var transitStartTime = currentTime;
+                currentTime = currentTime.AddMilliseconds(transitTimeMs);
+
+                // Transit step
+                var transitStep = new SimulationStep
+                {
+                    StepNumber = stepNumber++,
+                    StepType = SimulationStepType.Transit,
+                    Description = $"包裹从上一节点运输到摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} - Parcel transit to diverter",
+                    NodeId = node.DiverterId,
+                    NodeName = node.DiverterName ?? $"摆轮 D{node.DiverterId}",
+                    StartTime = transitStartTime,
+                    EndTime = currentTime,
+                    DurationMs = (long)transitTimeMs,
+                    CumulativeTimeMs = cumulativeTimeMs + (long)transitTimeMs,
+                    Status = StepStatus.Success,
+                    Details = new Dictionary<string, object>
+                    {
+                        ["segmentId"] = node.SegmentId,
+                        ["segmentLengthMm"] = segmentLengthMm,
+                        ["speedMmps"] = request.LineSpeedMmps
+                    }
+                };
+                
+                cumulativeTimeMs += (long)transitTimeMs;
+
+                // Check for simulated parcel loss
+                if (request.SimulateParcelLoss && node.PositionIndex == request.ParcelLossAtDiverterIndex)
+                {
+                    transitStep.Status = StepStatus.Failed;
+                    transitStep.Description = $"[模拟丢包] 包裹在摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} 处丢失 - [Simulated] Parcel lost at diverter";
+                    transitStep.Details["parcelLost"] = true;
+                    isParcelLost = true;
+                    result.Steps.Add(transitStep);
+                    break;
+                }
+
+                // Check for timeout
+                if (request.SimulateTimeout && node.DiverterId == pathNodes.Last().DiverterId)
+                {
+                    transitStep.Status = StepStatus.Timeout;
+                    transitStep.Description = $"[模拟超时] 包裹到达摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} 超时 - [Simulated] Parcel arrival timeout";
+                    transitStep.Details["timeout"] = true;
+                    isTimeout = true;
+                }
+
+                result.Steps.Add(transitStep);
+
+                // Front sensor detection (if configured)
+                if (node.FrontSensorId.HasValue)
+                {
+                    var sensorDetectionStep = new SimulationStep
+                    {
+                        StepNumber = stepNumber++,
+                        StepType = SimulationStepType.SensorDetection,
+                        Description = $"摆轮前感应器(ID:{node.FrontSensorId})检测到包裹 - Front sensor detected parcel",
+                        NodeId = node.DiverterId,
+                        NodeName = $"感应器 (Sensor ID: {node.FrontSensorId})",
+                        StartTime = currentTime,
+                        EndTime = currentTime.AddMilliseconds(request.SensorDetectionDelayMs),
+                        DurationMs = request.SensorDetectionDelayMs,
+                        CumulativeTimeMs = cumulativeTimeMs + request.SensorDetectionDelayMs,
+                        Status = isTimeout ? StepStatus.Timeout : StepStatus.Success,
+                        Details = new Dictionary<string, object>
+                        {
+                            ["sensorId"] = node.FrontSensorId.Value
+                        }
+                    };
+                    currentTime = sensorDetectionStep.EndTime;
+                    cumulativeTimeMs += request.SensorDetectionDelayMs;
+                    result.Steps.Add(sensorDetectionStep);
+                }
+
+                // Diverter action (determine direction based on target chute)
+                var isTargetDiverter = node.LeftChuteIds.Contains(request.TargetChuteId) || 
+                                       node.RightChuteIds.Contains(request.TargetChuteId);
+                
+                string diverterAction;
+                DiverterDirection actionDirection;
+                
+                if (isTargetDiverter)
+                {
+                    if (node.LeftChuteIds.Contains(request.TargetChuteId))
+                    {
+                        diverterAction = "左转分拣 - Turn Left";
+                        actionDirection = DiverterDirection.Left;
+                    }
+                    else
+                    {
+                        diverterAction = "右转分拣 - Turn Right";
+                        actionDirection = DiverterDirection.Right;
+                    }
+                }
+                else
+                {
+                    diverterAction = "直行通过 - Pass Straight";
+                    actionDirection = DiverterDirection.Straight;
+                }
+
+                var diverterStep = new SimulationStep
+                {
+                    StepNumber = stepNumber++,
+                    StepType = SimulationStepType.DiverterAction,
+                    Description = $"摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} 执行 {diverterAction}",
+                    NodeId = node.DiverterId,
+                    NodeName = node.DiverterName ?? $"摆轮 D{node.DiverterId}",
+                    StartTime = currentTime,
+                    EndTime = currentTime.AddMilliseconds(request.DiverterActionDelayMs),
+                    DurationMs = request.DiverterActionDelayMs,
+                    CumulativeTimeMs = cumulativeTimeMs + request.DiverterActionDelayMs,
+                    Status = StepStatus.Success,
+                    Details = new Dictionary<string, object>
+                    {
+                        ["diverterId"] = node.DiverterId,
+                        ["action"] = diverterAction,
+                        ["direction"] = actionDirection.ToString(),
+                        ["isTargetDiverter"] = isTargetDiverter,
+                        ["leftChuteIds"] = node.LeftChuteIds,
+                        ["rightChuteIds"] = node.RightChuteIds
+                    }
+                };
+                currentTime = diverterStep.EndTime;
+                cumulativeTimeMs += request.DiverterActionDelayMs;
+                result.Steps.Add(diverterStep);
+
+                // If this is the target diverter, parcel leaves the main line
+                if (isTargetDiverter)
+                {
+                    break;
+                }
+            }
+
+            // Final step: Parcel arrives at chute (if not lost)
+            if (!isParcelLost)
+            {
+                var actualChuteId = isTimeout ? config.ExceptionChuteId : request.TargetChuteId;
+                var finalStep = new SimulationStep
+                {
+                    StepNumber = stepNumber,
+                    StepType = SimulationStepType.ChuteArrival,
+                    Description = isTimeout 
+                        ? $"包裹超时，路由到异常格口 {actualChuteId} - Parcel timeout, routed to exception chute"
+                        : $"包裹成功落入格口 {actualChuteId} - Parcel successfully sorted to chute",
+                    NodeId = actualChuteId,
+                    NodeName = $"格口 {actualChuteId}",
+                    StartTime = currentTime,
+                    EndTime = currentTime,
+                    DurationMs = 0,
+                    CumulativeTimeMs = cumulativeTimeMs,
+                    Status = isTimeout ? StepStatus.RoutedToException : StepStatus.Success,
+                    Details = new Dictionary<string, object>
+                    {
+                        ["chuteId"] = actualChuteId,
+                        ["isExceptionChute"] = isTimeout || isExceptionChute
+                    }
+                };
+                result.Steps.Add(finalStep);
+                result.ActualChuteId = actualChuteId;
+            }
+
+            // Set final result
+            result.SimulationEndTime = currentTime;
+            result.TotalDurationMs = cumulativeTimeMs;
+            result.TotalDistanceMm = totalDistanceMm;
+            result.IsSuccess = !isParcelLost && !isTimeout;
+            result.IsParcelLost = isParcelLost;
+            result.IsTimeout = isTimeout;
+            result.DiverterCount = pathNodes.Count;
+            result.Summary = isParcelLost 
+                ? $"包裹在第 {request.ParcelLossAtDiverterIndex} 个摆轮处丢失 - Parcel lost at diverter {request.ParcelLossAtDiverterIndex}"
+                : isTimeout 
+                    ? $"包裹超时，已路由到异常格口 {config.ExceptionChuteId} - Parcel timeout, routed to exception chute"
+                    : $"包裹成功分拣到格口 {request.TargetChuteId}，耗时 {cumulativeTimeMs}ms - Parcel successfully sorted";
+
+            _logger.LogInformation(
+                "拓扑模拟测试完成: ParcelId={ParcelId}, TargetChute={TargetChute}, Success={Success}, Duration={Duration}ms",
+                parcelId, request.TargetChuteId, result.IsSuccess, cumulativeTimeMs);
+
+            return Ok(ApiResponse<TopologySimulationResult>.Ok(result, "模拟测试完成 - Simulation completed"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "拓扑模拟测试失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("拓扑模拟测试失败 - Topology simulation failed"));
+        }
+    }
+
+    /// <summary>
+    /// 导出格口路径拓扑配置为JSON格式
+    /// </summary>
+    /// <returns>JSON格式的配置文件</returns>
+    /// <response code="200">成功导出配置</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("export/json")]
+    [SwaggerOperation(
+        Summary = "导出格口路径拓扑配置为JSON格式",
+        Description = "导出当前格口路径拓扑配置为JSON文件，可用于备份或迁移",
+        OperationId = "ExportChutePathTopologyJson",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "成功导出配置")]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Produces("application/json")]
+    public ActionResult ExportAsJson()
+    {
+        try
+        {
+            var config = _topologyRepository.Get();
+            var response = MapToResponse(config);
+            
+            var json = System.Text.Json.JsonSerializer.Serialize(response, new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            });
+
+            var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+            return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出格口路径拓扑配置为JSON失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导出格口路径拓扑配置失败 - Failed to export chute path topology configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 导出格口路径拓扑配置为CSV格式
+    /// </summary>
+    /// <returns>CSV格式的配置文件</returns>
+    /// <response code="200">成功导出配置</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// CSV格式说明：
+    /// - 第一行为摆轮节点的列头
+    /// - 每行代表一个摆轮节点
+    /// - LeftChuteIds和RightChuteIds使用分号分隔多个值
+    /// </remarks>
+    [HttpGet("export/csv")]
+    [SwaggerOperation(
+        Summary = "导出格口路径拓扑配置为CSV格式",
+        Description = "导出当前格口路径拓扑配置为CSV文件，便于在Excel等工具中查看和编辑",
+        OperationId = "ExportChutePathTopologyCsv",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "成功导出配置")]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Produces("text/csv")]
+    public ActionResult ExportAsCsv()
+    {
+        try
+        {
+            var config = _topologyRepository.Get();
+            
+            var sb = new System.Text.StringBuilder();
+            
+            // 添加配置元数据注释
+            sb.AppendLine($"# TopologyName: {config.TopologyName}");
+            sb.AppendLine($"# Description: {config.Description ?? ""}");
+            sb.AppendLine($"# EntrySensorId: {config.EntrySensorId}");
+            sb.AppendLine($"# ExceptionChuteId: {config.ExceptionChuteId}");
+            sb.AppendLine();
+            
+            // CSV列头
+            sb.AppendLine("DiverterId,DiverterName,PositionIndex,SegmentId,FrontSensorId,LeftChuteIds,RightChuteIds,Remarks");
+            
+            // 数据行
+            foreach (var node in config.DiverterNodes)
+            {
+                var leftChutes = string.Join(";", node.LeftChuteIds);
+                var rightChutes = string.Join(";", node.RightChuteIds);
+                var name = EscapeCsvField(node.DiverterName ?? "");
+                var remarks = EscapeCsvField(node.Remarks ?? "");
+                
+                sb.AppendLine($"{node.DiverterId},{name},{node.PositionIndex},{node.SegmentId},{node.FrontSensorId?.ToString() ?? ""},{leftChutes},{rightChutes},{remarks}");
+            }
+
+            var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+            return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "导出格口路径拓扑配置为CSV失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导出格口路径拓扑配置为CSV失败 - Failed to export chute path topology configuration as CSV"));
+        }
+    }
+
+    /// <summary>
+    /// 从JSON文件导入格口路径拓扑配置
+    /// </summary>
+    /// <param name="file">JSON配置文件</param>
+    /// <returns>导入后的格口路径拓扑配置</returns>
+    /// <response code="200">导入成功</response>
+    /// <response code="400">文件格式无效</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("import/json")]
+    [SwaggerOperation(
+        Summary = "从JSON文件导入格口路径拓扑配置",
+        Description = "从JSON文件导入格口路径拓扑配置，将覆盖当前配置",
+        OperationId = "ImportChutePathTopologyJson",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "导入成功", typeof(ApiResponse<ChutePathTopologyResponse>))]
+    [SwaggerResponse(400, "文件格式无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ApiResponse<ChutePathTopologyResponse>>> ImportFromJson(IFormFile file)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("请选择要导入的JSON文件 - Please select a JSON file to import"));
+            }
+
+            if (!file.FileName.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("文件必须是JSON格式 - File must be in JSON format"));
+            }
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var json = await reader.ReadToEndAsync();
+
+            var request = System.Text.Json.JsonSerializer.Deserialize<ChutePathTopologyRequest>(json, new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (request == null)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("JSON文件内容无效 - Invalid JSON file content"));
+            }
+
+            // 重用更新逻辑进行验证和保存
+            return await Task.FromResult(UpdateChutePathTopology(request));
+        }
+        catch (System.Text.Json.JsonException ex)
+        {
+            _logger.LogWarning(ex, "导入的JSON文件格式无效");
+            return BadRequest(ApiResponse<object>.BadRequest($"JSON文件格式无效: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "从JSON导入格口路径拓扑配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导入格口路径拓扑配置失败 - Failed to import chute path topology configuration"));
+        }
+    }
+
+    /// <summary>
+    /// 从CSV文件导入格口路径拓扑配置
+    /// </summary>
+    /// <param name="file">CSV配置文件</param>
+    /// <param name="topologyName">拓扑配置名称</param>
+    /// <param name="entrySensorId">入口传感器ID</param>
+    /// <param name="exceptionChuteId">异常格口ID</param>
+    /// <param name="description">拓扑描述（可选）</param>
+    /// <returns>导入后的格口路径拓扑配置</returns>
+    /// <response code="200">导入成功</response>
+    /// <response code="400">文件格式无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// CSV格式要求：
+    /// - 第一行为列头（可以有#开头的注释行）
+    /// - 列: DiverterId,DiverterName,PositionIndex,SegmentId,FrontSensorId,LeftChuteIds,RightChuteIds,Remarks
+    /// - LeftChuteIds和RightChuteIds使用分号分隔多个值
+    /// </remarks>
+    [HttpPost("import/csv")]
+    [SwaggerOperation(
+        Summary = "从CSV文件导入格口路径拓扑配置",
+        Description = "从CSV文件导入摆轮节点配置，需要提供拓扑元数据参数",
+        OperationId = "ImportChutePathTopologyCsv",
+        Tags = new[] { "格口路径拓扑配置" }
+    )]
+    [SwaggerResponse(200, "导入成功", typeof(ApiResponse<ChutePathTopologyResponse>))]
+    [SwaggerResponse(400, "文件格式无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ApiResponse<ChutePathTopologyResponse>>> ImportFromCsv(
+        IFormFile file,
+        [FromQuery] string topologyName,
+        [FromQuery] long entrySensorId,
+        [FromQuery] long exceptionChuteId,
+        [FromQuery] string? description = null)
+    {
+        try
+        {
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("请选择要导入的CSV文件 - Please select a CSV file to import"));
+            }
+
+            if (!file.FileName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("文件必须是CSV格式 - File must be in CSV format"));
+            }
+
+            if (string.IsNullOrWhiteSpace(topologyName))
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("拓扑配置名称不能为空 - Topology name is required"));
+            }
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            var content = await reader.ReadToEndAsync();
+            var lines = content.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+
+            var diverterNodes = new List<DiverterPathNodeRequest>();
+            var headerFound = false;
+
+            // CSV column indices
+            const int ColDiverterId = 0;
+            const int ColDiverterName = 1;
+            const int ColPositionIndex = 2;
+            const int ColSegmentId = 3;
+            const int ColFrontSensorId = 4;
+            const int ColLeftChuteIds = 5;
+            const int ColRightChuteIds = 6;
+            const int ColRemarks = 7;
+            const int MinRequiredColumns = 7;
+
+            var lineNumber = 0;
+            foreach (var line in lines)
+            {
+                lineNumber++;
+                var trimmedLine = line.Trim();
+                
+                // Skip comment lines and empty lines
+                if (string.IsNullOrWhiteSpace(trimmedLine) || trimmedLine.StartsWith('#'))
+                {
+                    continue;
+                }
+
+                // Skip header line (look for DiverterId column header)
+                if (!headerFound && trimmedLine.Contains("DiverterId", StringComparison.OrdinalIgnoreCase))
+                {
+                    headerFound = true;
+                    continue;
+                }
+
+                var fields = ParseCsvLine(trimmedLine);
+                if (fields.Length < MinRequiredColumns)
+                {
+                    _logger.LogWarning("Skipping line {LineNumber} in CSV: insufficient columns ({ActualCount} < {RequiredCount})",
+                        lineNumber, fields.Length, MinRequiredColumns);
+                    continue;
+                }
+
+                // Parse with explicit error handling for each field
+                if (!long.TryParse(fields[ColDiverterId].Trim(), out var diverterId))
+                {
+                    throw new FormatException($"Line {lineNumber}: Invalid DiverterId value '{fields[ColDiverterId]}'");
+                }
+                if (!int.TryParse(fields[ColPositionIndex].Trim(), out var positionIndex))
+                {
+                    throw new FormatException($"Line {lineNumber}: Invalid PositionIndex value '{fields[ColPositionIndex]}'");
+                }
+                if (!long.TryParse(fields[ColSegmentId].Trim(), out var segmentId))
+                {
+                    throw new FormatException($"Line {lineNumber}: Invalid SegmentId value '{fields[ColSegmentId]}'");
+                }
+
+                long? frontSensorId = null;
+                if (!string.IsNullOrWhiteSpace(fields[ColFrontSensorId]))
+                {
+                    if (!long.TryParse(fields[ColFrontSensorId].Trim(), out var parsedFrontSensorId))
+                    {
+                        throw new FormatException($"Line {lineNumber}: Invalid FrontSensorId value '{fields[ColFrontSensorId]}'");
+                    }
+                    frontSensorId = parsedFrontSensorId;
+                }
+
+                var node = new DiverterPathNodeRequest
+                {
+                    DiverterId = diverterId,
+                    DiverterName = fields[ColDiverterName].Trim(),
+                    PositionIndex = positionIndex,
+                    SegmentId = segmentId,
+                    FrontSensorId = frontSensorId,
+                    LeftChuteIds = ParseChuteIds(fields[ColLeftChuteIds], lineNumber, "LeftChuteIds"),
+                    RightChuteIds = ParseChuteIds(fields[ColRightChuteIds], lineNumber, "RightChuteIds"),
+                    Remarks = fields.Length > ColRemarks ? fields[ColRemarks].Trim() : null
+                };
+
+                diverterNodes.Add(node);
+            }
+
+            if (diverterNodes.Count == 0)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("CSV文件中没有有效的摆轮节点数据 - No valid diverter node data found in CSV file"));
+            }
+
+            var request = new ChutePathTopologyRequest
+            {
+                TopologyName = topologyName,
+                Description = description,
+                EntrySensorId = entrySensorId,
+                DiverterNodes = diverterNodes,
+                ExceptionChuteId = exceptionChuteId
+            };
+
+            // 重用更新逻辑进行验证和保存
+            return UpdateChutePathTopology(request);
+        }
+        catch (FormatException ex)
+        {
+            _logger.LogWarning(ex, "导入的CSV文件数据格式无效");
+            return BadRequest(ApiResponse<object>.BadRequest($"CSV文件数据格式无效: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "从CSV导入格口路径拓扑配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("导入格口路径拓扑配置失败 - Failed to import chute path topology configuration from CSV"));
+        }
+    }
+
+    private static string EscapeCsvField(string field)
+    {
+        if (field.Contains(',') || field.Contains('"') || field.Contains('\n'))
+        {
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        }
+        return field;
+    }
+
+    private static string[] ParseCsvLine(string line)
+    {
+        var result = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var inQuotes = false;
+
+        foreach (var c in line)
+        {
+            if (c == '"')
+            {
+                inQuotes = !inQuotes;
+            }
+            else if (c == ',' && !inQuotes)
+            {
+                result.Add(current.ToString());
+                current.Clear();
+            }
+            else
+            {
+                current.Append(c);
+            }
+        }
+        result.Add(current.ToString());
+        
+        return result.ToArray();
+    }
+
+    private static List<long>? ParseChuteIds(string field, int lineNumber, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(field))
+        {
+            return null;
+        }
+
+        var ids = field.Trim().Split(';', StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<long>();
+        
+        foreach (var idStr in ids)
+        {
+            if (!long.TryParse(idStr.Trim(), out var id))
+            {
+                throw new FormatException($"Line {lineNumber}: Invalid chute ID '{idStr}' in {fieldName}");
+            }
+            result.Add(id);
+        }
+        
+        return result.Count > 0 ? result : null;
+    }
+
     private ChutePathTopologyResponse MapToResponse(ChutePathTopologyConfig config)
     {
         return new ChutePathTopologyResponse
@@ -269,7 +988,6 @@ public class ChutePathTopologyController : ControllerBase
                 Remarks = n.Remarks
             }).ToList(),
             ExceptionChuteId = config.ExceptionChuteId,
-            DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
@@ -297,7 +1015,6 @@ public class ChutePathTopologyController : ControllerBase
                 Remarks = n.Remarks
             }).ToList(),
             ExceptionChuteId = request.ExceptionChuteId,
-            DefaultLineSpeedMmps = request.DefaultLineSpeedMmps,
             CreatedAt = now,
             UpdatedAt = now
         };

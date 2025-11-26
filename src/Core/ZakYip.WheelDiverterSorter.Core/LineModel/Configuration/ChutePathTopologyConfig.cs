@@ -65,11 +65,6 @@ public record class ChutePathTopologyConfig
     public required long ExceptionChuteId { get; init; }
 
     /// <summary>
-    /// 默认线速（毫米/秒）
-    /// </summary>
-    public decimal DefaultLineSpeedMmps { get; init; } = 500m;
-
-    /// <summary>
     /// 创建时间
     /// </summary>
     public DateTime CreatedAt { get; init; }

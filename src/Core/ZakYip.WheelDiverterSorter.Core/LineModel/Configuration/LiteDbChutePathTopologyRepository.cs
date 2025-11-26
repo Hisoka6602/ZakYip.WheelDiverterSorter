@@ -134,7 +134,6 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
             EntrySensorId = 1, // 引用默认的创建包裹感应IO
             DiverterNodes = Array.Empty<DiverterPathNode>(),
             ExceptionChuteId = 999, // 默认异常格口ID
-            DefaultLineSpeedMmps = 500m,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -150,7 +149,6 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
             EntrySensorId = entity.EntrySensorId,
             DiverterNodes = entity.DiverterNodes,
             ExceptionChuteId = entity.ExceptionChuteId,
-            DefaultLineSpeedMmps = entity.DefaultLineSpeedMmps,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };
@@ -166,7 +164,6 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
             EntrySensorId = config.EntrySensorId,
             DiverterNodes = config.DiverterNodes.ToList(),
             ExceptionChuteId = config.ExceptionChuteId,
-            DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
         };
@@ -186,7 +183,6 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
         public required long EntrySensorId { get; set; }
         public required List<DiverterPathNode> DiverterNodes { get; set; }
         public required long ExceptionChuteId { get; set; }
-        public decimal DefaultLineSpeedMmps { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }

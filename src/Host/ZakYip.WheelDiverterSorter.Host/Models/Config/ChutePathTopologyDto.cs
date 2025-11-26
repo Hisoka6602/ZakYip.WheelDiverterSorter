@@ -147,13 +147,6 @@ public record ChutePathTopologyRequest
     [Required]
     [Range(1, long.MaxValue)]
     public required long ExceptionChuteId { get; init; }
-
-    /// <summary>
-    /// 默认线速（毫米/秒）
-    /// </summary>
-    /// <example>500</example>
-    [Range(1.0, 10000.0)]
-    public decimal DefaultLineSpeedMmps { get; init; } = 500m;
 }
 
 /// <summary>
@@ -200,12 +193,6 @@ public record ChutePathTopologyResponse
     public required long ExceptionChuteId { get; init; }
 
     /// <summary>
-    /// 默认线速（毫米/秒）
-    /// </summary>
-    /// <example>500</example>
-    public decimal DefaultLineSpeedMmps { get; init; }
-
-    /// <summary>
     /// 配置创建时间
     /// </summary>
     public DateTime CreatedAt { get; init; }
@@ -214,4 +201,302 @@ public record ChutePathTopologyResponse
     /// 配置最后更新时间
     /// </summary>
     public DateTime UpdatedAt { get; init; }
+}
+
+/// <summary>
+/// 拓扑模拟测试请求
+/// </summary>
+/// <remarks>
+/// 用于测试格口路径拓扑配置，模拟包裹从入口到指定格口的完整分拣过程
+/// </remarks>
+public record TopologySimulationRequest
+{
+    /// <summary>
+    /// 目标格口ID
+    /// </summary>
+    /// <example>1</example>
+    [Required]
+    [Range(1, long.MaxValue)]
+    public required long TargetChuteId { get; init; }
+
+    /// <summary>
+    /// 线体速度（毫米/秒）
+    /// </summary>
+    /// <example>1000</example>
+    [Range(100, 10000)]
+    public decimal LineSpeedMmps { get; init; } = 1000m;
+
+    /// <summary>
+    /// 默认线体段长度（毫米）
+    /// </summary>
+    /// <remarks>
+    /// 当无法从线体段配置获取长度时使用的默认值
+    /// </remarks>
+    /// <example>5000</example>
+    [Range(100, 100000)]
+    public double DefaultSegmentLengthMm { get; init; } = 5000;
+
+    /// <summary>
+    /// 是否模拟超时场景
+    /// </summary>
+    /// <example>false</example>
+    public bool SimulateTimeout { get; init; } = false;
+
+    /// <summary>
+    /// 超时时额外延迟的毫秒数
+    /// </summary>
+    /// <example>5000</example>
+    [Range(0, 60000)]
+    public int TimeoutExtraDelayMs { get; init; } = 5000;
+
+    /// <summary>
+    /// 是否模拟丢包场景
+    /// </summary>
+    /// <example>false</example>
+    public bool SimulateParcelLoss { get; init; } = false;
+
+    /// <summary>
+    /// 在第几个摆轮处模拟丢包（从1开始）
+    /// </summary>
+    /// <remarks>
+    /// 仅在 SimulateParcelLoss 为 true 时生效
+    /// </remarks>
+    /// <example>2</example>
+    [Range(1, 100)]
+    public int ParcelLossAtDiverterIndex { get; init; } = 1;
+
+    /// <summary>
+    /// 路由请求延迟（毫秒）
+    /// </summary>
+    /// <example>50</example>
+    [Range(0, 10000)]
+    public int RoutingRequestDelayMs { get; init; } = 50;
+
+    /// <summary>
+    /// 传感器检测延迟（毫秒）
+    /// </summary>
+    /// <example>10</example>
+    [Range(0, 1000)]
+    public int SensorDetectionDelayMs { get; init; } = 10;
+
+    /// <summary>
+    /// 摆轮动作延迟（毫秒）
+    /// </summary>
+    /// <example>100</example>
+    [Range(0, 5000)]
+    public int DiverterActionDelayMs { get; init; } = 100;
+}
+
+/// <summary>
+/// 拓扑模拟测试结果
+/// </summary>
+public record TopologySimulationResult
+{
+    /// <summary>
+    /// 模拟包裹ID
+    /// </summary>
+    public required string ParcelId { get; init; }
+
+    /// <summary>
+    /// 目标格口ID
+    /// </summary>
+    public required long TargetChuteId { get; init; }
+
+    /// <summary>
+    /// 实际到达的格口ID
+    /// </summary>
+    public long? ActualChuteId { get; set; }
+
+    /// <summary>
+    /// 目标是否为异常格口
+    /// </summary>
+    public bool IsExceptionChute { get; init; }
+
+    /// <summary>
+    /// 模拟开始时间
+    /// </summary>
+    public DateTime SimulationStartTime { get; init; }
+
+    /// <summary>
+    /// 模拟结束时间
+    /// </summary>
+    public DateTime SimulationEndTime { get; set; }
+
+    /// <summary>
+    /// 总耗时（毫秒）
+    /// </summary>
+    public long TotalDurationMs { get; set; }
+
+    /// <summary>
+    /// 总运输距离（毫米）
+    /// </summary>
+    public double TotalDistanceMm { get; set; }
+
+    /// <summary>
+    /// 经过的摆轮数量
+    /// </summary>
+    public int DiverterCount { get; set; }
+
+    /// <summary>
+    /// 线体速度（毫米/秒）
+    /// </summary>
+    public decimal LineSpeedMmps { get; init; }
+
+    /// <summary>
+    /// 是否模拟超时
+    /// </summary>
+    public bool SimulateTimeout { get; init; }
+
+    /// <summary>
+    /// 是否模拟丢包
+    /// </summary>
+    public bool SimulateParcelLoss { get; init; }
+
+    /// <summary>
+    /// 模拟是否成功
+    /// </summary>
+    public bool IsSuccess { get; set; }
+
+    /// <summary>
+    /// 是否发生丢包
+    /// </summary>
+    public bool IsParcelLost { get; set; }
+
+    /// <summary>
+    /// 是否发生超时
+    /// </summary>
+    public bool IsTimeout { get; set; }
+
+    /// <summary>
+    /// 模拟步骤列表
+    /// </summary>
+    public required List<SimulationStep> Steps { get; init; }
+
+    /// <summary>
+    /// 结果摘要
+    /// </summary>
+    public string? Summary { get; set; }
+}
+
+/// <summary>
+/// 模拟步骤
+/// </summary>
+public record SimulationStep
+{
+    /// <summary>
+    /// 步骤序号
+    /// </summary>
+    public int StepNumber { get; init; }
+
+    /// <summary>
+    /// 步骤类型
+    /// </summary>
+    public SimulationStepType StepType { get; init; }
+
+    /// <summary>
+    /// 步骤描述
+    /// </summary>
+    public required string Description { get; set; }
+
+    /// <summary>
+    /// 节点ID（摆轮ID或格口ID）
+    /// </summary>
+    public long? NodeId { get; init; }
+
+    /// <summary>
+    /// 节点名称
+    /// </summary>
+    public required string NodeName { get; init; }
+
+    /// <summary>
+    /// 步骤开始时间
+    /// </summary>
+    public DateTime StartTime { get; init; }
+
+    /// <summary>
+    /// 步骤结束时间
+    /// </summary>
+    public DateTime EndTime { get; init; }
+
+    /// <summary>
+    /// 步骤耗时（毫秒）
+    /// </summary>
+    public long DurationMs { get; init; }
+
+    /// <summary>
+    /// 累计耗时（毫秒）
+    /// </summary>
+    public long CumulativeTimeMs { get; init; }
+
+    /// <summary>
+    /// 步骤状态
+    /// </summary>
+    public StepStatus Status { get; set; }
+
+    /// <summary>
+    /// 附加详情
+    /// </summary>
+    public Dictionary<string, object>? Details { get; init; }
+}
+
+/// <summary>
+/// 模拟步骤类型
+/// </summary>
+public enum SimulationStepType
+{
+    /// <summary>
+    /// 包裹创建
+    /// </summary>
+    ParcelCreation,
+
+    /// <summary>
+    /// 路由请求
+    /// </summary>
+    RoutingRequest,
+
+    /// <summary>
+    /// 运输中
+    /// </summary>
+    Transit,
+
+    /// <summary>
+    /// 传感器检测
+    /// </summary>
+    SensorDetection,
+
+    /// <summary>
+    /// 摆轮动作
+    /// </summary>
+    DiverterAction,
+
+    /// <summary>
+    /// 到达格口
+    /// </summary>
+    ChuteArrival
+}
+
+/// <summary>
+/// 步骤状态
+/// </summary>
+public enum StepStatus
+{
+    /// <summary>
+    /// 成功
+    /// </summary>
+    Success,
+
+    /// <summary>
+    /// 失败
+    /// </summary>
+    Failed,
+
+    /// <summary>
+    /// 超时
+    /// </summary>
+    Timeout,
+
+    /// <summary>
+    /// 路由到异常格口
+    /// </summary>
+    RoutedToException
 }

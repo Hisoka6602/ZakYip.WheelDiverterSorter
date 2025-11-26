@@ -386,7 +386,6 @@ internal class InMemoryChutePathTopologyRepository : IChutePathTopologyRepositor
                 }
             },
             ExceptionChuteId = 999,
-            DefaultLineSpeedMmps = 500m,
             CreatedAt = now,
             UpdatedAt = now
         };
