@@ -2,7 +2,6 @@ using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -59,9 +58,6 @@ public static class SortingServiceExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
-        // 注册格口分配超时计算器
-        services.AddSingleton<IChuteAssignmentTimeoutCalculator, ChuteAssignmentTimeoutCalculator>();
-
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
 
@@ -73,34 +69,6 @@ public static class SortingServiceExtensions
 
         // 注册调试分拣服务
         services.AddSingleton<DebugSortService>();
-
-        return services;
-    }
-
-    /// <summary>
-    /// 注册线体拓扑配置提供者
-    /// </summary>
-    /// <param name="services">服务集合</param>
-    /// <param name="configuration">配置对象</param>
-    /// <returns>服务集合</returns>
-    public static IServiceCollection AddTopologyConfiguration(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        // 注册线体拓扑配置提供者
-        services.AddSingleton<ILineTopologyConfigProvider>(serviceProvider =>
-        {
-            var topologyPath = configuration["TopologyConfiguration:FilePath"];
-            if (!string.IsNullOrEmpty(topologyPath))
-            {
-                var fullPath = Path.IsPathRooted(topologyPath)
-                    ? topologyPath
-                    : Path.Combine(AppContext.BaseDirectory, topologyPath);
-                return new JsonLineTopologyConfigProvider(fullPath);
-            }
-            // 使用默认拓扑配置
-            return new DefaultLineTopologyConfigProvider();
-        });
 
         return services;
     }

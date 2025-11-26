@@ -1,21 +1,21 @@
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
-/// 线体拓扑配置仓储接口
+/// 格口路径拓扑配置仓储接口
 /// </summary>
-public interface ILineTopologyRepository
+public interface IChutePathTopologyRepository
 {
     /// <summary>
-    /// 获取线体拓扑配置
+    /// 获取格口路径拓扑配置
     /// </summary>
-    /// <returns>线体拓扑配置，如不存在则返回默认配置</returns>
-    LineTopologyConfig Get();
+    /// <returns>格口路径拓扑配置，如不存在则返回默认配置</returns>
+    ChutePathTopologyConfig Get();
 
     /// <summary>
-    /// 更新线体拓扑配置
+    /// 更新格口路径拓扑配置
     /// </summary>
-    /// <param name="configuration">线体拓扑配置</param>
-    void Update(LineTopologyConfig configuration);
+    /// <param name="configuration">格口路径拓扑配置</param>
+    void Update(ChutePathTopologyConfig configuration);
 
     /// <summary>
     /// 初始化默认配置

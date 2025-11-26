@@ -34,19 +34,8 @@ var host = Host.CreateDefaultBuilder(args)
         // 注册仿真配置
         services.Configure<SimulationOptions>(context.Configuration.GetSection("Simulation"));
 
-        // 注册线体拓扑配置提供者
-        var topologyConfigPath = context.Configuration["Topology:ConfigPath"] ?? "simulation-config/topology.json";
-        var fullTopologyPath = Path.Combine(AppContext.BaseDirectory, topologyConfigPath);
-        
-        if (File.Exists(fullTopologyPath))
-        {
-            services.AddSingleton<ILineTopologyConfigProvider>(new JsonLineTopologyConfigProvider(fullTopologyPath));
-        }
-        else
-        {
-            // 如果找不到配置文件，使用默认配置
-            services.AddSingleton<ILineTopologyConfigProvider>(new DefaultLineTopologyConfigProvider());
-        }
+        // 注册格口路径拓扑配置仓储（内存版本，用于仿真）
+        services.AddSingleton<IChutePathTopologyRepository, InMemoryChutePathTopologyRepository>();
 
         // 注册路由配置仓储（内存版本，用于路径生成）
         services.AddSingleton<IRouteConfigurationRepository>(sp =>
@@ -327,5 +316,79 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
         {
             return _configurations.Remove(chuteId);
         }
+    }
+}
+
+/// <summary>
+/// 内存格口路径拓扑配置仓储（用于仿真）
+/// </summary>
+internal class InMemoryChutePathTopologyRepository : IChutePathTopologyRepository
+{
+    private ChutePathTopologyConfig _config;
+    
+    public InMemoryChutePathTopologyRepository()
+    {
+        _config = GetDefaultConfig();
+    }
+    
+    public ChutePathTopologyConfig Get() => _config;
+    
+    public void Update(ChutePathTopologyConfig configuration)
+    {
+        _config = configuration;
+    }
+    
+    public void InitializeDefault(DateTime? currentTime = null)
+    {
+        _config = GetDefaultConfig();
+    }
+    
+    private static ChutePathTopologyConfig GetDefaultConfig()
+    {
+        var now = DateTime.Now;
+        return new ChutePathTopologyConfig
+        {
+            TopologyId = "simulation-default",
+            TopologyName = "仿真默认拓扑",
+            Description = "用于仿真测试的默认格口路径拓扑配置",
+            EntrySensorId = 1,
+            DiverterNodes = new List<DiverterPathNode>
+            {
+                new DiverterPathNode
+                {
+                    DiverterId = 1,
+                    DiverterName = "摆轮1",
+                    PositionIndex = 1,
+                    SegmentId = 1,
+                    FrontSensorId = 2,
+                    LeftChuteIds = new List<long> { 1, 2 },
+                    RightChuteIds = new List<long> { 3, 4 }
+                },
+                new DiverterPathNode
+                {
+                    DiverterId = 2,
+                    DiverterName = "摆轮2",
+                    PositionIndex = 2,
+                    SegmentId = 2,
+                    FrontSensorId = 3,
+                    LeftChuteIds = new List<long> { 5, 6 },
+                    RightChuteIds = new List<long> { 7, 8 }
+                },
+                new DiverterPathNode
+                {
+                    DiverterId = 3,
+                    DiverterName = "摆轮3",
+                    PositionIndex = 3,
+                    SegmentId = 3,
+                    FrontSensorId = 4,
+                    LeftChuteIds = new List<long> { 9 },
+                    RightChuteIds = new List<long> { 10 }
+                }
+            },
+            ExceptionChuteId = 999,
+            DefaultLineSpeedMmps = 500m,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
     }
 }

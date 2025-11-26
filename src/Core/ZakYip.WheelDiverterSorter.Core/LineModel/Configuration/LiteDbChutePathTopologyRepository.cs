@@ -4,9 +4,9 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
 /// <summary>
-/// 基于LiteDB的线体拓扑配置仓储实现
+/// 基于LiteDB的格口路径拓扑配置仓储实现
 /// </summary>
-public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
+public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, IDisposable
 {
     /// <summary>
     /// 默认拓扑配置ID常量
@@ -14,21 +14,21 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     public const string DefaultTopologyId = "default";
     
     private readonly LiteDatabase _database;
-    private readonly ILiteCollection<LineTopologyConfigEntity> _collection;
+    private readonly ILiteCollection<ChutePathTopologyConfigEntity> _collection;
     private readonly ISystemClock _systemClock;
-    private const string CollectionName = "LineTopologyConfiguration";
+    private const string CollectionName = "ChutePathTopologyConfiguration";
 
     /// <summary>
-    /// 初始化LiteDB线体拓扑配置仓储
+    /// 初始化LiteDB格口路径拓扑配置仓储
     /// </summary>
     /// <param name="databasePath">LiteDB数据库文件路径</param>
     /// <param name="systemClock">系统时钟</param>
-    public LiteDbLineTopologyRepository(string databasePath, ISystemClock systemClock)
+    public LiteDbChutePathTopologyRepository(string databasePath, ISystemClock systemClock)
     {
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        _collection = _database.GetCollection<LineTopologyConfigEntity>(CollectionName);
+        _collection = _database.GetCollection<ChutePathTopologyConfigEntity>(CollectionName);
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         
         // 为TopologyId字段创建唯一索引
@@ -36,10 +36,10 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     }
 
     /// <summary>
-    /// 获取线体拓扑配置
+    /// 获取格口路径拓扑配置
     /// </summary>
-    /// <returns>线体拓扑配置，如不存在则返回默认配置</returns>
-    public LineTopologyConfig Get()
+    /// <returns>格口路径拓扑配置，如不存在则返回默认配置</returns>
+    public ChutePathTopologyConfig Get()
     {
         var entity = _collection
             .Query()
@@ -60,10 +60,10 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     }
 
     /// <summary>
-    /// 更新线体拓扑配置
+    /// 更新格口路径拓扑配置
     /// </summary>
-    /// <param name="configuration">线体拓扑配置</param>
-    public void Update(LineTopologyConfig configuration)
+    /// <param name="configuration">格口路径拓扑配置</param>
+    public void Update(ChutePathTopologyConfig configuration)
     {
         if (configuration == null)
         {
@@ -123,49 +123,49 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
         _database?.Dispose();
     }
 
-    private LineTopologyConfig GetDefaultConfig()
+    private ChutePathTopologyConfig GetDefaultConfig()
     {
         var now = _systemClock.LocalNow;
-        return new LineTopologyConfig
+        return new ChutePathTopologyConfig
         {
             TopologyId = DefaultTopologyId,
-            TopologyName = "默认线体拓扑",
-            Description = "系统默认的线体拓扑配置",
-            WheelNodes = Array.Empty<WheelNodeConfig>(),
-            Chutes = Array.Empty<ChuteConfig>(),
-            LineSegments = Array.Empty<LineSegmentConfig>(),
+            TopologyName = "默认格口路径拓扑",
+            Description = "系统默认的格口路径拓扑配置",
+            EntrySensorId = 1, // 引用默认的创建包裹感应IO
+            DiverterNodes = Array.Empty<DiverterPathNode>(),
+            ExceptionChuteId = 999, // 默认异常格口ID
             DefaultLineSpeedMmps = 500m,
             CreatedAt = now,
             UpdatedAt = now
         };
     }
 
-    private static LineTopologyConfig MapToConfig(LineTopologyConfigEntity entity)
+    private static ChutePathTopologyConfig MapToConfig(ChutePathTopologyConfigEntity entity)
     {
-        return new LineTopologyConfig
+        return new ChutePathTopologyConfig
         {
             TopologyId = entity.TopologyId,
             TopologyName = entity.TopologyName,
             Description = entity.Description,
-            WheelNodes = entity.WheelNodes,
-            Chutes = entity.Chutes,
-            LineSegments = entity.LineSegments,
+            EntrySensorId = entity.EntrySensorId,
+            DiverterNodes = entity.DiverterNodes,
+            ExceptionChuteId = entity.ExceptionChuteId,
             DefaultLineSpeedMmps = entity.DefaultLineSpeedMmps,
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };
     }
 
-    private static LineTopologyConfigEntity MapToEntity(LineTopologyConfig config)
+    private static ChutePathTopologyConfigEntity MapToEntity(ChutePathTopologyConfig config)
     {
-        return new LineTopologyConfigEntity
+        return new ChutePathTopologyConfigEntity
         {
             TopologyId = config.TopologyId,
             TopologyName = config.TopologyName,
             Description = config.Description,
-            WheelNodes = config.WheelNodes.ToList(),
-            Chutes = config.Chutes.ToList(),
-            LineSegments = config.LineSegments.ToList(),
+            EntrySensorId = config.EntrySensorId,
+            DiverterNodes = config.DiverterNodes.ToList(),
+            ExceptionChuteId = config.ExceptionChuteId,
             DefaultLineSpeedMmps = config.DefaultLineSpeedMmps,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
@@ -175,7 +175,7 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
     /// <summary>
     /// LiteDB存储实体
     /// </summary>
-    private class LineTopologyConfigEntity
+    private class ChutePathTopologyConfigEntity
     {
         [BsonId]
         public int Id { get; set; }
@@ -183,9 +183,9 @@ public class LiteDbLineTopologyRepository : ILineTopologyRepository, IDisposable
         public required string TopologyId { get; set; }
         public required string TopologyName { get; set; }
         public string? Description { get; set; }
-        public required List<WheelNodeConfig> WheelNodes { get; set; }
-        public required List<ChuteConfig> Chutes { get; set; }
-        public required List<LineSegmentConfig> LineSegments { get; set; }
+        public required long EntrySensorId { get; set; }
+        public required List<DiverterPathNode> DiverterNodes { get; set; }
+        public required long ExceptionChuteId { get; set; }
         public decimal DefaultLineSpeedMmps { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
