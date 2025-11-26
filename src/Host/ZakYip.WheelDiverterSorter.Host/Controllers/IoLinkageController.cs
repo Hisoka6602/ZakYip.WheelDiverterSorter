@@ -851,7 +851,12 @@ public class IoLinkageController : ControllerBase
         {
             Enabled = config.Enabled,
             RunningStateIos = config.RunningStateIos.ToList(),
-            StoppedStateIos = config.StoppedStateIos.ToList()
+            StoppedStateIos = config.StoppedStateIos.ToList(),
+            EmergencyStopStateIos = config.EmergencyStopStateIos.ToList(),
+            UpstreamConnectionExceptionStateIos = config.UpstreamConnectionExceptionStateIos.ToList(),
+            DiverterExceptionStateIos = config.DiverterExceptionStateIos.ToList(),
+            PostPreStartWarningStateIos = config.PostPreStartWarningStateIos.ToList(),
+            WheelDiverterDisconnectedStateIos = config.WheelDiverterDisconnectedStateIos.ToList()
         };
     }
 }
