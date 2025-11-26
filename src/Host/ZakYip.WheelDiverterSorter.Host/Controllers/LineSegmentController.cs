@@ -441,6 +441,7 @@ public class LineSegmentController : ControllerBase
             EndIoId = request.EndIoId,
             LengthMm = request.LengthMm,
             SpeedMmPerSec = request.SpeedMmPerSec,
+            ToleranceTimeMs = request.ToleranceTimeMs,
             Description = request.Description
         };
     }
@@ -458,7 +459,9 @@ public class LineSegmentController : ControllerBase
             EndIoId = config.EndIoId,
             LengthMm = config.LengthMm,
             SpeedMmPerSec = config.SpeedMmPerSec,
+            ToleranceTimeMs = config.ToleranceTimeMs,
             TransitTimeMs = config.CalculateTransitTimeMs(),
+            ActualTransitTimeMs = config.CalculateActualTransitTimeMs(),
             IsEndSegment = config.IsEndSegment,
             Description = config.Description
         };
@@ -526,8 +529,18 @@ public record LineSegmentResponse
     public required double SpeedMmPerSec { get; init; }
 
     /// <summary>
-    /// 理论通过时间（单位：毫秒）
-    /// Theoretical transit time (in milliseconds)
+    /// 容差时间（单位：毫秒）
+    /// Tolerance time (in milliseconds) considering parcel friction
+    /// </summary>
+    /// <remarks>
+    /// 考虑包裹摩擦力等因素的额外时间容差。
+    /// </remarks>
+    /// <example>200.0</example>
+    public required double ToleranceTimeMs { get; init; }
+
+    /// <summary>
+    /// 理论通过时间（单位：毫秒，不含容差）
+    /// Theoretical transit time (in milliseconds, without tolerance)
     /// </summary>
     /// <remarks>
     /// 计算公式：(LengthMm / SpeedMmPerSec) * 1000
@@ -535,6 +548,17 @@ public record LineSegmentResponse
     /// </remarks>
     /// <example>5000.0</example>
     public required double TransitTimeMs { get; init; }
+
+    /// <summary>
+    /// 实际预期通过时间（单位：毫秒，含容差）
+    /// Actual expected transit time (in milliseconds, with tolerance)
+    /// </summary>
+    /// <remarks>
+    /// 计算公式：TransitTimeMs + ToleranceTimeMs
+    /// Formula: TransitTimeMs + ToleranceTimeMs
+    /// </remarks>
+    /// <example>5200.0</example>
+    public required double ActualTransitTimeMs { get; init; }
 
     /// <summary>
     /// 是否为末端线体段（终点IO ID为0）

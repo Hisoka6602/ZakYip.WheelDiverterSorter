@@ -7,7 +7,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 
@@ -21,6 +23,9 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly ILineTopologyRepository _lineTopologyRepository;
     private readonly ICommunicationConfigurationRepository _communicationConfigRepository;
+    private readonly IDriverConfigurationRepository _ioDriverConfigRepository;
+    private readonly IWheelDiverterConfigurationRepository _wheelDiverterConfigRepository;
+    private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<PreRunHealthCheckService> _logger;
@@ -30,17 +35,23 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         IPanelConfigurationRepository panelConfigRepository,
         ILineTopologyRepository lineTopologyRepository,
         ICommunicationConfigurationRepository communicationConfigRepository,
+        IDriverConfigurationRepository ioDriverConfigRepository,
+        IWheelDiverterConfigurationRepository wheelDiverterConfigRepository,
         IRuleEngineClient ruleEngineClient,
         ISafeExecutionService safeExecutor,
-        ILogger<PreRunHealthCheckService> logger)
+        ILogger<PreRunHealthCheckService> logger,
+        IWheelDiverterDriverManager? wheelDiverterDriverManager = null)
     {
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _lineTopologyRepository = lineTopologyRepository ?? throw new ArgumentNullException(nameof(lineTopologyRepository));
         _communicationConfigRepository = communicationConfigRepository ?? throw new ArgumentNullException(nameof(communicationConfigRepository));
+        _ioDriverConfigRepository = ioDriverConfigRepository ?? throw new ArgumentNullException(nameof(ioDriverConfigRepository));
+        _wheelDiverterConfigRepository = wheelDiverterConfigRepository ?? throw new ArgumentNullException(nameof(wheelDiverterConfigRepository));
         _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _wheelDiverterDriverManager = wheelDiverterDriverManager;
     }
 
     /// <inheritdoc />
@@ -62,6 +73,12 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
 
         // 5. 上游连接配置检查
         checks.Add(await CheckUpstreamConnectionConfigAsync(cancellationToken));
+
+        // 6. IO驱动器连接状态检查（新增）
+        checks.Add(await CheckIoDriverConnectivityAsync(cancellationToken));
+
+        // 7. 摆轮驱动器连接状态检查（新增）
+        checks.Add(await CheckWheelDiverterConnectivityAsync(cancellationToken));
 
         // 计算整体状态
         var overallStatus = checks.All(c => c.IsHealthy) ? HealthStatus.Healthy : HealthStatus.Unhealthy;
@@ -495,5 +512,208 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
             },
             cancellationToken: cancellationToken
         );
+    }
+
+    /// <summary>
+    /// 检查IO驱动器连接状态
+    /// </summary>
+    private async Task<HealthCheckItem> CheckIoDriverConnectivityAsync(CancellationToken cancellationToken)
+    {
+        return await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                await Task.Yield();
+                var ioConfig = _ioDriverConfigRepository.Get();
+                
+                if (ioConfig == null)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "IoDriverConnected",
+                        Status = HealthStatus.Unhealthy,
+                        Message = "IO驱动器配置未初始化"
+                    };
+                }
+
+                // 获取厂商显示名称
+                var vendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
+
+                // 如果是仿真模式（不使用硬件驱动），直接返回健康
+                if (!ioConfig.UseHardwareDriver)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "IoDriverConnected",
+                        Status = HealthStatus.Healthy,
+                        Message = $"IO驱动器处于仿真模式，厂商类型: {vendorDisplayName}"
+                    };
+                }
+
+                // 验证硬件模式下的配置
+                if (ioConfig.VendorType == DriverVendorType.Leadshine && ioConfig.Leadshine == null)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "IoDriverConnected",
+                        Status = HealthStatus.Unhealthy,
+                        Message = $"IO驱动器（{vendorDisplayName}）配置不完整，缺少雷赛控制卡参数"
+                    };
+                }
+
+                // 硬件模式下，配置正确即视为就绪（实际连接状态需要驱动器运行时确认）
+                return new HealthCheckItem
+                {
+                    Name = "IoDriverConnected",
+                    Status = HealthStatus.Healthy,
+                    Message = $"IO驱动器已配置，厂商: {vendorDisplayName}，硬件模式已启用"
+                };
+            },
+            operationName: "CheckIoDriverConnectivity",
+            defaultValue: new HealthCheckItem
+            {
+                Name = "IoDriverConnected",
+                Status = HealthStatus.Unhealthy,
+                Message = "检查IO驱动器连接状态时发生异常"
+            },
+            cancellationToken: cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// 检查摆轮驱动器连接状态
+    /// </summary>
+    private async Task<HealthCheckItem> CheckWheelDiverterConnectivityAsync(CancellationToken cancellationToken)
+    {
+        return await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                await Task.Yield();
+                var wheelConfig = _wheelDiverterConfigRepository.Get();
+                
+                if (wheelConfig == null)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "WheelDiverterDriverConnected",
+                        Status = HealthStatus.Unhealthy,
+                        Message = "摆轮驱动器配置未初始化"
+                    };
+                }
+
+                // 获取厂商显示名称
+                var vendorDisplayName = GetWheelDiverterVendorDisplayName(wheelConfig.VendorType);
+
+                // 检查是否处于仿真模式
+                var isSimulation = wheelConfig.VendorType switch
+                {
+                    WheelDiverterVendorType.ShuDiNiao => wheelConfig.ShuDiNiao?.UseSimulation ?? true,
+                    WheelDiverterVendorType.Modi => wheelConfig.Modi?.UseSimulation ?? true,
+                    _ => true
+                };
+
+                if (isSimulation)
+                {
+                    return new HealthCheckItem
+                    {
+                        Name = "WheelDiverterDriverConnected",
+                        Status = HealthStatus.Healthy,
+                        Message = $"摆轮驱动器处于仿真模式，厂商类型: {vendorDisplayName}"
+                    };
+                }
+
+                // 检查实际连接状态（如果有驱动管理器）
+                if (_wheelDiverterDriverManager != null)
+                {
+                    var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
+                    var configuredDeviceCount = GetConfiguredWheelDiverterCount(wheelConfig);
+                    var connectedCount = activeDrivers.Count;
+
+                    if (connectedCount == 0 && configuredDeviceCount > 0)
+                    {
+                        return new HealthCheckItem
+                        {
+                            Name = "WheelDiverterDriverConnected",
+                            Status = HealthStatus.Unhealthy,
+                            Message = $"摆轮驱动器未连接：厂商 {vendorDisplayName}，已配置 {configuredDeviceCount} 台设备，但均未连接"
+                        };
+                    }
+
+                    if (connectedCount < configuredDeviceCount)
+                    {
+                        return new HealthCheckItem
+                        {
+                            Name = "WheelDiverterDriverConnected",
+                            Status = HealthStatus.Unhealthy,
+                            Message = $"摆轮驱动器部分连接：厂商 {vendorDisplayName}，已配置 {configuredDeviceCount} 台设备，已连接 {connectedCount} 台"
+                        };
+                    }
+
+                    return new HealthCheckItem
+                    {
+                        Name = "WheelDiverterDriverConnected",
+                        Status = HealthStatus.Healthy,
+                        Message = $"摆轮驱动器全部连接：厂商 {vendorDisplayName}，已连接 {connectedCount} 台设备"
+                    };
+                }
+
+                // 没有驱动管理器时，只验证配置
+                return new HealthCheckItem
+                {
+                    Name = "WheelDiverterDriverConnected",
+                    Status = HealthStatus.Healthy,
+                    Message = $"摆轮驱动器已配置，厂商: {vendorDisplayName}，硬件模式已启用"
+                };
+            },
+            operationName: "CheckWheelDiverterConnectivity",
+            defaultValue: new HealthCheckItem
+            {
+                Name = "WheelDiverterDriverConnected",
+                Status = HealthStatus.Unhealthy,
+                Message = "检查摆轮驱动器连接状态时发生异常"
+            },
+            cancellationToken: cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// 获取IO驱动厂商显示名称
+    /// </summary>
+    private static string GetIoVendorDisplayName(DriverVendorType vendorType)
+    {
+        return vendorType switch
+        {
+            DriverVendorType.Mock => "模拟驱动",
+            DriverVendorType.Leadshine => "雷赛",
+            DriverVendorType.Siemens => "西门子",
+            DriverVendorType.Mitsubishi => "三菱",
+            DriverVendorType.Omron => "欧姆龙",
+            _ => vendorType.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取摆轮驱动厂商显示名称
+    /// </summary>
+    private static string GetWheelDiverterVendorDisplayName(WheelDiverterVendorType vendorType)
+    {
+        return vendorType switch
+        {
+            WheelDiverterVendorType.ShuDiNiao => "数递鸟",
+            WheelDiverterVendorType.Modi => "莫迪",
+            _ => vendorType.ToString()
+        };
+    }
+
+    /// <summary>
+    /// 获取已配置的摆轮设备数量
+    /// </summary>
+    private static int GetConfiguredWheelDiverterCount(WheelDiverterConfiguration config)
+    {
+        return config.VendorType switch
+        {
+            WheelDiverterVendorType.ShuDiNiao => config.ShuDiNiao?.Devices.Count(d => d.IsEnabled) ?? 0,
+            WheelDiverterVendorType.Modi => config.Modi?.Devices.Count(d => d.IsEnabled) ?? 0,
+            _ => 0
+        };
     }
 }

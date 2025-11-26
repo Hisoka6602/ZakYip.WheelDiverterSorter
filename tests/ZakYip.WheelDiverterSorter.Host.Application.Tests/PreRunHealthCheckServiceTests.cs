@@ -20,6 +20,8 @@ public class PreRunHealthCheckServiceTests
     private readonly Mock<IPanelConfigurationRepository> _mockPanelConfigRepo;
     private readonly Mock<ILineTopologyRepository> _mockTopologyRepo;
     private readonly Mock<ICommunicationConfigurationRepository> _mockCommunicationConfigRepo;
+    private readonly Mock<IDriverConfigurationRepository> _mockIoDriverConfigRepo;
+    private readonly Mock<IWheelDiverterConfigurationRepository> _mockWheelDiverterConfigRepo;
     private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
     private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
     private readonly Mock<ILogger<PreRunHealthCheckService>> _mockLogger;
@@ -31,6 +33,8 @@ public class PreRunHealthCheckServiceTests
         _mockPanelConfigRepo = new Mock<IPanelConfigurationRepository>();
         _mockTopologyRepo = new Mock<ILineTopologyRepository>();
         _mockCommunicationConfigRepo = new Mock<ICommunicationConfigurationRepository>();
+        _mockIoDriverConfigRepo = new Mock<IDriverConfigurationRepository>();
+        _mockWheelDiverterConfigRepo = new Mock<IWheelDiverterConfigurationRepository>();
         _mockRuleEngineClient = new Mock<IRuleEngineClient>();
         _mockSafeExecutor = new Mock<ISafeExecutionService>();
         _mockLogger = new Mock<ILogger<PreRunHealthCheckService>>();
@@ -55,11 +59,19 @@ public class PreRunHealthCheckServiceTests
         // 设置默认的 RuleEngineClient 连接状态为已连接
         _mockRuleEngineClient.Setup(c => c.IsConnected).Returns(true);
 
+        // 设置默认的 IO 驱动器配置
+        _mockIoDriverConfigRepo.Setup(r => r.Get()).Returns(DriverConfiguration.GetDefault());
+
+        // 设置默认的摆轮驱动器配置
+        _mockWheelDiverterConfigRepo.Setup(r => r.Get()).Returns(WheelDiverterConfiguration.GetDefault());
+
         _service = new PreRunHealthCheckService(
             _mockSystemConfigRepo.Object,
             _mockPanelConfigRepo.Object,
             _mockTopologyRepo.Object,
             _mockCommunicationConfigRepo.Object,
+            _mockIoDriverConfigRepo.Object,
+            _mockWheelDiverterConfigRepo.Object,
             _mockRuleEngineClient.Object,
             _mockSafeExecutor.Object,
             _mockLogger.Object
@@ -307,7 +319,8 @@ public class PreRunHealthCheckServiceTests
         var topologyCheck = result.Checks.FirstOrDefault(c => c.Name == "LineTopologyValid");
         Assert.NotNull(topologyCheck);
         Assert.Equal(HealthStatus.Unhealthy, topologyCheck.Status);
-        Assert.Contains("找不到从入口到首个摆轮", topologyCheck.Message);
+        // 当线体段配置为空时，返回"线体段配置为空"的消息
+        Assert.Contains("线体段配置为空", topologyCheck.Message);
     }
 
     [Fact]
