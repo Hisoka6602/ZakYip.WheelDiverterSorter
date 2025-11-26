@@ -78,10 +78,54 @@
       "remarks": "第三个摆轮，格口E在右侧，格口F在左侧"
     }
   ],
-  "exceptionChuteId": 999,
-  "defaultLineSpeedMmps": 500
+  "exceptionChuteId": 999
 }
 ```
+
+> **注意**：线速（`defaultLineSpeedMmps`）已从拓扑配置中移除，线速现在在线体段配置（`LineSegmentConfig.SpeedMmPerSec`）中定义。
+
+---
+
+## 导入导出
+
+### JSON导出
+
+```
+GET /api/config/chute-path-topology/export/json
+```
+
+导出当前配置为JSON文件，可用于备份或迁移。
+
+### CSV导出
+
+```
+GET /api/config/chute-path-topology/export/csv
+```
+
+导出当前配置为CSV文件，便于在Excel等工具中查看和编辑。
+
+CSV格式说明：
+- `#` 开头的行为配置元数据注释
+- 列头: `DiverterId,DiverterName,PositionIndex,SegmentId,FrontSensorId,LeftChuteIds,RightChuteIds,Remarks`
+- `LeftChuteIds` 和 `RightChuteIds` 使用分号分隔多个值
+
+### JSON导入
+
+```
+POST /api/config/chute-path-topology/import/json
+Content-Type: multipart/form-data
+```
+
+从JSON文件导入配置，将覆盖当前配置。
+
+### CSV导入
+
+```
+POST /api/config/chute-path-topology/import/csv?topologyName={name}&entrySensorId={id}&exceptionChuteId={id}&description={desc}
+Content-Type: multipart/form-data
+```
+
+从CSV文件导入摆轮节点配置，需要提供拓扑元数据参数。
 
 ---
 
@@ -96,6 +140,7 @@
 
 线体拓扑配置 (LineTopologyConfig.LineSegments)
     └── SegmentId ────────────→ 格口路径拓扑.DiverterNodes[].SegmentId
+    └── SpeedMmPerSec ────────→ 线速在此定义，不在拓扑中
 
 摆轮设备配置 (WheelDiverterConfiguration)
     └── DiverterId ───────────→ 格口路径拓扑.DiverterNodes[].DiverterId
