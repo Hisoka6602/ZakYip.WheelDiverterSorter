@@ -70,10 +70,14 @@ public class IoDriverConfigController : ControllerBase
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 返回当前系统的IO驱动器配置，包括：
+    /// 返回当前系统的IO驱动器连接配置，包括：
     /// - 是否使用硬件驱动
     /// - 厂商类型（雷赛、西门子等）
-    /// - 厂商特定参数
+    /// - 厂商显示名称（中文）
+    /// - 厂商特定连接参数（仅连接参数，不含摆轮映射）
+    /// 
+    /// **注意**：此API仅返回IO驱动器连接配置，不包含摆轮映射（diverters）信息。
+    /// 摆轮映射配置请使用 /api/config/wheeldiverter/* 相关API。
     /// 
     /// **示例响应**：
     /// ```json
@@ -81,15 +85,16 @@ public class IoDriverConfigController : ControllerBase
     ///   "id": 1,
     ///   "useHardwareDriver": false,
     ///   "vendorType": "Leadshine",
-    ///   "leadshine": { "cardNo": 0, "diverters": [...] },
+    ///   "vendorDisplayName": "雷赛",
+    ///   "leadshine": { "cardNo": 0 },
     ///   "version": 1
     /// }
     /// ```
     /// </remarks>
     [HttpGet]
     [SwaggerOperation(
-        Summary = "获取IO驱动器配置",
-        Description = "返回当前系统的IO驱动器配置，包括是否使用硬件驱动、厂商类型和厂商特定参数。注意：这是IO驱动器（用于传感器和继电器），而非摆轮驱动器。",
+        Summary = "获取IO驱动器配置（雷赛等）",
+        Description = "返回当前系统的IO驱动器连接配置，包括是否使用硬件驱动、厂商类型和连接参数。注意：此API仅返回连接配置，不包含摆轮映射（diverters）信息。",
         OperationId = "GetIoDriverConfig",
         Tags = new[] { "IO驱动器配置" }
     )]
@@ -445,7 +450,7 @@ public class IoDriverConfigController : ControllerBase
     #region 私有方法
     
     /// <summary>
-    /// 将 DriverConfiguration 映射到 IoDriverConfiguration（更语义化的名称）
+    /// 将 DriverConfiguration 映射到 IoDriverConfiguration（仅连接配置，不含摆轮映射）
     /// </summary>
     private static IoDriverConfiguration MapToIoDriverConfiguration(DriverConfiguration config)
     {
@@ -454,10 +459,30 @@ public class IoDriverConfigController : ControllerBase
             Id = config.Id,
             UseHardwareDriver = config.UseHardwareDriver,
             VendorType = config.VendorType,
-            Leadshine = config.Leadshine,
+            VendorDisplayName = GetVendorDisplayName(config.VendorType),
+            Leadshine = config.Leadshine != null ? new LeadshineIoConnectionConfig
+            {
+                CardNo = config.Leadshine.CardNo
+            } : null,
             Version = config.Version,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt
+        };
+    }
+
+    /// <summary>
+    /// 获取厂商显示名称（中文）
+    /// </summary>
+    private static string GetVendorDisplayName(DriverVendorType vendorType)
+    {
+        return vendorType switch
+        {
+            DriverVendorType.Mock => "模拟驱动器",
+            DriverVendorType.Leadshine => "雷赛",
+            DriverVendorType.Siemens => "西门子",
+            DriverVendorType.Mitsubishi => "三菱",
+            DriverVendorType.Omron => "欧姆龙",
+            _ => vendorType.ToString()
         };
     }
 
@@ -469,7 +494,14 @@ public class IoDriverConfigController : ControllerBase
 /// IO driver configuration response model
 /// </summary>
 /// <remarks>
-/// 与DriverConfiguration结构相同，但命名更清晰
+/// IO驱动器配置用于连接配置，不包含摆轮映射（diverters）信息。
+/// 摆轮映射配置请使用 /api/config/wheeldiverter/* 相关API。
+/// 
+/// 当前支持的厂商：
+/// - Leadshine（雷赛）: 雷赛运动控制卡IO接口
+/// - Siemens（西门子）: S7系列PLC的IO模块
+/// - Mitsubishi（三菱）: 三菱PLC的IO模块
+/// - Omron（欧姆龙）: 欧姆龙PLC的IO模块
 /// </remarks>
 public class IoDriverConfiguration
 {
@@ -495,10 +527,20 @@ public class IoDriverConfiguration
     public DriverVendorType VendorType { get; set; }
 
     /// <summary>
-    /// 雷赛运动控制卡配置
-    /// Leadshine motion controller configuration
+    /// 厂商显示名称（中文）
+    /// Vendor display name in Chinese
     /// </summary>
-    public LeadshineDriverConfig? Leadshine { get; set; }
+    /// <example>雷赛</example>
+    public string VendorDisplayName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// 雷赛运动控制卡连接配置
+    /// Leadshine motion controller connection configuration
+    /// </summary>
+    /// <remarks>
+    /// 仅包含连接参数（如卡号），不包含摆轮映射（diverters）信息
+    /// </remarks>
+    public LeadshineIoConnectionConfig? Leadshine { get; set; }
 
     /// <summary>
     /// 配置版本号
@@ -518,4 +560,22 @@ public class IoDriverConfiguration
     /// Configuration last update time
     /// </summary>
     public DateTime UpdatedAt { get; set; }
+}
+
+/// <summary>
+/// 雷赛IO驱动器连接配置（仅连接参数，不含摆轮映射）
+/// Leadshine IO driver connection configuration (connection parameters only, no diverter mappings)
+/// </summary>
+/// <remarks>
+/// 此配置仅包含与雷赛运动控制卡建立连接所需的参数。
+/// 摆轮IO映射（输出位、反馈输入位）等信息请参考摆轮配置API。
+/// </remarks>
+public class LeadshineIoConnectionConfig
+{
+    /// <summary>
+    /// 控制器卡号
+    /// Controller card number
+    /// </summary>
+    /// <example>0</example>
+    public ushort CardNo { get; set; } = 0;
 }
