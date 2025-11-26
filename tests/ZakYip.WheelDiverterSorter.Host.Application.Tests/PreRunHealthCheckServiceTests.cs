@@ -59,11 +59,30 @@ public class PreRunHealthCheckServiceTests
         // 设置默认的 RuleEngineClient 连接状态为已连接
         _mockRuleEngineClient.Setup(c => c.IsConnected).Returns(true);
 
-        // 设置默认的 IO 驱动器配置
+        // 设置默认的 IO 驱动器配置（硬件模式，非仿真）
         _mockIoDriverConfigRepo.Setup(r => r.Get()).Returns(DriverConfiguration.GetDefault());
 
-        // 设置默认的摆轮驱动器配置
-        _mockWheelDiverterConfigRepo.Setup(r => r.Get()).Returns(WheelDiverterConfiguration.GetDefault());
+        // 设置默认的摆轮驱动器配置（非仿真模式，有效设备配置）
+        var wheelConfig = new WheelDiverterConfiguration
+        {
+            VendorType = Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao,
+            ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
+            {
+                UseSimulation = false,
+                Devices = new List<ShuDiNiaoDeviceEntry>
+                {
+                    new()
+                    {
+                        DiverterId = 1,
+                        Host = "192.168.1.100",
+                        Port = 8000,
+                        DeviceAddress = 0x51,
+                        IsEnabled = true
+                    }
+                }
+            }
+        };
+        _mockWheelDiverterConfigRepo.Setup(r => r.Get()).Returns(wheelConfig);
 
         _service = new PreRunHealthCheckService(
             _mockSystemConfigRepo.Object,
