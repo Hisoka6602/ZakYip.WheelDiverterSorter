@@ -101,12 +101,7 @@ public class WheelCommandExecutorTests
         // Arrange
         _mockDriverManager.Setup(m => m.GetDriver("D999")).Returns((IWheelDiverterDriver?)null);
 
-        var command = new WheelCommand
-        {
-            DiverterId = "D999",
-            Direction = DiverterDirection.Left,
-            Timeout = TimeSpan.FromSeconds(1)
-        };
+        var command = WheelCommand.TurnLeft("D999", TimeSpan.FromSeconds(1));
 
         // Act
         var result = await _executor.ExecuteAsync(command);
