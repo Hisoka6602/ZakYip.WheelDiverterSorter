@@ -1,8 +1,8 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-
-
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+
 namespace ZakYip.WheelDiverterSorter.Execution;
 
 /// <summary>
@@ -50,33 +50,23 @@ public class MockSwitchingPathExecutor : ISwitchingPathExecutor
             }
 
             // 所有段执行成功
-            return new PathExecutionResult
-            {
-                IsSuccess = true,
-                ActualChuteId = path.TargetChuteId
-            };
+            return PathExecutionResult.Success(path.TargetChuteId);
         }
         catch (OperationCanceledException)
         {
             // 操作被取消，返回失败结果
-            return new PathExecutionResult
-            {
-                IsSuccess = false,
-                ActualChuteId = path.FallbackChuteId,
-                FailureReason = "操作被取消",
-                FailureTime = _clock.LocalNowOffset
-            };
+            return PathExecutionResult.Failure(
+                ErrorCodes.Cancelled,
+                "操作被取消",
+                path.FallbackChuteId);
         }
         catch (Exception ex)
         {
             // 捕获所有异常，转换为失败结果
-            return new PathExecutionResult
-            {
-                IsSuccess = false,
-                ActualChuteId = path.FallbackChuteId,
-                FailureReason = $"执行异常: {ex.Message}",
-                FailureTime = _clock.LocalNowOffset
-            };
+            return PathExecutionResult.Failure(
+                ErrorCodes.Unknown,
+                $"执行异常: {ex.Message}",
+                path.FallbackChuteId);
         }
     }
 }
