@@ -94,6 +94,10 @@ public static class ParcelDescriptorExtensions
     /// </summary>
     /// <param name="eventArgs">包裹创建事件参数</param>
     /// <returns>包裹描述符</returns>
+    /// <remarks>
+    /// Note: ParcelCreatedEventArgs is a readonly record struct, so null validation
+    /// is not needed (value types cannot be null).
+    /// </remarks>
     public static ParcelDescriptor ToParcelDescriptor(this ParcelCreatedEventArgs eventArgs)
     {
         return new ParcelDescriptor

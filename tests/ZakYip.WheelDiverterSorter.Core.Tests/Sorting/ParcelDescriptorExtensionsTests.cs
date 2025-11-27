@@ -7,7 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 namespace ZakYip.WheelDiverterSorter.Core.Tests.Sorting;
 
 /// <summary>
-/// ParcelDescriptorExtensions 测试类
+/// Test class for ParcelDescriptorExtensions
 /// </summary>
 public class ParcelDescriptorExtensionsTests
 {

@@ -19,8 +19,8 @@ namespace ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 /// // 从 CreateParcelRequest 转换
 /// var descriptor = request.ToParcelDescriptor();
 /// 
-/// // 从 SortingPipelineContext 构造
-/// var descriptor = ParcelDescriptor.FromContext(context);
+/// // 从 SortingPipelineContext 转换
+/// var descriptor = context.ToParcelDescriptor();
 /// </code>
 /// </remarks>
 public sealed record ParcelDescriptor
