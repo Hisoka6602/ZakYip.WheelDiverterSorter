@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 
@@ -12,24 +13,33 @@ namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 /// HTTP 协议的上游分拣网关实现
 /// </summary>
 /// <remarks>
-/// 适配 HttpRuleEngineClient，提供协议层编解码和基础重试
-/// ⚠️ 仅用于测试，生产环境禁用
+/// <para>适配 HttpRuleEngineClient，提供协议层编解码和基础重试。</para>
+/// <para>使用 <see cref="IUpstreamContractMapper"/> 进行领域对象与协议 DTO 之间的转换，
+/// 确保协议细节不渗透到领域层。</para>
+/// <para>⚠️ 仅用于测试，生产环境禁用</para>
 /// </remarks>
 public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
 {
     private readonly IRuleEngineClient _httpClient;
+    private readonly IUpstreamContractMapper _mapper;
     private readonly ILogger<HttpUpstreamSortingGateway> _logger;
     private readonly RuleEngineConnectionOptions _options;
 
     /// <summary>
     /// 构造函数
     /// </summary>
+    /// <param name="httpClient">HTTP 规则引擎客户端</param>
+    /// <param name="mapper">上游契约映射器</param>
+    /// <param name="logger">日志记录器</param>
+    /// <param name="options">连接选项</param>
     public HttpUpstreamSortingGateway(
         IRuleEngineClient httpClient,
+        IUpstreamContractMapper mapper,
         ILogger<HttpUpstreamSortingGateway> logger,
         RuleEngineConnectionOptions options)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options ?? throw new ArgumentNullException(nameof(options));
 
@@ -65,16 +75,15 @@ public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
                 {
                     _httpClient.ChuteAssignmentReceived -= handler;
                     
-                    var response = new SortingResponse
+                    // 使用映射器将协议通知转换为领域层响应
+                    var notification = new UpstreamChuteAssignmentNotification
                     {
                         ParcelId = eventArgs.ParcelId,
-                        TargetChuteId = eventArgs.ChuteId,
-                        IsSuccess = true,
-                        IsException = false,
-                        ReasonCode = "SUCCESS",
-                        ResponseTime = eventArgs.NotificationTime,
+                        ChuteId = eventArgs.ChuteId,
+                        NotificationTime = eventArgs.NotificationTime,
                         Source = "HttpUpstreamGateway"
                     };
+                    var response = _mapper.MapFromUpstreamNotification(notification);
                     
                     tcs.TrySetResult(response);
                 }

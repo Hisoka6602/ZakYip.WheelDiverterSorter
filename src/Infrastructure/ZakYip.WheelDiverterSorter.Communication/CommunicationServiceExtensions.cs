@@ -2,10 +2,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -99,6 +101,10 @@ public static class CommunicationServiceExtensions
                 return options;
             }
         });
+
+        // 注册上游契约映射器 - 用于领域对象与协议 DTO 之间的转换
+        // Register upstream contract mapper - for conversion between domain objects and protocol DTOs
+        services.AddSingleton<IUpstreamContractMapper, DefaultUpstreamContractMapper>();
 
         // 注册客户端工厂
         services.AddSingleton<IRuleEngineClientFactory, RuleEngineClientFactory>();
