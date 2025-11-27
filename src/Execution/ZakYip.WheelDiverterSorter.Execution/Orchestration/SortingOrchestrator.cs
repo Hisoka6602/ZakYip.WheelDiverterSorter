@@ -55,6 +55,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private const double EstimatedArrivalWindowMs = 10000; // 预估10秒窗口
     private const double EstimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
 
+    // 空的可用格口列表（静态共享实例）
+    private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
+
     private readonly ISensorEventProvider _sensorEventProvider;
     private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
@@ -525,13 +528,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         SystemConfiguration systemConfig, 
         OverloadDecision overloadDecision)
     {
+        var availableChuteIds = systemConfig.AvailableChuteIds?.AsReadOnly() ?? EmptyAvailableChuteIds;
+        
         var context = new SortingContext
         {
             ParcelId = parcelId,
             SortingMode = systemConfig.SortingMode,
             ExceptionChuteId = systemConfig.ExceptionChuteId,
             FixedChuteId = systemConfig.FixedChuteId,
-            AvailableChuteIds = systemConfig.AvailableChuteIds?.AsReadOnly() ?? Array.Empty<long>().ToList().AsReadOnly(),
+            AvailableChuteIds = availableChuteIds,
             IsOverloadForced = overloadDecision.ShouldForceException,
             ExceptionRoutingPolicy = new ExceptionRoutingPolicy
             {

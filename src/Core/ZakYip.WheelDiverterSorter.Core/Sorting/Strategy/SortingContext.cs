@@ -40,7 +40,12 @@ public record SortingContext
     /// <summary>
     /// 可用格口ID列表（仅在 RoundRobin 模式下有效）
     /// </summary>
-    public IReadOnlyList<long> AvailableChuteIds { get; init; } = Array.Empty<long>();
+    public IReadOnlyList<long> AvailableChuteIds { get; init; } = EmptyAvailableChuteIds;
+
+    /// <summary>
+    /// 空的可用格口列表（静态共享实例）
+    /// </summary>
+    private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
 
     /// <summary>
     /// 异常路由策略
