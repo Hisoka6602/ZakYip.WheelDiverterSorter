@@ -46,10 +46,11 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 ["RuleEngineConnection:HttpApi"] = "http://localhost:9999/test",
                 ["RuleEngineConnection:TimeoutMs"] = "5000",
                 
-                // Configure simulation mode
+                // Configure simulation mode - use Runtime:Mode (PR-13 new approach)
+                ["Runtime:Mode"] = "Simulation",
                 ["IsSimulationMode"] = "true",
                 
-                // Configure driver settings
+                // Legacy driver settings (for backward compatibility with other components)
                 ["Driver:UseHardwareDriver"] = "false",
                 ["Driver:VendorId"] = "Simulated",
                 
