@@ -5,11 +5,13 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Gateways;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Gateways;
 
@@ -19,6 +21,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests.Gateways;
 public class TcpUpstreamSortingGatewayTests
 {
     private readonly Mock<IRuleEngineClient> _mockClient;
+    private readonly IUpstreamContractMapper _mapper;
     private readonly Mock<ILogger<TcpUpstreamSortingGateway>> _mockLogger;
     private readonly RuleEngineConnectionOptions _options;
     private readonly TcpUpstreamSortingGateway _gateway;
@@ -26,6 +29,7 @@ public class TcpUpstreamSortingGatewayTests
     public TcpUpstreamSortingGatewayTests()
     {
         _mockClient = new Mock<IRuleEngineClient>();
+        _mapper = new DefaultUpstreamContractMapper();
         _mockLogger = new Mock<ILogger<TcpUpstreamSortingGateway>>();
         _options = new RuleEngineConnectionOptions
         {
@@ -37,6 +41,7 @@ public class TcpUpstreamSortingGatewayTests
 
         _gateway = new TcpUpstreamSortingGateway(
             _mockClient.Object,
+            _mapper,
             _mockLogger.Object,
             _options);
     }
