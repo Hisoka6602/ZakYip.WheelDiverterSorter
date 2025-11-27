@@ -86,7 +86,7 @@ public static class SensorServiceExtensions {
             throw new InvalidOperationException("雷赛传感器配置不能为空");
         }
 
-        // 注册传感器工厂 - 依赖 IInputPort（应由 Drivers 层或 Host 层预先注册）
+        // 注册传感器工厂 - 依赖 IInputPort（应由 Drivers 层的 AddLeadshineIoServices 或 Host 层预先注册）
         services.AddSingleton<ISensorFactory>(sp => {
             var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
