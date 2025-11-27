@@ -9,7 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 

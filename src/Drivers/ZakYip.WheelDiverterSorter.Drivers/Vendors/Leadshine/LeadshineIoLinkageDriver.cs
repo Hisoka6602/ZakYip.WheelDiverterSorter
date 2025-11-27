@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using csLTDMC;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 

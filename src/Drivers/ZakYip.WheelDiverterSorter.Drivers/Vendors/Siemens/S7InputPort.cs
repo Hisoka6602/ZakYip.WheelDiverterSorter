@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using S7.Net;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 

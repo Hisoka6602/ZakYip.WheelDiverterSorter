@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Results;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 

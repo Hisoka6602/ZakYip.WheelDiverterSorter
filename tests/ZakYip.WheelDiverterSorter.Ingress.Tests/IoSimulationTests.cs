@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 

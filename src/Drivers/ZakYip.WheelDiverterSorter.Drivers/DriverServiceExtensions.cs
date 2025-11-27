@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;

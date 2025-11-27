@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Modi;
 
