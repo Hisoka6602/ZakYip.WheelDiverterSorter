@@ -80,7 +80,8 @@ public class DefaultUpstreamContractMapperTests
     public void MapToUpstreamRequest_NullRequest_ShouldThrow()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => _mapper.MapToUpstreamRequest(null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => _mapper.MapToUpstreamRequest(null!));
+        Assert.Equal("request", ex.ParamName);
     }
 
     #endregion
@@ -144,7 +145,8 @@ public class DefaultUpstreamContractMapperTests
     public void MapFromUpstreamResponse_NullResponse_ShouldThrow()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => _mapper.MapFromUpstreamResponse(12345, null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => _mapper.MapFromUpstreamResponse(12345, null!));
+        Assert.Equal("response", ex.ParamName);
     }
 
     #endregion
@@ -199,7 +201,8 @@ public class DefaultUpstreamContractMapperTests
     public void MapFromUpstreamNotification_NullNotification_ShouldThrow()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => _mapper.MapFromUpstreamNotification(null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => _mapper.MapFromUpstreamNotification(null!));
+        Assert.Equal("notification", ex.ParamName);
     }
 
     #endregion
