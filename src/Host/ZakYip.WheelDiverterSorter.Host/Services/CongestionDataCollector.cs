@@ -2,13 +2,14 @@ using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
 /// <summary>
 /// 拥堵数据收集器：收集系统当前拥堵指标快照
 /// </summary>
-public class CongestionDataCollector
+public class CongestionDataCollector : ICongestionDataCollector
 {
     private readonly ISystemClock _clock;
     // PR-44: 使用 ConcurrentBag 替代 List + lock，支持高并发添加和查询

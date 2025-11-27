@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using ZakYip.WheelDiverterSorter.Host.Models;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;

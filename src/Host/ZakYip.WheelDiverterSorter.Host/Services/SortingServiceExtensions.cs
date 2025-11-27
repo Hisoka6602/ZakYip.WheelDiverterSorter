@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
@@ -6,9 +7,10 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Ingress;
+using ZakYip.WheelDiverterSorter.Ingress.Adapters;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
@@ -61,11 +63,25 @@ public static class SortingServiceExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
+        // 注册适配器：将 Communication/Ingress 层的具体实现适配为 Execution 层抽象
+        // ISensorEventProvider: 将 IParcelDetectionService 适配为 Execution 层可用的接口
+        services.AddSingleton<ISensorEventProvider, SensorEventProviderAdapter>();
+        // IUpstreamRoutingClient: 将 IRuleEngineClient 适配为 Execution 层可用的接口
+        services.AddSingleton<IUpstreamRoutingClient, UpstreamRoutingClientAdapter>();
+        // ICongestionDataCollector: 使用 Host 层实现
+        services.AddSingleton<ICongestionDataCollector, CongestionDataCollector>();
+
+        // 注册 UpstreamConnectionOptions（从配置绑定）
+        services.Configure<UpstreamConnectionOptions>(options =>
+        {
+            options.FallbackTimeoutSeconds = configuration.GetValue<decimal>("RuleEngine:ChuteAssignmentTimeout:FallbackTimeoutSeconds", 5m);
+        });
+
         // PR-1: 注册分拣异常处理器（实现位于 Execution.Orchestration）
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
 
-        // PR-1: 注册分拣编排服务（接口位于 Core.Sorting.Orchestration，实现位于 Host.Application.Services）
-        // 注意：SortingOrchestrator 因依赖 Communication、Ingress 等多个层，暂时保留在 Host.Application
+        // PR-1: 注册分拣编排服务（接口位于 Core.Sorting.Orchestration，实现已移至 Execution.Orchestration）
+        // SortingOrchestrator 现在只依赖抽象接口，不再直接依赖 Communication/Ingress 项目
         services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
 
         // 注册路由-拓扑一致性检查器（编排层服务）
