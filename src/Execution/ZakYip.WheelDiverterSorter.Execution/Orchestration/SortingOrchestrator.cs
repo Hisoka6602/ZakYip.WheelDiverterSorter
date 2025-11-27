@@ -12,6 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Strategy;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
@@ -54,6 +55,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private const double EstimatedArrivalWindowMs = 10000; // 预估10秒窗口
     private const double EstimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
 
+    // 空的可用格口列表（静态共享实例）
+    private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
+
     private readonly ISensorEventProvider _sensorEventProvider;
     private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
@@ -72,6 +76,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
+    private readonly IChuteSelectionService? _chuteSelectionService;
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -111,7 +116,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         PrometheusMetrics? metrics = null,
         IParcelTraceSink? traceSink = null,
         PathHealthChecker? pathHealthChecker = null,
-        IChuteAssignmentTimeoutCalculator? timeoutCalculator = null)
+        IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
+        IChuteSelectionService? chuteSelectionService = null)
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -131,6 +137,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _traceSink = traceSink;
         _pathHealthChecker = pathHealthChecker;
         _timeoutCalculator = timeoutCalculator;
+        _chuteSelectionService = chuteSelectionService;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -482,6 +489,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 步骤 4: 确定目标格口
     /// </summary>
+    /// <remarks>
+    /// PR-08: 当 IChuteSelectionService 可用时，使用统一的策略服务进行格口选择。
+    /// 这样可以将分拣模式的判断逻辑收敛到单一服务中，消除多处重复的分支代码。
+    /// </remarks>
     private async Task<long> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
     {
         var systemConfig = _systemConfigRepository.Get();
@@ -493,7 +504,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return exceptionChuteId;
         }
 
-        // 根据分拣模式确定目标格口
+        // PR-08: 优先使用统一的格口选择服务
+        if (_chuteSelectionService != null)
+        {
+            return await SelectChuteViaServiceAsync(parcelId, systemConfig, overloadDecision);
+        }
+
+        // 兼容模式：使用原有的模式分支逻辑
         return systemConfig.SortingMode switch
         {
             SortingMode.Formal => await GetChuteFromUpstreamAsync(parcelId, systemConfig),
@@ -501,6 +518,55 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             SortingMode.RoundRobin => GetNextRoundRobinChute(systemConfig),
             _ => GetDefaultExceptionChute(parcelId, systemConfig)
         };
+    }
+
+    /// <summary>
+    /// PR-08: 通过统一的格口选择服务确定目标格口
+    /// </summary>
+    private async Task<long> SelectChuteViaServiceAsync(
+        long parcelId, 
+        SystemConfiguration systemConfig, 
+        OverloadDecision overloadDecision)
+    {
+        var availableChuteIds = systemConfig.AvailableChuteIds?.AsReadOnly() ?? EmptyAvailableChuteIds;
+        
+        var context = new SortingContext
+        {
+            ParcelId = parcelId,
+            SortingMode = systemConfig.SortingMode,
+            ExceptionChuteId = systemConfig.ExceptionChuteId,
+            FixedChuteId = systemConfig.FixedChuteId,
+            AvailableChuteIds = availableChuteIds,
+            IsOverloadForced = overloadDecision.ShouldForceException,
+            ExceptionRoutingPolicy = new ExceptionRoutingPolicy
+            {
+                ExceptionChuteId = systemConfig.ExceptionChuteId,
+                UpstreamTimeoutMs = (int)(CalculateChuteAssignmentTimeout(systemConfig) * 1000)
+            }
+        };
+
+        var result = await _chuteSelectionService!.SelectChuteAsync(context, CancellationToken.None);
+
+        if (!result.IsSuccess)
+        {
+            _logger.LogError(
+                "包裹 {ParcelId} 格口选择失败: {ErrorMessage}，将使用异常格口 {ExceptionChuteId}",
+                parcelId,
+                result.ErrorMessage,
+                systemConfig.ExceptionChuteId);
+            return systemConfig.ExceptionChuteId;
+        }
+
+        if (result.IsException)
+        {
+            _logger.LogWarning(
+                "包裹 {ParcelId} 路由到异常格口 {ExceptionChuteId}。原因: {Reason}",
+                parcelId,
+                result.TargetChuteId,
+                result.ExceptionReason);
+        }
+
+        return result.TargetChuteId;
     }
 
     /// <summary>
