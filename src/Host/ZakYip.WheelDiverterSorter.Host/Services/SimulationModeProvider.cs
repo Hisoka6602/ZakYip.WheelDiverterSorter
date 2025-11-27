@@ -1,6 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services;
 
@@ -8,30 +6,34 @@ namespace ZakYip.WheelDiverterSorter.Host.Services;
 /// 仿真模式提供者实现
 /// </summary>
 /// <remarks>
-/// 通过检查是否使用 SimulatedPanelInputReader 或 SimulatedSignalTowerOutput 来判断是否为仿真模式
+/// 委托给 IRuntimeProfile 判断是否为仿真模式。
+/// 如果 IRuntimeProfile 未注册，回退到默认的非仿真模式。
+/// Delegates to IRuntimeProfile to determine if in simulation mode.
+/// Falls back to default non-simulation mode if IRuntimeProfile is not registered.
 /// </remarks>
 public class SimulationModeProvider : ISimulationModeProvider
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IRuntimeProfile? _runtimeProfile;
 
     /// <summary>
     /// 初始化仿真模式提供者
     /// </summary>
-    /// <param name="serviceProvider">服务提供者，用于延迟解析可选的面板和信号塔服务</param>
-    public SimulationModeProvider(IServiceProvider serviceProvider)
+    /// <param name="runtimeProfile">运行时配置文件，用于统一模式判断</param>
+    public SimulationModeProvider(IRuntimeProfile? runtimeProfile)
     {
-        _serviceProvider = serviceProvider;
+        _runtimeProfile = runtimeProfile;
     }
 
     /// <inheritdoc />
     public bool IsSimulationMode()
     {
-        // 尝试获取面板读取器和信号塔输出（这些服务可能不存在）
-        var panelInputReader = _serviceProvider.GetService(typeof(IPanelInputReader));
-        var signalTowerOutput = _serviceProvider.GetService(typeof(ISignalTowerOutput));
+        // 优先使用 IRuntimeProfile 判断
+        if (_runtimeProfile != null)
+        {
+            return _runtimeProfile.IsSimulationMode;
+        }
 
-        // 如果面板读取器或信号塔输出是仿真实现，则认为是仿真模式
-        return panelInputReader is SimulatedPanelInputReader ||
-               signalTowerOutput is SimulatedSignalTowerOutput;
+        // 向后兼容：如果 IRuntimeProfile 未注册，默认为非仿真模式
+        return false;
     }
 }

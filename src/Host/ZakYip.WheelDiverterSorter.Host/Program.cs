@@ -49,6 +49,9 @@ try
     // PR-37: 添加基础设施服务（安全执行器、系统时钟、日志去重）
     builder.Services.AddInfrastructureServices();
 
+    // PR-6: 添加运行时配置文件服务（根据 Runtime:Mode 配置决定使用生产/仿真/性能测试模式）
+    builder.Services.AddRuntimeProfile(builder.Configuration);
+
     // PR-2: 注册分拣系统强类型配置选项（带启动时校验）
     builder.Services.AddSortingSystemOptions(options =>
     {

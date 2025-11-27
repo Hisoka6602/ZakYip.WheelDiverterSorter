@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers;
@@ -20,6 +21,12 @@ public static class MiddleConveyorServiceExtensions
     /// <summary>
     /// 注册中段皮带 IO 联动相关服务
     /// </summary>
+    /// <remarks>
+    /// 如果已注册 IRuntimeProfile，则使用其 IsSimulationMode 属性来决定驱动器类型。
+    /// 否则回退到读取配置 "MiddleConveyorIo:IsSimulationMode"（向后兼容）。
+    /// If IRuntimeProfile is registered, uses its IsSimulationMode property to determine driver type.
+    /// Otherwise falls back to reading "MiddleConveyorIo:IsSimulationMode" configuration (backward compatible).
+    /// </remarks>
     public static IServiceCollection AddMiddleConveyorServices(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -47,35 +54,22 @@ public static class MiddleConveyorServiceExtensions
             return services;
         }
 
-        // 根据仿真模式选择驱动实现
-        if (options.IsSimulationMode)
+        // 使用工厂模式延迟到运行时决定使用哪种驱动实现
+        services.AddSingleton<IMiddleConveyorCoordinator>(sp =>
         {
-            // 仿真模式：注册仿真驱动
-            services.AddSingleton<IMiddleConveyorCoordinator>(sp =>
-            {
-                var logger = sp.GetRequiredService<ILogger<MiddleConveyorCoordinator>>();
-                var segments = CreateConveyorSegments(
-                    options.Segments,
-                    isSimulation: true,
-                    sp);
+            var logger = sp.GetRequiredService<ILogger<MiddleConveyorCoordinator>>();
+            
+            // 优先使用 IRuntimeProfile 判断是否为仿真模式
+            var runtimeProfile = sp.GetService<IRuntimeProfile>();
+            var isSimulation = runtimeProfile?.IsSimulationMode ?? options.IsSimulationMode;
+            
+            var segments = CreateConveyorSegments(
+                options.Segments,
+                isSimulation,
+                sp);
 
-                return new MiddleConveyorCoordinator(segments, options, logger);
-            });
-        }
-        else
-        {
-            // 生产模式：注册硬件驱动
-            services.AddSingleton<IMiddleConveyorCoordinator>(sp =>
-            {
-                var logger = sp.GetRequiredService<ILogger<MiddleConveyorCoordinator>>();
-                var segments = CreateConveyorSegments(
-                    options.Segments,
-                    isSimulation: false,
-                    sp);
-
-                return new MiddleConveyorCoordinator(segments, options, logger);
-            });
-        }
+            return new MiddleConveyorCoordinator(segments, options, logger);
+        });
 
         return services;
     }
