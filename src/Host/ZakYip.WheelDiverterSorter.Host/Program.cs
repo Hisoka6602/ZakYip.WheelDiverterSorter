@@ -150,6 +150,9 @@ try
     // 注册所有配置仓储（路由、系统、驱动器、传感器、通信、日志）
     builder.Services.AddConfigurationRepositories(builder.Configuration);
 
+    // PR-12: 注册线体拓扑服务和设备绑定服务
+    builder.Services.AddTopologyServices();
+
     // PR-1: 注册应用层服务
     builder.Services.AddScoped<ZakYip.WheelDiverterSorter.Host.Application.Services.ISystemConfigService,
         ZakYip.WheelDiverterSorter.Host.Application.Services.SystemConfigService>();
