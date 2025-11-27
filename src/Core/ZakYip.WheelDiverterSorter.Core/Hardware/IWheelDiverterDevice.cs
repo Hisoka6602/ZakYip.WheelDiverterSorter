@@ -8,18 +8,39 @@ namespace ZakYip.WheelDiverterSorter.Core.Hardware;
 /// </summary>
 /// <remarks>
 /// <para>定义发送给摆轮设备的命令参数。</para>
-/// <para>此命令只包含"让摆轮做什么"，不包含拓扑信息（如包裹ID、格口号等）。</para>
+/// <para>此命令只包含"让摆轮做什么"（方向和超时），不包含拓扑信息（如包裹ID、格口号等）。</para>
+/// <para>使用示例：</para>
+/// <code>
+/// var command = new WheelCommand
+/// {
+///     Direction = DiverterDirection.Left,
+///     Timeout = TimeSpan.FromSeconds(5)
+/// };
+/// var result = await device.ExecuteAsync(command, cancellationToken);
+/// </code>
 /// </remarks>
 public readonly record struct WheelCommand
 {
     /// <summary>
     /// 目标摆轮方向
     /// </summary>
+    /// <remarks>
+    /// 指定摆轮执行动作后的目标位置：
+    /// <list type="bullet">
+    /// <item><see cref="Enums.Hardware.DiverterDirection.Left"/> - 左转</item>
+    /// <item><see cref="Enums.Hardware.DiverterDirection.Right"/> - 右转</item>
+    /// <item><see cref="Enums.Hardware.DiverterDirection.Straight"/> - 直通</item>
+    /// </list>
+    /// </remarks>
     public required Enums.Hardware.DiverterDirection Direction { get; init; }
 
     /// <summary>
-    /// 命令超时时间
+    /// 命令超时时间（可选）
     /// </summary>
+    /// <remarks>
+    /// <para>如果设置，当命令执行时间超过此值时，操作将返回超时错误。</para>
+    /// <para>如果未设置（null），将使用设备默认超时时间。</para>
+    /// </remarks>
     public TimeSpan? Timeout { get; init; }
 }
 

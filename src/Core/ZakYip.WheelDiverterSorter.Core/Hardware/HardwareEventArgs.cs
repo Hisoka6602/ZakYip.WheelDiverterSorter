@@ -28,6 +28,11 @@ public readonly record struct IoPortChangedEventArgs
     /// <summary>
     /// 状态变化的时间戳
     /// </summary>
+    /// <remarks>
+    /// <para>表示驱动层检测到状态变化的时间点（本地时间）。</para>
+    /// <para>此时间由驱动层设置，用于事件排序和日志关联。</para>
+    /// <para>注意：这不一定是状态实际发生变化的精确时间，而是检测到变化的时间。</para>
+    /// </remarks>
     public DateTimeOffset Timestamp { get; init; }
 }
 
@@ -59,6 +64,10 @@ public readonly record struct WheelDiverterStateChangedEventArgs
     /// <summary>
     /// 状态变化的时间戳
     /// </summary>
+    /// <remarks>
+    /// <para>表示驱动层检测到状态变化的时间点（本地时间）。</para>
+    /// <para>此时间由驱动层设置，用于事件排序和日志关联。</para>
+    /// </remarks>
     public DateTimeOffset Timestamp { get; init; }
 }
 
@@ -95,5 +104,9 @@ public readonly record struct ConveyorSegmentStateChangedEventArgs
     /// <summary>
     /// 状态变化的时间戳
     /// </summary>
+    /// <remarks>
+    /// <para>表示驱动层检测到状态变化的时间点（本地时间）。</para>
+    /// <para>此时间由驱动层设置，用于事件排序和日志关联。</para>
+    /// </remarks>
     public DateTimeOffset Timestamp { get; init; }
 }

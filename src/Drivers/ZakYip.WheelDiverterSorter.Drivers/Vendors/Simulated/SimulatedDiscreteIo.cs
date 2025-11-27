@@ -81,7 +81,7 @@ public sealed class SimulatedDiscreteIoGroup : IDiscreteIoGroup
     /// <inheritdoc/>
     public IDiscreteIoPort? GetPort(int portNumber)
     {
-        return _ports.FirstOrDefault(p => p.PortNumber == portNumber);
+        return GetSimulatedPort(portNumber);
     }
 
     /// <inheritdoc/>
@@ -92,7 +92,7 @@ public sealed class SimulatedDiscreteIoGroup : IDiscreteIoGroup
         var result = new Dictionary<int, bool>();
         foreach (var portNumber in portNumbers)
         {
-            var port = GetPort(portNumber);
+            var port = GetSimulatedPort(portNumber);
             if (port != null)
             {
                 result[portNumber] = await port.GetAsync(cancellationToken);
@@ -108,7 +108,7 @@ public sealed class SimulatedDiscreteIoGroup : IDiscreteIoGroup
     {
         foreach (var (portNumber, state) in portStates)
         {
-            var port = GetPort(portNumber);
+            var port = GetSimulatedPort(portNumber);
             if (port != null)
             {
                 await port.SetAsync(state, cancellationToken);
@@ -119,8 +119,14 @@ public sealed class SimulatedDiscreteIoGroup : IDiscreteIoGroup
     }
 
     /// <summary>
-    /// 获取模拟端口（用于测试）
+    /// 获取模拟端口（用于测试注入状态）
     /// </summary>
+    /// <remarks>
+    /// 此方法返回具体的 <see cref="SimulatedDiscreteIoPort"/> 类型，
+    /// 允许测试代码访问测试专用方法如 <see cref="SimulatedDiscreteIoPort.SetInternalState"/>。
+    /// </remarks>
+    /// <param name="portNumber">端口编号</param>
+    /// <returns>模拟端口实例，如果不存在则返回 null</returns>
     internal SimulatedDiscreteIoPort? GetSimulatedPort(int portNumber)
     {
         return _ports.FirstOrDefault(p => p.PortNumber == portNumber);

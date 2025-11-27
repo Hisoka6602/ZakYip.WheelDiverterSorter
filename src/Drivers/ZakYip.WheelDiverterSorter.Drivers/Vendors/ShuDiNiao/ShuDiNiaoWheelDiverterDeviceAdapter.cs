@@ -124,6 +124,24 @@ public sealed class ShuDiNiaoWheelDiverterDeviceAdapter : IWheelDiverterDevice
         }
     }
 
+    // 状态字符串关键字常量 - 用于解析驱动返回的状态字符串
+    private static class StatusKeywords
+    {
+        // 中文状态关键字
+        public const string Left = "左转";
+        public const string Right = "右转";
+        public const string Straight = "直通";
+        public const string Stopped = "停止";
+        public const string Fault = "故障";
+        
+        // 英文状态关键字（备用）
+        public const string LeftEn = "Left";
+        public const string RightEn = "Right";
+        public const string StraightEn = "PassThrough";
+        public const string StoppedEn = "Stopped";
+        public const string FaultEn = "Fault";
+    }
+
     /// <inheritdoc/>
     public async Task<WheelDiverterState> GetStateAsync(CancellationToken cancellationToken = default)
     {
@@ -131,17 +149,16 @@ public sealed class ShuDiNiaoWheelDiverterDeviceAdapter : IWheelDiverterDevice
         {
             var statusStr = await _driver.GetStatusAsync();
             
-            // 解析状态字符串 - 这是一个简化的实现
-            // 实际应根据数递鸟协议返回的状态进行解析
-            if (statusStr.Contains("左转", StringComparison.OrdinalIgnoreCase))
+            // 解析状态字符串 - 支持中英文关键字
+            if (ContainsAny(statusStr, StatusKeywords.Left, StatusKeywords.LeftEn))
                 return WheelDiverterState.AtLeft;
-            if (statusStr.Contains("右转", StringComparison.OrdinalIgnoreCase))
+            if (ContainsAny(statusStr, StatusKeywords.Right, StatusKeywords.RightEn))
                 return WheelDiverterState.AtRight;
-            if (statusStr.Contains("直通", StringComparison.OrdinalIgnoreCase))
+            if (ContainsAny(statusStr, StatusKeywords.Straight, StatusKeywords.StraightEn))
                 return WheelDiverterState.AtStraight;
-            if (statusStr.Contains("停止", StringComparison.OrdinalIgnoreCase))
+            if (ContainsAny(statusStr, StatusKeywords.Stopped, StatusKeywords.StoppedEn))
                 return WheelDiverterState.Idle;
-            if (statusStr.Contains("故障", StringComparison.OrdinalIgnoreCase))
+            if (ContainsAny(statusStr, StatusKeywords.Fault, StatusKeywords.FaultEn))
                 return WheelDiverterState.Fault;
             
             return _lastKnownState;
@@ -150,5 +167,18 @@ public sealed class ShuDiNiaoWheelDiverterDeviceAdapter : IWheelDiverterDevice
         {
             return _lastKnownState;
         }
+    }
+
+    /// <summary>
+    /// 检查字符串是否包含任一关键字
+    /// </summary>
+    private static bool ContainsAny(string source, params string[] keywords)
+    {
+        foreach (var keyword in keywords)
+        {
+            if (source.Contains(keyword, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
     }
 }
