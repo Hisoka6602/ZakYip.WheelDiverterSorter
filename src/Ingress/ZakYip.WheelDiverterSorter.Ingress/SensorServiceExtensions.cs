@@ -4,7 +4,6 @@ using Microsoft.Extensions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Ingress.Sensors;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
@@ -13,6 +12,11 @@ namespace ZakYip.WheelDiverterSorter.Ingress;
 /// <summary>
 /// 传感器服务注册扩展
 /// </summary>
+/// <remarks>
+/// 本扩展类属于 Ingress 层，负责注册传感器相关的服务。
+/// 仅依赖 Core 层的抽象接口，不直接依赖具体驱动实现。
+/// 具体驱动的注册应在 Host 层或 Drivers 层的服务扩展中完成。
+/// </remarks>
 public static class SensorServiceExtensions {
 
     /// <summary>
@@ -21,6 +25,9 @@ public static class SensorServiceExtensions {
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置</param>
     /// <returns>服务集合</returns>
+    /// <remarks>
+    /// 调用此方法前，需确保 IInputPort 已在服务容器中注册（如使用硬件传感器模式）。
+    /// </remarks>
     public static IServiceCollection AddSensorServices(
         this IServiceCollection services,
         IConfiguration configuration) {
@@ -34,7 +41,7 @@ public static class SensorServiceExtensions {
 
         // 注册传感器工厂
         if (sensorOptions.UseHardwareSensor) {
-            // 使用硬件传感器
+            // 使用硬件传感器 - 需要在调用此方法前注册 IInputPort
             switch (sensorOptions.VendorType) {
                 case SensorVendorType.Leadshine:
                     AddLeadshineSensorServices(services, sensorOptions);
@@ -68,6 +75,10 @@ public static class SensorServiceExtensions {
     /// <summary>
     /// 添加雷赛传感器服务
     /// </summary>
+    /// <remarks>
+    /// 此方法需要 IInputPort 已在服务容器中注册。
+    /// 通常由 Drivers 层的服务扩展（如 AddLeadshineDriverServices）完成注册。
+    /// </remarks>
     private static void AddLeadshineSensorServices(
         IServiceCollection services,
         SensorOptions sensorOptions) {
@@ -75,13 +86,7 @@ public static class SensorServiceExtensions {
             throw new InvalidOperationException("雷赛传感器配置不能为空");
         }
 
-        // 注册输入端口
-        services.AddSingleton<IInputPort>(sp => {
-            var logger = sp.GetRequiredService<ILogger<LeadshineInputPort>>();
-            return new LeadshineInputPort(logger, sensorOptions.Leadshine.CardNo);
-        });
-
-        // 注册传感器工厂
+        // 注册传感器工厂 - 依赖 IInputPort（应由 Drivers 层或 Host 层预先注册）
         services.AddSingleton<ISensorFactory>(sp => {
             var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
