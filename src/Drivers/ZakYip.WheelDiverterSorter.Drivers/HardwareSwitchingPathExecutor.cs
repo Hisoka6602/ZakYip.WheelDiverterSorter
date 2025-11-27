@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -11,13 +11,18 @@ namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 基于真实硬件的摆轮路径执行器
-/// 通过IWheelDiverterDriver接口与实际的摆轮设备通信，不直接操作硬件细节
 /// </summary>
+/// <remarks>
+/// <para>通过统一的 <see cref="IWheelCommandExecutor"/> 接口执行摆轮命令。</para>
+/// <para>"发送命令 + 等待反馈 + 超时处理 + 日志记录"的逻辑已收敛到 
+/// <see cref="IWheelCommandExecutor"/> 中，本类仅负责路径级别的编排。</para>
+/// <para>仿真模式与真实模式共用此路径执行器，区别只在于注入的驱动实现。</para>
+/// </remarks>
 public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
 {
     private readonly ILogger<HardwareSwitchingPathExecutor> _logger;
-    private readonly Dictionary<string, IWheelDiverterDriver> _diverters;
-    private static readonly Regex LogSanitizer = new Regex(@"[\r\n]", RegexOptions.Compiled);
+    private readonly IWheelCommandExecutor _wheelCommandExecutor;
+    private static readonly Regex LogSanitizer = new(@"[\r\n]", RegexOptions.Compiled);
 
     /// <summary>
     /// 清理日志字符串，防止日志注入
@@ -33,15 +38,15 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
     /// 初始化硬件摆轮路径执行器
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    /// <param name="diverters">摆轮驱动器集合，键为摆轮ID</param>
+    /// <param name="wheelCommandExecutor">统一的摆轮命令执行器</param>
     public HardwareSwitchingPathExecutor(
         ILogger<HardwareSwitchingPathExecutor> logger,
-        IEnumerable<IWheelDiverterDriver> diverters)
+        IWheelCommandExecutor wheelCommandExecutor)
     {
-        _logger = logger;
-        _diverters = diverters.ToDictionary(d => d.DiverterId, d => d);
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _wheelCommandExecutor = wheelCommandExecutor ?? throw new ArgumentNullException(nameof(wheelCommandExecutor));
         
-        _logger.LogInformation("已初始化硬件摆轮路径执行器，管理 {Count} 个摆轮", _diverters.Count);
+        _logger.LogInformation("已初始化硬件摆轮路径执行器（使用统一命令执行器）");
     }
 
     /// <summary>
@@ -54,10 +59,7 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
         SwitchingPath path,
         CancellationToken cancellationToken = default)
     {
-        if (path == null)
-        {
-            throw new ArgumentNullException(nameof(path));
-        }
+        ArgumentNullException.ThrowIfNull(path);
 
         try
         {
@@ -74,58 +76,34 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                     "执行段 {SequenceNumber}: 摆轮={DiverterId}, 方向={Direction}, TTL={Ttl}ms",
                     segment.SequenceNumber, segment.DiverterId, segment.TargetDirection, segment.TtlMilliseconds);
 
-                // 检查摆轮是否存在
-                var diverterIdString = segment.DiverterId.ToString();
-                if (!_diverters.TryGetValue(diverterIdString, out var diverter))
+                // 构造摆轮命令并通过统一执行器执行
+                var command = new WheelCommand
                 {
-                    _logger.LogError("找不到摆轮控制器: {DiverterId}", segment.DiverterId);
-                    return PathExecutionResult.Failure(
-                        ErrorCodes.WheelNotFound,
-                        $"找不到摆轮控制器: {segment.DiverterId}",
-                        path.FallbackChuteId,
-                        segment);
-                }
+                    DiverterId = segment.DiverterId.ToString(),
+                    Direction = segment.TargetDirection,
+                    Timeout = TimeSpan.FromMilliseconds(segment.TtlMilliseconds),
+                    SequenceNumber = segment.SequenceNumber
+                };
 
-                // 使用TTL作为超时时间执行段
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                cts.CancelAfter(TimeSpan.FromMilliseconds(segment.TtlMilliseconds));
+                var result = await _wheelCommandExecutor.ExecuteAsync(command, cancellationToken);
 
-                bool success;
-                try
+                if (!result.IsSuccess)
                 {
-                    // 使用语义化驱动接口执行摆轮动作
-                    // 不再直接操作角度，而是使用业务语义方法
-                    success = segment.TargetDirection switch
+                    // 根据错误码转换为路径执行错误
+                    var pathErrorCode = result.ErrorCode switch
                     {
-                        DiverterDirection.Left => await diverter.TurnLeftAsync(cts.Token),
-                        DiverterDirection.Right => await diverter.TurnRightAsync(cts.Token),
-                        DiverterDirection.Straight => await diverter.PassThroughAsync(cts.Token),
-                        _ => throw new ArgumentException($"不支持的摆轮方向: {segment.TargetDirection}", nameof(segment))
+                        ErrorCodes.WheelCommandTimeout => ErrorCodes.PathSegmentTimeout,
+                        ErrorCodes.WheelNotFound => ErrorCodes.WheelNotFound,
+                        _ => ErrorCodes.PathSegmentFailed
                     };
-                }
-                catch (OperationCanceledException) when (cts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
-                {
-                    // TTL超时
-                    _logger.LogWarning(
-                        "段 {SequenceNumber} 执行超时（TTL={Ttl}ms），摆轮={DiverterId}",
-                        segment.SequenceNumber, segment.TtlMilliseconds, segment.DiverterId);
-                    
-                    return PathExecutionResult.Failure(
-                        ErrorCodes.PathSegmentTimeout,
-                        $"段 {segment.SequenceNumber} 执行超时",
-                        path.FallbackChuteId,
-                        segment);
-                }
 
-                if (!success)
-                {
-                    _logger.LogError(
-                        "段 {SequenceNumber} 执行失败，摆轮={DiverterId}",
-                        segment.SequenceNumber, segment.DiverterId);
+                    _logger.LogWarning(
+                        "段 {SequenceNumber} 执行失败 | 摆轮={DiverterId} | 原因={Reason}",
+                        segment.SequenceNumber, segment.DiverterId, result.ErrorMessage);
                     
                     return PathExecutionResult.Failure(
-                        ErrorCodes.PathSegmentFailed,
-                        $"段 {segment.SequenceNumber} 执行失败",
+                        pathErrorCode,
+                        result.ErrorMessage ?? $"段 {segment.SequenceNumber} 执行失败",
                         path.FallbackChuteId,
                         segment);
                 }
