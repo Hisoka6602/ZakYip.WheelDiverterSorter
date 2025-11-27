@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
@@ -15,26 +12,36 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
-using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Execution.Health;
-using ZakYip.WheelDiverterSorter.Host.Services;
-using ZakYip.WheelDiverterSorter.Ingress;
-using ZakYip.WheelDiverterSorter.Ingress.Models;
-using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
+using ZakYip.WheelDiverterSorter.Execution.Health;
+using ZakYip.WheelDiverterSorter.Observability;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
-namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
+namespace ZakYip.WheelDiverterSorter.Execution.Orchestration;
+
+/// <summary>
+/// 上游连接选项
+/// </summary>
+public class UpstreamConnectionOptions
+{
+    /// <summary>
+    /// 格口分配超时时间（秒）- 仅用于无动态超时计算时的备用值
+    /// </summary>
+    public decimal FallbackTimeoutSeconds { get; set; } = 5m;
+}
 
 /// <summary>
 /// 分拣编排服务实现
 /// </summary>
 /// <remarks>
-/// Application 层的核心服务，协调整个分拣流程。
+/// Execution 层的核心服务，协调整个分拣流程。
 /// 
 /// <para><b>架构职责</b>：</para>
 /// <list type="bullet">
 ///   <item>不直接访问硬件驱动（通过 Execution 层抽象）</item>
 ///   <item>不包含 HTTP 路由逻辑（由 Host 层 Controller 处理）</item>
+///   <item>不直接依赖 Communication/Ingress 层（通过抽象接口访问）</item>
 ///   <item>专注于业务流程编排和步骤协调</item>
 ///   <item>将长流程拆分为多个小方法，保持可测试性</item>
 /// </list>
@@ -47,19 +54,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private const double EstimatedArrivalWindowMs = 10000; // 预估10秒窗口
     private const double EstimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
 
-    private readonly IParcelDetectionService _parcelDetectionService;
-    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly ISensorEventProvider _sensorEventProvider;
+    private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly IPathFailureHandler? _pathFailureHandler;
     private readonly ISystemClock _clock;
     private readonly ILogger<SortingOrchestrator> _logger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ISystemRunStateService? _stateService;
     private readonly ICongestionDetector? _congestionDetector;
     private readonly IOverloadHandlingPolicy? _overloadPolicy;
-    private readonly CongestionDataCollector? _congestionCollector;
+    private readonly ICongestionDataCollector? _congestionCollector;
     private readonly PrometheusMetrics? _metrics;
     private readonly IParcelTraceSink? _traceSink;
     private readonly PathHealthChecker? _pathHealthChecker;
@@ -87,11 +94,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     public SortingOrchestrator(
-        IParcelDetectionService parcelDetectionService,
-        IRuleEngineClient ruleEngineClient,
+        ISensorEventProvider sensorEventProvider,
+        IUpstreamRoutingClient upstreamClient,
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
-        IOptions<RuleEngineConnectionOptions> options,
+        IOptions<UpstreamConnectionOptions> options,
         ISystemConfigurationRepository systemConfigRepository,
         ISystemClock clock,
         ILogger<SortingOrchestrator> logger,
@@ -100,14 +107,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISystemRunStateService? stateService = null,
         ICongestionDetector? congestionDetector = null,
         IOverloadHandlingPolicy? overloadPolicy = null,
-        CongestionDataCollector? congestionCollector = null,
+        ICongestionDataCollector? congestionCollector = null,
         PrometheusMetrics? metrics = null,
         IParcelTraceSink? traceSink = null,
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null)
     {
-        _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
-        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
+        _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -130,11 +137,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
 
         // 订阅包裹检测事件
-        _parcelDetectionService.ParcelDetected += OnParcelDetected;
-        _parcelDetectionService.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
+        _sensorEventProvider.ParcelDetected += OnParcelDetected;
+        _sensorEventProvider.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
         
         // 订阅格口分配事件
-        _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
+        _upstreamClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
     }
 
     /// <summary>
@@ -144,16 +151,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         _logger.LogInformation("正在启动分拣编排服务...");
 
-        // 连接到RuleEngine
-        _isConnected = await _ruleEngineClient.ConnectAsync(cancellationToken);
+        // 连接到上游系统
+        _isConnected = await _upstreamClient.ConnectAsync(cancellationToken);
 
         if (_isConnected)
         {
-            _logger.LogInformation("成功连接到RuleEngine，分拣编排服务已启动");
+            _logger.LogInformation("成功连接到上游系统，分拣编排服务已启动");
         }
         else
         {
-            _logger.LogWarning("无法连接到RuleEngine，将在包裹检测时尝试重新连接");
+            _logger.LogWarning("无法连接到上游系统，将在包裹检测时尝试重新连接");
         }
     }
 
@@ -164,8 +171,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         _logger.LogInformation("正在停止分拣编排服务...");
 
-        // 断开与RuleEngine的连接
-        await _ruleEngineClient.DisconnectAsync();
+        // 断开与上游系统的连接
+        await _upstreamClient.DisconnectAsync();
         _isConnected = false;
 
         _logger.LogInformation("分拣编排服务已停止");
@@ -489,7 +496,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 根据分拣模式确定目标格口
         return systemConfig.SortingMode switch
         {
-            SortingMode.Formal => await GetChuteFromRuleEngineAsync(parcelId, systemConfig),
+            SortingMode.Formal => await GetChuteFromUpstreamAsync(parcelId, systemConfig),
             SortingMode.FixedChute => GetFixedChute(systemConfig),
             SortingMode.RoundRobin => GetNextRoundRobinChute(systemConfig),
             _ => GetDefaultExceptionChute(parcelId, systemConfig)
@@ -497,9 +504,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
-    /// 从RuleEngine获取格口分配（正式分拣模式）
+    /// 从上游系统获取格口分配（正式分拣模式）
     /// </summary>
-    private async Task<long> GetChuteFromRuleEngineAsync(long parcelId, SystemConfiguration systemConfig)
+    private async Task<long> GetChuteFromUpstreamAsync(long parcelId, SystemConfiguration systemConfig)
     {
         var exceptionChuteId = systemConfig.ExceptionChuteId;
 
@@ -528,17 +535,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             parcelId,
             upstreamRequestSentAt);
         
-        var notificationSent = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
+        var notificationSent = await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
         
         if (!notificationSent)
         {
             _logger.LogError(
-                "包裹 {ParcelId} 无法发送检测通知到RuleEngine，将返回异常格口",
+                "包裹 {ParcelId} 无法发送检测通知到上游系统，将返回异常格口",
                 parcelId);
             return exceptionChuteId;
         }
 
-        // 等待RuleEngine推送格口分配（带动态超时）
+        // 等待上游推送格口分配（带动态超时）
         var tcs = new TaskCompletionSource<long>();
         
         // PR-44: ConcurrentDictionary 索引器赋值是线程安全的
@@ -556,7 +563,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
             
             _logger.LogInformation(
-                "包裹 {ParcelId} 从RuleEngine分配到格口 {ChuteId}（耗时 {ElapsedMs:F0}ms，超时限制 {TimeoutMs}ms）", 
+                "包裹 {ParcelId} 从上游系统分配到格口 {ChuteId}（耗时 {ElapsedMs:F0}ms，超时限制 {TimeoutMs}ms）", 
                 parcelId, 
                 targetChuteId,
                 elapsedMs,
@@ -607,7 +614,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         // 降级：使用配置的固定超时时间
-        return systemConfig.ChuteAssignmentTimeout?.FallbackTimeoutSeconds ?? 5m;
+        return systemConfig.ChuteAssignmentTimeout?.FallbackTimeoutSeconds ?? _options.FallbackTimeoutSeconds;
     }
 
     /// <summary>
@@ -1108,7 +1115,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹检测事件
     /// </summary>
-    private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
+    private async void OnParcelDetected(object? sender, ParcelDetectedArgs e)
     {
         try
         {
@@ -1123,7 +1130,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理重复触发异常事件
     /// </summary>
-    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerEventArgs e)
+    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerArgs e)
     {
         var parcelId = e.ParcelId;
         _logger.LogWarning(
@@ -1143,8 +1150,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
-            // 通知RuleEngine包裹重复触发异常（不等待响应）
-            await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
+            // 通知上游包裹重复触发异常（不等待响应）
+            await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
 
             // 直接将包裹发送到异常格口
             await ExecuteSortingWorkflowAsync(parcelId, exceptionChuteId, isOverloadException: true, CancellationToken.None);
@@ -1159,7 +1166,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理格口分配通知
     /// </summary>
-    private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentNotificationEventArgs e)
+    private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
     {
         // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
         // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
@@ -1268,9 +1275,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     public void Dispose()
     {
         // 取消订阅事件
-        _parcelDetectionService.ParcelDetected -= OnParcelDetected;
-        _parcelDetectionService.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
-        _ruleEngineClient.ChuteAssignmentReceived -= OnChuteAssignmentReceived;
+        _sensorEventProvider.ParcelDetected -= OnParcelDetected;
+        _sensorEventProvider.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
+        _upstreamClient.ChuteAssignmentReceived -= OnChuteAssignmentReceived;
 
         // 断开连接
         StopAsync().GetAwaiter().GetResult();

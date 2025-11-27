@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="../../Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj" />
+    <ProjectReference Include="../../Execution/ZakYip.WheelDiverterSorter.Execution/ZakYip.WheelDiverterSorter.Execution.csproj" />
   </ItemGroup>
 
 </Project>

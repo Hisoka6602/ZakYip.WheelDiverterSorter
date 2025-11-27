@@ -2,12 +2,8 @@
 using Moq;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
-using ZakYip.WheelDiverterSorter.Ingress;
-using ZakYip.WheelDiverterSorter.Ingress.Models;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Execution.Abstractions;
+using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
@@ -15,11 +11,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
-using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
-namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
+namespace ZakYip.WheelDiverterSorter.Execution.Tests.Orchestration;
 
 /// <summary>
 /// 分拣编排服务单元测试
@@ -34,23 +28,23 @@ namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 /// </remarks>
 public class SortingOrchestratorTests : IDisposable
 {
-    private readonly Mock<IParcelDetectionService> _mockParcelDetection;
-    private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
+    private readonly Mock<ISensorEventProvider> _mockSensorEventProvider;
+    private readonly Mock<IUpstreamRoutingClient> _mockUpstreamClient;
     private readonly Mock<ISwitchingPathGenerator> _mockPathGenerator;
     private readonly Mock<ISwitchingPathExecutor> _mockPathExecutor;
     private readonly Mock<ISystemConfigurationRepository> _mockConfigRepository;
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<SortingOrchestrator>> _mockLogger;
     private readonly Mock<ISortingExceptionHandler> _mockExceptionHandler;
-    private readonly IOptions<RuleEngineConnectionOptions> _options;
+    private readonly IOptions<UpstreamConnectionOptions> _options;
     private readonly SortingOrchestrator _orchestrator;
     private readonly SystemConfiguration _defaultConfig;
     private readonly DateTimeOffset _testTime;
 
     public SortingOrchestratorTests()
     {
-        _mockParcelDetection = new Mock<IParcelDetectionService>();
-        _mockRuleEngineClient = new Mock<IRuleEngineClient>();
+        _mockSensorEventProvider = new Mock<ISensorEventProvider>();
+        _mockUpstreamClient = new Mock<IUpstreamRoutingClient>();
         _mockPathGenerator = new Mock<ISwitchingPathGenerator>();
         _mockPathExecutor = new Mock<ISwitchingPathExecutor>();
         _mockConfigRepository = new Mock<ISystemConfigurationRepository>();
@@ -62,10 +56,9 @@ public class SortingOrchestratorTests : IDisposable
         _mockClock.Setup(c => c.LocalNow).Returns(_testTime.LocalDateTime);
         _mockClock.Setup(c => c.LocalNowOffset).Returns(_testTime);
 
-        _options = Options.Create(new RuleEngineConnectionOptions
+        _options = Options.Create(new UpstreamConnectionOptions
         {
-            Mode = CommunicationMode.Tcp,
-            TcpServer = "localhost:8888"
+            FallbackTimeoutSeconds = 5m
         });
 
         _defaultConfig = new SystemConfiguration
@@ -97,8 +90,8 @@ public class SortingOrchestratorTests : IDisposable
                 ));
 
         _orchestrator = new SortingOrchestrator(
-            _mockParcelDetection.Object,
-            _mockRuleEngineClient.Object,
+            _mockSensorEventProvider.Object,
+            _mockUpstreamClient.Object,
             _mockPathGenerator.Object,
             _mockPathExecutor.Object,
             _options,
@@ -142,7 +135,7 @@ public class SortingOrchestratorTests : IDisposable
         };
 
         // 模拟上游返回格口分配
-        _mockRuleEngineClient
+        _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback<long, CancellationToken>((pid, ct) =>
@@ -151,9 +144,9 @@ public class SortingOrchestratorTests : IDisposable
                 Task.Run(async () =>
                 {
                     await Task.Yield(); // Ensure we yield to allow TCS registration
-                    await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                    await Task.Delay(50);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -172,7 +165,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Null(result.FailureReason);
 
         // 验证调用顺序：先通知上游，再生成路径，再执行
-        _mockRuleEngineClient.Verify(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()), Times.Once);
         _mockPathGenerator.Verify(g => g.GeneratePath(targetChuteId), Times.Once);
         _mockPathExecutor.Verify(e => e.ExecuteAsync(expectedPath, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -227,7 +220,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Equal(fixedChuteId, result.ActualChuteId);
 
         // 验证不应调用上游
-        _mockRuleEngineClient.Verify(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockPathGenerator.Verify(g => g.GeneratePath(fixedChuteId), Times.Once);
     }
 
@@ -296,7 +289,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockConfigRepository.Setup(r => r.Get()).Returns(config);
 
         // 模拟上游不返回响应（超时）
-        _mockRuleEngineClient
+        _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         // 注意：不触发 ChuteAssignmentReceived 事件，模拟超时
@@ -341,16 +334,17 @@ public class SortingOrchestratorTests : IDisposable
         long exceptionChuteId = 99;
 
         // 模拟上游返回格口分配
-        _mockRuleEngineClient
+        _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
                 Task.Run(async () =>
                 {
-                    await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                    await Task.Delay(50);
+                    await Task.Delay(50);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -399,16 +393,17 @@ public class SortingOrchestratorTests : IDisposable
         long targetChuteId = 5;
 
         // 模拟上游返回格口分配
-        _mockRuleEngineClient
+        _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
                 Task.Run(async () =>
                 {
-                    await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                    // Give enough time for the TCS to be registered after NotifyParcelDetectedAsync returns
+                    await Task.Delay(50);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -456,16 +451,17 @@ public class SortingOrchestratorTests : IDisposable
         long targetChuteId = 5;
 
         // 模拟上游返回格口分配
-        _mockRuleEngineClient
+        _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
                 Task.Run(async () =>
                 {
-                    await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                    await Task.Delay(50);
+                    await Task.Delay(50);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -526,7 +522,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Equal(targetChuteId, result.ActualChuteId);
 
         // 验证不应调用上游
-        _mockRuleEngineClient.Verify(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockPathGenerator.Verify(g => g.GeneratePath(targetChuteId), Times.Once);
     }
 
@@ -623,7 +619,7 @@ public class SortingOrchestratorTests : IDisposable
         bool parcelCreatedBeforeNotification = false;
 
         // 监控调用顺序
-        _mockRuleEngineClient
+        _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
@@ -636,9 +632,10 @@ public class SortingOrchestratorTests : IDisposable
                 // 模拟上游推送格口分配
                 Task.Run(async () =>
                 {
-                    await Task.Yield();
-                    var args = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockRuleEngineClient.Raise(c => c.ChuteAssignmentReceived += null, _mockRuleEngineClient.Object, args);
+                    await Task.Delay(50);
+                    await Task.Delay(50);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -666,7 +663,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.True(parcelCreatedBeforeNotification, "包裹应该在发送通知前创建");
 
         // 验证调用顺序
-        _mockRuleEngineClient.Verify(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion
