@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
-using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
@@ -14,21 +13,40 @@ namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 驱动器服务注册扩展
+/// Driver Service Registration Extensions
 /// </summary>
+/// <remarks>
+/// <para>
+/// 此类提供了一个向后兼容的方式来注册驱动器服务。
+/// 推荐的方式是使用厂商特定的扩展方法（如 AddLeadshineIo、AddShuDiNiaoWheelDiverter 等）直接注册。
+/// </para>
+/// <para>
+/// This class provides a backward-compatible way to register driver services.
+/// The recommended approach is to use vendor-specific extension methods 
+/// (e.g., AddLeadshineIo, AddShuDiNiaoWheelDiverter) for registration.
+/// </para>
+/// </remarks>
 public static class DriverServiceExtensions
 {
     /// <summary>
-    /// 添加驱动器服务
+    /// 添加驱动器服务（向后兼容方法）
+    /// Add driver services (backward compatible method)
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置</param>
     /// <returns>服务集合</returns>
     /// <remarks>
-    /// 如果已注册 IRuntimeProfile，则使用其 UseHardwareDriver 属性来决定驱动器类型。
-    /// 否则回退到读取配置 "Driver:UseHardwareDriver"（向后兼容）。
-    /// If IRuntimeProfile is registered, uses its UseHardwareDriver property to determine driver type.
-    /// Otherwise falls back to reading "Driver:UseHardwareDriver" configuration (backward compatible).
+    /// <para>
+    /// 此方法根据 IRuntimeProfile.UseHardwareDriver 或配置文件中的 "Driver:UseHardwareDriver" 
+    /// 来决定使用硬件驱动还是模拟驱动。
+    /// </para>
+    /// <para>
+    /// 推荐使用厂商特定的扩展方法替代此方法：
+    /// - 雷赛 IO: <see cref="LeadshineIoServiceCollectionExtensions.AddLeadshineIo"/>
+    /// - 模拟 IO: <see cref="SimulatedDriverServiceCollectionExtensions.AddSimulatedIo"/>
+    /// </para>
     /// </remarks>
+    [Obsolete("推荐使用厂商特定的扩展方法（如 AddLeadshineIo、AddSimulatedIo）替代此方法。")]
     public static IServiceCollection AddDriverServices(
         this IServiceCollection services,
         IConfiguration configuration)
@@ -38,7 +56,7 @@ public static class DriverServiceExtensions
         configuration.GetSection("Driver").Bind(options);
         services.AddSingleton(options);
 
-        // 注册厂商驱动工厂
+        // 注册厂商驱动工厂（根据运行时配置决定使用硬件还是模拟）
         services.AddSingleton<IVendorDriverFactory>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
@@ -49,16 +67,8 @@ public static class DriverServiceExtensions
             
             if (useHardwareDriver)
             {
-                // 根据配置的 VendorId 创建对应的工厂
-                // 如果配置中没有 VendorId，默认使用 Leadshine（向后兼容）
-                var vendorId = options.VendorId ?? VendorId.Leadshine;
-                
-                return vendorId switch
-                {
-                    VendorId.Leadshine => new LeadshineVendorDriverFactory(loggerFactory, options.Leadshine),
-                    VendorId.Simulated => new SimulatedVendorDriverFactory(loggerFactory),
-                    _ => throw new NotSupportedException($"厂商 {vendorId} 尚未实现驱动工厂")
-                };
+                // 使用雷赛硬件驱动（默认硬件厂商）
+                return new LeadshineVendorDriverFactory(loggerFactory, options.Leadshine);
             }
             else
             {

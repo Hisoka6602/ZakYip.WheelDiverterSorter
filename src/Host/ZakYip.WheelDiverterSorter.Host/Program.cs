@@ -4,6 +4,9 @@ using Prometheus;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
 using ZakYip.WheelDiverterSorter.Drivers;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 using ZakYip.WheelDiverterSorter.Ingress;
 using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -164,8 +167,34 @@ try
     // 注册分拣相关服务（路径生成、路径执行、分拣编排）
     builder.Services.AddSortingServices(builder.Configuration);
 
-    // 使用新的驱动器服务注册（支持硬件和模拟驱动器切换）
-    builder.Services.AddDriverServices(builder.Configuration);
+    // PR-13: 使用厂商特定的 DI 扩展方法注册驱动器服务
+    // Use vendor-specific DI extension methods to register driver services
+    // 根据运行模式（Runtime:Mode）决定使用硬件驱动还是模拟驱动
+    var runtimeMode = builder.Configuration.GetValue<string>("Runtime:Mode") ?? "Production";
+    
+    // 绑定驱动器配置（用于雷赛等硬件厂商的具体配置）
+    var driverOptions = new DriverOptions();
+    builder.Configuration.GetSection("Driver").Bind(driverOptions);
+    builder.Services.AddSingleton(driverOptions);
+    
+    if (runtimeMode.Equals("Simulation", StringComparison.OrdinalIgnoreCase) ||
+        runtimeMode.Equals("PerformanceTest", StringComparison.OrdinalIgnoreCase))
+    {
+        // 仿真/性能测试模式：使用模拟驱动器
+        // Simulation/PerformanceTest mode: use simulated drivers
+        builder.Services
+            .AddSimulatedIo()                    // 模拟 IO
+            .AddSimulatedConveyorLine();        // 模拟线体
+    }
+    else
+    {
+        // 生产模式：使用雷赛 IO + 数递鸟摆轮（或根据实际配置选择）
+        // Production mode: use Leadshine IO + ShuDiNiao wheel diverters (or based on actual configuration)
+        builder.Services
+            .AddLeadshineIo()                    // 雷赛 IO
+            .AddShuDiNiaoWheelDiverter()         // 数递鸟摆轮
+            .AddSimulatedConveyorLine();        // 默认使用模拟线体（可替换为具体厂商）
+    }
 
     // 注册仿真模式提供者（用于判断当前是否为仿真模式）
     builder.Services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();

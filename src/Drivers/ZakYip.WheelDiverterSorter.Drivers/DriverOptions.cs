@@ -5,7 +5,19 @@ namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 驱动器配置选项
+/// Driver Configuration Options
 /// </summary>
+/// <remarks>
+/// <para>
+/// 此配置类用于从 appsettings.json 中绑定驱动器配置。
+/// VendorType 和 VendorId 属性已弃用，推荐使用 DI 扩展方法直接注册厂商实现。
+/// </para>
+/// <para>
+/// This configuration class is used to bind driver configuration from appsettings.json.
+/// VendorType and VendorId properties are deprecated. 
+/// Use DI extension methods to register vendor implementations directly.
+/// </para>
+/// </remarks>
 public class DriverOptions
 {
     /// <summary>
@@ -17,13 +29,23 @@ public class DriverOptions
     public bool UseHardwareDriver { get; set; } = true;
 
     /// <summary>
-    /// 驱动器厂商类型（旧版，保留向后兼容）
+    /// 驱动器厂商类型（已弃用）
     /// </summary>
+    /// <remarks>
+    /// 此属性已弃用，请使用 DI 扩展方法（如 AddLeadshineIo）来选择厂商。
+    /// This property is deprecated. Use DI extension methods (e.g., AddLeadshineIo) to select vendor.
+    /// </remarks>
+    [Obsolete("此属性已弃用，请使用 DI 扩展方法（如 AddLeadshineIo）来选择厂商。")]
     public DriverVendorType VendorType { get; set; } = DriverVendorType.Leadshine;
 
     /// <summary>
-    /// 厂商标识符（新版，推荐使用）
+    /// 厂商标识符（已弃用）
     /// </summary>
+    /// <remarks>
+    /// 此属性已弃用，请使用 DI 扩展方法（如 AddLeadshineIo）来选择厂商。
+    /// This property is deprecated. Use DI extension methods (e.g., AddLeadshineIo) to select vendor.
+    /// </remarks>
+    [Obsolete("此属性已弃用，请使用 DI 扩展方法（如 AddLeadshineIo）来选择厂商。")]
     public VendorId? VendorId { get; set; }
 
     /// <summary>
