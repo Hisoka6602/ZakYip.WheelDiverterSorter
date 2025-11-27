@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Abstractions;
 
@@ -17,6 +18,12 @@ namespace ZakYip.WheelDiverterSorter.Execution.Abstractions;
 /// 此接口定义在 Execution.Abstractions 中，不依赖具体协议实现。
 /// 具体的契约映射实现在 Communication 层实现，
 /// 确保上游协议细节不渗透到领域层。
+/// </para>
+/// <para><b>与 ParcelDescriptor 的关系</b>：</para>
+/// <para>
+/// <see cref="SortingRequest"/> 是边界层契约，可通过
+/// <see cref="ParcelDescriptorExtensions.ToParcelDescriptor(SortingRequest)"/>
+/// 转换为统一领域模型 <see cref="ParcelDescriptor"/>。
 /// </para>
 /// <para><b>使用示例</b>：</para>
 /// <code>
@@ -91,8 +98,16 @@ public interface IUpstreamContractMapper
 /// 上游协议分拣请求（通讯层模型）
 /// </summary>
 /// <remarks>
+/// <para>
 /// 与具体上游协议解耦的通用请求模型，包含所有协议可能需要的字段。
 /// 具体协议实现可选择使用其中的字段。
+/// </para>
+/// <para><b>与领域模型的关系</b>：</para>
+/// <para>
+/// 此类型是通讯层的边界模型，其包裹基础信息与领域模型 <see cref="ParcelDescriptor"/>
+/// 存在字段重叠。设计上，此模型用于上游通讯协议，而 <see cref="ParcelDescriptor"/>
+/// 用于领域层内部流转。
+/// </para>
 /// </remarks>
 public record UpstreamSortingRequest
 {

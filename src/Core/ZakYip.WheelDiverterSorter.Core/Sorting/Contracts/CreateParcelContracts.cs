@@ -1,10 +1,17 @@
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 
 /// <summary>
 /// 创建包裹请求
 /// </summary>
 /// <remarks>
-/// 通知上游规则引擎有新包裹进入系统
+/// <para>通知上游规则引擎有新包裹进入系统。</para>
+/// <para>
+/// 此为边界层契约类型，在进入业务逻辑后应通过
+/// <see cref="ParcelDescriptorExtensions.ToParcelDescriptor(CreateParcelRequest)"/>
+/// 转换为统一领域模型 <see cref="ParcelDescriptor"/>。
+/// </para>
 /// </remarks>
 public record CreateParcelRequest
 {
