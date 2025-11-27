@@ -34,8 +34,9 @@ public static class ModiWheelServiceCollectionExtensions
             
             // 从配置仓储获取配置，如果没有则使用默认配置
             var config = configRepo?.Get() ?? WheelDiverterConfiguration.GetDefault();
+            var enabledDevices = GetEnabledModiDevices(config).ToList();
             
-            if (config.Modi == null || !config.Modi.Devices.Any())
+            if (enabledDevices.Count == 0)
             {
                 var logger = loggerFactory.CreateLogger("ModiWheelDiverter");
                 logger.LogWarning("莫迪摆轮配置为空，将使用空配置初始化驱动管理器");
@@ -46,7 +47,7 @@ public static class ModiWheelServiceCollectionExtensions
             
             // 创建 Modi 驱动器列表
             var drivers = new List<IWheelDiverterDriver>();
-            foreach (var device in config.Modi.Devices.Where(d => d.IsEnabled))
+            foreach (var device in enabledDevices)
             {
                 var driverLogger = loggerFactory.CreateLogger<ModiWheelDiverterDriver>();
                 drivers.Add(new ModiWheelDiverterDriver(device, driverLogger));
@@ -76,36 +77,27 @@ public static class ModiWheelServiceCollectionExtensions
             
             // 从配置仓储获取配置
             var config = configRepo?.Get() ?? WheelDiverterConfiguration.GetDefault();
+            var enabledDevices = GetEnabledModiDevices(config).ToList();
             
-            if (config.Modi == null || !config.Modi.Devices.Any() || config.Modi.UseSimulation)
-            {
-                // 仿真模式，返回模拟设备
-                var simulatedDrivers = new List<IWheelDiverterDriver>();
-                
-                // 如果有配置，按配置创建模拟设备
-                if (config.Modi?.Devices != null)
-                {
-                    foreach (var device in config.Modi.Devices.Where(d => d.IsEnabled))
-                    {
-                        var simLogger = loggerFactory.CreateLogger<ModiSimulatedDevice>();
-                        simulatedDrivers.Add(new ModiSimulatedDevice(device, simLogger));
-                    }
-                }
-                
-                return new FactoryBasedDriverManager(simulatedDrivers, loggerFactory);
-            }
-            
-            // 如果配置不要求仿真，但调用了仿真方法，强制使用仿真
-            var drivers = new List<IWheelDiverterDriver>();
-            foreach (var device in config.Modi.Devices.Where(d => d.IsEnabled))
+            // 始终使用仿真设备（因为这是仿真方法）
+            var simulatedDrivers = new List<IWheelDiverterDriver>();
+            foreach (var device in enabledDevices)
             {
                 var simLogger = loggerFactory.CreateLogger<ModiSimulatedDevice>();
-                drivers.Add(new ModiSimulatedDevice(device, simLogger));
+                simulatedDrivers.Add(new ModiSimulatedDevice(device, simLogger));
             }
             
-            return new FactoryBasedDriverManager(drivers, loggerFactory);
+            return new FactoryBasedDriverManager(simulatedDrivers, loggerFactory);
         });
 
         return services;
+    }
+    
+    /// <summary>
+    /// 获取已启用的 Modi 设备列表
+    /// </summary>
+    private static IEnumerable<ModiDeviceEntry> GetEnabledModiDevices(WheelDiverterConfiguration config)
+    {
+        return config.Modi?.Devices?.Where(d => d.IsEnabled) ?? Enumerable.Empty<ModiDeviceEntry>();
     }
 }
