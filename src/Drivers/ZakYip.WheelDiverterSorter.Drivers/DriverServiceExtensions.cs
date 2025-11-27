@@ -67,7 +67,24 @@ public static class DriverServiceExtensions
             }
         });
 
-        // 使用工厂创建驱动实例（延迟到运行时决定使用哪种实现）
+        // 注册 IWheelDiverterDriverManager（基于工厂驱动器列表的适配器）
+        services.AddSingleton<IWheelDiverterDriverManager>(sp =>
+        {
+            var factory = sp.GetRequiredService<IVendorDriverFactory>();
+            var drivers = factory.CreateWheelDiverterDrivers();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            return new FactoryBasedDriverManager(drivers, loggerFactory);
+        });
+
+        // 注册统一的摆轮命令执行器
+        services.AddSingleton<IWheelCommandExecutor>(sp =>
+        {
+            var driverManager = sp.GetRequiredService<IWheelDiverterDriverManager>();
+            var logger = sp.GetRequiredService<ILogger<WheelCommandExecutor>>();
+            return new WheelCommandExecutor(driverManager, logger);
+        });
+
+        // 使用统一执行器创建路径执行器（延迟到运行时决定使用哪种实现）
         services.AddSingleton<ISwitchingPathExecutor>(sp =>
         {
             var runtimeProfile = sp.GetService<IRuntimeProfile>();
@@ -75,11 +92,10 @@ public static class DriverServiceExtensions
             
             if (useHardwareDriver)
             {
-                // 使用硬件驱动器
+                // 使用硬件驱动器（通过统一的命令执行器）
                 var logger = sp.GetRequiredService<ILogger<HardwareSwitchingPathExecutor>>();
-                var factory = sp.GetRequiredService<IVendorDriverFactory>();
-                var drivers = factory.CreateWheelDiverterDrivers();
-                return new HardwareSwitchingPathExecutor(logger, drivers);
+                var commandExecutor = sp.GetRequiredService<IWheelCommandExecutor>();
+                return new HardwareSwitchingPathExecutor(logger, commandExecutor);
             }
             else
             {
