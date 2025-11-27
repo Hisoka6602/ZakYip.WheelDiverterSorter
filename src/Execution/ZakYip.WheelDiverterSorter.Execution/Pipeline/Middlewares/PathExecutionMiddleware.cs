@@ -16,9 +16,17 @@ public delegate void ParcelCompletionDelegate(long parcelId, DateTime completedA
 /// <summary>
 /// 路径执行中间件，负责执行摆轮路径并处理结果
 /// </summary>
+/// <remarks>
+/// <para>支持两种执行模式：</para>
+/// <list type="bullet">
+/// <item>使用 IPathExecutionService（推荐）：统一的执行管线，内置失败处理和指标采集</item>
+/// <item>使用 ISwitchingPathExecutor（兼容）：直接调用执行器，需要手动处理失败</item>
+/// </list>
+/// </remarks>
 public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
 {
-    private readonly ISwitchingPathExecutor _pathExecutor;
+    private readonly IPathExecutionService? _pathExecutionService;
+    private readonly ISwitchingPathExecutor? _pathExecutor;
     private readonly IPathFailureHandler? _pathFailureHandler;
     private readonly ParcelCompletionDelegate? _completionDelegate;
     private readonly IParcelTraceSink? _traceSink;
@@ -26,7 +34,24 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
     private readonly ISystemClock _clock;
 
     /// <summary>
-    /// 构造函数
+    /// 构造函数（推荐使用 IPathExecutionService）
+    /// </summary>
+    public PathExecutionMiddleware(
+        IPathExecutionService pathExecutionService,
+        ISystemClock clock,
+        ParcelCompletionDelegate? completionDelegate = null,
+        IParcelTraceSink? traceSink = null,
+        ILogger<PathExecutionMiddleware>? logger = null)
+    {
+        _pathExecutionService = pathExecutionService ?? throw new ArgumentNullException(nameof(pathExecutionService));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _completionDelegate = completionDelegate;
+        _traceSink = traceSink;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// 构造函数（兼容旧接口）
     /// </summary>
     public PathExecutionMiddleware(
         ISwitchingPathExecutor pathExecutor,
@@ -62,8 +87,34 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
 
         try
         {
-            // 执行摆轮路径
-            var executionResult = await _pathExecutor.ExecuteAsync(context.PlannedPath);
+            PathExecutionResult executionResult;
+
+            // 优先使用 IPathExecutionService（统一管线）
+            if (_pathExecutionService != null)
+            {
+                executionResult = await _pathExecutionService.ExecutePathAsync(
+                    context.ParcelId,
+                    context.PlannedPath);
+            }
+            else if (_pathExecutor != null)
+            {
+                // 兼容旧接口：直接使用 ISwitchingPathExecutor
+                executionResult = await _pathExecutor.ExecuteAsync(context.PlannedPath);
+                
+                // 兼容旧接口时，需要手动调用 IPathFailureHandler
+                if (!executionResult.IsSuccess && _pathFailureHandler != null)
+                {
+                    _pathFailureHandler.HandlePathFailure(
+                        context.ParcelId,
+                        context.PlannedPath,
+                        executionResult.FailureReason ?? "未知错误",
+                        executionResult.FailedSegment);
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("PathExecutionMiddleware 未配置执行服务");
+            }
 
             var elapsedMs = (_clock.LocalNowOffset - startTime).TotalMilliseconds;
             context.ExecutionLatencyMs = elapsedMs;
@@ -131,15 +182,8 @@ public sealed class PathExecutionMiddleware : ISortingPipelineMiddleware
 
                 _completionDelegate?.Invoke(context.ParcelId, _clock.LocalNow, false);
 
-                // 处理路径执行失败
-                if (_pathFailureHandler != null)
-                {
-                    _pathFailureHandler.HandlePathFailure(
-                        context.ParcelId,
-                        context.PlannedPath,
-                        executionResult.FailureReason ?? "未知错误",
-                        executionResult.FailedSegment);
-                }
+                // 注意：失败处理已在 IPathExecutionService 或兼容模式中完成
+                // 此处不再重复调用 IPathFailureHandler
             }
 
             _logger?.LogDebug("包裹 {ParcelId} 完成路径执行", context.ParcelId);
