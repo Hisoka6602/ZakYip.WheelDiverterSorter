@@ -1,10 +1,17 @@
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 
 /// <summary>
 /// 分拣请求
 /// </summary>
 /// <remarks>
-/// 包含包裹信息、入口时间、可能的候选格口等
+/// <para>包含包裹信息、入口时间、可能的候选格口等。</para>
+/// <para>
+/// 此为边界层契约类型，在进入业务逻辑后应通过
+/// <see cref="ParcelDescriptorExtensions.ToParcelDescriptor(SortingRequest)"/>
+/// 转换为统一领域模型 <see cref="ParcelDescriptor"/>。
+/// </para>
 /// </remarks>
 public record SortingRequest
 {

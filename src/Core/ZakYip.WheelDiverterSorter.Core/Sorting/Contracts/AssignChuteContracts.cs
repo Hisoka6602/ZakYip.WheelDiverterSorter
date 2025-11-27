@@ -1,10 +1,17 @@
+using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
+
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 
 /// <summary>
 /// 分配格口请求
 /// </summary>
 /// <remarks>
-/// 向上游规则引擎请求为包裹分配目标格口
+/// <para>向上游规则引擎请求为包裹分配目标格口。</para>
+/// <para>
+/// 此为边界层契约类型，在进入业务逻辑后应通过
+/// <see cref="ParcelDescriptorExtensions.ToParcelDescriptor(AssignChuteRequest)"/>
+/// 转换为统一领域模型 <see cref="ParcelDescriptor"/>。
+/// </para>
 /// </remarks>
 public record AssignChuteRequest
 {
