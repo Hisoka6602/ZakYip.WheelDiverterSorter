@@ -2,11 +2,12 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Drivers;
+namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 基于真实硬件的摆轮路径执行器
@@ -78,14 +79,11 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 if (!_diverters.TryGetValue(diverterIdString, out var diverter))
                 {
                     _logger.LogError("找不到摆轮控制器: {DiverterId}", segment.DiverterId);
-                    return new PathExecutionResult
-                    {
-                        IsSuccess = false,
-                        ActualChuteId = path.FallbackChuteId,
-                        FailureReason = $"找不到摆轮控制器: {segment.DiverterId}",
-                        FailedSegment = segment,
-                        FailureTime = DateTimeOffset.Now
-                    };
+                    return PathExecutionResult.Failure(
+                        ErrorCodes.WheelNotFound,
+                        $"找不到摆轮控制器: {segment.DiverterId}",
+                        path.FallbackChuteId,
+                        segment);
                 }
 
                 // 使用TTL作为超时时间执行段
@@ -112,14 +110,11 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                         "段 {SequenceNumber} 执行超时（TTL={Ttl}ms），摆轮={DiverterId}",
                         segment.SequenceNumber, segment.TtlMilliseconds, segment.DiverterId);
                     
-                    return new PathExecutionResult
-                    {
-                        IsSuccess = false,
-                        ActualChuteId = path.FallbackChuteId,
-                        FailureReason = $"段 {segment.SequenceNumber} 执行超时",
-                        FailedSegment = segment,
-                        FailureTime = DateTimeOffset.Now
-                    };
+                    return PathExecutionResult.Failure(
+                        ErrorCodes.PathSegmentTimeout,
+                        $"段 {segment.SequenceNumber} 执行超时",
+                        path.FallbackChuteId,
+                        segment);
                 }
 
                 if (!success)
@@ -128,14 +123,11 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                         "段 {SequenceNumber} 执行失败，摆轮={DiverterId}",
                         segment.SequenceNumber, segment.DiverterId);
                     
-                    return new PathExecutionResult
-                    {
-                        IsSuccess = false,
-                        ActualChuteId = path.FallbackChuteId,
-                        FailureReason = $"段 {segment.SequenceNumber} 执行失败",
-                        FailedSegment = segment,
-                        FailureTime = DateTimeOffset.Now
-                    };
+                    return PathExecutionResult.Failure(
+                        ErrorCodes.PathSegmentFailed,
+                        $"段 {segment.SequenceNumber} 执行失败",
+                        path.FallbackChuteId,
+                        segment);
                 }
 
                 _logger.LogDebug(
@@ -148,33 +140,32 @@ public class HardwareSwitchingPathExecutor : ISwitchingPathExecutor
                 "路径执行成功，到达目标格口: {TargetChuteId}",
                 SanitizeForLog(path.TargetChuteId.ToString()));
 
-            return new PathExecutionResult
-            {
-                IsSuccess = true,
-                ActualChuteId = path.TargetChuteId
-            };
+            return PathExecutionResult.Success(path.TargetChuteId);
         }
         catch (OperationCanceledException)
         {
             _logger.LogWarning("路径执行被取消");
-            return new PathExecutionResult
-            {
-                IsSuccess = false,
-                ActualChuteId = path.FallbackChuteId,
-                FailureReason = "操作被取消",
-                FailureTime = DateTimeOffset.Now
-            };
+            return PathExecutionResult.Failure(
+                ErrorCodes.Cancelled,
+                "操作被取消",
+                path.FallbackChuteId);
+        }
+        catch (WheelDriverException ex)
+        {
+            // 驱动层异常统一转换为 PathExecutionResult
+            _logger.LogError(ex, "摆轮驱动异常: {ErrorCode}", ex.ErrorCode);
+            return PathExecutionResult.Failure(
+                ex.ErrorCode,
+                ex.Message,
+                path.FallbackChuteId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "路径执行发生异常");
-            return new PathExecutionResult
-            {
-                IsSuccess = false,
-                ActualChuteId = path.FallbackChuteId,
-                FailureReason = $"执行异常: {ex.Message}",
-                FailureTime = DateTimeOffset.Now
-            };
+            return PathExecutionResult.Failure(
+                ErrorCodes.Unknown,
+                $"执行异常: {ex.Message}",
+                path.FallbackChuteId);
         }
     }
 }
