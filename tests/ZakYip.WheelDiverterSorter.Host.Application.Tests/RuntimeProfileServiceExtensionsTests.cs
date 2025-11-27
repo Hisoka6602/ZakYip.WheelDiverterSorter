@@ -231,4 +231,29 @@ public class RuntimeProfileServiceExtensionsTests
         Assert.True(profile.EnablePerformanceMonitoring);
         Assert.Equal("性能测试模式 - 跳过实际 IO，专注于路径/算法性能测试", profile.GetModeDescription());
     }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("1")]
+    [InlineData("2")]
+    [InlineData("99")]
+    public void AddRuntimeProfile_WithNumericString_DefaultsToProductionProfile(string modeValue)
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "Runtime:Mode", modeValue }
+            })
+            .Build();
+
+        // Act
+        services.AddRuntimeProfile(config);
+        var provider = services.BuildServiceProvider();
+        var profile = provider.GetRequiredService<IRuntimeProfile>();
+
+        // Assert - numeric strings should not be accepted, defaults to Production
+        Assert.IsType<ProductionRuntimeProfile>(profile);
+    }
 }

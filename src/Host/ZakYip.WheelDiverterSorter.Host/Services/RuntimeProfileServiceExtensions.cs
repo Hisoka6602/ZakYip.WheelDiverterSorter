@@ -47,6 +47,13 @@ public static class RuntimeProfileServiceExtensions
     /// 解析运行模式字符串
     /// Parse runtime mode from string
     /// </summary>
+    /// <remarks>
+    /// 支持的格式:
+    /// - 小写: production, simulation, performancetest
+    /// - 带分隔符: performance_test, performance-test
+    /// - 混合大小写: Production, Simulation, PerformanceTest
+    /// 未知值默认返回 Production。
+    /// </remarks>
     private static RuntimeMode ParseRuntimeMode(string? modeString)
     {
         if (string.IsNullOrWhiteSpace(modeString))
@@ -54,14 +61,53 @@ public static class RuntimeProfileServiceExtensions
             return RuntimeMode.Production; // 默认生产模式
         }
 
-        return modeString.Trim().ToLowerInvariant() switch
+        // 标准化输入：移除空格，统一为小写
+        var normalizedInput = NormalizeInput(modeString);
+
+        return normalizedInput switch
         {
             "production" => RuntimeMode.Production,
             "simulation" => RuntimeMode.Simulation,
-            "performancetest" or "performance_test" or "performance-test" => RuntimeMode.PerformanceTest,
-            _ when Enum.TryParse<RuntimeMode>(modeString, ignoreCase: true, out var parsed) => parsed,
+            "performancetest" => RuntimeMode.PerformanceTest,
+            _ when TryParseAsDefinedEnum(modeString, out var parsed) => parsed,
             _ => RuntimeMode.Production // 未知值默认生产模式
         };
+    }
+
+    /// <summary>
+    /// 标准化输入字符串：移除分隔符并转换为小写
+    /// </summary>
+    private static string NormalizeInput(string input)
+    {
+        return input.Trim()
+            .Replace("_", "")
+            .Replace("-", "")
+            .ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// 尝试解析为已定义的枚举值
+    /// 只接受字符串名称，不接受数字字符串
+    /// </summary>
+    private static bool TryParseAsDefinedEnum(string modeString, out RuntimeMode result)
+    {
+        // 首先检查是否为数字字符串，如果是则拒绝
+        if (int.TryParse(modeString.Trim(), out _))
+        {
+            result = RuntimeMode.Production;
+            return false;
+        }
+
+        // 尝试解析为枚举
+        if (Enum.TryParse<RuntimeMode>(modeString, ignoreCase: true, out var parsed) &&
+            Enum.IsDefined(parsed))
+        {
+            result = parsed;
+            return true;
+        }
+
+        result = RuntimeMode.Production;
+        return false;
     }
 
     /// <summary>
