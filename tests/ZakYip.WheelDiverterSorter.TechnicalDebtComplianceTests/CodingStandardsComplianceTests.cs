@@ -518,6 +518,95 @@ public class CodingStandardsComplianceTests
             Assert.Fail(report.ToString());
         }
     }
+
+    /// <summary>
+    /// 验证没有使用 global using 语句
+    /// Verify that no global using statements are used
+    /// </summary>
+    /// <remarks>
+    /// 根据 copilot-instructions.md 规范：
+    /// 代码中禁止使用 global using 指令
+    /// </remarks>
+    [Fact]
+    public void ShouldNotUseGlobalUsing()
+    {
+        var violations = new List<GlobalUsingViolation>();
+        var solutionRoot = GetSolutionRoot();
+        
+        // 扫描所有源代码和测试文件（排除 obj/bin 目录）
+        var csFiles = Directory.GetFiles(solutionRoot, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains("/obj/") && !f.Contains("\\obj\\") 
+                     && !f.Contains("/bin/") && !f.Contains("\\bin\\"))
+            .ToList();
+
+        foreach (var file in csFiles)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(file);
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    var line = lines[i].Trim();
+                    // 检查是否是 global using 语句
+                    if (line.StartsWith("global using "))
+                    {
+                        violations.Add(new GlobalUsingViolation
+                        {
+                            FilePath = file,
+                            LineNumber = i + 1,
+                            Content = line
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading {file}: {ex.Message}");
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n发现 {violations.Count} 个 global using 违规:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n根据编码规范，禁止使用 global using 指令。\n");
+
+            var byFile = violations.GroupBy(v => v.GetRelativePath());
+            foreach (var group in byFile)
+            {
+                report.AppendLine($"📄 {group.Key}");
+                foreach (var violation in group)
+                {
+                    report.AppendLine($"   Line {violation.LineNumber}: {violation.Content}");
+                }
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 删除 global using 语句");
+            report.AppendLine("  2. 在每个需要该命名空间的文件中添加显式 using 语句");
+            report.AppendLine("  3. 删除任何 GlobalUsings.cs 文件");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+}
+
+/// <summary>
+/// Global Using 违规信息
+/// </summary>
+public record GlobalUsingViolation
+{
+    public required string FilePath { get; init; }
+    public required int LineNumber { get; init; }
+    public required string Content { get; init; }
+    
+    public string GetRelativePath()
+    {
+        var parts = FilePath.Split(new[] { "/src/", "\\src\\", "/tests/", "\\tests\\" }, StringSplitOptions.None);
+        return parts.Length > 1 ? parts[1] : FilePath;
+    }
 }
 
 /// <summary>
