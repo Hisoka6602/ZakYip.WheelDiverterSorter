@@ -53,22 +53,21 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 5. Prometheus 指标和告警服务
     /// 6. 包裹追踪和日志清理服务
     /// 7. 配置仓储服务
-    /// 8. 拓扑服务
-    /// 9. 应用层服务
-    /// 10. 分拣服务
-    /// 11. 驱动器服务（根据运行模式选择硬件/仿真）
-    /// 12. 仿真模式提供者
-    /// 13. 健康检查和系统状态管理
-    /// 14. 健康状态提供器
-    /// 15. 并发控制服务
-    /// 16. 节点健康服务
-    /// 17. 传感器服务
-    /// 18. RuleEngine 通信服务
-    /// 19. 通信统计服务
-    /// 20. 改口功能服务
-    /// 21. 中段皮带 IO 联动服务
-    /// 22. 仿真服务
-    /// 23. 后台工作服务
+    /// 8. 应用层服务
+    /// 9. 分拣服务
+    /// 10. 驱动器服务（根据运行模式选择硬件/仿真）
+    /// 11. 仿真模式提供者
+    /// 12. 健康检查和系统状态管理
+    /// 13. 健康状态提供器
+    /// 14. 并发控制服务
+    /// 15. 节点健康服务
+    /// 16. 传感器服务
+    /// 17. RuleEngine 通信服务
+    /// 18. 通信统计服务
+    /// 19. 改口功能服务
+    /// 20. 中段皮带 IO 联动服务
+    /// 21. 仿真服务
+    /// 22. 后台工作服务
     /// </remarks>
     public static IServiceCollection AddWheelDiverterSorter(
         this IServiceCollection services,
@@ -110,16 +109,13 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 7. 注册所有配置仓储
         services.AddConfigurationRepositories(configuration);
 
-        // 8. 注册拓扑服务
-        services.AddTopologyServices();
-
-        // 9. 注册应用层服务（使用 Application 项目的统一扩展方法）
+        // 8. 注册应用层服务（使用 Application 项目的统一扩展方法）
         services.AddWheelDiverterApplication();
 
-        // 10. 注册分拣服务
+        // 9. 注册分拣服务
         services.AddSortingServices(configuration);
 
-        // 11. 根据运行模式注册驱动器服务
+        // 10. 根据运行模式注册驱动器服务
         var runtimeMode = configuration.GetValue<string>("Runtime:Mode") ?? "Production";
         var driverOptions = new DriverOptions();
         configuration.GetSection("Driver").Bind(driverOptions);
@@ -140,10 +136,10 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                     .AddSimulatedConveyorLine();
         }
 
-        // 12. 注册仿真模式提供者 (由 Application 项目的扩展方法注册)
+        // 11. 注册仿真模式提供者 (由 Application 项目的扩展方法注册)
         // services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
 
-        // 13. 注册健康检查和系统状态管理
+        // 12. 注册健康检查和系统状态管理
         var enableHealthCheck = configuration.GetValue<bool>("HealthCheck:Enabled", true);
         if (enableHealthCheck)
         {
@@ -157,41 +153,41 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             services.AddSystemStateManagement(Core.Enums.System.SystemState.Ready);
         }
 
-        // 14. 注册健康状态提供器
+        // 13. 注册健康状态提供器
         services.AddSingleton<Observability.Runtime.Health.IHealthStatusProvider,
             Health.HostHealthStatusProvider>();
 
-        // 15. 注册并发控制服务
+        // 14. 注册并发控制服务
         services.AddConcurrencyControl(configuration);
         services.DecorateWithConcurrencyControl();
 
-        // 16. 注册节点健康服务
+        // 15. 注册节点健康服务
         services.AddNodeHealthServices();
 
-        // 17. 注册传感器服务
+        // 16. 注册传感器服务
         services.AddSensorServices(configuration);
 
-        // 18. 注册 RuleEngine 通信服务
+        // 17. 注册 RuleEngine 通信服务
         services.AddRuleEngineCommunication(configuration);
         services.AddUpstreamConnectionManagement(configuration);
 
-        // 19. 注册通信统计服务 (由 Application 项目的扩展方法注册)
+        // 18. 注册通信统计服务 (由 Application 项目的扩展方法注册)
         // services.AddSingleton<CommunicationStatsService>();
 
-        // 20. 注册改口功能服务
+        // 19. 注册改口功能服务
         services.AddSingleton<IRoutePlanRepository, ApplicationServices.InMemoryRoutePlanRepository>();
         services.AddSingleton<IRouteReplanner, RouteReplanner>();
         // ChangeParcelChuteService is now registered by Application layer (AddWheelDiverterApplication)
         // ChangeParcelChuteCommandHandler is a Host-level adapter that wraps IChangeParcelChuteService
         services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
-        // 21. 注册中段皮带 IO 联动服务
+        // 20. 注册中段皮带 IO 联动服务
         services.AddMiddleConveyorServices(configuration);
 
-        // 22. 注册仿真服务
+        // 21. 注册仿真服务
         services.AddSimulationServices(configuration);
 
-        // 23. 注册后台工作服务
+        // 22. 注册后台工作服务
         services.AddHostedService<AlarmMonitoringWorker>();
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
 

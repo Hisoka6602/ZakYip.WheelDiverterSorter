@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated.IoMapping;
@@ -12,7 +12,6 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated.IoMapping;
 /// 模拟驱动器不需要实际的硬件映射，所有IO点都使用逻辑名称。
 /// 主要用于开发和测试。
 /// </remarks>
-#pragma warning disable CS0618 // 遗留拓扑类型正在逐步迁移中
 public class SimulatedIoMapper : IVendorIoMapper
 {
     private readonly ILogger<SimulatedIoMapper> _logger;
