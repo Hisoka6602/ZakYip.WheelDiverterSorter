@@ -74,16 +74,11 @@ public interface IVendorIoMapper
     /// <returns>映射结果列表</returns>
     IReadOnlyList<VendorIoAddress> MapIoPoints(IEnumerable<IoPointDescriptor> ioPoints)
     {
-        var results = new List<VendorIoAddress>();
-        foreach (var ioPoint in ioPoints)
-        {
-            var address = MapIoPoint(ioPoint);
-            if (address != null)
-            {
-                results.Add(address);
-            }
-        }
-        return results;
+        return ioPoints
+            .Select(MapIoPoint)
+            .Where(addr => addr != null)
+            .Cast<VendorIoAddress>()
+            .ToList();
     }
 
     /// <summary>
