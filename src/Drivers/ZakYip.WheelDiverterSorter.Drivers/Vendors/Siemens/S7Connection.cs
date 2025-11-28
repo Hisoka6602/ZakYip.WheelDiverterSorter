@@ -3,6 +3,7 @@ using S7.Net;
 using System.Net.Sockets;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 

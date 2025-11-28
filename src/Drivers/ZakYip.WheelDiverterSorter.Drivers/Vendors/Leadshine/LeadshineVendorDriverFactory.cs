@@ -5,7 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 

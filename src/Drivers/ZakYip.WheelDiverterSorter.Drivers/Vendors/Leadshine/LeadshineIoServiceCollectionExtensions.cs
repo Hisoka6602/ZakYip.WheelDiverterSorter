@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 

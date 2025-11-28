@@ -1,5 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Configuration;
 

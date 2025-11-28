@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Drivers;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 /// <summary>
 /// 雷赛控制器配置选项

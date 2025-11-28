@@ -1,7 +1,6 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Drivers;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
 /// <summary>
 /// S7-1200/1500 PLC 配置选项

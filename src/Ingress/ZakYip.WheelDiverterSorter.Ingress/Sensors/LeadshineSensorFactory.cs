@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
-using ZakYip.WheelDiverterSorter.Ingress.Configuration;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
