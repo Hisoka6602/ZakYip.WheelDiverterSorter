@@ -1,7 +1,10 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
-using ZakYip.WheelDiverterSorter.Execution.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Adapters;
 

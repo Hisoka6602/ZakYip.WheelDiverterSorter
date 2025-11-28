@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using csLTDMC;
 using Polly;
-using ZakYip.WheelDiverterSorter.Drivers.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 

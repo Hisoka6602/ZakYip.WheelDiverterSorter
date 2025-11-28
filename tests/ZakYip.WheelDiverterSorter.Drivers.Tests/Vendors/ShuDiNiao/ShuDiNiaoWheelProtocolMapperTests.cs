@@ -1,7 +1,10 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
-using ZakYip.WheelDiverterSorter.Execution.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Vendors.ShuDiNiao;
 

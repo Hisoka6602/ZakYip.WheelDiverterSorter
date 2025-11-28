@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Prometheus;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
@@ -52,7 +53,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<ISwitchingPathExecutor, MockSwitchingPathExecutor>();
 
         // 注册 IO 联动服务（仿真模式）
-        services.AddSingleton<ZakYip.WheelDiverterSorter.Drivers.Abstractions.IIoLinkageDriver, 
+        services.AddSingleton<IIoLinkageDriver, 
             ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated.SimulatedIoLinkageDriver>();
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
 

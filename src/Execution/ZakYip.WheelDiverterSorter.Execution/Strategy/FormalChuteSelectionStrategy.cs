@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Strategy;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Execution.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Strategy;
 
