@@ -19,6 +19,7 @@ using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Adapters;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
+using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
@@ -55,8 +56,8 @@ public static class SortingServiceExtensions
                 var innerGenerator = serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>();
                 var cache = serviceProvider.GetRequiredService<IMemoryCache>();
                 var clock = serviceProvider.GetRequiredService<ISystemClock>();
-                var logger = serviceProvider.GetRequiredService<ILogger<CachedSwitchingPathGenerator>>();
-                return new CachedSwitchingPathGenerator(innerGenerator, cache, clock, logger);
+                var logger = serviceProvider.GetRequiredService<ILogger<ApplicationServices.CachedSwitchingPathGenerator>>();
+                return new ApplicationServices.CachedSwitchingPathGenerator(innerGenerator, cache, clock, logger);
             });
         }
         else
@@ -66,7 +67,7 @@ public static class SortingServiceExtensions
         }
 
         // 注册优化的分拣服务
-        services.AddSingleton<OptimizedSortingService>();
+        services.AddSingleton<ApplicationServices.OptimizedSortingService>();
 
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
@@ -76,8 +77,8 @@ public static class SortingServiceExtensions
         services.AddSingleton<ISensorEventProvider, SensorEventProviderAdapter>();
         // IUpstreamRoutingClient: 将 IRuleEngineClient 适配为 Execution 层可用的接口
         services.AddSingleton<IUpstreamRoutingClient, UpstreamRoutingClientAdapter>();
-        // ICongestionDataCollector: 使用 Host 层实现
-        services.AddSingleton<ICongestionDataCollector, CongestionDataCollector>();
+        // ICongestionDataCollector: 使用 Application 层实现
+        services.AddSingleton<ICongestionDataCollector, ApplicationServices.CongestionDataCollector>();
 
         // 注册 UpstreamConnectionOptions（从配置绑定）
         // 绑定 UpstreamConnection 配置节，record 的 init 属性由配置系统在初始化时设置

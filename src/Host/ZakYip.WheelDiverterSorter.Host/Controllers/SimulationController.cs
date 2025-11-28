@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Host.Services.Application;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models;
+using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -40,7 +41,7 @@ public class SimulationController : ControllerBase
     private readonly ISystemClock _clock;
     private readonly IPanelInputReader _panelInputReader;
     private readonly ISignalTowerOutput _signalTowerOutput;
-    private readonly ISimulationModeProvider _simulationModeProvider;
+    private readonly ApplicationServices.ISimulationModeProvider _simulationModeProvider;
     private readonly ISimulationScenarioRunner? _scenarioRunner;
     private readonly DebugSortService? _debugSortService;
     private readonly IWebHostEnvironment _environment;
@@ -54,7 +55,7 @@ public class SimulationController : ControllerBase
         ISystemClock clock,
         IPanelInputReader panelInputReader,
         ISignalTowerOutput signalTowerOutput,
-        ISimulationModeProvider simulationModeProvider,
+        ApplicationServices.ISimulationModeProvider simulationModeProvider,
         IWebHostEnvironment environment,
         ILogger<SimulationController> logger,
         ISimulationScenarioRunner? scenarioRunner = null,

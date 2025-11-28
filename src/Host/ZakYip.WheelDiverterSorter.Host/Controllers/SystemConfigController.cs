@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -129,7 +129,15 @@ public class SystemConfigController : ApiControllerBase
                     default));
             }
 
-            var result = await _configService.UpdateSystemConfigAsync(request);
+            var command = new UpdateSystemConfigCommand
+            {
+                ExceptionChuteId = request.ExceptionChuteId,
+                SortingMode = request.SortingMode,
+                FixedChuteId = request.FixedChuteId,
+                AvailableChuteIds = request.AvailableChuteIds
+            };
+
+            var result = await _configService.UpdateSystemConfigAsync(command);
 
             if (!result.Success)
             {
@@ -252,7 +260,14 @@ public class SystemConfigController : ApiControllerBase
                     default));
             }
 
-            var result = await _configService.UpdateSortingModeAsync(request);
+            var command = new UpdateSortingModeCommand
+            {
+                SortingMode = request.SortingMode,
+                FixedChuteId = request.FixedChuteId,
+                AvailableChuteIds = request.AvailableChuteIds
+            };
+
+            var result = await _configService.UpdateSortingModeAsync(command);
 
             if (!result.Success)
             {

@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -144,7 +144,19 @@ public class LoggingConfigController : ApiControllerBase
                     default));
             }
 
-            var result = await _configService.UpdateLoggingConfigAsync(request);
+            var command = new UpdateLoggingConfigCommand
+            {
+                EnableParcelLifecycleLog = request.EnableParcelLifecycleLog,
+                EnableParcelTraceLog = request.EnableParcelTraceLog,
+                EnablePathExecutionLog = request.EnablePathExecutionLog,
+                EnableCommunicationLog = request.EnableCommunicationLog,
+                EnableDriverLog = request.EnableDriverLog,
+                EnablePerformanceLog = request.EnablePerformanceLog,
+                EnableAlarmLog = request.EnableAlarmLog,
+                EnableDebugLog = request.EnableDebugLog
+            };
+
+            var result = await _configService.UpdateLoggingConfigAsync(command);
 
             if (!result.Success)
             {
