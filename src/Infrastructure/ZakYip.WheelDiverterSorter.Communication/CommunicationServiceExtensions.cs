@@ -91,7 +91,7 @@ public static class CommunicationServiceExtensions
             {
                 // 正式环境（默认）：从数据库加载配置
                 // Production environment (default): load configuration from database
-                var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.ICommunicationConfigurationRepository>();
+                var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ICommunicationConfigurationRepository>();
                 var dbConfig = configRepository.Get();
                 
                 // 将数据库配置映射到 RuleEngineConnectionOptions
@@ -283,7 +283,7 @@ public static class CommunicationServiceExtensions
     /// 将数据库配置映射到 RuleEngineConnectionOptions
     /// Map database configuration to RuleEngineConnectionOptions
     /// </summary>
-    private static RuleEngineConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.CommunicationConfiguration dbConfig)
+    private static RuleEngineConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration dbConfig)
     {
         return new RuleEngineConnectionOptions
         {

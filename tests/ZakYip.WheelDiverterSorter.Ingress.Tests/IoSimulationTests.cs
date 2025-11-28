@@ -119,7 +119,7 @@ public class IoSimulationTests
                 try
                 {
                     // Concurrent writes
-                    await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
+                    await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.Models.IoLinkagePoint
                     {
                         BitNumber = bitNumber,
                         Level = TriggerLevel.ActiveHigh
@@ -210,7 +210,7 @@ public class IoSimulationTests
             var bitNum = i % 20;
             tasks.Add(Task.Run(async () =>
             {
-                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
+                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.Models.IoLinkagePoint
                 {
                     BitNumber = bitNum,
                     Level = (i % 2 == 0) 
@@ -291,7 +291,7 @@ public class IoSimulationTests
         {
             foreach (var bit in diverter1Bits)
             {
-                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
+                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.Models.IoLinkagePoint
                 {
                     BitNumber = bit,
                     Level = TriggerLevel.ActiveHigh
@@ -304,7 +304,7 @@ public class IoSimulationTests
         {
             foreach (var bit in diverter2Bits)
             {
-                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
+                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.Models.IoLinkagePoint
                 {
                     BitNumber = bit,
                     Level = TriggerLevel.ActiveLow
@@ -317,7 +317,7 @@ public class IoSimulationTests
         {
             foreach (var bit in diverter3Bits)
             {
-                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
+                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.Models.IoLinkagePoint
                 {
                     BitNumber = bit,
                     Level = TriggerLevel.ActiveHigh
@@ -361,7 +361,7 @@ public class IoSimulationTests
         {
             for (int i = 0; i < iterationCount; i++)
             {
-                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.IoLinkagePoint
+                await ioDriver.SetIoPointAsync(new Core.LineModel.Configuration.Models.IoLinkagePoint
                 {
                     BitNumber = testBit,
                     Level = (i % 2 == 0) 
