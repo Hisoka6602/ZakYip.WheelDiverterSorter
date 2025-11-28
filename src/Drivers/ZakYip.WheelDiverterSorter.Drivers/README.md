@@ -8,9 +8,10 @@
 
 ## 功能特性
 
-- ✅ **抽象接口**: 定义了IO端口和摆轮控制器的标准接口
-- ✅ **雷赛支持**: 实现了基于雷赛（Leadshine）运动控制器的摆轮控制
+- ✅ **抽象接口**: 定义了IO端口和摆轮控制器的标准接口（定义在 Core 层）
+- ✅ **多厂商支持**: 支持雷赛（Leadshine）、西门子（Siemens S7）、摩迪（Modi）、书迪鸟（ShuDiNiao）等厂商设备
 - ✅ **硬件执行器**: 提供真实硬件的路径执行器实现
+- ✅ **仿真驱动**: 支持 Simulated 驱动用于开发测试
 - ✅ **配置化**: 支持通过配置文件管理驱动器和摆轮配置
 - ✅ **可切换**: 支持在模拟驱动器和硬件驱动器之间切换
 
@@ -18,19 +19,51 @@
 
 ```
 ZakYip.WheelDiverterSorter.Drivers/
-├── Abstractions/                    # 抽象接口
-│   ├── IInputPort.cs               # 输入端口接口
-│   ├── IOutputPort.cs              # 输出端口接口
-│   └── IDiverterController.cs      # 摆轮控制器接口
-├── Leadshine/                       # 雷赛驱动器实现
-│   ├── LTDMC.cs                    # 雷赛P/Invoke声明
-│   ├── LTDMC.dll                   # 雷赛原生DLL
-│   ├── LeadshineDiverterController.cs  # 雷赛摆轮控制器
-│   └── README.md                   # 雷赛驱动器文档
+├── Diagnostics/                     # 驱动诊断
+│   └── RelayWheelDiverterSelfTest.cs
+├── Vendors/                         # 厂商特定实现
+│   ├── Leadshine/                   # 雷赛 IO 卡驱动
+│   │   ├── LTDMC.cs                 # 雷赛 SDK P/Invoke 封装
+│   │   ├── LeadshineInputPort.cs
+│   │   ├── LeadshineOutputPort.cs
+│   │   ├── LeadshineDiverterController.cs
+│   │   ├── LeadshineConveyorSegmentDriver.cs
+│   │   ├── LeadshineIoLinkageDriver.cs
+│   │   ├── LeadshineEmcController.cs
+│   │   ├── CoordinatedEmcController.cs
+│   │   ├── LeadshineVendorDriverFactory.cs
+│   │   └── IoMapping/
+│   │       └── LeadshineIoMapper.cs
+│   ├── Siemens/                     # 西门子 S7 PLC 驱动
+│   │   ├── S7Connection.cs
+│   │   ├── S7DiverterController.cs
+│   │   ├── S7InputPort.cs
+│   │   └── S7OutputPort.cs
+│   ├── Modi/                        # 摩迪摆轮协议驱动
+│   │   ├── ModiProtocol.cs
+│   │   ├── ModiWheelDiverterDriver.cs
+│   │   └── ModiSimulatedDevice.cs
+│   ├── ShuDiNiao/                   # 书迪鸟摆轮协议驱动
+│   │   ├── ShuDiNiaoProtocol.cs
+│   │   ├── ShuDiNiaoWheelDiverterDriver.cs
+│   │   ├── ShuDiNiaoWheelDiverterDriverManager.cs
+│   │   └── ShuDiNiaoSimulatedDevice.cs
+│   └── Simulated/                   # 仿真驱动实现
+│       ├── SimulatedWheelDiverterDevice.cs
+│       ├── SimulatedWheelDiverterActuator.cs
+│       ├── SimulatedConveyorSegmentDriver.cs
+│       ├── SimulatedIoLinkageDriver.cs
+│       ├── SimulatedVendorDriverFactory.cs
+│       └── IoMapping/
+├── FactoryBasedDriverManager.cs     # 工厂模式驱动管理器
 ├── HardwareSwitchingPathExecutor.cs # 硬件路径执行器
-├── DriverOptions.cs                 # 驱动器配置选项
-└── DriverServiceExtensions.cs       # 服务注册扩展
+├── WheelCommandExecutor.cs          # 摆轮命令执行器
+├── IoLinkageExecutor.cs             # IO 联动执行器
+├── DriverServiceExtensions.cs       # DI 扩展方法
+└── DriverOptions.cs                 # 驱动配置选项
 ```
+
+**注意**: 抽象接口（如 `IWheelDiverterDriver`, `IDiverterController`, `IInputPort`, `IOutputPort` 等）定义在 `Core/Abstractions/Drivers/` 目录下，本项目提供具体厂商实现。
 
 ## 快速开始
 
@@ -146,6 +179,16 @@ public interface IDiverterController
 
 ## 硬件支持
 
+### 支持的厂商
+
+| 厂商 | 目录 | 说明 |
+|------|------|------|
+| 雷赛 (Leadshine) | `Vendors/Leadshine/` | LTDMC 系列运动控制卡 |
+| 西门子 (Siemens) | `Vendors/Siemens/` | S7 系列 PLC |
+| 摩迪 (Modi) | `Vendors/Modi/` | 摩迪摆轮协议 |
+| 书迪鸟 (ShuDiNiao) | `Vendors/ShuDiNiao/` | 书迪鸟摆轮协议 |
+| 仿真 (Simulated) | `Vendors/Simulated/` | 开发测试用模拟驱动 |
+
 ### 雷赛（Leadshine）运动控制器
 
 本项目支持雷赛LTDMC系列运动控制卡，用于控制摆轮角度。
@@ -161,15 +204,17 @@ public interface IDiverterController
 | 45°  | 1    | 0    |
 | 90°  | 1    | 1    |
 
-详细说明请参考: [Leadshine/README.md](Leadshine/README.md)
+详细说明请参考: [Vendors/Leadshine/](Vendors/Leadshine/)
 
 ### 扩展其他厂商
 
-要添加其他厂商的支持，请：
+要添加其他厂商的支持，请在 `Vendors/` 目录下创建新的厂商目录，并：
 
-1. 实现 `IDiverterController` 接口
-2. 创建对应的配置类
+1. 实现 Core 层定义的驱动接口（如 `IWheelDiverterDriver`、`IDiverterController` 等）
+2. 创建对应的配置类和工厂类（实现 `IVendorDriverFactory`）
 3. 在 `DriverServiceExtensions` 中添加注册逻辑
+
+**注意**：所有厂商实现必须放在 `Vendors/<VendorName>/` 目录下，不允许在其他位置创建厂商实现。
 
 ## 配置选项
 
