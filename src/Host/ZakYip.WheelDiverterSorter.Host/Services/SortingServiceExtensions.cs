@@ -77,7 +77,8 @@ public static class SortingServiceExtensions
         services.AddSingleton<ICongestionDataCollector, CongestionDataCollector>();
 
         // 注册 UpstreamConnectionOptions（从配置绑定）
-        services.Configure<UpstreamConnectionOptions>(configuration.GetSection("RuleEngine:ChuteAssignmentTimeout"));
+        // 绑定 UpstreamConnection 配置节，record 的 init 属性由配置系统在初始化时设置
+        services.Configure<UpstreamConnectionOptions>(configuration.GetSection(UpstreamConnectionOptions.SectionName));
 
         // PR-1: 注册分拣异常处理器（实现位于 Execution.Orchestration）
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
