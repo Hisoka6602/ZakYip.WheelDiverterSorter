@@ -525,7 +525,9 @@ public class CodingStandardsComplianceTests
     /// </summary>
     /// <remarks>
     /// 根据 copilot-instructions.md 规范：
-    /// 代码中禁止使用 global using 指令
+    /// 代码中禁止使用 global using 指令。
+    /// 当前代码库中不存在任何 global using 语句，
+    /// 本测试将阻止任何新的 global using 被引入。
     /// </remarks>
     [Fact]
     public void ShouldNotUseGlobalUsing()
@@ -551,8 +553,9 @@ public class CodingStandardsComplianceTests
                     if (line.StartsWith("//") || line.StartsWith("/*") || line.StartsWith("*"))
                         continue;
                     
-                    // 检查是否是 global using 语句（以 "global using" 开头，后跟空格和有效字符）
-                    if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^global\s+using\s+\w"))
+                    // 检查是否是 global using 语句（以 "global using" 开头，后跟空格和有效命名空间字符）
+                    // 支持带点的命名空间如: global using System.Collections.Generic;
+                    if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^global\s+using\s+[\w.]+"))
                     {
                         violations.Add(new GlobalUsingViolation
                         {
@@ -572,9 +575,9 @@ public class CodingStandardsComplianceTests
         if (violations.Any())
         {
             var report = new System.Text.StringBuilder();
-            report.AppendLine($"\n发现 {violations.Count} 个 global using 违规:");
+            report.AppendLine($"\n❌ 发现 {violations.Count} 个 global using 违规:");
             report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            report.AppendLine("\n根据编码规范，禁止使用 global using 指令。\n");
+            report.AppendLine("\n⚠️ 禁止新增或保留任何 global using；所有依赖必须通过显式 using 表达。\n");
 
             var byFile = violations.GroupBy(v => v.GetRelativePath());
             foreach (var group in byFile)
@@ -590,7 +593,8 @@ public class CodingStandardsComplianceTests
             report.AppendLine("\n💡 修复建议:");
             report.AppendLine("  1. 删除 global using 语句");
             report.AppendLine("  2. 在每个需要该命名空间的文件中添加显式 using 语句");
-            report.AppendLine("  3. 删除任何 GlobalUsings.cs 文件");
+            report.AppendLine("  3. 删除任何仅包含 global using 的别名壳文件（如 GlobalUsings.cs）");
+            report.AppendLine("  4. 确保所有依赖关系通过显式 using 语句表达，提高代码可读性");
 
             Assert.Fail(report.ToString());
         }
