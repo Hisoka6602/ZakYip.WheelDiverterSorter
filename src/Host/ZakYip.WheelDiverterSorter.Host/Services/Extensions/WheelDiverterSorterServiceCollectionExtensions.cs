@@ -1,193 +1,82 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Caching.Memory;
-using ZakYip.WheelDiverterSorter.Drivers;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
-using ZakYip.WheelDiverterSorter.Ingress;
-using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Execution.Routing;
-using ZakYip.WheelDiverterSorter.Execution.Concurrency;
-using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Core.Sorting;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
-using ZakYip.WheelDiverterSorter.Application;
-using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
-using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Application.Extensions;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
-/// WheelDiverterSorter 服务集合扩展方法
-/// Unified DI entry point for all WheelDiverterSorter services
+/// WheelDiverterSorter 服务集合扩展方法 (Host 层薄包装)
+/// Host layer thin wrapper for WheelDiverterSorter services
 /// </summary>
 /// <remarks>
-/// 提供统一的服务注册入口，将所有 Core/Execution/Drivers/Ingress/Communication/Observability/Simulation 
-/// 相关服务注册合并到单一扩展方法中，简化 Program.cs 的配置。
+/// PR-H1: Host 层依赖收缩 - 此类现在是 Application 层统一 DI 入口的薄包装。
+/// 所有核心服务注册（Core/Execution/Drivers/Ingress/Communication/Observability/Simulation）
+/// 现在由 Application 层的 WheelDiverterSorterServiceCollectionExtensions 处理。
+/// 
+/// Host 层只负责注册：
+/// - 健康检查和系统状态管理（Host 特定）
+/// - 健康状态提供器（Host 特定实现）
+/// - 后台工作服务（Host 特定）
+/// - 命令处理器（Host 特定）
+/// 
+/// **依赖关系**：
+/// Host → Application → (Core/Execution/Drivers/Ingress/Communication/Observability/Simulation)
 /// 
 /// **使用方法**：
 /// <code>
-/// builder.Services.AddWheelDiverterSorter(builder.Configuration);
+/// builder.Services.AddWheelDiverterSorterHost(builder.Configuration);
 /// </code>
 /// </remarks>
 public static class WheelDiverterSorterServiceCollectionExtensions
 {
     /// <summary>
-    /// 注册 WheelDiverterSorter 相关的全部服务
-    /// Registers all services required for the WheelDiverterSorter system
+    /// 注册 WheelDiverterSorter Host 层服务
+    /// Registers Host layer specific services for the WheelDiverterSorter system
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置对象</param>
     /// <returns>服务集合</returns>
     /// <remarks>
     /// 该方法按以下顺序注册服务：
-    /// 1. 基础设施服务（安全执行器、系统时钟、日志去重）
-    /// 2. 运行时配置文件服务
-    /// 3. 分拣系统配置选项
-    /// 4. 性能监控和缓存服务
-    /// 5. Prometheus 指标和告警服务
-    /// 6. 包裹追踪和日志清理服务
-    /// 7. 配置仓储服务
-    /// 8. 应用层服务
-    /// 9. 分拣服务
-    /// 10. 驱动器服务（根据运行模式选择硬件/仿真）
-    /// 11. 仿真模式提供者
-    /// 12. 健康检查和系统状态管理
-    /// 13. 健康状态提供器
-    /// 14. 并发控制服务
-    /// 15. 节点健康服务
-    /// 16. 传感器服务
-    /// 17. RuleEngine 通信服务
-    /// 18. 通信统计服务
-    /// 19. 改口功能服务
-    /// 20. 中段皮带 IO 联动服务
-    /// 21. 仿真服务
-    /// 22. 后台工作服务
+    /// 1. Application 层的所有基础服务（通过 AddWheelDiverterSorter 调用）
+    /// 2. 健康检查和系统状态管理（Host 特定）
+    /// 3. 健康状态提供器（Host 特定实现）
+    /// 4. 命令处理器（Host 特定）
+    /// 5. 后台工作服务（Host 特定）
     /// </remarks>
-    public static IServiceCollection AddWheelDiverterSorter(
+    public static IServiceCollection AddWheelDiverterSorterHost(
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // 1. 添加基础设施服务（安全执行器、系统时钟、日志去重）
-        services.AddInfrastructureServices();
+        // 1. 调用 Application 层的统一 DI 入口注册所有基础服务
+        // 这会注册所有 Core/Execution/Drivers/Ingress/Communication/Observability/Simulation 相关服务
+        services.AddWheelDiverterSorter(configuration);
 
-        // 2. 添加运行时配置文件服务
-        services.AddRuntimeProfile(configuration);
-
-        // 3. 注册分拣系统强类型配置选项
-        services.AddSortingSystemOptions();
-        services.AddUpstreamConnectionOptions();
-        services.AddRoutingOptions();
-
-        // 4. 添加性能监控和缓存服务
-        services.AddMemoryCache(options =>
-        {
-            options.SizeLimit = 1000;
-        });
-        services.AddMetrics();
-        services.AddSingleton<ApplicationServices.SorterMetrics>();
-
-        // 5. 添加 Prometheus 指标服务和告警服务
-        services.AddPrometheusMetrics();
-        services.AddAlarmService();
-        services.AddAlertSinks();
-
-        // 6. 添加包裹生命周期日志和追踪服务
-        services.AddParcelLifecycleLogger();
-        services.AddParcelTraceLogging();
-        
-        // 配置日志清理选项
-        services.Configure<Observability.Tracing.LogCleanupOptions>(
-            configuration.GetSection(Observability.Tracing.LogCleanupOptions.SectionName));
-        services.AddLogCleanup();
-
-        // 7. 注册所有配置仓储
-        services.AddConfigurationRepositories(configuration);
-
-        // 8. 注册应用层服务（使用 Application 项目的统一扩展方法）
-        services.AddWheelDiverterApplication();
-
-        // 9. 注册分拣服务
-        services.AddSortingServices(configuration);
-
-        // 10. 根据运行模式注册驱动器服务
-        var runtimeMode = configuration.GetValue<string>("Runtime:Mode") ?? "Production";
-        var driverOptions = new DriverOptions();
-        configuration.GetSection("Driver").Bind(driverOptions);
-        services.AddSingleton(driverOptions);
-
-        if (runtimeMode.Equals("Simulation", StringComparison.OrdinalIgnoreCase) ||
-            runtimeMode.Equals("PerformanceTest", StringComparison.OrdinalIgnoreCase))
-        {
-            // 仿真/性能测试模式
-            services.AddSimulatedIo()
-                    .AddSimulatedConveyorLine();
-        }
-        else
-        {
-            // 生产模式
-            services.AddLeadshineIo()
-                    .AddShuDiNiaoWheelDiverter()
-                    .AddSimulatedConveyorLine();
-        }
-
-        // 11. 注册仿真模式提供者 (由 Application 项目的扩展方法注册)
-        // services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
-
-        // 12. 注册健康检查和系统状态管理
+        // 2. 注册健康检查和系统状态管理（Host 特定）
         var enableHealthCheck = configuration.GetValue<bool>("HealthCheck:Enabled", true);
         if (enableHealthCheck)
         {
             services.AddHealthCheckServices();
             services.AddSystemStateManagement(
-                Core.Enums.System.SystemState.Booting,
+                SystemState.Booting,
                 enableSelfTest: true);
         }
         else
         {
-            services.AddSystemStateManagement(Core.Enums.System.SystemState.Ready);
+            services.AddSystemStateManagement(SystemState.Ready);
         }
 
-        // 13. 注册健康状态提供器
+        // 3. 注册健康状态提供器（Host 特定实现）
         services.AddSingleton<Observability.Runtime.Health.IHealthStatusProvider,
             Health.HostHealthStatusProvider>();
 
-        // 14. 注册并发控制服务
-        services.AddConcurrencyControl(configuration);
-        services.DecorateWithConcurrencyControl();
-
-        // 15. 注册节点健康服务
-        services.AddNodeHealthServices();
-
-        // 16. 注册传感器服务
-        services.AddSensorServices(configuration);
-
-        // 17. 注册 RuleEngine 通信服务
-        services.AddRuleEngineCommunication(configuration);
-        services.AddUpstreamConnectionManagement(configuration);
-
-        // 18. 注册通信统计服务 (由 Application 项目的扩展方法注册)
-        // services.AddSingleton<CommunicationStatsService>();
-
-        // 19. 注册改口功能服务
-        services.AddSingleton<IRoutePlanRepository, ApplicationServices.InMemoryRoutePlanRepository>();
-        services.AddSingleton<IRouteReplanner, RouteReplanner>();
-        // ChangeParcelChuteService is now registered by Application layer (AddWheelDiverterApplication)
-        // ChangeParcelChuteCommandHandler is a Host-level adapter that wraps IChangeParcelChuteService
+        // 4. 注册命令处理器（Host 特定）
         services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
-        // 20. 注册中段皮带 IO 联动服务
-        services.AddMiddleConveyorServices(configuration);
-
-        // 21. 注册仿真服务
-        services.AddSimulationServices(configuration);
-
-        // 22. 注册后台工作服务
+        // 5. 注册后台工作服务（Host 特定）
         services.AddHostedService<AlarmMonitoringWorker>();
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
 

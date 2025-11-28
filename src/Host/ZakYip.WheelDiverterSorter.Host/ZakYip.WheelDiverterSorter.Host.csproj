@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -25,14 +25,13 @@
     <PackageReference Include="System.Text.Json" Version="8.0.6" />
   </ItemGroup>
 
+  <!-- PR-H1: Host 层依赖收缩 - Host 仅依赖 Application/Core/Observability -->
+  <!-- Host layer dependency reduction - Host only depends on Application/Core/Observability -->
+  <!-- 原有的 Execution/Drivers/Ingress/Communication/Simulation 依赖现在通过 Application 层传递 -->
+  <!-- Original Execution/Drivers/Ingress/Communication/Simulation dependencies are now transitive through Application -->
   <ItemGroup>
     <ProjectReference Include="../../Application/ZakYip.WheelDiverterSorter.Application/ZakYip.WheelDiverterSorter.Application.csproj" />
-    <ProjectReference Include="../../Infrastructure/ZakYip.WheelDiverterSorter.Communication/ZakYip.WheelDiverterSorter.Communication.csproj" />
     <ProjectReference Include="../../Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
-    <ProjectReference Include="../../Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj" />
-    <ProjectReference Include="../../Execution/ZakYip.WheelDiverterSorter.Execution/ZakYip.WheelDiverterSorter.Execution.csproj" />
-    <ProjectReference Include="../../Ingress/ZakYip.WheelDiverterSorter.Ingress/ZakYip.WheelDiverterSorter.Ingress.csproj" />
     <ProjectReference Include="../../Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
-    <ProjectReference Include="../../Simulation/ZakYip.WheelDiverterSorter.Simulation/ZakYip.WheelDiverterSorter.Simulation.csproj" />
   </ItemGroup>
 </Project>
