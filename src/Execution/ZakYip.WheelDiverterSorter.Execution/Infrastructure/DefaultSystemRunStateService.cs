@@ -4,7 +4,9 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;namespace ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+
+namespace ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 
 /// <summary>
 /// 默认系统运行状态服务实现。

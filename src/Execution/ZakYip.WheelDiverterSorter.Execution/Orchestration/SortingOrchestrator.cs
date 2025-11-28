@@ -14,25 +14,16 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Strategy;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution.Health;
+using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Orchestration;
-
-/// <summary>
-/// 上游连接选项
-/// </summary>
-public class UpstreamConnectionOptions
-{
-    /// <summary>
-    /// 格口分配超时时间（秒）- 仅用于无动态超时计算时的备用值
-    /// </summary>
-    public decimal FallbackTimeoutSeconds { get; set; } = 5m;
-}
 
 /// <summary>
 /// 分拣编排服务实现

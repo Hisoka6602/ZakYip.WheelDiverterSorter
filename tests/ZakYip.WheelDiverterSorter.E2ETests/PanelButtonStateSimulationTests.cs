@@ -13,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;

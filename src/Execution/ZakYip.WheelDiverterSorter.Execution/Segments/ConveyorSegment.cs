@@ -5,7 +5,8 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+namespace ZakYip.WheelDiverterSorter.Execution.Segments;
 
 /// <summary>
 /// 中段皮带段实现。

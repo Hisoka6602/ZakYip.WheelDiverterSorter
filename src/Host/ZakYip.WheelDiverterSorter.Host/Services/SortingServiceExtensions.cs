@@ -5,12 +5,14 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Adapters;
@@ -75,10 +77,7 @@ public static class SortingServiceExtensions
         services.AddSingleton<ICongestionDataCollector, CongestionDataCollector>();
 
         // 注册 UpstreamConnectionOptions（从配置绑定）
-        services.Configure<UpstreamConnectionOptions>(options =>
-        {
-            options.FallbackTimeoutSeconds = configuration.GetValue<decimal>("RuleEngine:ChuteAssignmentTimeout:FallbackTimeoutSeconds", 5m);
-        });
+        services.Configure<UpstreamConnectionOptions>(configuration.GetSection("RuleEngine:ChuteAssignmentTimeout"));
 
         // PR-1: 注册分拣异常处理器（实现位于 Execution.Orchestration）
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();

@@ -5,7 +5,8 @@ using ZakYip.WheelDiverterSorter.Execution.Events;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-namespace ZakYip.WheelDiverterSorter.Execution;
+
+namespace ZakYip.WheelDiverterSorter.Execution.PathExecution;
 
 /// <summary>
 /// 路径执行失败处理器实现

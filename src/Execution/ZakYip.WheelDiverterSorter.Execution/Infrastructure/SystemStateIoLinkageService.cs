@@ -7,7 +7,9 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;namespace ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+
+namespace ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 
 /// <summary>
 /// 系统状态与 IO 联动协调服务。
