@@ -1,6 +1,5 @@
-using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;
 
@@ -52,5 +51,5 @@ public class DriverOptions
     /// <summary>
     /// 雷赛控制器配置
     /// </summary>
-    public LeadshineOptions Leadshine { get; set; } = new();
+    public Vendors.Leadshine.Configuration.LeadshineOptions Leadshine { get; set; } = new();
 }

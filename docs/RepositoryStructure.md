@@ -482,20 +482,21 @@ ZakYip.WheelDiverterSorter.Execution/
 
 ### 3.5 ZakYip.WheelDiverterSorter.Drivers
 
-**项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/书迪鸟摆轮协议等）的通信细节。
+**项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/书迪鸟摆轮协议等）的通信细节。所有厂商相关实现和配置类都集中在 `Vendors/<VendorName>/` 目录下。
 
 ```
 ZakYip.WheelDiverterSorter.Drivers/
-├── Abstractions/                    # 驱动层抽象（部分已迁移到 Core）
-│   ├── IWheelDiverterDriver.cs      # 指向 Core 层的别名
-│   ├── IDiverterController.cs
-│   ├── IInputPort.cs
-│   ├── IOutputPort.cs
-│   └── ...
 ├── Diagnostics/                     # 驱动诊断
 │   └── RelayWheelDiverterSelfTest.cs
-├── Vendors/                         # 厂商特定实现
+├── Vendors/                         # 厂商特定实现（所有厂商配置和实现集中于此）
 │   ├── Leadshine/                   # 雷赛 IO 卡驱动
+│   │   ├── Configuration/           # 雷赛配置类
+│   │   │   ├── LeadshineOptions.cs          # 雷赛控制器配置
+│   │   │   ├── LeadshineDiverterConfigDto.cs # 摆轮配置DTO
+│   │   │   ├── LeadshineSensorOptions.cs    # 传感器配置
+│   │   │   └── LeadshineSensorConfigDto.cs  # 传感器配置DTO
+│   │   ├── IoMapping/               # IO映射
+│   │   │   └── LeadshineIoMapper.cs
 │   │   ├── LTDMC.cs                 # 雷赛 SDK P/Invoke 封装
 │   │   ├── LTDMC.dll                # 雷赛原生 DLL
 │   │   ├── LeadshineInputPort.cs
@@ -506,35 +507,56 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── LeadshineEmcController.cs
 │   │   ├── CoordinatedEmcController.cs
 │   │   ├── LeadshineVendorDriverFactory.cs
-│   │   └── IoMapping/
+│   │   └── LeadshineIoServiceCollectionExtensions.cs  # DI 扩展
 │   ├── Siemens/                     # 西门子 S7 PLC 驱动
+│   │   ├── Configuration/           # 西门子配置类
+│   │   │   ├── S7Options.cs                 # S7 PLC 配置
+│   │   │   └── S7DiverterConfigDto.cs       # 摆轮配置DTO
 │   │   ├── S7Connection.cs
 │   │   ├── S7DiverterController.cs
+│   │   ├── S7DiverterConfig.cs
 │   │   ├── S7InputPort.cs
-│   │   └── S7OutputPort.cs
+│   │   ├── S7OutputPort.cs
+│   │   └── SiemensS7ServiceCollectionExtensions.cs    # DI 扩展
 │   ├── Modi/                        # 摩迪摆轮协议驱动
+│   │   ├── Configuration/           # 摩迪配置类（如有需要）
 │   │   ├── ModiProtocol.cs
+│   │   ├── ModiProtocolEnums.cs
 │   │   ├── ModiWheelDiverterDriver.cs
-│   │   └── ModiSimulatedDevice.cs
+│   │   ├── ModiSimulatedDevice.cs
+│   │   └── ModiWheelServiceCollectionExtensions.cs    # DI 扩展
 │   ├── ShuDiNiao/                   # 书迪鸟摆轮协议驱动
+│   │   ├── Configuration/           # 书迪鸟配置类（如有需要）
 │   │   ├── ShuDiNiaoProtocol.cs
+│   │   ├── ShuDiNiaoProtocolEnums.cs
 │   │   ├── ShuDiNiaoWheelDiverterDriver.cs
 │   │   ├── ShuDiNiaoWheelDiverterDriverManager.cs
-│   │   └── ShuDiNiaoSimulatedDevice.cs
+│   │   ├── ShuDiNiaoSimulatedDevice.cs
+│   │   └── ShuDiNiaoWheelServiceCollectionExtensions.cs # DI 扩展
 │   └── Simulated/                   # 仿真驱动实现
+│       ├── Configuration/           # 仿真配置类（如有需要）
+│       ├── IoMapping/
+│       │   └── SimulatedIoMapper.cs
 │       ├── SimulatedWheelDiverterDevice.cs
 │       ├── SimulatedWheelDiverterActuator.cs
 │       ├── SimulatedConveyorSegmentDriver.cs
 │       ├── SimulatedIoLinkageDriver.cs
 │       ├── SimulatedVendorDriverFactory.cs
-│       └── IoMapping/
+│       └── SimulatedDriverServiceCollectionExtensions.cs # DI 扩展
 ├── FactoryBasedDriverManager.cs     # 工厂模式驱动管理器
 ├── HardwareSwitchingPathExecutor.cs # 硬件路径执行器
 ├── WheelCommandExecutor.cs          # 摆轮命令执行器
 ├── IoLinkageExecutor.cs             # IO 联动执行器
-├── DriverServiceExtensions.cs       # DI 扩展方法
+├── DriverServiceExtensions.cs       # 通用 DI 扩展方法（已弃用，推荐使用厂商特定扩展）
 └── DriverOptions.cs                 # 驱动配置选项
 ```
+
+**厂商目录结构规范**:
+- 每个厂商目录 (`Vendors/<VendorName>/`) 必须包含该厂商所有相关代码：
+  - `Configuration/` - 配置类 (Options, Config, DTO)
+  - `IoMapping/` - IO映射实现（如适用）
+  - 驱动实现文件
+  - `<VendorName>ServiceCollectionExtensions.cs` - DI 扩展方法
 
 #### 关键类型概览
 
@@ -552,13 +574,15 @@ ZakYip.WheelDiverterSorter.Drivers/
 
 **项目职责**：入口层，负责传感器事件监听、包裹检测、上游通信门面封装。
 
+**注意**：厂商相关配置类已移动到 `Drivers/Vendors/<VendorName>/Configuration/`，Ingress 项目通过引用 Drivers 项目使用这些配置。
+
 ```
 ZakYip.WheelDiverterSorter.Ingress/
 ├── Adapters/                        # 适配器
 │   └── SensorEventProviderAdapter.cs
-├── Configuration/                   # 传感器配置
+├── Configuration/                   # 传感器配置（通用配置）
 │   ├── SensorConfiguration.cs
-│   ├── LeadshineSensorOptions.cs
+│   ├── SensorOptions.cs             # 引用 Drivers 中的厂商配置
 │   ├── MockSensorConfigDto.cs
 │   └── ParcelDetectionOptions.cs
 ├── Models/                          # 入口层模型
@@ -567,8 +591,8 @@ ZakYip.WheelDiverterSorter.Ingress/
 │   ├── SensorHealthStatus.cs
 │   └── ...
 ├── Sensors/                         # 传感器实现
-│   ├── LeadshineSensor.cs
-│   ├── LeadshineSensorFactory.cs
+│   ├── LeadshineSensor.cs           # 使用 Drivers.Vendors.Leadshine.Configuration
+│   ├── LeadshineSensorFactory.cs    # 使用 Drivers.Vendors.Leadshine.Configuration
 │   ├── MockSensor.cs
 │   └── MockSensorFactory.cs
 ├── Services/                        # 服务实现
@@ -956,6 +980,28 @@ tools/Profiling/
     - **问题**：Simulation 既是独立可执行程序又被 Host 引用，边界不清晰
     - **PR5 解决方案**：在 Simulation/README.md 中明确定义了公共 API（`ISimulationScenarioRunner`、`SimulationOptions`、`SimulationSummary`）与内部实现的区分，Host 层只应使用公共 API
 
+### 5.6 厂商配置收拢相关（PR-C2）
+
+16. **厂商配置已部分移动到 Drivers/Vendors/** ✅ 部分完成 (PR-C2)
+    - **已完成**：
+      - `LeadshineOptions`, `LeadshineDiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Leadshine/Configuration/`
+      - `S7Options`, `S7DiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Siemens/Configuration/`
+      - `LeadshineSensorOptions`, `LeadshineSensorConfigDto` 从 Ingress 移动到 `Drivers/Vendors/Leadshine/Configuration/`
+      - 创建了 `SiemensS7ServiceCollectionExtensions` 统一 DI 扩展
+    - **待处理（技术债务）**：
+      - Core 层 `LeadshineCabinetIoOptions` 仍在 `Core/LineModel/Configuration/Models/` 中
+        - 该类被 `SystemConfiguration` 引用，移动需要更复杂的配置加载机制重构
+        - 建议：后续 PR 将其移动到 Drivers/Vendors/Leadshine/Configuration/ 并更新配置绑定逻辑
+      - Modi 和 ShuDiNiao 的配置类尚未提取到独立的 Configuration 目录
+        - 当前这两个厂商的配置直接从 `WheelDiverterConfiguration` 中读取
+        - 建议：后续 PR 提取厂商特定配置类到各自的 Configuration 目录
+
+17. **Ingress 项目新增 Drivers 依赖**
+    - PR-C2 为了让 Ingress 使用 Drivers 中的配置类，新增了 Ingress -> Drivers 的项目引用
+    - 依赖链变为：Ingress -> Drivers -> Core/Communication
+    - 这是为了避免配置类重复定义的权宜之计
+    - **注意**：需确保 Ingress 不直接使用 Drivers 中的驱动实现类，仅使用配置类
+
 ---
 
 ## 附录：目录树生成命令
@@ -972,6 +1018,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.1  
+**文档版本**：1.2  
 **最后更新**：2025-11-28  
 **维护团队**：ZakYip Development Team

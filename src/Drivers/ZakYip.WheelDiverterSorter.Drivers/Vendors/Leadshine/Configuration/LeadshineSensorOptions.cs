@@ -1,4 +1,6 @@
-namespace ZakYip.WheelDiverterSorter.Ingress.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 /// <summary>
 /// 雷赛传感器配置选项

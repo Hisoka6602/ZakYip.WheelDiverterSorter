@@ -1,5 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Configuration;
 
@@ -21,7 +22,7 @@ public class SensorOptions {
     /// <summary>
     /// 雷赛传感器配置
     /// </summary>
-    public LeadshineSensorOptions? Leadshine { get; set; }
+    public Drivers.Vendors.Leadshine.Configuration.LeadshineSensorOptions? Leadshine { get; set; }
 
     /// <summary>
     /// 模拟传感器配置列表

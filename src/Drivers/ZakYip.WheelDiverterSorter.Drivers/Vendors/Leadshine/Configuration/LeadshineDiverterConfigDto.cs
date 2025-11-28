@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Drivers;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 
 /// <summary>
 /// 摆轮配置DTO
