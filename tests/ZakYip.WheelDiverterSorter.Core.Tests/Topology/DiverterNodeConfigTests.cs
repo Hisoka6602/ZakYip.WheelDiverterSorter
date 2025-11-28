@@ -1,6 +1,7 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 #pragma warning disable CS0618 // 遗留拓扑类型正在逐步迁移中
 namespace ZakYip.WheelDiverterSorter.Core.Tests.Topology;

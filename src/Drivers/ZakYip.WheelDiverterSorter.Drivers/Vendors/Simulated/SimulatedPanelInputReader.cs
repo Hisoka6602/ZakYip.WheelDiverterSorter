@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 /// <summary>
 /// 仿真面板输入读取器。

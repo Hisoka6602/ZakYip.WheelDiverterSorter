@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Application.Services;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 

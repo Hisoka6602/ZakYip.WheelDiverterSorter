@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 public class RoutePlanTests
 {

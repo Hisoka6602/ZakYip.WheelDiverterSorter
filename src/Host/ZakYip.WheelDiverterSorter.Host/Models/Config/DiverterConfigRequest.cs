@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 

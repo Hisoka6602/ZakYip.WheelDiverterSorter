@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

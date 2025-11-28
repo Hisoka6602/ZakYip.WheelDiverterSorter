@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
 

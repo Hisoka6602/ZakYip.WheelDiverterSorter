@@ -1,10 +1,8 @@
 // This file is maintained for backward compatibility.
-// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Host namespace.
+// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.System namespace.
 
-// Re-export the enum from Core.Enums.Host for backward compatibility
-global using BootstrapStage = ZakYip.WheelDiverterSorter.Core.Enums.System.BootstrapStage;
-
-using System.ComponentModel;
+// For backward compatibility, use the type from Core.Enums.System
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Host.StateMachine;
 

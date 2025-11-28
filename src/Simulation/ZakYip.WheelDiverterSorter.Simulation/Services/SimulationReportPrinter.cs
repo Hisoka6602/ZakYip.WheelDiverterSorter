@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
+using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 

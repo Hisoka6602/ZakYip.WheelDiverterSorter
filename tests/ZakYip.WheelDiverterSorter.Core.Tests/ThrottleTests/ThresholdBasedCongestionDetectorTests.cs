@@ -2,6 +2,7 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests.ThrottleTests;
 

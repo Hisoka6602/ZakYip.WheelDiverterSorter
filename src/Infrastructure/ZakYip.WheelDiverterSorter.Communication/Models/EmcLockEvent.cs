@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+
 namespace ZakYip.WheelDiverterSorter.Communication.Models;
 
 /// <summary>

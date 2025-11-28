@@ -5,3 +5,4 @@ namespace ZakYip.WheelDiverterSorter.Communication.Configuration;
 
 // Re-export the enum from Core.Enums for backward compatibility
 using ConnectionMode = ZakYip.WheelDiverterSorter.Core.Enums.Communication.ConnectionMode;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;

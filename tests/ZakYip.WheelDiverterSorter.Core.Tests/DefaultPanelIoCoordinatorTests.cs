@@ -4,6 +4,8 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 public class DefaultPanelIoCoordinatorTests
 {

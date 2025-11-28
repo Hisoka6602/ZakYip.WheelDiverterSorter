@@ -3,6 +3,8 @@ using Moq;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using HalWheelCommand = ZakYip.WheelDiverterSorter.Core.Hardware.WheelCommand;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Simulated;
 
@@ -130,7 +132,7 @@ public class SimulatedWheelDiverterDeviceTests
     {
         // Arrange
         var device = new SimulatedWheelDiverterDevice("D001");
-        var command = new WheelCommand
+        var command = new HalWheelCommand
         {
             Direction = DiverterDirection.Left
         };
@@ -149,7 +151,7 @@ public class SimulatedWheelDiverterDeviceTests
     {
         // Arrange
         var device = new SimulatedWheelDiverterDevice("D001");
-        var command = new WheelCommand
+        var command = new HalWheelCommand
         {
             Direction = DiverterDirection.Right
         };
@@ -167,7 +169,7 @@ public class SimulatedWheelDiverterDeviceTests
     {
         // Arrange
         var device = new SimulatedWheelDiverterDevice("D001");
-        var command = new WheelCommand
+        var command = new HalWheelCommand
         {
             Direction = DiverterDirection.Straight
         };
@@ -185,7 +187,7 @@ public class SimulatedWheelDiverterDeviceTests
     {
         // Arrange
         var device = new SimulatedWheelDiverterDevice("D001");
-        await device.ExecuteAsync(new WheelCommand { Direction = DiverterDirection.Left });
+        await device.ExecuteAsync(new HalWheelCommand { Direction = DiverterDirection.Left });
 
         // Act
         var result = await device.StopAsync();

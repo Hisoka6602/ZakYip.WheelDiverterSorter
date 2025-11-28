@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated.IoMapping;
 

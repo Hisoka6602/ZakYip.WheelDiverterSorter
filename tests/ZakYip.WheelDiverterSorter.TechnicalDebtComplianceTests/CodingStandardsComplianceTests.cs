@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 

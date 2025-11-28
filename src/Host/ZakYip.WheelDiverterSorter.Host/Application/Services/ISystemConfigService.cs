@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteD
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
 

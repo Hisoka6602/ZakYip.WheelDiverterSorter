@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 /// <summary>
 /// 死锁检测测试：测试超时释放、资源争用、死锁场景
