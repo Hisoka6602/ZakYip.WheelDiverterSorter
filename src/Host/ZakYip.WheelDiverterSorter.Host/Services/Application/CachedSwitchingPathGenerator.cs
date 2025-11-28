@@ -4,7 +4,7 @@ using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 /// <summary>
 /// 带缓存优化的路径生成器包装器

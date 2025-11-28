@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 

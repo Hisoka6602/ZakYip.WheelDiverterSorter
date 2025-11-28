@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 /// <summary>
 /// 仿真模式提供者接口

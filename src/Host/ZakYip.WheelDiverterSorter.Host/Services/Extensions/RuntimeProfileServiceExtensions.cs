@@ -2,7 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Host.Services.RuntimeProfiles;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
 /// 运行时配置文件服务注册扩展

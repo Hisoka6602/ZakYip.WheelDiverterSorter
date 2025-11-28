@@ -5,8 +5,9 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
 /// 健康检查服务注册扩展

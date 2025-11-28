@@ -13,7 +13,7 @@ using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Segments;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
 /// 中段皮带 IO 联动服务注册扩展。

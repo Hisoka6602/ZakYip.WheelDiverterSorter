@@ -1,7 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
 /// <summary>
 /// 启动时执行路由-拓扑一致性检查的后台服务

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
 /// <summary>
 /// 启动时执行系统自检的后台服务

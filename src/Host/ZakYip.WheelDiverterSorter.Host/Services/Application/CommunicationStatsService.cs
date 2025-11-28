@@ -1,7 +1,7 @@
 using System.Threading;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 /// <summary>
 /// 通信统计服务 - Communication Statistics Service

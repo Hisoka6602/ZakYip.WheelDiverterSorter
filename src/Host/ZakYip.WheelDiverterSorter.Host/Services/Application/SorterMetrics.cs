@@ -1,6 +1,6 @@
 using System.Diagnostics.Metrics;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 /// <summary>
 /// 分拣系统性能指标服务

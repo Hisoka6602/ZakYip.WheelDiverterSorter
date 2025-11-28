@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
 /// 仿真服务扩展方法

@@ -3,29 +3,7 @@ using NLog.Web;
 using Prometheus;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
-using ZakYip.WheelDiverterSorter.Drivers;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
-using ZakYip.WheelDiverterSorter.Ingress;
-using Microsoft.Extensions.Caching.Memory;
-using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Execution.Routing;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Host.Models;
-using ZakYip.WheelDiverterSorter.Host.Commands;
-using ZakYip.WheelDiverterSorter.Host.Services;
-using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Ingress.Services;
-using ZakYip.WheelDiverterSorter.Execution.Concurrency;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
-using ZakYip.WheelDiverterSorter.Core.Sorting;
+using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 using ZakYip.WheelDiverterSorter.Host.Swagger;
 
 // Early init of NLog to allow startup and shutdown logging
@@ -51,48 +29,11 @@ try
                     allowIntegerValues: true));
         });
 
-    // PR-37: 添加基础设施服务（安全执行器、系统时钟、日志去重）
-    builder.Services.AddInfrastructureServices();
-
-    // PR-6: 添加运行时配置文件服务（根据 Runtime:Mode 配置决定使用生产/仿真/性能测试模式）
-    builder.Services.AddRuntimeProfile(builder.Configuration);
-
-    // PR-2: 注册分拣系统强类型配置选项（带启动时校验）
-    builder.Services.AddSortingSystemOptions(options =>
-    {
-        // 从数据库配置仓储加载时会覆盖这些默认值
-        // 这里设置合理的启动默认值
-    });
-    builder.Services.AddUpstreamConnectionOptions();
-    builder.Services.AddRoutingOptions();
-
-    // 添加性能监控和优化服务
-    builder.Services.AddMemoryCache(options =>
-    {
-        options.SizeLimit = 1000; // 最多缓存1000个路径
-    });
-    builder.Services.AddMetrics();
-    builder.Services.AddSingleton<SorterMetrics>();
-
-    // 添加Prometheus指标服务
-    builder.Services.AddPrometheusMetrics();
-
-    // 添加告警服务
-    builder.Services.AddAlarmService();
-
-    // PR-33: 添加告警接收器（IAlertSink）
-    builder.Services.AddAlertSinks();
-
-    // 添加包裹生命周期日志记录服务
-    builder.Services.AddParcelLifecycleLogger();
-
-    // PR-10: 添加包裹追踪日志服务
-    builder.Services.AddParcelTraceLogging();
-
-    // PR-10: 添加日志清理服务
-    builder.Services.Configure<ZakYip.WheelDiverterSorter.Observability.Tracing.LogCleanupOptions>(
-        builder.Configuration.GetSection(ZakYip.WheelDiverterSorter.Observability.Tracing.LogCleanupOptions.SectionName));
-    builder.Services.AddLogCleanup();
+    // PR3: 使用统一的 DI 入口注册所有 WheelDiverterSorter 服务
+    // 该方法内部按顺序注册：基础设施、运行时配置、分拣配置、性能监控、
+    // Prometheus、告警、包裹追踪、配置仓储、拓扑、应用服务、分拣服务、
+    // 驱动器、健康检查、并发控制、传感器、通信、改口功能、仿真、后台服务
+    builder.Services.AddWheelDiverterSorter(builder.Configuration);
 
     // 配置Swagger/OpenAPI
     builder.Services.AddEndpointsApiExplorer();
@@ -151,114 +92,6 @@ try
         // 添加摆轮配置的文档过滤器，根据当前厂商动态显示/隐藏API端点
         options.DocumentFilter<WheelDiverterControllerDocumentFilter>();
     });
-
-    // 注册所有配置仓储（路由、系统、驱动器、传感器、通信、日志）
-    builder.Services.AddConfigurationRepositories(builder.Configuration);
-
-    // PR-12: 注册线体拓扑服务和设备绑定服务
-    builder.Services.AddTopologyServices();
-
-    // PR-1: 注册应用层服务
-    builder.Services.AddScoped<ZakYip.WheelDiverterSorter.Host.Application.Services.ISystemConfigService,
-        ZakYip.WheelDiverterSorter.Host.Application.Services.SystemConfigService>();
-
-    // 注册日志配置服务
-    builder.Services.AddScoped<ZakYip.WheelDiverterSorter.Host.Application.Services.ILoggingConfigService,
-        ZakYip.WheelDiverterSorter.Host.Application.Services.LoggingConfigService>();
-
-    // 注册分拣相关服务（路径生成、路径执行、分拣编排）
-    builder.Services.AddSortingServices(builder.Configuration);
-
-    // PR-13: 使用厂商特定的 DI 扩展方法注册驱动器服务
-    // Use vendor-specific DI extension methods to register driver services
-    // 根据运行模式（Runtime:Mode）决定使用硬件驱动还是模拟驱动
-    var runtimeMode = builder.Configuration.GetValue<string>("Runtime:Mode") ?? "Production";
-    
-    // 绑定驱动器配置（用于雷赛等硬件厂商的具体配置）
-    var driverOptions = new DriverOptions();
-    builder.Configuration.GetSection("Driver").Bind(driverOptions);
-    builder.Services.AddSingleton(driverOptions);
-    
-    if (runtimeMode.Equals("Simulation", StringComparison.OrdinalIgnoreCase) ||
-        runtimeMode.Equals("PerformanceTest", StringComparison.OrdinalIgnoreCase))
-    {
-        // 仿真/性能测试模式：使用模拟驱动器
-        // Simulation/PerformanceTest mode: use simulated drivers
-        builder.Services
-            .AddSimulatedIo()                    // 模拟 IO
-            .AddSimulatedConveyorLine();        // 模拟线体
-    }
-    else
-    {
-        // 生产模式：使用雷赛 IO + 数递鸟摆轮（或根据实际配置选择）
-        // Production mode: use Leadshine IO + ShuDiNiao wheel diverters (or based on actual configuration)
-        builder.Services
-            .AddLeadshineIo()                    // 雷赛 IO
-            .AddShuDiNiaoWheelDiverter()         // 数递鸟摆轮
-            .AddSimulatedConveyorLine();        // 默认使用模拟线体（可替换为具体厂商）
-    }
-
-    // 注册仿真模式提供者（用于判断当前是否为仿真模式）
-    builder.Services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
-
-    // 注册健康检查和自检服务（PR-09）
-    // 默认启用自检功能，可通过配置禁用
-    var enableHealthCheck = builder.Configuration.GetValue<bool>("HealthCheck:Enabled", true);
-    if (enableHealthCheck)
-    {
-        builder.Services.AddHealthCheckServices();
-        // 注册系统状态管理服务（带自检）
-        builder.Services.AddSystemStateManagement(
-            ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState.Booting,
-            enableSelfTest: true);
-    }
-    else
-    {
-        // 注册系统状态管理服务（不带自检，向后兼容）
-        builder.Services.AddSystemStateManagement(ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState.Ready);
-    }
-
-    // PR-33: 注册健康状态提供器
-    builder.Services.AddSingleton<ZakYip.WheelDiverterSorter.Observability.Runtime.Health.IHealthStatusProvider,
-        ZakYip.WheelDiverterSorter.Host.Health.HostHealthStatusProvider>();
-
-    // 注册并发控制服务
-    builder.Services.AddConcurrencyControl(builder.Configuration);
-
-    // 装饰现有的路径执行器，添加并发控制功能
-    builder.Services.DecorateWithConcurrencyControl();
-
-    // PR-14: 注册节点健康服务
-    builder.Services.AddNodeHealthServices();
-
-    // 注册传感器服务（使用工厂模式，支持多厂商）
-    builder.Services.AddSensorServices(builder.Configuration);
-
-    // 注册RuleEngine通信服务（支持TCP/SignalR/MQTT/HTTP）
-    builder.Services.AddRuleEngineCommunication(builder.Configuration);
-
-    // 注册上游连接管理服务（自动启动Client模式连接或Server模式监听）
-    builder.Services.AddUpstreamConnectionManagement(builder.Configuration);
-
-    // 注册通信统计服务
-    builder.Services.AddSingleton<CommunicationStatsService>();
-
-    // 注册改口功能相关服务
-    builder.Services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
-    builder.Services.AddSingleton<IRouteReplanner, RouteReplanner>();
-    builder.Services.AddSingleton<ChangeParcelChuteCommandHandler>();
-
-    // 注册中段皮带 IO 联动服务
-    builder.Services.AddMiddleConveyorServices(builder.Configuration);
-
-    // 注册仿真服务（用于 API 触发仿真）
-    builder.Services.AddSimulationServices(builder.Configuration);
-
-    // 注册告警监控后台服务
-    builder.Services.AddHostedService<AlarmMonitoringWorker>();
-
-    // 注册路由-拓扑一致性检查后台服务（启动时执行）
-    builder.Services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
 
     var app = builder.Build();
 

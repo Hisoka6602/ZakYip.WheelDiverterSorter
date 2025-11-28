@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Core.Topology;
 using ZakYip.WheelDiverterSorter.Core.Topology.Services;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
 /// 线体拓扑服务扩展方法
