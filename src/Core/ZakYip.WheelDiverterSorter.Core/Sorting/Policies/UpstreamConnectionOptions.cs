@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 

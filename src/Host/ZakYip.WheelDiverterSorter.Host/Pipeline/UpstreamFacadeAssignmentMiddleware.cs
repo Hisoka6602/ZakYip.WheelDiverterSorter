@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 using ZakYip.WheelDiverterSorter.Ingress.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Host.Pipeline;
 

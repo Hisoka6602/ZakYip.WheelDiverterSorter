@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 /// <summary>
 /// 并发路径执行器测试：测试并发控制、资源锁、队列管理

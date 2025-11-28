@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Ingress.Sensors;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 

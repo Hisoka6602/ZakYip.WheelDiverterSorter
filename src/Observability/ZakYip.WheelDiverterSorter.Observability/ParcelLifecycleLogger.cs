@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 

@@ -1,7 +1,9 @@
 // This file is maintained for backward compatibility.
-// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Simulation namespace.
+// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Parcel namespace.
 
-// Re-export the enum from Core.Enums.Simulation for backward compatibility
-global using DenseParcelStrategy = ZakYip.WheelDiverterSorter.Core.Enums.Parcel.DenseParcelStrategy;
+// For backward compatibility, use the type from Core.Enums.Parcel
+using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
+
+// Type alias removed - use ZakYip.WheelDiverterSorter.Core.Enums.Parcel.DenseParcelStrategy directly

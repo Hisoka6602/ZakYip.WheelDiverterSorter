@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
+
 namespace ZakYip.WheelDiverterSorter.Simulation.Results;
 
 /// <summary>

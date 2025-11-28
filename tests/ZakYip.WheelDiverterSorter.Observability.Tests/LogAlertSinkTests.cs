@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 

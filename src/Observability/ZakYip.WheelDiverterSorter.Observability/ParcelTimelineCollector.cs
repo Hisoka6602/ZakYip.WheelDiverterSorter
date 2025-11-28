@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 

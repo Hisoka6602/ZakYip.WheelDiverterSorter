@@ -8,6 +8,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
 public class DefaultIoLinkageCoordinatorTests

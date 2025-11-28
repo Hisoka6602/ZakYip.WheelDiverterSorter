@@ -6,6 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

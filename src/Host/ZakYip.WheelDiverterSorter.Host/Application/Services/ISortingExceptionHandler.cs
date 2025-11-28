@@ -1,3 +1,7 @@
-// PR-1: 向后兼容类型别名 - 实际定义已移至 Core.Sorting.Orchestration
-// 这些别名确保现有代码无需修改即可继续使用 Host.Application.Services 命名空间
-global using ISortingExceptionHandler = ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration.ISortingExceptionHandler;
+// PR-1: 向后兼容 - 实际定义已移至 Core.Sorting.Orchestration
+// 需要使用 Core.Sorting.Orchestration.ISortingExceptionHandler 替代
+using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
+
+namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
+
+// Type alias removed - use ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration.ISortingExceptionHandler directly

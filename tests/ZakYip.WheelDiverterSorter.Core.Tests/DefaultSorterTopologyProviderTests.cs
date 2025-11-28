@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 public class DefaultSorterTopologyProviderTests
 {

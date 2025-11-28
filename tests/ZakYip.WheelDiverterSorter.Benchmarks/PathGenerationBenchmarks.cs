@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Benchmarks;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 /// <summary>
 /// 路径生成性能基准测试

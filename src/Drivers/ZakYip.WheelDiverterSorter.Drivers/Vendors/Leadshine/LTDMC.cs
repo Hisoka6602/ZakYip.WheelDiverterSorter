@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Runtime.InteropServices;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 
 // æŠ‘åˆ¶å‚å•†SDKç»“æ„ä½“çš„æœªä½¿ç”¨å­—æ®µè­¦å‘Šï¼ˆCS0169ï¼‰
@@ -10,72 +11,72 @@ using System.Runtime.InteropServices;
 // åœ¨æ–‡ä»¶çº§åˆ«æŠ‘åˆ¶è­¦å‘Šï¼Œé¿å…å¯¹æ¯ä¸ªç»“æ„ä½“å•ç‹¬å¤„ç†
 #pragma warning disable CS0169
 
-namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
+namespace csLTDMC //Õ¼Ó¦Ã³Ş¸
 {
 
     public struct struct_hs_cmp_info
     {
-    double start_pos;   //ÏßĞÔ±È½ÏÆğÊ¼µãÎ»ÖÃ.
-    double interval;    //¼ä¾à.
-    int count;//¸öÊı
+    double start_pos;   //Ô±È½Ê¼Î».
+    double interval;    //.
+    int count;//
     };
 
 
     public delegate uint DMC3K5K_OPERATE(IntPtr operate_data); 
     public partial class LTDMC
     {
-        //ÉèÖÃºÍ¶ÁÈ¡´òÓ¡Ä£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //ÃºÍ¶È¡Ó¡Ä£Ê½/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_debug_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_debug_mode(UInt16 mode, string FileName);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_debug_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_debug_mode(ref UInt16 mode, IntPtr FileName);
-        //---------------------   °å¿¨³õÊ¼ºÍÅäÖÃº¯Êı  ----------------------
-        //³õÊ¼»¯¿ØÖÆ¿¨£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //---------------------   å¿¨Ê¼Ãº  ----------------------
+        //Ê¼Æ¿/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_board_init", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_board_init();
-        //Ó²¼ş¸´Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ó²Î»/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_board_reset", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_board_reset();
-        //¹Ø±Õ¿ØÖÆ¿¨£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ø±Õ¿Æ¿/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_board_close", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_board_close();
-        //¿ØÖÆ¿¨ÈÈ¸´Î»£¨ÊÊÓÃÓÚEtherCAT¡¢RTEX×ÜÏß¿¨£©  
+        //Æ¿È¸Î»EtherCATRTEXß¿  
         [DllImport("LTDMC.dll")]
         public static extern short dmc_soft_reset(ushort CardNo);
-        //¿ØÖÆ¿¨Àä¸´Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Æ¿ä¸´Î»/ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_cool_reset(ushort CardNo);
-        //¿ØÖÆ¿¨³õÊ¼¸´Î»£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨£©
+        //Æ¿Ê¼Î»EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_original_reset", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_original_reset(ushort CardNo);
-        //¶ÁÈ¡¿ØÖÆ¿¨ĞÅÏ¢ÁĞ±í£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //È¡Æ¿Ï¢Ğ±/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_CardInfList", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_CardInfList(ref UInt16 CardNum, UInt32[] CardTypeList, UInt16[] CardIdList);
-        //¶ÁÈ¡·¢²¼°æ±¾ºÅ£¨ÊÊÓÃÓÚDMC3000/DMC5X10ÏµÁĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //È¡æ±¾Å£DMC3000/DMC5X10Ïµå¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_card_version", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_card_version(UInt16 CardNo, ref UInt32 CardVersion);
-        //¶ÁÈ¡¿ØÖÆ¿¨Ó²¼şµÄ¹Ì¼ş°æ±¾£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //È¡Æ¿Ó²Ä¹Ì¼æ±¾/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_card_soft_version", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_card_soft_version(UInt16 CardNo, ref UInt32 FirmID, ref UInt32 SubFirmID);
-        //¶ÁÈ¡¿ØÖÆ¿¨¶¯Ì¬¿â°æ±¾£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //È¡Æ¿Ì¬æ±¾/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_card_lib_version", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_card_lib_version(ref UInt32 LibVer);
-        //¶ÁÈ¡·¢²¼°æ±¾ºÅ£¨ÊÊÓÃÓÚDMC3000/DMC5X10ÏµÁĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //È¡æ±¾Å£DMC3000/DMC5X10Ïµå¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_release_version", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_release_version(ushort ConnectNo, byte[] ReleaseVersion);
-        //¶ÁÈ¡Ö¸¶¨¿¨ÖáÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Ö¸å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_total_axes", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_total_axes(UInt16 CardNo, ref UInt32 TotalAxis);
-        //»ñÈ¡±¾µØIOµãÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //È¡IO/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_total_ionum", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_total_ionum(ushort CardNo, ref ushort TotalIn, ref ushort TotalOut);
-        //»ñÈ¡±¾µØADDAÊäÈëÊä³öÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡ADDAå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_total_adcnum", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_total_adcnum(ushort CardNo, ref ushort TotalIn, ref ushort TotalOut);
-        //¶ÁÈ¡Ö¸¶¨¿¨²å²¹×ø±êÏµÊı£¨±£Áô£©
+        //È¡Ö¸å²¹Ïµ
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_total_liners", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_total_liners(UInt16 CardNo, ref UInt32 TotalLiner);
-        //¶¨ÖÆÀà£¨±£Áô£©
+        //à£¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_board_init_onecard", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_board_init_onecard(ushort CardNo);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_board_close_onecard", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
@@ -83,75 +84,75 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         [DllImport("LTDMC.dll", EntryPoint = "dmc_board_reset_onecard", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_board_reset_onecard(ushort CardNo);
 
-        //ÃÜÂëº¯Êı£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //ëº¯/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_sn", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_sn(UInt16 CardNo, string new_sn);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_check_sn", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_check_sn(UInt16 CardNo, string check_sn);
-        //µÇÈësn20191101£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //sn20191101DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_enter_password_ex(UInt16 CardNo, string str_pass);
 
-        //---------------------ÔË¶¯Ä£¿éÂö³åÄ£Ê½------------------
-        //Âö³åÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©	
+        //---------------------Ë¶Ä£Ä£Ê½------------------
+        //Ä£Ê½å¿¨	
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_pulse_outmode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_pulse_outmode(UInt16 CardNo, UInt16 axis, UInt16 outmode);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_pulse_outmode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_pulse_outmode(UInt16 CardNo, UInt16 axis, ref UInt16 outmode);
-        //Âö³åµ±Á¿£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //åµ±EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_equiv", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_equiv(UInt16 CardNo, UInt16 axis, ref double equiv);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_equiv", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_equiv(UInt16 CardNo, UInt16 axis, double equiv);
-        //·´Ïò¼äÏ¶(Âö³å)£¨ÊÊÓÃÓÚDMC5000ÏµÁĞÂö³å¿¨£©	
+        //Ï¶()DMC5000Ïµå¿¨	
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_backlash_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_backlash_unit(UInt16 CardNo, UInt16 axis, double backlash); 
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_backlash_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_backlash_unit(UInt16 CardNo, UInt16 axis, ref double backlash);
 
-        //Í¨ÓÃÎÄ¼şÏÂÔØ
+        //Í¨Ä¼
         [DllImport("LTDMC.dll", EntryPoint = "dmc_download_file", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_download_file(ushort CardNo, string pfilename, byte[] pfilenameinControl, ushort filetype);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_upload_file", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_upload_file(ushort CardNo, string pfilename, byte[] pfilenameinControl, ushort filetype);
-        //ÏÂÔØÄÚ´æÎÄ¼ş ×ÜÏß¿¨£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨£©
+        //Ú´Ä¼ ß¿EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_download_memfile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_download_memfile(ushort CardNo, byte[] pbuffer, uint buffsize, byte[] pfilenameinControl, ushort filetype);
-        //ÉÏ´«ÄÚ´æÎÄ¼ş£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨£©
+        //Ï´Ú´Ä¼EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_upload_memfile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_upload_memfile(ushort CardNo, byte[] pbuffer, uint buffsize, byte[] pfilenameinControl, ref uint puifilesize, ushort filetype);
-        //ÎÄ¼ş½ø¶È£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ä¼È£/ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_progress(ushort CardNo, ref float process);
-        //ÏÂÔØ²ÎÊıÎÄ¼ş£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ø²Ä¼/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_download_configfile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_download_configfile(UInt16 CardNo, String FileName);
-        //ÏÂÔØ¹Ì¼şÎÄ¼ş£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ø¹Ì¼Ä¼/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_download_firmware", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_download_firmware(UInt16 CardNo, String FileName);
 
-        //----------------------ÏŞÎ»Òì³£ÉèÖÃ-------------------------------	
-        //ÉèÖÃ¶ÁÈ¡ÈíÏŞÎ»²ÎÊı£¨ÊÊÓÃÓÚE3032×ÜÏß¿¨¡¢R3032×ÜÏß¿¨¡¢DMC3000/5000/5X10ÏµÁĞÂö³å¿¨£©	
+        //----------------------Î»ì³£-------------------------------	
+        //Ã¶È¡Î»E3032ß¿R3032ß¿DMC3000/5000/5X10Ïµå¿¨	
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_softlimit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_softlimit(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 source_sel, UInt16 SL_action, Int32 N_limit, Int32 P_limit);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_softlimit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_softlimit(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 SL_action, ref Int32 N_limit, ref Int32 P_limit);
-        //ÉèÖÃ¶ÁÈ¡ÈíÏŞÎ»²ÎÊıunit£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ã¶È¡Î»unitDMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_softlimit_unit(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 source_sel, UInt16 SL_action, double N_limit, double P_limit);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_softlimit_unit(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 source_sel, ref UInt16 SL_action, ref double N_limit, ref double P_limit);
-        //ÉèÖÃ¶ÁÈ¡ELĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶È¡ELÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_el_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_el_mode(UInt16 CardNo, UInt16 axis, UInt16 el_enable, UInt16 el_logic, UInt16 el_mode);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_el_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_el_mode(UInt16 CardNo, UInt16 axis, ref UInt16 el_enable, ref UInt16 el_logic, ref UInt16 el_mode);
-        //ÉèÖÃ¶ÁÈ¡EMGĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ã¶È¡EMGÅºÅ£/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_emg_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_emg_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 emg_logic);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_emg_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_emg_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enbale, ref UInt16 emg_logic);
-        //Íâ²¿¼õËÙÍ£Ö¹ĞÅºÅ¼°¼õËÙÍ£Ö¹Ê±¼äÉèÖÃ£¬ºÁÃëÎªµ¥Î»£¨±£Áô£©
+        //â²¿Í£Ö¹ÅºÅ¼Í£Ö¹Ê±Ã£ÎªÎ»
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_dstp_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_dstp_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 logic, UInt32 time);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_dstp_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
@@ -160,147 +161,147 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         public static extern short dmc_set_dstp_time(UInt16 CardNo, UInt16 axis, UInt32 time);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_dstp_time", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_dstp_time(UInt16 CardNo, UInt16 axis, ref UInt32 time);
-        //Íâ²¿¼õËÙÍ£Ö¹ĞÅºÅ¼°¼õËÙÍ£Ö¹Ê±¼äÉèÖÃ£¬ÃëÎªµ¥Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //â²¿Í£Ö¹ÅºÅ¼Í£Ö¹Ê±Ã£ÎªÎ»å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_io_dstp_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_io_dstp_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 logic);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_io_dstp_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_io_dstp_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 logic);
-        //µãÎ»ÔË¶¯¼õËÙÍ£Ö¹Ê±¼äÉèÖÃ¶ÁÈ¡£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Î»Ë¶Í£Ö¹Ê±Ã¶È¡å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_dec_stop_time", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_dec_stop_time(UInt16 CardNo, UInt16 axis, double stop_time);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_dec_stop_time", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_dec_stop_time(UInt16 CardNo, UInt16 axis, ref double stop_time);
-        //²å²¹¼õËÙÍ£Ö¹ĞÅºÅºÍ¼õËÙÊ±¼äÉèÖÃ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢EthreCAT×ÜÏß¿¨£©
+        //å²¹Í£Ö¹ÅºÅºÍ¼Ê±Ã£DMC5X10Ïµå¿¨EthreCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_vector_dec_stop_time(UInt16 CardNo, UInt16 Crd, double stop_time);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_vector_dec_stop_time(UInt16 CardNo, UInt16 Crd, ref double stop_time);
-        //IO¼õËÙÍ£Ö¹¾àÀë£¨ÊÊÓÃÓÚDMC3000¡¢DMC5X10ÏµÁĞÂö³å¿¨£©
+        //IOÍ£Ö¹ë£¨DMC3000DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_dec_stop_dist(UInt16 CardNo, UInt16 axis, Int32 dist);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_dec_stop_dist(UInt16 CardNo, UInt16 axis, ref Int32 dist);
-        //IO¼õËÙÍ£Ö¹£¬Ö§³Öpmove/vmoveÔË¶¯£¨ÊÊÓÃÓÚDMC3000¡¢DMC5X10ÏµÁĞÂö³å¿¨£©
+        //IOÍ£Ö¹Ö§pmove/vmoveË¶DMC3000DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_io_exactstop(UInt16 CardNo, UInt16 axis, UInt16 ioNum, UInt16[] ioList, UInt16 enable, UInt16 valid_logic, UInt16 action, UInt16 move_dir);       
-        //ÉèÖÃÍ¨ÓÃÊäÈë¿ÚµÄÒ»Î»¼õËÙÍ£Ö¹IO¿Ú£¨±£Áô£©
+        //Í¨ÚµÒ»Î»Í£Ö¹IOÚ£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_io_dstp_bitno(UInt16 CardNo, UInt16 axis, UInt16 bitno, double filter);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_io_dstp_bitno(UInt16 CardNo, UInt16 axis, ref UInt16 bitno, ref double filter);
 
-        //---------------------------µ¥ÖáÔË¶¯----------------------
-        //Éè¶¨¶ÁÈ¡ËÙ¶ÈÇúÏß²ÎÊı	£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //---------------------------Ë¶----------------------
+        //è¶¨È¡Ù¶ß²	å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_profile(UInt16 CardNo, UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double stop_vel);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_profile(UInt16 CardNo, UInt16 axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel);
-        //ËÙ¶ÈÉèÖÃ(Âö³åµ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©	
+        //Ù¶(åµ±)EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨	
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_profile_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_set_profile_unit(UInt16 CardNo, UInt16 Axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);   //µ¥ÖáËÙ¶È²ÎÊı
+        public static extern short dmc_set_profile_unit(UInt16 CardNo, UInt16 Axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);   //Ù¶È²
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_profile_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_profile_unit(UInt16 CardNo, UInt16 Axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel);
-        //ËÙ¶ÈÇúÏßÉèÖÃ£¬¼ÓËÙ¶ÈÖµ±íÊ¾(Âö³å)£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ù¶Ã£Ù¶ÖµÊ¾()å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_acc_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_acc_profile(UInt16 CardNo, UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double stop_vel);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_acc_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_acc_profile(UInt16 CardNo, UInt16 axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double stop_vel);
-        //ËÙ¶ÈÇúÏßÉèÖÃ£¬¼ÓËÙ¶ÈÖµ±íÊ¾(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ù¶Ã£Ù¶ÖµÊ¾()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_profile_unit_acc", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_set_profile_unit_acc(UInt16 CardNo, UInt16 Axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);   //µ¥ÖáËÙ¶È²ÎÊı
+        public static extern short dmc_set_profile_unit_acc(UInt16 CardNo, UInt16 Axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);   //Ù¶È²
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_profile_unit_acc", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_profile_unit_acc(UInt16 CardNo, UInt16 Axis, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel);      
-        //ÉèÖÃ¶ÁÈ¡Æ½»¬ËÙ¶ÈÇúÏß²ÎÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ã¶È¡Æ½Ù¶ß²/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_s_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_s_profile(UInt16 CardNo, UInt16 axis, UInt16 s_mode, double s_para);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_s_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_s_profile(UInt16 CardNo, UInt16 axis, UInt16 s_mode, ref double s_para);            
-        //µãÎ»ÔË¶¯(Âö³å)£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Î»Ë¶()å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_pmove", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_pmove(UInt16 CardNo, UInt16 axis, Int32 Dist, UInt16 posi_mode);
-        //µãÎ»ÔË¶¯(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Î»Ë¶()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_pmove_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_pmove_unit(UInt16 CardNo, UInt16 axis, double Dist, UInt16 posi_mode);  
-        //Ö¸¶¨Öá×ö¶¨³¤Î»ÒÆÔË¶¯ Í¬Ê±·¢ËÍËÙ¶ÈºÍSÊ±¼ä(Âö³å)£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©	
+        //Ö¸Î»Ë¶ Í¬Ê±Ù¶ÈºSÊ±()DMC5X10Ïµå¿¨	
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pmove_extern(UInt16 CardNo, UInt16 axis, double dist, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double stop_Vel, double s_para, UInt16 posi_mode);
-        //ÔÚÏß±äÎ»(Âö³å)£¬ÔË¶¯ÖĞ¸Ä±äÄ¿±êÎ»ÖÃ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //ß±Î»()Ë¶Ğ¸Ä±Ä¿Î»Ã£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_reset_target_position", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_reset_target_position(UInt16 CardNo, UInt16 axis, Int32 dist, UInt16 posi_mode);
-        //±äËÙ±äÎ»(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ù±Î»()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_reset_target_position_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_reset_target_position_unit(UInt16 CardNo, UInt16 Axis, double New_Pos); 
-        //ÔÚÏß±äËÙ(Âö³å)£¬ÔË¶¯ÖĞ¸Ä±äÖ¸¶¨ÖáµÄµ±Ç°ÔË¶¯ËÙ¶È£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //ß±()Ë¶Ğ¸Ä±Ö¸ÄµÇ°Ë¶Ù¶È£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_change_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_change_speed(UInt16 CardNo, UInt16 axis, double Curr_Vel, double Taccdec);
-        //ÔÚÏß±äËÙ(µ±Á¿)£¬ÔË¶¯ÖĞ¸Ä±äÖ¸¶¨ÖáµÄµ±Ç°ÔË¶¯ËÙ¶È£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //ß±()Ë¶Ğ¸Ä±Ö¸ÄµÇ°Ë¶Ù¶È£EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_change_speed_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_change_speed_unit(UInt16 CardNo, UInt16 Axis, double New_Vel, double Taccdec);    
-        //ÎŞÂÛÔË¶¯Óë·ñÇ¿ĞĞ¸Ä±äÄ¿±êÎ»ÖÃ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ë¶Ç¿Ğ¸Ä±Ä¿Î»Ã£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_update_target_position", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_update_target_position(UInt16 CardNo, UInt16 axis, Int32 dist, UInt16 posi_mode);
-        //Ç¿ĞĞ±äÎ»À©Õ¹£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //Ç¿Ğ±Î»Õ¹DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_update_target_position_extern(UInt16 CardNo, UInt16 axis, double mid_pos, double aim_pos, double vel, UInt16 posi_mode);
-        //ÔÚÏß±äËÙ(µ±Á¿)£¬ÔË¶¯ÖĞ¸Ä±äÖ¸¶¨ÖáµÄµ±Ç°ÔË¶¯ËÙ¶È£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //ß±()Ë¶Ğ¸Ä±Ö¸ÄµÇ°Ë¶Ù¶È£EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_update_target_position_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_update_target_position_unit(UInt16 CardNo, UInt16 Axis, double New_Pos);
 
       
 
-        //---------------------JOGÔË¶¯--------------------
-        //µ¥ÖáÁ¬ĞøËÙ¶ÈÔË¶¯£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©	
+        //---------------------JOGË¶--------------------
+        //Ù¶Ë¶/ß¿	
         [DllImport("LTDMC.dll", EntryPoint = "dmc_vmove", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_vmove(UInt16 CardNo, UInt16 axis, UInt16 dir);
 
-        //---------------------²å²¹ÔË¶¯--------------------
-        //²å²¹ËÙ¶ÈÉèÖÃ(Âö³å)£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //---------------------å²¹Ë¶--------------------
+        //å²¹Ù¶()DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_vector_profile_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_vector_profile_multicoor(UInt16 CardNo, UInt16 Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_vector_profile_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_vector_profile_multicoor(UInt16 CardNo, UInt16 Crd, ref double Min_Vel, ref double Max_Vel, ref double Taccdec, ref double Tdec, ref double Stop_Vel);       
-        //ÉèÖÃ¶ÁÈ¡Æ½»¬ËÙ¶ÈÇúÏß²ÎÊı£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //Ã¶È¡Æ½Ù¶ß²DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_vector_s_profile_multicoor(UInt16 CardNo, UInt16 Crd, UInt16 s_mode, double s_para);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_vector_s_profile_multicoor(UInt16 CardNo, UInt16 Crd, UInt16 s_mode, ref double s_para);
-        //²å²¹ËÙ¶È²ÎÊı(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //å²¹Ù¶È²()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_vector_profile_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_set_vector_profile_unit(UInt16 CardNo, UInt16 Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);   //µ¥¶Î²å²¹ËÙ¶È²ÎÊı
+        public static extern short dmc_set_vector_profile_unit(UInt16 CardNo, UInt16 Crd, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel);   //Î²å²¹Ù¶È²
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_vector_profile_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_vector_profile_unit(UInt16 CardNo, UInt16 Crd, ref double Min_Vel, ref double Max_Vel, ref double Tacc, ref double Tdec, ref double Stop_Vel);
-        //ÉèÖÃÆ½»¬ËÙ¶ÈÇúÏß²ÎÊı£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Æ½Ù¶ß²EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_vector_s_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_vector_s_profile(UInt16 CardNo, UInt16 Crd, UInt16 s_mode, double s_para);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_vector_s_profile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_vector_s_profile(UInt16 CardNo, UInt16 Crd, UInt16 s_mode, ref double s_para);
-        //Ö±Ïß²å²¹ÔË¶¯£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©	
+        //Ö±ß²å²¹Ë¶DMC3000Ïµå¿¨	
         [DllImport("LTDMC.dll", EntryPoint = "dmc_line_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_line_multicoor(UInt16 CardNo, UInt16 crd, UInt16 axisNum, UInt16[] axisList, Int32[] DistList, UInt16 posi_mode);
-        //Ô²»¡²å²¹ÔË¶¯£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //Ô²å²¹Ë¶DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_arc_move_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_arc_move_multicoor(UInt16 CardNo, UInt16 crd, UInt16[] AxisList, Int32[] Target_Pos, Int32[] Cen_Pos, UInt16 Arc_Dir, UInt16 posi_mode);
-        //Ö±Ïß²å²¹(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ö±ß²å²¹()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_line_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_line_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, UInt16 posi_mode);    //µ¥¶ÎÖ±Ïß
-        //Ô²ĞÄÔ²»¡²å²¹(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        public static extern short dmc_line_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, UInt16 posi_mode);    //Ö±
+        //Ô²Ô²å²¹()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_arc_move_center_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_arc_move_center_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Cen_Pos, UInt16 Arc_Dir, Int32 Circle, UInt16 posi_mode);     
-//Ô²ĞÄÖÕµãÊ½Ô²»¡/ÂİĞıÏß/½¥¿ªÏß
-        //°ë¾¶Ô²»¡²å²¹(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+//Ô²ÕµÊ½Ô²//
+        //ë¾¶Ô²å²¹()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_arc_move_radius_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_arc_move_radius_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double Arc_Radius, UInt16 Arc_Dir, Int32 Circle, UInt16 posi_mode);    
-//°ë¾¶ÖÕµãÊ½Ô²»¡/ÂİĞıÏß
-        //ÈıµãÔ²»¡²å²¹(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+//ë¾¶ÕµÊ½Ô²/
+        //Ô²å²¹()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_arc_move_3points_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_arc_move_3points_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Mid_Pos, Int32 Circle, UInt16 posi_mode);     //ÈıµãÊ½Ô²»¡/ÂİĞıÏß
-        //¾ØĞÎ²å²¹(µ±Á¿)£¨ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨¡¢RTEX×ÜÏß¿¨¡¢DMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        public static extern short dmc_arc_move_3points_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Mid_Pos, Int32 Circle, UInt16 posi_mode);     //Ê½Ô²/
+        //Î²å²¹()EtherCATß¿RTEXß¿DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_rectangle_move_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_rectangle_move_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] TargetPos, double[] MaskPos, Int32 Count, UInt16 rect_mode, UInt16 posi_mode);     
-//¾ØĞÎÇøÓò²å²¹£¬µ¥¶Î²å²¹Ö¸Áî
+//å²¹Î²å²¹Ö¸
 
-        //----------------------PVTÔË¶¯---------------------------
-        //PVTÔË¶¯¾É°æ £¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //----------------------PVTË¶---------------------------
+        //PVTË¶É° å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_PvtTable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_PvtTable(UInt16 CardNo, UInt16 iaxis, UInt32 count, double[] pTime, Int32[] pPos, double[] pVel);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_PtsTable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
@@ -311,15 +312,15 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         public static extern short dmc_PttTable(UInt16 CardNo, UInt16 iaxis, UInt32 count, double[] pTime, int[] pPos);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_PvtMove", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_PvtMove(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList);
-        //PVT»º³åÇøÌí¼Ó
+        //PVT
         [DllImport("LTDMC.dll")]
         public static extern short dmc_PttTable_add(UInt16 CardNo, UInt16 iaxis, UInt16 count, double[] pTime, long[] pPos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_PtsTable_add(UInt16 CardNo, UInt16 iaxis, UInt16 count, double[] pTime, long[] pPos, double[] pPercent);
-        //¶ÁÈ¡pvtÊ£Óà¿Õ¼ä
+        //È¡pvtÊ£Õ¼
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pvt_get_remain_space(UInt16 CardNo, UInt16 iaxis);
-        //PVTÔË¶¯ ×ÜÏß¿¨ĞÂ¹æ»®£¬ÊÊÓÃÓÚEtherCAT×ÜÏß¿¨
+        //PVTË¶ ß¿Â¹æ»®EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pvt_table_unit(UInt16 CardNo, UInt16 iaxis, UInt32 count, double[] pTime, double[] pPos, double[] pVel);
         [DllImport("LTDMC.dll")]
@@ -330,7 +331,7 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         public static extern short dmc_ptt_table_unit(UInt16 CardNo, UInt16 iaxis, UInt32 count, double[] pTime, double[] pPos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pvt_move(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList);
-        //ÆäËüÀà£¨±£Áô£©
+        //à£¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_SetGearProfile(UInt16 CardNo, UInt16 axis, UInt16 MasterType, UInt16 MasterIndex, Int32 MasterEven, Int32 SlaveEven, UInt32 MasterSlope);
         [DllImport("LTDMC.dll")]
@@ -338,126 +339,126 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         [DllImport("LTDMC.dll")]
         public static extern short dmc_GearMove(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList);
               
-        //--------------------»ØÁãÔË¶¯---------------------
-        //ÉèÖÃ¶ÁÈ¡HOMEĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------Ë¶---------------------
+        //Ã¶È¡HOMEÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_home_pin_logic", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_home_pin_logic(UInt16 CardNo, UInt16 axis, UInt16 org_logic, double filter);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_home_pin_logic", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_home_pin_logic(UInt16 CardNo, UInt16 axis, ref UInt16 org_logic, ref double filter);
-        //Éè¶¨¶ÁÈ¡Ö¸¶¨ÖáµÄ»ØÔ­µãÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //è¶¨È¡Ö¸Ä»Ô­Ä£Ê½å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_homemode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_homemode(UInt16 CardNo, UInt16 axis, UInt16 home_dir, double vel, UInt16 mode, UInt16 EZ_count);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_homemode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_homemode(UInt16 CardNo, UInt16 axis, ref UInt16 home_dir, ref double vel, ref UInt16 home_mode, ref UInt16 EZ_count);
-        //ÉèÖÃ»ØÁãÓöÏŞÎ»ÊÇ·ñ·´ÕÒ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ã»Î»Ç·Ò£DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_home_el_return(UInt16 CardNo, UInt16 axis, UInt16 enable);
-        //¶ÁÈ¡²ÎÊıÓöÏŞÎ»·´ÕÒÊ¹ÄÜ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡Î»Ê¹Ü£DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_el_return(UInt16 CardNo, UInt16 axis, ref UInt16 enable);
-        //Æô¶¯»ØÁã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //ã£¨å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_home_move", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_home_move(UInt16 CardNo, UInt16 axis);
-        //ÉèÖÃ¶ÁÈ¡»ØÁãËÙ¶È²ÎÊı£¨ÊÊÓÃÓÚRtex×ÜÏß¿¨£©
+        //Ã¶È¡Ù¶È²Rtexß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_home_profile_unit(ushort CardNo, ushort axis, double Low_Vel, double High_Vel, double Tacc, double Tdec);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_profile_unit(ushort CardNo, ushort axis, ref double Low_Vel, ref double High_Vel, ref double Tacc, ref double Tdec);
-        //¶ÁÈ¡»ØÁãÖ´ĞĞ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //È¡Ö´×´Ì¬/ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_result(UInt16 CardNo, UInt16 axis, ref UInt16 state);
-        //ÉèÖÃ¶ÁÈ¡»ØÁãÆ«ÒÆÁ¿¼°ÇåÁãÄ£Ê½£¨ÊÊÓÃÓÚDMC5X10Âö³å¿¨£©
+        //Ã¶È¡Æ«Ä£Ê½DMC5X10å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_home_position_unit(UInt16 CardNo, UInt16 axis, UInt16 enable, double position);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_position_unit(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref double position);
-        //£¨±£Áô£©
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_el_home(UInt16 CardNo, UInt16 axis, UInt16 mode);
-        //»ØÁãÆ«ÒÆÄ£Ê½º¯Êı£¨±£Áô£©
+        //Æ«Ä£Ê½
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_home_shift_param(UInt16 CardNo, UInt16 axis, UInt16 pos_clear_mode, double ShiftValue);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_shift_param(UInt16 CardNo, UInt16 axis, ref UInt16 pos_clear_mode, ref double ShiftValue);
-        //ÉèÖÃ»ØÁãÆ«ÒÆÁ¿¼°Æ«ÒÆÄ£Ê½£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //Ã»Æ«Æ«Ä£Ê½DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_home_position(UInt16 CardNo, UInt16 axis, UInt16 enable, double position);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_position(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref double position);
-        //ÉèÖÃ»ØÁãÏŞÎ»¾àÀë£¨±£Áô£©
+        //Ã»Î»ë£¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_home_soft_limit(UInt16 CardNo, UInt16 Axis, Int32 N_limit, Int32 P_limit);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_home_soft_limit(UInt16 CardNo, UInt16 Axis, ref Int32 N_limit, ref Int32 P_limit);
        
-        //--------------------Ô­µãËø´æ-------------------
-        //ÉèÖÃ¶ÁÈ¡EZËø´æÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------Ô­-------------------
+        //Ã¶È¡EZÄ£Ê½å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_homelatch_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_homelatch_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 logic, UInt16 source);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_homelatch_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_homelatch_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 logic, ref UInt16 source);
-        //¶ÁÈ¡Ô­µãËø´æ±êÖ¾£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Ô­Ö¾å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_homelatch_flag", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_homelatch_flag(UInt16 CardNo, UInt16 axis);
-        //Çå³ıÔ­µãËø´æ±êÖ¾£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ô­Ö¾å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_reset_homelatch_flag", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_reset_homelatch_flag(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡Ô­µãËø´æÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Ô­Öµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_homelatch_value", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_get_homelatch_value(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡Ô­µãËø´æÖµ£¨unit£©£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //È¡Ô­ÖµunitDMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_homelatch_value_unit(UInt16 CardNo, UInt16 axis, ref double pos);
 
-        //--------------------EZËø´æ-------------------
-        //ÉèÖÃ¶ÁÈ¡EZËø´æÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------EZ-------------------
+        //Ã¶È¡EZÄ£Ê½å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_ezlatch_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 logic, UInt16 source);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_ezlatch_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 logic, ref UInt16 source);
-        //¶ÁÈ¡EZËø´æ±êÖ¾£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡EZÖ¾å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_ezlatch_flag(UInt16 CardNo, UInt16 axis);
-        //Çå³ıEZËø´æ±êÖ¾£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //EZÖ¾å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_reset_ezlatch_flag(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡EZËø´æÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡EZÖµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern Int32 dmc_get_ezlatch_value(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡EZËø´æÖµ£¨unit£©£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //È¡EZÖµunitDMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_ezlatch_value_unit(UInt16 CardNo, UInt16 axis, ref double pos);
 
-        //--------------------ÊÖÂÖÔË¶¯---------------------	
-        //ÉèÖÃ¶ÁÈ¡ÊÖÂÖÍ¨µÀ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------Ë¶---------------------	
+        //Ã¶È¡Í¨å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_handwheel_channel", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_handwheel_channel(UInt16 CardNo, UInt16 index);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_handwheel_channel", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_handwheel_channel(UInt16 CardNo, ref UInt16 index);
-        //ÉèÖÃ¶ÁÈ¡µ¥ÖáÊÖÂÖÂö³åĞÅºÅµÄ¹¤×÷·½Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ã¶È¡ÅºÅµÄ¹Ê½/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_handwheel_inmode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_handwheel_inmode(UInt16 CardNo, UInt16 axis, UInt16 inmode, Int32 multi, double vh);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_handwheel_inmode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_handwheel_inmode(UInt16 CardNo, UInt16 axis, ref UInt16 inmode, ref Int32 multi, ref double vh);
-        //ÉèÖÃ¶ÁÈ¡µ¥ÖáÊÖÂÖÂö³åĞÅºÅµÄ¹¤×÷·½Ê½£¬¸¡µãĞÍ±¶ÂÊ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //Ã¶È¡ÅºÅµÄ¹Ê½Í±Ê£DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_handwheel_inmode_decimals", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_handwheel_inmode_decimals(UInt16 CardNo, UInt16 axis, UInt16 inmode, double multi, double vh);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_handwheel_inmode_decimals", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_handwheel_inmode_decimals(UInt16 CardNo, UInt16 axis, ref UInt16 inmode, ref double multi, ref double vh);
-        //ÉèÖÃ¶ÁÈ¡¶àÖáÊÖÂÖÂö³åĞÅºÅµÄ¹¤×÷·½Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ã¶È¡ÅºÅµÄ¹Ê½/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_handwheel_inmode_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_handwheel_inmode_extern(UInt16 CardNo, UInt16 inmode, UInt16 AxisNum, UInt16[] AxisList, Int32[] multi);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_handwheel_inmode_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_handwheel_inmode_extern(UInt16 CardNo, ref UInt16 inmode, ref UInt16 AxisNum, UInt16[] AxisList, Int32[] multi);
-        //ÉèÖÃ¶ÁÈ¡µ¥ÖáÊÖÂÖÂö³åĞÅºÅµÄ¹¤×÷·½Ê½£¬¸¡µãĞÍ±¶ÂÊ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //Ã¶È¡ÅºÅµÄ¹Ê½Í±Ê£DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_handwheel_inmode_extern_decimals(UInt16 CardNo, UInt16 inmode, UInt16 AxisNum, UInt16[] AxisList, double[] multi);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_handwheel_inmode_extern_decimals(UInt16 CardNo, ref UInt16 inmode, ref UInt16 AxisNum, UInt16[] AxisList, double[] multi);
-        //Æô¶¯ÊÖÂÖÔË¶¯£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ë¶/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_handwheel_move", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_handwheel_move(UInt16 CardNo, UInt16 axis);    
-        //ÊÖÂÖÔË¶¯ ĞÂÔö×ÜÏßµÄÊÖÂÖÄ£Ê½  (±£Áô)
+        //Ë¶ ßµÄ£Ê½  ()
         [DllImport("LTDMC.dll")]
         public static extern short dmc_handwheel_set_axislist(UInt16 CardNo, UInt16 AxisSelIndex, UInt16 AxisNum, UInt16[] AxisList);
         [DllImport("LTDMC.dll")]
@@ -477,161 +478,161 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         [DllImport("LTDMC.dll")]
         public static extern short dmc_handwheel_stop(UInt16 CardNo);
         
-        //-------------------------¸ßËÙËø´æ-------------------
-        //ÉèÖÃ¶ÁÈ¡Ö¸¶¨ÖáµÄLTCĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------------------------------
+        //Ã¶È¡Ö¸LTCÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_ltc_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_ltc_mode(UInt16 CardNo, UInt16 axis, UInt16 ltc_logic, UInt16 ltc_mode, Double filter);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_ltc_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_ltc_mode(UInt16 CardNo, UInt16 axis, ref UInt16 ltc_logic, ref UInt16 ltc_mode, ref Double filter);
-        //ÉèÖÃ¶Áµ½Ëø´æ·½Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶æ·½Ê½å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_latch_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_latch_mode(UInt16 CardNo, UInt16 axis, UInt16 all_enable, UInt16 latch_source, UInt16 triger_chunnel);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_latch_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_latch_mode(UInt16 CardNo, UInt16 axis, ref UInt16 all_enable, ref UInt16 latch_source, ref UInt16 triger_chunnel);
-        //¶ÁÈ¡±àÂëÆ÷Ëø´æÆ÷µÄÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Öµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_latch_value", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_get_latch_value(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡±àÂëÆ÷Ëø´æÆ÷µÄÖµunit£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //È¡ÖµunitDMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_latch_value_unit(UInt16 CardNo, UInt16 axis, ref double pos_by_mm);
-        //¶ÁÈ¡Ëø´æÆ÷±êÖ¾£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Ö¾å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_latch_flag", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_latch_flag(UInt16 CardNo, UInt16 axis);
-        //¸´Î»Ëø´æÆ÷±êÖ¾£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Î»Ö¾å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_reset_latch_flag", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_reset_latch_flag(UInt16 CardNo, UInt16 axis);
-        //°´Ë÷ÒıÈ¡Öµ£¨ÊÊÓÃDMC3000ÏµÁĞÂö³å¿¨£©
+        //È¡ÖµDMC3000Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_latch_value_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_get_latch_value_extern(UInt16 CardNo, UInt16 axis, UInt16 Index);
-        //¸ßËÙËø´æ£¨Ô¤Áô£©
+        //æ£¨Ô¤
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_get_latch_value_extern_unit(UInt16 CardNo, UInt16 axis, UInt16 index, ref double pos_by_mm);//°´Ë÷ÒıÈ¡Öµ¶ÁÈ¡ 
-        //¶ÁÈ¡Ëø´æ¸öÊı£¨ÊÊÓÃDMC3000ÏµÁĞÂö³å¿¨£©
+        public static extern short dmc_get_latch_value_extern_unit(UInt16 CardNo, UInt16 axis, UInt16 index, ref double pos_by_mm);//È¡ÖµÈ¡ 
+        //È¡DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_latch_flag_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_latch_flag_extern(UInt16 CardNo, UInt16 axis);
-        //ÉèÖÃ¶ÁÈ¡LTC·´ÏàÊä³ö£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶È¡LTCå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_SetLtcOutMode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_SetLtcOutMode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 bitno);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_GetLtcOutMode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_GetLtcOutMode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 bitno);
-        //LTC¶Ë¿Ú´¥·¢ÑÓÊ±¼±Í£Ê±¼ä µ¥Î»us£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //LTCË¿Ú´Ê±Í£Ê± Î»uså¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_latch_stop_time", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_latch_stop_time(UInt16 CardNo, UInt16 axis, Int32 time);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_latch_stop_time", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_latch_stop_time(UInt16 CardNo, UInt16 axis, ref Int32 time);
-        //ÉèÖÃ/»Ø¶ÁLTC¶Ë¿Ú´¥·¢ÑÓÊ±¼±Í£ÖáÅäÖÃ£¨ÊÊÓÃÓÚEtherCAT×ÜÏßÏµÁĞ¿¨£©
+        ///Ø¶LTCË¿Ú´Ê±Í£Ã£EtherCATÏµĞ¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_latch_stop_axis(ushort CardNo, ushort latch, ushort num, ushort[] axislist);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_latch_stop_axis(ushort CardNo, ushort latch, ref ushort num, ushort[] axislist);
 
-        //----------------------¸ßËÙËø´æ ×ÜÏß¿¨---------------------------
-        //ÅäÖÃËø´æÆ÷£ºËø´æÄ£Ê½0-µ¥´ÎËø´æ£¬1-Á¬ĞøËø´æ£»Ëø´æ±ßÑØ0-ÏÂ½µÑØ£¬1-ÉÏÉıÑØ£¬2-Ë«±ßÑØ£»ÂË²¨Ê±¼ä£¬µ¥Î»us£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //---------------------- ß¿---------------------------
+        //Ä£Ê½0-æ£¬1-æ£»0-Â½Ø£1-Ø£2-Ë«Ø£Ë²Ê±ä£¬Î»usß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_set_mode(ushort CardNo, ushort latch, ushort ltc_mode, ushort ltc_logic, double filter);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_get_mode(ushort CardNo, ushort latch, ref ushort ltc_mode, ref ushort ltc_logic, ref double filter);
-        //ÅäÖÃËø´æÔ´£º0-Ö¸ÁîÎ»ÖÃ£¬1-±àÂëÆ÷·´À¡Î»ÖÃ£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //Ô´0-Ö¸Î»Ã£1-Î»Ã£ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_set_source(ushort CardNo, ushort latch, ushort axis, ushort ltc_source);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_get_source(ushort CardNo, ushort latch, ushort axis, ref ushort ltc_source);
-        //¸´Î»Ëø´æÆ÷£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //Î»ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_reset(ushort CardNo, ushort latch);
-        //¶ÁÈ¡Ëø´æ¸öÊı£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //È¡ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_get_number(ushort CardNo, ushort latch, ushort axis, ref int number);
-        //¶ÁÈ¡Ëø´æÖµ£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //È¡Öµß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_get_value_unit(ushort CardNo, ushort latch, ushort axis, ref double value);
 
-        //-----------------------ÈíËø´æ ËùÓĞ¿¨---------------------------------
-        //ÅäÖÃËø´æÆ÷£ºËø´æÄ£Ê½0-µ¥´ÎËø´æ£¬1-Á¬ĞøËø´æ£»Ëø´æ±ßÑØ0-ÏÂ½µÑØ£¬1-ÉÏÉıÑØ£¬2-Ë«±ßÑØ£»ÂË²¨Ê±¼ä£¬µ¥Î»us£¨ÊÊÓÃÓÚDMC5X10/3000ÏµÁĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //----------------------- Ğ¿---------------------------------
+        //Ä£Ê½0-æ£¬1-æ£»0-Â½Ø£1-Ø£2-Ë«Ø£Ë²Ê±ä£¬Î»usDMC5X10/3000Ïµå¿¨ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_set_mode(ushort ConnectNo, ushort latch, ushort ltc_enable, ushort ltc_mode, ushort ltc_inbit, ushort ltc_logic, double filter);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_get_mode(ushort ConnectNo, ushort latch, ref ushort ltc_enable, ref ushort ltc_mode, ref ushort ltc_inbit, ref ushort ltc_logic, ref double filter);
-        //ÅäÖÃËø´æÔ´£º0-Ö¸ÁîÎ»ÖÃ£¬1-±àÂëÆ÷·´À¡Î»ÖÃ£¨ÊÊÓÃÓÚDMC5X10/3000ÏµÁĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Ô´0-Ö¸Î»Ã£1-Î»Ã£DMC5X10/3000Ïµå¿¨ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_set_source(ushort ConnectNo, ushort latch, ushort axis, ushort ltc_source);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_get_source(ushort ConnectNo, ushort latch, ushort axis, ref ushort ltc_source);
-        //¸´Î»Ëø´æÆ÷£¨ÊÊÓÃÓÚDMC5X10/3000ÏµÁĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Î»DMC5X10/3000Ïµå¿¨ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_reset(ushort ConnectNo, ushort latch);
-        //¶ÁÈ¡Ëø´æ¸öÊı£¨ÊÊÓÃÓÚDMC5X10/3000ÏµÁĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡DMC5X10/3000Ïµå¿¨ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_get_number(ushort ConnectNo, ushort latch, ushort axis, ref int number);
-        //¶ÁÈ¡Ëø´æÖµ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞ×ÜÏß¿¨£©
+        //È¡ÖµDMC5X10Ïµå¿¨ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_softltc_get_value_unit(ushort ConnectNo, ushort latch, ushort axis, ref double value);
 
-        //----------------------µ¥ÖáµÍËÙÎ»ÖÃ±È½Ï-----------------------	
-        //ÅäÖÃ¶ÁÈ¡±È½ÏÆ÷£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //----------------------Î»Ã±È½-----------------------	
+        //Ã¶È¡È½/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_set_config", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_set_config(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 cmp_source);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_config", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_config(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 cmp_source);
-        //Çå³ıËùÓĞ±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ğ±È½Ïµã£¨/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_clear_points", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_clear_points(UInt16 CardNo, UInt16 axis);
-        //Ìí¼Ó±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ó±È½Ïµã£¨å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_add_point", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_add_point(UInt16 CardNo, UInt16 axis, int pos, UInt16 dir, UInt16 action, UInt32 actpara);
-        //Ìí¼Ó±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞDMC5X10Âö³å¿¨£©
+        //Ó±È½Ïµã£¨DMC5X10å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_unit(UInt16 CardNo, UInt16 cmp, double pos, UInt16 dir, UInt16 action, UInt32 actpara);        
-        //Ìí¼Ó±È½Ïµã£¨ÊÊÓÃÓÚE3032/R3032£©
+        //Ó±È½Ïµã£¨E3032/R3032
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_cycle(UInt16 CardNo, UInt16 cmp, Int32 pos, UInt16 dir, UInt32 bitno, UInt32 cycle, UInt16 level);
-        //Ìí¼Ó±È½Ïµãunit£¨ÊÊÓÃÓÚE5032£©
+        //Ó±È½ÏµunitE5032
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_cycle_unit(UInt16 CardNo, UInt16 cmp, double pos, UInt16 dir, UInt32 bitno, UInt32 cycle, UInt16 level);
-        //¶ÁÈ¡µ±Ç°±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢Rtex×ÜÏß¿¨¡¢E3032¿¨£©
+        //È¡Ç°È½Ïµã£¨å¿¨Rtexß¿E3032
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_current_point", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_current_point(UInt16 CardNo, UInt16 axis, ref Int32 pos);
-        //¶ÁÈ¡µ±Ç°±È½Ïµã£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //È¡Ç°È½Ïµã£¨DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_get_current_point_unit(UInt16 CardNo, UInt16 cmp, ref double pos);
-        //²éÑ¯ÒÑ¾­±È½Ï¹ıµÄµã£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ñ¯Ñ¾È½Ï¹Äµã£¨/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_points_runned", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_points_runned(UInt16 CardNo, UInt16 axis, ref Int32 pointNum);
-        //²éÑ¯¿ÉÒÔ¼ÓÈëµÄ±È½ÏµãÊıÁ¿£¨ÊÊÓÃÓÚËùÓĞÂö³å/×ÜÏß¿¨£©
+        //Ñ¯Ô¼Ä±È½Ïµ/ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_points_remained", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_points_remained(UInt16 CardNo, UInt16 axis, ref Int32 pointNum);
         
-        //-------------------¶şÎ¬µÍËÙÎ»ÖÃ±È½Ï-----------------------
-        //ÅäÖÃ¶ÁÈ¡±È½ÏÆ÷£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //-------------------Î¬Î»Ã±È½-----------------------
+        //Ã¶È¡È½å¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_set_config_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_set_config_extern(UInt16 CardNo, UInt16 enable, UInt16 cmp_source);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_config_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_config_extern(UInt16 CardNo, ref UInt16 enable, ref UInt16 cmp_source);
-        //Çå³ıËùÓĞ±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //Ğ±È½Ïµã£¨å¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_clear_points_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_clear_points_extern(UInt16 CardNo);
-        //Ìí¼ÓÁ½ÖáÎ»ÖÃ±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Î»Ã±È½Ïµã£¨å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_add_point_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_add_point_extern(UInt16 CardNo, UInt16[] axis, Int32[] pos, UInt16[] dir, UInt16 action, UInt32 actpara);
-        //¶ÁÈ¡µ±Ç°±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //È¡Ç°È½Ïµã£¨å¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_current_point_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_current_point_extern(UInt16 CardNo, Int32[] pos);
-        //¶ÁÈ¡µ±Ç°±È½Ïµãunit£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //È¡Ç°È½ÏµunitDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_get_current_point_extern_unit(UInt16 CardNo, double[] pos);
-        //Ìí¼ÓÁ½ÖáÎ»ÖÃ±È½Ïµã£¨ÊÊÓÃÓÚDMC5X10Âö³å¿¨£©      
+        //Î»Ã±È½Ïµã£¨DMC5X10å¿¨      
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_extern_unit(UInt16 CardNo, UInt16[] axis, double[] pos, UInt16[] dir, UInt16 action, UInt32 actpara);
-        //Ìí¼Ó¶şÎ¬µÍËÙÎ»ÖÃ±È½Ïµã£¨ÊÊÓÃÓÚEtherCAT×ÜÏßÏµÁĞ¿¨£©
+        //Ó¶Î¬Î»Ã±È½Ïµã£¨EtherCATÏµĞ¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_cycle_2d(ushort CardNo, ushort[] axis, double[] pos, ushort[] dir, uint bitno, uint cycle, ushort level);
-        //²éÑ¯ÒÑ¾­±È½Ï¹ıµÄµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //Ñ¯Ñ¾È½Ï¹Äµã£¨å¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_points_runned_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_points_runned_extern(UInt16 CardNo, ref Int32 pointNum);
-        //²éÑ¯¿ÉÒÔ¼ÓÈëµÄ±È½ÏµãÊıÁ¿£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //Ñ¯Ô¼Ä±È½Ïµå¿¨EtherCATß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_compare_get_points_remained_extern", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_compare_get_points_remained_extern(UInt16 CardNo, ref Int32 pointNum);
-        //¶à×éÎ»ÖÃ±È½Ï£¨±£Áô£©
+        //Î»Ã±È½Ï£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_set_config_multi(UInt16 CardNo, UInt16 queue, UInt16 enable, UInt16 axis, UInt16 cmp_source);
         [DllImport("LTDMC.dll")]
@@ -639,339 +640,339 @@ namespace csLTDMC //ÃüÃû¿Õ¼ä¸ù¾İÓ¦ÓÃ³ÌĞòĞŞ¸Ä
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_multi(UInt16 CardNo, UInt16 cmp, Int32 pos, UInt16 dir, UInt16 action, UInt32 actpara, double times);
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_compare_add_point_multi_unit(UInt16 CardNo, UInt16 cmp, double pos, UInt16 dir, UInt16 action, UInt32 actpara, double times);//Ìí¼Ó±È½Ïµã ÔöÇ¿
+        public static extern short dmc_compare_add_point_multi_unit(UInt16 CardNo, UInt16 cmp, double pos, UInt16 dir, UInt16 action, UInt32 actpara, double times);//Ó±È½Ïµ Ç¿
         
-        //----------- µ¥Öá¸ßËÙÎ»ÖÃ±È½Ï-----------------------        
-        //ÉèÖÃ¶ÁÈ¡¸ßËÙ±È½ÏÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //----------- Î»Ã±È½-----------------------        
+        //Ã¶È¡Ù±È½Ä£Ê½å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_set_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_set_mode(UInt16 CardNo, UInt16 hcmp, UInt16 cmp_enable);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_get_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_get_mode(UInt16 CardNo, UInt16 hcmp, ref UInt16 cmp_enable);
-        //ÉèÖÃ¸ßËÙ±È½Ï²ÎÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Ã¸Ù±È½Ï²å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_set_config", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_set_config(UInt16 CardNo, UInt16 hcmp, UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, Int32 time);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_get_config", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_get_config(UInt16 CardNo, UInt16 hcmp, ref UInt16 axis, ref UInt16 cmp_source, ref UInt16 cmp_logic, ref Int32 time);
-        //¸ßËÙ±È½ÏÄ£Ê½À©Õ¹£¨±£Áô£©
+        //Ù±È½Ä£Ê½Õ¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_set_config_extern(UInt16 CardNo, UInt16 hcmp, UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, UInt16 cmp_mode, Int32 dist, Int32 time);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_get_config_extern(UInt16 CardNo, UInt16 hcmp, ref UInt16 axis, ref UInt16 cmp_source, ref UInt16 cmp_logic, ref UInt16 cmp_mode, ref Int32 dist, ref Int32 time);
-        //Ìí¼Ó±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢E3032×ÜÏß¿¨¡¢R3032×ÜÏß¿¨£©
+        //Ó±È½Ïµã£¨å¿¨E3032ß¿R3032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_add_point", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_add_point(UInt16 CardNo, UInt16 hcmp, Int32 cmp_pos);
-        //Ìí¼Ó±È½Ïµãunit£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ó±È½ÏµunitDMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_add_point_unit(UInt16 CardNo, UInt16 hcmp, double cmp_pos);       
-        //ÉèÖÃ¶ÁÈ¡ÏßĞÔÄ£Ê½²ÎÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢E3032×ÜÏß¿¨¡¢R3032×ÜÏß¿¨£©
+        //Ã¶È¡Ä£Ê½å¿¨E3032ß¿R3032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_set_liner", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_set_liner(UInt16 CardNo, UInt16 hcmp, Int32 Increment, Int32 Count);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_get_liner", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_get_liner(UInt16 CardNo, UInt16 hcmp, ref Int32 Increment, ref Int32 Count);
-        //ÉèÖÃÏßĞÔÄ£Ê½²ÎÊı£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ä£Ê½DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_set_liner_unit(UInt16 CardNo, UInt16 hcmp, double Increment, Int32 Count);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_get_liner_unit(UInt16 CardNo, UInt16 hcmp, ref double Increment, ref Int32 Count);
-        //¶ÁÈ¡¸ßËÙ±È½Ï×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢E3032×ÜÏß¿¨¡¢R3032×ÜÏß¿¨£©
+        //È¡Ù±È½×´Ì¬å¿¨E3032ß¿R3032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_get_current_state", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_get_current_state(UInt16 CardNo, UInt16 hcmp, ref Int32 remained_points, ref Int32 current_point, ref Int32 runned_points);
-        //¶ÁÈ¡¸ßËÙ±È½Ï×´Ì¬£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //È¡Ù±È½×´Ì¬DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_hcmp_get_current_state_unit(UInt16 CardNo, UInt16 hcmp, ref Int32 remained_points, ref double current_point, ref Int32 runned_points); //¶ÁÈ¡¸ßËÙ±È½Ï×´Ì¬
-        //Çå³ı±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        public static extern short dmc_hcmp_get_current_state_unit(UInt16 CardNo, UInt16 hcmp, ref Int32 remained_points, ref double current_point, ref Int32 runned_points); //È¡Ù±È½×´Ì¬
+        //È½Ïµã£¨å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_hcmp_clear_points", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_hcmp_clear_points(UInt16 CardNo, UInt16 hcmp);
-        //¶ÁÈ¡Ö¸¶¨CMP¶Ë¿ÚµÄµçÆ½£¨±£Áô£©
+        //È¡Ö¸CMPË¿ÚµÄµÆ½
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_cmp_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_cmp_pin(UInt16 CardNo, UInt16 hcmp);
-        //¿ØÖÆcmp¶Ë¿ÚÊä³ö£¨±£Áô£©
+        //cmpË¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_cmp_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_cmp_pin(UInt16 CardNo, UInt16 hcmp, UInt16 on_off);
-        //1¡¢	ÆôÓÃ»º´æ·½Ê½Ìí¼Ó±È½ÏÎ»ÖÃ£º£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //1	Ã»æ·½Ê½Ó±È½Î»Ã£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_set_mode(UInt16 CardNo, UInt16 hcmp, UInt16 fifo_mode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_get_mode(UInt16 CardNo, UInt16 hcmp, ref UInt16 fifo_mode);
-        //2¡¢	¶ÁÈ¡Ê£Óà»º´æ×´Ì¬£¬ÉÏÎ»»úÍ¨¹ı´Ëº¯ÊıÅĞ¶ÏÊÇ·ñ¼ÌĞøÌí¼Ó±È½ÏÎ»ÖÃ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //2	È¡Ê£à»º×´Ì¬Î»Í¨ËºĞ¶Ç·Ó±È½Î»Ã£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_get_state(UInt16 CardNo, UInt16 hcmp, ref long remained_points);
-        //3¡¢	°´Êı×éµÄ·½Ê½ÅúÁ¿Ìí¼Ó±È½ÏÎ»ÖÃ£¨ÊÊÓÃÓÚDMC5000ÏµÁĞÂö³å¿¨£©
+        //3	Ä·Ê½Ó±È½Î»Ã£DMC5000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_add_point_unit(UInt16 CardNo, UInt16 hcmp, UInt16 num, double[] cmp_pos);
-        //4¡¢	Çå³ı±È½ÏÎ»ÖÃ,Ò²»á°ÑFPGAµÄÎ»ÖÃÍ¬²½Çå³ıµô£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //4	È½Î»,Ò²FPGAÎ»Í¬DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_clear_points(UInt16 CardNo, UInt16 hcmp);
-        //Ìí¼Ó´óÊı¾İ£¬»á¶ÂÈûÒ»¶ÎÊ±¼ä£¬Ö¸µ¼Êı¾İÌí¼ÓÍê³É£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ó´İ£Ò»Ê±ä£¬Ö¸É£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_add_table(UInt16 CardNo, UInt16 hcmp, UInt16 num, double[] cmp_pos);
-        //Ò»Î¬¸ßËÙ±È½Ï£¬¶ÓÁĞÄ£Ê½Ìí¼ÓµÄ±È½Ïµã¹ØÁªÔË¶¯·½Ïò£¬Ìí¼ÓÉÙÁ¿Êı¾İ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //Ò»Î¬Ù±È½Ï£Ä£Ê½ÓµÄ±È½ÏµË¶İ£DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_add_point_dir_unit(ushort CardNo, ushort hcmp, ushort num, double[] cmp_pos, uint dir);
-        //Ò»Î¬¸ßËÙ±È½Ï£¬¶ÓÁĞÄ£Ê½Ìí¼ÓµÄ±È½Ïµã¹ØÁªÔË¶¯·½Ïò£¬Ìí¼Ó´óÁ¿Êı¾İ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //Ò»Î¬Ù±È½Ï£Ä£Ê½ÓµÄ±È½ÏµË¶Ó´İ£DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_fifo_add_table_dir(ushort CardNo, ushort hcmp, ushort num, double[] cmp_pos, uint dir);
-        //----------- ¶şÎ¬¸ßËÙÎ»ÖÃ±È½Ï-----------------------        
-        //ÉèÖÃ¶ÁÈ¡¸ßËÙ±È½ÏÊ¹ÄÜ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //----------- Î¬Î»Ã±È½-----------------------        
+        //Ã¶È¡Ù±È½Ê¹Ü£å¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_set_enable(UInt16 CardNo, UInt16 hcmp, UInt16 cmp_enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_get_enable(UInt16 CardNo, UInt16 hcmp, ref UInt16 cmp_enable);
-        //ÅäÖÃ¶ÁÈ¡¶şÎ¬¸ßËÙ±È½ÏÆ÷£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶È¡Î¬Ù±È½å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_set_config(UInt16 CardNo, UInt16 hcmp, UInt16 cmp_mode, UInt16 x_axis, UInt16 x_cmp_source, UInt16 y_axis, UInt16 y_cmp_source, Int32 error, UInt16 cmp_logic, Int32 time, UInt16
  pwm_enable, double duty, Int32 freq, UInt16 port_sel, UInt16 pwm_number);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_get_config(UInt16 CardNo, UInt16 hcmp, ref UInt16 cmp_mode, ref UInt16 x_axis, ref UInt16 x_cmp_source, ref UInt16 y_axis, ref UInt16 y_cmp_source, ref Int32 error, ref UInt16 
 cmp_logic, ref Int32 time, ref UInt16 pwm_enable, ref double duty, ref Int32 freq, ref UInt16 port_sel, ref UInt16 pwm_number);
-        //ÅäÖÃ¶ÁÈ¡¶şÎ¬¸ßËÙ±È½ÏÆ÷£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ã¶È¡Î¬Ù±È½DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_set_config_unit(UInt16 CardNo, UInt16 hcmp, UInt16 cmp_mode, UInt16 x_axis, UInt16 x_cmp_source, double x_cmp_error, UInt16 y_axis, UInt16 y_cmp_source, double y_cmp_error, 
 UInt16 cmp_logic, int time);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_get_config_unit(UInt16 CardNo, UInt16 hcmp, ref UInt16 cmp_mode, ref UInt16 x_axis, ref UInt16 x_cmp_source, ref double x_cmp_error, ref UInt16 y_axis, ref UInt16 y_cmp_source, 
 ref double y_cmp_error, ref UInt16 cmp_logic, ref int time);
-        //Ìí¼Ó¶şÎ¬¸ßËÙÎ»ÖÃ±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ó¶Î¬Î»Ã±È½Ïµã£¨å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_add_point(UInt16 CardNo, UInt16 hcmp, Int32 x_cmp_pos, Int32 y_cmp_pos);
-        //Ìí¼Ó¶şÎ¬¸ßËÙÎ»ÖÃ±È½Ïµãunit£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ó¶Î¬Î»Ã±È½ÏµunitDMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_add_point_unit(UInt16 CardNo, UInt16 hcmp, double x_cmp_pos, double y_cmp_pos, UInt16 cmp_outbit);
-        //¶ÁÈ¡¶şÎ¬¸ßËÙ±È½Ï²ÎÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Î¬Ù±È½Ï²å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_get_current_state(UInt16 CardNo, UInt16 hcmp, ref Int32 remained_points, ref Int32 x_current_point, ref Int32 y_current_point, ref Int32 runned_points, ref UInt16 current_state
 );
-        //¶ÁÈ¡¶şÎ¬¸ßËÙ±È½Ï²ÎÊı£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //È¡Î¬Ù±È½Ï²DMC5X10Ïµå¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_get_current_state_unit(UInt16 CardNo, UInt16 hcmp, ref int remained_points, ref double x_current_point, ref double y_current_point, ref int runned_points, ref UInt16 
 current_state, ref UInt16 current_outbit); 
-        //Çå³ı¶şÎ¬¸ßËÙÎ»ÖÃ±È½Ïµã£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //Î¬Î»Ã±È½Ïµã£¨å¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_clear_points(UInt16 CardNo, UInt16 hcmp);
-        //Ç¿ÖÆ¶şÎ¬¸ßËÙ±È½ÏÊä³ö£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //Ç¿Æ¶Î¬Ù±È½å¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_force_output(UInt16 CardNo, UInt16 hcmp, UInt16 cmp_outbit);
-        //ÅäÖÃ¶ÁÈ¡¶şÎ¬±È½ÏPWMÊä³öÄ£Ê½£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //Ã¶È¡Î¬È½PWMÄ£Ê½DMC5X10Ïµå¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_set_pwmoutput(UInt16 CardNo, UInt16 hcmp, UInt16 pwm_enable, double duty, double freq, UInt16 pwm_number);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_get_pwmoutput(UInt16 CardNo, UInt16 hcmp, ref UInt16 pwm_enable, ref double duty, ref double freq, ref UInt16 pwm_number);
         
-        //------------------------Í¨ÓÃIO-----------------------
-        //¶ÁÈ¡ÊäÈë¿ÚµÄ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //------------------------Í¨IO-----------------------
+        //È¡Úµ×´Ì¬å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_inbit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_inbit(UInt16 CardNo, UInt16 bitno);
-        //ÉèÖÃÊä³ö¿ÚµÄ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Úµ×´Ì¬å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_outbit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_outbit(UInt16 CardNo, UInt16 bitno, UInt16 on_off);
-        //¶ÁÈ¡Êä³ö¿ÚµÄ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡Úµ×´Ì¬å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_outbit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_outbit(UInt16 CardNo, UInt16 bitno);
-        //¶ÁÈ¡ÊäÈë¶Ë¿ÚµÄÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡Ë¿ÚµÖµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_inport", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern UInt32 dmc_read_inport(UInt16 CardNo, UInt16 portno);
-        //¶ÁÈ¡Êä³ö¶Ë¿ÚµÄÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡Ë¿ÚµÖµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_outport", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern UInt32 dmc_read_outport(UInt16 CardNo, UInt16 portno);
-        //ÉèÖÃËùÓĞÊä³ö¶Ë¿ÚµÄÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Ë¿ÚµÖµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_outport", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_outport(UInt16 CardNo, UInt16 portno, UInt32 outport_val);
-        //ÉèÖÃÍ¨ÓÃÊä³ö¶Ë¿ÚµÄÖµ£¨±£Áô£©
+        //Í¨Ë¿ÚµÖµ
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_outport_16X", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_outport_16X(UInt16 CardNo, UInt16 portno, UInt32 outport_val);
-        //---------------------------Í¨ÓÃIO´ø·µ»ØÖµ¼ì²â----------------------
-        //¶ÁÈ¡ÊäÈë¿ÚµÄ×´Ì¬£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //---------------------------Í¨IOÖµ----------------------
+        //È¡Úµ×´Ì¬DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_inbit_ex(ushort CardNo, ushort bitno, ref ushort state);
-        //¶ÁÈ¡Êä³ö¿ÚµÄ×´Ì¬£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡Úµ×´Ì¬DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_outbit_ex(ushort CardNo, ushort bitno, ref ushort state);
-        //¶ÁÈ¡ÊäÈë¶Ë¿ÚµÄÖµ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡Ë¿ÚµÖµDMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_inport_ex(ushort CardNo, ushort portno, ref UInt32 state);
-        //¶ÁÈ¡Êä³ö¶Ë¿ÚµÄÖµ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡Ë¿ÚµÖµDMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_outport_ex(ushort CardNo, ushort portno, ref UInt32 state);
         
-        //ÉèÖÃ¶ÁÈ¡ĞéÄâIOÓ³Éä¹ØÏµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£© 
+        //Ã¶È¡IOÓ³Ïµå¿¨ 
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_io_map_virtual", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_io_map_virtual(UInt16 CardNo, UInt16 bitno, UInt16 MapIoType, UInt16 MapIoIndex, double Filter);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_io_map_virtual", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_io_map_virtual(UInt16 CardNo, UInt16 bitno, ref UInt16 MapIoType, ref UInt16 MapIoIndex, ref double Filter);
-        //¶ÁÈ¡ĞéÄâÊäÈë¿ÚµÄ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡Úµ×´Ì¬å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_inbit_virtual", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_inbit_virtual(UInt16 CardNo, UInt16 bitno);
-        //IOÑÓÊ±·­×ª£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //IOÊ±×ªå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_reverse_outbit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_reverse_outbit(UInt16 CardNo, UInt16 bitno, double reverse_time);
-        //ÉèÖÃ¶ÁÈ¡IO¼ÆÊıÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Ã¶È¡IOÄ£Ê½å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_io_count_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_io_count_mode(UInt16 CardNo, UInt16 bitno, UInt16 mode, double filter_time);        
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_io_count_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_io_count_mode(UInt16 CardNo, UInt16 bitno, ref UInt16 mode, ref double filter_time);
-        //ÉèÖÃIO¼ÆÊıÖµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //IOÖµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_io_count_value", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_io_count_value(UInt16 CardNo, UInt16 bitno, UInt32 CountValue);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_io_count_value", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_io_count_value(UInt16 CardNo, UInt16 bitno, ref UInt32 CountValue);
                  
-        //-----------------------×¨ÓÃIO Âö³å¿¨×¨ÓÃ-------------------------
-        //ÉèÖÃ¶ÁÈ¡ÖáIOÓ³Éä¹ØÏµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //-----------------------×¨IO å¿¨×¨-------------------------
+        //Ã¶È¡IOÓ³Ïµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_axis_io_map", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_axis_io_map(UInt16 CardNo, UInt16 Axis, UInt16 IoType, UInt16 MapIoType, UInt16 MapIoIndex, double Filter);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_axis_io_map", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_axis_io_map(UInt16 CardNo, UInt16 Axis, UInt16 IoType, ref UInt16 MapIoType, ref UInt16 MapIoIndex, ref double Filter);
-        //ÉèÖÃËùÓĞ×¨ÓÃIOÂË²¨Ê±¼ä£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //×¨IOË²Ê±ä£¨å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_special_input_filter", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_special_input_filter(UInt16 CardNo, double Filter);
-        // »ØÔ­µã¼õËÙĞÅºÅÅäÖÃ£¬(DMC3410×¨ÓÃ)
+        // Ô­ÅºÃ£(DMC3410×¨)
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_sd_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_sd_mode(UInt16 CardNo, UInt16 axis, UInt16 sd_logic, UInt16 sd_mode);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_sd_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_sd_mode(UInt16 CardNo, UInt16 axis, ref UInt16 sd_logic, ref UInt16 sd_mode);
-        //ÉèÖÃ¶ÁÈ¡INPĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶È¡INPÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_inp_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_inp_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 inp_logic);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_inp_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_inp_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 inp_logic);
-        //ÉèÖÃ¶ÁÈ¡RDYĞÅºÅ£¨±£Áô£©
+        //Ã¶È¡RDYÅºÅ£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_rdy_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 rdy_logic);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_rdy_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 rdy_logic);
-        //ÉèÖÃ¶ÁÈ¡ERCĞÅºÅ£¨±£Áô£©
+        //Ã¶È¡ERCÅºÅ£
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_erc_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_erc_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 erc_logic, UInt16 erc_width, UInt16 erc_off_time);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_erc_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_erc_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 erc_logic, ref UInt16 erc_width, ref UInt16 erc_off_time);
-        //ÉèÖÃ¶ÁÈ¡ALMĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶È¡ALMÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_alm_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_alm_mode(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 alm_logic, UInt16 alm_action);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_alm_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_alm_mode(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 alm_logic, ref UInt16 alm_action);
-        //ÉèÖÃ¶ÁÈ¡EZĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ã¶È¡EZÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_ez_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_ez_mode(UInt16 CardNo, UInt16 axis, UInt16 ez_logic, UInt16 ez_mode, double filter);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_ez_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_ez_mode(UInt16 CardNo, UInt16 axis, ref UInt16 ez_logic, ref UInt16 ez_mode, ref double filter);
-        //Êä³ö¶ÁÈ¡SEVONĞÅºÅ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡SEVONÅºÅ£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_sevon_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_sevon_pin(UInt16 CardNo, UInt16 axis, UInt16 on_off);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_sevon_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_sevon_pin(UInt16 CardNo, UInt16 axis);
-        //¿ØÖÆERCĞÅºÅÊä³ö£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //ERCÅºå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_write_erc_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_write_erc_pin(UInt16 CardNo, UInt16 axis, UInt16 sel);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_erc_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_erc_pin(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡RDY×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡RDY×´Ì¬å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_rdy_pin", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_read_rdy_pin(UInt16 CardNo, UInt16 axis);
-        //Êä³öËÅ·ş¸´Î»ĞÅºÅ£¨±£Áô£©
+        //Å·Î»ÅºÅ£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_write_sevrst_pin(UInt16 CardNo, UInt16 axis, UInt16 on_off);
-        //¶ÁËÅ·ş¸´Î»ĞÅºÅ£¨±£Áô£©
+        //Å·Î»ÅºÅ£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_sevrst_pin(UInt16 CardNo, UInt16 axis);
 
-        //---------------------±àÂëÆ÷ Âö³å¿¨---------------------
-        //Éè¶¨¶ÁÈ¡±àÂëÆ÷µÄ¼ÆÊı·½Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------- å¿¨---------------------
+        //è¶¨È¡Ä¼Ê½å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_counter_inmode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_counter_inmode(UInt16 CardNo, UInt16 axis, UInt16 mode);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_counter_inmode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_counter_inmode(UInt16 CardNo, UInt16 axis, ref UInt16 mode);
-        //±àÂëÆ÷Öµ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Öµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_encoder", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_get_encoder(UInt16 CardNo, UInt16 axis);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_encoder", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_encoder(UInt16 CardNo, UInt16 axis, Int32 encoder_value);
-        //±àÂëÆ÷Öµ(µ±Á¿)£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞ×ÜÏß¿¨£©
+        //Öµ()DMC5000/5X10Ïµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_encoder_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_set_encoder_unit(UInt16 CardNo, UInt16 axis, double pos);     //µ±Ç°·´À¡Î»ÖÃ
+        public static extern short dmc_set_encoder_unit(UInt16 CardNo, UInt16 axis, double pos);     //Ç°Î»
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_encoder_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_encoder_unit(UInt16 CardNo, UInt16 axis, ref double pos);        
-        //---------------------¸¨Öú±àÂëÆ÷ ×ÜÏß¿¨---------------------
-        //ÊÖÂÖ±àÂëÆ÷£¨±¸ÓÃ£¬Í¬dmc_set_extra_encoder£©
+        //--------------------- ß¿---------------------
+        //Ö±Ã£Í¬dmc_set_extra_encoder
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_handwheel_encoder(ushort CardNo, ushort channel, int pos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_handwheel_encoder(ushort CardNo, ushort channel, ref int pos);
-        //ÉèÖÃ¸¨Öú±àÂëÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //Ã¸Ä£Ê½ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_extra_encoder_mode(ushort CardNo, ushort channel, ushort inmode, ushort multi);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_extra_encoder_mode(ushort CardNo, ushort channel, ref ushort inmode, ref ushort multi);
-        //ÉèÖÃ¸¨Öú±àÂëÆ÷Öµ£¨ÊÊÓÃÓÚËùÓĞ×ÜÏß¿¨£©
+        //Ã¸Öµß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_extra_encoder(ushort CardNo, ushort channel, int pos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_extra_encoder(ushort CardNo, ushort channel, ref int pos);
-        //---------------------Î»ÖÃ¼ÆÊı¿ØÖÆ---------------------
-        //µ±Ç°Î»ÖÃ(µ±Á¿)£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞ×ÜÏß¿¨£©
+        //---------------------Î»Ã¼---------------------
+        //Ç°Î»()DMC5000/5X10Ïµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_position_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_set_position_unit(UInt16 CardNo, UInt16 axis, double pos);   //µ±Ç°Ö¸ÁîÎ»ÖÃ
+        public static extern short dmc_set_position_unit(UInt16 CardNo, UInt16 axis, double pos);   //Ç°Ö¸Î»
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_position_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_position_unit(UInt16 CardNo, UInt16 axis, ref double pos);
-        //µ±Ç°Î»ÖÃ(Âö³å)£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Ç°Î»()å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_position", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_get_position(UInt16 CardNo, UInt16 axis);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_position", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_position(UInt16 CardNo, UInt16 axis, Int32 current_position);
-        //--------------------ÔË¶¯×´Ì¬----------------------	
-        //¶ÁÈ¡Ö¸¶¨ÖáµÄµ±Ç°ËÙ¶È£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------Ë¶×´Ì¬----------------------	
+        //È¡Ö¸ÄµÇ°Ù¶È£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_current_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern double dmc_read_current_speed(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡µ±Ç°ËÙ¶È(µ±Á¿)£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞ×ÜÏß¿¨£©
+        //È¡Ç°Ù¶()DMC5000/5X10Ïµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_current_speed_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_read_current_speed_unit(UInt16 CardNo, UInt16 Axis, ref double current_speed);   //Öáµ±Ç°ÔËĞĞËÙ¶È
-        //¶ÁÈ¡µ±Ç°¿¨µÄ²å²¹ËÙ¶È£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞ×ÜÏß¿¨£©
+        public static extern short dmc_read_current_speed_unit(UInt16 CardNo, UInt16 Axis, ref double current_speed);   //áµ±Ç°Ù¶
+        //È¡Ç°Ä²å²¹Ù¶È£DMC5X10Ïµå¿¨ß¿
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_read_vector_speed_unit(UInt16 CardNo, UInt16 Crd, ref double current_speed);	//¶ÁÈ¡µ±Ç°¿¨µÄ²å²¹ËÙ¶È
-        //¶ÁÈ¡Ö¸¶¨ÖáµÄÄ¿±êÎ»ÖÃ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢R3032×ÜÏß¿¨£©
+        public static extern short dmc_read_vector_speed_unit(UInt16 CardNo, UInt16 Crd, ref double current_speed);	//È¡Ç°Ä²å²¹Ù¶
+        //È¡Ö¸Ä¿Î»Ã£å¿¨R3032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_target_position", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_get_target_position(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡Ö¸¶¨ÖáµÄÄ¿±êÎ»ÖÃ(µ±Á¿)£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞEtherCAT×ÜÏßÏµÁĞ¿¨£©
+        //È¡Ö¸Ä¿Î»()DMC5X10Ïµå¿¨EtherCATÏµĞ¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_target_position_unit(UInt16 CardNo, UInt16 axis, ref double pos);
-        //¶ÁÈ¡Ö¸¶¨ÖáµÄÔË¶¯×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡Ö¸Ë¶×´Ì¬å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_check_done", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_check_done(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡Ö¸¶¨ÖáµÄÔË¶¯×´Ì¬£¨ÊÊÓÃÓÚËùÓĞ¿¨£©
+        //È¡Ö¸Ë¶×´Ì¬Ğ¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_check_done_ex(ushort CardNo, ushort axis, ref ushort state);
-        //²å²¹ÔË¶¯×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //å²¹Ë¶×´Ì¬å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_check_done_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_check_done_multicoor(UInt16 CardNo, UInt16 crd);
-        //¶ÁÈ¡Ö¸¶¨ÖáÓĞ¹ØÔË¶¯ĞÅºÅµÄ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡Ö¸Ğ¹Ë¶ÅºÅµ×´Ì¬å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_axis_io_status", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern UInt32 dmc_axis_io_status(UInt16 CardNo, UInt16 axis);
-        //¶ÁÈ¡Ö¸¶¨ÖáÓĞ¹ØÔË¶¯ĞÅºÅµÄ×´Ì¬£¨ÊÊÓÃÓÚËùÓĞ¿¨£©
+        //È¡Ö¸Ğ¹Ë¶ÅºÅµ×´Ì¬Ğ¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_axis_io_status_ex(ushort CardNo, ushort axis,  uint[] state);
-        //µ¥ÖáÍ£Ö¹£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Í£Ö¹å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_stop", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_stop(UInt16 CardNo, UInt16 axis, UInt16 stop_mode);
-        //Í£Ö¹²å²¹Æ÷£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Í£Ö¹å²¹å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_stop_multicoor", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_stop_multicoor(UInt16 CardNo, UInt16 crd, UInt16 stop_mode);
-        //½ô¼±Í£Ö¹ËùÓĞÖá£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Í£Ö¹á£¨å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_emg_stop", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_emg_stop(UInt16 CardNo);
-        //Âö³å¿¨Ö¸Áî Ö÷¿¨Óë½ÓÏßºĞÍ¨Ñ¶×´Ì¬£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //å¿¨Ö¸ ßºÍ¨Ñ¶×´Ì¬å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_LinkState", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_LinkState(UInt16 CardNo, ref UInt16 State);
-        //¶ÁÈ¡Ö¸¶¨ÖáµÄÔË¶¯Ä£Ê½£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢ËùÓĞ×ÜÏß¿¨£©
+        //È¡Ö¸Ë¶Ä£Ê½DMC5000/5X10Ïµå¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_axis_run_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_axis_run_mode(UInt16 CardNo, UInt16 axis, ref UInt16 run_mode);  
-        //¶ÁÈ¡ÖáÍ£Ö¹Ô­Òò£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //È¡Í£Ö¹Ô­å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_stop_reason", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_stop_reason(UInt16 CardNo, UInt16 axis, ref Int32 StopReason);    
-        //Çå³ıÖáÍ£Ö¹Ô­Òò£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Í£Ö¹Ô­å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_clear_stop_reason", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_clear_stop_reason(UInt16 CardNo, UInt16 axis);
-        //trace¹¦ÄÜ£¨ÄÚ²¿Ê¹ÓÃº¯Êı£©
+        //traceÜ£Ú²Ê¹Ãº
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_trace", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_set_trace(UInt16 CardNo, UInt16 axis, UInt16 enable);   //trace¹¦ÄÜ
+        public static extern short dmc_set_trace(UInt16 CardNo, UInt16 axis, UInt16 enable);   //trace
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_trace", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_trace(UInt16 CardNo, UInt16 axis, ref UInt16 enable);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_read_trace_data", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
@@ -981,16 +982,16 @@ current_state, ref UInt16 current_outbit);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_stop(ushort CardNo);
 
-        //»¡³¤¼ÆËã£¨±¸ÓÃ£©
+        //ã£¨Ã£
         [DllImport("LTDMC.dll", EntryPoint = "dmc_calculate_arclength_center", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_calculate_arclength_center(double[] start_pos, double[] target_pos, double[] cen_pos, UInt16 arc_dir, double circle, ref double ArcLength);      //¼ÆËãÔ²ĞÄÔ²»¡»¡³¤
+        public static extern short dmc_calculate_arclength_center(double[] start_pos, double[] target_pos, double[] cen_pos, UInt16 arc_dir, double circle, ref double ArcLength);      //Ô²Ô²
         [DllImport("LTDMC.dll", EntryPoint = "dmc_calculate_arclength_3point", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_calculate_arclength_3point(double[] start_pos, double[] mid_pos, double[] target_pos, double circle, ref double ArcLength);      //¼ÆËãÈıµãÔ²»¡»¡³¤
+        public static extern short dmc_calculate_arclength_3point(double[] start_pos, double[] mid_pos, double[] target_pos, double circle, ref double ArcLength);      //Ô²
         [DllImport("LTDMC.dll", EntryPoint = "dmc_calculate_arclength_radius", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_calculate_arclength_radius(double[] start_pos, double[] target_pos, double arc_radius, UInt16 arc_dir, double circle, ref double ArcLength);     //¼ÆËã°ë¾¶Ô²»¡»¡³¤
+        public static extern short dmc_calculate_arclength_radius(double[] start_pos, double[] target_pos, double arc_radius, UInt16 arc_dir, double circle, ref double ArcLength);     //ë¾¶Ô²
 
-        //--------------------CAN-IOÀ©Õ¹----------------------	
-        //CAN-IOÀ©Õ¹£¬¾É½Ó¿Úº¯Êı£¨±£Áô£©
+        //--------------------CAN-IOÕ¹----------------------	
+        //CAN-IOÕ¹É½Ó¿Úº
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_can_state", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_can_state(UInt16 CardNo, UInt16 NodeNum, UInt16 state, UInt16 Baud);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_can_state", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
@@ -1011,302 +1012,302 @@ current_state, ref UInt16 current_outbit);
         public static extern short dmc_get_can_errcode(UInt16 CardNo, ref UInt16 Errcode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_can_errcode_extern(UInt16 CardNo, ref UInt16 Errcode, ref UInt16 msg_losed, ref UInt16 emg_msg_num, ref UInt16 lostHeartB, ref UInt16 EmgMsg);
-        //ÉèÖÃCAN ioÊä³ö£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CAN ioå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_outbit(ushort CardNo, ushort NodeID, ushort IoBit, ushort IoValue);
-        //¶ÁÈ¡CAN ioÊä³ö£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡CAN ioå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_outbit(ushort CardNo, ushort NodeID, ushort IoBit, ref ushort IoValue);
-        //¶ÁÈ¡CAN ioÊäÈë£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡CAN ioë£¨å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_inbit(ushort CardNo, ushort NodeID, ushort IoBit, ref ushort IoValue);
-        //ÉèÖÃCAN ioÊä³ö32Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CAN io32Î»å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_outport(ushort CardNo, ushort NodeID, ushort PortNo, UInt32 IoValue);
-        //¶ÁÈ¡CAN ioÊä³ö32Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡CAN io32Î»å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_outport(ushort CardNo, ushort NodeID, ushort PortNo, ref UInt32 IoValue);
-        //¶ÁÈ¡CAN ioÊäÈë32Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡CAN io32Î»å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_inport(ushort CardNo, ushort NodeID, ushort PortNo, ref UInt32 IoValue);
-        //---------------------------CAN IO´ø·µ»ØÖµ¼ì²â----------------------
-        //ÉèÖÃCAN ioÊä³ö£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //---------------------------CAN IOÖµ----------------------
+        //CAN ioDMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_outbit_ex(ushort CardNo, ushort NoteID, ushort IoBit, ushort IoValue, ref ushort state);
-        //¶ÁÈ¡CAN ioÊä³ö£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡CAN ioDMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_outbit_ex(ushort CardNo, ushort NoteID, ushort IoBit, ref ushort IoValue, ref ushort state);
-        //¶ÁÈ¡CAN ioÊäÈë£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡CAN ioë£¨DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_inbit_ex(ushort CardNo, ushort NoteID, ushort IoBit, ref ushort IoValue, ref ushort state);
-        //ÉèÖÃCAN ioÊä³ö32Î»£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //CAN io32Î»DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_outport_ex(ushort CardNo, ushort NoteID, ushort portno, UInt32 outport_val, ref ushort state);
-        //¶ÁÈ¡CAN ioÊä³ö32Î»£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡CAN io32Î»DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_outport_ex(ushort CardNo, ushort NoteID, ushort portno, ref UInt32 outport_val, ref ushort state);
-        //¶ÁÈ¡CAN ioÊäÈë32Î»£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡CAN io32Î»DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_inport_ex(ushort CardNo, ushort NoteID, ushort portno, ref UInt32 inport_val, ref ushort state);
         //---------------------------CAN ADDA----------------------
-        //CAN ADDAÖ¸Áî ÉèÖÃDA²ÎÊı £¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CAN ADDAÖ¸ DA å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_da_output(ushort CardNo, ushort NoteID, ushort channel, double Value);
-        //¶ÁÈ¡CAN DA²ÎÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡CAN DAå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_da_output(ushort CardNo, ushort NoteID, ushort channel, ref double Value);
-        //¶ÁÈ¡CAN AD²ÎÊı£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //È¡CAN ADå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_ad_input(ushort CardNo, ushort NoteID, ushort channel, ref double Value);
-        //ÅäÖÃCAN ADÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CAN ADÄ£Ê½å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_ad_mode(ushort CardNo, ushort NoteID, ushort channel, ushort mode, uint buffer_nums);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_ad_mode(ushort CardNo, ushort NoteID, ushort channel, ref ushort mode, uint buffer_nums);
-        //ÅäÖÃCAN DAÄ£Ê½£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CAN DAÄ£Ê½å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_da_mode(ushort CardNo, ushort NoteID, ushort channel, ushort mode, uint buffer_nums);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_da_mode(ushort CardNo, ushort NoteID, ushort channel, ref ushort mode, uint buffer_nums);
-        //CAN²ÎÊıĞ´Èëflash£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CANĞ´flashå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_to_flash(ushort CardNo, ushort PortNum, ushort NodeNum);
-        //CAN×ÜÏßÁ´½Ó£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //CANÓ£å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_connect_state(UInt16 CardNo, UInt16 NodeNum, UInt16 state, UInt16 baud);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_connect_state(UInt16 CardNo, ref UInt16 NodeNum, ref UInt16 state);
-        //---------------------------CAN ADDA´ø·µ»ØÖµ¼ì²â----------------------
-        //ÉèÖÃCAN DA²ÎÊı£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //---------------------------CAN ADDAÖµ----------------------
+        //CAN DADMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_da_output_ex(ushort CardNo, ushort NoteID, ushort channel, double Value, ref ushort state);
-        //¶ÁÈ¡CAN DA²ÎÊı£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡CAN DADMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_da_output_ex(ushort CardNo, ushort NoteID, ushort channel, ref double Value, ref ushort state);
-        //¶ÁÈ¡CAN AD²ÎÊı£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡CAN ADDMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_ad_input_ex(ushort CardNo, ushort NoteID, ushort channel, ref double Value, ref ushort state);
-        //ÅäÖÃCAN ADÄ£Ê½£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //CAN ADÄ£Ê½DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_ad_mode_ex(ushort CardNo, ushort NoteID, ushort channel, ushort mode, UInt32 buffer_nums, ref ushort state);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_ad_mode_ex(ushort CardNo, ushort NoteID, ushort channel, ref ushort mode, UInt32 buffer_nums, ref ushort state);
-        //ÅäÖÃCAN DAÄ£Ê½£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //CAN DAÄ£Ê½DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_da_mode_ex(ushort CardNo, ushort NoteID, ushort channel, ushort mode, UInt32 buffer_nums, ref ushort state);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_da_mode_ex(ushort CardNo, ushort NoteID, ushort channel, ref ushort mode, UInt32 buffer_nums, ref ushort state);
-        //²ÎÊıĞ´Èëflash£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ğ´flashDMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_to_flash_ex(ushort CardNo, ushort PortNum, ushort NodeNum, ref ushort state);
 
-        //--------------------Á¬Ğø²å²¹º¯Êı----------------------	
-        //´ò¿ªÁ¬Ğø»º´æÇø£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //--------------------å²¹----------------------	
+        //DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_open_list", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_open_list(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList);
-        //¹Ø±ÕÁ¬Ğø»º´æÇø£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ø±DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_close_list", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_close_list(UInt16 CardNo, UInt16 Crd);
-        //¸´Î»Á¬Ğø»º´æÇø£¨Ô¤Áô£©
+        //Î»Ô¤
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_reset_list(UInt16 CardNo, UInt16 Crd);
-        //Á¬Ğø²å²¹ÖĞÍ£Ö¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Í£Ö¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_stop_list", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_stop_list(UInt16 CardNo, UInt16 Crd, UInt16 stop_mode);
-        //Á¬Ğø²å²¹ÖĞÔİÍ££¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Í£DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_pause_list", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_pause_list(UInt16 CardNo, UInt16 Crd);
-        //¿ªÊ¼Á¬Ğø²å²¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ê¼å²¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_start_list", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_start_list(UInt16 CardNo, UInt16 Crd);
-        //¼ì²âÁ¬Ğø²å²¹ÔË¶¯×´Ì¬£º0-ÔËĞĞ£¬1-ÔİÍ££¬2-Õı³£Í£Ö¹£¨DMC5X10²»Ö§³Ö£©£¬3-Î´Æô¶¯£¬4-¿ÕÏĞ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Ë¶×´Ì¬0-Ğ£1-Í£2-Í£Ö¹DMC5X10Ö§Ö£3-Î´4-Ğ£DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_run_state", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_get_run_state(UInt16 CardNo, UInt16 Crd);
-        //¼ì²âÁ¬Ğø²å²¹ÔË¶¯×´Ì¬£º0-ÔËĞĞ£¬1-Í£Ö¹£¨Ô¤Áô£©
+        //å²¹Ë¶×´Ì¬0-Ğ£1-Í£Ö¹Ô¤
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_check_done", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_check_done(UInt16 CardNo, UInt16 Crd);  
-        //²éÁ¬Ğø²å²¹Ê£Óà»º´æÊı£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Ê£à»ºDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_remain_space", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_conti_remain_space(UInt16 CardNo, UInt16 Crd);
-        //¶ÁÈ¡µ±Ç°Á¬Ğø²å²¹¶ÎµÄ±êºÅ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //È¡Ç°å²¹ÎµÄ±Å£DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_read_current_mark", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern Int32 dmc_conti_read_current_mark(UInt16 CardNo, UInt16 Crd);
-        //blend¹Õ½Ç¹ı¶ÈÄ£Ê½£¨ÊÊÓÃÓÚDMC5000ÏµÁĞÂö³å¿¨£©
+        //blendÕ½Ç¹Ä£Ê½DMC5000Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_blend", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_blend(UInt16 CardNo, UInt16 Crd, UInt16 enable);      
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_blend", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_get_blend(UInt16 CardNo, UInt16 Crd, ref UInt16 enable);
-        //ÉèÖÃÃ¿¶ÎËÙ¶È±ÈÀı  »º³åÇøÖ¸Áî£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ã¿Ù¶È±  Ö¸î£¨DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_override", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_override(UInt16 CardNo, UInt16 Crd, double Percent);      
-        //ÉèÖÃ²å²¹ÖĞ¶¯Ì¬±äËÙ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ã²å²¹Ğ¶Ì¬Ù£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_change_speed_ratio", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_change_speed_ratio(UInt16 CardNo, UInt16 Crd, double Percent);
-        //Ğ¡Ïß¶ÎÇ°Õ°£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ğ¡ß¶Ç°Õ°DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_lookahead_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_lookahead_mode(UInt16 CardNo, UInt16 Crd, UInt16 enable, Int32 LookaheadSegments, double PathError, double LookaheadAcc);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_lookahead_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_get_lookahead_mode(UInt16 CardNo, UInt16 Crd, ref UInt16 enable, ref Int32 LookaheadSegments, ref double PathError, ref double LookaheadAcc);
-        //--------------------Á¬Ğø²å²¹IO¹¦ÄÜ----------------------
-        //µÈ´ıIOÊäÈë£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //--------------------å²¹IO----------------------
+        //È´IOë£¨DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_wait_input", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_wait_input(UInt16 CardNo, UInt16 Crd, UInt16 bitno, UInt16 on_off, double TimeOut, Int32 mark);
-        //Ïà¶ÔÓÚ¹ì¼£ÆğµãIOÖÍºóÊä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ú¹ì¼£IOÍºDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_delay_outbit_to_start", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_delay_outbit_to_start(UInt16 CardNo, UInt16 Crd, UInt16 bitno, UInt16 on_off, double delay_value, UInt16 delay_mode, double ReverseTime);      
-        //Ïà¶ÔÓÚ¹ì¼£ÖÕµãIOÖÍºóÊä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ú¹ì¼£ÕµIOÍºDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_delay_outbit_to_stop", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_delay_outbit_to_stop(UInt16 CardNo, UInt16 Crd, UInt16 bitno, UInt16 on_off, double delay_time, double ReverseTime);      
-        //Ïà¶ÔÓÚ¹ì¼£ÖÕµãIOÌáÇ°Êä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ú¹ì¼£ÕµIOÇ°DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_ahead_outbit_to_stop", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_ahead_outbit_to_stop(UInt16 CardNo, UInt16 Crd, UInt16 bitno, UInt16 on_off, double ahead_value, UInt16 ahead_mode, double ReverseTime);  
-        //Á¬Ğø²å²¹¾«È·Î»ÖÃCMPÊä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹È·Î»CMPDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_accurate_outbit_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_accurate_outbit_unit(UInt16 CardNo, UInt16 Crd, UInt16 cmp_no, UInt16 on_off, UInt16 map_axis, double abs_pos, UInt16 pos_source, double ReverseTime);    
-        //Á¬Ğø²å²¹Á¢¼´IOÊä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹IODMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_write_outbit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_write_outbit(UInt16 CardNo, UInt16 Crd, UInt16 bitno, UInt16 on_off, double ReverseTime);     
-        //Çå³ı¶ÎÄÚÎ´Ö´ĞĞÍêµÄIO£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Î´Ö´IODMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_clear_io_action", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_clear_io_action(UInt16 CardNo, UInt16 Crd, UInt32 IoMask);    
-        //Á¬Ğø²å²¹ÔİÍ£¼°Òì³£Ê±IOÊä³ö×´Ì¬£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Í£ì³£Ê±IO×´Ì¬DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_pause_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_conti_set_pause_output(UInt16 CardNo, UInt16 Crd, UInt16 action, Int32 mask, Int32 state);     //ÔİÍ£Ê±IOÊä³ö action 0, ²»¹¤×÷£»1£¬ ÔİÍ£Ê±Êä³öio_state; 2 ÔİÍ£Ê±Êä³öio_state,¼ÌĞøÔËĞĞÊ±Ê×ÏÈ»Ö¸´Ô­À´µÄio; 3,ÔÚ2µÄ»ù´¡ÉÏ£¬Í£Ö¹Ê±Ò²ÉúĞ§¡£
+        public static extern short dmc_conti_set_pause_output(UInt16 CardNo, UInt16 Crd, UInt16 action, Int32 mask, Int32 state);     //Í£Ê±IO action 0, 1 Í£Ê±io_state; 2 Í£Ê±io_state,Ê±È»Ö¸Ô­io; 3,2Ä»Ï£Í£Ö¹Ê±Ò²Ğ§
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_pause_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_get_pause_output(UInt16 CardNo, UInt16 Crd, ref UInt16 action, ref Int32 mask, ref Int32 state);
-        //ÑÓÊ±Ö¸Áî£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ê±Ö¸î£¨DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_delay", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_conti_delay(UInt16 CardNo, UInt16 Crd, double delay_time, Int32 mark);     //Ìí¼ÓÑÓÊ±Ö¸Áî
-        //IOÊä³öÑÓÊ±·­×ª£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        public static extern short dmc_conti_delay(UInt16 CardNo, UInt16 Crd, double delay_time, Int32 mark);     //Ê±Ö¸
+        //IOÊ±×ªDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_reverse_outbit(UInt16 CardNo, UInt16 Crd, UInt16 bitno, double reverse_time);
-        //IOÑÓÊ±Êä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //IOÊ±DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_delay_outbit(UInt16 CardNo, UInt16 Crd, UInt16 bitno, UInt16 on_off, double delay_time);
-        //Á¬Ğø²å²¹µ¥ÖáÔË¶¯£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Ë¶DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_pmove_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_conti_pmove_unit(UInt16 CardNo, UInt16 Crd, UInt16 Axis, double dist, UInt16 posi_mode, UInt16 mode, Int32 mark); //Á¬Ğø²å²¹ÖĞ¿ØÖÆÖ¸¶¨ÍâÖáÔË¶¯
-        //Á¬Ğø²å²¹Ö±Ïß²å²¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        public static extern short dmc_conti_pmove_unit(UInt16 CardNo, UInt16 Crd, UInt16 Axis, double dist, UInt16 posi_mode, UInt16 mode, Int32 mark); //å²¹Ğ¿Ö¸Ë¶
+        //å²¹Ö±ß²å²¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_line_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_conti_line_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, UInt16 posi_mode, Int32 mark); //Á¬Ğø²å²¹Ö±Ïß
-        //Á¬Ğø²å²¹Ô²ĞÄÔ²»¡²å²¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        public static extern short dmc_conti_line_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, UInt16 posi_mode, Int32 mark); //å²¹Ö±
+        //å²¹Ô²Ô²å²¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_arc_move_center_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_arc_move_center_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Cen_Pos, UInt16 Arc_Dir, Int32 Circle, UInt16 posi_mode, Int32 
 mark);    
-        //Á¬Ğø²å²¹°ë¾¶Ô²»¡²å²¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹ë¾¶Ô²å²¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_arc_move_radius_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_arc_move_radius_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double Arc_Radius, UInt16 Arc_Dir, Int32 Circle, UInt16 posi_mode, Int32 
 mark);   
-        //Á¬Ğø²å²¹3µãÔ²»¡²å²¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹3Ô²å²¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_arc_move_3points_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_arc_move_3points_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Mid_Pos, Int32 Circle, UInt16 posi_mode, Int32 mark);     
-        //Á¬Ğø²å²¹¾ØĞÎ²å²¹£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Î²å²¹DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_rectangle_move_unit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_rectangle_move_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] TargetPos, double[] MaskPos, Int32 Count, UInt16 rect_mode, UInt16 posi_mode, Int32 mark
 );     
-        //ÉèÖÃÂİĞıÏß²å²¹ÔË¶¯Ä£Ê½£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //ß²å²¹Ë¶Ä£Ê½DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_involute_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_conti_set_involute_mode(UInt16 CardNo, UInt16 Crd, UInt16 mode);      //ÉèÖÃÂİĞıÏßÊÇ·ñ·â±Õ
+        public static extern short dmc_conti_set_involute_mode(UInt16 CardNo, UInt16 Crd, UInt16 mode);      //Ç·
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_involute_mode", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short dmc_conti_get_involute_mode(UInt16 CardNo, UInt16 Crd, ref UInt16 mode);   //¶ÁÈ¡ÂİĞıÏßÊÇ·ñ·â±ÕÉèÖÃ
-        //£¨±¸ÓÃ£©
+        public static extern short dmc_conti_get_involute_mode(UInt16 CardNo, UInt16 Crd, ref UInt16 mode);   //È¡Ç·
+        //Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_line_unit_extern(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Cen_Pos, UInt16 posi_mode, Int32 mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_arc_move_center_unit_extern(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Target_Pos, double[] Cen_Pos, double Arc_Radius, UInt16 posi_mode, Int32 mark);
-        //ÉèÖÃ¶ÁÈ¡ÁúÃÅ¸úËæÄ£Ê½£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ã¶È¡Å¸Ä£Ê½DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_set_gear_follow_profile(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 master_axis, double ratio);//Ë«ZÖá
+        public static extern short dmc_set_gear_follow_profile(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt16 master_axis, double ratio);//Ë«Z
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_gear_follow_profile(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt16 master_axis, ref double ratio);
               
-        //--------------------PWM¿ØÖÆ----------------------
-        //PWM¿ØÖÆ£¨±¸ÓÃ£©
+        //--------------------PWM----------------------
+        //PWMÆ£Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_pwm_pin(UInt16 CardNo, UInt16 portno, UInt16 ON_OFF, double dfreqency, double dduty);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pwm_pin(UInt16 CardNo, UInt16 portno, ref UInt16 ON_OFF, ref double dfreqency, ref double dduty);
-        //ÉèÖÃ¶ÁÈ¡PWMÊ¹ÄÜ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ã¶È¡PWMÊ¹Ü£DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_pwm_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_pwm_enable(UInt16 CardNo, UInt16 enable);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_pwm_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_pwm_enable(UInt16 CardNo, ref UInt16 enable);
-        //ÉèÖÃ¶ÁÈ¡PWMÁ¢¼´Êä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ã¶È¡PWMDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_pwm_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_pwm_output(UInt16 CardNo, UInt16 pwm_no, double fDuty, double fFre);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_pwm_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_pwm_output(UInt16 CardNo, UInt16 pwm_no, ref double fDuty, ref double fFre);        
-        //Á¬Ğø²å²¹PWMÊä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹PWMDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_pwm_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_pwm_output(UInt16 CardNo, UInt16 Crd, UInt16 pwm_no, double fDuty, double fFre);
-        //¸ßËÙPWM¹¦ÄÜ£¨±¸ÓÃ£©
+        //PWMÜ£Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_pwm_enable_extern(UInt16 CardNo, UInt16 channel, UInt16 enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pwm_enable_extern(UInt16 CardNo, UInt16 channel, ref UInt16 enable);
-        //ÉèÖÃPWM¿ª¹Ø¶ÔÓ¦µÄÕ¼¿Õ±È£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //PWMØ¶Ó¦Õ¼Õ±È£DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_pwm_onoff_duty", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_pwm_onoff_duty(UInt16 CardNo, UInt16 PwmNo, double fOnDuty, double fOffDuty);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_pwm_onoff_duty", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_pwm_onoff_duty(UInt16 CardNo, UInt16 PwmNo, ref double fOnDuty, ref double fOffDuty);
-        //Á¬Ğø²å²¹PWMËÙ¶È¸úËæ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹PWMÙ¶È¸æ£¨DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_pwm_follow_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_pwm_follow_speed(UInt16 CardNo, UInt16 Crd, UInt16 pwm_no, UInt16 mode, double MaxVel, double MaxValue, double OutValue);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_pwm_follow_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_get_pwm_follow_speed(UInt16 CardNo, UInt16 Crd, UInt16 pwm_no, ref UInt16 mode, ref double MaxVel, ref double MaxValue, ref double OutValue);
-        //Á¬Ğø²å²¹Ïà¶Ô¹ì¼£ÆğµãPWMÖÍºóÊä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Ô¹ì¼£PWMÍºDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_delay_pwm_to_start", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_delay_pwm_to_start(UInt16 CardNo, UInt16 Crd, UInt16 pwmno, UInt16 on_off, double delay_value, UInt16 delay_mode, double ReverseTime);
-        //Á¬Ğø²å²¹Ïà¶Ô¹ì¼£ÖÕµãPWMÌáÇ°Êä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹Ô¹ì¼£ÕµPWMÇ°DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_ahead_pwm_to_stop", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_ahead_pwm_to_stop(UInt16 CardNo, UInt16 Crd, UInt16 pwmno, UInt16 on_off, double ahead_value, UInt16 ahead_mode, double ReverseTime);
-        //Á¬Ğø²å²¹PWMÁ¢¼´Êä³ö£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //å²¹PWMDMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_write_pwm", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_write_pwm(UInt16 CardNo, UInt16 Crd, UInt16 pwmno, UInt16 on_off, double ReverseTime);
 
-        //--------------------ADDAÊä³ö----------------------
-        //¿ØÖÆ¿¨½ÓÏßºĞDAÊä³ö£¬ÉèÖÃDAÊä³öÊ¹ÄÜ£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //--------------------ADDA----------------------
+        //Æ¿ßºDADAÊ¹Ü£å¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_da_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_da_enable(UInt16 CardNo, UInt16 enable);      
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_da_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_da_enable(UInt16 CardNo, ref UInt16 enable);
-        //ÉèÖÃDAÊä³ö£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //DAå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_da_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_da_output(UInt16 CardNo, UInt16 channel, double Vout);   
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_da_output", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_da_output(UInt16 CardNo, UInt16 channel, ref double Vout);
-        //¿ØÖÆ¿¨½ÓÏßºĞADÊäÈë£¬¶ÁÈ¡ADÊäÈë£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //Æ¿ßºADë£¬È¡ADë£¨å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_ad_input(ushort CardNo, ushort channel, ref double Vout);
-        //ÉèÖÃÁ¬ĞøDAÊ¹ÄÜ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //DAÊ¹Ü£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_set_da_output(UInt16 CardNo, UInt16 Crd, UInt16 channel, double Vout);
-        //ÉèÖÃÁ¬ĞøDAÊ¹ÄÜ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //DAÊ¹Ü£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_da_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_da_enable(ushort CardNo, ushort Crd, ushort enable, ushort channel, int mark);
-        //±àÂëÆ÷da¸úËæ£¨Ô¤Áô£©
+        //daæ£¨Ô¤
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_encoder_da_follow_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_encoder_da_follow_enable(ushort CardNo, ushort axis, ushort enable);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_encoder_da_follow_enable", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_encoder_da_follow_enable(ushort CardNo, ushort axis, ref ushort enable);
-        //Á¬Ğø²å²¹DAËÙ¶È¸úËæ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //å²¹DAÙ¶È¸æ£¨DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_set_da_follow_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_set_da_follow_speed(ushort CardNo, ushort Crd, ushort da_no, double MaxVel, double MaxValue, double acc_offset, double dec_offset, double acc_dist, double dec_dist);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_conti_get_da_follow_speed", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_conti_get_da_follow_speed(ushort CardNo, ushort Crd, ushort da_no, ref double MaxVel, ref double MaxValue, ref double acc_offset, ref double dec_offset, ref double acc_dist, ref double 
 dec_dist);
 
-        //Ğ¡Ô²ÏŞËÙÊ¹ÄÜ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //Ğ¡Ô²Ê¹Ü£DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_arc_limit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_arc_limit(UInt16 CardNo, UInt16 Crd, UInt16 Enable, double MaxCenAcc, double MaxArcError);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_arc_limit", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_arc_limit(UInt16 CardNo, UInt16 Crd, ref UInt16 Enable, ref double MaxCenAcc, ref double MaxArcError);
-        //£¨Ô¤Áô£©
+        //Ô¤
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_IoFilter(UInt16 CardNo, UInt16 bitno, double filter);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_IoFilter(UInt16 CardNo, UInt16 bitno, ref double filter);
-        //Âİ¾à²¹³¥£¨¾ÉÖ¸Áî£¬²»Ê¹ÓÃ£©
+        //İ¾à²¹Ö¸î£¬Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_lsc_index_value(UInt16 CardNo, UInt16 axis, UInt16 IndexID, Int32 IndexValue);
         [DllImport("LTDMC.dll")]
@@ -1315,7 +1316,7 @@ dec_dist);
         public static extern short dmc_set_lsc_config(UInt16 CardNo, UInt16 axis, UInt16 Origin, UInt32 Interal, UInt32 NegIndex, UInt32 PosIndex, double Ratio);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_lsc_config(UInt16 CardNo, UInt16 axis, ref UInt16 Origin, ref UInt32 Interal, ref UInt32 NegIndex, ref UInt32 PosIndex, ref double Ratio);
-        //¿´ÃÅ¹·¾ÉÖ¸Áî£¬²»Ê¹ÓÃ
+        //Å¹Ö¸î£¬Ê¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_watchdog(UInt16 CardNo, UInt16 enable, UInt32 time);
         [DllImport("LTDMC.dll")]
@@ -1324,32 +1325,32 @@ dec_dist);
         public static extern short dmc_read_diagnoseData(UInt16 CardNo);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_set_cmd_end(UInt16 CardNo, UInt16 Crd, UInt16 enable);
-        //ÇøÓòÈíÏŞÎ»£¨±£Áô£©
+        //Î»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_zone_limit_config(UInt16 CardNo, UInt16[] axis, UInt16[] Source, Int32 x_pos_p, Int32 x_pos_n, Int32 y_pos_p, Int32 y_pos_n, UInt16 action_para);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_zone_limit_config(UInt16 CardNo, UInt16[] axis, UInt16[] Source, ref Int32 x_pos_p, ref Int32 x_pos_n, ref Int32 y_pos_p, ref Int32 y_pos_n, ref UInt16 action_para);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_zone_limit_enable(UInt16 CardNo, UInt16 enable);
-        //Öá»¥Ëø¹¦ÄÜ£¨±£Áô£©
+        //á»¥Ü£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_interlock_config(UInt16 CardNo, UInt16[] axis, UInt16[] Source, Int32 delta_pos, UInt16 action_para);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_interlock_config(UInt16 CardNo, UInt16[] axis, UInt16[] Source, ref Int32 delta_pos, ref UInt16 action_para);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_interlock_enable(UInt16 CardNo, UInt16 enable);
-        //ÁúÃÅÄ£Ê½µÄÎó²î±£»¤£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ä£Ê½î±£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_grant_error_protect(UInt16 CardNo, UInt16 axis, UInt16 enable, UInt32 dstp_error, UInt32 emg_error);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_grant_error_protect(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref UInt32 dstp_error, ref UInt32 emg_error);
-        //ÁúÃÅÄ£Ê½µÄÎó²î±£»¤µ±Á¿º¯Êı£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ä£Ê½î±£DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_grant_error_protect_unit(UInt16 CardNo, UInt16 axis, UInt16 enable, double dstp_error, double emg_error);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_grant_error_protect_unit(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref double dstp_error, ref double emg_error);
 
-        //Îï¼ş·Ö¼ğ¹¦ÄÜ £¨·Ö¼ğ¹Ì¼ş×¨ÓÃ£©
+        //Ö¼ Ö¼Ì¼×¨Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_camerablow_config(UInt16 CardNo, UInt16 camerablow_en, Int32 cameraPos, UInt16 piece_num, Int32 piece_distance, UInt16 axis_sel, Int32 latch_distance_min);
         [DllImport("LTDMC.dll")]
@@ -1358,107 +1359,107 @@ dec_dist);
         public static extern short dmc_clear_camerablow_errorcode(UInt16 CardNo);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_camerablow_errorcode(UInt16 CardNo, ref UInt16 errorcode);
-        //ÅäÖÃÍ¨ÓÃÊäÈë£¨0~15£©×öÎªÖáµÄÏŞÎ»ĞÅºÅ£¨±£Áô£©
+        //Í¨ë£¨0~15ÎªÎ»ÅºÅ£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_io_limit_config(UInt16 CardNo, UInt16 portno, UInt16 enable, UInt16 axis_sel, UInt16 el_mode, UInt16 el_logic);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_io_limit_config(UInt16 CardNo, UInt16 portno, ref UInt16 enable, ref UInt16 axis_sel, ref UInt16 el_mode, ref UInt16 el_logic);
-        //ÊÖÂÖÂË²¨²ÎÊı£¨±£Áô£©
+        //Ë²
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_handwheel_filter(UInt16 CardNo, UInt16 axis, double filter_factor);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_handwheel_filter(UInt16 CardNo, UInt16 axis, ref double filter_factor);
-        //¶ÁÈ¡×ø±êÏµ¸÷ÖáµÄµ±Ç°¹æ»®×ø±ê£¨±£Áô£©
+        //È¡ÏµÄµÇ°æ»®ê£¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_get_interp_map(UInt16 CardNo, UInt16 Crd, ref UInt16 AxisNum, UInt16[] AxisList, double[] pPosList);
-        //×ø±êÏµ´íÎó´úÂë £¨±£Áô£©
+        //Ïµ 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_get_crd_errcode(UInt16 CardNo, UInt16 Crd, ref UInt16 errcode);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_line_unit_follow(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] Dist, UInt16 posi_mode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_line_unit_follow(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] pPosList, UInt16 posi_mode, Int32 mark);
-        //Á¬Ğø²å²¹»º³åÇøDA²Ù×÷£¨±£Áô£©
+        //å²¹DA
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_set_da_action(UInt16 CardNo, UInt16 Crd, UInt16 mode, UInt16 portno, double dvalue);
-        //¶Á±àÂëÆ÷ËÙ¶È£¨±£Áô£©
+        //Ù¶È£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_encoder_speed(UInt16 CardNo, UInt16 Axis, ref double current_speed);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_axis_follow_line_enable(UInt16 CardNo, UInt16 Crd, UInt16 enable_flag);
-        //²å²¹ÖáÂö³å²¹³¥£¨±£Áô£©
+        //å²¹å²¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_interp_compensation(UInt16 CardNo, UInt16 axis, double dvalue, double time);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_interp_compensation(UInt16 CardNo, UInt16 axis, ref double dvalue, ref double time);
-        //¶ÁÈ¡Ïà¶ÔÓÚÆğµãµÄ¾àÀë£¨±£Áô£©
+        //È¡Ä¾ë£¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_distance_to_start(UInt16 CardNo, UInt16 Crd, ref double distance_x, ref double distance_y, Int32 imark);
-        //ÉèÖÃ±êÖ¾Î» ±íÊ¾ÊÇ·ñ¿ªÊ¼¼ÆËãÏà¶ÔÆğµã£¨±£Áô£©
+        //Ã±Ö¾Î» Ê¾Ç·Ê¼ã£¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_start_distance_flag(UInt16 CardNo, UInt16 Crd, UInt16 flag);
 
-        //µ¶Ïò¸úËæ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //æ£¨DMC5000/5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_gear_unit(UInt16 CardNo, UInt16 Crd, UInt16 axis, double dist, UInt16 follow_mode, Int32 imark);
-        //¹ì¼£ÄâºÏÊ¹ÄÜÉèÖÃ£¨±£Áô£©
+        //ì¼£Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_path_fitting_enable(UInt16 CardNo, UInt16 Crd, UInt16 enable);
-        //--------------------Âİ¾à²¹³¥----------------------
-        //Âİ¾à²¹³¥¹¦ÄÜ(ĞÂ)£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //--------------------İ¾à²¹----------------------
+        //İ¾à²¹()å¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_enable_leadscrew_comp(UInt16 CardNo, UInt16 axis, UInt16 enable);
-        //ÅäÖÃÂß¼­²¹³¥²ÎÊı£¨Âö³å£©£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨£©
+        //ß¼å£©å¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_leadscrew_comp_config(UInt16 CardNo, UInt16 axis, UInt16 n, Int32 startpos, Int32 lenpos, Int32[] pCompPos, Int32[] pCompNeg);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_leadscrew_comp_config(UInt16 CardNo, UInt16 axis, ref UInt16 n, ref int startpos, ref int lenpos, int[] pCompPos, int[] pCompNeg);
-        //ÅäÖÃÂß¼­²¹³¥²ÎÊı£¨µ±Á¿£©£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //ß¼DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_leadscrew_comp_config_unit(UInt16 CardNo, UInt16 axis, UInt16 n, double startpos, double lenpos, double[] pCompPos, double[] pCompNeg);       
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_leadscrew_comp_config_unit(UInt16 CardNo, UInt16 axis, ref UInt16 n, ref double startpos, ref double lenpos, double[] pCompPos, double[] pCompNeg);
-        //Âİ¾à²¹³¥Ç°µÄÂö³åÎ»ÖÃ£¬±àÂëÆ÷Î»ÖÃ//20191025£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //İ¾à²¹Ç°Î»Ã£Î»//20191025DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_position_ex(UInt16 CardNo, UInt16 axis, ref double pos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_encoder_ex(UInt16 CardNo, UInt16 axis, ref double pos);
-        //Âİ¾à²¹³¥Ç°µÄÂö³åÎ»ÖÃ£¬±àÂëÆ÷Î»ÖÃ µ±Á¿£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //İ¾à²¹Ç°Î»Ã£Î» DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_position_ex_unit(UInt16 CardNo, UInt16 axis, ref double pos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_encoder_ex_unit(UInt16 CardNo, UInt16 axis, ref double pos);
 
-        //Ö¸¶¨Öá×ö¶¨³¤Î»ÒÆÔË¶¯ °´¹Ì¶¨ÇúÏßÔË¶¯£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ö¸Î»Ë¶ Ì¶Ë¶DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_t_pmove_extern(UInt16 CardNo, UInt16 axis, double MidPos, double TargetPos, double Min_Vel, double Max_Vel, double stop_Vel, double acc, double dec, UInt16 posi_mode);
         //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_t_pmove_extern_unit(UInt16 CardNo, UInt16 axis, double MidPos, double TargetPos, double Min_Vel, double Max_Vel, double stop_Vel, double acc, double dec, UInt16 posi_mode);
-        //ÉèÖÃÂö³å¼ÆÊıÖµºÍ±àÂëÆ÷·´À¡ÖµÖ®¼ä²îÖµµÄ±¨¾¯·§Öµ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //ÖµÍ±ÖµÖ®ÖµÄ±ÖµDMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_pulse_encoder_count_error(UInt16 CardNo, UInt16 axis, UInt16 error);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pulse_encoder_count_error(UInt16 CardNo, UInt16 axis, ref UInt16 error);
-        //¼ì²éÂö³å¼ÆÊıÖµºÍ±àÂëÆ÷·´À¡ÖµÖ®¼ä²îÖµÊÇ·ñ³¬¹ı±¨¾¯·§Öµ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //ÖµÍ±ÖµÖ®ÖµÇ·ñ³¬¹ÖµDMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_check_pulse_encoder_count_error(UInt16 CardNo, UInt16 axis, ref Int32 pulse_position, ref Int32 enc_position);
-        //ÉèÖÃ/»Ø¶ÁÂö³å¼ÆÊıÖµºÍ±àÂëÆ÷·´À¡ÖµÖ®¼ä²îÖµµÄ±¨¾¯ãĞÖµunit£¨ÊÊÓÃÓÚDMC5X10Âö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        ///Ø¶ÖµÍ±ÖµÖ®ÖµÄ±ÖµunitDMC5X10å¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_pulse_encoder_count_error_unit(ushort CardNo, ushort axis, double error);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pulse_encoder_count_error_unit(ushort CardNo, ushort axis, ref double error);
-        //¼ì²éÂö³å¼ÆÊıÖµºÍ±àÂëÆ÷·´À¡ÖµÖ®¼ä²îÖµÊÇ·ñ³¬¹ı±¨¾¯ãĞÖµunit£¨ÊÊÓÃÓÚDMC5X10Âö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        //ÖµÍ±ÖµÖ®ÖµÇ·ñ³¬¹ÖµunitDMC5X10å¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_check_pulse_encoder_count_error_unit(ushort CardNo, ushort axis, ref double pulse_position, ref double enc_position);
-        //Ê¹ÄÜºÍÉèÖÃ¸ú×Ù±àÂëÆ÷Îó²î²»ÔÚ·¶Î§ÄÚÊ±ÖáµÄÍ£Ö¹Ä£Ê½£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ê¹ÜºÃ¸Ù±î²»Ú·Î§Ê±Í£Ö¹Ä£Ê½DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_encoder_count_error_action_config(UInt16 CardNo, UInt16 enable, UInt16 stopmode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_encoder_count_error_action_config(UInt16 CardNo, ref UInt16 enable, ref UInt16 stopmode);
         
-        //ĞÂÎï¼ş·Ö¼ğ¹¦ÄÜ ·Ö¼ğ¹Ì¼ş×¨ÓÃ
+        //Ö¼ Ö¼Ì¼×¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_sorting_close(UInt16 CardNo);
         [DllImport("LTDMC.dll")]
@@ -1493,42 +1494,42 @@ dec_dist);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_sorting_set_blow_trig_phase(UInt16 CardNo, UInt16 blowNo, double coef);
         
-        //ÄÚ²¿Ê¹ÓÃ£¨±£Áô£©
+        //Ú²Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_sevon_enable(UInt16 CardNo, UInt16 axis, UInt16 on_off);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_sevon_enable(UInt16 CardNo, UInt16 axis);
 
-        //Á¬Ğø±àÂëÆ÷da¸úËæ£¨ÊÊÓÃÓÚDMC5000/5X10ÏµÁĞÂö³å¿¨£©
+        //daæ£¨DMC5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_set_encoder_da_follow_enable(UInt16 CardNo, UInt16 Crd, UInt16 axis, UInt16 enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_get_encoder_da_follow_enable(UInt16 CardNo, UInt16 Crd, ref UInt16 axis, ref UInt16 enable);
-        //ÉèÖÃÎ»ÖÃÎó²î´ø£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Î»å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_set_factor_error", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_set_factor_error(UInt16 CardNo, UInt16 axis, double factor, Int32 error);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_get_factor_error", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_get_factor_error(UInt16 CardNo, UInt16 axis, ref double factor, ref Int32 error);
-        //ÉèÖÃ/»Ø¶ÁÎ»ÖÃÎó²î´øunit£¨ÊÊÓÃÓÚDMC5X10Âö³å¿¨¡¢EtherCAT×ÜÏß¿¨£©
+        ///Ø¶Î»unitDMC5X10å¿¨EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_factor_error_unit(ushort CardNo, ushort axis, double factor, double error);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_factor_error_unit(ushort CardNo, ushort axis, ref double factor, ref double error);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_check_done_pos(UInt16 CardNo, UInt16 axis, UInt16 posi_mode);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_factor(UInt16 CardNo, UInt16 axis, double factor);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_error(UInt16 CardNo, UInt16 axis, Int32 error);
-        //¼ì²âÖ¸Áîµ½Î»£¨ÊÊÓÃÓÚËùÓĞÂö³å¿¨¡¢×ÜÏß¿¨£©
+        //Ö¸îµ½Î»å¿¨ß¿
         [DllImport("LTDMC.dll", EntryPoint = "dmc_check_success_pulse", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_check_success_pulse(UInt16 CardNo, UInt16 axis);
         [DllImport("LTDMC.dll", EntryPoint = "dmc_check_success_encoder", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short dmc_check_success_encoder(UInt16 CardNo, UInt16 axis);
 
-        //IO¼°±àÂëÆ÷¼ÆÊı¹¦ÄÜ£¨±£Áô£©
+        //IOÜ£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_io_count_profile(UInt16 CardNo, UInt16 chan, UInt16 bitno,UInt16 mode,double filter, double count_value, UInt16[] axis_list, UInt16 axis_num, UInt16 stop_mode );
         [DllImport("LTDMC.dll")]
@@ -1540,17 +1541,17 @@ stop_mode );
         public static extern short dmc_clear_io_count(UInt16 CardNo, UInt16 chan);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_io_count_value_extern(UInt16 CardNo, UInt16 chan, ref Int32 current_value);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_change_speed_extend(UInt16 CardNo,UInt16 axis,double Curr_Vel, double Taccdec, UInt16 pin_num, UInt16 trig_mode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_follow_vector_speed_move(UInt16 CardNo,UInt16 axis,UInt16 Follow_AxisNum,UInt16[] Follow_AxisList,double ratio);
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_conti_line_unit_extend(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] pPosList, UInt16 posi_mode, double Extend_Len, UInt16 enable,Int32 mark); //Á¬Ğø²å²¹Ö±Ïß
+        public static extern short dmc_conti_line_unit_extend(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] pPosList, UInt16 posi_mode, double Extend_Len, UInt16 enable,Int32 mark); //å²¹Ö±
      
-        //×ÜÏß²ÎÊı
+        //ß²
         [DllImport("LTDMC.dll", EntryPoint = "nmc_download_configfile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
-        public static extern short nmc_download_configfile(UInt16 CardNo, UInt16 PortNum, String FileName);//×ÜÏßENIÅäÖÃÎÄ¼ş
+        public static extern short nmc_download_configfile(UInt16 CardNo, UInt16 PortNum, String FileName);//ENIÄ¼
         [DllImport("LTDMC.dll", EntryPoint = "nmc_download_mapfile", CharSet = CharSet.Ansi, CallingConvention = CallingConvention.StdCall)]
         public static extern short nmc_download_mapfile(UInt16 CardNo, String FileName);
         [DllImport("LTDMC.dll")]
@@ -1579,18 +1580,18 @@ stop_mode );
         //
         [DllImport("LTDMC.dll")]
         public static extern short nmc_syn_move_unit(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList, double[] Position, UInt16[] PosiMode);
-        //×ÜÏß¶àÖáÍ¬²½ÔË¶¯
+        //ß¶Í¬Ë¶
         [DllImport("LTDMC.dll")]
         public static extern short nmc_sync_pmove_unit(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList, double[] Dist, UInt16[] PosiMode);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_sync_vmove_unit(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList, UInt16[] Dir);
-        //ÉèÖÃÖ÷Õ¾²ÎÊı
+        //Õ¾
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_master_para(UInt16 CardNo, UInt16 PortNum, UInt16 Baudrate, UInt32 NodeCnt, UInt16 MasterId);
-        //¶ÁÈ¡Ö÷Õ¾²ÎÊı
+        //È¡Õ¾
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_master_para(UInt16 CardNo, UInt16 PortNum, ref UInt16 Baudrate, ref UInt32 NodeCnt, ref UInt16 MasterId);
-        //»ñÈ¡×ÜÏßADDAÊäÈëÊä³ö¿ÚÊı
+        //È¡ADDA
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_total_adcnum(ushort CardNo, ref ushort TotalIn, ref ushort TotalOut);
         [DllImport("LTDMC.dll")]
@@ -1612,42 +1613,42 @@ stop_mode );
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_slave_nodes(ushort CardNo, ushort PortNum, ushort BaudRate, ref ushort NodeId, ref ushort NodeNum);
         
-        //Öá×´Ì¬»ú
+        //×´Ì¬
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_state_machine(ushort CardNo, ushort axis, ref ushort Axis_StateMachine);
-        //»ñÈ¡Öá×´Ì¬×Ö
+        //È¡×´Ì¬
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_statusword(ushort CardNo, ushort axis, ref int statusword);
-        //»ñÈ¡ÖáÅäÖÃ¿ØÖÆÄ£Ê½£¬·µ»ØÖµ£¨6»ØÁãÄ£Ê½£¬8cspÄ£Ê½£©
+        //È¡Ã¿Ä£Ê½Öµ6Ä£Ê½8cspÄ£Ê½
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_setting_contrlmode(ushort CardNo, ushort axis, ref int contrlmode);
-        //ÉèÖÃ×ÜÏßÖá¿ØÖÆ×Ö
+        //
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_axis_contrlword(ushort CardNo, ushort axis, int contrlword);
-        //»ñÈ¡×ÜÏßÖá¿ØÖÆ×Ö
+        //È¡
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_contrlword(ushort CardNo, ushort axis, ref int contrlword);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_type(ushort CardNo, ushort axis, ref ushort Axis_Type);
-        //»ñÈ¡×ÜÏßÊ±¼äÁ¿£¬Æ½¾ùÊ±¼ä£¬×î´óÊ±¼ä£¬Ö´ĞĞÖÜÆÚÊı
+        //È¡Ê±Æ½Ê±ä£¬Ê±ä£¬Ö´
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_consume_time_fieldbus(ushort CardNo, ushort Fieldbustype, ref uint Average_time, ref uint Max_time, ref UInt64 Cycles);
-        //Çå³ıÊ±¼äÁ¿
+        //Ê±
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_consume_time_fieldbus(ushort CardNo, ushort Fieldbustype);
-        //×ÜÏßµ¥ÖáÊ¹ÄÜº¯Êı 255±íÊ¾È«Ê¹ÄÜ
+        //ßµÊ¹Üº 255Ê¾È«Ê¹
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_axis_enable(ushort CardNo, ushort axis);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_axis_disable(ushort CardNo, ushort axis);
-        // »ñÈ¡ÖáµÄ´ÓÕ¾ĞÅÏ¢
+        // È¡Ä´Õ¾Ï¢
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_node_address(ushort CardNo, ushort axis, ref ushort SlaveAddr, ref ushort Sub_SlaveAddr);
-        //»ñÈ¡×ÜÏßÖáÊı
+        //È¡
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_total_slaves(ushort CardNo, ushort PortNum, ref ushort TotalSlaves);
         [DllImport("LTDMC.dll")]
-        //×ÜÏß»ØÔ­µãº¯Êı
+        //ß»Ô­ãº¯
         public static extern short nmc_set_home_profile(ushort CardNo, ushort axis, ushort home_mode, double Low_Vel, double High_Vel, double Tacc, double Tdec, double offsetpos);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_home_profile(ushort CardNo, ushort axis, ref ushort home_mode, ref double Low_Vel, ref double High_Vel, ref double Tacc, ref double Tdec, ref double offsetpos);
@@ -1658,13 +1659,13 @@ stop_mode );
         public static extern short nmc_start_scan_ethercat(ushort CardNo, ushort AddressID);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_stop_scan_ethercat(ushort CardNo, ushort AddressID);
-        //ÉèÖÃÖáµÄÔËĞĞÄ£Ê½ 1ÎªppÄ£Ê½£¬6Îª»ØÁãÄ£Ê½£¬8ÎªcspÄ£Ê½
+        //Ä£Ê½ 1ÎªppÄ£Ê½6ÎªÄ£Ê½8ÎªcspÄ£Ê½
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_axis_run_mode(ushort CardNo, ushort axis, ushort run_mode);
-        //Çå³ı¶Ë¿Ú±¨¾¯
+        //Ë¿Ú±
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_alarm_fieldbus(ushort CardNo, ushort PortNum);
-        //Í£Ö¹ethercat×ÜÏß,·µ»Ø0±íÊ¾³É¹¦£¬ÆäËû²ÎÊı±íÊ¾²»³É¹¦
+        //Í£Ö¹ethercat,0Ê¾É¹Ê¾É¹
         [DllImport("LTDMC.dll")]
         public static extern short nmc_stop_etc(ushort CardNo, ref ushort ETCState);
         [DllImport("LTDMC.dll")]
@@ -1676,20 +1677,20 @@ stop_mode );
         public static extern short nmc_set_axis_io_out(UInt16 CardNo, UInt16 axis, UInt32 iostate);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_io_out(UInt16 CardNo, UInt16 axis);
-        // »ñÈ¡×ÜÏß¶Ë¿Ú´íÎóÂë
+        // È¡ß¶Ë¿Ú´
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_errcode(ushort CardNo, ushort channel, ref ushort errcode);
-        // Çå³ı×ÜÏß¶Ë¿Ú´íÎóÂë
+        // ß¶Ë¿Ú´
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_errcode(ushort CardNo, ushort channel);
-        // »ñÈ¡×ÜÏßÖá´íÎóÂë
+        // È¡
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_axis_errcode(ushort CardNo, ushort axis, ref ushort Errcode);
-        // Çå³ı×ÜÏßÖá´íÎóÂë
+        // 
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_axis_errcode(ushort CardNo, ushort axis);
 
-        //RTEX¿¨Ìí¼Óº¯Êı
+        //RTEXÓº
         [DllImport("LTDMC.dll")]
         public static extern short nmc_start_connect(UInt16 CardNo, UInt16 chan, ref UInt16 info, ref UInt16 len);
         [DllImport("LTDMC.dll")]
@@ -1704,7 +1705,7 @@ stop_mode );
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_parameter(UInt16 CardNo, UInt16 axis, UInt16 index, UInt16 subindex, UInt32 para_data);
         /**************************************************************
-        *¹¦ÄÜËµÃ÷£ºRTEXÇı¶¯Æ÷Ğ´EEPROM²Ù×÷
+        *ËµRTEXĞ´EEPROM
         **************************************************************/
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_slave_eeprom(UInt16 CardNo, UInt16 axis);
@@ -1712,21 +1713,21 @@ stop_mode );
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_parameter(UInt16 CardNo, UInt16 axis, UInt16 index, UInt16 subindex, ref UInt32 para_data);
         /**************************************************************
-         * *index:rtexÇı¶¯Æ÷µÄ²ÎÊı·ÖÀà
-         * *subindex:rtexÇı¶¯Æ÷ÔÚindexÀà±ğÏÂµÄ²ÎÊı±àºÅ
-         * *para_data:¶Á³öµÄ²ÎÊıÖµ
+         * *index:rtexÄ²
+         * *subindex:rtexindexÂµÄ²
+         * *para_data:Ä²Öµ
          * **************************************************************/
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_parameter_attributes(UInt16 CardNo, UInt16 axis, UInt16 index, UInt16 subindex, ref UInt32 para_data);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_cmdcycletime(UInt16 CardNo, UInt16 PortNum, UInt32 cmdtime);
-        //ÉèÖÃRTEX×ÜÏßÖÜÆÚ±È(us)
+        //RTEXÚ±(us)
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_cmdcycletime(UInt16 CardNo, UInt16 PortNum, ref UInt32 cmdtime);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_config_atuo_log(UInt16 CardNo, UInt16 ifenable, UInt16 dir, UInt16 byte_index, UInt16 mask, UInt16 condition, UInt32 counter);
 
-        //À©Õ¹PDO
+        //Õ¹PDO
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_rxpdo_extra(UInt16 CardNo, UInt16 PortNum, UInt16 address, UInt16 DataLen, Int32 Value);
         [DllImport("LTDMC.dll")]
@@ -1747,87 +1748,87 @@ stop_mode );
         public static extern short nmc_set_offset_pos(UInt16 CardNo, UInt16 axis, double offset_pos);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_offset_pos(UInt16 CardNo, UInt16 axis, ref double offset_pos);
-        //Çå³ırtex¾ø¶ÔÖµ±àÂëÆ÷µÄ¶àÈ¦Öµ
+        //rtexÖµÄ¶È¦Öµ
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_abs_driver_multi_cycle(UInt16 CardNo, UInt16 axis);
-        //---------------------------EtherCAT IOÀ©Õ¹Ä£¿é²Ù×÷Ö¸Áî----------------------
-        //ÉèÖÃioÊä³ö32Î»×ÜÏßÀ©Õ¹
+        //---------------------------EtherCAT IOÕ¹Ä£Ö¸----------------------
+        //io32Î»Õ¹
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_outport_extern(UInt16 CardNo, UInt16 Channel, UInt16 NoteID, UInt16 portno, UInt32 outport_val);
-        //¶ÁÈ¡ioÊä³ö32Î»×ÜÏßÀ©Õ¹
+        //È¡io32Î»Õ¹
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_outport_extern(UInt16 CardNo, UInt16 Channel, UInt16 NoteID, UInt16 portno, ref UInt32 outport_val);
-        //¶ÁÈ¡ioÊäÈë32Î»×ÜÏßÀ©Õ¹
+        //È¡io32Î»Õ¹
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_inport_extern(UInt16 CardNo, UInt16 Channel, UInt16 NoteID, UInt16 portno, ref UInt32 inport_val);
-        //ÉèÖÃioÊä³ö
+        //io
         [DllImport("LTDMC.dll")]
         public static extern short nmc_write_outbit_extern(UInt16 CardNo, UInt16 Channel, UInt16 NoteID, UInt16 IoBit, UInt16 IoValue);
-        //¶ÁÈ¡ioÊä³ö
+        //È¡io
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_outbit_extern(UInt16 CardNo, UInt16 Channel, UInt16 NoteID, UInt16 IoBit, ref UInt16 IoValue);
-        //¶ÁÈ¡ioÊäÈë
+        //È¡io
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_inbit_extern(UInt16 CardNo, UInt16 Channel, UInt16 NoteID, UInt16 IoBit, ref UInt16 IoValue);
         
-        //·µ»Ø×î½ü´íÎóÂë
+        //
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_current_fieldbus_state_info(UInt16 CardNo, UInt16 Channel, ref UInt16 Axis, ref UInt16 ErrorType, ref UInt16 SlaveAddr, ref UInt32 ErrorFieldbusCode);
-        // ·µ»ØÀúÊ·´íÎóÂë
+        // Ê·
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_detail_fieldbus_state_info(UInt16 CardNo, UInt16 Channel, UInt32 ReadErrorNum, ref UInt32 TotalNum, ref UInt32 ActualNum, UInt16[] Axis, UInt16[] ErrorType, UInt16[] SlaveAddr, 
 UInt32[] ErrorFieldbusCode);
-        //Æô¶¯²É¼¯
+        //É¼
         [DllImport("LTDMC.dll")]
         public static extern short nmc_start_pdo_trace(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, UInt16 Index_Num, UInt32 Trace_Len, UInt16[] Index, UInt16[] Sub_Index);
-        //»ñÈ¡²É¼¯²ÎÊı
+        //È¡É¼
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_pdo_trace(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, ref UInt16 Index_Num, ref UInt32 Trace_Len, UInt16[] Index, UInt16[] Sub_Index);
-        //ÉèÖÃ´¥·¢²É¼¯²ÎÊı
+        //Ã´É¼
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_pdo_trace_trig_para(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, UInt16 Trig_Index, UInt16 Trig_Sub_Index, int Trig_Value, UInt16 Trig_Mode);
-        //»ñÈ¡´¥·¢²É¼¯²ÎÊı
+        //È¡É¼
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_pdo_trace_trig_para(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, ref UInt16 Trig_Index, ref UInt16 Trig_Sub_Index, ref int Trig_Value, ref UInt16 Trig_Mode);
-        //²É¼¯Çå³ı
+        //É¼
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_pdo_trace_data(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr);
-        //²É¼¯Í£Ö¹
+        //É¼Í£Ö¹
         [DllImport("LTDMC.dll")]
         public static extern short nmc_stop_pdo_trace(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr);
-        //²É¼¯Êı¾İ¶ÁÈ¡
+        //É¼İ¶È¡
         [DllImport("LTDMC.dll")]
         public static extern short nmc_read_pdo_trace_data(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, UInt32 StartAddr, UInt32 Readlen, ref UInt32 ActReadlen, Byte[] Data);
-        //ÒÑ²É¼¯¸öÊı
+        //Ñ²É¼
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_pdo_trace_num(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, ref UInt32 Data_num, ref UInt32 Size_of_each_bag);
-        //²É¼¯×´Ì¬
+        //É¼×´Ì¬
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_pdo_trace_state(UInt16 CardNo, UInt16 Channel, UInt16 SlaveAddr, ref UInt16 Trace_state);
-        //×ÜÏß×¨ÓÃ
+        //×¨
         [DllImport("LTDMC.dll")]
         public static extern short nmc_reset_canopen(UInt16 CardNo);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_reset_rtex(UInt16 CardNo);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_reset_etc(UInt16 CardNo);
-        //×ÜÏß´íÎó´¦ÀíÅäÖÃ
+        //ß´
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_fieldbus_error_switch(UInt16 CardNo, UInt16 channel, UInt16 data);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_fieldbus_error_switch(UInt16 CardNo, UInt16 channel, ref UInt16 data);
 
-        ////ÅäÖÃCSTÇĞ»»µ½CSPºó£¬ÓÉÓÚÇı¶¯Æ÷²»ÄÜ¼°Ê±Í¬²½Ö÷Õ¾Ä¿±êÎ»ÖÃ£¬ÑÓÊ±Ê±¼äÄÚÖ÷Õ¾¼ÌĞøÍ¬²½Çı¶¯Æ÷Êµ¼ÊÎ»ÖÃ£¬ÒÑÈ¡Ïû¸Ã¹¦ÄÜ
+        ////CSTĞ»CSPÜ¼Ê±Í¬Õ¾Ä¿Î»Ã£Ê±Ê±Õ¾Í¬ÊµÎ»Ã£È¡Ã¹
         //[DllImport("LTDMC.dll")]
         //public static extern short nmc_torque_set_delay_cycle(ushort CardNo, ushort axis, int delay_cycle);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_torque_move(UInt16 CardNo, UInt16 axis, int Torque, UInt16 PosLimitValid, double PosLimitValue, UInt16 PosMode);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_change_torque(UInt16 CardNo, UInt16 axis, int Torque);
-        //¶ÁÈ¡×ª¾Ø´óĞ¡
+        //È¡×ªØ´Ğ¡
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_torque(UInt16 CardNo, UInt16 axis, ref int Torque);
-        //modbusº¯Êı
+        //modbus
         [DllImport("LTDMC.dll")]
         public static extern short dmc_modbus_active_COM1(UInt16 id, string COMID,int speed, int bits, int check, int stop);
         [DllImport("LTDMC.dll")]
@@ -1852,119 +1853,119 @@ UInt32[] ErrorFieldbusCode);
         public static extern short dmc_set_modbus_4x_int(UInt16 CardNo, UInt16 start, UInt16 inum, int[] pdata);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_modbus_4x_int(UInt16 CardNo, UInt16 start, UInt16 inum, int[] pdata);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_line_io_union(UInt16 CardNo,UInt16 Crd,UInt16 AxisNum,UInt16[] AxisList,double[] pPosList,UInt16 posi_mode,UInt16 bitno,UInt16 on_off,double io_value,UInt16 io_mode,UInt16 MapAxis
 ,UInt16 pos_source,double ReverseTime,long mark);
-        //ÉèÖÃ±àÂëÆ÷·½Ïò£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //Ã±DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_encoder_dir(UInt16 CardNo, UInt16 axis,UInt16 dir);
         
-        //Ô²»¡ÇøÓòÈíÏŞÎ»£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ô²Î»DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_arc_zone_limit_config(UInt16 CardNo, UInt16[] AxisList, UInt16 AxisNum, double[] Center, double Radius, UInt16 Source,UInt16 StopMode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_arc_zone_limit_config(UInt16 CardNo, UInt16[] AxisList, ref UInt16 AxisNum, double[] Center, ref double Radius, ref UInt16 Source,ref UInt16 StopMode);
-        //Ô²ĞÎÇøÓòÈíÏŞÎ»unit£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //Ô²Î»unitDMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_arc_zone_limit_config_unit(ushort CardNo, ushort[] AxisList, ushort AxisNum, double[] Center, double Radius, ushort Source, ushort StopMode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_arc_zone_limit_config_unit(ushort CardNo, ushort[] AxisList, ref ushort AxisNum, double[] Center, ref double Radius, ref ushort Source, ref ushort StopMode);
-        //²éÑ¯ÏàÓ¦ÖáµÄ×´Ì¬£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ñ¯Ó¦×´Ì¬DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_arc_zone_limit_axis_status(UInt16 CardNo, UInt16 axis);
-        //Ô²ĞÎÏŞÎ»Ê¹ÄÜ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ô²Î»Ê¹Ü£DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_arc_zone_limit_enable(UInt16 CardNo, UInt16 enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_arc_zone_limit_enable(UInt16 CardNo, ref UInt16 enable);
         
-        //¿ØÖÆ¿¨½ÓÏßºĞ¶ÏÏßºóÊÇ·ñ³õÊ¼»¯Êä³öµçÆ½
+        //Æ¿ßºĞ¶ßºÇ·Ê¼Æ½
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_output_status_repower(UInt16 CardNo, UInt16 enable);
-        //¾É½Ó¿Ú£¨ÈíÆô¶¯£©£¬²»Ê¹ÓÃ
+        //É½Ó¿Ú£Ê¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_t_pmove_extern_softlanding(UInt16 CardNo, UInt16 axis, double MidPos, double TargetPos, double start_Vel, double Max_Vel, double stop_Vel, UInt32 delay_ms, double Max_Vel2, double 
 stop_vel2, double acc_time, double dec_time, UInt16 posi_mode);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_compare_add_point_XD(UInt16 CardNo, UInt16 cmp, long pos, UInt16 dir, UInt16 action, UInt32 actpara, long startPos);//Îøµç¶¨ÖÆ±È½Ïº¯Êı
+        public static extern short dmc_compare_add_point_XD(UInt16 CardNo, UInt16 cmp, long pos, UInt16 dir, UInt16 action, UInt32 actpara, long startPos);//ç¶¨Æ±È½Ïº
         
-        //---------------------------ORGÊäÈë´¥·¢ÔÚÏß±äËÙ±äÎ»----------------------
-        //ÅäÖÃORGÊäÈë´¥·¢ÔÚÏß±äËÙ±äÎ»£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //---------------------------ORGë´¥ß±Ù±Î»----------------------
+        //ORGë´¥ß±Ù±Î»DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pmove_change_pos_speed_config(UInt16 CardNo, UInt16 axis, double tar_vel, double tar_rel_pos, UInt16 trig_mode, UInt16 source);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pmove_change_pos_speed_config(UInt16 CardNo, UInt16 axis, ref double tar_vel, ref double tar_rel_pos, ref UInt16 trig_mode, ref UInt16 source);
-        //ORGÊäÈë´¥·¢ÔÚÏß±äËÙ±äÎ»Ê¹ÄÜ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //ORGë´¥ß±Ù±Î»Ê¹Ü£DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pmove_change_pos_speed_enable(UInt16 CardNo, UInt16 axis, UInt16 enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pmove_change_pos_speed_enable(UInt16 CardNo, UInt16 axis, ref UInt16 enable);
-        //¶ÁÈ¡ORGÊäÈë´¥·¢ÔÚÏß±äËÙ±äÎ»µÄ×´Ì¬  trig_num ´¥·¢´ÎÊı£¬trig_pos ´¥·¢Î»ÖÃ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡ORGë´¥ß±Ù±Î»×´Ì¬  trig_num trig_pos Î»Ã£DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pmove_change_pos_speed_state(ushort CardNo, ushort axis, ref ushort trig_num, double[] trig_pos);
-        //IO±äËÙ±äÎ»£¬ÅäÖÃioÊäÈë¿Ú£¨ÊÊÓÃÓÚEtherCAT×ÜÏßÏµÁĞ¿¨£©
+        //IOÙ±Î»ioÚ£EtherCATÏµĞ¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pmove_change_pos_speed_inbit(ushort CardNo, ushort axis, ushort inbit, ushort enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_pmove_change_pos_speed_inbit(ushort CardNo, ushort axis, ref ushort inbit, ref ushort enable);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_compare_add_point_extend(UInt16 CardNo, UInt16 axis, long pos, UInt16 dir, UInt16 action, UInt16 para_num, ref UInt32 actpara, UInt32 compare_time);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_cmd_position(UInt16 CardNo, UInt16 axis, ref double pos);
-        //Âß¼­²ÉÑùÅäÖÃ£¨ÄÚ²¿Ê¹ÓÃ£©
+        //ß¼Ã£Ú²Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_logic_analyzer_config(UInt16 CardNo, UInt16 channel, UInt32 SampleFre, UInt32 SampleDepth, UInt16 SampleMode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_start_logic_analyzer(UInt16 CardNo, UInt16 channel, UInt16 enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_logic_analyzer_counter(UInt16 CardNo, UInt16 channel, ref UInt32 counter);
-        //20190923ĞŞ¸Äkg¶¨ÖÆº¯Êı½Ó¿Ú£¨¿Í»§¶¨ÖÆ£©
+        //20190923Ş¸kgÆºÓ¿Ú£Í»Æ£
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_read_inbit_append(UInt16 CardNo, UInt16 bitno);//¶ÁÈ¡ÊäÈë¿ÚµÄ×´Ì¬
+        public static extern short dmc_read_inbit_append(UInt16 CardNo, UInt16 bitno);//È¡Úµ×´Ì¬
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_write_outbit_append(UInt16 CardNo, UInt16 bitno, UInt16 on_off);//ÉèÖÃÊä³ö¿ÚµÄ×´Ì¬
+        public static extern short dmc_write_outbit_append(UInt16 CardNo, UInt16 bitno, UInt16 on_off);//Úµ×´Ì¬
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_read_outbit_append(UInt16 CardNo, UInt16 bitno);//¶ÁÈ¡Êä³ö¿ÚµÄ×´Ì¬
+        public static extern short dmc_read_outbit_append(UInt16 CardNo, UInt16 bitno);//È¡Úµ×´Ì¬
         [DllImport("LTDMC.dll")]
-        public static extern UInt32 dmc_read_inport_append(UInt16 CardNo, UInt16 portno);//¶ÁÈ¡ÊäÈë¶Ë¿ÚµÄÖµ
+        public static extern UInt32 dmc_read_inport_append(UInt16 CardNo, UInt16 portno);//È¡Ë¿ÚµÖµ
         [DllImport("LTDMC.dll")]
-        public static extern UInt32 dmc_read_outport_append(UInt16 CardNo, UInt16 portno);//¶ÁÈ¡Êä³ö¶Ë¿ÚµÄÖµ
+        public static extern UInt32 dmc_read_outport_append(UInt16 CardNo, UInt16 portno);//È¡Ë¿ÚµÖµ
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_write_outport_append(UInt16 CardNo, UInt16 portno, UInt32 port_value);//ÉèÖÃËùÓĞÊä³ö¶Ë¿ÚµÄÖµ
+        public static extern short dmc_write_outport_append(UInt16 CardNo, UInt16 portno, UInt32 port_value);//Ë¿ÚµÖµ
 
-        //---------------------------ÍÖÔ²²å²¹¼°ÇĞÏò¸úËæ----------------------
-        // ÉèÖÃ×ø±êÏµÇĞÏò¸úËæ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        //---------------------------Ô²å²¹----------------------
+        // Ïµæ£¨DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_tangent_follow(UInt16 CardNo, UInt16 Crd, UInt16 axis, UInt16 follow_curve, UInt16 rotate_dir, double degree_equivalent);
-        // »ñÈ¡Ö¸¶¨×ø±êÏµÇĞÏò¸úËæ²ÎÊı£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        // È¡Ö¸ÏµDMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_tangent_follow_param(UInt16 CardNo, UInt16 Crd, ref UInt16 axis, ref UInt16 follow_curve, ref UInt16 rotate_dir, ref double degree_equivalent);
-        // È¡Ïû×ø±êÏµ¸úËæ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        // È¡Ïµæ£¨DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_disable_follow_move(UInt16 CardNo, UInt16 Crd);
-        // ÍÖÔ²²å²¹£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        // Ô²å²¹DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ellipse_move(UInt16 CardNo, UInt16 Crd, UInt16 axisNum, UInt16[] Axis_List, double[] Target_Pos, double[] Cen_Pos, double A_Axis_Len, double B_Axis_Len, UInt16 Dir, UInt16 Pos_Mode);
 
-        //---------------------------¿´ÃÅ¹·¹¦ÄÜ----------------------
-        //ÉèÖÃ¿´ÃÅ¿Ú´¥·¢ÏìÓ¦ÊÂ¼ş£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //---------------------------Å¹----------------------
+        //Ã¿Å¿Ú´Ó¦Â¼DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_watchdog_action_event(UInt16 CardNo, UInt16 event_mask);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_watchdog_action_event(UInt16 CardNo, ref UInt16 event_mask);
-        //Ê¹ÄÜ¿´ÃÅ¿Ú±£»¤»úÖÆ£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Ê¹Ü¿Å¿Ú±Æ£DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_watchdog_enable(UInt16 CardNo, double timer_period, UInt16 enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_watchdog_enable(UInt16 CardNo, ref double timer_period, ref UInt16 enable);
-        //¸´Î»¿´ÃÅ¹·¶¨Ê±Æ÷£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Î»Å¹Ê±DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_reset_watchdog_timer(UInt16 CardNo);
 
-        //io¶¨ÖÆ¹¦ÄÜ£¨¶¨ÖÆÀà£©
+        //ioÆ¹Ü£à£©
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_io_check_control(UInt16 CardNo, UInt16 sensor_in_no, UInt16 check_mode, UInt16 A_out_no, UInt16 B_out_no, UInt16 C_out_no, UInt16 output_mode);
         [DllImport("LTDMC.dll")]
@@ -1972,28 +1973,28 @@ stop_vel2, double acc_time, double dec_time, UInt16 posi_mode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_stop_io_check_control(UInt16 CardNo);
 
-        //ÉèÖÃÏŞÎ»·´ÕÒÆ«ÒÆ¾àÀë£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //Î»Æ«Æ¾ë£¨DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_el_ret_deviation(UInt16 CardNo, UInt16 axis, UInt16 enable, double deviation);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_el_ret_deviation(UInt16 CardNo, UInt16 axis, ref UInt16 enable, ref double deviation);
 
-        //Á½ÖáÎ»ÖÃµş¼Ó£¬¸ßËÙ±È½Ï¹¦ÄÜ£¨²âÊÔÊ¹ÓÃ£©
+        //Î»ÃµÓ£Ù±È½Ï¹Ü£Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_set_config_overlap(UInt16 CardNo, UInt16 hcmp, UInt16 axis, UInt16 cmp_source, UInt16 cmp_logic, Int32 time, UInt16 axis_num, UInt16 aux_axis, UInt16 aux_source);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_get_config_overlap(UInt16 CardNo, UInt16 hcmp, ref UInt16 axis, ref UInt16 cmp_source, ref UInt16 cmp_logic, ref Int32 time, ref UInt16 axis_num, ref UInt16 aux_axis, ref UInt16 
 aux_source);
         
-        //Æô¶¯»òÕß¹Ø±ÕRTCP¹¦ÄÜ,ºóĞøÌí¼Ó
+        //ß¹Ø±RTCP,
 
-        //ÂİĞı²å²¹(²âÊÔÊ¹ÓÃ£¬DMC5000/5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨)
+        //å²¹(Ê¹Ã£DMC5000/5X10Ïµå¿¨E5032ß¿)
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_helix_move_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AixsList, double[] StartPos, double[] TargetPos, UInt16 Arc_Dir, int Circle, UInt16 mode, int mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_helix_move_unit(UInt16 CardNo, UInt16 Crd, UInt16 AxisNum, UInt16[] AxisList, double[] StartPos, double[] TargetPos, UInt16 Arc_Dir, int Circle, UInt16 mode);
 
-        //PDO»º´æ20190715£¨ÄÚ²¿Ê¹ÓÃ£©
+        //PDO20190715Ú²Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pdo_buffer_enter(UInt16 CardNo, UInt16 axis);
         [DllImport("LTDMC.dll")]
@@ -2012,17 +2013,17 @@ aux_source);
         public static extern short dmc_pdo_buffer_stop_multi(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList, UInt16[] ResultList);
         //[DllImport("LTDMC.dll")]
         //public static extern short dmc_pdo_buffer_add_data_multi(UInt16 CardNo, UInt16 AxisNum, UInt16[] AxisList, int size, int[][] data_table);
-        //±£Áô
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_calculate_arccenter_3point(double[] start_pos, double[] mid_pos, double[] target_pos, double[] cen_pos);
 
-        //---------------------Ö¸Áî»º´æÃÅĞÍÔË¶¯------------------
-        //Ö¸Áî»º´æÃÅĞÍÔË¶¯£¨ÊÊÓÃÓÚDMC3000/5000ÏµÁĞÂö³å¿¨£©
+        //---------------------Ö¸î»ºË¶------------------
+        //Ö¸î»ºË¶DMC3000/5000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_set_muti_profile_unit(ushort card, ushort group, ushort axis_num, ushort[] axis_list, double[] start_vel, double[] max_vel, double[] tacc, double[] tdec, double[] stop_vel);
-//Á½ÖáËÙ¶ÈÉèÖÃ
+//Ù¶
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_m_set_profile_unit(ushort card, ushort group, ushort axis, double start_vel, double max_vel, double tacc, double tdec, double stop_vel);//µ¥ÖáËÙ¶ÈÉèÖÃ
+        public static extern short dmc_m_set_profile_unit(ushort card, ushort group, ushort axis, double start_vel, double max_vel, double tacc, double tdec, double stop_vel);//Ù¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_sigaxis_moveseg_data(ushort card, ushort group, ushort axis, double Target_pos, ushort process_mode, uint mark);
         [DllImport("LTDMC.dll")]
@@ -2036,26 +2037,26 @@ ushort process_mode, uint mark);
         public static extern short dmc_m_add_ioTrig_movseg_data(ushort card, ushort group, ushort axisNum, ushort[] axisList, double[] Target_pos, ushort process_mode, ushort trigINbit, ushort trigINstate, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_mutiposTrig_movseg_data(ushort card, ushort group, ushort axis, double Target_pos, ushort process_mode, ushort trigaxisNum, ushort[] trigAxisList, double[] trigPos, ushort[] 
-trigPosType, ushort[] trigMode, uint mark);//Î»ÖÃ´¥·¢ÒÆ¶¯
+trigPosType, ushort[] trigMode, uint mark);//Î»Ã´Æ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_mutiposTrig_mov_twoseg_data(ushort card, ushort group, ushort axis, double Target_pos, double softland_pos, double softland_vel, double softland_endvel, ushort process_mode, 
-ushort trigAxisNum, ushort[] trigAxisList, double[] trigPos, ushort[] trigPosType, ushort[] trigMode, uint mark);//¶àÖáÎ»ÖÃ´¥·¢ÒÆ¶¯
+ushort trigAxisNum, ushort[] trigAxisList, double[] trigPos, ushort[] trigPosType, ushort[] trigMode, uint mark);//Î»Ã´Æ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_upseg_data(ushort card, ushort group, ushort axis, double Target_pos, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_up_twoseg_data(ushort card, ushort group, ushort axis, double Target_pos, double second_pos, double second_vel, double second_endvel, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_ioPosTrig_movseg_data(ushort card, ushort group, ushort axisNum, ushort[] axisList, double[] Target_pos, ushort process_mode, ushort trigAxis, double trigPos, ushort trigPosType, 
-ushort trigMode, ushort TrigINNum, ushort[] trigINList, ushort[] trigINstate, uint mark);//Î»ÖÃ+io´¥·¢ÒÆ¶¯
+ushort trigMode, ushort TrigINNum, ushort[] trigINList, ushort[] trigINstate, uint mark);//Î»+ioÆ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_ioPosTrig_mov_twoseg_data(ushort card, ushort group, ushort axisNum, ushort[] axisList, double[] Target_pos, double[] second_pos, double[] second_vel, double[] second_endvel, 
 ushort process_mode, ushort trigAxis, double trigPos, ushort trigPosType, ushort trigMode, ushort TrigINNum, ushort[] trigINList, ushort[] trigINstate, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_posTrig_movseg_data(ushort card, ushort group, ushort axisNum, ushort[] axisList, double[] Target_pos, ushort process_mode, ushort trigAxis, double trigPos, ushort trigPosType, 
-ushort trigMode, uint mark);//Î»ÖÃ´¥·¢ÒÆ¶¯
+ushort trigMode, uint mark);//Î»Ã´Æ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_posTrig_mov_twoseg_data(ushort card, ushort group, ushort axisNum, ushort[] axisList, double[] Target_pos, double[] second_pos, double[] second_vel, double[] second_endvel, ushort
- process_mode, ushort trigAxis, double trigPos, ushort trigPosType, ushort trigMode, uint mark);//Î»ÖÃ´¥·¢ÒÆ¶¯
+ process_mode, ushort trigAxis, double trigPos, ushort trigPosType, ushort trigMode, uint mark);//Î»Ã´Æ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_ioPosTrig_down_seg_data(ushort card, ushort group, ushort axis, double safePos, double Target_pos, ushort trigAxisNum, ushort[] trigAxisList, double[] trigPos, ushort[] 
 trigPosType, ushort[] trigMode, ushort trigIN, ushort trigINstate, uint mark);
@@ -2080,7 +2081,7 @@ trigAxisNum, ushort[] trigAxisList, uint mark);
         public static extern short dmc_m_add_mutiposTrig_mutidown_seg_data(ushort card, ushort group, ushort axisnum, ushort[] axis_list, double[] safePos, double[] Target_pos, ushort process_mode, ushort trigAxisNum, ushort
 [] trigAxisList, double[] trigPos, ushort[] trigPosType, ushort[] trigMode, uint mark);
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_m_posTrig_outbit(ushort card, ushort group, ushort bitno, ushort on_off, ushort ahead_axis, double ahead_value, ushort ahead_PosType, ushort ahead_Mode, uint mark);//Î»ÖÃ´¥·¢IOÊä³ö
+        public static extern short dmc_m_posTrig_outbit(ushort card, ushort group, ushort bitno, ushort on_off, ushort ahead_axis, double ahead_value, ushort ahead_PosType, ushort ahead_Mode, uint mark);//Î»Ã´IO
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_mutiposTrig_outbit(ushort card, ushort group, ushort bitno, ushort on_off, ushort process_mode, ushort trigaxisNum, ushort[] trigAxisList, double[] trigPos, ushort[] trigPosType, 
 ushort[] trigMode, uint mark);
@@ -2089,7 +2090,7 @@ ushort[] trigMode, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_wait_input(ushort card, ushort group, ushort bitno, ushort on_off, double time_out, uint mark);
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_m_delay_time(ushort card, ushort group, double delay_time, uint mark);//ÑÓÊ±Ö¸Áî
+        public static extern short dmc_m_delay_time(ushort card, ushort group, double delay_time, uint mark);//Ê±Ö¸
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_get_run_state(ushort card, ushort group, ref ushort state, ref ushort enable, ref uint stop_reason, ref ushort trig_phase, ref uint mark);
         [DllImport("LTDMC.dll")]
@@ -2107,20 +2108,20 @@ ushort[] trigMode, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_get_encoder_error_allow(ushort card, ushort group, ref double allow_error);
 
-        //¶ÁÈ¡ËùÓĞADÊäÈë£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //È¡ADë£¨DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_ad_input_all(ushort CardNo, ref double Vout);
-        //Á¬Ğø²å²¹ÔİÍ£ºóÊ¹ÓÃpmove£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //å²¹Í£Ê¹pmoveDMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_pmove_unit_pausemode(ushort CardNo, ushort axis, double TargetPos, double Min_Vel, double Max_Vel, double stop_Vel, double acc, double dec, double smooth_time, ushort posi_mode);
-        //Á¬Ğø²å²¹ÔİÍ£Ê¹ÓÃpmoveºó£¬»Øµ½ÔİÍ£Î»ÖÃ£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©
+        //å²¹Í£Ê¹pmoveó£¬»ØµÍ£Î»Ã£DMC5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_return_pausemode(ushort CardNo, ushort Crd, ushort axis);
-        //¼ìÑé½ÓÏßºĞÊÇ·ñÖ§³ÖÍ¨Ñ¶Ğ£Ñé£¨ÊÊÓÃÓÚDMC3000/5X10ÏµÁĞÂö³å¿¨£©
+        //ßºÇ·Ö§Í¨Ñ¶Ğ£é£¨DMC3000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_check_if_crc_support(ushort CardNo);
 
-        //ÖáÅö×²¼ì²â¹¦ÄÜ½Ó¿Ú £¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //×²â¹¦Ü½Ó¿ DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_axis_conflict_config(ushort CardNo, ushort[] axis_list, ushort[] axis_depart_dir, double home_dist, double conflict_dist, ushort stop_mode);
         [DllImport("LTDMC.dll")]
@@ -2130,7 +2131,7 @@ ushort[] trigMode, uint mark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_axis_conflict_config_en(ushort CardNo, ref ushort enable);
        
-        //Îï¼ş·Ö¼ğ¼ÓÍ¨µÀ,·Ö¼ğ¹Ì¼ş×¨ÓÃ
+        //Ö¼Í¨,Ö¼Ì¼×¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_sorting_close_ex(ushort CardNo, ushort sortModuleNo);
         [DllImport("LTDMC.dll")]
@@ -2164,95 +2165,95 @@ pBlowIONo, UInt32 blowTime, ushort blowTrigLevel, ushort axis, ushort dir, ushor
         public static extern short dmc_sorting_set_cam_trig_phase_ex(ushort CardNo, ushort blowNo, double coef, ushort sortModuleNo);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_sorting_set_blow_trig_phase_ex(ushort CardNo, ushort blowNo, double coef, ushort sortModuleNo);
-        //»ñÈ¡·Ö¼ğÖ¸ÁîÊıÁ¿º¯Êı
+        //È¡Ö¼Ö¸
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_sortdev_blow_cmd_cnt(ushort CardNo, ushort blowDevNum, ref long cnt);
-        //»ñÈ¡Î´´¦ÀíÖ¸ÁîÊıÁ¿º¯Êıº¯Êı
+        //È¡Î´Ö¸
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_sortdev_blow_cmderr_cnt(ushort CardNo, ushort blowDevNum, ref long errCnt);
-        //·Ö¼ğ¶ÓÁĞ×´Ì¬
+        //Ö¼×´Ì¬
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_sortqueue_status(ushort CardNo, ref long curSorQueueLen, ref long passCamWithNoCmd);
 
-        // ÍÖÔ²Á¬Ğø²å²¹£¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨¡¢E5032×ÜÏß¿¨£©
+        // Ô²å²¹DMC5X10Ïµå¿¨E5032ß¿
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_ellipse_move_unit(ushort CardNo, ushort Crd,ushort AxisNum, ushort[] AxisList, double[] Target_Pos, double[] Cen_Pos, double A_Axis_Len, double B_Axis_Len, ushort Dir, ushort 
 Pos_Mode,long mark);
-        //»ñÈ¡Öá×´Ì¬º¯Êı£¨Ô¤Áô£©
+        //È¡×´Ì¬Ô¤
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_axis_status_advance(ushort CardNo, ushort axis_no, ushort motion_no, ref ushort axis_plan_state, ref UInt32 ErrPlulseCnt, ref ushort fpga_busy);
-        //Á¬Ğø²å²¹vmove£¨DMC5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //å²¹vmoveDMC5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_vmove_unit(ushort CardNo, ushort Crd, ushort axis, double vel, double acc, ushort dir, Int32 imark);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_vmove_stop(ushort CardNo, ushort Crd, ushort axis, double dec, Int32 imark);
 
-        //---------------------¶ÁĞ´µôµç±£³ÖÇø------------------//
-        //Ğ´Èë×Ö·ûÊı¾İµ½¶Ïµç±£³ÖÇø£¨DMC3000/5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //---------------------Ğ´ç±£------------------//
+        //Ğ´Ö·İµÏµç±£DMC3000/5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_persistent_reg_byte(ushort CardNo, uint start, uint inum, byte[] pdata);
-        //´Ó¶Ïµç±£³ÖÇø¶ÁÈ¡Ğ´ÈëµÄ×Ö·û£¨DMC3000/5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //Ó¶Ïµç±£È¡Ğ´Ö·DMC3000/5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_persistent_reg_byte(ushort CardNo, uint start, uint inum, byte[] pdata);
-        //Ğ´Èë¸¡µãĞÍÊı¾İµ½¶Ïµç±£³ÖÇø£¨DMC3000/5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //Ğ´ë¸¡İµÏµç±£DMC3000/5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_persistent_reg_float(ushort CardNo, uint start, uint inum, float[] pdata);
-        //´Ó¶Ïµç±£³ÖÇø¶ÁÈ¡Ğ´ÈëµÄ¸¡µãĞÍÊı¾İ£¨DMC3000/5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //Ó¶Ïµç±£È¡Ğ´Ä¸İ£DMC3000/5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_persistent_reg_float(ushort CardNo, uint start, uint inum, float[] pdata);
-        //Ğ´ÈëÕûĞÍÊı¾İµ½¶Ïµç±£³ÖÇø£¨DMC3000/5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //Ğ´İµÏµç±£DMC3000/5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_persistent_reg_int(ushort CardNo, uint start, uint inum, int[] pdata);
-        //´Ó¶Ïµç±£³ÖÇø¶ÁÈ¡Ğ´ÈëµÄÕûĞÍÊı¾İ£¨DMC3000/5000ÏµÁĞ¿¨ÊÜÏŞÊ¹ÓÃ£©
+        //Ó¶Ïµç±£È¡Ğ´İ£DMC3000/5000ÏµĞ¿Ê¹Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_persistent_reg_int(ushort CardNo, uint start, uint inum, int[] pdata);
         //----------------------------------------------------//
 
-        //EtherCAT×ÜÏß¸´Î»IOÄ£¿éÊä³ö±£³Ö¿ª¹ØÉèÖÃ202001£¨ÊÊÓÃÓÚËùÓĞEtherCAT×ÜÏß¿¨£©
+        //EtherCATß¸Î»IOÄ£Ö¿202001EtherCATß¿
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_slave_output_retain(ushort CardNo, ushort Enable);
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_slave_output_retain(ushort CardNo, ref ushort Enable);
 
-        //Öá²ÎÊıÅäÖÃĞ´flash£¬ÊµÏÖ¶Ïµç±£´æ¼±Í£ĞÅºÅÅäÖÃ£¨ÊÊÓÃÓÚDMC3000ÏµÁĞÂö³å¿¨£©
+        //Ğ´flashÊµÖ¶Ïµç±£æ¼±Í£ÅºÃ£DMC3000Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_persistent_param_config(ushort CardNo, ushort axis, uint item);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_persistent_param_config(ushort CardNo, ushort axis, ref uint item);               
 
-        //¶ÁÈ¡ÔËĞĞÊ±ÊÇÆô¶¯Õı³£¹Ì¼ş»¹ÊÇ±¸·İ¹Ì¼ş£¨ÊÊÓÃÓÚDMC3000/5000/5X10ÏµÁĞÂö³å¿¨£©
+        //È¡Ê±Ì¼Ç±İ¹Ì¼DMC3000/5000/5X10Ïµå¿¨
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_firmware_boot_type(ushort CardNo, ref ushort boot_type);
 
-        /**************************ÖĞ¶Ï¹¦ÄÜ £¨ÊÊÓÃÓÚDMC5X10ÏµÁĞÂö³å¿¨£©************************/
-        //¿ªÆô¿ØÖÆ¿¨ÖĞ¶Ï¹¦ÄÜ
+        /**************************Ğ¶Ï¹ DMC5X10Ïµå¿¨************************/
+        //Æ¿Ğ¶Ï¹
         [DllImport("LTDMC.dll")]
         public static extern uint dmc_int_enable(ushort CardNo, DMC3K5K_OPERATE funcIntHandler, IntPtr operate_data);
-        //½ûÖ¹¿ØÖÆ¿¨µÄÖĞ¶Ï
+        //Ö¹Æ¿Ğ¶
         [DllImport("LTDMC.dll")]
         public static extern uint dmc_int_disable(ushort CardNo);
-        //ÉèÖÃ/¶ÁÈ¡Ö¸¶¨¿ØÖÆ¿¨ÖĞ¶ÏÍ¨µÀÊ¹ÄÜ
+        ///È¡Ö¸Æ¿Ğ¶Í¨Ê¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_intmode_enable(ushort Cardno,ushort Intno,ushort Enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_intmode_enable(ushort Cardno,ushort Intno,ref ushort Status);
-        //ÉèÖÃ/¶ÁÈ¡Ö¸¶¨¿ØÖÆ¿¨ÖĞ¶ÏÅäÖÃ
+        ///È¡Ö¸Æ¿Ğ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_intmode_config(ushort Cardno,ushort Intno,ushort IntItem,ushort IntIndex,ushort IntSubIndex,ushort Logic);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_intmode_config(ushort Cardno,ushort Intno,ref ushort IntItem,ref ushort IntIndex,ref ushort IntSubIndex,ref ushort Logic);
-        //¶ÁÈ¡Ö¸¶¨¿ØÖÆ¿¨ÖĞ¶ÏÍ¨µÀµÄÖĞ¶Ï×´Ì¬
+        //È¡Ö¸Æ¿Ğ¶Í¨Ğ¶×´Ì¬
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_int_status(ushort Cardno,ref uint IntStatus);
-        //¸´Î»Ö¸¶¨¿ØÖÆ¿¨ÊäÈë¿ÚµÄÖĞ¶Ï
+        //Î»Ö¸Æ¿ÚµĞ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_reset_int_status(ushort Cardno, ushort Intno);
         /**************************************************************************************/
 
 
-        /******************************************2021.10.26 ¿ªÊ¼ĞŞ¸Ä**********************/
+        /******************************************2021.10.26 Ê¼Ş¸**********************/
 
-        ////20160105Ôö¼ÓĞÂËÙ¶ÈÇúÏßÒÔ¼ÓËÙ¶È ¼õËÙ¶È ¼õ¼õËÙ¶ÈÀ´±íÊ¾(Âö³å)
+        ////20160105Ù¶Ô¼Ù¶ Ù¶ Ù¶Ê¾()
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_profile_extern(UInt16 CardNo, UInt16 axis, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Ajerk, double Djerk, double stop_vel);
         [DllImport("LTDMC.dll")]
@@ -2275,28 +2276,28 @@ Pos_Mode,long mark);
 
 
 
-        //¶şÎ¬¸ßËÙÎ»ÖÃ±È½Ï»º´æ
-        //1¡¢	ÆôÓÃ»º´æ·½Ê½Ìí¼Ó±È½ÏÎ»ÖÃ£º
+        //Î¬Î»Ã±È½Ï»
+        //1	Ã»æ·½Ê½Ó±È½Î»Ã£
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_fifo_set_mode(UInt16 CardNo, UInt16 hcmp, UInt16 fifo_mode);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_fifo_get_mode(UInt16 CardNo, UInt16 hcmp,ref UInt16 fifo_mode);
-        //2¡¢	¶ÁÈ¡Ê£Óà»º´æ×´Ì¬£¬ÉÏÎ»»úÍ¨¹ı´Ëº¯ÊıÅĞ¶ÏÊÇ·ñ¼ÌĞøÌí¼Ó±È½ÏÎ»ÖÃ
+        //2	È¡Ê£à»º×´Ì¬Î»Í¨ËºĞ¶Ç·Ó±È½Î»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_fifo_get_state(UInt16 CardNo, UInt16 hcmp, ref long remained_points);
-        //3¡¢	°´Êı×éµÄ·½Ê½ÅúÁ¿Ìí¼Ó±È½ÏÎ»ÖÃ
+        //3	Ä·Ê½Ó±È½Î»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_fifo_add_point_unit(UInt16 CardNo, UInt16 hcmp, UInt16 num, double[] x_cmp_pos, double[] y_cmp_pos, UInt16[] cmp_outbit);
-        //4¡¢	Çå³ı±È½ÏÎ»ÖÃ,Ò²»á°ÑFPGAµÄÎ»ÖÃÍ¬²½Çå³ıµô
+        //4	È½Î»,Ò²FPGAÎ»Í¬
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_fifo_clear_points(UInt16 CardNo, UInt16 hcmp);
-        //Ìí¼Ó´óÊı¾İ£¬»á¶ÂÈûÒ»¶ÎÊ±¼ä£¬Ö¸µ¼Êı¾İÌí¼ÓÍê³É
+        //Ó´İ£Ò»Ê±ä£¬Ö¸
         [DllImport("LTDMC.dll")]
         public static extern short dmc_hcmp_2d_fifo_add_table(UInt16 CardNo, UInt16 hcmp, UInt16 num, double[] x_cmp_pos, double[] y_cmp_pos);
 
 
 
-        //ÃÅÔË¶¯
+        //Ë¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_move_unit(UInt16 CardNo, UInt16 Crd, UInt16 axis_num, UInt16[] axis_list, double[] mid_pos, double[] target_pos, double[] saftpos, UInt16 pos_mode);
         [DllImport("LTDMC.dll")]
@@ -2307,7 +2308,7 @@ Pos_Mode,long mark);
         public static extern short nmc_write_to_pci(UInt16 CardNo, UInt16 PortNum, UInt16 NodeNum);
 
 
-        //TypeIndex:0~6  m_Averagetime ; Æ½¾ùÊ±¼ä m_Maxtime;×î´óÊ±¼ä uint64  m_Cycles;µ±Ç°Ê±¼ä
+        //TypeIndex:0~6  m_Averagetime ; Æ½Ê± m_Maxtime;Ê± uint64  m_Cycles;Ç°Ê±
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_perline_time(UInt16 CardNo, UInt16 TypeIndex, ref int Averagetime, ref int Maxtime,ref UInt64 Cycles);
 
@@ -2320,10 +2321,10 @@ Pos_Mode,long mark);
 
 
 
-        // »ñÈ¡¿ØÖÆ¿¨´íÎóÂë
+        // È¡Æ¿
         [DllImport("LTDMC.dll")]
         public static extern short nmc_get_card_errcode(UInt16 CardNo, ref UInt16 Errcode);
-        // Çå³ı¿ØÖÆ¿¨´íÎóÂë
+        // Æ¿
         [DllImport("LTDMC.dll")]
         public static extern short nmc_clear_card_errcode(UInt16 CardNo);
 
@@ -2336,7 +2337,7 @@ Pos_Mode,long mark);
         public static extern short nmc_get_log(UInt16 CardNo, UInt16 chan, UInt16 node,ref UInt32 data);
 
 
-        //ĞÂ°æÃÅÔË¶¯
+        //Â°Ë¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_move_set_coodinate(UInt16 card, UInt16 liner, UInt16 axis_num, UInt16[] axis_list, UInt32 in_io_num, UInt16 trig_flag, UInt16 pos_mode);
         [DllImport("LTDMC.dll")]
@@ -2361,67 +2362,67 @@ Pos_Mode,long mark);
 
 
 
-        //ÉèÖÃÎåÖá»úÆ÷µÄÀàĞÍ
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_kinematic_type(ushort CardNo, ushort Crd, ushort machine_type);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_kinematic_type(ushort CardNo, ushort Crd, ref ushort machine_type);
-        //Æô¶¯»òÕß¹Ø±ÕRTCP¹¦ÄÜ
+        //ß¹Ø±RTCP
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_enable(ushort CardNo, ushort Crd, ushort enable);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_enable(ushort CardNo, ushort Crd, ref ushort enable);
-        //ÉèÖÃAÖáµÄ×ø±êÔ­µãÏà¶ÔÓÚÇ°Ò»¸ö×ø±êÏµµÄÆ«ÒÆ, xyzµÄÆ«ÒÆa_offset[3]
+        //AÔ­Ç°Ò»ÏµÆ«, xyzÆ«a_offset[3]
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_vector_a(ushort CardNo, ushort Crd, double[] a_offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_vector_a(ushort CardNo, ushort Crd, double[] a_offset);
-        //ÉèÖÃBÖáµÄ×ø±êÔ­µãÏà¶ÔÓÚÇ°Ò»¸ö×ø±êÏµµÄÆ«ÒÆ, xyzµÄÆ«ÒÆb_offset[3]
+        //BÔ­Ç°Ò»ÏµÆ«, xyzÆ«b_offset[3]
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_vector_b(ushort CardNo, ushort Crd, double[] b_offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_vector_b(ushort CardNo, ushort Crd, double[] b_offset);
-        //ÉèÖÃCÖáµÄ×ø±êÔ­µãÏà¶ÔÓÚÇ°Ò»¸ö×ø±êÏµµÄÆ«ÒÆ, xyzµÄÆ«ÒÆc_offset[3]
+        //CÔ­Ç°Ò»ÏµÆ«, xyzÆ«c_offset[3]
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_vector_c(ushort CardNo, ushort Crd, double[] c_offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_vector_c(ushort CardNo, ushort Crd, double[] c_offset);
-        //ÉèÖÃA£¬B£¬CÖáµÄÆ«ÒÆÎ»ÖÃ,
-        //A,B,CÔÚ»Ø0ºó£¬ÔÙÒÆ¶¯µ½³õÊ¼×ËÌ¬µÄÎ»ÖÃ£¬Õâ¸öÊ±ºòµÄA/B/CµÄÆ«ÒÆ½Ç¶È£¬
-        //Èç¹ûµ½ÁË³õÊ¼×ËÌ¬µÄÎ»ÖÃ²»½øĞĞÇå0£¬Õâ¸öÊ±ºò¾ÍÒªÉèÖÃÆ«ÒÆ½Ç¶È
+        //ABCÆ«Î»,
+        //A,B,CÚ»0Æ¶Ê¼Ì¬Î»Ã£Ê±A/B/CÆ«Æ½Ç¶È£
+        //Ë³Ê¼Ì¬Î»Ã²0Ê±ÒªÆ«Æ½Ç¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_rotate_joint_offset(ushort CardNo, ushort Crd, double A, double B, double C);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_rotate_joint_offset(ushort CardNo, ushort Crd, ref double A, ref double B, ref double C);
-        //ÉèÖÃ¸÷ÖáµÄ·½ÏòÓë¹¤¼ş×ø±êÏµµÄ¹ØÏµ
-        //ÖáÏà¶ÔÓÚ¹¤¼şµÄ·½Ïò£¬Èç¹ûÖáÕıÏòÔË¶¯µÄÊ±ºò£¬Çı¶¯µ¶¾ßÏà¶ÔÓÚ¹¤¼şÒ²ÊÇÕıÏòÔË¶¯µÄ£¬Éè¶¨Îª1
-        //·ñÔòÉèÎª-1£¬³õÊ¼ÉèÖÃÎª1
-        //dir[5],¶ÔÓ¦µÄÊÇX,Y,Z,Ğı×ªÖá1£¬Ğı×ªÖá2
+        //Ã¸Ä·ë¹¤ÏµÄ¹Ïµ
+        //Ú¹Ä·Ë¶Ê±Ú¹Ò²Ë¶Ä£è¶¨Îª1
+        //Îª-1Ê¼Îª1
+        //dir[5],Ó¦X,Y,Z,×ª1×ª2
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_joints_direction(ushort CardNo, ushort Crd, int[] dir);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_joints_direction(ushort CardNo, ushort Crd, int[] dir);
-        //ÉèÖÃµ¶¾ß³¤¶È£¬ÔÚË«°ÚÍ·ÖĞÓĞ×÷ÓÃ
+        //Ãµß³È£Ë«Í·
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_tool_length(ushort CardNo, ushort Crd, double tool);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_tool_length(ushort CardNo, ushort Crd, ref double tool);
-        //ÉèÖÃ´¿Ğı×ªÖáµÄËÙ¶È
+        //Ã´×ªÙ¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_max_rotate_param(ushort CardNo, ushort Crd, double rotate_speed, double rotate_acc);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_max_rotate_param(ushort CardNo, ushort Crd, ref double rotate_speed, ref double rotate_acc);
-        //ÉèÖÃ¹¤¼şÔ­µãÆ«ÖÃÖµ
+        //Ã¹Ô­Æ«Öµ
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_workpiece_offset(ushort CardNo, ushort Crd, ushort workpiece_index, double[] offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_workpiece_offset(ushort CardNo, ushort Crd, ushort workpiece_index, double[] offset);
-        //¶ÁÈ¡¹¤¼şÎ»ÖÃ
+        //È¡Î»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_actual_pos(ushort CardNo, ushort Crd, ushort AxisNum, double[] actual_pos);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_get_command_pos(ushort CardNo, ushort Crd, ushort AxisNum, double[] command_pos);
-        //»úĞµ×ø±êÓë¹¤¼ş×ø±ê×ª»»
+        //Ğµë¹¤×ª
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_kinematics_forward(ushort CardNo, ushort Crd, double[] joint_pos, double[] axis_pos);
         [DllImport("LTDMC.dll")]
@@ -2430,12 +2431,12 @@ Pos_Mode,long mark);
         public static extern short dmc_rtcp_kinematics_inverse(ushort CardNo, ushort Crd, double[] axis_pos, double[] joint_pos);
 
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_rtcp_set_workpiece_mode(ushort CardNo, ushort Crd, ushort enable, ushort workpiece_index);    //×ø±êÏµºÅ0-3£¬Ê¹ÄÜÄÄ¸ö¹¤¼ş×ø±êÏµ
+        public static extern short dmc_rtcp_set_workpiece_mode(ushort CardNo, ushort Crd, ushort enable, ushort workpiece_index);    //Ïµ0-3Ê¹Ä¸Ïµ
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_rtcp_get_workpiece_mode(ushort CardNo, ushort Crd,ref ushort enable,ref ushort workpiece_index);    //×ø±êÏµºÅ0-3£¬Ê¹ÄÜÄÄ¸ö¹¤¼ş×ø±êÏµ
+        public static extern short dmc_rtcp_get_workpiece_mode(ushort CardNo, ushort Crd,ref ushort enable,ref ushort workpiece_index);    //Ïµ0-3Ê¹Ä¸Ïµ
 
 
-        //Î»ÖÃÊäÈëÊı¾İÀàĞÍ£º0-¹¤¼ş×ø±êÏµÎ»ÖÃ£¬1-»úĞµ×ø±êÏµÎ»ÖÃ
+        //Î»Í£0-ÏµÎ»Ã£1-ĞµÏµÎ»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_rtcp_set_position_type(ushort CardNo, ushort Crd, ushort position_type);
         [DllImport("LTDMC.dll")]
@@ -2468,7 +2469,7 @@ Pos_Mode,long mark);
 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_m_add_posTrig_torque_movseg_data(ushort CardNo, ushort group, ushort axis, double torque, double PosLimitValue, ushort PosLimitValid, ushort PosMode, ushort trigAxis, double trigPos, 
-ushort trigPosType, ushort trigMode, UInt32 mark);//Î»ÖÃ´¥·¢×ª¾ØÒÆ¶¯
+ushort trigPosType, ushort trigMode, UInt32 mark);//Î»Ã´×ªÆ¶
 
 
         [DllImport("LTDMC.dll")]
@@ -2485,7 +2486,7 @@ ushort trigPosType, ushort trigMode, UInt32 mark);//Î»ÖÃ´¥·¢×ª¾ØÒÆ¶¯
 
 
 
-        //µç×Ó³İÂÖ¹¦ÄÜ
+        //Ó³Ö¹
 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_gear_in(ushort CardNo, ushort master_axis, ushort slave_axis, ushort follow_source, double ratio_numerator, double ratio_denominator, double acc, double dec, double s_time, ushort 
@@ -2516,11 +2517,11 @@ double slave_sync_pos,ref double master_start_dist,ref double velocity,ref doubl
 
 
         /***********************************************************
-             * ÅäÖÃ²É¼¯¶ÔÏó£¬Ò»´Î¿ÉÒÔÌí¼Ó500¸ö²É¼¯¶ÔÏó
-             * data_type 	Êı¾İµÄÀàĞÍ£¬¼û²É¼¯¶ÔÏóËµÃ÷¡£
-             * data_index 	Êı¾İµÄÖ÷Ë÷Òı£¬Èç¹ûÊÇ¸úÖáÏà¹Ø£¬ÔòÊÇÖáĞòºÅ£¬Èç¹ûÊÇIO£¬ÔòÊÇIOĞòºÅ£¬Èç´ËÀàÍÆ
-             * data_sub_index Êı¾İµÄ×ÓË÷Òı£¬Èç¹ûÊÇ°´×é²É¼¯IO£¬Ôò±íÊ¾IO½áÊøµÄĞòºÅ¡£
-             * data_bytes 	¶ÔÏó×Ö½ÚÊı£¬ÏÖÓĞ²É¼¯ÀàĞÍ»á×Ô¶¯Æ¥Åä£¬¹Ì¶¨Îª0£¬Ô¤ÁôºóĞøÀ©Õ¹¹¦ÄÜ
+             * Ã²É¼Ò»Î¿500É¼
+             * data_type 	İµÍ£É¼Ëµ
+             * data_index 	İµÇ¸Ø£Å£IOIOÅ£
+             * data_sub_index İµÇ°É¼IOÊ¾IOÅ¡
+             * data_bytes 	Ö½Ğ²É¼Í»Ô¶Æ¥ä£¬Ì¶Îª0Ô¤Õ¹
         **********************************************************/
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_reset_config_object(ushort CardNo );
@@ -2531,7 +2532,7 @@ double slave_sync_pos,ref double master_start_dist,ref double velocity,ref doubl
 
 
 
-        //Æô¶¯trace
+        //trace
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_data_start(ushort CardNo);
 
@@ -2539,37 +2540,37 @@ double slave_sync_pos,ref double master_start_dist,ref double velocity,ref doubl
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_data_stop(ushort CardNo);
 
-        //¸´Î»trace£¬Í£Ö¹²É¼¯µÄÊ±ºò²ÅÄÜµ÷ÓÃ£¬»áÇå³ıÒÑ²É¼¯µ½µÄÊı¾İÒÔ¼°Òç³ö±êÖ¾Î»
+        //Î»traceÍ£Ö¹É¼Ê±ÜµÃ£Ñ²É¼Ô¼Ö¾Î»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_data_reset(ushort CardNo);
 
-        //traceÊÇ·ñÒÑ¾­Æô¶¯
+        //traceÇ·Ñ¾
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_get_flag(ushort CardNo,ref short start_flag,ref short triggered_flag,ref short lost_flag);
 
 
         /***********************************************************
-           *¶ÁÈ¡²É¼¯×´Ì¬
-           * valid_num 	ÒÑ²É¼¯µ«Î´±»¶ÁÈ¡µÄÊı¾İ¸öÊı
-           * free_num 	Ê£Óà¿ÉÓÃÓÚ±£´æ²É¼¯Êı¾İµÄ¸öÊı
-           * object_total_bytes   ²É¼¯¶ÔÏó×Ü×Ö½ÚÊı
-           * object_total_num 	²É¼¯¶ÔÏó×Ü¸öÊı
+           *È¡É¼×´Ì¬
+           * valid_num 	Ñ²É¼Î´È¡İ¸
+           * free_num 	Ê£Ú±É¼İµÄ¸
+           * object_total_bytes   É¼Ö½
+           * object_total_num 	É¼Ü¸
        **********************************************************/
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_get_state(ushort CardNo,ref int valid_num,ref int free_num,ref int object_total_bytes,ref int object_total_num);
 
         /***********************************************************
-         *¶ÁÈ¡²É¼¯Êı¾İ
-         * bufsize 	Êı¾İ»º³åÇø×Ö½ÚÊı
-         * data[1024] 	Êı¾İ»º³åÇø£¬
-         * byte_size   ¶ÁÈ¡µÄÊı¾İµÄ×Ö½ÚÊı
+         *È¡É¼
+         * bufsize 	İ»Ö½
+         * data[1024] 	İ»
+         * byte_size   È¡İµÖ½
          **********************************************************/
 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_get_data(ushort CardNo, int bufsize, string data,ref int byte_size);
 
 
-        //trace¸´Î»Òç³öĞÅºÅ£¬Ö»ÊÇ¸´Î»±êÖ¾Î»
+        //traceÎ»ÅºÅ£Ö»Ç¸Î»Ö¾Î»
         [DllImport("LTDMC.dll")]
         public static extern short dmc_trace_reset_lost_flag(ushort CardNo);
         [DllImport("LTDMC.dll")]
@@ -2589,20 +2590,20 @@ stop_vel2, double acc_time, double dec_time, ushort posi_mode);
 
 
 
-        //PVT_continuous½Ó¿Ú.
-        //ÏÂ·¢PVT continuous¸÷½ÚµãÊı¾İ
+        //PVT_continuousÓ¿.
+        //Â·PVT continuousÚµ
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pvt_table_continuous(ushort CardNo, ushort axis, UInt32 count, double[] pos, double[] vel, double[] percent, double[] vel_max, double[] acc, double[] dec);
-        //¸ù¾İ´«ÈëµÄ²ÎÊı£¬»ñÈ¡¸÷¸öÎ»ÖÃ½ÚµãµÄÊ±¼ä
+        //İ´Ä²È¡Î»Ã½ÚµÊ±
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pvt_continuous_calculate(ushort CardNo, ushort axis, double[] time);
-        //¿ªÆôPVT continuous ÔË¶¯
+        //PVT continuous Ë¶
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pvt_continuous_start(ushort CardNo, ushort axis_num, double[] axis_list, double[] start_delay_time);
 
 
 
-        //·´À¡Î»ÖÃÎó²îÔÊĞí·¶Î§ÉèÖÃ
+        //Î»Î§
 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_cmd_buf_set_allow_error(ushort CardNo, ushort group, double allow_error);
@@ -2610,7 +2611,7 @@ stop_vel2, double acc_time, double dec_time, ushort posi_mode);
         public static extern short dmc_cmd_buf_get_allow_error(ushort CardNo, ushort group,ref double allow_error);
 
 
-        //ÈıµãÔ²»¡
+        //Ô²
         [DllImport("LTDMC.dll")]
         public static extern short dmc_arc_move_3points_multicoor(ushort CardNo, ushort Crd, ushort[] AxisList, double[] Target_Pos, double[] Mid_Pos, long Circle, ushort posi_mode);
 
@@ -2660,7 +2661,7 @@ Section_Dist, ushort Bitno, ushort On_Off, ushort Io_Mode, double Time_Dist_Valu
 
 
 
-        //Ö¸¶¨Öá×ö¶¨³¤Î»ÒÆÔË¶¯ Í¬Ê±·¢ËÍËÙ¶ÈºÍSÊ±¼ä(µ±Á¿)
+        //Ö¸Î»Ë¶ Í¬Ê±Ù¶ÈºSÊ±()
         [DllImport("LTDMC.dll")]
         public static extern short dmc_pmove_extern_unit(ushort CardNo, ushort axis, double dist, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double stop_Vel, double s_para, ushort posi_mode);
 
@@ -2724,7 +2725,7 @@ cmp_pos, ushort num, ushort posi_mode, long mark);
         public static extern short dmc_board_init_eth(ushort CardNo,string IpAddr);
 
 
-        //¼õËÙÍ£Ö¹¾àÀë
+        //Í£Ö¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_dec_stop_dist_unit(ushort CardNo, ushort axis, double dist);
         [DllImport("LTDMC.dll")]
@@ -2732,7 +2733,7 @@ cmp_pos, ushort num, ushort posi_mode, long mark);
 
 
 
-        //×î´óËÙ¶ÈÏŞÖÆÉèÖÃ(Âö³åµ±Á¿)
+        //Ù¶(åµ±)
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_profile_limit_unit(ushort CardNo, ushort axis, double Limit_Max_Vel, double Limit_Max_Acc, double EvenTime);
         [DllImport("LTDMC.dll")]
@@ -2744,7 +2745,7 @@ cmp_pos, ushort num, ushort posi_mode, long mark);
 
 
 
-        //ÆôÓÃµ¥ÖáÏŞËÙ¹¦ÄÜ
+        //ÃµÙ¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_vector_profile_limit_by_axis(ushort CardNo, ushort Crd, ushort Enable);
         [DllImport("LTDMC.dll")]
@@ -2765,7 +2766,7 @@ cmp_pos, ushort num, ushort posi_mode, long mark);
         public static extern short dmc_conti_stop_axis(ushort CardNo, ushort Crd, ushort axis, double dec, int imark);
 
 
-        //¶ÁÈ¡²å²¹³¤¶È
+        //È¡å²¹
 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_vector_length_unit(ushort CardNo, ushort Crd,ref double total_length,ref double left_length);
@@ -2774,7 +2775,7 @@ cmp_pos, ushort num, ushort posi_mode, long mark);
 
 
         /*********************************************************************************************************
-        ¼òÒ×µç×ÓÍ¹ÂÖÔË¶¯
+        ×µÍ¹Ë¶
         *********************************************************************************************************/
         [DllImport("LTDMC.dll")]
         public static extern short dmc_cam_table_unit(ushort CardNo, ushort MasterAxisNo, ushort SlaveAxisNo, UInt32 Count, double[] pMasterPos, double[] pSlavePos, ushort SrcMode);
@@ -2804,7 +2805,7 @@ cmp_pos, ushort num, ushort posi_mode, long mark);
 
 
 
-        //µç×ÓÍ¹ÂÖ
+        //Í¹
         [DllImport("LTDMC.dll")]
         public static extern short dmc_cam_in(ushort CardNo, ushort slave_axis, ushort master_axis, ushort execute, ushort conti_update, ushort cam_table, ushort periodic, ushort master_abs, ushort slave_abs, double 
 master_offset, double slave_offset, double master_scaling, double slave_scaling, double master_start_dist, double master_sync_pos, double active_pos, ushort active_mode, ushort start_mode, double velocity, double acc
@@ -2867,7 +2868,7 @@ error_id, UInt32[] tappet_num);
 
 
 
-        //ĞÂÔöÕë¶ÔÄ£¿é¸ßËÙ±È½ÏÖ¸Áî
+        //Ä£Ù±È½Ö¸
         [DllImport("LTDMC.dll")]
         public static extern short nmc_hcmp_set_mode(ushort CardNo, ushort PortNum, ushort nodenum, ushort hcmp, ushort cmp_mode);
         [DllImport("LTDMC.dll")]
@@ -2891,7 +2892,7 @@ error_id, UInt32[] tappet_num);
 
 
 
-        //ÑùÌõÇúÏßÏà¹Ø
+        //
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_axis_follow_trajectory_displacement(ushort CardNo, ushort crd, ushort num, ushort[] Axis_list);
         [DllImport("LTDMC.dll")]
@@ -2959,7 +2960,7 @@ pos_source);
 
 
 
-        //ÅúÁ¿¶ÁÈ¡ ²»´øµ±Á¿20201016
+        //È¡ 20201016
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_position_extern(ushort CardNo, ushort axis,ref double pos);
         [DllImport("LTDMC.dll")]
@@ -2972,13 +2973,13 @@ pos_source);
 
 
 
-        //»Ø¶ÁpmoveÔË¶¯¹æ»®×ÜÊ±¼ä¼°Ê£ÓàÊ±¼ä
+        //Ø¶pmoveË¶æ»®Ê±ä¼°Ê£Ê±
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_axis_plan_time_info(ushort CardNo, ushort axis,ref double sum_time,ref double remain_time);
-        //ÉèÖÃ²å²¹µ¥Öá×î´óÔÊĞíËÙ¶ÈÖµ
+        //Ã²å²¹Ù¶Öµ
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_axis_max_interpo_speed(ushort CardNo, ushort axis, double max_speed);
-        //»Ø¶Á²å²¹µ¥Öá×î´óÔÊĞíËÙ¶ÈÖµ
+        //Ø¶å²¹Ù¶Öµ
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_axis_max_interpo_speed(ushort CardNo, ushort axis,ref double max_speed);
 
@@ -3120,15 +3121,15 @@ mark);
 
 
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_set_alm_mode_ex(ushort CardNo, ushort axis, ushort enable, ushort alm_logic, ushort alm_action, ushort alm_all);//ĞÂÔöÅäÖÃ
+        public static extern short dmc_set_alm_mode_ex(ushort CardNo, ushort axis, ushort enable, ushort alm_logic, ushort alm_action, ushort alm_all);//
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_get_alm_mode_ex(ushort CardNo, ushort axis,ref ushort enable,ref ushort alm_logic,ref ushort alm_action,ref ushort alm_all);//ĞÂÔöÅäÖÃ
+        public static extern short dmc_get_alm_mode_ex(ushort CardNo, ushort axis,ref ushort enable,ref ushort alm_logic,ref ushort alm_action,ref ushort alm_all);//
 
 
 
 
 
-        //¶ÁÈ¡±àÂëÆ÷·½Ïò
+        //È¡
 
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_encoder_dir(ushort CardNo, ushort axis,ref ushort dir);
@@ -3215,7 +3216,7 @@ mark);
 
 
 
-        //ÎÄ¼şµ÷ÓÃ
+        //Ä¼
         [DllImport("LTDMC.dll")]
         public static extern short dmc_userlib_loadlibrary(ushort CardNo,string  pLibname);
         [DllImport("LTDMC.dll")]
@@ -3286,7 +3287,7 @@ posi_mode);
         public static extern short dmc_conti_set_blend_distance(ushort CardNo, ushort Crd, ushort Enable, double BlendDistance);
 
 
-        //////////////////////////////////////////////////////////////////////////2022.08.11ĞÂÔö
+        //////////////////////////////////////////////////////////////////////////2022.08.11
 
         [DllImport("LTDMC.dll")]
         public static extern short nmc_set_dc_mode(ushort CardNo, ushort PortNo, ushort mode);
@@ -3298,12 +3299,12 @@ posi_mode);
 
 
         [DllImport("LTDMC.dll")]
-        public static extern short dmc_set_gear_follow_ratio(ushort CardNo, ushort axis, double ratio);//Ë«ZÖá
+        public static extern short dmc_set_gear_follow_ratio(ushort CardNo, ushort axis, double ratio);//Ë«Z
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_gear_follow_ratio(ushort CardNo, ushort axis, ref double ratio);
 
 
-        //LTC·´ÏàÊä³ö¹¦ÄÜ
+        //LTC
         [DllImport("LTDMC.dll")]
         public static extern short dmc_ltc_set_outbit(ushort CardNo, ushort latch, ushort enable, ushort bitno, ushort logic, double delaytime_s, double outtime_s);
         [DllImport("LTDMC.dll")]
@@ -3577,7 +3578,7 @@ offset);
        
 		
 		
-		//¸üĞÂÍ·ÎÄ¼ş20240625
+		//Í·Ä¼20240625
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_modulo_profile(ushort CardNo, ushort Axis, ushort enable,  double Modulo_Vel);
         [DllImport("LTDMC.dll")]
@@ -3595,25 +3596,25 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_arc_move_3points_unit_G0 (ushort CardNo, ushort Crd, ushort AxisNum, ushort[] AxisList, double[] Target_Pos, double[] Mid_Pos, ushort Circle, ushort posi_mode, ushort mark);
 
-        //×ÜÏß¿¨ĞÂÔö¶ÁÈ¡ËùÓĞIO×´Ì¬¹¦ÄÜ
+        //ß¿È¡IO×´Ì¬
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_outport_array(ushort CardNo, ushort portNum,  uint[] status);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_read_inport_array(ushort CardNo, ushort portNum,  uint[] status);
 
-        //ÉèÖÃ/¶ÁÈ¡Ö¸Áî»º´æÔË¶¯±êÖ¾Î»×´Ì¬
+        ///È¡Ö¸î»ºË¶Ö¾Î»×´Ì¬
         [DllImport("LTDMC.dll")]
 		 public static extern short dmc_m_set_wait_flag(ushort CardNo, ushort Group, ushort FlagNo, ushort Wait_Flag);
 		[DllImport("LTDMC.dll")]
 		 public static extern short dmc_m_get_wait_flag(ushort CardNo, ushort Group, ushort FlagNo, ref ushort Wait_Flag);
 
-        //·´Ïò¼äÏ¶¹¦ÄÜÀ©Õ¹£¬Ö§³Ö¶àÖÖ²¹³¥Ä£Ê½
+        //Ï¶Õ¹Ö§Ö¶Ö²Ä£Ê½
 		[DllImport("LTDMC.dll")]
 		 public static extern short dmc_set_backlash_unit_extern(ushort CardNo, ushort axis,double backlash, ushort mode, short dir,double vel,double acc,ushort time_ms);
 		[DllImport("LTDMC.dll")]
 		 public static extern short dmc_get_backlash_unit_extern(ushort CardNo, ushort axis,ref double backlash, ref ushort mode, ref short dir,ref double vel, ref double acc,ref ushort time_ms);
 
-        //ÎŞĞèÓ³ÉäÖ±½ÓÊ¹ÓÃPDOµÄ·½Ê½²Ù×÷¶ÔÏó×Öµä¹¦ÄÜ
+        //Ó³Ö±Ê¹PDOÄ·Ê½Öµä¹¦
 		[DllImport("LTDMC.dll")]
 		 public static extern short nmc_write_rxpdo(ushort CardNo, ushort portnum, ushort slave_station_addr, ushort index, ushort subindex, ushort bitlength, byte[] data);
 		[DllImport("LTDMC.dll")]		 
@@ -3634,7 +3635,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_syncmotion_updatescale(ushort CardNo, ushort slaveAxisNo, double scale_coe);
 
-        //ÉèÖÃ alm ĞÅºÅÌØÊâ¿ØÖÆ¹¦ÄÜ£º¿ÉÊµÏÖ±¨¾¯ºó¶Ï¿ªÊ¹ÄÜ
+        // alm ÅºÆ¹Ü£ÊµÖ±Ï¿Ê¹
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_set_alm_control_function(ushort CardNo,ushort axis,ushort control_function);
 		[DllImport("LTDMC.dll")]
@@ -3643,7 +3644,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_calculate_axis_plan_time(ushort CardNo, double Dis,double Start_Vel, double Max_Vel,double End_Vel,double Tacc, double Tdec,double sTime, ref double Tsum);
 
-        // Âö³å¿¨2D²¹³¥¹¦ÄÜ
+        // å¿¨2D
         [DllImport("LTDMC.dll")]
         public static extern short dmc_set_leadscrew_comp_2D_config_unit(UInt16 CardNo, UInt16 comp_axis, UInt16[] ref_axis, double[] ref_axis_start_pos, double[] ref_axis_length, UInt16[] ref_axis_segment, double[,] value);
         [DllImport("LTDMC.dll")]
@@ -3657,7 +3658,7 @@ offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_leadscrew_comp_2D_enable(UInt16 CardNo, UInt16 comp_axis, ref UInt16 mode, ref UInt16 enable);
 
-        //¹ì¼£Ëã·¨Éı¼¶Á¬Ğø²å²¹ĞÂÔö¹¦ÄÜ£º°üÀ¨¼õËÙ½ÇÍ£Ö¹½Ç¡¢¹ÕÍäÊ±¼ä¡¢Ğ¡Ô²ÏŞËÙ¡¢ÏÎ½ÓµãËÙ¶È¹æ»®Ä£Ê½ÉèÖÃµÈ¹¦ÄÜ
+        //ì¼£ã·¨å²¹Ü£Ù½Í£Ö¹Ç¡Ê±ä¡¢Ğ¡Ô²Ù¡Î½ÓµÙ¶È¹æ»®Ä£Ê½ÃµÈ¹
 		[DllImport("LTDMC.dll")]
 		 public static extern short dmc_conti_set_coordinate_params(ushort CardNo, ushort Crd, double T, double radius, double limit_vel);
 		[DllImport("LTDMC.dll")]
@@ -3679,7 +3680,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_delay_get_mode(ushort CardNo, ushort Crd, ref ushort  mode);
 
-        //ÎïÀí½ÚµãÊ¹ÄÜ¹¦ÄÜ
+        //ÚµÊ¹Ü¹
 		[DllImport("LTDMC.dll")]
 		public static extern short nmc_set_alias_address_enable(ushort CardNo, ushort enable);
 		[DllImport("LTDMC.dll")]
@@ -3725,7 +3726,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_func_enable(ushort CardNo, ushort mode, ref ushort enable);
 
-        //×ÜÏß»ØÁã²ÎÊıÉèÖÃÖ§³Ö¼ÓËÙ¶ÈÄ£Ê½
+        //ß»Ö§Ö¼Ù¶Ä£Ê½
 		[DllImport("LTDMC.dll")]
 		public static extern short nmc_set_home_profile_acc(ushort CardNo, ushort axis, ushort home_mode,double Low_Vel, double High_Vel,double Tacc,double Tdec,double offsetpos );
 		[DllImport("LTDMC.dll")]
@@ -3734,7 +3735,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_ad_input_append(ushort CardNo,ushort Channel, ref double Vout);
 
-        //PWM¿ªÊ¼ÓÅÏÈÊä³öµçÆ½²¿·ÖÉèÖÃ¹¦ÄÜ
+        //PWMÊ¼Æ½Ã¹
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_set_pwm_output_extern(ushort CardNo, ushort Crd, ushort pwm_no, ushort enable, double width_us, double frequency,uint number);
 		[DllImport("LTDMC.dll")]
@@ -3742,13 +3743,13 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_pwm_mode (ushort CardNo, ushort pwm_no, ref ushort startmode, ref ushort stopmode);
 
-        //Á¬Ğø²å²¹µ¥ÖáÔË¶¯Ö§³ÖËÙ¶È»º´æÉèÖÃ¹¦ÄÜ
+        //å²¹Ë¶Ö§Ù¶È»Ã¹
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_set_profile_unit(ushort CardNo,ushort Crd,double Min_Vel,double Max_vel,double Tacc,double Tdec,double Stop_Vel);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_pmove_extern_unit(ushort CardNo, ushort Crd, ushort axis, double dist, double Min_Vel, double Max_Vel, double Tacc, double Tdec, double Stop_Vel, ushort posi_mode, ushort mode, int mark);
 
-        //Á¬Ğø²å²¹ÅúÁ¿Ìí¼Ó¹¦ÄÜ
+        //å²¹Ó¹
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_pack_on(ushort CardNo);
 		[DllImport("LTDMC.dll")]		
@@ -3764,25 +3765,25 @@ offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_write_outport_array(ushort CardNo, ushort portNum,  uint[] status);
 
-        //Á¬Ğø²å²¹ÖĞ»º´æ²Ù×÷SDO/PDO¹¦ÄÜ
+        //å²¹Ğ»SDO/PDO
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_set_node_od(ushort CardNo,ushort Crd,ushort NodeNum, ushort Index,ushort SubIndex,ushort ValLength, uint Value);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_conti_set_rxpdo_extra(ushort CardNo, ushort Crd, ushort Address, ushort DataLen, ushort Mode, ushort ModeVal, uint Value);
 
-        //Ö¸Áî»º´æÖĞĞÂÔö²Ù×÷SDO/PDO¹¦ÄÜ
+        //Ö¸î»ºSDO/PDO
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_m_add_trigger_set_od(ushort CardNo,ushort Group,ushort NodeNum, ushort Index,ushort SubIndex,ushort ValLength,uint Value, uint Mark);
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_m_add_trigger_set_rxpdo_extra(ushort CardNo,ushort Group,ushort Address, ushort DataLen,ushort Mode,ushort ModeVal,uint Value,uint Mark);
 
-        //²å²¹µ¥ÖáÏŞËÙÊ¹ÄÜ
+        //å²¹Ê¹
 	   [DllImport("LTDMC.dll")]
 		public static extern short dmc_set_profile_limit_by_axis(ushort CardNo, ushort axis, ushort enable);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_profile_limit_by_axis(ushort CardNo, ushort axis, ref ushort enable);
 
-        [DllImport("LTDMC.dll")]//×ÜÏß2D²¹³¥¹¦ÄÜ
+        [DllImport("LTDMC.dll")]//2D
         public static extern short dmc_set_leadscrew_comp_2D_config_unit_ex(UInt16 CardNo, UInt16 table_index, UInt16 comp_axis, UInt16[] ref_axis, double[] ref_axis_start_pos, double[] ref_axis_length, UInt16[] ref_axis_segment, double[] value);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_leadscrew_comp_2D_config_unit_ex(UInt16 CardNo, UInt16 table_index, ref UInt16 comp_axis, ref UInt16[] ref_axis, ref double[] ref_axis_start_pos, ref double[] ref_axis_length, ref UInt16[] ref_axis_segment, ref double[] value);
@@ -3795,13 +3796,13 @@ offset);
         [DllImport("LTDMC.dll")]
         public static extern short dmc_get_leadscrew_comp_2D_enable_ex(UInt16 CardNo, UInt16 table_index, ref UInt16 mode, ref UInt16 enable);
 
-        //EMCÏµÁĞ¿ØÖÆÆ÷ipµØÖ·ÉèÖÃºÍ»ñÈ¡¹¦ÄÜ
+        //EMCÏµĞ¿ipÖ·ÃºÍ»È¡
         [DllImport("LTDMC.dll")]		
 		 public static extern short dmc_set_ipaddr( ushort CardNo, byte[]  IpAddr);
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_get_ipaddr( ushort CardNo, byte[] IpAddr);
 		
-        //IO·­×ª¶¯×÷Çå³ı¹¦ÄÜ
+        //IO×ª
         [DllImport("LTDMC.dll")]
 		 public static extern short dmc_clear_io_action(ushort CardNo,ushort Crd,ushort IoMask, ushort Mode);
 
@@ -3813,7 +3814,7 @@ offset);
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_get_trans_arc_speed_mode(ushort CardNo, ushort Crd, ref ushort mode);
 
-        //5X10Á¬Ğø²å²¹ÖĞ CAN Ä£¿é DA ËÙ¶È¸úËæ¹¦ÄÜ
+        //5X10å²¹ CAN Ä£ DA Ù¶È¸æ¹¦
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_set_node_da_follow_speed(ushort CardNo, ushort Crd, ushort node_id, ushort da_no, double MaxVel, double MaxValue, double acc_offset, double dec_offset, double acc_dist, double dec_dist);
         [DllImport("LTDMC.dll")]
@@ -3827,11 +3828,11 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_rAxis_comp_loop(ushort CardNo,short axis, short mode, double angle, double xPos, double yPos, double[] new_xPos, double[] new_yPos);
 
-        //µãÎ»ÔË¶¯Pro¹æ»®Ä£Ê½¹¦ÄÜ
+        //Î»Ë¶Proæ»®Ä£Ê½
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_pmove_pro_unit(ushort CardNo, ushort axis_no, double pos, ushort pos_mode, ushort plan_mode, byte[] vel_param, byte[] plan_result);
 
-        //5X10ÏµÁĞÁ¬Ğø²å²¹ÖĞÏà¶ÔÓÚ¹ì¼£¶ÎÖÕµã DA ÌáÇ°/ÖÍºó¸úËæÊä³ö
+        //5X10Ïµå²¹Ú¹ì¼£Õµ DA Ç°/Íº
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_conti_delay_node_da_follow_to_start(ushort CardNo, ushort Crd, ushort node_id, ushort da_no, ushort delay_mode, double delay_value, double min_value, double max_value, double period);
 		[DllImport("LTDMC.dll")]
@@ -3845,7 +3846,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_pmove_consumed_time (ushort CardNo,ref ushort time_receive, ref ushort time_process, ref ushort time_send);
 
-        //¿ØÖÆ¿¨ÔË¶¯²ÎÊıÉèÖÃ¼ÓËÙ¶ÈÄ£Ê½½Ó¿Ú
+        //Æ¿Ë¶Ã¼Ù¶Ä£Ê½Ó¿
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_t_pmove_extern_unit_acc(ushort CardNo, ushort axis, double MidPos,double TargetPos, double Min_Vel,double Max_Vel, double stop_Vel, double acc,double dec,ushort posi_mode);
 		[DllImport("LTDMC.dll")]
@@ -3859,7 +3860,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_change_speed_acc(ushort CardNo,ushort axis,double Curr_Vel,double Taccdec);
 
-        //5X10ÏµÁĞÁ¬Ğø²å²¹ CANÄ£¿éDA ¸úËæ¹¦ÄÜ
+        //5X10Ïµå²¹ CANÄ£DA æ¹¦
 		[DllImport("LTDMC.dll")]	
 		public static extern short dmc_set_node_da_follow_speed_extern(ushort CardNo, ushort node_id, ushort da_channel, ushort axis, ushort mode, ushort segment, double[] vel,double[] value); 
 		[DllImport("LTDMC.dll")]	
@@ -3884,7 +3885,7 @@ offset);
 
 
 
-		//»·ÍøÈßÓàÏà¹Ø×´Ì¬
+		//×´Ì¬
 		[DllImport("LTDMC.dll")]
         public static extern short nmc_get_cable_redundancy_enable(ushort CardNo, ref ushort Enable, ref ushort ErrStop);
 		[DllImport("LTDMC.dll")]
@@ -3893,21 +3894,21 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short get_bar2_value(ushort CardNo, ushort offset , ushort length, uint[] value);
 
-        //»ñÈ¡±àÂëÆ÷ËÙ¶È¹¦ÄÜ
+        //È¡Ù¶È¹
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_encoder_speed(ushort CardNo, ushort axis, ref double vel);
 
         public struct PwmCurve_CtrlPoint
         {
-            public float fl_val;//pwmËæ¶¯Öµ£¨Òò±äÁ¿£©
-            public float ctrl_val;//¿ØÖÆÖµ£¨×Ô±äÁ¿£©
+            public float fl_val;//pwmæ¶¯Öµ
+            public float ctrl_val;//ÖµÔ±
         }
         public struct DaCurve_CtrlPoint
         {
-            public float vol_val;//daÖµ£¨Òò±äÁ¿£©
-            public float ctrl_val;//¿ØÖÆÖµ£¨×Ô±äÁ¿£©
+            public float vol_val;//daÖµ
+            public float ctrl_val;//ÖµÔ±
         }
-        //5X10ÏµÁĞÁ¬Ğø²å²¹DA--T/P¸úËæÊä³ö¹¦ÄÜ
+        //5X10Ïµå²¹DA--T/P
         [DllImport("LTDMC.dll")]
 		public static extern short dmc_set_da_curve(ushort CardNo, ushort Crd, ushort curve_no, ushort curve_type,ushort ctrl_point_num, DaCurve_CtrlPoint[] ctrl_point);
         [DllImport("LTDMC.dll")]
@@ -3957,7 +3958,7 @@ offset);
 		
 		[DllImport("LTDMC.dll")]
         public static extern short dmc_m_cmd_buf_set_profile_extern(ushort CardNo, ushort group, ushort axis_num, ushort[] axis_list, ushort[] plan_mode, double[] start_vel, double[] max_vel, double[] stop_vel, double[] tacc, double[] tdec, double[] ja, double[] jd);
-        //Âö³å¿¨»ØÁã¹¦ÄÜÀ©Õ¹£º»ØÁãÔ­µãºÍEZĞÅºÅÖ§³ÖÉèÖÃÑ°ÕÒ¾àÀë
+        //å¿¨ã¹¦Õ¹Ô­EZÅºÖ§Ñ°Ò¾
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_set_home_search_limit(ushort CardNo, ushort axis, ushort enable, ushort stop_mode, uint limit_length, uint org_length,uint ez_length);
 		[DllImport("LTDMC.dll")]
@@ -3966,7 +3967,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_traj_algorithm_version(ushort CardNo,byte[] trajAlgorithmVersion);
 
-        //×ÜÏß¿¨ÊÊÅäISMCÇı¶¯Æ÷Èí×ÅÂ½¶¨ÖÆ¹¦ÄÜ
+        //ß¿ISMCÂ½Æ¹
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_set_pt_soft_land_profile(ushort CardNo, ushort AxisNo, int PpModePos, int ChangePos, uint PosTorLimit, uint DelayTime, uint KeepTorque, uint Mode);
 		[DllImport("LTDMC.dll")]
@@ -4040,7 +4041,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short nmc_foe_upload_file(ushort CardNo, uint SlaveId, uint Password, uint Timeout,string pFileName, byte[] pFileNameControl);
 
-        //¿´ÃÅ¹·¹¦ÄÜÀ©Õ¹£ºÖ§³Ö¾Ö²¿Êä³ö¿Ú¸´Î»ÉèÖÃ
+        //Å¹Õ¹Ö§Ö¾Ö²Ú¸Î»
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_set_watchdog_write_outport_mask(ushort CardNo, ulong PortNum, ulong PortValue);
 		[DllImport("LTDMC.dll")]
@@ -4055,7 +4056,7 @@ offset);
 		[DllImport("LTDMC.dll")]
 		public static extern short dmc_get_watchdog_outport_mask_enable(ushort CardNo, ulong PortNum, ref ulong Enable);
 
-        //IO¼ÆÊı¹¦ÄÜÀ©Õ¹£ºÖ§³Ö°´ÕÕIO½ÚµãºÅ½øĞĞÉèÖÃ¼ÆÊı
+        //IOÕ¹Ö§Ö°IOÚµÅ½Ã¼
 		[DllImport("LTDMC.dll")]
 		public static extern short nmc_set_io_count_mode(ushort CardNo, ushort PortNum, ushort NodeID, ushort BitNo, ushort Mode , ushort FilterTime);
 		[DllImport("LTDMC.dll")]

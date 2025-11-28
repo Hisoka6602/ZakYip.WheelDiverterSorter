@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Segments;
 

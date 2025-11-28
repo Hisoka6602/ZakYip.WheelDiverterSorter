@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+
 namespace ZakYip.WheelDiverterSorter.Observability;
 
 /// <summary>

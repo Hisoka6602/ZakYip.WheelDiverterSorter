@@ -5,6 +5,8 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Execution.Diagnostics;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Tests;
 

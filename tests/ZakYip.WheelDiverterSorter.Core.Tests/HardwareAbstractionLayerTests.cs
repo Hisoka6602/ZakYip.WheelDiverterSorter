@@ -1,5 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using HalWheelCommand = ZakYip.WheelDiverterSorter.Core.Hardware.WheelCommand;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
@@ -31,7 +33,7 @@ public class HardwareAbstractionLayerTests
     [Fact]
     public void WheelCommand_ShouldBeImmutableRecordStruct()
     {
-        var command = new WheelCommand
+        var command = new HalWheelCommand
         {
             Direction = DiverterDirection.Left,
             Timeout = TimeSpan.FromSeconds(5)
@@ -48,7 +50,7 @@ public class HardwareAbstractionLayerTests
     [Fact]
     public void WheelCommand_TimeoutIsOptional()
     {
-        var command = new WheelCommand
+        var command = new HalWheelCommand
         {
             Direction = DiverterDirection.Right
         };

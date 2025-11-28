@@ -2,6 +2,7 @@ using Xunit;
 using FluentAssertions;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

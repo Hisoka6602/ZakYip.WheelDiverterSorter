@@ -2,6 +2,8 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Results;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using HalWheelCommand = ZakYip.WheelDiverterSorter.Core.Hardware.WheelCommand;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
@@ -35,7 +37,7 @@ public sealed class SimulatedWheelDiverterDevice : IWheelDiverterDevice
 
     /// <inheritdoc/>
     public Task<OperationResult> ExecuteAsync(
-        WheelCommand command,
+        HalWheelCommand command,
         CancellationToken cancellationToken = default)
     {
         _lastDirection = command.Direction;

@@ -21,6 +21,8 @@ using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 // 创建Host
 var host = Host.CreateDefaultBuilder(args)

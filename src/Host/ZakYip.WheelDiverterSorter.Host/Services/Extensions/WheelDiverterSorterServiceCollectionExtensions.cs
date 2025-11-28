@@ -18,6 +18,7 @@ using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 using ZakYip.WheelDiverterSorter.Application;
 using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 

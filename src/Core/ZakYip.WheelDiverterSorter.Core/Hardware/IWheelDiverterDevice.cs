@@ -1,4 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Results;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Core.Hardware;
 
