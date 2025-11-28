@@ -318,11 +318,14 @@ ZakYip.WheelDiverterSorter.Execution/
 │   ├── FixedChuteSelectionStrategy.cs
 │   ├── FormalChuteSelectionStrategy.cs
 │   └── RoundRobinChuteSelectionStrategy.cs
-├── ISwitchingPathExecutor.cs        # 路径执行器接口
-├── PathExecutionService.cs          # 路径执行服务
-├── DefaultStrategyFactory.cs
-├── DefaultSystemRunStateService.cs
-└── ...
+├── （根目录文件，约 25 个）         # 见问题标记 5.1.1
+│   ├── ISwitchingPathExecutor.cs    # 路径执行器接口
+│   ├── PathExecutionService.cs      # 路径执行服务
+│   ├── AnomalyDetector.cs           # 异常检测器
+│   ├── ConveyorSegment.cs           # 输送段模型
+│   ├── DefaultStrategyFactory.cs
+│   ├── DefaultSystemRunStateService.cs
+│   └── ...
 ```
 
 #### 关键类型概览
@@ -754,10 +757,11 @@ tools/Profiling/
    - 包含 50+ 文件，混合了配置模型、仓储接口、LiteDB 实现
    - 建议：拆分为 Models/、Repositories/Interfaces/、Repositories/LiteDb/ 等子目录
 
-5. **多处存在重复的 Options 类定义**
-   - `UpstreamConnectionOptions` 在 `Execution/Orchestration/SortingOrchestrator.cs` 中定义
-   - 与 `Core/Sorting/Policies/UpstreamConnectionOptions.cs` 可能重复
-   - 建议：统一配置选项的定义位置
+5. **存在重复的 Options 类定义**
+   - `UpstreamConnectionOptions` 在 `Execution/Orchestration/SortingOrchestrator.cs` 中定义（仅含 FallbackTimeoutSeconds 属性）
+   - `Core/Sorting/Policies/UpstreamConnectionOptions.cs` 中定义了完整的上游连接配置类
+   - 两者职责不同但命名相同，容易造成混淆
+   - 建议：重命名 Execution 层的为 `UpstreamTimeoutOptions` 或合并到 Core 层的定义中
 
 ### 5.3 代码组织问题
 
