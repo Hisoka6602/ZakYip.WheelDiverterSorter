@@ -1161,6 +1161,7 @@ Code Review 时会重点检查：
 11. 是否保持所有仿真和 E2E 测试通过
 12. 是否已更新RepositoryStructure.md(每次修改都需要更新当前结构和技术债务)
 13. 是否使用global using(代码中禁止使用 global using)
+14. 不能包含过时方法、属性、字段、类
 ---
 
 **文档版本**: 1.1  
