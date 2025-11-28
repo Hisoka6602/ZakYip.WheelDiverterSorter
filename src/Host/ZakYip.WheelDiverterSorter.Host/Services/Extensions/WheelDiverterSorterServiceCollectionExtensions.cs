@@ -15,9 +15,9 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Host.Commands;
-using ZakYip.WheelDiverterSorter.Host.Services.Application;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
-using HostApplicationServices = ZakYip.WheelDiverterSorter.Host.Application.Services;
+using ZakYip.WheelDiverterSorter.Application;
+using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
@@ -90,7 +90,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             options.SizeLimit = 1000;
         });
         services.AddMetrics();
-        services.AddSingleton<SorterMetrics>();
+        services.AddSingleton<ApplicationServices.SorterMetrics>();
 
         // 5. 添加 Prometheus 指标服务和告警服务
         services.AddPrometheusMetrics();
@@ -112,9 +112,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 8. 注册拓扑服务
         services.AddTopologyServices();
 
-        // 9. 注册应用层服务
-        services.AddScoped<HostApplicationServices.ISystemConfigService, HostApplicationServices.SystemConfigService>();
-        services.AddScoped<HostApplicationServices.ILoggingConfigService, HostApplicationServices.LoggingConfigService>();
+        // 9. 注册应用层服务（使用 Application 项目的统一扩展方法）
+        services.AddWheelDiverterApplication();
 
         // 10. 注册分拣服务
         services.AddSortingServices(configuration);
@@ -140,8 +139,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                     .AddSimulatedConveyorLine();
         }
 
-        // 12. 注册仿真模式提供者
-        services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
+        // 12. 注册仿真模式提供者 (由 Application 项目的扩展方法注册)
+        // services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
 
         // 13. 注册健康检查和系统状态管理
         var enableHealthCheck = configuration.GetValue<bool>("HealthCheck:Enabled", true);
@@ -175,11 +174,11 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddRuleEngineCommunication(configuration);
         services.AddUpstreamConnectionManagement(configuration);
 
-        // 19. 注册通信统计服务
-        services.AddSingleton<CommunicationStatsService>();
+        // 19. 注册通信统计服务 (由 Application 项目的扩展方法注册)
+        // services.AddSingleton<CommunicationStatsService>();
 
         // 20. 注册改口功能服务
-        services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
+        services.AddSingleton<IRoutePlanRepository, ApplicationServices.InMemoryRoutePlanRepository>();
         services.AddSingleton<IRouteReplanner, RouteReplanner>();
         services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
