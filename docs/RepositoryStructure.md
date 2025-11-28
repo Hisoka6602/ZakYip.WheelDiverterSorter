@@ -17,6 +17,7 @@
 | 分类 | 项目名称 | 位置 |
 |------|---------|------|
 | 应用入口 | ZakYip.WheelDiverterSorter.Host | src/Host/ |
+| 应用服务层 | ZakYip.WheelDiverterSorter.Application | src/Application/ |
 | 核心层 | ZakYip.WheelDiverterSorter.Core | src/Core/ |
 | 执行层 | ZakYip.WheelDiverterSorter.Execution | src/Execution/ |
 | 驱动层 | ZakYip.WheelDiverterSorter.Drivers | src/Drivers/ |
@@ -24,7 +25,7 @@
 | 可观测性层 | ZakYip.WheelDiverterSorter.Observability | src/Observability/ |
 | 通信层 | ZakYip.WheelDiverterSorter.Communication | src/Infrastructure/ |
 | 仿真层 | ZakYip.WheelDiverterSorter.Simulation | src/Simulation/ |
-| 分析器 | ZakYip.WheelDiverterSorter.Analyzers | src/Analyzers/ |
+| 分析器 | ZakYip.WheelDiverterSorter.Analyzers | src/ZakYip.WheelDiverterSorter.Analyzers/ |
 
 - **测试项目**：
 
@@ -59,6 +60,7 @@
 
 ```
 ZakYip.WheelDiverterSorter.Host
+├── ZakYip.WheelDiverterSorter.Application
 ├── ZakYip.WheelDiverterSorter.Core
 ├── ZakYip.WheelDiverterSorter.Execution
 ├── ZakYip.WheelDiverterSorter.Drivers
@@ -66,6 +68,12 @@ ZakYip.WheelDiverterSorter.Host
 ├── ZakYip.WheelDiverterSorter.Observability
 ├── ZakYip.WheelDiverterSorter.Communication
 └── ZakYip.WheelDiverterSorter.Simulation
+
+ZakYip.WheelDiverterSorter.Application
+├── ZakYip.WheelDiverterSorter.Core
+├── ZakYip.WheelDiverterSorter.Execution
+├── ZakYip.WheelDiverterSorter.Communication
+└── ZakYip.WheelDiverterSorter.Observability
 
 ZakYip.WheelDiverterSorter.Execution
 ├── ZakYip.WheelDiverterSorter.Core
@@ -111,14 +119,53 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - **Communication** 依赖 Core 和 Observability，负责与上游 RuleEngine 的通信
 - **Execution** 依赖 Core 和 Observability，负责分拣编排和路径执行
 - **Drivers** 依赖 Core、Execution 和 Communication，实现具体硬件驱动
-- **Simulation** 依赖除 Host 外的所有项目，提供仿真运行环境
-- **Host** 是顶层应用入口，依赖所有业务项目
+- **Application** 依赖 Core、Execution、Communication 和 Observability，提供应用服务/用例服务
+- **Simulation** 依赖除 Host 和 Application 外的所有项目，提供仿真运行环境
+- **Host** 是顶层应用入口，依赖 Application 和所有业务项目
 
 ---
 
 ## 3. 各项目内部结构
 
-### 3.1 ZakYip.WheelDiverterSorter.Host
+### 3.1 ZakYip.WheelDiverterSorter.Application
+
+**项目职责**：应用服务层，封装 Core + Execution + Drivers + Ingress + Communication 的组合逻辑，提供应用服务/用例服务。Host 层通过引用此项目获取所有应用服务。
+
+```
+ZakYip.WheelDiverterSorter.Application/
+├── Services/                           # 应用服务实现
+│   ├── CachedDriverConfigurationRepository.cs    # 带缓存的IO驱动器配置仓储
+│   ├── CachedSensorConfigurationRepository.cs    # 带缓存的感应IO配置仓储
+│   ├── CachedSwitchingPathGenerator.cs           # 带缓存的路径生成器
+│   ├── CommunicationStatsService.cs              # 通信统计服务
+│   ├── CongestionDataCollector.cs                # 拥堵数据收集器
+│   ├── ILoggingConfigService.cs                  # 日志配置服务接口
+│   ├── IPreRunHealthCheckService.cs              # 运行前健康检查服务接口
+│   ├── ISimulationOrchestratorService.cs         # 仿真编排服务接口
+│   ├── ISystemConfigService.cs                   # 系统配置服务接口
+│   ├── InMemoryRoutePlanRepository.cs            # 内存路由计划仓储
+│   ├── LoggingConfigService.cs                   # 日志配置服务实现
+│   ├── OptimizedSortingService.cs                # 性能优化的分拣服务
+│   ├── PreRunHealthCheckService.cs               # 运行前健康检查服务实现
+│   ├── SimulationModeProvider.cs                 # 仿真模式提供者
+│   ├── SorterMetrics.cs                          # 分拣系统性能指标服务
+│   └── SystemConfigService.cs                    # 系统配置服务实现
+└── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication)
+```
+
+#### 关键类型概览
+
+- `ISystemConfigService`/`SystemConfigService`：系统配置的业务逻辑，包括验证、更新、默认模板生成
+- `ILoggingConfigService`/`LoggingConfigService`：日志配置的查询、更新、重置操作
+- `IPreRunHealthCheckService`/`PreRunHealthCheckService`：运行前验证所有关键配置是否就绪
+- `ISimulationModeProvider`/`SimulationModeProvider`：判断系统当前是否运行在仿真模式下
+- `SorterMetrics`：分拣系统性能指标，包括计数器、直方图等
+- `OptimizedSortingService`：集成了指标收集、对象池和优化内存管理的分拣服务
+- `CachedSwitchingPathGenerator`：带缓存优化的路径生成器包装器
+- `CongestionDataCollector`：收集系统当前拥堵指标快照
+- `ApplicationServiceExtensions`：提供 `AddWheelDiverterApplication()` 统一注册所有应用服务
+
+### 3.2 ZakYip.WheelDiverterSorter.Host
 
 **项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。不包含业务逻辑，业务逻辑委托给 Execution、Core 等底层项目。
 
@@ -200,7 +247,7 @@ ZakYip.WheelDiverterSorter.Host/
 
 ---
 
-### 3.2 ZakYip.WheelDiverterSorter.Core
+### 3.3 ZakYip.WheelDiverterSorter.Core
 
 **项目职责**：定义核心领域模型、抽象接口和业务规则。是整个解决方案的基础层，不依赖任何其他业务项目。
 
@@ -327,7 +374,7 @@ ZakYip.WheelDiverterSorter.Core/
 
 ---
 
-### 3.3 ZakYip.WheelDiverterSorter.Execution
+### 3.4 ZakYip.WheelDiverterSorter.Execution
 
 **项目职责**：分拣业务编排实现层，负责协调包裹从"入口→请求格口→路径生成→路径执行"的完整流程。
 
@@ -392,7 +439,7 @@ ZakYip.WheelDiverterSorter.Execution/
 
 ---
 
-### 3.4 ZakYip.WheelDiverterSorter.Drivers
+### 3.5 ZakYip.WheelDiverterSorter.Drivers
 
 **项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/书迪鸟摆轮协议等）的通信细节。
 
@@ -460,7 +507,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 
 ---
 
-### 3.5 ZakYip.WheelDiverterSorter.Ingress
+### 3.6 ZakYip.WheelDiverterSorter.Ingress
 
 **项目职责**：入口层，负责传感器事件监听、包裹检测、上游通信门面封装。
 
@@ -511,7 +558,7 @@ ZakYip.WheelDiverterSorter.Ingress/
 
 ---
 
-### 3.6 ZakYip.WheelDiverterSorter.Communication
+### 3.7 ZakYip.WheelDiverterSorter.Communication
 
 **项目职责**：通信基础设施层，实现与上游 RuleEngine 的多协议通信（TCP/SignalR/MQTT/HTTP），支持客户端和服务器两种模式。
 
@@ -575,7 +622,7 @@ ZakYip.WheelDiverterSorter.Communication/
 
 ---
 
-### 3.7 ZakYip.WheelDiverterSorter.Observability
+### 3.8 ZakYip.WheelDiverterSorter.Observability
 
 **项目职责**：可观测性层，提供监控指标（Prometheus）、告警、追踪日志、安全执行服务等基础设施。
 
@@ -616,7 +663,7 @@ ZakYip.WheelDiverterSorter.Observability/
 
 ---
 
-### 3.8 ZakYip.WheelDiverterSorter.Simulation
+### 3.9 ZakYip.WheelDiverterSorter.Simulation
 
 **项目职责**：仿真运行器，提供完整的分拣系统仿真环境，支持场景定义、策略实验、性能测试等。
 
@@ -659,7 +706,7 @@ ZakYip.WheelDiverterSorter.Simulation/
 
 ---
 
-### 3.9 ZakYip.WheelDiverterSorter.Analyzers
+### 3.10 ZakYip.WheelDiverterSorter.Analyzers
 
 **项目职责**：Roslyn 代码分析器，在编译时强制执行编码规范（禁止直接使用 DateTime.Now、要求 BackgroundService 使用 SafeExecutionService 等）。
 
