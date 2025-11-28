@@ -180,6 +180,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 20. 注册改口功能服务
         services.AddSingleton<IRoutePlanRepository, ApplicationServices.InMemoryRoutePlanRepository>();
         services.AddSingleton<IRouteReplanner, RouteReplanner>();
+        // ChangeParcelChuteService is now registered by Application layer (AddWheelDiverterApplication)
+        // ChangeParcelChuteCommandHandler is a Host-level adapter that wraps IChangeParcelChuteService
         services.AddSingleton<ChangeParcelChuteCommandHandler>();
 
         // 21. 注册中段皮带 IO 联动服务

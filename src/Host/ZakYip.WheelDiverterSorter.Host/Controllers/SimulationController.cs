@@ -5,7 +5,6 @@ using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
-using ZakYip.WheelDiverterSorter.Host.Services.Application;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models;
@@ -43,7 +42,7 @@ public class SimulationController : ControllerBase
     private readonly ISignalTowerOutput _signalTowerOutput;
     private readonly ApplicationServices.ISimulationModeProvider _simulationModeProvider;
     private readonly ISimulationScenarioRunner? _scenarioRunner;
-    private readonly DebugSortService? _debugSortService;
+    private readonly ApplicationServices.IDebugSortService? _debugSortService;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SimulationController> _logger;
     private static CancellationTokenSource? _simulationCts;
@@ -59,7 +58,7 @@ public class SimulationController : ControllerBase
         IWebHostEnvironment environment,
         ILogger<SimulationController> logger,
         ISimulationScenarioRunner? scenarioRunner = null,
-        DebugSortService? debugSortService = null)
+        ApplicationServices.IDebugSortService? debugSortService = null)
     {
         _stateManager = stateManager;
         _clock = clock;
@@ -899,10 +898,22 @@ public class SimulationController : ControllerBase
                 request.ParcelId,
                 request.TargetChuteId);
 
-            var response = await _debugSortService.ExecuteDebugSortAsync(
+            var result = await _debugSortService.ExecuteDebugSortAsync(
                 request.ParcelId,
                 request.TargetChuteId,
                 cancellationToken);
+
+            // Map Application layer result to Host layer response
+            var response = new DebugSortResponse
+            {
+                ParcelId = result.ParcelId,
+                TargetChuteId = result.TargetChuteId,
+                IsSuccess = result.IsSuccess,
+                ActualChuteId = result.ActualChuteId,
+                Message = result.Message,
+                FailureReason = result.FailureReason,
+                PathSegmentCount = result.PathSegmentCount
+            };
 
             if (response.IsSuccess)
             {
