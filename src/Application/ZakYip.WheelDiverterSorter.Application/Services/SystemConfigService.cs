@@ -34,7 +34,7 @@ public class SystemConfigService : ISystemConfigService
         return SystemConfiguration.GetDefault();
     }
 
-    public async Task<SystemConfigUpdateResult> UpdateSystemConfigAsync(SystemConfigRequest request)
+    public async Task<SystemConfigUpdateResult> UpdateSystemConfigAsync(UpdateSystemConfigCommand request)
     {
         await Task.Yield();
         try
@@ -109,7 +109,7 @@ public class SystemConfigService : ISystemConfigService
             config.AvailableChuteIds ?? new List<long>());
     }
 
-    public async Task<SortingModeUpdateResult> UpdateSortingModeAsync(SortingModeRequest request)
+    public async Task<SortingModeUpdateResult> UpdateSortingModeAsync(UpdateSortingModeCommand request)
     {
         try
         {
@@ -167,7 +167,7 @@ public class SystemConfigService : ISystemConfigService
         }
     }
 
-    private static SystemConfiguration MapToConfiguration(SystemConfigRequest request)
+    private static SystemConfiguration MapToConfiguration(UpdateSystemConfigCommand request)
     {
         return new SystemConfiguration
         {

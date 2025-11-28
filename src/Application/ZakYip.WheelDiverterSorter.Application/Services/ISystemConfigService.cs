@@ -28,7 +28,7 @@ public interface ISystemConfigService
     /// </summary>
     /// <param name="request">配置请求</param>
     /// <returns>更新结果</returns>
-    Task<SystemConfigUpdateResult> UpdateSystemConfigAsync(SystemConfigRequest request);
+    Task<SystemConfigUpdateResult> UpdateSystemConfigAsync(UpdateSystemConfigCommand request);
 
     /// <summary>
     /// 重置系统配置为默认值
@@ -47,7 +47,7 @@ public interface ISystemConfigService
     /// </summary>
     /// <param name="request">分拣模式请求</param>
     /// <returns>更新结果</returns>
-    Task<SortingModeUpdateResult> UpdateSortingModeAsync(SortingModeRequest request);
+    Task<SortingModeUpdateResult> UpdateSortingModeAsync(UpdateSortingModeCommand request);
 }
 
 /// <summary>
@@ -75,12 +75,12 @@ public record SortingModeUpdateResult(
     SortingModeInfo? UpdatedMode);
 
 /// <summary>
-/// 系统配置请求模型
+/// 系统配置更新命令
 /// </summary>
 /// <remarks>
-/// 系统配置不包含通信相关字段，通信配置请使用 /api/communication/config/persisted 端点
+/// Application层的命令对象，由Host层映射
 /// </remarks>
-public record SystemConfigRequest
+public record UpdateSystemConfigCommand
 {
     /// <summary>
     /// 异常格口ID
@@ -104,9 +104,9 @@ public record SystemConfigRequest
 }
 
 /// <summary>
-/// 分拣模式配置请求模型
+/// 分拣模式更新命令
 /// </summary>
-public record SortingModeRequest
+public record UpdateSortingModeCommand
 {
     /// <summary>
     /// 分拣模式

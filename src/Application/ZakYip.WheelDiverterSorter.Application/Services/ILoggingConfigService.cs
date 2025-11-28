@@ -27,7 +27,7 @@ public interface ILoggingConfigService
     /// </summary>
     /// <param name="request">配置请求</param>
     /// <returns>更新结果</returns>
-    Task<LoggingConfigUpdateResult> UpdateLoggingConfigAsync(LoggingConfigRequest request);
+    Task<LoggingConfigUpdateResult> UpdateLoggingConfigAsync(UpdateLoggingConfigCommand request);
 
     /// <summary>
     /// 重置日志配置为默认值
@@ -45,12 +45,12 @@ public record LoggingConfigUpdateResult(
     LoggingConfiguration? UpdatedConfig);
 
 /// <summary>
-/// 日志配置请求模型
+/// 日志配置更新命令
 /// </summary>
 /// <remarks>
-/// 用于配置各类日志的开关，异常日志始终输出不受控制
+/// Application层的命令对象，由Host层映射
 /// </remarks>
-public record LoggingConfigRequest
+public record UpdateLoggingConfigCommand
 {
     /// <summary>
     /// 是否启用包裹生命周期日志

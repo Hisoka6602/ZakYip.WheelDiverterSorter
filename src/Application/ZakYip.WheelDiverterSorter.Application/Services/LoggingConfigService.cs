@@ -30,7 +30,7 @@ public class LoggingConfigService : ILoggingConfigService
         return LoggingConfiguration.GetDefault();
     }
 
-    public async Task<LoggingConfigUpdateResult> UpdateLoggingConfigAsync(LoggingConfigRequest request)
+    public async Task<LoggingConfigUpdateResult> UpdateLoggingConfigAsync(UpdateLoggingConfigCommand request)
     {
         await Task.Yield();
         try
@@ -87,7 +87,7 @@ public class LoggingConfigService : ILoggingConfigService
         return _repository.Get();
     }
 
-    private static LoggingConfiguration MapToConfiguration(LoggingConfigRequest request)
+    private static LoggingConfiguration MapToConfiguration(UpdateLoggingConfigCommand request)
     {
         return new LoggingConfiguration
         {

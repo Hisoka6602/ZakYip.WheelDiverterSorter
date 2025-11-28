@@ -3,7 +3,7 @@ using ZakYip.WheelDiverterSorter.Communication.Health;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution.SelfTest;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
