@@ -155,10 +155,12 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
 由 `TechnicalDebtComplianceTests` 项目中的测试强制执行：
 
 #### 禁止使用 global using
-- **规则**：代码中禁止使用 `global using` 指令
+- **当前状态**：代码库中 **不存在** 任何 `global using` 语句（PR-C1 已清理完成）
+- **规则**：禁止新增或保留任何 `global using`；所有依赖必须通过显式 `using` 表达
 - **原因**：降低代码可读性，隐藏依赖关系，不利于分层架构维护
-- **测试**：`CodingStandardsComplianceTests.ShouldNotUseGlobalUsing()`
+- **测试**：`CodingStandardsComplianceTests.ShouldNotUseGlobalUsing()` 全面阻止该语法再次出现
 - **替代方案**：在每个文件中显式添加所需的 `using` 语句
+- **说明**：SDK 默认生成的隐式 usings（位于 `obj/` 目录下的 `*.GlobalUsings.g.cs` 文件）不在检查范围内，因为这些是构建时自动生成的，不影响代码可读性
 
 ---
 
