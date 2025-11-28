@@ -18,7 +18,7 @@ public class CommunicationConfigService : ICommunicationConfigService
 {
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly ICommunicationConfigurationRepository _configRepository;
-    private readonly CommunicationStatsService _statsService;
+    private readonly ICommunicationStatsService _statsService;
     private readonly ISystemClock _systemClock;
     private readonly IUpstreamConnectionManager? _connectionManager;
     private readonly UpstreamServerBackgroundService? _serverBackgroundService;
@@ -27,7 +27,7 @@ public class CommunicationConfigService : ICommunicationConfigService
     public CommunicationConfigService(
         IRuleEngineClient ruleEngineClient,
         ICommunicationConfigurationRepository configRepository,
-        CommunicationStatsService statsService,
+        ICommunicationStatsService statsService,
         ISystemClock systemClock,
         ILogger<CommunicationConfigService> logger,
         IUpstreamConnectionManager? connectionManager = null,

@@ -31,7 +31,7 @@ public class CommunicationController : ControllerBase {
     private readonly IRuleEngineClient _ruleEngineClient;
     private readonly IOptions<RuleEngineConnectionOptions> _connectionOptions;
     private readonly ICommunicationConfigurationRepository _configRepository;
-    private readonly CommunicationStatsService _statsService;
+    private readonly ICommunicationStatsService _statsService;
     private readonly ILogger<CommunicationController> _logger;
     private readonly ISystemClock _systemClock;
     private readonly ISystemStateManager _stateManager;
@@ -42,7 +42,7 @@ public class CommunicationController : ControllerBase {
         IRuleEngineClient ruleEngineClient,
         IOptions<RuleEngineConnectionOptions> connectionOptions,
         ICommunicationConfigurationRepository configRepository,
-        CommunicationStatsService statsService,
+        ICommunicationStatsService statsService,
         ILogger<CommunicationController> logger,
         ISystemClock systemClock,
         ISystemStateManager stateManager,

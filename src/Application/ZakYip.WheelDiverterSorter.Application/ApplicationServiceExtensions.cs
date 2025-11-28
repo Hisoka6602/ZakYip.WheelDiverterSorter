@@ -50,7 +50,7 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<SorterMetrics>();
         
         // 注册通信统计服务
-        services.AddSingleton<CommunicationStatsService>();
+        services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
         
         return services;
     }
