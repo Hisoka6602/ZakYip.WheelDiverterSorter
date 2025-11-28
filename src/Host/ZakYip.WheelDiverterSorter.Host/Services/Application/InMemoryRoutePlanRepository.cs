@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 /// <summary>
 /// 内存中的路由计划仓储实现（用于演示和测试）

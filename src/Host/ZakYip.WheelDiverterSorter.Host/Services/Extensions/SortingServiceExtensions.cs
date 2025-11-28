@@ -17,8 +17,9 @@ using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Adapters;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
+using ZakYip.WheelDiverterSorter.Host.Services.Application;
 
-namespace ZakYip.WheelDiverterSorter.Host.Services;
+namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
 /// 分拣服务扩展方法

@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
-using ZakYip.WheelDiverterSorter.Host.Services;
+using ZakYip.WheelDiverterSorter.Host.Services.Application;
 using ZakYip.WheelDiverterSorter.Host.Services.RuntimeProfiles;
 using Moq;
 using Xunit;
