@@ -137,13 +137,21 @@ ZakYip.WheelDiverterSorter.Application/
 │   ├── CachedDriverConfigurationRepository.cs    # 带缓存的IO驱动器配置仓储
 │   ├── CachedSensorConfigurationRepository.cs    # 带缓存的感应IO配置仓储
 │   ├── CachedSwitchingPathGenerator.cs           # 带缓存的路径生成器
+│   ├── ChangeParcelChuteService.cs               # 改口服务实现（PR-A2新增）
+│   ├── CommunicationConfigService.cs             # 通信配置服务实现（PR-A2新增）
 │   ├── CommunicationStatsService.cs              # 通信统计服务
 │   ├── CongestionDataCollector.cs                # 拥堵数据收集器
+│   ├── DebugSortService.cs                       # 调试分拣服务实现（PR-A2新增）
+│   ├── IChangeParcelChuteService.cs              # 改口服务接口（PR-A2新增）
+│   ├── ICommunicationConfigService.cs            # 通信配置服务接口（PR-A2新增）
+│   ├── IDebugSortService.cs                      # 调试分拣服务接口（PR-A2新增）
+│   ├── IIoLinkageConfigService.cs                # IO联动配置服务接口（PR-A2新增）
 │   ├── ILoggingConfigService.cs                  # 日志配置服务接口
 │   ├── IPreRunHealthCheckService.cs              # 运行前健康检查服务接口
 │   ├── ISimulationOrchestratorService.cs         # 仿真编排服务接口
 │   ├── ISystemConfigService.cs                   # 系统配置服务接口
 │   ├── InMemoryRoutePlanRepository.cs            # 内存路由计划仓储
+│   ├── IoLinkageConfigService.cs                 # IO联动配置服务实现（PR-A2新增）
 │   ├── LoggingConfigService.cs                   # 日志配置服务实现
 │   ├── OptimizedSortingService.cs                # 性能优化的分拣服务
 │   ├── PreRunHealthCheckService.cs               # 运行前健康检查服务实现
@@ -158,6 +166,10 @@ ZakYip.WheelDiverterSorter.Application/
 - `ISystemConfigService`/`SystemConfigService`：系统配置的业务逻辑，包括验证、更新、默认模板生成
 - `ILoggingConfigService`/`LoggingConfigService`：日志配置的查询、更新、重置操作
 - `IPreRunHealthCheckService`/`PreRunHealthCheckService`：运行前验证所有关键配置是否就绪
+- `ICommunicationConfigService`/`CommunicationConfigService`：通信配置的业务逻辑，包括连接测试、热更新（PR-A2新增）
+- `IIoLinkageConfigService`/`IoLinkageConfigService`：IO联动配置的业务逻辑，包括IO点操作（PR-A2新增）
+- `IDebugSortService`/`DebugSortService`：调试分拣服务，用于测试分拣流程（PR-A2新增）
+- `IChangeParcelChuteService`/`ChangeParcelChuteService`：改口服务，处理包裹目标格口变更请求（PR-A2新增）
 - `ISimulationModeProvider`/`SimulationModeProvider`：判断系统当前是否运行在仿真模式下
 - `SorterMetrics`：分拣系统性能指标，包括计数器、直方图等
 - `OptimizedSortingService`：集成了指标收集、对象池和优化内存管理的分拣服务
@@ -197,17 +209,7 @@ ZakYip.WheelDiverterSorter.Host/
 │   ├── Config/
 │   └── Panel/
 ├── Pipeline/                        # HTTP 管道中间件（上游分配适配器）
-├── Services/                        # PR3: 重组为按类型分类的子目录
-│   ├── Application/                 # 应用服务（缓存路径生成器、通信统计、排序服务等）
-│   │   ├── CachedSwitchingPathGenerator.cs
-│   │   ├── CommunicationStatsService.cs
-│   │   ├── CongestionDataCollector.cs
-│   │   ├── DebugSortService.cs
-│   │   ├── ISimulationModeProvider.cs
-│   │   ├── InMemoryRoutePlanRepository.cs
-│   │   ├── OptimizedSortingService.cs
-│   │   ├── SimulationModeProvider.cs
-│   │   └── SorterMetrics.cs
+├── Services/                        # PR3/PR-A2: 重组为按类型分类的子目录，应用服务已移至 Application 层
 │   ├── Extensions/                  # DI 扩展方法
 │   │   ├── ConfigurationRepositoryServiceExtensions.cs
 │   │   ├── HealthCheckServiceExtensions.cs
@@ -241,9 +243,9 @@ ZakYip.WheelDiverterSorter.Host/
 - `BootHostedService`（位于 Services/Workers/）：系统启动引导服务，按顺序初始化各子系统
 - `ApiControllerBase`（位于 Controllers/）：所有 API 控制器的基类，提供统一响应格式
 - `HardwareConfigController`（位于 Controllers/）：统一硬件配置控制器，提供 /api/hardware/leadshine、/api/hardware/modi、/api/hardware/shudiniao 端点
-- `OptimizedSortingService`（位于 Services/Application/）：分拣服务的 Host 层封装
-- `CachedSwitchingPathGenerator`（位于 Services/Application/）：带缓存的路径生成器适配器
 - `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：统一 DI 入口，提供 `AddWheelDiverterSorter()` 方法
+
+**注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。Host 层不再包含应用服务实现，只负责 DI 配置和 API Controller 定义。
 
 ---
 
