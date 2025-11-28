@@ -833,9 +833,10 @@ tools/Profiling/
 
 ### 5.4 技术债务
 
-9. **部分接口存在多层别名**
-   - `Drivers/Abstractions/IWheelDiverterDriver.cs` 仅包含 `global using` 指向 Core 层
-   - 这种间接引用增加了理解成本
+9. **~~部分接口存在多层别名~~** ✅ 已解决 (PR5)
+   - ~~`Drivers/Abstractions/IWheelDiverterDriver.cs` 仅包含 `global using` 指向 Core 层~~
+   - ~~这种间接引用增加了理解成本~~
+   - **PR5 解决方案**：删除了 Observability 层的 alias-only 文件（`ParcelFinalStatus.cs`、`AlarmLevel.cs`、`AlarmType.cs`、`AlertSeverity.cs`、`SystemClockAliases.cs`），删除了 Communication 层的 `EmcLockNotificationType.cs`，并为受影响的文件添加了显式 using 语句。
 
 10. **Execution 层 Abstractions 与 Core 层 Abstractions 的职责边界不清**
     - 两层都定义了 `ISensorEventProvider`、`IUpstreamRoutingClient` 等接口
@@ -855,12 +856,17 @@ tools/Profiling/
 
 ### 5.5 文档与命名
 
-13. **部分 README.md 可能过时**
-    - `Drivers/README.md`、`Simulation/README.md` 等需要验证是否与当前代码一致
+13. **~~部分 README.md 可能过时~~** ✅ 已解决 (PR5)
+    - ~~`Drivers/README.md`、`Simulation/README.md` 等需要验证是否与当前代码一致~~
+    - **PR5 解决方案**：更新了 `Drivers/README.md` 和 `Simulation/README.md`，反映当前 Vendors 结构和公共 API 定义
 
 14. **~~部分命名空间与物理路径不一致~~** ✅ 部分解决 (PR4)
     - ~~需要检查所有命名空间是否与项目/目录结构对应~~
     - **PR4 解决方案**：`Core/LineModel/Configuration` 已按 Models/Repositories/Validation 拆分，命名空间与路径一致
+
+15. **Simulation 项目边界已明确** ✅ 已解决 (PR5)
+    - **问题**：Simulation 既是独立可执行程序又被 Host 引用，边界不清晰
+    - **PR5 解决方案**：在 Simulation/README.md 中明确定义了公共 API（`ISimulationScenarioRunner`、`SimulationOptions`、`SimulationSummary`）与内部实现的区分，Host 层只应使用公共 API
 
 ---
 
