@@ -51,5 +51,5 @@ public class DriverOptions
     /// <summary>
     /// 雷赛控制器配置
     /// </summary>
-    public Vendors.Leadshine.Configuration.LeadshineOptions Leadshine { get; set; } = new();
+    public LeadshineOptions Leadshine { get; set; } = new();
 }

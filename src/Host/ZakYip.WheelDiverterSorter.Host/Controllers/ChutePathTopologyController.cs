@@ -753,7 +753,7 @@ public class ChutePathTopologyController : ControllerBase
                 PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
             });
 
-            var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.json";
+            var fileName = $"chute-path-topology-{_clock.LocalNow:yyyyMMdd-HHmmss}.json";
             return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", fileName);
         }
         catch (Exception ex)
@@ -814,7 +814,7 @@ public class ChutePathTopologyController : ControllerBase
                 sb.AppendLine($"{node.DiverterId},{name},{node.PositionIndex},{node.SegmentId},{node.FrontSensorId},{leftChutes},{rightChutes},{remarks}");
             }
 
-            var fileName = $"chute-path-topology-{DateTime.Now:yyyyMMdd-HHmmss}.csv";
+            var fileName = $"chute-path-topology-{_clock.LocalNow:yyyyMMdd-HHmmss}.csv";
             return File(System.Text.Encoding.UTF8.GetBytes(sb.ToString()), "text/csv", fileName);
         }
         catch (Exception ex)

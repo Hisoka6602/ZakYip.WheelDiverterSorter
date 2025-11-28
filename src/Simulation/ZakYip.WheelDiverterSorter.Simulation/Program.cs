@@ -350,7 +350,8 @@ internal class InMemoryChutePathTopologyRepository : IChutePathTopologyRepositor
     
     private static ChutePathTopologyConfig GetDefaultConfig()
     {
-        var now = DateTime.Now;
+        // 使用默认时间戳，与 Core 层 ConfigurationDefaults.DefaultTimestamp 一致
+        var now = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Local);
         return new ChutePathTopologyConfig
         {
             TopologyId = "simulation-default",

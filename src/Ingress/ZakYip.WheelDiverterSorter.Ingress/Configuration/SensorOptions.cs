@@ -22,7 +22,7 @@ public class SensorOptions {
     /// <summary>
     /// 雷赛传感器配置
     /// </summary>
-    public Drivers.Vendors.Leadshine.Configuration.LeadshineSensorOptions? Leadshine { get; set; }
+    public LeadshineSensorOptions? Leadshine { get; set; }
 
     /// <summary>
     /// 模拟传感器配置列表

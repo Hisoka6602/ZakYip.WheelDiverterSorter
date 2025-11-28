@@ -64,7 +64,9 @@ public static class CodeScanner
                                fileContent.Contains("class TestSystemClock") ||
                                fileContent.Contains("class MockSystemClock") ||
                                filePath.Contains("/Analyzers/") || 
-                               filePath.Contains("\\Analyzers\\");
+                               filePath.Contains("\\Analyzers\\") ||
+                               filePath.Contains(".Analyzers/") ||
+                               filePath.Contains(".Analyzers\\");
 
             if (isWhitelisted)
             {

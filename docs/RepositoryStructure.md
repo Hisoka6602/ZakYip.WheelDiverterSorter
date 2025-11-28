@@ -1002,6 +1002,17 @@ tools/Profiling/
     - 这是为了避免配置类重复定义的权宜之计
     - **注意**：需确保 Ingress 不直接使用 Drivers 中的驱动实现类，仅使用配置类
 
+### 5.7 内联枚举待迁移（PR-C2 白名单）
+
+18. **接口文件中的内联枚举**
+    - `IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举
+    - `IWheelProtocolMapper.cs` 中定义了 `WheelCommandResultType`, `WheelDeviceState` 枚举
+    - **建议**：后续 PR 将这些枚举迁移到 `Core/Enums/Hardware/` 目录
+
+19. **DTO 文件中的内联枚举**
+    - `ChutePathTopologyDto.cs` 中定义了 `SimulationStepType`, `StepStatus` 枚举
+    - **建议**：后续 PR 将这些枚举迁移到 `Core/Enums/` 相应子目录
+
 ---
 
 ## 附录：目录树生成命令
