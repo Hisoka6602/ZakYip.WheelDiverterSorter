@@ -1149,7 +1149,7 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 
 Code Review 时会重点检查：
 1. 是否遵守 Parcel-First 流程
-2. 是否使用 `ISystemClock` 而非直接使用 `DateTime.Now/UtcNow`
+2. 是否使用 `ISystemClock` 而非直接使用 `DateTime.Now/UtcNow`（禁止使用Utc时间）
 3. 是否使用 `ISafeExecutionService` 包裹后台任务
 4. 是否使用线程安全容器或明确的锁
 5. API 端点是否遵循 DTO + 验证 + `ApiResponse<T>` 规范
@@ -1159,8 +1159,8 @@ Code Review 时会重点检查：
 9. 是否遵守分层架构，Host 层不包含业务逻辑
 10. 是否通过接口访问硬件驱动
 11. 是否保持所有仿真和 E2E 测试通过
-12. 是否已更新RepositoryStructure.md(每次修改都需要更新当前结构和技术债务)
-13. 是否使用global using(代码中禁止使用 global using)
+12. 是否已更新`RepositoryStructure.md`(每次修改都需要更新当前结构和技术债务)
+13. 是否使用`global using`(代码中禁止使用 `global using`)
 14. 不能包含过时方法、属性、字段、类
 ---
 
