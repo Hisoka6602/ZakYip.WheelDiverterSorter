@@ -123,6 +123,43 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - **Simulation** 依赖除 Host 和 Application 外的所有项目，提供仿真运行环境
 - **Host** 是顶层应用入口，依赖 Application 和所有业务项目
 
+### 2.1 层级架构约束（Architecture Constraints）
+
+根据 `copilot-instructions.md` 规范，项目依赖必须遵循以下严格约束，由 `ArchTests` 项目中的 `ApplicationLayerDependencyTests` 强制执行：
+
+#### Host 层约束
+- **允许依赖**：Application、Core、Observability
+- **禁止越级访问**：不能直接依赖 Execution/Drivers/Core 中的业务接口
+
+#### Application 层约束
+- **允许依赖**：Core、Execution、Drivers、Ingress、Communication、Observability
+- **禁止依赖**：Host、Simulation、Analyzers
+
+#### 反向依赖禁止
+以下项目 **禁止** 依赖 Application（避免循环依赖）：
+- Core
+- Execution
+- Drivers
+- Ingress
+- Communication
+- Observability
+- Simulation
+
+#### 预期依赖链路
+```
+Host → Application → Core/Execution/Drivers/Ingress/Communication/Observability
+```
+
+### 2.2 编码规范约束（Coding Standards）
+
+由 `TechnicalDebtComplianceTests` 项目中的测试强制执行：
+
+#### 禁止使用 global using
+- **规则**：代码中禁止使用 `global using` 指令
+- **原因**：降低代码可读性，隐藏依赖关系，不利于分层架构维护
+- **测试**：`CodingStandardsComplianceTests.ShouldNotUseGlobalUsing()`
+- **替代方案**：在每个文件中显式添加所需的 `using` 语句
+
 ---
 
 ## 3. 各项目内部结构

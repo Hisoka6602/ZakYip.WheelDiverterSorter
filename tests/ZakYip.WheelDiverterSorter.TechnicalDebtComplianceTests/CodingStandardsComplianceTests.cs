@@ -535,8 +535,7 @@ public class CodingStandardsComplianceTests
         
         // 扫描所有源代码和测试文件（排除 obj/bin 目录）
         var csFiles = Directory.GetFiles(solutionRoot, "*.cs", SearchOption.AllDirectories)
-            .Where(f => !f.Contains("/obj/") && !f.Contains("\\obj\\") 
-                     && !f.Contains("/bin/") && !f.Contains("\\bin\\"))
+            .Where(f => !PathHelper.IsInExcludedDirectory(f))
             .ToList();
 
         foreach (var file in csFiles)
@@ -547,8 +546,13 @@ public class CodingStandardsComplianceTests
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
-                    // 检查是否是 global using 语句
-                    if (line.StartsWith("global using "))
+                    
+                    // 跳过注释行
+                    if (line.StartsWith("//") || line.StartsWith("/*") || line.StartsWith("*"))
+                        continue;
+                    
+                    // 检查是否是 global using 语句（以 "global using" 开头，后跟空格和有效字符）
+                    if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^global\s+using\s+\w"))
                     {
                         violations.Add(new GlobalUsingViolation
                         {
@@ -606,6 +610,23 @@ public record GlobalUsingViolation
     {
         var parts = FilePath.Split(new[] { "/src/", "\\src\\", "/tests/", "\\tests\\" }, StringSplitOptions.None);
         return parts.Length > 1 ? parts[1] : FilePath;
+    }
+}
+
+/// <summary>
+/// 检查文件是否在排除的目录中（obj/bin）
+/// Check if a file is in an excluded directory (obj/bin)
+/// </summary>
+file static class PathHelper
+{
+    private static readonly string[] ExcludedDirs = { "obj", "bin" };
+    
+    public static bool IsInExcludedDirectory(string filePath)
+    {
+        var normalizedPath = filePath.Replace('\\', '/');
+        var parts = normalizedPath.Split('/');
+        
+        return parts.Any(part => ExcludedDirs.Contains(part, StringComparer.OrdinalIgnoreCase));
     }
 }
 
