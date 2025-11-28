@@ -20,7 +20,6 @@ using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Adapters;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
-using ZakYip.WheelDiverterSorter.Host.Services.Application;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
@@ -94,8 +93,7 @@ public static class SortingServiceExtensions
         // 注册路由-拓扑一致性检查器（编排层服务）
         services.AddSingleton<IRouteTopologyConsistencyChecker, RouteTopologyConsistencyChecker>();
 
-        // 注册调试分拣服务
-        services.AddSingleton<DebugSortService>();
+        // 调试分拣服务现在由 Application 层注册 (IDebugSortService, DebugSortService)
 
         return services;
     }
