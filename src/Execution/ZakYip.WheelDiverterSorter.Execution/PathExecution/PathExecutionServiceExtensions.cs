@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.PathExecution;
 
 /// <summary>
 /// 路径执行服务扩展方法

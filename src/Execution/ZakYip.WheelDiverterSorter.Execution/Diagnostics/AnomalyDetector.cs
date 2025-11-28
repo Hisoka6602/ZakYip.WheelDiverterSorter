@@ -6,7 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.Diagnostics;
 
 /// <summary>
 /// 异常趋势检测器实现 / Anomaly Trend Detector Implementation

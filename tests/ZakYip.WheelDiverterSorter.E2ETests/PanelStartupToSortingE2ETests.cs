@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;

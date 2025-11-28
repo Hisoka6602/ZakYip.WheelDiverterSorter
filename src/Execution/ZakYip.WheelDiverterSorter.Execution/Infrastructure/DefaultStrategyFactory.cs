@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 
 /// <summary>
 /// 默认策略工厂实现，根据 StrategyProfile 创建策略实例

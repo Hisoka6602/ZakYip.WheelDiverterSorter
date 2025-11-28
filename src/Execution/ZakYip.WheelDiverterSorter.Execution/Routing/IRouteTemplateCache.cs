@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.Routing;
 
 /// <summary>
 /// 路由模板缓存服务接口

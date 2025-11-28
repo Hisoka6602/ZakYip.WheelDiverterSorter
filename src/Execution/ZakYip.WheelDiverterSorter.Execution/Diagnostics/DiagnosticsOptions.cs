@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.Diagnostics;
 
 /// <summary>
 /// 诊断配置选项

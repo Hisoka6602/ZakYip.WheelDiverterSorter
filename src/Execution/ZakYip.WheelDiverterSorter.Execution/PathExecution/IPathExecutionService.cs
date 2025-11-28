@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.PathExecution;
 
 /// <summary>
 /// 统一的路径执行服务接口

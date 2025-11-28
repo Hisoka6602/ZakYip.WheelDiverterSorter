@@ -5,7 +5,9 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
+
+namespace ZakYip.WheelDiverterSorter.Execution.Segments;
 
 /// <summary>
 /// 中段皮带多段联动协调器实现。

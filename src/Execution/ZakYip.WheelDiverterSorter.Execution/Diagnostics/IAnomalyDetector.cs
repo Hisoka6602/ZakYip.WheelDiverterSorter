@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Execution;
+namespace ZakYip.WheelDiverterSorter.Execution.Diagnostics;
 
 /// <summary>
 /// 异常趋势检测器接口 / Anomaly Trend Detector Interface

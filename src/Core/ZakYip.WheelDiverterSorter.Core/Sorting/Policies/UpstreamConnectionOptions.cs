@@ -103,6 +103,15 @@ public record UpstreamConnectionOptions
     /// 默认 true。客户端模式下连接失败会无限重试，不会自动停止
     /// </remarks>
     public bool EnableInfiniteRetry { get; init; } = true;
+
+    /// <summary>
+    /// 格口分配超时时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 当无法通过动态超时计算器获取超时时间时，使用此备用值。
+    /// 默认为 5 秒。
+    /// </remarks>
+    public decimal FallbackTimeoutSeconds { get; init; } = 5m;
 }
 
 /// <summary>

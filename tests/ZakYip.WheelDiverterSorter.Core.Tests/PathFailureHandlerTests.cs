@@ -4,11 +4,12 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Events;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;namespace ZakYip.WheelDiverterSorter.Core.Tests;
+namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
 /// <summary>
 /// 路径失败处理器测试
