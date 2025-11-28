@@ -553,8 +553,9 @@ public class CodingStandardsComplianceTests
                     if (line.StartsWith("//") || line.StartsWith("/*") || line.StartsWith("*"))
                         continue;
                     
-                    // 检查是否是 global using 语句（以 "global using" 开头，后跟空格和有效字符）
-                    if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^global\s+using\s+\w"))
+                    // 检查是否是 global using 语句（以 "global using" 开头，后跟空格和有效命名空间字符）
+                    // 支持带点的命名空间如: global using System.Collections.Generic;
+                    if (System.Text.RegularExpressions.Regex.IsMatch(line, @"^global\s+using\s+[\w.]+"))
                     {
                         violations.Add(new GlobalUsingViolation
                         {
