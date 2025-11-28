@@ -762,6 +762,152 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 
 ---
 
+## 六、分层与结构约束（Copilot 必须遵守）
+
+> 本节用于约束代码结构和分层，防止随意新增项目、目录或破坏既有架构。任何违反本节的修改均视为无效。
+
+### 1. 项目与目录结构禁止随意新增
+
+**规则**:
+
+1. 业务项目限定为下列集合，不得新增同级业务项目：
+
+   - ZakYip.WheelDiverterSorter.Core
+   - ZakYip.WheelDiverterSorter.Execution
+   - ZakYip.WheelDiverterSorter.Drivers
+   - ZakYip.WheelDiverterSorter.Ingress
+   - ZakYip.WheelDiverterSorter.Communication
+   - ZakYip.WheelDiverterSorter.Observability
+   - ZakYip.WheelDiverterSorter.Host
+   - ZakYip.WheelDiverterSorter.Simulation
+   - ZakYip.WheelDiverterSorter.Analyzers
+
+2. `src/` 目录下的一级子目录限定为现有结构：
+   
+   - `src/Core`
+   - `src/Execution`
+   - `src/Drivers`
+   - `src/Ingress`
+   - `src/Communication`
+   - `src/Observability`
+   - `src/Host`
+   - `src/Simulation`
+   - `src/Analyzers`
+
+**禁止行为**:
+
+- 在 `src/` 下新增诸如 `Plugins/`, `Modules/`, `Infra/`, `Common/` 等新的根目录。
+- 新建新的业务项目（如 `ZakYip.WheelDiverterSorter.Plugins`、`ZakYip.WheelDiverterSorter.Shared` 等）。
+
+**例外流程**:
+
+- 如确有新增项目 / 根目录需求，必须先：
+  1. 更新 `docs/RepositoryStructure.md` 和架构文档；
+  2. 更新 ArchTests / TechnicalDebtComplianceTests 对应白名单；
+  3. 经过人工 Code Review 通过后方可合并。
+
+---
+
+### 2. Abstractions 目录位置固定
+
+**规则**:
+
+1. 仅允许在下列位置存在 `Abstractions` 目录：
+
+   - `Core/Abstractions/**`
+   - （如存在）`Execution/Abstractions/ExecutionSpecific/**`
+
+2. 其他任何项目、路径一律 **禁止** 新建 `Abstractions` 目录。
+
+**禁止行为**:
+
+- 在 `Drivers/`, `Ingress/`, `Communication/`, `Host/`, `Simulation/` 等项目中新建 `Abstractions` 目录。
+- 新增仅包含 `global using` 或简单别名转发的“空壳 Abstractions 文件”。
+
+---
+
+### 3. 命名空间与层级对应约束
+
+**规则**:
+
+1. 所有业务代码命名空间必须以 `ZakYip.WheelDiverterSorter.` 开头。
+2. `Controller` 结尾的类型 **必须** 位于 `ZakYip.WheelDiverterSorter.Host.Controllers` 或其子命名空间。
+3. 硬件厂商实现类 **必须** 位于：
+
+   - `ZakYip.WheelDiverterSorter.Drivers.Vendors.*`
+   - 或 `ZakYip.WheelDiverterSorter.Drivers.Simulated.*`（仿真）
+
+4. Core 和 Execution 不得直接引用具体厂商命名空间：
+
+   - 禁止在 `Core` 和 `Execution` 中使用：
+     - `using ZakYip.WheelDiverterSorter.Drivers.Vendors.*;`
+
+**实施要求**:
+
+- 访问硬件能力一律通过 Core 定义的抽象接口（如 `IWheelDiverterDriver`、`IDiverterController` 等），由 DI 注入不同厂商实现。
+
+---
+
+### 4. 新增代码放置规则
+
+**规则**: 根据功能类型，将新代码放在指定位置，不得自行发明新层。
+
+- 新增硬件厂商实现：
+
+  - 路径：`src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/<VendorName>/`
+  - 必须实现 Core 中的硬件抽象接口（例如 `IWheelDiverterDriver`、`IInputPort` 等）。
+  - 不得直接在 Execution/Host 中 new 出具体 Vendor 实现。
+
+- 新增分拣策略 / 路径生成策略：
+
+  - 路径：`src/Execution/ZakYip.WheelDiverterSorter.Execution/Sorting/Strategies/`
+  - 必须通过接口（如 `IChuteSelectionStrategy`, `ISwitchingPathGenerator`）对外暴露。
+
+- 新增上游协议接入（TCP/SignalR/MQTT/HTTP）：
+
+  - 路径：`src/Communication/ZakYip.WheelDiverterSorter.Communication/Gateways/`
+  - 必须实现统一的上游客户端抽象接口（如 `IUpstreamRoutingClient`）。
+
+- 新增配置模型：
+
+  - 路径：`Core/LineModel/Configuration/Models/`
+  - 对应仓储接口放在 `Core/LineModel/Configuration/Repositories/Interfaces/`
+  - 具体实现（如 LiteDB）放在 `Core/LineModel/Configuration/Repositories/LiteDb/`
+
+**禁止行为**:
+
+- 在未知位置创建新目录（如 `Core/ConfigModels`、`Execution/Io` 等），而不遵守上述路径约定。
+- 将硬件逻辑直接写在 Execution 或 Host 中。
+
+---
+
+### 5. 结构调整与旧实现删除规则
+
+**规则**:
+
+1. 当新增实现完全覆盖旧实现时，旧实现必须在同一个 PR 中删除，不允许保留“影子代码”。
+2. 禁止为了兼容旧代码而同时维护两套等价实现（例如两个功能完全相同的 Orchestrator 或路径生成器）。
+
+**实施要求**:
+
+- PR 描述中必须列出：
+  - 新增的核心实现；
+  - 被替换、删除的旧实现列表；
+  - 声明“旧实现已被新实现完全覆盖，可安全删除”。
+
+---
+
+### 6. Copilot 生成代码前的决策顺序
+
+**规则**: Copilot 在生成新代码时，必须按以下顺序决策：
+
+1. 优先使用已有接口和抽象（Core/Abstractions、Execution/Abstractions）。
+2. 在已存在的项目和目录中扩展，而不是新建项目或新建根目录。
+3. 必须遵循本文件和 `RepositoryStructure.md` 中定义的结构说明。
+4. 如无法在现有结构中合理放置新代码，应生成注释说明原因，交由人工决策，不得自行创建新层。
+
+---
+
 ## 违规处理
 
 任何违反上述规则的修改，均视为**无效修改**，不得合并到主分支。
