@@ -1313,6 +1313,98 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 - 以“文档以后再补”为理由合并涉及结构/架构变更的 PR。
 
 ---
+## 十四、Copilot PR 工作流：优先读取 RepositoryStructure.md 与 copilot-instructions.md
+
+> 本节用于约束 Copilot 在创建 PR 时的工作顺序，要求始终以 `docs/RepositoryStructure.md` 和 `copilot-instructions.md` 作为项目结构、技术债务与编码规范的优先信息来源，从而减少无效尝试和错误假设。
+
+### 1. 创建 PR 前必须优先读取两个文档
+
+**规则：**
+
+1. 每次创建 PR（包括功能开发、重构、技术债清理、Bug 修复），Copilot 在进行任何结构推断、修改建议或代码重构之前，必须按如下顺序读取并理解文档：
+
+   1. 读取 `docs/RepositoryStructure.md`：
+      - 获取当前项目结构、分层边界、命名空间约定与依赖关系；
+      - 获取各模块的技术债务清单及优先级。
+   2. 读取 `copilot-instructions.md`：
+      - 获取统一的编码规范、命名约束、枚举和 Id 规则、测试与技术债约束；
+      - 获取当前仓库对 PR 行为（如必须修复测试、禁止 global using 等）的要求。
+
+2. 在未读取上述两个文件之前，Copilot 不得：
+   - 自行推测项目分层结构、模块职责；
+   - 自行决定新增项目/目录的层级位置；
+   - 自行放宽已有的编码规范或测试/技术债约束。
+
+3. 若 `RepositoryStructure.md` 与 `copilot-instructions.md` 内容存在冲突时，应遵循以下处理顺序：
+
+   1. 以 `copilot-instructions.md` 中的“全局规范与约束”为硬规则基线（如禁止 global using、Id 必须为 long、测试必须通过等）；
+   2. 在不违反上述硬规则的前提下，以 `RepositoryStructure.md` 作为架构与结构设计的权威来源；
+   3. 如确认现有文档本身存在设计缺陷或已过期，本次 PR 必须包含：
+      - 对相应文档的更新（两者保持一致）；
+      - 对代码结构或实现的同步调整。
+
+**禁止行为：**
+
+- 在未阅读 `RepositoryStructure.md` 和 `copilot-instructions.md` 的前提下，直接生成重构方案或 PR 计划。
+- 无视两个文档中已存在的约束，自行设计与文档冲突的结构或编码风格。
+
+---
+
+### 2. 以两个文档为 PR 规划与验收的基础
+
+**规则：**
+
+1. Copilot 在生成 PR 描述与任务列表时，应基于两个文档的信息进行规划：
+
+   - 从 `RepositoryStructure.md` 获取：
+     - 当前各项目/目录的职责边界；
+     - 相关技术债务条目及其状态；
+     - 对结构和依赖方向的约束。
+   - 从 `copilot-instructions.md` 获取：
+     - 统一的编码与命名规范；
+     - 对测试、技术债务、枚举、Id、global using 等的约束；
+     - PR 中必须遵守的行为要求（如所有测试失败必须在本 PR 修复）。
+
+2. 在 PR 描述中，应明确体现对这两个文件的遵循情况，例如：
+
+   - 说明本次修改对应 `RepositoryStructure.md` 中哪些模块与技术债条目；
+   - 说明本次修改如何满足或加强 `copilot-instructions.md` 中的约束（例如删除 global using、统一 Id 为 long、补充 Swagger 注释、修复测试等）。
+
+3. PR 完成后，Copilot 应以两个文档作为对照基准，检查：
+
+   - 代码结构是否符合 `RepositoryStructure.md` 描述；
+   - 新增/修改的代码是否符合 `copilot-instructions.md` 的编码与测试要求；
+   - 涉及的技术债务条目是否已更新或关闭。
+
+**禁止行为：**
+
+- 仅参考代码现状生成 PR 计划，不对照两个文档。
+- 修改结构或规范相关内容后不更新 `RepositoryStructure.md` / `copilot-instructions.md`，导致文档与实现长期不一致。
+
+---
+
+### 3. 利用文档减少无效尝试与重复结构推断
+
+**规则：**
+
+1. Copilot 在需要决定以下事项时，必须首先查阅两个文档，而不是从零开始猜测：
+
+   - 新类型应该放在哪个项目和目录；
+   - 某个职责属于 Core / Application / Execution / Drivers / Ingress / Host / Simulation 的哪一层；
+   - 厂商相关实现与配置类应该存放在哪个 Vendors 子目录；
+   - 是否允许引入新的过渡实现或技术债务。
+
+2. 若两个文档已经明确给出答案（例如“所有 Id 使用 long、禁止 global using、厂商实现和配置类必须在同一 Vendors 目录下、过时代码必须立即删除并调整调用方”等），Copilot 必须严格遵守，不得在 PR 中试图绕开这些规则。
+
+3. 如发现代码与文档存在偏离，Copilot 应优先将代码和文档拉回统一，而不是基于错误现状继续堆叠新结构。
+
+**禁止行为：**
+
+- 自行创建新的顶层目录（如 `Common/`, `Shared/`, `Infra/` 等），而文档中未定义这些结构。
+- 自行引入新的分层（例如额外的 `*.Application` 或 `*.Infrastructure` 项目），而未在 `RepositoryStructure.md` 与 `copilot-instructions.md` 中体现。
+- 利用“当前代码就是这么写的”为理由，忽略文档中已有的结构与规范设计。
+
+---
 
 ## 违规处理
 
