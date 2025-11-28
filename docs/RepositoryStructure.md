@@ -127,20 +127,18 @@ ZakYip.WheelDiverterSorter.Host/
 ├── Application/
 │   └── Services/                    # 应用层服务（配置缓存、系统配置服务等）
 ├── Commands/                        # CQRS 命令定义与处理器
-├── Controllers/                     # API 控制器（18个）
+├── Controllers/                     # API 控制器（16个，PR3合并后）
 │   ├── AlarmsController.cs
 │   ├── ChuteAssignmentTimeoutController.cs
 │   ├── ChutePathTopologyController.cs
 │   ├── CommunicationController.cs
 │   ├── DivertsController.cs
 │   ├── HealthController.cs
+│   ├── HardwareConfigController.cs  # PR3: 统一硬件配置控制器（合并雷赛/莫迪/数递鸟）
 │   ├── IoLinkageController.cs
-│   ├── LeadshineIoDriverConfigController.cs
 │   ├── LoggingConfigController.cs
-│   ├── ModiConfigController.cs
 │   ├── PanelConfigController.cs
 │   ├── PolicyController.cs
-│   ├── ShuDiNiaoConfigController.cs
 │   ├── SimulationConfigController.cs
 │   ├── SimulationController.cs
 │   ├── SystemConfigController.cs
@@ -152,12 +150,38 @@ ZakYip.WheelDiverterSorter.Host/
 │   ├── Config/
 │   └── Panel/
 ├── Pipeline/                        # HTTP 管道中间件（上游分配适配器）
-├── Services/                        # 后台服务与扩展方法
+├── Services/                        # PR3: 重组为按类型分类的子目录
+│   ├── Application/                 # 应用服务（缓存路径生成器、通信统计、排序服务等）
+│   │   ├── CachedSwitchingPathGenerator.cs
+│   │   ├── CommunicationStatsService.cs
+│   │   ├── CongestionDataCollector.cs
+│   │   ├── DebugSortService.cs
+│   │   ├── ISimulationModeProvider.cs
+│   │   ├── InMemoryRoutePlanRepository.cs
+│   │   ├── OptimizedSortingService.cs
+│   │   ├── SimulationModeProvider.cs
+│   │   └── SorterMetrics.cs
+│   ├── Extensions/                  # DI 扩展方法
+│   │   ├── ConfigurationRepositoryServiceExtensions.cs
+│   │   ├── HealthCheckServiceExtensions.cs
+│   │   ├── MiddleConveyorServiceExtensions.cs
+│   │   ├── RuntimeProfileServiceExtensions.cs
+│   │   ├── SimulationServiceExtensions.cs
+│   │   ├── SortingServiceExtensions.cs
+│   │   ├── SystemStateServiceExtensions.cs
+│   │   ├── TopologyServiceExtensions.cs
+│   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR3: 统一DI入口
 │   ├── RuntimeProfiles/             # 运行时配置文件
-│   └── ...
+│   │   ├── ProductionRuntimeProfile.cs
+│   │   ├── SimulationRuntimeProfile.cs
+│   │   └── PerformanceTestRuntimeProfile.cs
+│   └── Workers/                     # 后台工作服务
+│       ├── AlarmMonitoringWorker.cs
+│       ├── BootHostedService.cs
+│       └── RouteTopologyConsistencyCheckWorker.cs
 ├── StateMachine/                    # 系统状态机（启动/运行/停止）
 ├── Swagger/                         # Swagger 配置与过滤器
-├── Program.cs                       # 应用入口点
+├── Program.cs                       # 应用入口点（PR3: 简化为单一 AddWheelDiverterSorter() 调用）
 ├── appsettings.json                 # 配置文件
 ├── nlog.config                      # NLog 日志配置
 └── Dockerfile                       # Docker 构建文件
@@ -165,12 +189,14 @@ ZakYip.WheelDiverterSorter.Host/
 
 #### 关键类型概览
 
-- `Program.cs`：应用启动入口，配置 DI 容器、注册所有服务、配置中间件
+- `Program.cs`：应用启动入口，通过 `AddWheelDiverterSorter()` 单一入口配置所有服务
 - `SystemStateManager`（位于 StateMachine/）：管理系统启动/运行/停止状态转换
-- `BootHostedService`（位于 Services/）：系统启动引导服务，按顺序初始化各子系统
+- `BootHostedService`（位于 Services/Workers/）：系统启动引导服务，按顺序初始化各子系统
 - `ApiControllerBase`（位于 Controllers/）：所有 API 控制器的基类，提供统一响应格式
-- `OptimizedSortingService`（位于 Services/）：分拣服务的 Host 层封装
-- `CachedSwitchingPathGenerator`（位于 Services/）：带缓存的路径生成器适配器
+- `HardwareConfigController`（位于 Controllers/）：统一硬件配置控制器，提供 /api/hardware/leadshine、/api/hardware/modi、/api/hardware/shudiniao 端点
+- `OptimizedSortingService`（位于 Services/Application/）：分拣服务的 Host 层封装
+- `CachedSwitchingPathGenerator`（位于 Services/Application/）：带缓存的路径生成器适配器
+- `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：统一 DI 入口，提供 `AddWheelDiverterSorter()` 方法
 
 ---
 
@@ -765,13 +791,15 @@ tools/Profiling/
 
 ### 5.3 代码组织问题
 
-6. **Host 层 Controllers 数量过多**
-   - 18 个 Controller，部分功能可能可以合并
-   - `LeadshineIoDriverConfigController`、`ModiConfigController`、`ShuDiNiaoConfigController` 可考虑合并为统一的驱动配置 Controller
+6. **~~Host 层 Controllers 数量过多~~** ✅ 已解决 (PR3)
+   - ~~18 个 Controller，部分功能可能可以合并~~
+   - ~~`LeadshineIoDriverConfigController`、`ModiConfigController`、`ShuDiNiaoConfigController` 可考虑合并为统一的驱动配置 Controller~~
+   - **PR3 解决方案**：已合并为统一的 `HardwareConfigController`，提供 `/api/hardware/leadshine`、`/api/hardware/modi`、`/api/hardware/shudiniao` 端点
 
-7. **Host/Services 目录混合了多种类型**
-   - 包含 Workers、扩展方法、业务服务、运行时配置
-   - 建议：拆分为 Workers/、Extensions/、BusinessServices/ 等
+7. **~~Host/Services 目录混合了多种类型~~** ✅ 已解决 (PR3)
+   - ~~包含 Workers、扩展方法、业务服务、运行时配置~~
+   - ~~建议：拆分为 Workers/、Extensions/、BusinessServices/ 等~~
+   - **PR3 解决方案**：已拆分为 `Services/Workers/`（后台任务）、`Services/Extensions/`（DI扩展方法）、`Services/Application/`（应用服务）
 
 8. **Simulation 项目既是库又是可执行程序**
    - `OutputType` 为 `Exe`，同时被 Host 项目引用
@@ -787,10 +815,11 @@ tools/Profiling/
     - 两层都定义了 `ISensorEventProvider`、`IUpstreamRoutingClient` 等接口
     - 建议：明确哪些接口属于核心契约（Core），哪些属于执行层特定（Execution）
 
-11. **缺少统一的 DI 注册中心**
-    - 各项目都有自己的 `*ServiceExtensions.cs` 扩展方法
-    - Host 的 Program.cs 需要调用多个扩展方法来完成注册
-    - 建议：考虑提供统一的 `AddWheelDiverterSorter()` 方法
+11. **~~缺少统一的 DI 注册中心~~** ✅ 已解决 (PR3)
+    - ~~各项目都有自己的 `*ServiceExtensions.cs` 扩展方法~~
+    - ~~Host 的 Program.cs 需要调用多个扩展方法来完成注册~~
+    - ~~建议：考虑提供统一的 `AddWheelDiverterSorter()` 方法~~
+    - **PR3 解决方案**：新增 `WheelDiverterSorterServiceCollectionExtensions.AddWheelDiverterSorter()` 方法，Program.cs 只需调用这一个方法即可完成所有服务注册
 
 ### 5.5 文档与命名
 
