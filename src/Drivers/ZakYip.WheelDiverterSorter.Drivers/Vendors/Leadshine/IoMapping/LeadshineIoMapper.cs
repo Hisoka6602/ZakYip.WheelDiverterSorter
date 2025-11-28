@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.IoMapping;
@@ -13,7 +13,6 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.IoMapping;
 /// 将逻辑IO点映射到雷赛控制器的实际点位。
 /// 雷赛使用卡号+位号的方式定义IO点。
 /// </remarks>
-#pragma warning disable CS0618 // 遗留拓扑类型正在逐步迁移中
 public class LeadshineIoMapper : IVendorIoMapper
 {
     private readonly ILogger<LeadshineIoMapper> _logger;

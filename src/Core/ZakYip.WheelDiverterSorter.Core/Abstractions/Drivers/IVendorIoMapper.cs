@@ -1,17 +1,14 @@
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
+namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 /// <summary>
 /// 厂商IO地址 - 描述厂商特定的硬件地址
 /// </summary>
 /// <remarks>
-/// <para>【遗留类型】此类型为遗留拓扑实现，后续版本中将移除。</para>
 /// <para>这是厂商驱动返回的具体硬件地址信息。</para>
 /// <para>不同厂商的地址格式可能不同（如卡号+点位号、PLC地址等）</para>
 /// </remarks>
-[Obsolete("遗留拓扑实现，后续版本中将移除")]
 public record class VendorIoAddress
 {
     /// <summary>
@@ -53,11 +50,9 @@ public record class VendorIoAddress
 /// 厂商IO映射器接口 - 将逻辑IO点映射到厂商特定地址
 /// </summary>
 /// <remarks>
-/// <para>【遗留接口】此接口为遗留拓扑实现，后续版本中将移除。</para>
 /// <para>每个厂商实现此接口，提供从IoPointDescriptor到实际硬件地址的映射。</para>
 /// <para>这样新增厂商时，只需实现此接口即可。</para>
 /// </remarks>
-[Obsolete("遗留拓扑实现，后续版本中将移除")]
 public interface IVendorIoMapper
 {
     /// <summary>
