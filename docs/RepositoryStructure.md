@@ -162,6 +162,23 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
 - **替代方案**：在每个文件中显式添加所需的 `using` 语句
 - **说明**：SDK 默认生成的隐式 usings（位于 `obj/` 目录下的 `*.GlobalUsings.g.cs` 文件）不在检查范围内，因为这些是构建时自动生成的，不影响代码可读性
 
+#### 禁止 Legacy 目录和命名模式 (PR-C3 新增)
+- **当前状态**：代码库中 **不存在** 任何 `*/Legacy/*` 目录或带 `*Legacy*`、`*Deprecated*` 命名的类型
+- **规则**：
+  - 禁止创建 Legacy 目录
+  - 禁止创建带 `Legacy` 或 `Deprecated` 命名的公共类型
+  - 过时代码必须在同一次重构中完全删除，不保留过渡实现
+- **测试**：
+  - `DuplicateTypeDetectionTests.ShouldNotHaveLegacyDirectories()` - 禁止 Legacy 目录
+  - `LegacyCodeDetectionTests.ShouldNotHaveLegacyNamedTypes()` - 禁止 Legacy 命名
+  - `LegacyCodeDetectionTests.ShouldNotHaveDeprecatedNamedTypes()` - 禁止 Deprecated 命名
+
+#### Abstractions 位置约束 (PR-C3 新增)
+- **规则**：`Abstractions` 目录只能存在于以下位置：
+  - `Core/ZakYip.WheelDiverterSorter.Core/Abstractions/`
+  - `Infrastructure/ZakYip.WheelDiverterSorter.Communication/Abstractions/`
+- **测试**：`DuplicateTypeDetectionTests.AbstractionsShouldOnlyExistInAllowedLocations()`
+
 ---
 
 ## 3. 各项目内部结构
@@ -257,7 +274,6 @@ ZakYip.WheelDiverterSorter.Host/
 │   │   ├── SimulationServiceExtensions.cs
 │   │   ├── SortingServiceExtensions.cs
 │   │   ├── SystemStateServiceExtensions.cs
-│   │   ├── TopologyServiceExtensions.cs
 │   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR3: 统一DI入口
 │   ├── RuntimeProfiles/             # 运行时配置文件
 │   │   ├── ProductionRuntimeProfile.cs
@@ -301,6 +317,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   ├── IInputPort.cs
 │   │   ├── IOutputPort.cs
 │   │   ├── IIoLinkageDriver.cs
+│   │   ├── IVendorIoMapper.cs       # 厂商IO映射器接口 (PR-C3 从 Legacy 迁移)
 │   │   └── ...
 │   ├── Execution/                   # 执行层抽象
 │   │   └── ICongestionDataCollector.cs
@@ -365,19 +382,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   ├── SwitchingPath.cs         # 摆轮切换路径
 │   │   ├── ISwitchingPathGenerator.cs
 │   │   ├── DefaultSwitchingPathGenerator.cs
-│   │   └── Legacy/                  # 遗留拓扑类型（PR4 迁移）
-│   │       ├── LineTopology.cs      # [Obsolete] 遗留线体拓扑
-│   │       ├── DiverterNodeConfig.cs# [Obsolete] 遗留摆轮节点配置
-│   │       ├── ChuteConfig.cs       # [Obsolete] 遗留格口配置
-│   │       ├── TopologyNode.cs      # [Obsolete] 遗留拓扑节点
-│   │       ├── TopologyEdge.cs      # [Obsolete] 遗留拓扑边
-│   │       ├── DeviceBinding.cs     # [Obsolete] 遗留设备绑定
-│   │       ├── ILineTopologyService.cs  # [Obsolete] 遗留拓扑服务接口
-│   │       ├── IDeviceBindingService.cs # [Obsolete] 遗留设备绑定接口
-│   │       ├── IVendorIoMapper.cs   # [Obsolete] 遗留厂商IO映射接口
-│   │       └── Services/
-│   │           ├── JsonLineTopologyService.cs   # [Obsolete]
-│   │           └── JsonDeviceBindingService.cs  # [Obsolete]
+│   │   └── SwitchingPathSegment.cs  # 路径段模型
 │   ├── Tracing/                     # 追踪接口
 │   └── Utilities/
 ├── Results/                         # 操作结果模型
@@ -960,11 +965,15 @@ tools/Profiling/
     - ~~建议：考虑提供统一的 `AddWheelDiverterSorter()` 方法~~
     - **PR3 解决方案**：新增 `WheelDiverterSorterServiceCollectionExtensions.AddWheelDiverterSorter()` 方法，Program.cs 只需调用这一个方法即可完成所有服务注册
 
-12. **遗留拓扑类型待清理** (PR4 标记)
-    - `Core/LineModel/Topology/Legacy/` 目录下的类型已标记为 `[Obsolete]`
-    - 包括：`LineTopology`, `DiverterNodeConfig`, `ChuteConfig`, `TopologyNode`, `TopologyEdge`, `DeviceBinding`
-    - 接口：`ILineTopologyService`, `IDeviceBindingService`, `IVendorIoMapper`
-    - 建议：后续版本逐步迁移到 `LineModel.Topology` 下的新类型（如 `SorterTopology`, `DiverterNode`）
+12. **~~遗留拓扑类型待清理~~** ✅ 已解决 (PR-C3)
+    - ~~`Core/LineModel/Topology/Legacy/` 目录下的类型已标记为 `[Obsolete]`~~
+    - ~~包括：`LineTopology`, `DiverterNodeConfig`, `ChuteConfig`, `TopologyNode`, `TopologyEdge`, `DeviceBinding`~~
+    - ~~接口：`ILineTopologyService`, `IDeviceBindingService`, `IVendorIoMapper`~~
+    - **PR-C3 解决方案**：
+      - 删除了整个 `Core/LineModel/Topology/Legacy/` 目录
+      - `IVendorIoMapper` 和 `VendorIoAddress` 迁移到 `Core/Abstractions/Drivers/`（仍在使用）
+      - 删除了未使用的 `TopologyServiceExtensions.cs`
+      - 新增 ArchTests 规则禁止再次创建 Legacy 目录
 
 ### 5.5 文档与命名
 
