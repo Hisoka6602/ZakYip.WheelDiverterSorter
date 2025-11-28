@@ -143,15 +143,24 @@ public class ConveyorSegmentTests
         Assert.True(startResult1.IsSuccess);
         Assert.Equal(ConveyorSegmentState.Running, segment.State);
 
+        // 添加短暂延迟确保状态转换完成
+        await Task.Delay(50);
+        
         var stopResult1 = await segment.StopAsync();
         Assert.True(stopResult1.IsSuccess);
         Assert.Equal(ConveyorSegmentState.Stopped, segment.State);
+
+        // 添加短暂延迟确保状态转换完成
+        await Task.Delay(50);
 
         // Act & Assert - 第二轮
         var startResult2 = await segment.StartAsync();
         Assert.True(startResult2.IsSuccess);
         Assert.Equal(ConveyorSegmentState.Running, segment.State);
 
+        // 添加短暂延迟确保状态转换完成
+        await Task.Delay(50);
+        
         var stopResult2 = await segment.StopAsync();
         Assert.True(stopResult2.IsSuccess);
         Assert.Equal(ConveyorSegmentState.Stopped, segment.State);
