@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using Xunit;
 

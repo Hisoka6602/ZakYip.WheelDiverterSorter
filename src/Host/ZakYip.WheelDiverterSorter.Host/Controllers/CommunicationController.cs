@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Services.Application;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
@@ -451,20 +453,20 @@ public class CommunicationController : ControllerBase {
                 MqttBroker = request.Mqtt?.MqttBroker,
                 MqttTopic = request.Mqtt?.MqttTopic ?? "sorting/chute/assignment",
                 SignalRHub = request.SignalR?.SignalRHub,
-                Tcp = new Core.LineModel.Configuration.TcpConfig
+                Tcp = new Core.LineModel.Configuration.Models.TcpConfig
                 {
                     ReceiveBufferSize = request.Tcp?.ReceiveBufferSize ?? 8192,
                     SendBufferSize = request.Tcp?.SendBufferSize ?? 8192,
                     NoDelay = request.Tcp?.NoDelay ?? true
                 },
-                Http = new Core.LineModel.Configuration.HttpConfig
+                Http = new Core.LineModel.Configuration.Models.HttpConfig
                 {
                     MaxConnectionsPerServer = request.Http?.MaxConnectionsPerServer ?? 10,
                     PooledConnectionIdleTimeout = request.Http?.PooledConnectionIdleTimeout ?? 60,
                     PooledConnectionLifetime = request.Http?.PooledConnectionLifetime ?? 0,
                     UseHttp2 = request.Http?.UseHttp2 ?? false
                 },
-                Mqtt = new Core.LineModel.Configuration.MqttConfig
+                Mqtt = new Core.LineModel.Configuration.Models.MqttConfig
                 {
                     QualityOfServiceLevel = request.Mqtt?.QualityOfServiceLevel ?? 1,
                     CleanSession = request.Mqtt?.CleanSession ?? true,
@@ -472,7 +474,7 @@ public class CommunicationController : ControllerBase {
                     MessageExpiryInterval = request.Mqtt?.MessageExpiryInterval ?? 0,
                     ClientIdPrefix = request.Mqtt?.ClientIdPrefix ?? "WheelDiverter"
                 },
-                SignalR = new Core.LineModel.Configuration.SignalRConfig
+                SignalR = new Core.LineModel.Configuration.Models.SignalRConfig
                 {
                     HandshakeTimeout = request.SignalR?.HandshakeTimeout ?? 15,
                     KeepAliveInterval = request.SignalR?.KeepAliveInterval ?? 30,

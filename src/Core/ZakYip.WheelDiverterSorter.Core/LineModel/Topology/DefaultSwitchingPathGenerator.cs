@@ -1,5 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 

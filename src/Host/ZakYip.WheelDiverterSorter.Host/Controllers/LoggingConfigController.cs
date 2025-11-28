@@ -193,7 +193,7 @@ public class LoggingConfigController : ApiControllerBase
         }
     }
 
-    private static LoggingConfigResponse MapToResponse(Core.LineModel.Configuration.LoggingConfiguration config)
+    private static LoggingConfigResponse MapToResponse(Core.LineModel.Configuration.Models.LoggingConfiguration config)
     {
         return new LoggingConfigResponse
         {

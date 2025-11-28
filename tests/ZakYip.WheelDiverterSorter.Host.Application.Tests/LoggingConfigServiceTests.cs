@@ -2,7 +2,9 @@ using Moq;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 

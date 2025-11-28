@@ -245,13 +245,27 @@ ZakYip.WheelDiverterSorter.Core/
 ├── LineModel/                       # 线体模型（核心领域）
 │   ├── Bindings/
 │   ├── Chutes/                      # 格口相关
-│   ├── Configuration/               # 配置模型与仓储接口
-│   │   ├── SystemConfiguration.cs
-│   │   ├── ChutePathTopologyConfig.cs
-│   │   ├── IoLinkageConfiguration.cs
-│   │   ├── ISystemConfigurationRepository.cs
-│   │   ├── LiteDbSystemConfigurationRepository.cs
-│   │   └── ...（30+ 配置相关文件）
+│   ├── Configuration/               # 配置模型与仓储（PR4 重构后）
+│   │   ├── Models/                  # 纯配置模型类（26个文件）
+│   │   │   ├── SystemConfiguration.cs
+│   │   │   ├── ChutePathTopologyConfig.cs
+│   │   │   ├── IoLinkageConfiguration.cs
+│   │   │   ├── CommunicationConfiguration.cs
+│   │   │   ├── LoggingConfiguration.cs
+│   │   │   └── ...
+│   │   ├── Repositories/            # 仓储层
+│   │   │   ├── Interfaces/          # 仓储接口（11个文件）
+│   │   │   │   ├── ISystemConfigurationRepository.cs
+│   │   │   │   ├── IChutePathTopologyRepository.cs
+│   │   │   │   ├── IRouteConfigurationRepository.cs
+│   │   │   │   └── ...
+│   │   │   └── LiteDb/              # LiteDB 实现（12个文件）
+│   │   │       ├── LiteDbSystemConfigurationRepository.cs
+│   │   │       ├── LiteDbRouteConfigurationRepository.cs
+│   │   │       ├── LiteDbMapperConfig.cs
+│   │   │       └── ...
+│   │   └── Validation/              # 配置验证
+│   │       └── IoEndpointValidator.cs
 │   ├── Events/
 │   ├── Orchestration/               # 路由拓扑一致性检查
 │   ├── Routing/                     # 路由计划模型
@@ -259,10 +273,23 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Segments/                    # 输送段模型
 │   ├── Services/                    # 线体服务接口
 │   ├── Topology/                    # 拓扑与路径生成
-│   │   ├── SorterTopology.cs
-│   │   ├── SwitchingPath.cs
+│   │   ├── SorterTopology.cs        # 当前标准拓扑模型
+│   │   ├── SwitchingPath.cs         # 摆轮切换路径
 │   │   ├── ISwitchingPathGenerator.cs
-│   │   └── DefaultSwitchingPathGenerator.cs
+│   │   ├── DefaultSwitchingPathGenerator.cs
+│   │   └── Legacy/                  # 遗留拓扑类型（PR4 迁移）
+│   │       ├── LineTopology.cs      # [Obsolete] 遗留线体拓扑
+│   │       ├── DiverterNodeConfig.cs# [Obsolete] 遗留摆轮节点配置
+│   │       ├── ChuteConfig.cs       # [Obsolete] 遗留格口配置
+│   │       ├── TopologyNode.cs      # [Obsolete] 遗留拓扑节点
+│   │       ├── TopologyEdge.cs      # [Obsolete] 遗留拓扑边
+│   │       ├── DeviceBinding.cs     # [Obsolete] 遗留设备绑定
+│   │       ├── ILineTopologyService.cs  # [Obsolete] 遗留拓扑服务接口
+│   │       ├── IDeviceBindingService.cs # [Obsolete] 遗留设备绑定接口
+│   │       ├── IVendorIoMapper.cs   # [Obsolete] 遗留厂商IO映射接口
+│   │       └── Services/
+│   │           ├── JsonLineTopologyService.cs   # [Obsolete]
+│   │           └── JsonDeviceBindingService.cs  # [Obsolete]
 │   ├── Tracing/                     # 追踪接口
 │   └── Utilities/
 ├── Results/                         # 操作结果模型
@@ -282,7 +309,6 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Policies/                    # 分拣策略
 │   ├── Runtime/                     # 运行时
 │   └── Strategy/                    # 格口选择策略
-├── Topology/                        # 设备拓扑（遗留）
 └── Utilities/                       # 工具类
     ├── ISystemClock.cs
     └── LocalSystemClock.cs
@@ -821,13 +847,20 @@ tools/Profiling/
     - ~~建议：考虑提供统一的 `AddWheelDiverterSorter()` 方法~~
     - **PR3 解决方案**：新增 `WheelDiverterSorterServiceCollectionExtensions.AddWheelDiverterSorter()` 方法，Program.cs 只需调用这一个方法即可完成所有服务注册
 
+12. **遗留拓扑类型待清理** (PR4 标记)
+    - `Core/LineModel/Topology/Legacy/` 目录下的类型已标记为 `[Obsolete]`
+    - 包括：`LineTopology`, `DiverterNodeConfig`, `ChuteConfig`, `TopologyNode`, `TopologyEdge`, `DeviceBinding`
+    - 接口：`ILineTopologyService`, `IDeviceBindingService`, `IVendorIoMapper`
+    - 建议：后续版本逐步迁移到 `LineModel.Topology` 下的新类型（如 `SorterTopology`, `DiverterNode`）
+
 ### 5.5 文档与命名
 
-12. **部分 README.md 可能过时**
+13. **部分 README.md 可能过时**
     - `Drivers/README.md`、`Simulation/README.md` 等需要验证是否与当前代码一致
 
-13. **部分命名空间与物理路径不一致**
-    - 需要检查所有命名空间是否与项目/目录结构对应
+14. **~~部分命名空间与物理路径不一致~~** ✅ 部分解决 (PR4)
+    - ~~需要检查所有命名空间是否与项目/目录结构对应~~
+    - **PR4 解决方案**：`Core/LineModel/Configuration` 已按 Models/Repositories/Validation 拆分，命名空间与路径一致
 
 ---
 
@@ -845,6 +878,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.0  
+**文档版本**：1.1  
 **最后更新**：2025-11-28  
 **维护团队**：ZakYip Development Team

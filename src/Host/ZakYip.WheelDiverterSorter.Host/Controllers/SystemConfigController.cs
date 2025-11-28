@@ -275,7 +275,7 @@ public class SystemConfigController : ApiControllerBase
         }
     }
 
-    private static SystemConfigResponse MapToResponse(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.SystemConfiguration config)
+    private static SystemConfigResponse MapToResponse(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SystemConfiguration config)
     {
 #pragma warning disable CS0618 // 向后兼容
         return new SystemConfigResponse

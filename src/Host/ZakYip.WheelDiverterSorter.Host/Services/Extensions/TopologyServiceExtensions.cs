@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
-using ZakYip.WheelDiverterSorter.Core.Topology;
-using ZakYip.WheelDiverterSorter.Core.Topology.Services;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology.Legacy.Services;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
@@ -12,6 +12,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 /// <para>拓扑服务负责管理线体的逻辑结构（节点和边）。</para>
 /// <para>设备绑定服务负责将拓扑节点与具体硬件设备关联。</para>
 /// </remarks>
+#pragma warning disable CS0618 // 遗留拓扑类型正在逐步迁移中
 public static class TopologyServiceExtensions
 {
     /// <summary>

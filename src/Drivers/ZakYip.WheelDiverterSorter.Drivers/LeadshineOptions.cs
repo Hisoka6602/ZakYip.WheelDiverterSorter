@@ -47,5 +47,5 @@ public class LeadshineOptions
     /// <summary>
     /// 传送带段IO映射配置列表
     /// </summary>
-    public List<Core.LineModel.Configuration.ConveyorIoMapping> ConveyorSegmentMappings { get; set; } = new();
+    public List<Core.LineModel.Configuration.Models.ConveyorIoMapping> ConveyorSegmentMappings { get; set; } = new();
 }
