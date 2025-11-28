@@ -56,14 +56,18 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 9. 应用层服务
     /// 10. 分拣服务
     /// 11. 驱动器服务（根据运行模式选择硬件/仿真）
-    /// 12. 健康检查和系统状态管理
-    /// 13. 并发控制服务
-    /// 14. 传感器服务
-    /// 15. 通信服务（RuleEngine）
-    /// 16. 改口功能服务
-    /// 17. 中段皮带 IO 联动服务
-    /// 18. 仿真服务
-    /// 19. 后台工作服务
+    /// 12. 仿真模式提供者
+    /// 13. 健康检查和系统状态管理
+    /// 14. 健康状态提供器
+    /// 15. 并发控制服务
+    /// 16. 节点健康服务
+    /// 17. 传感器服务
+    /// 18. RuleEngine 通信服务
+    /// 19. 通信统计服务
+    /// 20. 改口功能服务
+    /// 21. 中段皮带 IO 联动服务
+    /// 22. 仿真服务
+    /// 23. 后台工作服务
     /// </remarks>
     public static IServiceCollection AddWheelDiverterSorter(
         this IServiceCollection services,
