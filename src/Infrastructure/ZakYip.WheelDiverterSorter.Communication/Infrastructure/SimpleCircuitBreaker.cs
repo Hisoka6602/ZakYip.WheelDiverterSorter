@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -12,14 +13,14 @@ public class SimpleCircuitBreaker : ICircuitBreaker
 {
     private readonly int _failureThreshold;
     private readonly TimeSpan _breakDuration;
-    private readonly ICommunicationLogger _logger;
+    private readonly ILogger _logger;
     private readonly ISystemClock _systemClock;
     private int _consecutiveFailures;
     private DateTime _lastFailureTime;
     private CircuitState _state;
     private readonly object _lock = new();
 
-    public SimpleCircuitBreaker(RuleEngineConnectionOptions options, ICommunicationLogger logger, ISystemClock systemClock)
+    public SimpleCircuitBreaker(RuleEngineConnectionOptions options, ILogger logger, ISystemClock systemClock)
     {
         if (options == null)
         {

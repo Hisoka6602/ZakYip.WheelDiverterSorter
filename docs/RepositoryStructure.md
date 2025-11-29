@@ -1352,6 +1352,35 @@ tools/Profiling/
       - 更新了测试文件使用统一的 `ReleaseThrottleConfiguration` 配置
       - **规则**：同一职责禁止再创建第二个平行接口
 
+### 5.13 纯转发 Facade/Adapter 清理（PR-S2）
+
+26. **CommunicationLoggerAdapter 纯转发适配器** ✅ 已解决 (PR-S2)
+    - ~~`Communication/Infrastructure/CommunicationLoggerAdapter.cs` 是纯转发类，仅包装 `ILogger` 接口~~
+    - ~~所有方法都是简单的一行转发调用，没有任何附加值~~
+    - **PR-S2 解决方案**：
+      - 删除 `CommunicationLoggerAdapter` 类
+      - 删除 `ICommunicationLogger` 接口（位于 `ICommunicationInfrastructure.cs`）
+      - 更新 `DefaultCommunicationInfrastructure` 直接使用 `ILogger`
+      - 更新 `ExponentialBackoffRetryPolicy` 直接使用 `ILogger`
+      - 更新 `SimpleCircuitBreaker` 直接使用 `ILogger`
+      - 新增 TechnicalDebtComplianceTests 规则 `ShouldNotHavePureForwardingFacadeAdapterTypes` 检测纯转发类型
+
+27. **Facade/Adapter 防线规则** ✅ 新增 (PR-S2)
+    - 新增测试规则 `PureForwardingTypeDetectionTests.ShouldNotHavePureForwardingFacadeAdapterTypes`
+    - **纯转发类型定义**（满足以下条件判定为影分身，应删除）：
+      - 类型以 `*Facade` / `*Adapter` / `*Wrapper` / `*Proxy` 结尾
+      - 只持有 1~2 个服务接口字段
+      - 方法体只做直接调用另一个服务的方法，没有：
+        - 类型转换/协议映射逻辑
+        - 事件订阅/转发机制
+        - 状态跟踪
+        - 批量操作聚合
+        - 验证或重试逻辑
+    - **合法的 Adapter/Facade**（应保留）：
+      - 有明确的类型转换逻辑（如 `SensorEventProviderAdapter`）
+      - 有协议适配逻辑（如 `ShuDiNiaoWheelDiverterDeviceAdapter`）
+      - 有状态跟踪（如 `LeadshineDiscreteIoPort`）
+
 ---
 
 ## 附录：目录树生成命令
@@ -1368,6 +1397,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.3 (PR-S1)  
+**文档版本**：2.4 (PR-S2)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
