@@ -1,10 +1,8 @@
 using Moq;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Host.Application.Services;
-using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 
@@ -95,7 +93,7 @@ public class LoggingConfigServiceTests
     public async Task UpdateLoggingConfigAsync_WithValidRequest_ShouldSucceed()
     {
         // Arrange
-        var request = new LoggingConfigRequest
+        var request = new UpdateLoggingConfigCommand
         {
             EnableParcelLifecycleLog = false,
             EnableParcelTraceLog = true,
@@ -146,7 +144,7 @@ public class LoggingConfigServiceTests
     public async Task UpdateLoggingConfigAsync_WhenExceptionThrown_ShouldReturnFailure()
     {
         // Arrange
-        var request = new LoggingConfigRequest();
+        var request = new UpdateLoggingConfigCommand();
         _mockRepository.Setup(r => r.Update(It.IsAny<LoggingConfiguration>()))
             .Throws(new Exception("数据库错误"));
 
@@ -198,7 +196,7 @@ public class LoggingConfigServiceTests
     public async Task UpdateLoggingConfigAsync_DisableAllLogs_ShouldSucceed()
     {
         // Arrange
-        var request = new LoggingConfigRequest
+        var request = new UpdateLoggingConfigCommand
         {
             EnableParcelLifecycleLog = false,
             EnableParcelTraceLog = false,

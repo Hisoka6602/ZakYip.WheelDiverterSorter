@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using ZakYip.WheelDiverterSorter.Host.Commands;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -13,14 +13,14 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class DivertsController : ControllerBase
 {
-    private readonly ChangeParcelChuteCommandHandler _changeParcelChuteHandler;
+    private readonly IChangeParcelChuteService _changeParcelChuteService;
     private readonly ILogger<DivertsController> _logger;
 
     public DivertsController(
-        ChangeParcelChuteCommandHandler changeParcelChuteHandler,
+        IChangeParcelChuteService changeParcelChuteService,
         ILogger<DivertsController> logger)
     {
-        _changeParcelChuteHandler = changeParcelChuteHandler ?? throw new ArgumentNullException(nameof(changeParcelChuteHandler));
+        _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -92,7 +92,7 @@ public class DivertsController : ControllerBase
                 RequestedAt = request.RequestedAt
             };
 
-            var result = await _changeParcelChuteHandler.HandleAsync(command, cancellationToken);
+            var result = await _changeParcelChuteService.ChangeParcelChuteAsync(command, cancellationToken);
 
             var response = new ChuteChangeResponse
             {
