@@ -113,6 +113,14 @@ public class ThresholdCongestionDetector : ICongestionDetector
         return false;
     }
 
+    /// <summary>
+    /// 将成功率阈值转换为失败率阈值
+    /// Convert success rate threshold to failure rate threshold
+    /// </summary>
+    /// <param name="successRate">成功率阈值 (0.0 ~ 1.0)</param>
+    /// <returns>对应的失败率阈值</returns>
+    private static double ConvertSuccessRateToFailureRate(double successRate) => 1.0 - successRate;
+
     private bool IsSevereSnapshot(in CongestionSnapshot snapshot)
     {
         // 在途包裹数超标
@@ -128,7 +136,7 @@ public class ThresholdCongestionDetector : ICongestionDetector
         }
 
         // 失败率超标（将 SuccessRate 阈值转换为失败率）
-        double severeFailureRatio = 1.0 - _config.SevereThresholdSuccessRate;
+        double severeFailureRatio = ConvertSuccessRateToFailureRate(_config.SevereThresholdSuccessRate);
         if (snapshot.FailureRatio >= severeFailureRatio)
         {
             return true;
@@ -152,7 +160,7 @@ public class ThresholdCongestionDetector : ICongestionDetector
         }
 
         // 失败率偏高（将 SuccessRate 阈值转换为失败率）
-        double warningFailureRatio = 1.0 - _config.WarningThresholdSuccessRate;
+        double warningFailureRatio = ConvertSuccessRateToFailureRate(_config.WarningThresholdSuccessRate);
         if (snapshot.FailureRatio >= warningFailureRatio)
         {
             return true;
