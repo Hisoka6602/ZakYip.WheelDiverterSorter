@@ -280,6 +280,35 @@ public class ApplicationLayerDependencyTests
     }
 
     /// <summary>
+    /// 验证 Drivers 项目不依赖 Execution（PR-TD4）
+    /// Drivers should not depend on Execution
+    /// </summary>
+    /// <remarks>
+    /// PR-TD4: Drivers 层是底层硬件驱动实现，不应依赖执行层。
+    /// 如果 Drivers 需要使用 Execution 层的抽象，应将该抽象上移到 Core 层。
+    /// </remarks>
+    [Fact]
+    public void Drivers_ShouldNotDependOn_Execution()
+    {
+        var driversCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj");
+        
+        var references = GetProjectReferences(driversCsproj);
+        
+        var violations = references
+            .Where(r => r.Contains("Execution", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Drivers 项目不应依赖 Execution: {string.Join(", ", violations)}\n" +
+                       "PR-TD4: Drivers 层是底层硬件驱动实现，不应依赖执行层。\n" +
+                       "如果需要共享抽象，应将接口上移到 Core/Abstractions/ 层。");
+        }
+    }
+
+    /// <summary>
     /// 验证 Communication 项目不依赖 Application
     /// Communication should not depend on Application
     /// </summary>

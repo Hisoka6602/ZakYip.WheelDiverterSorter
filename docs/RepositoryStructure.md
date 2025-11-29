@@ -81,8 +81,8 @@ ZakYip.WheelDiverterSorter.Execution
 
 ZakYip.WheelDiverterSorter.Drivers
 ├── ZakYip.WheelDiverterSorter.Core
-├── ZakYip.WheelDiverterSorter.Execution
 └── ZakYip.WheelDiverterSorter.Communication
+# PR-TD4: Drivers 不再依赖 Execution，所有驱动抽象接口定义在 Core/Abstractions/Drivers/ 中
 
 ZakYip.WheelDiverterSorter.Ingress
 └── ZakYip.WheelDiverterSorter.Core
@@ -438,28 +438,33 @@ ZakYip.WheelDiverterSorter.Core/
 
 ```
 ZakYip.WheelDiverterSorter.Execution/
-├── Abstractions/                    # 执行层抽象接口
-│   ├── ICongestionDataCollector.cs
-│   ├── ISensorEventProvider.cs
-│   ├── IUpstreamContractMapper.cs
-│   ├── IUpstreamRoutingClient.cs
-│   └── IWheelProtocolMapper.cs
 ├── Concurrency/                     # 并发控制
 │   ├── ConcurrentSwitchingPathExecutor.cs
 │   ├── DiverterResourceLockManager.cs
 │   ├── MonitoredParcelQueue.cs
 │   ├── PriorityParcelQueue.cs
 │   └── ...
+├── Diagnostics/                     # 诊断与异常检测（PR-TD4）
+│   └── AnomalyDetector.cs
 ├── Events/                          # 执行事件
 │   ├── PathExecutionFailedEventArgs.cs
 │   └── PathSwitchedEventArgs.cs
+├── Extensions/                      # DI 扩展方法（PR-TD4: 新增）
+│   └── NodeHealthServiceExtensions.cs
 ├── Health/                          # 健康监控
 │   ├── NodeHealthMonitorService.cs
 │   ├── NodeHealthRegistry.cs
 │   └── PathHealthChecker.cs
+├── Infrastructure/                  # 基础设施实现（PR-TD4）
+│   ├── DefaultStrategyFactory.cs
+│   └── DefaultSystemRunStateService.cs
 ├── Orchestration/                   # 核心编排实现
 │   ├── SortingOrchestrator.cs       # 分拣编排器主实现
 │   └── SortingExceptionHandler.cs
+├── PathExecution/                   # 路径执行服务（PR-TD4）
+│   ├── IPathExecutionService.cs
+│   ├── PathExecutionService.cs
+│   └── PathFailureHandler.cs
 ├── Pipeline/                        # 分拣管道中间件
 │   └── Middlewares/
 │       ├── OverloadEvaluationMiddleware.cs
@@ -467,6 +472,10 @@ ZakYip.WheelDiverterSorter.Execution/
 │       ├── RoutePlanningMiddleware.cs
 │       ├── TracingMiddleware.cs
 │       └── UpstreamAssignmentMiddleware.cs
+├── Routing/                         # 路由相关
+├── Segments/                        # 输送段实现（PR-TD4）
+│   ├── ConveyorSegment.cs
+│   └── MiddleConveyorCoordinator.cs
 ├── SelfTest/                        # 自检功能
 │   ├── SystemSelfTestCoordinator.cs
 │   └── DefaultConfigValidator.cs
@@ -475,25 +484,19 @@ ZakYip.WheelDiverterSorter.Execution/
 │   ├── FixedChuteSelectionStrategy.cs
 │   ├── FormalChuteSelectionStrategy.cs
 │   └── RoundRobinChuteSelectionStrategy.cs
-├── （根目录文件，约 25 个）         # 见问题标记 5.1.1
-│   ├── ISwitchingPathExecutor.cs    # 路径执行器接口
-│   ├── PathExecutionService.cs      # 路径执行服务
-│   ├── AnomalyDetector.cs           # 异常检测器
-│   ├── ConveyorSegment.cs           # 输送段模型
-│   ├── DefaultStrategyFactory.cs
-│   ├── DefaultSystemRunStateService.cs
-│   └── ...
+└── ZakYip.WheelDiverterSorter.Execution.csproj
+# PR-TD4: Execution 根目录不再有业务类型，所有文件已归档到子目录
 ```
 
 #### 关键类型概览
 
 - `SortingOrchestrator`（位于 Orchestration/）：分拣编排器核心实现，协调整个分拣流程
-- `ISwitchingPathExecutor`：摆轮路径执行器接口，按段顺序执行摆轮切换
-- `PathExecutionService`：路径执行服务实现，处理路径执行细节
+- `ISwitchingPathExecutor`（位于 Core/Abstractions/Execution/）：摆轮路径执行器接口，按段顺序执行摆轮切换
+- `PathExecutionService`（位于 PathExecution/）：路径执行服务实现，处理路径执行细节
 - `ConcurrentSwitchingPathExecutor`（位于 Concurrency/）：支持并发的路径执行器
 - `DiverterResourceLockManager`（位于 Concurrency/）：摆轮资源锁管理器，防止并发冲突
 - `PathHealthChecker`（位于 Health/）：路径健康检查器，执行前验证路径可用性
-- `SortingPipeline`（位于 Pipeline/）：分拣管道，串联各中间件处理步骤
+- `ConveyorSegment`（位于 Segments/）：中段皮带段实现
 
 ---
 
@@ -923,19 +926,35 @@ tools/Profiling/
 
 ### 5.1 层级职责混淆
 
-1. **Execution 项目根目录文件过多**
-   - `ISwitchingPathExecutor.cs`、`AnomalyDetector.cs`、`ConveyorSegment.cs` 等文件直接放在项目根目录
-   - 建议：按职责归类到对应子目录（如 Abstractions/、Segments/）
+1. **~~Execution 项目根目录文件过多~~** ✅ 已解决 (PR-TD4)
+   - ~~`ISwitchingPathExecutor.cs`、`AnomalyDetector.cs`、`ConveyorSegment.cs` 等文件直接放在项目根目录~~
+   - ~~建议：按职责归类到对应子目录（如 Abstractions/、Segments/）~~
+   - **PR-TD4 解决方案**：
+     - `ISwitchingPathExecutor` 已移至 `Core/Abstractions/Execution/`
+     - `AnomalyDetector` 已移至 `Execution/Diagnostics/`
+     - `ConveyorSegment` 已移至 `Execution/Segments/`
+     - `PathExecutionService` 已移至 `Execution/PathExecution/`
+     - `DefaultStrategyFactory`、`DefaultSystemRunStateService` 已移至 `Execution/Infrastructure/`
+     - `NodeHealthServiceExtensions` 已移至 `Execution/Extensions/`
+     - 新增 ArchTest 规则确保 Execution 根目录不再堆放业务类型
 
-2. **Drivers 层依赖 Execution 层**
-   - `ZakYip.WheelDiverterSorter.Drivers.csproj` 引用了 `Execution` 项目
-   - 这违反了分层架构原则，驱动层应该是底层，不应依赖执行层
-   - 建议：将相关依赖移到 Core 层，或通过接口解耦
+2. **~~Drivers 层依赖 Execution 层~~** ✅ 已解决 (PR-TD4)
+   - ~~`ZakYip.WheelDiverterSorter.Drivers.csproj` 引用了 `Execution` 项目~~
+   - ~~这违反了分层架构原则，驱动层应该是底层，不应依赖执行层~~
+   - ~~建议：将相关依赖移到 Core 层，或通过接口解耦~~
+   - **PR-TD4 解决方案**：
+     - Drivers.csproj 已移除对 Execution 的 ProjectReference
+     - 所有驱动抽象接口定义在 `Core/Abstractions/Drivers/`
+     - 新增 ArchTest 规则 `Drivers_ShouldNotDependOn_Execution()` 防止倒退
 
-3. **Core 层 Abstractions 目录结构与 Drivers 层重复**
-   - `Core/Abstractions/Drivers/` 和 `Drivers/Abstractions/` 存在重复定义
-   - 部分接口通过 `global using` 别名指向 Core 层
-   - 建议：统一接口定义位置，删除重复的抽象层
+3. **~~Core 层 Abstractions 目录结构与 Drivers 层重复~~** ✅ 已解决 (PR-TD4)
+   - ~~`Core/Abstractions/Drivers/` 和 `Drivers/Abstractions/` 存在重复定义~~
+   - ~~部分接口通过 `global using` 别名指向 Core 层~~
+   - ~~建议：统一接口定义位置，删除重复的抽象层~~
+   - **PR-TD4 解决方案**：
+     - `Drivers/Abstractions/` 目录已删除
+     - 所有驱动抽象接口仅存在于 `Core/Abstractions/Drivers/`
+     - 新增 ArchTest 规则 `Drivers_ShouldNotHaveAbstractionsDirectory()` 防止重生
 
 ### 5.2 配置相关问题
 
