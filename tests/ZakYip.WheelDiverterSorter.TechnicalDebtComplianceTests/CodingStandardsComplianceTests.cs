@@ -539,6 +539,129 @@ public class CodingStandardsComplianceTests
     }
 
     /// <summary>
+    /// 验证接口和 DTO 文件中不包含内联枚举定义
+    /// Verify that interface and DTO files do not contain inline enum definitions
+    /// </summary>
+    /// <remarks>
+    /// PR-TD6: 防止在接口文件（I*.cs）或 DTO 文件（*Dto.cs、*Request.cs、*Response.cs）中定义内联枚举。
+    /// 所有枚举应该在 Core/Enums 目录下的独立文件中定义。
+    /// </remarks>
+    [Fact]
+    public void InterfacesAndDtosShouldNotContainInlineEnums()
+    {
+        var violations = new List<InlineEnumViolation>();
+        var sourceFiles = Utilities.CodeScanner.GetAllSourceFiles("src");
+        
+        foreach (var file in sourceFiles)
+        {
+            var fileName = Path.GetFileName(file);
+            
+            // 检查是否是接口或 DTO 文件
+            // Interface files start with 'I' followed by an uppercase letter
+            // DTO files end with Dto.cs, Request.cs, or Response.cs
+            var isInterfaceFile = fileName.Length >= 2 && fileName.StartsWith("I") && char.IsUpper(fileName[1]);
+            var isDtoFile = fileName.EndsWith("Dto.cs") || fileName.EndsWith("Request.cs") || fileName.EndsWith("Response.cs");
+            
+            if (!isInterfaceFile && !isDtoFile)
+            {
+                continue;
+            }
+            
+            var lines = File.ReadAllLines(file);
+            var inBlockComment = false;
+            
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                
+                // 处理块注释
+                // Handle block comments properly - detect start and end on same line
+                var startsComment = line.Contains("/*");
+                var endsComment = line.Contains("*/");
+                
+                if (startsComment && endsComment)
+                {
+                    // Single-line block comment - check if enum definition is outside the comment
+                    var commentStart = line.IndexOf("/*");
+                    var commentEnd = line.IndexOf("*/") + 2;
+                    var lineWithoutComment = line.Substring(0, commentStart) + 
+                                            (commentEnd < line.Length ? line.Substring(commentEnd) : "");
+                    line = lineWithoutComment.Trim();
+                }
+                else if (startsComment)
+                {
+                    inBlockComment = true;
+                    continue;
+                }
+                else if (endsComment)
+                {
+                    inBlockComment = false;
+                    continue;
+                }
+                
+                if (inBlockComment)
+                    continue;
+                    
+                // 跳过单行注释和多行注释的延续行
+                // Skip single-line comments and multi-line comment continuation lines
+                if (line.StartsWith("//") || line.StartsWith("///"))
+                    continue;
+                    
+                // Skip multi-line comment continuation lines (start with *)
+                // But not multiplication operations (which wouldn't be at the start of a trimmed line in a comment context)
+                if (line.StartsWith("*") && !line.StartsWith("*="))
+                    continue;
+                
+                // 检测枚举定义（public enum 或 internal enum）
+                if (Regex.IsMatch(line, @"\b(public|internal)\s+enum\s+\w+"))
+                {
+                    // 提取枚举名称
+                    var match = Regex.Match(line, @"\benum\s+(\w+)");
+                    var enumName = match.Success ? match.Groups[1].Value : "Unknown";
+                    
+                    violations.Add(new InlineEnumViolation
+                    {
+                        FilePath = file,
+                        FileName = fileName,
+                        LineNumber = i + 1,
+                        EnumName = enumName,
+                        FileType = isInterfaceFile ? "Interface" : "DTO"
+                    });
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n❌ 发现 {violations.Count} 个接口/DTO 文件中的内联枚举定义:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n⚠️ 接口和 DTO 文件不应包含内联枚举定义。所有枚举应在 Core/Enums 目录下独立定义。\n");
+
+            var byType = violations.GroupBy(v => v.FileType);
+            foreach (var group in byType)
+            {
+                report.AppendLine($"📁 {group.Key} 文件:");
+                foreach (var violation in group)
+                {
+                    report.AppendLine($"   ❌ {violation.FileName}:{violation.LineNumber} - enum {violation.EnumName}");
+                }
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 在 src/Core/ZakYip.WheelDiverterSorter.Core/Enums/ 下创建对应的枚举文件");
+            report.AppendLine("  2. 将枚举定义移动到新文件中");
+            report.AppendLine("  3. 在接口/DTO 文件中添加 using 语句引用枚举");
+            report.AppendLine("  4. 删除接口/DTO 文件中的内联枚举定义");
+            report.AppendLine("\n示例：将 IWheelDiverterDevice.cs 中的 WheelDiverterState 枚举");
+            report.AppendLine("       移动到 Core/Enums/Hardware/WheelDiverterState.cs");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
     /// 验证没有使用 global using 语句
     /// Verify that no global using statements are used
     /// </summary>
@@ -662,4 +785,39 @@ public record MethodComplexityInfo
     public required int LineNumber { get; init; }
     public required string MethodName { get; init; }
     public required int LineCount { get; init; }
+}
+
+/// <summary>
+/// 内联枚举违规信息
+/// Inline enum violation information
+/// </summary>
+/// <remarks>
+/// PR-TD6: 用于记录接口或 DTO 文件中发现的内联枚举定义
+/// </remarks>
+public record InlineEnumViolation
+{
+    /// <summary>
+    /// 文件完整路径
+    /// </summary>
+    public required string FilePath { get; init; }
+    
+    /// <summary>
+    /// 文件名
+    /// </summary>
+    public required string FileName { get; init; }
+    
+    /// <summary>
+    /// 行号
+    /// </summary>
+    public required int LineNumber { get; init; }
+    
+    /// <summary>
+    /// 枚举名称
+    /// </summary>
+    public required string EnumName { get; init; }
+    
+    /// <summary>
+    /// 文件类型（Interface 或 DTO）
+    /// </summary>
+    public required string FileType { get; init; }
 }
