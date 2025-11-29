@@ -853,6 +853,16 @@ public class CodingStandardsComplianceTests
         var violations = new List<SimpleWrapperViolation>();
         var solutionRoot = GetSolutionRoot();
         
+        // 动态发现厂商名称 - 从 Vendors 目录结构中提取
+        // Dynamically discover vendor names from Vendors directory structure
+        var vendorsPath = Path.Combine(solutionRoot, "src", "Drivers", "ZakYip.WheelDiverterSorter.Drivers", "Vendors");
+        var vendorNames = Directory.Exists(vendorsPath)
+            ? Directory.GetDirectories(vendorsPath)
+                .Select(d => Path.GetFileName(d))
+                .Where(n => !string.Equals(n, "Simulated", StringComparison.OrdinalIgnoreCase))
+                .ToList()
+            : new List<string> { "Leadshine", "Siemens", "Modi", "ShuDiNiao" };
+        
         // 扫描 Core 和 Drivers 目录中的 *VendorConfigProvider 文件
         var coreFiles = Directory.GetFiles(
             Path.Combine(solutionRoot, "src", "Core"),
@@ -871,31 +881,62 @@ public class CodingStandardsComplianceTests
         // 检查接口定义：应该返回通用类型而不是厂商特定类型
         foreach (var file in coreFiles)
         {
-            var content = File.ReadAllText(file);
+            var lines = File.ReadAllLines(file);
             var fileName = Path.GetFileName(file);
             
             // 检查是否是接口文件
             if (!fileName.StartsWith("I") || !char.IsUpper(fileName[1]))
                 continue;
             
-            // 检查接口方法返回类型
-            // 如果返回类型包含厂商名称（如 Leadshine、Siemens、Modi 等），则视为违规
-            var vendorSpecificReturnTypes = new[] { "Leadshine", "Siemens", "Modi", "ShuDiNiao", "Omron", "Mitsubishi" };
+            var inInterface = false;
+            var inBlockComment = false;
             
-            foreach (var vendorName in vendorSpecificReturnTypes)
+            for (int lineNum = 0; lineNum < lines.Length; lineNum++)
             {
-                // 查找方法签名中返回厂商特定类型的情况
-                // 例如: LeadshineSensorOptions GetOptions();
-                if (Regex.IsMatch(content, $@"\b{vendorName}\w+\s+\w+\s*\("))
+                var line = lines[lineNum].Trim();
+                
+                // 处理块注释
+                if (line.Contains("/*")) inBlockComment = true;
+                if (line.Contains("*/")) inBlockComment = false;
+                if (inBlockComment) continue;
+                
+                // 跳过单行注释
+                if (line.StartsWith("//") || line.StartsWith("///")) continue;
+                
+                // 检测接口开始
+                if (line.Contains("interface "))
                 {
-                    violations.Add(new SimpleWrapperViolation
+                    inInterface = true;
+                    continue;
+                }
+                
+                // 检测块结束（简化处理）
+                if (inInterface && line.StartsWith("}"))
+                {
+                    inInterface = false;
+                    continue;
+                }
+                
+                // 只在接口内部检查方法签名返回类型
+                if (inInterface)
+                {
+                    foreach (var vendorName in vendorNames)
                     {
-                        FilePath = file,
-                        FileName = fileName,
-                        ViolationType = "Interface returns vendor-specific type",
-                        Description = $"接口方法返回了厂商特定类型 ({vendorName}*)，应返回通用类型"
-                    });
-                    break;
+                        // 更精确的模式：检查方法签名返回类型
+                        // 模式: <VendorName>SomeType MethodName(
+                        var methodSignaturePattern = $@"^\s*{vendorName}\w+\s+\w+\s*\(";
+                        if (Regex.IsMatch(line, methodSignaturePattern))
+                        {
+                            violations.Add(new SimpleWrapperViolation
+                            {
+                                FilePath = file,
+                                FileName = fileName,
+                                ViolationType = "Interface returns vendor-specific type",
+                                Description = $"接口方法返回了厂商特定类型 ({vendorName}*)，应返回通用类型 (Line {lineNum + 1})"
+                            });
+                            break;
+                        }
+                    }
                 }
             }
         }
@@ -910,15 +951,21 @@ public class CodingStandardsComplianceTests
             if (fileName.StartsWith("I") && char.IsUpper(fileName[1]))
                 continue;
             
-            // 检查是否有 Get* 方法但只是简单返回 Options 属性
-            // 模式: return _options; 或 return _options.Something;
-            var simpleReturnPattern = @"return\s+_options\s*;";
+            // 更宽泛的简单返回模式检测
+            // 检测: return _options; 或 return this._options; 或 return _options.Value;
+            var simpleReturnPattern = @"return\s+(this\.)?_options(\.\w+)?\s*;";
             var hasSimpleReturn = Regex.IsMatch(content, simpleReturnPattern);
             
-            // 检查是否有 Select/转换逻辑
-            var hasTransformationLogic = content.Contains(".Select(") || 
-                                         content.Contains(".ToList()") ||
-                                         content.Contains("new ") && content.Contains("{ get; init; }");
+            // 更精确的转换逻辑检测
+            // 检查是否存在 LINQ Select 投影操作（典型的转换模式）
+            var hasLinqProjection = Regex.IsMatch(content, @"\.Select\s*\(\s*\w+\s*=>");
+            // 检查是否存在带有属性初始化器的 new 表达式（典型的类型转换）
+            var hasObjectInitializerWithSelect = content.Contains(".Select(") && 
+                                                  Regex.IsMatch(content, @"new\s+\w+\s*\{");
+            // 检查是否存在显式的类型映射（new SomeEntry { Property = source.Property }）
+            var hasExplicitMapping = Regex.IsMatch(content, @"new\s+\w+Entry\s*\{");
+            
+            var hasTransformationLogic = hasLinqProjection || hasObjectInitializerWithSelect || hasExplicitMapping;
             
             // 如果只有简单返回且没有转换逻辑，可能是简单包装器
             if (hasSimpleReturn && !hasTransformationLogic)
