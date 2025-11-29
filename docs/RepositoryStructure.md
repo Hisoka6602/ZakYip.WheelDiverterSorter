@@ -646,9 +646,11 @@ ZakYip.WheelDiverterSorter.Drivers/
 
 ### 3.6 ZakYip.WheelDiverterSorter.Ingress
 
-**项目职责**：入口层，负责传感器事件监听、包裹检测、上游通信门面封装。
+**项目职责**：入口层，负责传感器事件监听、包裹检测。
 
 **PR-TD7 变更**：Ingress 项目不再直接引用 `Drivers.Vendors.*` 命名空间，而是通过 Core 层的厂商无关抽象 `ISensorVendorConfigProvider` 获取传感器配置。
+
+**PR-TD8 变更**：删除了冗余的 `Upstream/` 目录（`IUpstreamFacade`、`UpstreamFacade`、`IUpstreamChannel`、`HttpUpstreamChannel` 等），上游通信统一使用 `Communication` 层的 `IUpstreamRoutingClient`。
 
 ```
 ZakYip.WheelDiverterSorter.Ingress/
@@ -672,14 +674,6 @@ ZakYip.WheelDiverterSorter.Ingress/
 ├── Services/                        # 服务实现
 │   ├── ParcelDetectionService.cs
 │   └── SensorHealthMonitor.cs
-├── Upstream/                        # 上游通信门面
-│   ├── Configuration/
-│   │   └── IngressOptions.cs
-│   ├── Http/
-│   │   └── HttpUpstreamChannel.cs
-│   ├── IUpstreamFacade.cs
-│   ├── UpstreamFacade.cs
-│   └── UpstreamServiceExtensions.cs
 ├── IParcelDetectionService.cs       # 包裹检测服务接口
 ├── ISensor.cs                       # 传感器接口
 ├── ISensorFactory.cs                # 传感器工厂接口
@@ -693,7 +687,6 @@ ZakYip.WheelDiverterSorter.Ingress/
 - `ISensor`：传感器抽象接口
 - `LeadshineSensor`（位于 Sensors/）：雷赛传感器实现
 - `LeadshineSensorFactory`（位于 Sensors/）：雷赛传感器工厂，通过 `ISensorVendorConfigProvider` 获取配置
-- `IUpstreamFacade`（位于 Upstream/）：上游通信门面接口
 - `SensorHealthMonitor`（位于 Services/）：传感器健康监控服务
 
 ---
@@ -1240,6 +1233,29 @@ tools/Profiling/
         - `S7WheelDiverterDriver` (原 S7DiverterController)
       - 更新 `LeadshineVendorDriverFactory` 和 `SiemensS7ServiceCollectionExtensions` 使用新驱动类
 
+### 5.10 上游路由 Facade / Middleware 去重（PR-TD8）
+
+23. **Ingress 层冗余 UpstreamFacade** ✅ 已解决 (PR-TD8)
+    - ~~Ingress 层存在 `IUpstreamFacade`、`UpstreamFacade`、`IUpstreamChannel`、`IUpstreamCommandSender`、`HttpUpstreamChannel` 等类型~~
+    - ~~这些类型虽然被定义和注册（`AddUpstreamServices`），但 `AddUpstreamServices` 从未被调用~~
+    - ~~上游通信实际使用的是 Communication 层的 `IUpstreamRoutingClient`~~
+    - **PR-TD8 解决方案**：
+      - 删除了整个 `Ingress/Upstream/` 目录，包括：
+        - `IUpstreamFacade.cs` - 冗余的上游门面接口
+        - `UpstreamFacade.cs` - 冗余的上游门面实现
+        - `IUpstreamChannel.cs` - 冗余的上游通道接口
+        - `IUpstreamCommandSender.cs` - 冗余的命令发送器接口
+        - `IUpstreamEventListener.cs` - 冗余的事件监听器接口
+        - `OperationResult.cs` - 冗余的操作结果模型
+        - `UpstreamServiceExtensions.cs` - 从未被调用的 DI 扩展
+        - `Configuration/IngressOptions.cs` - 冗余的配置选项
+        - `Http/HttpUpstreamChannel.cs` - 冗余的 HTTP 通道实现
+      - 删除了对应的测试文件：
+        - `Ingress.Tests/Upstream/UpstreamFacadeTests.cs`
+        - `Ingress.Tests/Upstream/HttpUpstreamChannelTests.cs`
+      - 上游通信统一使用 Communication 层的 `IUpstreamRoutingClient`（定义在 Core/Abstractions/Upstream/）
+      - 调用链简化为：Controller/Application → ISortingOrchestrator → IUpstreamRoutingClient → 具体协议客户端
+
 ---
 
 ## 附录：目录树生成命令
@@ -1256,6 +1272,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.9 (PR-C5)  
+**文档版本**：2.0 (PR-TD8)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team

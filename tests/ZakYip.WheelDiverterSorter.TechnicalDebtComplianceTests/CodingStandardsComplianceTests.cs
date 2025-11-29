@@ -741,6 +741,96 @@ public class CodingStandardsComplianceTests
             Assert.Fail(report.ToString());
         }
     }
+
+    /// <summary>
+    /// 验证 Ingress 层不包含冗余的上游 Facade 类型
+    /// Verify that Ingress layer does not contain redundant upstream facade types
+    /// </summary>
+    /// <remarks>
+    /// PR-TD8: 防止在 Ingress 层重新引入与 Communication 层 IUpstreamRoutingClient 功能重叠的 Facade 类型。
+    /// 所有上游通信应使用 Communication 层的 IUpstreamRoutingClient 接口。
+    /// </remarks>
+    [Fact]
+    public void IngressShouldNotContainRedundantUpstreamFacade()
+    {
+        var violations = new List<RedundantFacadeViolation>();
+        
+        // 获取 Ingress 项目的源文件
+        var ingressPath = Path.Combine(GetSolutionRoot(), "src", "Ingress", "ZakYip.WheelDiverterSorter.Ingress");
+        
+        if (!Directory.Exists(ingressPath))
+        {
+            // 如果目录不存在，测试通过
+            return;
+        }
+        
+        var sourceFiles = Directory.GetFiles(ingressPath, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !PathHelper.IsInExcludedDirectory(f))
+            .ToList();
+        
+        // 禁止的 Facade 类型名称模式
+        var forbiddenTypePatterns = new[]
+        {
+            "IUpstreamFacade",
+            "UpstreamFacade",
+            "IUpstreamChannel",
+            "UpstreamChannel",
+            "IUpstreamCommandSender",
+            "UpstreamCommandSender"
+        };
+        
+        foreach (var file in sourceFiles)
+        {
+            var lines = File.ReadAllLines(file);
+            
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                
+                // 跳过注释行
+                if (line.StartsWith("//") || line.StartsWith("///") || line.StartsWith("*"))
+                    continue;
+                
+                // 检查是否是接口或类定义
+                foreach (var pattern in forbiddenTypePatterns)
+                {
+                    // 检查接口定义: public interface IUpstreamFacade
+                    if (Regex.IsMatch(line, $@"\b(public|internal)\s+(interface|class)\s+{pattern}\b"))
+                    {
+                        violations.Add(new RedundantFacadeViolation
+                        {
+                            FilePath = file,
+                            TypeName = pattern,
+                            LineNumber = i + 1
+                        });
+                    }
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n❌ 发现 {violations.Count} 个 Ingress 层的冗余上游 Facade 类型:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n⚠️ Ingress 层不应包含与 Communication 层 IUpstreamRoutingClient 功能重叠的 Facade 类型。\n");
+
+            foreach (var violation in violations)
+            {
+                var fileName = Path.GetFileName(violation.FilePath);
+                report.AppendLine($"  ❌ {fileName}:{violation.LineNumber} - {violation.TypeName}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 删除 Ingress 层的冗余 Facade 类型");
+            report.AppendLine("  2. 使用 Communication 层的 IUpstreamRoutingClient 接口进行上游通信");
+            report.AppendLine("  3. 上游调用链应为：Controller/Application → ISortingOrchestrator → IUpstreamRoutingClient → 具体协议客户端");
+            report.AppendLine("\n参考：PR-TD8 已清理 Ingress/Upstream/ 目录中的冗余 Facade 类型");
+
+            Assert.Fail(report.ToString());
+        }
+    }
 }
 
 /// <summary>
@@ -820,4 +910,29 @@ public record InlineEnumViolation
     /// 文件类型（Interface 或 DTO）
     /// </summary>
     public required string FileType { get; init; }
+}
+
+/// <summary>
+/// 冗余 Facade 类型违规信息
+/// Redundant facade type violation information
+/// </summary>
+/// <remarks>
+/// PR-TD8: 用于记录可能冗余的 Facade 类型定义
+/// </remarks>
+public record RedundantFacadeViolation
+{
+    /// <summary>
+    /// 文件完整路径
+    /// </summary>
+    public required string FilePath { get; init; }
+    
+    /// <summary>
+    /// 类型名称
+    /// </summary>
+    public required string TypeName { get; init; }
+    
+    /// <summary>
+    /// 行号
+    /// </summary>
+    public required int LineNumber { get; init; }
 }
