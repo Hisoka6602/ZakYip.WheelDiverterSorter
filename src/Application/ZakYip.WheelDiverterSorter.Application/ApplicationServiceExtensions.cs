@@ -55,7 +55,6 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
         
         // 注册拓扑相关服务
-        services.AddScoped<ITopologyConsistencyCheckService, TopologyConsistencyCheckService>();
         services.AddScoped<IChutePathTopologyService, ChutePathTopologyService>();
         
         return services;

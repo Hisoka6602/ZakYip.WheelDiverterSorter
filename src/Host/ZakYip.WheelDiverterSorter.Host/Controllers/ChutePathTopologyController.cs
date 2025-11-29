@@ -56,6 +56,11 @@ public class ChutePathTopologyController : ControllerBase
     /// 拓扑图中箭头符号的额外占用宽度（" →" 占用3字符）
     /// </summary>
     private const int DiagramArrowPadding = 3;
+    
+    /// <summary>
+    /// 空的格口ID只读列表（用于避免重复分配）
+    /// </summary>
+    private static readonly IReadOnlyList<long> EmptyChuteIds = Array.Empty<long>();
 
     private readonly IChutePathTopologyService _topologyService;
     private readonly ISystemClock _clock;
@@ -233,17 +238,7 @@ public class ChutePathTopologyController : ControllerBase
             }
 
             // 将请求转换为配置模型的节点列表用于验证
-            var diverterNodes = request.DiverterNodes.Select(n => new DiverterPathNode
-            {
-                DiverterId = n.DiverterId,
-                DiverterName = n.DiverterName,
-                PositionIndex = n.PositionIndex,
-                SegmentId = n.SegmentId,
-                FrontSensorId = n.FrontSensorId,
-                LeftChuteIds = n.LeftChuteIds?.AsReadOnly() ?? Array.Empty<long>().ToList().AsReadOnly(),
-                RightChuteIds = n.RightChuteIds?.AsReadOnly() ?? Array.Empty<long>().ToList().AsReadOnly(),
-                Remarks = n.Remarks
-            }).ToList();
+            var diverterNodes = MapToDiverterNodes(request.DiverterNodes);
 
             // 使用 Application 服务进行验证
             var (isValid, errorMessage) = _topologyService.ValidateTopologyRequest(
@@ -1040,21 +1035,29 @@ public class ChutePathTopologyController : ControllerBase
             TopologyName = request.TopologyName,
             Description = request.Description,
             EntrySensorId = request.EntrySensorId,
-            DiverterNodes = request.DiverterNodes.Select(n => new DiverterPathNode
-            {
-                DiverterId = n.DiverterId,
-                DiverterName = n.DiverterName,
-                PositionIndex = n.PositionIndex,
-                SegmentId = n.SegmentId,
-                FrontSensorId = n.FrontSensorId,
-                LeftChuteIds = n.LeftChuteIds?.AsReadOnly() ?? Array.Empty<long>().ToList().AsReadOnly(),
-                RightChuteIds = n.RightChuteIds?.AsReadOnly() ?? Array.Empty<long>().ToList().AsReadOnly(),
-                Remarks = n.Remarks
-            }).ToList(),
+            DiverterNodes = MapToDiverterNodes(request.DiverterNodes),
             ExceptionChuteId = request.ExceptionChuteId,
             CreatedAt = now,
             UpdatedAt = now
         };
+    }
+
+    /// <summary>
+    /// 将请求中的摆轮节点列表转换为配置模型的摆轮节点列表
+    /// </summary>
+    private static List<DiverterPathNode> MapToDiverterNodes(IEnumerable<DiverterPathNodeRequest> requestNodes)
+    {
+        return requestNodes.Select(n => new DiverterPathNode
+        {
+            DiverterId = n.DiverterId,
+            DiverterName = n.DiverterName,
+            PositionIndex = n.PositionIndex,
+            SegmentId = n.SegmentId,
+            FrontSensorId = n.FrontSensorId,
+            LeftChuteIds = n.LeftChuteIds?.AsReadOnly() ?? EmptyChuteIds,
+            RightChuteIds = n.RightChuteIds?.AsReadOnly() ?? EmptyChuteIds,
+            Remarks = n.Remarks
+        }).ToList();
     }
 
     /// <summary>
