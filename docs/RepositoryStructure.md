@@ -1124,7 +1124,7 @@ tools/Profiling/
       - `LeadshineSensorFactory` 使用 `ISensorVendorConfigProvider` 替代直接配置引用
       - Drivers 层的 `LeadshineIoServiceCollectionExtensions` 负责注册 `ISensorVendorConfigProvider` 实现
 
-### 5.8 内联枚举待迁移（PR-C2 白名单）✅ 已解决 (PR-TD6)
+### 5.8 内联枚举待迁移（PR-C2 白名单）✅ 已解决 (PR-TD6, PR-C5)
 
 19. **接口文件中的内联枚举** ✅ 已解决 (PR-TD6)
     - ~~`IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举~~
@@ -1133,12 +1133,14 @@ tools/Profiling/
       - `WheelDiverterState.cs`
       - `WheelCommandResultType.cs`
       - `WheelDeviceState.cs`
+    - **PR-C5 补充**：已为所有枚举成员添加 `[Description]` 特性和完整的中文注释
 
 20. **DTO 文件中的内联枚举** ✅ 已解决 (PR-TD6)
     - ~~`ChutePathTopologyDto.cs` 中定义了 `SimulationStepType`, `StepStatus` 枚举~~
     - **已迁移**：所有枚举已迁移到 `Core/Enums/Simulation/` 目录：
       - `SimulationStepType.cs`
       - `StepStatus.cs`
+    - **PR-C5 补充**：已为所有枚举成员添加 `[Description]` 特性和完整的中文注释
 
 ---
 
@@ -1156,6 +1158,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.8 (PR-C4)  
+**文档版本**：1.9 (PR-C5)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
