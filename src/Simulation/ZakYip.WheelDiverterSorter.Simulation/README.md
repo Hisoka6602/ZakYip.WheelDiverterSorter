@@ -1,8 +1,13 @@
-# 摆轮分拣系统仿真项目
+# 摆轮分拣系统仿真库
 
 ## 简介
 
-本项目是一个独立的仿真 Console 宿主，用于模拟摆轮分拣系统的运行。它通过依赖注入挂载"模拟驱动 + 模拟传感器 + 模拟上游 RuleEngine"，在本地一次性跑完一批"虚拟包裹"，并输出每个包裹的分拣结果与统计汇总。
+本项目是摆轮分拣系统的仿真服务库（PR-TD6: 改为 Library 项目），提供仿真场景运行器、配置模型和结果统计等公共 API。
+
+**项目结构变更（PR-TD6）**：
+- 本项目现在是一个 **类库（Library）**，不再是可执行程序
+- 命令行入口已移动到独立项目 `ZakYip.WheelDiverterSorter.Simulation.Cli`
+- Host 层和 Application 层只使用本项目的公共 API
 
 ## 特点
 
@@ -17,10 +22,16 @@
 
 ## 使用方法
 
-### 运行仿真
+### 运行仿真（通过 CLI）
 
 ```bash
-dotnet run --project ZakYip.WheelDiverterSorter.Simulation
+# 使用独立的 CLI 项目运行仿真
+dotnet run --project src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli
+
+# 通过命令行参数覆盖配置
+dotnet run --project src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli -- \
+  --Simulation:ParcelCount=100 \
+  --Simulation:SortingMode=RoundRobin
 ```
 
 ### 配置说明
@@ -112,6 +123,8 @@ dotnet run --project ZakYip.WheelDiverterSorter.Simulation -- \
 
 ## 项目结构
 
+**PR-TD6 变更**：`Program.cs` 已移动到 `ZakYip.WheelDiverterSorter.Simulation.Cli` 项目。
+
 ```
 ZakYip.WheelDiverterSorter.Simulation/
 ├── Configuration/                    # 仿真配置
@@ -144,13 +157,18 @@ ZakYip.WheelDiverterSorter.Simulation/
 │   ├── StrategyExperimentResult.cs  # 实验结果
 │   └── Reports/
 │       └── StrategyExperimentReportWriter.cs
-├── Program.cs                        # 入口程序（独立可执行）
 ├── appsettings.Simulation.json      # 仿真配置文件
 ├── appsettings.LongRun.json         # 长时运行配置
 ├── simulation-config/               # 仿真拓扑配置
 ├── reports/                         # 报告输出目录
 ├── SIMULATION_GUIDE.md              # 详细使用指南
 └── README.md                        # 本文件
+
+# CLI 入口项目（PR-TD6 新增）
+ZakYip.WheelDiverterSorter.Simulation.Cli/
+├── Program.cs                        # 命令行入口程序
+├── appsettings.Simulation.json      # 仿真配置文件
+└── appsettings.LongRun.json         # 长时运行配置
 ```
 
 ## 公共 API 与内部实现
@@ -193,7 +211,7 @@ public class SimulationController
 
 ## 依赖关系
 
-本项目引用以下项目，使用其提供的接口和服务：
+本项目（Library）引用以下项目，使用其提供的接口和服务：
 
 - `ZakYip.WheelDiverterSorter.Core` - 核心模型和接口
 - `ZakYip.WheelDiverterSorter.Execution` - 路径执行器
@@ -201,7 +219,10 @@ public class SimulationController
 - `ZakYip.WheelDiverterSorter.Ingress` - 入口检测
 - `ZakYip.WheelDiverterSorter.Observability` - 可观测性
 
-**注意**: 本项目既是独立可执行程序（Console Host），也被 `Host` 项目引用以提供 API 触发仿真功能。
+**PR-TD6 架构说明**:
+- 本项目是类库（Library），被 `Application` 层引用以提供 API 触发仿真功能
+- 独立的命令行入口位于 `ZakYip.WheelDiverterSorter.Simulation.Cli` 项目
+- Host 层不再直接依赖本项目，而是通过 Application 层间接使用
 
 ## 扩展
 

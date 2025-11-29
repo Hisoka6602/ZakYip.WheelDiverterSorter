@@ -197,9 +197,8 @@ static Func<long, int> CreateFixedChuteAssignmentFunc(SimulationOptions options)
     }
 
     var chuteIds = options.FixedChuteIds.ToArray();
-    var random = new Random();
-    
-    return _ => (int)chuteIds[random.Next(chuteIds.Length)];
+    // Use Random.Shared for better randomness quality and thread safety (.NET 6+)
+    return _ => (int)chuteIds[Random.Shared.Next(chuteIds.Length)];
 }
 
 static Func<long, int> CreateRoundRobinAssignmentFunc(SimulationOptions options)

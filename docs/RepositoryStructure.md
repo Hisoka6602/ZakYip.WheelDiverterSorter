@@ -24,7 +24,8 @@
 | 入口层 | ZakYip.WheelDiverterSorter.Ingress | src/Ingress/ |
 | 可观测性层 | ZakYip.WheelDiverterSorter.Observability | src/Observability/ |
 | 通信层 | ZakYip.WheelDiverterSorter.Communication | src/Infrastructure/ |
-| 仿真层 | ZakYip.WheelDiverterSorter.Simulation | src/Simulation/ |
+| 仿真库 | ZakYip.WheelDiverterSorter.Simulation | src/Simulation/ |
+| 仿真CLI | ZakYip.WheelDiverterSorter.Simulation.Cli | src/Simulation/Cli/ |
 | 分析器 | ZakYip.WheelDiverterSorter.Analyzers | src/ZakYip.WheelDiverterSorter.Analyzers/ |
 
 - **测试项目**：
@@ -94,12 +95,16 @@ ZakYip.WheelDiverterSorter.Communication
 ├── ZakYip.WheelDiverterSorter.Core
 └── ZakYip.WheelDiverterSorter.Observability
 
-ZakYip.WheelDiverterSorter.Simulation
+ZakYip.WheelDiverterSorter.Simulation           # PR-TD6: 改为 Library 项目
 ├── ZakYip.WheelDiverterSorter.Core
 ├── ZakYip.WheelDiverterSorter.Execution
 ├── ZakYip.WheelDiverterSorter.Drivers
 ├── ZakYip.WheelDiverterSorter.Ingress
 └── ZakYip.WheelDiverterSorter.Observability
+
+ZakYip.WheelDiverterSorter.Simulation.Cli       # PR-TD6: 新增 CLI 入口项目
+├── ZakYip.WheelDiverterSorter.Simulation
+└── ZakYip.WheelDiverterSorter.Communication
 
 ZakYip.WheelDiverterSorter.Analyzers
 └── (无项目依赖，仅依赖 Microsoft.CodeAnalysis)
@@ -755,36 +760,54 @@ ZakYip.WheelDiverterSorter.Observability/
 
 ### 3.9 ZakYip.WheelDiverterSorter.Simulation
 
-**项目职责**：仿真运行器，提供完整的分拣系统仿真环境，支持场景定义、策略实验、性能测试等。
+**项目职责**：仿真服务库（PR-TD6: 改为 Library 项目），提供仿真场景运行器、配置模型和结果统计等公共 API，供 Host 层和 Simulation.Cli 使用。
+
+**PR-TD6 重构说明**：
+- 项目 OutputType 从 `Exe` 改为 `Library`
+- 命令行入口程序（Program.cs）移动到新项目 `ZakYip.WheelDiverterSorter.Simulation.Cli`
+- Application 层和 Host 层只使用 Simulation 库的公共 API
 
 ```
 ZakYip.WheelDiverterSorter.Simulation/
-├── Configuration/                   # 仿真配置
-│   ├── SimulationOptions.cs
+├── Configuration/                   # 仿真配置 [公共 API]
+│   ├── SimulationOptions.cs         # 仿真配置模型 [公共 API]
 │   ├── DenseParcelStrategy.cs
+│   ├── FrictionModelOptions.cs
+│   ├── DropoutModelOptions.cs
 │   ├── SensorFaultOptions.cs
 │   └── ...
-├── Results/                         # 仿真结果模型
+├── Results/                         # 仿真结果模型 [公共 API]
+│   ├── SimulationSummary.cs         # 仿真汇总统计 [公共 API]
+│   ├── ParcelSimulationResult.cs
+│   └── ParcelSimulationStatus.cs
 ├── Scenarios/                       # 场景定义
 │   ├── SimulationScenario.cs
 │   ├── ScenarioDefinitions.cs
 │   ├── ChaosScenarioDefinitions.cs
 │   └── ParcelExpectation.cs
 ├── Services/                        # 仿真服务
+│   ├── ISimulationScenarioRunner.cs # 场景运行器接口 [公共 API]
+│   ├── SimulationScenarioRunner.cs  # 场景运行器实现
 │   ├── SimulationRunner.cs          # 仿真运行器
-│   ├── SimulationScenarioRunner.cs  # 场景运行器
 │   ├── CapacityTestingRunner.cs     # 容量测试运行器
 │   └── SimulationReportPrinter.cs
 ├── Strategies/                      # 策略实验
 │   ├── StrategyExperimentRunner.cs
 │   ├── StrategyExperimentConfig.cs
 │   └── Reports/
-├── Program.cs                       # 仿真主入口（独立可执行）
-├── appsettings.Simulation.json      # 仿真配置文件
+├── appsettings.Simulation.json      # 仿真配置文件（供 CLI 使用）
 ├── appsettings.LongRun.json         # 长时运行配置
 ├── simulation-config/               # 仿真拓扑配置
 └── reports/                         # 报告输出目录
 ```
+
+#### 公共 API
+
+Host 层和 Application 层应该只使用以下公共 API：
+
+- **`ISimulationScenarioRunner`**: 场景运行器接口，提供 `RunScenarioAsync()` 方法
+- **`SimulationOptions`**: 仿真配置模型，用于配置仿真参数
+- **`SimulationSummary`**: 仿真结果汇总，包含成功率、错分数等统计信息
 
 #### 关键类型概览
 
@@ -793,6 +816,34 @@ ZakYip.WheelDiverterSorter.Simulation/
 - `SimulationScenario`（位于 Scenarios/）：仿真场景定义，包含包裹序列、期望结果等
 - `StrategyExperimentRunner`（位于 Strategies/）：策略实验运行器，用于 A/B 测试不同策略
 - `ScenarioDefinitions`（位于 Scenarios/）：预定义的标准测试场景集合
+
+---
+
+### 3.9.1 ZakYip.WheelDiverterSorter.Simulation.Cli
+
+**项目职责**：仿真命令行入口程序（PR-TD6 新增），提供独立可执行的仿真控制台应用。
+
+**PR-TD6 说明**：从 Simulation 项目中分离出来的 CLI 入口，引用 Simulation 库项目。
+
+```
+ZakYip.WheelDiverterSorter.Simulation.Cli/
+├── Program.cs                       # 命令行入口程序
+├── appsettings.Simulation.json      # 仿真配置文件
+├── appsettings.LongRun.json         # 长时运行配置
+└── ZakYip.WheelDiverterSorter.Simulation.Cli.csproj
+```
+
+#### 运行方式
+
+```bash
+# 运行仿真
+dotnet run --project src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli
+
+# 通过命令行参数覆盖配置
+dotnet run --project src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli -- \
+  --Simulation:ParcelCount=100 \
+  --Simulation:SortingMode=RoundRobin
+```
 
 ---
 
@@ -980,9 +1031,14 @@ tools/Profiling/
    - ~~建议：拆分为 Workers/、Extensions/、BusinessServices/ 等~~
    - **PR3 解决方案**：已拆分为 `Services/Workers/`（后台任务）、`Services/Extensions/`（DI扩展方法）、`Services/Application/`（应用服务）
 
-8. **Simulation 项目既是库又是可执行程序**
-   - `OutputType` 为 `Exe`，同时被 Host 项目引用
-   - 这种设计可能导致构建和部署复杂性
+8. **~~Simulation 项目既是库又是可执行程序~~** ✅ 已解决 (PR-TD6)
+   - ~~`OutputType` 为 `Exe`，同时被 Host 项目引用~~
+   - ~~这种设计可能导致构建和部署复杂性~~
+   - **PR-TD6 解决方案**：
+     - Simulation 项目的 `OutputType` 改为 `Library`
+     - 新增 `ZakYip.WheelDiverterSorter.Simulation.Cli` 项目作为独立的命令行入口
+     - Simulation.Cli 引用 Simulation 库，Host 只引用 Simulation 库
+     - 在 `TechnicalDebtComplianceTests` 中新增 `InterfacesAndDtosShouldNotContainInlineEnums` 测试防止内联枚举
 
 ### 5.4 技术债务
 
@@ -1095,6 +1151,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.6 (PR-TD5)  
+**文档版本**：1.7 (PR-TD6)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
