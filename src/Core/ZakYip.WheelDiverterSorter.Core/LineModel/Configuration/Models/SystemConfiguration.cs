@@ -46,12 +46,13 @@ public class SystemConfiguration
     public ChuteAssignmentTimeoutOptions ChuteAssignmentTimeout { get; set; } = new();
 
     /// <summary>
-    /// 雷赛控制面板 IO 模块配置
+    /// 控制面板 IO 模块配置
     /// </summary>
     /// <remarks>
-    /// 用于配置电柜面板上的物理按键和指示灯，包括急停、启动、停止、复位按钮以及三色灯等
+    /// 用于配置电柜面板上的物理按键和指示灯，包括急停、启动、停止、复位按钮以及三色灯等。
+    /// 此配置是厂商无关的，通过 VendorProfileKey 关联具体厂商实现。
     /// </remarks>
-    public LeadshineCabinetIoOptions LeadshineCabinetIo { get; set; } = new();
+    public CabinetIoOptions CabinetIo { get; set; } = new();
 
     /// <summary>
     /// IO 联动配置
@@ -225,7 +226,7 @@ public class SystemConfiguration
             ConfigName = "system",
             ExceptionChuteId = 999,
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions(),
-            LeadshineCabinetIo = new LeadshineCabinetIoOptions(),
+            CabinetIo = new CabinetIoOptions(),
             IoLinkage = new IoLinkageOptions(),
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
