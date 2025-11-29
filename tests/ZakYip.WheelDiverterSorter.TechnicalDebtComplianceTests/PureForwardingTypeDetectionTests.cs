@@ -239,7 +239,10 @@ public class PureForwardingTypeDetectionTests
                 .Where(l => !string.IsNullOrEmpty(l) && !l.StartsWith("//"))
                 .ToList();
             
-            // 允许最多2行：参数验证 + 转发调用
+            // 纯转发方法通常只有 1-2 行代码：
+            // - 1行：直接转发调用（如 return _service.Method();）
+            // - 2行：参数验证 + 转发调用
+            // 如果方法体超过2行，说明有额外逻辑，不是纯转发
             if (lines.Count > 2)
             {
                 return false;
@@ -265,7 +268,7 @@ public class PureForwardingTypeDetectionTests
     /// </summary>
     private bool HasEventSubscriptionLogic(string content)
     {
-        return content.Contains("+=") && content.Contains("EventHandler") ||
+        return (content.Contains("+=") && content.Contains("EventHandler")) ||
                content.Contains("event ") ||
                Regex.IsMatch(content, @"\.\w+\s*\+=");
     }
@@ -287,7 +290,7 @@ public class PureForwardingTypeDetectionTests
     private bool HasBatchOperationLogic(string content)
     {
         return content.Contains("Batch") ||
-               content.Contains("foreach") && content.Contains("await") ||
+               (content.Contains("foreach") && content.Contains("await")) ||
                Regex.IsMatch(content, @"Task\.WhenAll");
     }
 
