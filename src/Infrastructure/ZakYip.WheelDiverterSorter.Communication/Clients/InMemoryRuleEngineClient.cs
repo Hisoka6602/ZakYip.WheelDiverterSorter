@@ -1,18 +1,18 @@
-using ZakYip.WheelDiverterSorter.Communication.Models;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
 /// <summary>
-/// 内存模拟的规则引擎客户端
+/// 内存模拟的上游路由客户端
 /// </summary>
 /// <remarks>
 /// 用于仿真和测试，不进行真实的网络通信。
 /// 支持三种模式：Formal（从配置获取格口）、FixedChute（固定格口）、RoundRobin（轮询）
+/// PR-U1: 直接实现 IUpstreamRoutingClient
 /// </remarks>
-public class InMemoryRuleEngineClient : IRuleEngineClient
+public class InMemoryRuleEngineClient : IUpstreamRoutingClient, IDisposable
 {
     private readonly ILogger<InMemoryRuleEngineClient>? _logger;
     private readonly ISystemClock _systemClock;
@@ -23,7 +23,7 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
     /// <summary>
     /// 格口分配通知事件
     /// </summary>
-    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
+    public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssignmentReceived;
 
     /// <summary>
     /// 客户端是否已连接
@@ -47,7 +47,7 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 连接到RuleEngine（模拟实现）
+    /// 连接到上游系统（模拟实现）
     /// </summary>
     public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
@@ -62,7 +62,7 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 断开与RuleEngine的连接（模拟实现）
+    /// 断开与上游系统的连接（模拟实现）
     /// </summary>
     public Task DisconnectAsync()
     {
@@ -77,7 +77,7 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
     }
 
     /// <summary>
-    /// 通知RuleEngine包裹已到达（模拟实现）
+    /// 通知上游系统包裹已到达（模拟实现）
     /// </summary>
     public async Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
@@ -103,7 +103,7 @@ public class InMemoryRuleEngineClient : IRuleEngineClient
         var chuteId = _chuteAssignmentFunc(parcelId);
 
         // 触发格口分配事件
-        var eventArgs = new ChuteAssignmentNotificationEventArgs
+        var eventArgs = new ChuteAssignmentEventArgs
         {
             ParcelId = parcelId,
             ChuteId = chuteId,

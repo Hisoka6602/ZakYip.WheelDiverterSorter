@@ -4,7 +4,6 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Gateways;
@@ -21,10 +20,11 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests.Gateways;
 
 /// <summary>
 /// TcpUpstreamSortingGateway 单元测试
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </summary>
 public class TcpUpstreamSortingGatewayTests
 {
-    private readonly Mock<IRuleEngineClient> _mockClient;
+    private readonly Mock<IUpstreamRoutingClient> _mockClient;
     private readonly IUpstreamContractMapper _mapper;
     private readonly Mock<ILogger<TcpUpstreamSortingGateway>> _mockLogger;
     private readonly RuleEngineConnectionOptions _options;
@@ -32,7 +32,7 @@ public class TcpUpstreamSortingGatewayTests
 
     public TcpUpstreamSortingGatewayTests()
     {
-        _mockClient = new Mock<IRuleEngineClient>();
+        _mockClient = new Mock<IUpstreamRoutingClient>();
         _mapper = new DefaultUpstreamContractMapper();
         _mockLogger = new Mock<ILogger<TcpUpstreamSortingGateway>>();
         _options = new RuleEngineConnectionOptions

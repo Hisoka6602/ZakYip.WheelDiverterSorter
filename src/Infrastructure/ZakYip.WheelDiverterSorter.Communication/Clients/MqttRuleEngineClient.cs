@@ -4,7 +4,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Client;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
@@ -13,10 +12,11 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
 /// <summary>
-/// 基于MQTT的RuleEngine通信客户端
+/// 基于MQTT的上游路由通信客户端
 /// </summary>
 /// <remarks>
 /// 推荐生产环境使用，提供轻量级IoT消息协议，支持QoS保证
+/// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
 /// </remarks>
 public class MqttRuleEngineClient : RuleEngineClientBase
 {
@@ -251,8 +251,12 @@ public class MqttRuleEngineClient : RuleEngineClientBase
                     args.ApplicationMessage.Topic,
                     payload);
                 
-                // 触发事件
-                OnChuteAssignmentReceived(notification);
+                // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+                OnChuteAssignmentReceived(
+                    notification.ParcelId,
+                    notification.ChuteId,
+                    notification.NotificationTime,
+                    notification.Metadata);
             }
             else
             {

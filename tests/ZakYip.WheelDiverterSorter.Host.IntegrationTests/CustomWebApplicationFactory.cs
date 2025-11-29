@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
@@ -22,7 +22,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// </summary>
     public static JsonSerializerOptions JsonSerializerOptions => TestJsonOptions.GetOptions();
 
-    public Mock<IRuleEngineClient>? MockRuleEngineClient { get; private set; }
+    public Mock<IUpstreamRoutingClient>? MockRuleEngineClient { get; private set; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -69,14 +69,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         {
             // Remove existing RuleEngine client if registered and replace with mock
             var ruleEngineClientDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IRuleEngineClient));
+                d => d.ServiceType == typeof(IUpstreamRoutingClient));
             if (ruleEngineClientDescriptor != null)
             {
                 services.Remove(ruleEngineClientDescriptor);
             }
 
             // Add mock RuleEngine client
-            MockRuleEngineClient = new Mock<IRuleEngineClient>(MockBehavior.Loose);
+            MockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
             
             // Set up default behaviors
             MockRuleEngineClient

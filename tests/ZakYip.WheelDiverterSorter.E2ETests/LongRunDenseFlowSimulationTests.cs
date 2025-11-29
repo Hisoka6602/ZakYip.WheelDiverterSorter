@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -43,7 +43,7 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 public class LongRunDenseFlowSimulationTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
-    private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
+    private readonly Mock<IUpstreamRoutingClient> _mockRuleEngineClient;
     private readonly Random _targetChuteRandom;
     private readonly string _testOutputDirectory;
 
@@ -57,7 +57,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
         Directory.CreateDirectory(_testOutputDirectory);
 
         // 创建模拟 RuleEngine 客户端
-        _mockRuleEngineClient = new Mock<IRuleEngineClient>(MockBehavior.Loose);
+        _mockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
         _mockRuleEngineClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockRuleEngineClient.Setup(x => x.DisconnectAsync())
@@ -277,7 +277,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
     private async Task<SimulationSummary> RunScenarioAsync(SimulationScenario scenario)
     {
         var options = Options.Create(scenario.Options);
-        var ruleEngineClient = _serviceProvider.GetRequiredService<IRuleEngineClient>();
+        var ruleEngineClient = _serviceProvider.GetRequiredService<IUpstreamRoutingClient>();
         var pathGenerator = _serviceProvider.GetRequiredService<ISwitchingPathGenerator>();
         var pathExecutor = _serviceProvider.GetRequiredService<ISwitchingPathExecutor>();
         var timelineFactory = _serviceProvider.GetRequiredService<ParcelTimelineFactory>();
@@ -307,7 +307,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
     private async Task<(SimulationSummary summary, SimulationRunner runner)> RunScenarioWithRunnerAsync(SimulationScenario scenario)
     {
         var options = Options.Create(scenario.Options);
-        var ruleEngineClient = _serviceProvider.GetRequiredService<IRuleEngineClient>();
+        var ruleEngineClient = _serviceProvider.GetRequiredService<IUpstreamRoutingClient>();
         var pathGenerator = _serviceProvider.GetRequiredService<ISwitchingPathGenerator>();
         var pathExecutor = _serviceProvider.GetRequiredService<ISwitchingPathExecutor>();
         var timelineFactory = _serviceProvider.GetRequiredService<ParcelTimelineFactory>();

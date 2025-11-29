@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
@@ -16,14 +15,15 @@ namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 /// HTTP 协议的上游分拣网关实现
 /// </summary>
 /// <remarks>
-/// <para>适配 HttpRuleEngineClient，提供协议层编解码和基础重试。</para>
+/// <para>适配上游路由客户端，提供协议层编解码和基础重试。</para>
 /// <para>使用 <see cref="IUpstreamContractMapper"/> 进行领域对象与协议 DTO 之间的转换，
 /// 确保协议细节不渗透到领域层。</para>
 /// <para>⚠️ 仅用于测试，生产环境禁用</para>
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </remarks>
 public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
 {
-    private readonly IRuleEngineClient _httpClient;
+    private readonly IUpstreamRoutingClient _client;
     private readonly IUpstreamContractMapper _mapper;
     private readonly ILogger<HttpUpstreamSortingGateway> _logger;
     private readonly RuleEngineConnectionOptions _options;
@@ -31,17 +31,17 @@ public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="httpClient">HTTP 规则引擎客户端</param>
+    /// <param name="client">上游路由客户端</param>
     /// <param name="mapper">上游契约映射器</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接选项</param>
     public HttpUpstreamSortingGateway(
-        IRuleEngineClient httpClient,
+        IUpstreamRoutingClient client,
         IUpstreamContractMapper mapper,
         ILogger<HttpUpstreamSortingGateway> logger,
         RuleEngineConnectionOptions options)
     {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _client = client ?? throw new ArgumentNullException(nameof(client));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -71,12 +71,12 @@ public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
             var tcs = new TaskCompletionSource<SortingResponse>();
             
             // 订阅事件处理响应
-            EventHandler<ChuteAssignmentNotificationEventArgs>? handler = null;
+            EventHandler<ChuteAssignmentEventArgs>? handler = null;
             handler = (sender, eventArgs) =>
             {
                 if (eventArgs.ParcelId == request.ParcelId)
                 {
-                    _httpClient.ChuteAssignmentReceived -= handler;
+                    _client.ChuteAssignmentReceived -= handler;
                     
                     // 使用映射器将协议通知转换为领域层响应
                     var notification = new UpstreamChuteAssignmentNotification
@@ -92,18 +92,18 @@ public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
                 }
             };
             
-            _httpClient.ChuteAssignmentReceived += handler;
+            _client.ChuteAssignmentReceived += handler;
 
             try
             {
                 // 发送通知
-                var notified = await _httpClient.NotifyParcelDetectedAsync(
+                var notified = await _client.NotifyParcelDetectedAsync(
                     request.ParcelId,
                     cancellationToken);
 
                 if (!notified)
                 {
-                    _httpClient.ChuteAssignmentReceived -= handler;
+                    _client.ChuteAssignmentReceived -= handler;
                     throw new UpstreamUnavailableException("发送包裹通知失败");
                 }
 
@@ -125,7 +125,7 @@ public class HttpUpstreamSortingGateway : IUpstreamSortingGateway
             }
             catch
             {
-                _httpClient.ChuteAssignmentReceived -= handler;
+                _client.ChuteAssignmentReceived -= handler;
                 throw;
             }
         }

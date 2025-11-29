@@ -1,22 +1,25 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Health;
 
 /// <summary>
-/// RuleEngine上游健康检查实现
+/// 上游路由健康检查实现
 /// </summary>
+/// <remarks>
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
+/// </remarks>
 public class RuleEngineUpstreamHealthChecker : IUpstreamHealthChecker
 {
-    private readonly IRuleEngineClient? _client;
+    private readonly IUpstreamRoutingClient? _client;
     private readonly ILogger<RuleEngineUpstreamHealthChecker> _logger;
     private readonly ISystemClock _systemClock;
     private readonly string _connectionType;
 
     public RuleEngineUpstreamHealthChecker(
-        IRuleEngineClient? client,
+        IUpstreamRoutingClient? client,
         string connectionType,
         ILogger<RuleEngineUpstreamHealthChecker> logger,
         ISystemClock systemClock)

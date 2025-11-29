@@ -3,11 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
@@ -338,9 +336,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
-        // 注册适配器：将 Communication/Ingress 层的具体实现适配为 Execution 层抽象
+        // 注册适配器：将 Ingress 层的具体实现适配为 Execution 层抽象
+        // PR-U1: IUpstreamRoutingClient 现在由 AddRuleEngineCommunication 直接注册，不再需要 Adapter
         services.AddSingleton<ISensorEventProvider, SensorEventProviderAdapter>();
-        services.AddSingleton<IUpstreamRoutingClient, UpstreamRoutingClientAdapter>();
         services.AddSingleton<ICongestionDataCollector, CongestionDataCollector>();
 
         // 注册 UpstreamConnectionOptions（从配置绑定）

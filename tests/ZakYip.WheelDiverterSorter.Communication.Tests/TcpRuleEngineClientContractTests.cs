@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
@@ -15,6 +15,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
 /// <summary>
 /// TCP客户端契约测试实现
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </summary>
 public class TcpRuleEngineClientContractTests : RuleEngineClientContractTestsBase
 {
@@ -26,7 +27,7 @@ public class TcpRuleEngineClientContractTests : RuleEngineClientContractTestsBas
         _testPort = GetAvailablePort();
     }
 
-    protected override IRuleEngineClient CreateClient()
+    protected override IUpstreamRoutingClient CreateClient()
     {
         var options = new RuleEngineConnectionOptions
         {

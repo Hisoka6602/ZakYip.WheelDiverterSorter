@@ -1,15 +1,17 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
 /// <summary>
-/// RuleEngine客户端基类，提供公共的连接管理、重试和日志记录功能
+/// 上游路由客户端基类，提供公共的连接管理、重试和日志记录功能
 /// </summary>
-public abstract class RuleEngineClientBase : IRuleEngineClient
+/// <remarks>
+/// PR-U1: 合并 IRuleEngineClient 到 IUpstreamRoutingClient，删除中间适配层
+/// </remarks>
+public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
 {
     protected readonly ILogger Logger;
     protected readonly RuleEngineConnectionOptions Options;
@@ -24,7 +26,7 @@ public abstract class RuleEngineClientBase : IRuleEngineClient
     /// <summary>
     /// 格口分配通知事件
     /// </summary>
-    public event EventHandler<ChuteAssignmentNotificationEventArgs>? ChuteAssignmentReceived;
+    public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssignmentReceived;
 
     /// <summary>
     /// 构造函数
@@ -57,9 +59,19 @@ public abstract class RuleEngineClientBase : IRuleEngineClient
     /// <summary>
     /// 触发格口分配接收事件
     /// </summary>
-    /// <param name="notification">格口分配通知</param>
-    protected void OnChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="chuteId">格口ID</param>
+    /// <param name="notificationTime">通知时间</param>
+    /// <param name="metadata">元数据（可选）</param>
+    protected void OnChuteAssignmentReceived(long parcelId, long chuteId, DateTimeOffset notificationTime, Dictionary<string, string>? metadata = null)
     {
+        var notification = new ChuteAssignmentEventArgs
+        {
+            ParcelId = parcelId,
+            ChuteId = chuteId,
+            NotificationTime = notificationTime,
+            Metadata = metadata
+        };
         ChuteAssignmentReceived?.Invoke(this, notification);
     }
 

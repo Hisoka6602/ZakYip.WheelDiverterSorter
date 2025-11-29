@@ -2,7 +2,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Host.Application.Services;
@@ -126,7 +126,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
 
         // Act - Simulate RuleEngine sending chute assignment (push model)
         // In the push model, the client receives assignments without explicitly requesting them
-        var assignmentArgs = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = targetChuteId
+        var assignmentArgs = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId
         , NotificationTime = DateTimeOffset.Now };
 
         Factory.MockRuleEngineClient.Raise(
@@ -141,7 +141,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // The orchestrator subscribes to ChuteAssignmentReceived event on startup
         // Verify the event subscription was set up
         Factory.MockRuleEngineClient.VerifyAdd(
-            x => x.ChuteAssignmentReceived += It.IsAny<EventHandler<ChuteAssignmentNotificationEventArgs>>(),
+            x => x.ChuteAssignmentReceived += It.IsAny<EventHandler<ChuteAssignmentEventArgs>>(),
             Times.AtLeastOnce);
 
         await _orchestrator.StopAsync();
