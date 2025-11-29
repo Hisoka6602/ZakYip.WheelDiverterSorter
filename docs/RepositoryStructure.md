@@ -338,9 +338,10 @@ ZakYip.WheelDiverterSorter.Core/
 │   └── IChaosInjector.cs
 ├── Enums/                           # 枚举定义
 │   ├── Communication/
-│   ├── Hardware/
+│   ├── Hardware/                    # PR-TD6: 新增 WheelDiverterState, WheelCommandResultType, WheelDeviceState
 │   ├── Monitoring/
 │   ├── Parcel/
+│   ├── Simulation/                  # PR-TD6: 新增目录，包含 SimulationStepType, StepStatus
 │   ├── Sorting/
 │   └── System/
 ├── Hardware/                        # 硬件设备抽象接口
@@ -1030,16 +1031,21 @@ tools/Profiling/
     - 这是为了避免配置类重复定义的权宜之计
     - **注意**：需确保 Ingress 不直接使用 Drivers 中的驱动实现类，仅使用配置类
 
-### 5.8 内联枚举待迁移（PR-C2 白名单）
+### 5.8 内联枚举待迁移（PR-C2 白名单）✅ 已解决 (PR-TD6)
 
-18. **接口文件中的内联枚举**
-    - `IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举
-    - `IWheelProtocolMapper.cs` 中定义了 `WheelCommandResultType`, `WheelDeviceState` 枚举
-    - **建议**：后续 PR 将这些枚举迁移到 `Core/Enums/Hardware/` 目录
+18. **接口文件中的内联枚举** ✅ 已解决 (PR-TD6)
+    - ~~`IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举~~
+    - ~~`IWheelProtocolMapper.cs` 中定义了 `WheelCommandResultType`, `WheelDeviceState` 枚举~~
+    - **已迁移**：所有枚举已迁移到 `Core/Enums/Hardware/` 目录：
+      - `WheelDiverterState.cs`
+      - `WheelCommandResultType.cs`
+      - `WheelDeviceState.cs`
 
-19. **DTO 文件中的内联枚举**
-    - `ChutePathTopologyDto.cs` 中定义了 `SimulationStepType`, `StepStatus` 枚举
-    - **建议**：后续 PR 将这些枚举迁移到 `Core/Enums/` 相应子目录
+19. **DTO 文件中的内联枚举** ✅ 已解决 (PR-TD6)
+    - ~~`ChutePathTopologyDto.cs` 中定义了 `SimulationStepType`, `StepStatus` 枚举~~
+    - **已迁移**：所有枚举已迁移到 `Core/Enums/Simulation/` 目录：
+      - `SimulationStepType.cs`
+      - `StepStatus.cs`
 
 ---
 
@@ -1057,6 +1063,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.3 (PR-H1)  
-**最后更新**：2025-11-28  
+**文档版本**：1.4 (PR-TD6)  
+**最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
