@@ -1397,6 +1397,47 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.4 (PR-S2)  
+### 5.14 DTO/Options/Utilities 统一规范（PR-S3）
+
+28. **DTO/Model/Response 类型统一命名规则** ✅ 新增 (PR-S3)
+    - **问题**：相同业务概念在多个项目中存在多个字段相同的 DTO/Model/Response 类型
+    - **统一命名规则**：
+      - `*Configuration`: 持久化配置模型（存储在 LiteDB），位于 `Core/LineModel/Configuration/Models/`
+      - `*Options`: 运行时配置选项（通过 IOptions<T> 注入），位于各项目的 `Configuration/` 目录
+      - `*Request`: API 请求模型，位于 `Host/Models/` 或 `Host/Models/Config/`
+      - `*Response`: API 响应模型，位于 `Host/Models/` 或 `Host/Models/Config/`
+      - `*Dto`: 跨层数据传输对象（仅在必要时使用）
+    - **已清理的重复类型**：
+      - 删除 `Ingress/Configuration/SensorConfiguration.cs`（未使用，与 Core 层 SensorConfiguration 重复）
+    - **已知的同名类型**（有明确职责区分）：
+      - `OperationResult` (Core/Results/) - 完整的操作结果类型，带 ErrorCode 支持
+      - `OperationResult` (Core/LineModel/Routing/) - 简化的内部操作结果类型
+      - `SensorEvent` (Ingress/Models/) - 入口层传感器事件
+      - `SensorEvent` (Simulation/Services/) - 仿真层传感器事件模拟
+      - `WheelDiverterSorterServiceCollectionExtensions` (Application/) - DI 聚合入口
+      - `WheelDiverterSorterServiceCollectionExtensions` (Host/Services/Extensions/) - Host 层薄包装
+
+29. **Utilities 目录位置规范** ✅ 新增 (PR-S3)
+    - **允许的 Utilities 目录位置**：
+      - `Core/Utilities/` - 公共工具类（如 ISystemClock）
+      - `Core/LineModel/Utilities/` - LineModel 内部工具类（使用 file-scoped class）
+      - `Observability/Utilities/` - 可观测性相关工具类
+    - **禁止在其他项目中新增 Utilities 目录**
+    - **项目特定工具应使用 `file static class`** 保持文件作用域
+    - **防线测试**：`DuplicateTypeDetectionTests.UtilitiesDirectoriesShouldFollowConventions()`
+
+30. **未使用类型检测** ✅ 新增 (PR-S3)
+    - **测试**：`DuplicateTypeDetectionTests.ShouldNotHaveUnusedDtoOrOptionsTypes()`
+    - **检测范围**：以 `Dto`, `Options`, `Configuration`, `Config` 结尾的类型
+    - **注意**：Options 类型可能通过 IOptions<T> 隐式绑定，检测结果为顾问性
+
+31. **同名不同命名空间类型检测** ✅ 新增 (PR-S3)
+    - **测试**：`DuplicateTypeDetectionTests.ShouldNotHaveDuplicateTypeNameAcrossNamespaces()`
+    - **检测范围**：同名类型在不同命名空间中的定义
+    - **输出**：顾问性报告，需人工确认是否为真正的重复
+
+---
+
+**文档版本**：2.5 (PR-S3)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
