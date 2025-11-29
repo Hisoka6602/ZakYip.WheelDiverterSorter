@@ -54,6 +54,9 @@ public static class ApplicationServiceExtensions
         // 注册通信统计服务
         services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
         
+        // 注册拓扑相关服务
+        services.AddScoped<IChutePathTopologyService, ChutePathTopologyService>();
+        
         return services;
     }
 }
