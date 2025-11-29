@@ -4,7 +4,11 @@ using Microsoft.Extensions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Ingress.Sensors;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 

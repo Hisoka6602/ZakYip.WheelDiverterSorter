@@ -393,4 +393,192 @@ public class DuplicateTypeDetectionTests
         // This test always passes, just generates a report
         Assert.True(true);
     }
+
+    /// <summary>
+    /// 检测 Core 层是否存在平行硬件抽象层目录
+    /// Detect if Core has parallel hardware abstraction directories
+    /// </summary>
+    /// <remarks>
+    /// PR-C6: HAL 已收敛到 Core/Hardware，禁止增加新的平行硬件抽象层
+    /// 允许的位置：
+    /// - Core/Hardware/Ports/
+    /// - Core/Hardware/IoLinkage/
+    /// - Core/Hardware/Devices/
+    /// - Core/Hardware/Mappings/
+    /// - Core/Hardware/Providers/
+    /// 禁止的位置：
+    /// - Core/Abstractions/Drivers/（已删除）
+    /// - Core/Drivers/、Core/Adapters/、Core/HardwareAbstractions/ 等
+    /// </remarks>
+    [Fact]
+    public void Core_ShouldNotHaveParallelHardwareAbstractionLayers()
+    {
+        var corePath = Path.Combine(SolutionRoot, "src/Core/ZakYip.WheelDiverterSorter.Core");
+        
+        // 禁止的目录名称模式
+        var forbiddenDirectoryNames = new[]
+        {
+            "Drivers2", "Abstractions2", "HardwareAbstractions", "Adapters",
+            "HAL2", "DeviceDrivers"
+        };
+        
+        // 检查 Abstractions/Drivers 是否被重新创建
+        var abstractionsDriversPath = Path.Combine(corePath, "Abstractions/Drivers");
+        if (Directory.Exists(abstractionsDriversPath))
+        {
+            Assert.Fail($"❌ 发现禁止的目录: Abstractions/Drivers\n" +
+                $"HAL 已收敛到 Core/Hardware，不允许在 Core/Abstractions/ 下重新创建 Drivers 目录。\n" +
+                $"请将硬件相关接口移动到 Core/Hardware/ 的对应子目录。");
+        }
+        
+        // 检查是否存在禁止的平行硬件抽象目录
+        var violations = new List<string>();
+        foreach (var forbiddenName in forbiddenDirectoryNames)
+        {
+            var forbiddenPath = Path.Combine(corePath, forbiddenName);
+            if (Directory.Exists(forbiddenPath))
+            {
+                violations.Add(forbiddenName);
+            }
+        }
+        
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine("\n❌ 发现禁止的平行硬件抽象层目录:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var violation in violations)
+            {
+                report.AppendLine($"  📁 Core/{violation}");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 PR-C6 修复建议:");
+            report.AppendLine("  HAL 已收敛到 Core/Hardware，禁止增加新的平行硬件抽象层。");
+            report.AppendLine("  允许的硬件抽象位置:");
+            report.AppendLine("    - Core/Hardware/Ports/ (IO 端口接口)");
+            report.AppendLine("    - Core/Hardware/IoLinkage/ (IO 联动接口)");
+            report.AppendLine("    - Core/Hardware/Devices/ (设备驱动接口)");
+            report.AppendLine("    - Core/Hardware/Mappings/ (IO 映射接口)");
+            report.AppendLine("    - Core/Hardware/Providers/ (配置提供者接口)");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 检测 Core/Hardware 目录结构是否符合规范
+    /// Detect if Core/Hardware directory structure follows the standard
+    /// </summary>
+    [Fact]
+    public void Core_Hardware_ShouldHaveStandardSubdirectories()
+    {
+        var hardwarePath = Path.Combine(SolutionRoot, "src/Core/ZakYip.WheelDiverterSorter.Core/Hardware");
+        
+        // 必须存在的子目录
+        var requiredSubdirectories = new[]
+        {
+            "Ports",
+            "IoLinkage",
+            "Devices",
+            "Mappings",
+            "Providers"
+        };
+        
+        if (!Directory.Exists(hardwarePath))
+        {
+            Assert.Fail("❌ Core/Hardware 目录不存在\n" +
+                "HAL 应该位于 Core/Hardware/ 目录下。");
+        }
+        
+        var missingDirs = new List<string>();
+        foreach (var subDir in requiredSubdirectories)
+        {
+            var path = Path.Combine(hardwarePath, subDir);
+            if (!Directory.Exists(path))
+            {
+                missingDirs.Add(subDir);
+            }
+        }
+        
+        if (missingDirs.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine("\n❌ Core/Hardware 缺少标准子目录:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var missing in missingDirs)
+            {
+                report.AppendLine($"  📁 Hardware/{missing}/");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 HAL 目录结构说明:");
+            report.AppendLine("  - Ports/: IInputPort, IOutputPort 等 IO 端口接口");
+            report.AppendLine("  - IoLinkage/: IIoLinkageDriver 等 IO 联动接口");
+            report.AppendLine("  - Devices/: IWheelDiverterDriver, IEmcController 等设备接口");
+            report.AppendLine("  - Mappings/: IVendorIoMapper 等 IO 映射接口");
+            report.AppendLine("  - Providers/: ISensorVendorConfigProvider 等配置提供者");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 检测 Core/Utilities 是否只包含基础设施抽象
+    /// Detect if Core/Utilities only contains infrastructure abstractions
+    /// </summary>
+    [Fact]
+    public void Core_Utilities_ShouldOnlyContainInfrastructureAbstractions()
+    {
+        var utilitiesPath = Path.Combine(SolutionRoot, "src/Core/ZakYip.WheelDiverterSorter.Core/Utilities");
+        
+        if (!Directory.Exists(utilitiesPath))
+        {
+            // Utilities 目录不存在，这是允许的
+            return;
+        }
+        
+        // 允许的文件名模式
+        var allowedFilePatterns = new[]
+        {
+            "ISystemClock.cs",
+            "LocalSystemClock.cs"
+        };
+        
+        var csFiles = Directory.GetFiles(utilitiesPath, "*.cs", SearchOption.TopDirectoryOnly)
+            .Select(Path.GetFileName)
+            .ToList();
+        
+        var unexpectedFiles = csFiles
+            .Where(f => f != null && !allowedFilePatterns.Contains(f))
+            .ToList();
+        
+        if (unexpectedFiles.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine("\n⚠️ Core/Utilities 包含非基础设施文件:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var file in unexpectedFiles)
+            {
+                report.AppendLine($"  📄 Utilities/{file}");
+            }
+            
+            report.AppendLine("\n允许的文件:");
+            foreach (var pattern in allowedFilePatterns)
+            {
+                report.AppendLine($"  ✅ {pattern}");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  Core/Utilities 应只包含极少且命名具体的基础设施抽象。");
+            report.AppendLine("  与 Sorting/LineModel 等领域相关的工具类应迁移到对应目录。");
+            
+            // 这是一个警告性测试，不强制失败，但会输出警告
+            Console.WriteLine(report.ToString());
+        }
+    }
 }

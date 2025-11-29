@@ -1,12 +1,12 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 /// <summary>
 /// 摆轮协议映射器接口
 /// </summary>
 /// <remarks>
-/// 本接口属于 Core 层，定义摆轮协议映射的抽象契约。
+/// 本接口属于 HAL（硬件抽象层），定义摆轮协议映射的抽象契约。
 /// 
 /// <para><b>职责</b>：在领域层的摆轮命令与底层协议帧之间进行转换</para>
 /// <list type="bullet">
@@ -15,7 +15,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 /// </list>
 /// <para><b>设计原则</b>：</para>
 /// <para>
-/// 此接口定义在 Core.Abstractions 中，不依赖具体协议实现。
+/// 此接口定义在 HAL 层中，不依赖具体协议实现。
 /// 具体的协议映射实现（如数递鸟、莫迪等）在 Drivers 层实现，
 /// 确保协议细节不渗透到领域层。
 /// </para>
@@ -90,7 +90,7 @@ public interface IWheelProtocolMapper
 /// 协议层命令（值对象）
 /// </summary>
 /// <remarks>
-/// 本类型属于 Core 层，封装协议命令的字节值和语义名称。
+/// 本类型属于 HAL（硬件抽象层），封装协议命令的字节值和语义名称。
 /// 避免在业务代码中直接使用 magic number。
 /// </remarks>
 public readonly record struct WheelProtocolCommand
@@ -128,7 +128,7 @@ public readonly record struct WheelProtocolCommand
 /// 摆轮命令执行结果（领域层模型）
 /// </summary>
 /// <remarks>
-/// 本类型属于 Core 层，将协议层的响应码转换为领域层可理解的结果。
+/// 本类型属于 HAL（硬件抽象层），将协议层的响应码转换为领域层可理解的结果。
 /// 隐藏协议细节。
 /// </remarks>
 public readonly record struct WheelCommandResult
@@ -169,7 +169,7 @@ public readonly record struct WheelCommandResult
 /// 摆轮设备状态（领域层模型）
 /// </summary>
 /// <remarks>
-/// 本类型属于 Core 层，将协议层的设备状态转换为领域层可理解的状态。
+/// 本类型属于 HAL（硬件抽象层），将协议层的设备状态转换为领域层可理解的状态。
 /// 隐藏协议细节。
 /// </remarks>
 public readonly record struct WheelDeviceStatus

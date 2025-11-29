@@ -4,7 +4,11 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
@@ -78,13 +82,9 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
                 FeedbackInputBit = configDto.FeedbackInputBit
             };
 
-            // 创建底层控制器
-            var controllerLogger = _loggerFactory.CreateLogger<LeadshineDiverterController>();
-            var controller = new LeadshineDiverterController(controllerLogger, _options.CardNo, config);
-
-            // 封装为高层驱动器
-            var driverLogger = _loggerFactory.CreateLogger<RelayWheelDiverterDriver>();
-            var driver = new RelayWheelDiverterDriver(driverLogger, controller);
+            // 直接创建摆轮驱动器（已移除 IDiverterController 中间层）
+            var driverLogger = _loggerFactory.CreateLogger<LeadshineWheelDiverterDriver>();
+            var driver = new LeadshineWheelDiverterDriver(driverLogger, _options.CardNo, config);
             drivers.Add(driver);
         }
 

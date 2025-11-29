@@ -1,10 +1,10 @@
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 /// <summary>
 /// 摆轮驱动器接口
 /// </summary>
 /// <remarks>
-/// 本接口属于 Core 层，定义摆轮驱动的抽象契约。
+/// 本接口属于 HAL（硬件抽象层），定义摆轮驱动的抽象契约。
 /// 此接口封装了摆轮的所有操作，隐藏底层Y点编号、继电器通道等硬件实现细节。
 /// 执行层（Execution）和驱动层（Drivers）实现此接口，不直接暴露具体硬件。
 /// </remarks>

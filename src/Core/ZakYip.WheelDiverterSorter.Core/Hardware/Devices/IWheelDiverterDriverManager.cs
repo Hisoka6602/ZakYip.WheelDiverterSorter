@@ -1,13 +1,12 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 /// <summary>
 /// 摆轮驱动管理器接口
 /// </summary>
 /// <remarks>
-/// 本接口属于 Core 层，定义摆轮驱动器管理的抽象契约。
+/// 本接口属于 HAL（硬件抽象层），定义摆轮驱动器管理的抽象契约。
 /// 提供摆轮驱动器的热更新管理能力：
 /// - 在配置更新时重新创建驱动器实例
 /// - 断开旧连接并建立新连接
@@ -62,7 +61,7 @@ public interface IWheelDiverterDriverManager
 /// 摆轮配置应用结果
 /// </summary>
 /// <remarks>
-/// 本类型属于 Core 层，用于表示摆轮配置应用操作的结果。
+/// 本类型属于 HAL（硬件抽象层），用于表示摆轮配置应用操作的结果。
 /// </remarks>
 public record class WheelDiverterConfigApplyResult
 {
@@ -96,7 +95,7 @@ public record class WheelDiverterConfigApplyResult
 /// 摆轮驱动器重连结果
 /// </summary>
 /// <remarks>
-/// 本类型属于 Core 层，用于表示摆轮驱动器重连操作的结果。
+/// 本类型属于 HAL（硬件抽象层），用于表示摆轮驱动器重连操作的结果。
 /// </remarks>
 public record class WheelDiverterReconnectResult
 {

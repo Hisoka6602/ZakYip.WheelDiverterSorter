@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
@@ -61,15 +61,11 @@ public static class SiemensS7ServiceCollectionExtensions
                     FeedbackInputBit = diverterConfig.FeedbackInputBit
                 };
                 
-                var controller = new S7DiverterController(
-                    loggerFactory.CreateLogger<S7DiverterController>(),
+                // 直接创建 S7 摆轮驱动器（已移除 IDiverterController 中间层）
+                var driver = new S7WheelDiverterDriver(
+                    loggerFactory.CreateLogger<S7WheelDiverterDriver>(),
                     outputPort,
                     config);
-                
-                // 封装为高层驱动器
-                var driver = new RelayWheelDiverterDriver(
-                    loggerFactory.CreateLogger<RelayWheelDiverterDriver>(),
-                    controller);
                     
                 drivers.Add(driver);
             }

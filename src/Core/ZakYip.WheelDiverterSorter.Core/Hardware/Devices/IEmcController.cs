@@ -1,10 +1,10 @@
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 /// <summary>
 /// EMC控制器操作接口
 /// </summary>
 /// <remarks>
-/// 本接口属于 Core 层，定义 EMC 硬件控制的抽象契约。
+/// 本接口属于 HAL（硬件抽象层），定义 EMC 硬件控制的抽象契约。
 /// 提供对EMC硬件的基本操作，包括重置功能，由 Drivers 层实现。
 /// </remarks>
 public interface IEmcController
