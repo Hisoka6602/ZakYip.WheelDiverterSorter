@@ -20,6 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 /// </summary>
 /// <remarks>
 /// 提供低耦合的服务注册方式，便于扩展新的通信协议
+/// PR-U1: 合并上游路由客户端接口，删除中间适配层
 /// </remarks>
 public static class CommunicationServiceExtensions
 {
@@ -34,7 +35,7 @@ public static class CommunicationServiceExtensions
         public const string HttpApi = "http://localhost:9999/api/ruleengine";
     }
     /// <summary>
-    /// 添加RuleEngine通信服务
+    /// 添加上游路由通信服务
     /// </summary>
     /// <param name="services">服务集合</param>
     /// <param name="configuration">配置</param>
@@ -47,6 +48,7 @@ public static class CommunicationServiceExtensions
     ///   <item>正式环境启动时从 LiteDB 数据库加载持久化配置</item>
     ///   <item>测试环境可以使用 appsettings.json 中的配置（仅用于自动化测试）</item>
     /// </list>
+    /// PR-U1: 直接注册 IUpstreamRoutingClient，移除 IRuleEngineClient 中间层
     /// </remarks>
     public static IServiceCollection AddRuleEngineCommunication(
         this IServiceCollection services,
@@ -110,13 +112,13 @@ public static class CommunicationServiceExtensions
         // Register upstream contract mapper - for conversion between domain objects and protocol DTOs
         services.AddSingleton<IUpstreamContractMapper, DefaultUpstreamContractMapper>();
 
-        // 注册客户端工厂
-        services.AddSingleton<IRuleEngineClientFactory, RuleEngineClientFactory>();
+        // PR-U1: 注册上游路由客户端工厂（替代原 IRuleEngineClientFactory）
+        services.AddSingleton<IUpstreamRoutingClientFactory, UpstreamRoutingClientFactory>();
 
-        // 注册客户端（使用工厂创建）
-        services.AddSingleton<IRuleEngineClient>(sp =>
+        // PR-U1: 直接注册 IUpstreamRoutingClient（使用工厂创建，不再需要 Adapter）
+        services.AddSingleton<IUpstreamRoutingClient>(sp =>
         {
-            var factory = sp.GetRequiredService<IRuleEngineClientFactory>();
+            var factory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
             return factory.CreateClient();
         });
 
@@ -193,14 +195,14 @@ public static class CommunicationServiceExtensions
             configuration.GetSection("RuleEngineConnection").Bind(options);
         }
 
-        // 注册 UpstreamConnectionManager（用于Client模式）
+        // PR-U1: 注册 UpstreamConnectionManager（用于Client模式），使用 IUpstreamRoutingClient
         services.AddSingleton<IUpstreamConnectionManager>(sp =>
         {
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpstreamConnectionManager>>();
             var systemClock = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.Utilities.ISystemClock>();
             var logDeduplicator = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ILogDeduplicator>();
             var safeExecutor = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ISafeExecutionService>();
-            var client = sp.GetRequiredService<IRuleEngineClient>();
+            var client = sp.GetRequiredService<IUpstreamRoutingClient>();
             // 从DI容器获取已注册的配置，确保使用相同的配置实例
             var connectionOptions = sp.GetRequiredService<RuleEngineConnectionOptions>();
 

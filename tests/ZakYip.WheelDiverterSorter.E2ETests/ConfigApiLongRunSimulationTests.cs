@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -55,7 +55,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
     private readonly CustomWebApplicationFactory _factory;
     private readonly HttpClient _client;
     private readonly ServiceProvider _serviceProvider;
-    private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
+    private readonly Mock<IUpstreamRoutingClient> _mockRuleEngineClient;
     private readonly Random _targetChuteRandom;
     private readonly string _testOutputDirectory;
 
@@ -72,7 +72,7 @@ public class ConfigApiLongRunSimulationTests : IClassFixture<CustomWebApplicatio
         Directory.CreateDirectory(_testOutputDirectory);
 
         // 创建模拟 RuleEngine 客户端
-        _mockRuleEngineClient = new Mock<IRuleEngineClient>(MockBehavior.Loose);
+        _mockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
         _mockRuleEngineClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockRuleEngineClient.Setup(x => x.DisconnectAsync())

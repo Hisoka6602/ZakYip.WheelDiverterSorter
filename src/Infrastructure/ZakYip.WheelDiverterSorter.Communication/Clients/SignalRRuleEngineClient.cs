@@ -1,7 +1,6 @@
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
@@ -10,10 +9,11 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
 /// <summary>
-/// 基于SignalR的RuleEngine通信客户端
+/// 基于SignalR的上游路由通信客户端
 /// </summary>
 /// <remarks>
 /// 推荐生产环境使用，提供实时双向通信和自动重连机制
+/// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
 /// </remarks>
 public class SignalRRuleEngineClient : RuleEngineClientBase
 {
@@ -118,7 +118,12 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
             notification.ChuteId,
             notification.NotificationTime);
 
-        OnChuteAssignmentReceived(notification);
+        // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+        OnChuteAssignmentReceived(
+            notification.ParcelId,
+            notification.ChuteId,
+            notification.NotificationTime,
+            notification.Metadata);
     }
 
     /// <summary>

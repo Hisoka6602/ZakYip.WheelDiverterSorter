@@ -10,14 +10,14 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
 /// <summary>
 /// 通信适配器测试：推送模型、超时保护
-/// RuleEngineClientFactory tests
+/// UpstreamRoutingClientFactory tests
 /// </summary>
-public class RuleEngineClientFactoryTests
+public class UpstreamRoutingClientFactoryTests
 {
     private readonly Mock<ILoggerFactory> _loggerFactoryMock;
     private readonly ISystemClock _clockMock;
 
-    public RuleEngineClientFactoryTests()
+    public UpstreamRoutingClientFactoryTests()
     {
         _loggerFactoryMock = new Mock<ILoggerFactory>();
         _clockMock = Mock.Of<ISystemClock>();
@@ -39,14 +39,14 @@ public class RuleEngineClientFactoryTests
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new RuleEngineClientFactory(null!, options, _clockMock));
+        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(null!, options, _clockMock));
     }
 
     [Fact]
     public void Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new RuleEngineClientFactory(_loggerFactoryMock.Object, null!, _clockMock));
+        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, null!, _clockMock));
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9999"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -77,7 +77,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.SignalR,
             SignalRHub = "http://localhost:5000/sorterhub"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -96,7 +96,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Mqtt,
             MqttBroker = "mqtt://localhost:1883"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -115,7 +115,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Http,
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -134,7 +134,7 @@ public class RuleEngineClientFactoryTests
             Mode = (CommunicationMode)999, // Invalid mode
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -153,7 +153,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Http,
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client1 = factory.CreateClient();
@@ -181,7 +181,7 @@ public class RuleEngineClientFactoryTests
             MqttBroker = "mqtt://localhost:1883",
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -200,7 +200,7 @@ public class RuleEngineClientFactoryTests
             HttpApi = "http://localhost:5000/api/chute",
             TimeoutMs = 10000
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -219,7 +219,7 @@ public class RuleEngineClientFactoryTests
             SignalRHub = "http://localhost:5000/sorterhub",
             EnableAutoReconnect = true
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -240,7 +240,7 @@ public class RuleEngineClientFactoryTests
             RetryCount = 5,
             RetryDelayMs = 2000
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -259,7 +259,7 @@ public class RuleEngineClientFactoryTests
             SignalRHub = "http://localhost:5000/sorterhub",
             ChuteAssignmentTimeoutMs = 15000 // Timeout protection for push model
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         var client = factory.CreateClient();
@@ -278,7 +278,7 @@ public class RuleEngineClientFactoryTests
             Mode = CommunicationMode.Http,
             HttpApi = "" // Empty configuration
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -298,7 +298,7 @@ public class RuleEngineClientFactoryTests
             TcpServer = "", // Empty configuration
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act - should catch exception and fallback to Http
         using var client = factory.CreateClient();
@@ -318,7 +318,7 @@ public class RuleEngineClientFactoryTests
             SignalRHub = "", // Empty configuration
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act - should catch exception and fallback to Http
         using var client = factory.CreateClient();
@@ -338,7 +338,7 @@ public class RuleEngineClientFactoryTests
             MqttBroker = "", // Empty configuration
             HttpApi = "http://localhost:5000/api/chute"
         };
-        var factory = new RuleEngineClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act - should catch exception and fallback to Http
         using var client = factory.CreateClient();

@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -15,6 +16,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 /// <remarks>
 /// 实现客户端模式的无限重试逻辑，包括指数退避策略（最大2秒）
 /// Implements client mode infinite retry logic with exponential backoff strategy (max 2 seconds)
+/// PR-U1: 直接使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </remarks>
 public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDisposable
 {
@@ -24,7 +26,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
     private readonly ISystemClock _systemClock;
     private readonly ILogDeduplicator _logDeduplicator;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly IRuleEngineClient _client;
+    private readonly IUpstreamRoutingClient _client;
 
     private RuleEngineConnectionOptions _currentOptions;
     private Task? _connectionTask;
@@ -37,7 +39,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         ISystemClock systemClock,
         ILogDeduplicator logDeduplicator,
         ISafeExecutionService safeExecutor,
-        IRuleEngineClient client,
+        IUpstreamRoutingClient client,
         RuleEngineConnectionOptions initialOptions)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
@@ -30,7 +31,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Route("api/communication")]
 [Produces("application/json")]
 public class CommunicationController : ControllerBase {
-    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly IOptions<RuleEngineConnectionOptions> _connectionOptions;
     private readonly ICommunicationConfigurationRepository _configRepository;
     private readonly ICommunicationStatsService _statsService;
@@ -41,7 +42,7 @@ public class CommunicationController : ControllerBase {
     private readonly UpstreamServerBackgroundService? _serverBackgroundService;
 
     public CommunicationController(
-        IRuleEngineClient ruleEngineClient,
+        IUpstreamRoutingClient upstreamClient,
         IOptions<RuleEngineConnectionOptions> connectionOptions,
         ICommunicationConfigurationRepository configRepository,
         ICommunicationStatsService statsService,
@@ -50,7 +51,7 @@ public class CommunicationController : ControllerBase {
         ISystemStateManager stateManager,
         IUpstreamConnectionManager? connectionManager = null,
         UpstreamServerBackgroundService? serverBackgroundService = null) {
-        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _connectionOptions = connectionOptions ?? throw new ArgumentNullException(nameof(connectionOptions));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
@@ -119,7 +120,7 @@ public class CommunicationController : ControllerBase {
             }
 
             // Client 模式：尝试实际连接
-            var connected = await _ruleEngineClient.ConnectAsync(cancellationToken);
+            var connected = await _upstreamClient.ConnectAsync(cancellationToken);
             sw.Stop();
 
             if (connected) {
@@ -195,7 +196,7 @@ public class CommunicationController : ControllerBase {
             var persistedConfig = _configRepository.Get();
             
             // 检查实际连接状态（无论是 Client 还是 Server 模式）
-            var isConnected = _ruleEngineClient.IsConnected;
+            var isConnected = _upstreamClient.IsConnected;
             
             // 根据连接模式生成适当的消息
             string? errorMessage = null;
@@ -737,7 +738,7 @@ public class CommunicationController : ControllerBase {
                     parcelIdLong);
             }
 
-            var success = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelIdLong, cancellationToken);
+            var success = await _upstreamClient.NotifyParcelDetectedAsync(parcelIdLong, cancellationToken);
             sw.Stop();
 
             if (success) {

@@ -2,7 +2,6 @@ using ZakYip.WheelDiverterSorter.Communication.Models;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
@@ -11,11 +10,12 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
 /// <summary>
-/// 基于HTTP REST API的RuleEngine通信客户端
+/// 基于HTTP REST API的上游路由通信客户端
 /// </summary>
 /// <remarks>
 /// ⚠️ 仅用于测试和调试，生产环境禁止使用
 /// 原因：同步阻塞、连接开销大、性能不足
+/// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
 /// </remarks>
 public class HttpRuleEngineClient : RuleEngineClientBase
 {
@@ -167,14 +167,12 @@ public class HttpRuleEngineClient : RuleEngineClientBase
             parcelId,
             result.ChuteId);
 
-        // 触发事件
-        var notification = new ChuteAssignmentNotificationEventArgs
-        {
-            ParcelId = result.ParcelId,
-            ChuteId = result.ChuteId,
-            NotificationTime = result.ResponseTime
-        };
-        OnChuteAssignmentReceived(notification);
+        // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+        OnChuteAssignmentReceived(
+            result.ParcelId,
+            result.ChuteId,
+            result.ResponseTime,
+            null);
 
         return result.IsSuccess;
     }

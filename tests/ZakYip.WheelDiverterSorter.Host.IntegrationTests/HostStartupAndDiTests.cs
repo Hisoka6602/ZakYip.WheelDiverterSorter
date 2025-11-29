@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -56,7 +56,7 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
         var services = scope.ServiceProvider;
 
         // Act & Assert - Verify Communication services are registered
-        var ruleEngineClient = services.GetService<IRuleEngineClient>();
+        var ruleEngineClient = services.GetService<IUpstreamRoutingClient>();
         Assert.NotNull(ruleEngineClient);
     }
 
@@ -310,7 +310,7 @@ public class HostStartupAndDiTests : IClassFixture<WebApplicationFactory<Program
         var services = scope.ServiceProvider;
 
         // Act - Get communication configuration service if available
-        var ruleEngineClient = services.GetService<IRuleEngineClient>();
+        var ruleEngineClient = services.GetService<IUpstreamRoutingClient>();
 
         // Assert - Service should be registered with default configuration
         Assert.NotNull(ruleEngineClient);

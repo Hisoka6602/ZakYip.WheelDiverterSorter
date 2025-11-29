@@ -15,9 +15,10 @@ namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 /// </list>
 /// 
 /// <para><b>实现层</b>：</para>
-/// Communication 项目实现此接口，内部使用 IRuleEngineClient 等具体协议实现。
+/// Communication 项目实现此接口。
+/// PR-U1: 合并 IRuleEngineClient 语义到此接口，删除中间适配层。
 /// </remarks>
-public interface IUpstreamRoutingClient
+public interface IUpstreamRoutingClient : IDisposable
 {
     /// <summary>
     /// 是否已连接到上游系统

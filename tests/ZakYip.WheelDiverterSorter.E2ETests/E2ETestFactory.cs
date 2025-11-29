@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
@@ -17,7 +17,7 @@ public class E2ETestFactory : WebApplicationFactory<Program>
 {
     private VendorId _vendorId = VendorId.Simulated;
     
-    public Mock<IRuleEngineClient>? MockRuleEngineClient { get; private set; }
+    public Mock<IUpstreamRoutingClient>? MockRuleEngineClient { get; private set; }
 
     /// <summary>
     /// 设置要使用的厂商驱动
@@ -54,14 +54,14 @@ public class E2ETestFactory : WebApplicationFactory<Program>
         {
             // 移除现有的RuleEngine客户端（如果已注册）
             var ruleEngineClientDescriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IRuleEngineClient));
+                d => d.ServiceType == typeof(IUpstreamRoutingClient));
             if (ruleEngineClientDescriptor != null)
             {
                 services.Remove(ruleEngineClientDescriptor);
             }
 
             // 添加模拟RuleEngine客户端，使用Loose模式允许未显式设置的调用
-            MockRuleEngineClient = new Mock<IRuleEngineClient>(MockBehavior.Loose);
+            MockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
             
             // 为具有可选参数的方法设置默认行为
             // 这确保在未显式传递CancellationToken时方法也能正常工作

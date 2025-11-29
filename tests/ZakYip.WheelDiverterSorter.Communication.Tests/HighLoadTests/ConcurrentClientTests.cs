@@ -7,7 +7,7 @@ using Xunit;
 using Xunit.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.HighLoadTests;
 
@@ -129,7 +129,7 @@ public class ConcurrentClientTests
         
         await client.ConnectAsync(); // 必须先连接
         
-        var receivedNotifications = new ConcurrentBag<ChuteAssignmentNotificationEventArgs>();
+        var receivedNotifications = new ConcurrentBag<ChuteAssignmentEventArgs>();
         client.ChuteAssignmentReceived += (sender, e) => receivedNotifications.Add(e);
 
         var requestCount = 100;

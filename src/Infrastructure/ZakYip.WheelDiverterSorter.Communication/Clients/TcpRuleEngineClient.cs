@@ -3,7 +3,6 @@ using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
@@ -12,10 +11,11 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
 /// <summary>
-/// 基于TCP Socket的RuleEngine通信客户端
+/// 基于TCP Socket的上游路由通信客户端
 /// </summary>
 /// <remarks>
 /// 推荐生产环境使用，提供低延迟、高吞吐量的通信
+/// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
 /// </remarks>
 public class TcpRuleEngineClient : RuleEngineClientBase
 {
@@ -520,7 +520,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
                 "[上游通信-接收] TCP通道收到消息 | 消息内容={MessageContent}",
                 messageJson);
 
-            // 尝试解析为格口分配通知
+            // 尝试解析为格口分配通知（使用内部 DTO 进行 JSON 解析）
             var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(messageJson);
 
             if (notification != null)
@@ -531,8 +531,12 @@ public class TcpRuleEngineClient : RuleEngineClientBase
                     notification.ChuteId,
                     messageJson);
 
-                // 触发事件
-                OnChuteAssignmentReceived(notification);
+                // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+                OnChuteAssignmentReceived(
+                    notification.ParcelId,
+                    notification.ChuteId,
+                    notification.NotificationTime,
+                    notification.Metadata);
             }
             else
             {

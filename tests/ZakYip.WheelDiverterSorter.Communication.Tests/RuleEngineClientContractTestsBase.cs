@@ -1,14 +1,14 @@
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
 /// <summary>
-/// 所有RuleEngine客户端的契约测试基类
+/// 所有上游路由客户端的契约测试基类
 /// </summary>
 /// <remarks>
 /// 此基类定义了所有协议实现必须通过的契约测试。
 /// 每个协议实现都应该继承此类并实现CreateClient方法。
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </remarks>
 public abstract class RuleEngineClientContractTestsBase : IDisposable
 {
@@ -16,7 +16,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
     /// 创建待测试的客户端实例
     /// </summary>
     /// <returns>客户端实例</returns>
-    protected abstract IRuleEngineClient CreateClient();
+    protected abstract IUpstreamRoutingClient CreateClient();
 
     /// <summary>
     /// 启动模拟服务器（如果需要）
@@ -74,7 +74,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         using var client = CreateClient();
         await client.ConnectAsync();
 
-        var tcs = new TaskCompletionSource<ChuteAssignmentNotificationEventArgs>();
+        var tcs = new TaskCompletionSource<ChuteAssignmentEventArgs>();
         client.ChuteAssignmentReceived += (sender, args) =>
         {
             tcs.TrySetResult(args);
@@ -106,7 +106,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         using var client = CreateClient();
         await client.ConnectAsync();
 
-        var tcs = new TaskCompletionSource<ChuteAssignmentNotificationEventArgs>();
+        var tcs = new TaskCompletionSource<ChuteAssignmentEventArgs>();
         client.ChuteAssignmentReceived += (sender, args) =>
         {
             tcs.TrySetResult(args);
@@ -186,7 +186,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         using var client = CreateClient();
         await client.ConnectAsync();
 
-        var notifications = new List<ChuteAssignmentNotificationEventArgs>();
+        var notifications = new List<ChuteAssignmentEventArgs>();
         client.ChuteAssignmentReceived += (sender, args) =>
         {
             notifications.Add(args);

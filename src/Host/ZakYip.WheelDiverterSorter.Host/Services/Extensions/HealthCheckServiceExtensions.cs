@@ -33,7 +33,7 @@ public static class HealthCheckServiceExtensions
         {
             var logger = sp.GetRequiredService<ILogger<RuleEngineUpstreamHealthChecker>>();
             var clock = sp.GetRequiredService<ISystemClock>();
-            var client = sp.GetService<ZakYip.WheelDiverterSorter.Communication.Abstractions.IRuleEngineClient>();
+            var client = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream.IUpstreamRoutingClient>();
             return new RuleEngineUpstreamHealthChecker(client, "Default", logger, clock);
         });
 

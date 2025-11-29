@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Prometheus;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
@@ -61,8 +61,8 @@ var host = Host.CreateDefaultBuilder(args)
             ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated.SimulatedIoLinkageDriver>();
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
 
-        // 注册模拟RuleEngineClient
-        services.AddSingleton<IRuleEngineClient>(sp =>
+        // PR-U1: 注册模拟上游路由客户端（替代 IRuleEngineClient）
+        services.AddSingleton<IUpstreamRoutingClient>(sp =>
         {
             var logger = sp.GetService<ILogger<InMemoryRuleEngineClient>>();
             var options = sp.GetRequiredService<IOptions<SimulationOptions>>().Value;

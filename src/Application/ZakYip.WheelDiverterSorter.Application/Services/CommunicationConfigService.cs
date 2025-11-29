@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
@@ -13,10 +14,11 @@ namespace ZakYip.WheelDiverterSorter.Application.Services;
 
 /// <summary>
 /// 通信配置服务实现
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </summary>
 public class CommunicationConfigService : ICommunicationConfigService
 {
-    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ICommunicationConfigurationRepository _configRepository;
     private readonly ICommunicationStatsService _statsService;
     private readonly ISystemClock _systemClock;
@@ -25,7 +27,7 @@ public class CommunicationConfigService : ICommunicationConfigService
     private readonly ILogger<CommunicationConfigService> _logger;
 
     public CommunicationConfigService(
-        IRuleEngineClient ruleEngineClient,
+        IUpstreamRoutingClient upstreamClient,
         ICommunicationConfigurationRepository configRepository,
         ICommunicationStatsService statsService,
         ISystemClock systemClock,
@@ -33,7 +35,7 @@ public class CommunicationConfigService : ICommunicationConfigService
         IUpstreamConnectionManager? connectionManager = null,
         UpstreamServerBackgroundService? serverBackgroundService = null)
     {
-        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
@@ -181,7 +183,7 @@ public class CommunicationConfigService : ICommunicationConfigService
             }
 
             // Client 模式：尝试实际连接
-            var connected = await _ruleEngineClient.ConnectAsync(cancellationToken);
+            var connected = await _upstreamClient.ConnectAsync(cancellationToken);
             sw.Stop();
 
             if (connected)
@@ -238,7 +240,7 @@ public class CommunicationConfigService : ICommunicationConfigService
         var persistedConfig = _configRepository.Get();
 
         // 检查实际连接状态（无论是 Client 还是 Server 模式）
-        var isConnected = _ruleEngineClient.IsConnected;
+        var isConnected = _upstreamClient.IsConnected;
 
         // 根据连接模式生成适当的消息
         string? errorMessage = null;

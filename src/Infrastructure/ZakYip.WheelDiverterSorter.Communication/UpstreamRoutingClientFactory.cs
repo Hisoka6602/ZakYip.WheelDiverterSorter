@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
@@ -9,13 +10,14 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 namespace ZakYip.WheelDiverterSorter.Communication;
 
 /// <summary>
-/// RuleEngine客户端工厂实现
+/// 上游路由客户端工厂实现
 /// </summary>
 /// <remarks>
 /// 根据配置的通信模式创建对应的客户端实例
 /// 支持TCP、SignalR、MQTT、HTTP等多种协议
+/// PR-U1: 合并 RuleEngineClientFactory 到 UpstreamRoutingClientFactory
 /// </remarks>
-public class RuleEngineClientFactory : IRuleEngineClientFactory
+public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly RuleEngineConnectionOptions _options;
@@ -27,7 +29,7 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
     /// <param name="loggerFactory">日志工厂</param>
     /// <param name="options">连接配置</param>
     /// <param name="systemClock">系统时钟</param>
-    public RuleEngineClientFactory(
+    public UpstreamRoutingClientFactory(
         ILoggerFactory loggerFactory,
         RuleEngineConnectionOptions options,
         ISystemClock systemClock)
@@ -38,13 +40,13 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
     }
 
     /// <summary>
-    /// 创建RuleEngine客户端实例
+    /// 创建上游路由客户端实例
     /// </summary>
     /// <returns>客户端实例</returns>
     /// <remarks>
     /// 对于不支持的通信模式，会记录警告并使用Http模式作为降级方案，确保程序不会崩溃
     /// </remarks>
-    public IRuleEngineClient CreateClient()
+    public IUpstreamRoutingClient CreateClient()
     {
         try
         {
@@ -76,8 +78,8 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
         catch (Exception ex)
         {
             // 如果创建客户端失败，记录错误并使用降级方案
-            var logger = _loggerFactory.CreateLogger<RuleEngineClientFactory>();
-            logger.LogError(ex, "创建 {Mode} 模式的RuleEngine客户端失败，使用Http模式作为降级方案", _options.Mode);
+            var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
+            logger.LogError(ex, "创建 {Mode} 模式的上游路由客户端失败，使用Http模式作为降级方案", _options.Mode);
             return CreateFallbackHttpClient();
         }
     }
@@ -85,9 +87,9 @@ public class RuleEngineClientFactory : IRuleEngineClientFactory
     /// <summary>
     /// 创建降级用的Http客户端
     /// </summary>
-    private IRuleEngineClient CreateFallbackHttpClient()
+    private IUpstreamRoutingClient CreateFallbackHttpClient()
     {
-        var logger = _loggerFactory.CreateLogger<RuleEngineClientFactory>();
+        var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
         logger.LogWarning("使用Http模式作为降级方案，通信模式: {Mode}", _options.Mode);
         
         // 创建新的options实例用于降级，避免修改原始共享实例

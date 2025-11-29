@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
@@ -13,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests.Infrastructure;
 
 /// <summary>
 /// Tests for UpstreamConnectionManager focusing on retry strategy, backoff, and hot configuration updates
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </summary>
 public class UpstreamConnectionManagerTests : IDisposable
 {
@@ -20,7 +22,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     private readonly Mock<ISystemClock> _systemClockMock;
     private readonly Mock<ILogDeduplicator> _logDeduplicatorMock;
     private readonly Mock<ISafeExecutionService> _safeExecutorMock;
-    private readonly Mock<IRuleEngineClient> _clientMock;
+    private readonly Mock<IUpstreamRoutingClient> _clientMock;
     private readonly DateTime _testTime = new(2025, 11, 20, 12, 0, 0);
 
     public UpstreamConnectionManagerTests()
@@ -43,7 +45,7 @@ public class UpstreamConnectionManagerTests : IDisposable
                 return true;
             });
         
-        _clientMock = new Mock<IRuleEngineClient>();
+        _clientMock = new Mock<IUpstreamRoutingClient>();
     }
 
     [Fact]

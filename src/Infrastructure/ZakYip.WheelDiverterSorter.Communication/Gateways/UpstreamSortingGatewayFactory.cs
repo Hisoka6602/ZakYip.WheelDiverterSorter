@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
@@ -19,10 +17,11 @@ namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 /// <para>根据配置创建相应的网关实现。</para>
 /// <para>网关使用 <see cref="IUpstreamContractMapper"/> 进行领域对象与协议 DTO 之间的转换，
 /// 确保协议细节不渗透到领域层。</para>
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </remarks>
 public class UpstreamSortingGatewayFactory
 {
-    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly IUpstreamRoutingClient _client;
     private readonly IUpstreamContractMapper _mapper;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ILoggerFactory _loggerFactory;
@@ -30,17 +29,17 @@ public class UpstreamSortingGatewayFactory
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="ruleEngineClient">规则引擎客户端</param>
+    /// <param name="client">上游路由客户端</param>
     /// <param name="mapper">上游契约映射器</param>
     /// <param name="options">连接选项</param>
     /// <param name="loggerFactory">日志工厂</param>
     public UpstreamSortingGatewayFactory(
-        IRuleEngineClient ruleEngineClient,
+        IUpstreamRoutingClient client,
         IUpstreamContractMapper mapper,
         RuleEngineConnectionOptions options,
         ILoggerFactory loggerFactory)
     {
-        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _client = client ?? throw new ArgumentNullException(nameof(client));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -54,19 +53,19 @@ public class UpstreamSortingGatewayFactory
         return _options.Mode switch
         {
             CommunicationMode.Tcp => new TcpUpstreamSortingGateway(
-                _ruleEngineClient,
+                _client,
                 _mapper,
                 _loggerFactory.CreateLogger<TcpUpstreamSortingGateway>(),
                 _options),
 
             CommunicationMode.SignalR => new SignalRUpstreamSortingGateway(
-                _ruleEngineClient,
+                _client,
                 _mapper,
                 _loggerFactory.CreateLogger<SignalRUpstreamSortingGateway>(),
                 _options),
 
             CommunicationMode.Http => new HttpUpstreamSortingGateway(
-                _ruleEngineClient,
+                _client,
                 _mapper,
                 _loggerFactory.CreateLogger<HttpUpstreamSortingGateway>(),
                 _options),

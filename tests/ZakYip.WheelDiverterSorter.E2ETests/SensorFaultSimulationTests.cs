@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -34,14 +34,14 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 public class SensorFaultSimulationTests : IDisposable
 {
     private readonly ServiceProvider _serviceProvider;
-    private readonly Mock<IRuleEngineClient> _mockRuleEngineClient;
+    private readonly Mock<IUpstreamRoutingClient> _mockRuleEngineClient;
     private int _currentChuteId = 1;
     private readonly List<ParcelLifecycleContext> _lifecycleLogs = new();
 
     public SensorFaultSimulationTests()
     {
         // 创建模拟 RuleEngine 客户端
-        _mockRuleEngineClient = new Mock<IRuleEngineClient>(MockBehavior.Loose);
+        _mockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
         _mockRuleEngineClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         _mockRuleEngineClient.Setup(x => x.DisconnectAsync())
@@ -172,7 +172,7 @@ public class SensorFaultSimulationTests : IDisposable
 
         // 创建带场景配置的 SimulationRunner
         var options = Options.Create(scenario.Options);
-        var ruleEngineClient = services.GetRequiredService<IRuleEngineClient>();
+        var ruleEngineClient = services.GetRequiredService<IUpstreamRoutingClient>();
         var pathGenerator = services.GetRequiredService<ISwitchingPathGenerator>();
         var pathExecutor = _serviceProvider.GetRequiredService<ISwitchingPathExecutor>();
         

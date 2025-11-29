@@ -2,8 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
@@ -25,11 +24,12 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 /// </summary>
 /// <remarks>
 /// 负责协调整个仿真流程：生成虚拟包裹、触发检测事件、执行分拣、收集结果
+/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </remarks>
 public class SimulationRunner
 {
     private readonly SimulationOptions _options;
-    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly ParcelTimelineFactory _timelineFactory;
@@ -57,7 +57,7 @@ public class SimulationRunner
     /// </summary>
     public SimulationRunner(
         IOptions<SimulationOptions> options,
-        IRuleEngineClient ruleEngineClient,
+        IUpstreamRoutingClient upstreamClient,
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
         ParcelTimelineFactory timelineFactory,
@@ -70,7 +70,7 @@ public class SimulationRunner
         ReleaseThrottleConfiguration? throttleConfig = null)
     {
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _timelineFactory = timelineFactory ?? throw new ArgumentNullException(nameof(timelineFactory));
@@ -92,7 +92,7 @@ public class SimulationRunner
         }
 
         // 订阅格口分配事件
-        _ruleEngineClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
+        _upstreamClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
     }
 
     /// <summary>
@@ -111,7 +111,7 @@ public class SimulationRunner
         var startTime = DateTimeOffset.Now;
 
         // 连接到RuleEngine
-        var connected = await _ruleEngineClient.ConnectAsync(cancellationToken);
+        var connected = await _upstreamClient.ConnectAsync(cancellationToken);
         if (!connected)
         {
             _logger.LogError("无法连接到RuleEngine，仿真终止");
@@ -139,7 +139,7 @@ public class SimulationRunner
         _reportPrinter.PrintStatisticsReport(summary);
 
         // 断开连接
-        await _ruleEngineClient.DisconnectAsync();
+        await _upstreamClient.DisconnectAsync();
 
         _logger.LogInformation("仿真完成");
 
@@ -547,7 +547,7 @@ public class SimulationRunner
         try
         {
             // 通知RuleEngine包裹到达
-            var notified = await _ruleEngineClient.NotifyParcelDetectedAsync(parcelId, cancellationToken);
+            var notified = await _upstreamClient.NotifyParcelDetectedAsync(parcelId, cancellationToken);
             
             if (!notified)
             {
@@ -800,7 +800,7 @@ public class SimulationRunner
     /// <summary>
     /// 处理格口分配事件
     /// </summary>
-    private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentNotificationEventArgs e)
+    private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
     {
         // TryGetValue is thread-safe on ConcurrentDictionary
         if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))

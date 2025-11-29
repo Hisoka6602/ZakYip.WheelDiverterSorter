@@ -10,7 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Services;
@@ -28,7 +28,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     private readonly IDriverConfigurationRepository _ioDriverConfigRepository;
     private readonly IWheelDiverterConfigurationRepository _wheelDiverterConfigRepository;
     private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
-    private readonly IRuleEngineClient _ruleEngineClient;
+    private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<PreRunHealthCheckService> _logger;
 
@@ -39,7 +39,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         ICommunicationConfigurationRepository communicationConfigRepository,
         IDriverConfigurationRepository ioDriverConfigRepository,
         IWheelDiverterConfigurationRepository wheelDiverterConfigRepository,
-        IRuleEngineClient ruleEngineClient,
+        IUpstreamRoutingClient upstreamClient,
         ISafeExecutionService safeExecutor,
         ILogger<PreRunHealthCheckService> logger,
         IWheelDiverterDriverManager? wheelDiverterDriverManager = null)
@@ -50,7 +50,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         _communicationConfigRepository = communicationConfigRepository ?? throw new ArgumentNullException(nameof(communicationConfigRepository));
         _ioDriverConfigRepository = ioDriverConfigRepository ?? throw new ArgumentNullException(nameof(ioDriverConfigRepository));
         _wheelDiverterConfigRepository = wheelDiverterConfigRepository ?? throw new ArgumentNullException(nameof(wheelDiverterConfigRepository));
-        _ruleEngineClient = ruleEngineClient ?? throw new ArgumentNullException(nameof(ruleEngineClient));
+        _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _wheelDiverterDriverManager = wheelDiverterDriverManager;
@@ -365,7 +365,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 }
 
                 // 检查实际连接状态
-                var isConnected = _ruleEngineClient.IsConnected;
+                var isConnected = _upstreamClient.IsConnected;
                 if (!isConnected)
                 {
                     return new HealthCheckItem
