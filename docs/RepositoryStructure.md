@@ -962,11 +962,11 @@ tools/Profiling/
    - 包含 50+ 文件，混合了配置模型、仓储接口、LiteDB 实现
    - 建议：拆分为 Models/、Repositories/Interfaces/、Repositories/LiteDb/ 等子目录
 
-5. **存在重复的 Options 类定义**
-   - `UpstreamConnectionOptions` 在 `Execution/Orchestration/SortingOrchestrator.cs` 中定义（仅含 FallbackTimeoutSeconds 属性）
-   - `Core/Sorting/Policies/UpstreamConnectionOptions.cs` 中定义了完整的上游连接配置类
-   - 两者职责不同但命名相同，容易造成混淆
-   - 建议：重命名 Execution 层的为 `UpstreamTimeoutOptions` 或合并到 Core 层的定义中
+5. **~~存在重复的 Options 类定义~~** ✅ 已解决 (PR-TD5)
+   - ~~`UpstreamConnectionOptions` 在 `Execution/Orchestration/SortingOrchestrator.cs` 中定义（仅含 FallbackTimeoutSeconds 属性）~~
+   - ~~`Core/Sorting/Policies/UpstreamConnectionOptions.cs` 中定义了完整的上游连接配置类~~
+   - ~~两者职责不同但命名相同，容易造成混淆~~
+   - **PR-TD5 验证结果**：经代码审查确认，`UpstreamConnectionOptions` 仅存在于 `Core/Sorting/Policies/` 中，不存在重复定义。`SortingOrchestrator` 通过 `IOptions<UpstreamConnectionOptions>` 注入使用 Core 层的完整配置，其中 `FallbackTimeoutSeconds` 属性用于上游路由超时计算的降级逻辑
 
 ### 5.3 代码组织问题
 
@@ -1095,6 +1095,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.5 (PR-TD7)  
+**文档版本**：1.6 (PR-TD5)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
