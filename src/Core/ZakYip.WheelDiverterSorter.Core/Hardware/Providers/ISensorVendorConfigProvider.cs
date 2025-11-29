@@ -4,11 +4,49 @@ namespace ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 /// 厂商无关的传感器配置提供者接口
 /// </summary>
 /// <remarks>
-/// <para>本接口属于 HAL（硬件抽象层），定义获取传感器配置的厂商无关抽象，允许 Ingress 层只依赖此接口而不依赖具体的厂商配置类型。</para>
-/// <para>具体实现位于 Drivers 层，通过依赖注入在运行时提供具体厂商的配置。</para>
-/// <para>
-/// <b>HAL 角色</b>：为 Ingress 提供 Vendor 无关的传感器映射，隐藏厂商特定的配置细节。
-/// </para>
+/// <para><b>HAL 层定位</b>：本接口是传感器配置三层架构中的 HAL 抽象层。</para>
+/// 
+/// <para><b>三层架构说明</b>：</para>
+/// <list type="number">
+///   <item>
+///     <term>厂商 Options 层</term>
+///     <description>
+///       位于 Drivers/Vendors/{Vendor}/Configuration/，包含厂商特定的配置类型
+///       （如 LeadshineSensorOptions、LeadshineSensorConfigDto）。
+///       这些类型直接对应厂商硬件的配置结构。
+///     </description>
+///   </item>
+///   <item>
+///     <term>HAL 抽象层（本接口）</term>
+///     <description>
+///       位于 Core/Hardware/Providers/，定义厂商无关的传感器配置访问协议。
+///       厂商实现（如 LeadshineSensorVendorConfigProvider）负责将厂商 Options 转换为
+///       通用的 <see cref="SensorConfigEntry"/>，实现厂商隔离。
+///     </description>
+///   </item>
+///   <item>
+///     <term>消费层（Ingress）</term>
+///     <description>
+///       位于 Ingress/Sensors/，如 LeadshineSensorFactory。
+///       只依赖本接口和 <see cref="SensorConfigEntry"/>，不依赖具体厂商配置类型。
+///     </description>
+///   </item>
+/// </list>
+/// 
+/// <para><b>为什么不是简单的 Options 包装器</b>：</para>
+/// <list type="bullet">
+///   <item>本接口进行了类型转换：将厂商特定的配置（如 LeadshineSensorConfigDto）
+///         转换为通用的 <see cref="SensorConfigEntry"/>。</item>
+///   <item>本接口实现厂商解耦：Ingress 层无需 using Drivers.Vendors.* 命名空间。</item>
+///   <item>本接口支持运行时切换：DI 容器可以根据配置注入不同厂商的实现。</item>
+/// </list>
+/// 
+/// <para><b>相关类型</b>：</para>
+/// <list type="bullet">
+///   <item><see cref="SensorConfigEntry"/> - 厂商无关的传感器配置条目</item>
+///   <item>LeadshineSensorVendorConfigProvider - 雷赛实现（Drivers 层）</item>
+///   <item>LeadshineSensorFactory - Ingress 层消费者</item>
+/// </list>
 /// </remarks>
 public interface ISensorVendorConfigProvider
 {

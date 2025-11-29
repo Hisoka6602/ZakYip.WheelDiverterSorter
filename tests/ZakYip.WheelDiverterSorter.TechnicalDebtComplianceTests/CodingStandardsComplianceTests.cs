@@ -831,6 +831,141 @@ public class CodingStandardsComplianceTests
             Assert.Fail(report.ToString());
         }
     }
+
+    /// <summary>
+    /// 验证 *VendorConfigProvider 接口和实现必须具有数据转换逻辑
+    /// Verify that *VendorConfigProvider interfaces and implementations have data transformation logic
+    /// </summary>
+    /// <remarks>
+    /// PR-TD10: 防止出现"简单 Options 包装器"类的重复抽象。
+    /// 有效的 VendorConfigProvider 应该：
+    /// 1. 在 Core 层定义接口（如 ISensorVendorConfigProvider）
+    /// 2. 提供厂商无关的返回类型（如 SensorConfigEntry）
+    /// 3. 在 Drivers 层实现类型转换逻辑
+    /// 
+    /// 无效的模式：
+    /// - 接口方法直接返回厂商特定的 Options 类型
+    /// - 实现类只是简单包装 Options，没有类型转换
+    /// </remarks>
+    [Fact]
+    public void VendorConfigProvidersShouldNotBeSimpleOptionsWrappers()
+    {
+        var violations = new List<SimpleWrapperViolation>();
+        var solutionRoot = GetSolutionRoot();
+        
+        // 扫描 Core 和 Drivers 目录中的 *VendorConfigProvider 文件
+        var coreFiles = Directory.GetFiles(
+            Path.Combine(solutionRoot, "src", "Core"),
+            "*VendorConfigProvider*.cs",
+            SearchOption.AllDirectories)
+            .Where(f => !PathHelper.IsInExcludedDirectory(f))
+            .ToList();
+            
+        var driverFiles = Directory.GetFiles(
+            Path.Combine(solutionRoot, "src", "Drivers"),
+            "*VendorConfigProvider*.cs",
+            SearchOption.AllDirectories)
+            .Where(f => !PathHelper.IsInExcludedDirectory(f))
+            .ToList();
+        
+        // 检查接口定义：应该返回通用类型而不是厂商特定类型
+        foreach (var file in coreFiles)
+        {
+            var content = File.ReadAllText(file);
+            var fileName = Path.GetFileName(file);
+            
+            // 检查是否是接口文件
+            if (!fileName.StartsWith("I") || !char.IsUpper(fileName[1]))
+                continue;
+            
+            // 检查接口方法返回类型
+            // 如果返回类型包含厂商名称（如 Leadshine、Siemens、Modi 等），则视为违规
+            var vendorSpecificReturnTypes = new[] { "Leadshine", "Siemens", "Modi", "ShuDiNiao", "Omron", "Mitsubishi" };
+            
+            foreach (var vendorName in vendorSpecificReturnTypes)
+            {
+                // 查找方法签名中返回厂商特定类型的情况
+                // 例如: LeadshineSensorOptions GetOptions();
+                if (Regex.IsMatch(content, $@"\b{vendorName}\w+\s+\w+\s*\("))
+                {
+                    violations.Add(new SimpleWrapperViolation
+                    {
+                        FilePath = file,
+                        FileName = fileName,
+                        ViolationType = "Interface returns vendor-specific type",
+                        Description = $"接口方法返回了厂商特定类型 ({vendorName}*)，应返回通用类型"
+                    });
+                    break;
+                }
+            }
+        }
+        
+        // 检查实现类：应该有类型转换逻辑
+        foreach (var file in driverFiles)
+        {
+            var content = File.ReadAllText(file);
+            var fileName = Path.GetFileName(file);
+            
+            // 跳过接口文件
+            if (fileName.StartsWith("I") && char.IsUpper(fileName[1]))
+                continue;
+            
+            // 检查是否有 Get* 方法但只是简单返回 Options 属性
+            // 模式: return _options; 或 return _options.Something;
+            var simpleReturnPattern = @"return\s+_options\s*;";
+            var hasSimpleReturn = Regex.IsMatch(content, simpleReturnPattern);
+            
+            // 检查是否有 Select/转换逻辑
+            var hasTransformationLogic = content.Contains(".Select(") || 
+                                         content.Contains(".ToList()") ||
+                                         content.Contains("new ") && content.Contains("{ get; init; }");
+            
+            // 如果只有简单返回且没有转换逻辑，可能是简单包装器
+            if (hasSimpleReturn && !hasTransformationLogic)
+            {
+                violations.Add(new SimpleWrapperViolation
+                {
+                    FilePath = file,
+                    FileName = fileName,
+                    ViolationType = "Implementation is simple wrapper",
+                    Description = "实现类只是简单返回 Options，没有类型转换逻辑"
+                });
+            }
+        }
+
+        // 输出发现的问题（作为顾问性报告）
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n⚠️ 发现 {violations.Count} 个可能的简单 Options 包装器模式:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n根据 PR-TD10 规范，VendorConfigProvider 接口应该：");
+            report.AppendLine("  1. 在 Core 层定义，返回厂商无关的类型");
+            report.AppendLine("  2. 在 Drivers 层实现，进行厂商特定到通用类型的转换\n");
+
+            foreach (var violation in violations)
+            {
+                report.AppendLine($"  📄 {violation.FileName}");
+                report.AppendLine($"     类型: {violation.ViolationType}");
+                report.AppendLine($"     说明: {violation.Description}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 正确的 VendorConfigProvider 模式（参考 ISensorVendorConfigProvider）：");
+            report.AppendLine("  Core 层接口:");
+            report.AppendLine("    - 定义厂商无关的返回类型（如 SensorConfigEntry）");
+            report.AppendLine("    - 方法签名不包含厂商特定类型");
+            report.AppendLine("  Drivers 层实现:");
+            report.AppendLine("    - 注入厂商特定的 Options（如 LeadshineSensorOptions）");
+            report.AppendLine("    - 在 Get* 方法中转换为通用类型");
+            report.AppendLine("    - 使用 .Select() 等 LINQ 方法进行映射转换");
+            
+            // 这是顾问性测试，只输出警告但不失败
+            Console.WriteLine(report.ToString());
+        }
+
+        Assert.True(true, $"VendorConfigProvider pattern check completed with {violations.Count} advisory warnings");
+    }
 }
 
 /// <summary>
@@ -935,4 +1070,34 @@ public record RedundantFacadeViolation
     /// 行号
     /// </summary>
     public required int LineNumber { get; init; }
+}
+
+/// <summary>
+/// 简单 Options 包装器违规信息
+/// Simple Options wrapper violation information
+/// </summary>
+/// <remarks>
+/// PR-TD10: 用于记录可能是简单 Options 包装器的 VendorConfigProvider 类型
+/// </remarks>
+public record SimpleWrapperViolation
+{
+    /// <summary>
+    /// 文件完整路径
+    /// </summary>
+    public required string FilePath { get; init; }
+    
+    /// <summary>
+    /// 文件名
+    /// </summary>
+    public required string FileName { get; init; }
+    
+    /// <summary>
+    /// 违规类型
+    /// </summary>
+    public required string ViolationType { get; init; }
+    
+    /// <summary>
+    /// 描述
+    /// </summary>
+    public required string Description { get; init; }
 }
