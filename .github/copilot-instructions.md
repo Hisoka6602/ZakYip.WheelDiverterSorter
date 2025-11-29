@@ -609,6 +609,65 @@ public class ShuDiNiaoWheelDiverterDeviceAdapter : IWheelDiverterDevice
 3. 如果有简单日志逻辑，移动到被调用服务内部
 4. 如果确实需要装饰器模式，确保有明确的横切职责并在注释中说明
 
+### 7 禁止魔法数字（Magic Numbers）
+
+**规则：**
+
+1. 除极少数约定俗成的常量外（例如：`0`/`1`/`-1`、明显的布尔标记、`int.MaxValue` 等），业务代码与协议实现中**禁止直接书写魔法数字**：
+   - 包括但不限于：阈值、重试次数、时间间隔、端口号、地址偏移、位掩码、协议命令码等；
+   - 任何非显而易见的数值都必须通过**有含义的常量/枚举/配置**表达。
+
+2. 协议与厂商相关数值：
+   - 即便来自厂商协议文档（例如寄存器地址、命令码、标志位），也必须通过：
+     - 枚举（带 `Description` 特性和中文注释），或
+     - `static` 常量字段（命名必须体现语义）
+     进行封装；
+   - 禁止在协议解析、打包报文或状态判断中直接使用裸的数值字面量。
+
+3. 阈值与业务常量：
+   - 与业务行为相关的阈值（如“落格超时时间”“最大排队长度”“最大重试次数”等）必须通过：
+     - Options / 配置模型（`*Options` / `*Settings`）；
+     - 或 `static` 只读常量字段；
+     暴露含义明确的名称，不允许在代码中直接写 `2000`、`3` 等数值。
+
+4. 重用原则：
+   - 同一语义的常量在整个解决方案中仅允许定义一个权威来源；
+   - 禁止在多个不同类中重复定义语义相同的常量（这类情况同时也属于“影分身”技术债）。
+
+**实施示例：**
+
+```csharp
+// ❌ 错误：魔法数字散落在逻辑中
+if (elapsedMs > 2000)
+{
+    // 超时处理
+}
+
+var isError = (status & 0x10) != 0;
+
+// ✅ 正确：使用具名常量或配置
+public static class UpstreamRoutingConstants
+{
+    public const int MaxRoutingTimeoutMilliseconds = 2000;
+}
+
+[Flags]
+public enum ShuDiNiaoStatusFlags
+{
+    [Description("无错误")]
+    None = 0,
+
+    [Description("通信错误")]
+    CommunicationError = 0x10,
+}
+
+if (elapsedMs > UpstreamRoutingConstants.MaxRoutingTimeoutMilliseconds)
+{
+    // 超时处理
+}
+
+var hasCommunicationError = (status & (int)ShuDiNiaoStatusFlags.CommunicationError) != 0;
+
 ---
 
 ## 三、通讯与重试规则
@@ -1041,6 +1100,36 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 
 - 新增 API 端点而不编写对应测试用例。
 - 已知测试失败仍提交 PR，期待后续再修复。
+
+### 3. 提交前 API 端点全量健康检查（强制）
+
+**规则：**
+
+1. 每个 PR 在提交前，必须对**所有对外公开的 API 端点**做一次“可访问性”健康检查：
+   - 无论本次 PR 是否修改了该端点，只要仍然对外暴露，就必须检查；
+   - 检查内容至少包括：HTTP 状态码是否为预期（通常为 2xx / 预期错误码）、路由是否存在、模型绑定是否成功。
+
+2. 发现任意 API 端点无法正常访问（例如 404、500、模型绑定异常、启动即崩溃等）时：
+   - 当前 PR **必须**一并修复该问题；
+   - 禁止以“该端点与本次 PR 无关”为理由跳过修复；
+   - 禁止将“已知有 API 端点访问失败”的状态合并到主分支。
+
+3. 健康检查可以通过以下方式之一实现（推荐优先使用自动化方式）：
+   - 使用集成测试 / E2E 测试自动逐个访问所有公开端点；
+   - 使用已维护的 Postman/HTTP 文件集合或脚本执行一轮 Smoke Test；
+   - 通过 `Swagger` 导出的 OpenAPI 文档驱动的自动化探测脚本。
+
+**禁止行为：**
+
+- 只测试与当前 PR 直接相关的少量端点，而忽略其他现有端点；
+- 已知某些端点访问失败，但在 PR 中既不修复也不记录技术债，仍然尝试合并；
+- 依赖人工随机点几下 Swagger 页面，而不做系统性检查。
+
+**Code Review 检查点：**
+
+- PR 描述中是否说明已经完成一轮 API 端点健康检查；
+- CI 是否包含针对 API 端点的集成测试 / E2E 测试步骤；
+- 是否存在“端点访问失败但仅被忽略”的情况。
 
 ---
 
@@ -1504,6 +1593,28 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 - 利用“当前代码就是这么写的”为理由，忽略文档中已有的结构与规范设计。
 
 ---
+## 十五. 影分身零容忍策略（总则）
+
+**规则：**
+
+1. 本仓库对“影分身”代码（重复抽象 / 纯转发 Facade / 重复 DTO / 重复 Options / 重复 Utilities 等）采取**零容忍**策略：
+   - 一旦发现新增的影分身类型，即视为当前 PR 不合规；
+   - PR 必须在当前分支中删除该影分身类型或合并到既有实现中，不能“先留下以后再清理”。
+
+2. 对于历史遗留的影分身类型：
+   - 若在当前 PR 涉及对应模块或调用链，必须优先尝试清理；
+   - 如短期内无法彻底清理，必须在 `RepositoryStructure.md` 中登记技术债，并规划专门的清理 PR。
+
+3. 影分身判定标准以本文件中关于接口影分身、Facade/Adapter 影分身、DTO/Options/Utilities 影分身三个小节的规则为准：
+   - 同一职责出现第二个接口 / DTO / Options / 工具方法；
+   - 只做一层方法转发、不增加任何实质逻辑的 Facade/Adapter/Wrapper/Proxy；
+   - 多处存在字段结构完全一致的 DTO/Model/Response 类型。
+
+**禁止行为：**
+
+- 新增任何形式的“影分身”类型，并期望后续再清理；
+- 保留一套 Legacy 实现与一套新实现并存，而调用方只使用其中一套；
+- 在 PR 描述中以“与本次改动无关”为理由保留新增影分身。
 
 ## 违规处理
 
