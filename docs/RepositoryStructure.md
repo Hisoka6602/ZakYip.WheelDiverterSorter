@@ -1047,9 +1047,14 @@ tools/Profiling/
    - ~~这种间接引用增加了理解成本~~
    - **PR5 解决方案**：删除了 Observability 层的 alias-only 文件（`ParcelFinalStatus.cs`、`AlarmLevel.cs`、`AlarmType.cs`、`AlertSeverity.cs`、`SystemClockAliases.cs`），删除了 Communication 层的 `EmcLockNotificationType.cs`，并为受影响的文件添加了显式 using 语句。
 
-10. **Execution 层 Abstractions 与 Core 层 Abstractions 的职责边界不清**
-    - 两层都定义了 `ISensorEventProvider`、`IUpstreamRoutingClient` 等接口
-    - 建议：明确哪些接口属于核心契约（Core），哪些属于执行层特定（Execution）
+10. **~~Execution 层 Abstractions 与 Core 层 Abstractions 的职责边界不清~~** ✅ 已解决 (PR-C4)
+    - ~~两层都定义了 `ISensorEventProvider`、`IUpstreamRoutingClient` 等接口~~
+    - ~~建议：明确哪些接口属于核心契约（Core），哪些属于执行层特定（Execution）~~
+    - **PR-C4 验证结果**：
+      - 跨层核心契约（`ISensorEventProvider`、`IUpstreamRoutingClient`、`IUpstreamContractMapper`、`IIoLinkageDriver`）仅在 `Core/Abstractions/` 中定义
+      - Execution 和 Drivers 中不存在重复定义
+      - Execution 中的接口（如 `IPathExecutionService`、`IAnomalyDetector` 等）均为执行层特有的抽象
+      - 职责边界已清晰
 
 11. **~~缺少统一的 DI 注册中心~~** ✅ 已解决 (PR3)
     - ~~各项目都有自己的 `*ServiceExtensions.cs` 扩展方法~~
@@ -1151,6 +1156,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.7 (PR-TD6)  
+**文档版本**：1.8 (PR-C4)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
