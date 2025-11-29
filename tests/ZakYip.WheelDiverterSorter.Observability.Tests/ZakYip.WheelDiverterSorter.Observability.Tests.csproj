@@ -21,13 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../src/Application/ZakYip.WheelDiverterSorter.Application/ZakYip.WheelDiverterSorter.Application.csproj" />
     <ProjectReference Include="../../src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSorter.Host.csproj" />
     <ProjectReference Include="../../src/Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
   </ItemGroup>
 
-  <!-- 临时排除已损坏的测试文件，这些文件在仓库中已损坏 -->
+  <!-- PR-SORT2: 保留对其他已损坏文件的排除 -->
   <ItemGroup>
-    <Compile Remove="StructuredLoggingTests.cs" />
     <Compile Remove="ZakYip.WheelDiverterSorter.Observability.Tests.cs" />
   </ItemGroup>
 
