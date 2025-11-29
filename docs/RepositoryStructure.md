@@ -1012,6 +1012,68 @@ tools/Profiling/
 | `SimulationRunner` | Simulation/Services/ | 仿真主运行器 |
 | `SimulationScenario` | Simulation/Scenarios/ | 仿真场景定义模型 |
 
+### 4.7 传感器配置三层架构 (PR-TD10)
+
+传感器配置采用三层架构，实现厂商解耦和运行时切换：
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  配置加载链路                                                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  appsettings.json                                                       │
+│       │                                                                 │
+│       ▼                                                                 │
+│  ┌────────────────────────────────────────────────────┐                 │
+│  │ 第一层：厂商 Options                                 │                 │
+│  │ Drivers/Vendors/{Vendor}/Configuration/            │                 │
+│  │ ├── LeadshineSensorOptions.cs                      │                 │
+│  │ └── LeadshineSensorConfigDto.cs                    │                 │
+│  └────────────────────────────────────────────────────┘                 │
+│       │                                                                 │
+│       │ DI 注入                                                         │
+│       ▼                                                                 │
+│  ┌────────────────────────────────────────────────────┐                 │
+│  │ 第二层：HAL 抽象 (ISensorVendorConfigProvider)      │                 │
+│  │ Core/Hardware/Providers/                           │                 │
+│  │ ├── ISensorVendorConfigProvider.cs (接口)          │                 │
+│  │ └── SensorConfigEntry (厂商无关的配置条目)          │                 │
+│  │                                                    │                 │
+│  │ 实现位于 Drivers 层:                                │                 │
+│  │ └── LeadshineSensorVendorConfigProvider.cs         │                 │
+│  │     (将 LeadshineSensorOptions → SensorConfigEntry) │                 │
+│  └────────────────────────────────────────────────────┘                 │
+│       │                                                                 │
+│       │ 注入 ISensorVendorConfigProvider                                │
+│       ▼                                                                 │
+│  ┌────────────────────────────────────────────────────┐                 │
+│  │ 第三层：消费层 (Ingress)                            │                 │
+│  │ Ingress/Sensors/                                   │                 │
+│  │ ├── LeadshineSensorFactory.cs                      │                 │
+│  │ └── LeadshineSensor.cs                             │                 │
+│  │                                                    │                 │
+│  │ 只依赖 ISensorVendorConfigProvider 和 IInputPort   │                 │
+│  │ 不依赖 Drivers.Vendors.* 命名空间                   │                 │
+│  └────────────────────────────────────────────────────┘                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**各层职责**：
+
+| 层次 | 位置 | 职责 | 关键类型 |
+|-----|------|-----|---------|
+| 厂商 Options | Drivers/Vendors/{Vendor}/Configuration/ | 定义厂商特定的配置结构，直接对应硬件配置 | `LeadshineSensorOptions`, `LeadshineSensorConfigDto` |
+| HAL 抽象 | Core/Hardware/Providers/ | 定义厂商无关的配置访问协议，实现类型转换 | `ISensorVendorConfigProvider`, `SensorConfigEntry` |
+| HAL 实现 | Drivers/Vendors/{Vendor}/Configuration/ | 将厂商 Options 转换为通用配置条目 | `LeadshineSensorVendorConfigProvider` |
+| 消费层 | Ingress/Sensors/ | 基于通用配置创建传感器实例 | `LeadshineSensorFactory` |
+
+**为什么不是简单的 Options 包装器**：
+
+- `ISensorVendorConfigProvider` 实现了类型转换（`LeadshineSensorConfigDto` → `SensorConfigEntry`）
+- 实现厂商解耦：Ingress 层无需 `using Drivers.Vendors.*` 命名空间
+- 支持运行时切换：DI 容器可以根据配置注入不同厂商的实现
+
 ---
 
 ## 5. 当前结构中已发现的问题标记
@@ -1287,6 +1349,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.1 (PR-TD9)  
+**文档版本**：2.2 (PR-TD10)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
