@@ -146,7 +146,7 @@ public class ChutePathTopologyService : IChutePathTopologyService
             .Select(g => g.Key)
             .ToList();
 
-        if (duplicatePositions.Count != 0)
+        if (duplicatePositions.Any())
         {
             return (false, $"摆轮节点位置索引重复: {string.Join(", ", duplicatePositions)}");
         }
