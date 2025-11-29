@@ -398,8 +398,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   └── VendorIoAddress.cs
 │   ├── Providers/                   # 配置提供者接口
 │   │   └── ISensorVendorConfigProvider.cs
-│   ├── IWheelDiverterActuator.cs    # 摆轮执行器接口
-│   ├── IWheelDiverterDevice.cs      # 摆轮设备接口
+│   ├── IWheelDiverterDevice.cs      # 摆轮设备接口（命令模式）
 │   ├── IConveyorDriveController.cs  # 传送带驱动控制器接口
 │   ├── ISensorInputReader.cs        # 传感器输入读取接口
 │   ├── HardwareEventArgs.cs         # 硬件事件参数
@@ -612,7 +611,6 @@ ZakYip.WheelDiverterSorter.Drivers/
 │       ├── IoMapping/
 │       │   └── SimulatedIoMapper.cs
 │       ├── SimulatedWheelDiverterDevice.cs
-│       ├── SimulatedWheelDiverterActuator.cs
 │       ├── SimulatedConveyorSegmentDriver.cs
 │       ├── SimulatedIoLinkageDriver.cs
 │       ├── SimulatedVendorDriverFactory.cs
@@ -978,11 +976,14 @@ tools/Profiling/
 
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
-| `IWheelDiverterDriver` | Core/Abstractions/Drivers/ | 摆轮驱动器接口，定义左转/右转/直通/停止操作 |
-| `IDiverterController` | Core/Abstractions/Drivers/ | 摆轮控制器接口（更高层抽象） |
-| `IInputPort` | Core/Abstractions/Drivers/ | 输入端口接口，读取传感器状态 |
-| `IOutputPort` | Core/Abstractions/Drivers/ | 输出端口接口，控制继电器/指示灯 |
-| `IIoLinkageDriver` | Core/Abstractions/Drivers/ | IO 联动驱动接口 |
+| `IWheelDiverterDriver` | Core/Hardware/Devices/ | 摆轮驱动器接口，定义左转/右转/直通/停止操作（唯一摆轮控制抽象） |
+| `IWheelDiverterDevice` | Core/Hardware/ | 摆轮设备接口，命令模式（ExecuteAsync(WheelCommand)） |
+| `IInputPort` | Core/Hardware/Ports/ | 输入端口接口，读取传感器状态 |
+| `IOutputPort` | Core/Hardware/Ports/ | 输出端口接口，控制继电器/指示灯 |
+| `IIoLinkageDriver` | Core/Hardware/IoLinkage/ | IO 联动驱动接口 |
+
+> **PR-TD9 注**: 摆轮控制统一通过 `IWheelDiverterDriver`（方向接口）或 `IWheelDiverterDevice`（命令接口）暴露，
+> 不再允许引入与上述接口语义重叠的其他抽象（如已删除的 `IDiverterController`、`IWheelDiverterActuator`）。
 
 ### 4.4 配置与仓储
 
@@ -1233,9 +1234,23 @@ tools/Profiling/
         - `S7WheelDiverterDriver` (原 S7DiverterController)
       - 更新 `LeadshineVendorDriverFactory` 和 `SiemensS7ServiceCollectionExtensions` 使用新驱动类
 
-### 5.10 上游路由 Facade / Middleware 去重（PR-TD8）
+### 5.10 摆轮控制抽象去重（PR-TD9）
 
-23. **Ingress 层冗余 UpstreamFacade** ✅ 已解决 (PR-TD8)
+23. **IWheelDiverterActuator 重复抽象** ✅ 已解决 (PR-TD9)
+    - ~~`IWheelDiverterActuator` 与 `IWheelDiverterDriver` 方法签名完全相同，属于重复抽象~~
+    - ~~`IVendorDriverFactory` 同时暴露 `CreateWheelDiverterDrivers()` 和 `CreateWheelDiverterActuators()` 两个方法~~
+    - ~~`SimulatedWheelDiverterActuator` 是唯一的 `IWheelDiverterActuator` 实现，`Leadshine` 实现返回空列表~~
+    - **PR-TD9 解决方案**：
+      - 删除 `Core/Hardware/IWheelDiverterActuator.cs` 接口（与 `IWheelDiverterDriver` 语义重复）
+      - 删除 `Drivers/Vendors/Simulated/SimulatedWheelDiverterActuator.cs` 实现类
+      - 从 `IVendorDriverFactory` 移除 `CreateWheelDiverterActuators()` 方法
+      - 更新所有厂商工厂实现（`LeadshineVendorDriverFactory`、`SimulatedVendorDriverFactory`）
+      - 摆轮控制统一通过 `IWheelDiverterDriver`（方向接口）或 `IWheelDiverterDevice`（命令接口）暴露
+      - 新增 ArchTest 规则防止重新引入重复的摆轮控制接口
+
+### 5.11 上游路由 Facade / Middleware 去重（PR-TD8）
+
+24. **Ingress 层冗余 UpstreamFacade** ✅ 已解决 (PR-TD8)
     - ~~Ingress 层存在 `IUpstreamFacade`、`UpstreamFacade`、`IUpstreamChannel`、`IUpstreamCommandSender`、`HttpUpstreamChannel` 等类型~~
     - ~~这些类型虽然被定义和注册（`AddUpstreamServices`），但 `AddUpstreamServices` 从未被调用~~
     - ~~上游通信实际使用的是 Communication 层的 `IUpstreamRoutingClient`~~
@@ -1272,6 +1287,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.0 (PR-TD8)  
+**文档版本**：2.1 (PR-TD9)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
