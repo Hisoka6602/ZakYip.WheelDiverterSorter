@@ -4,13 +4,9 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
-using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
 /// <summary>
 /// 雷赛（EMC）中段皮带段驱动实现。
