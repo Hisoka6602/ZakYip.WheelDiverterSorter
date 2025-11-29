@@ -77,26 +77,25 @@ public static class SensorServiceExtensions {
     /// 添加雷赛传感器服务
     /// </summary>
     /// <remarks>
-    /// 此方法需要 IInputPort 已在服务容器中注册。
-    /// 通常由 Drivers 层的服务扩展（如 AddLeadshineDriverServices）完成注册。
+    /// 此方法需要以下服务已在服务容器中注册：
+    /// - IInputPort（由 Drivers 层的 AddLeadshineIoServices 注册）
+    /// - ISensorVendorConfigProvider（由 Drivers 层的配置服务注册）
     /// </remarks>
     private static void AddLeadshineSensorServices(
         IServiceCollection services,
         SensorOptions sensorOptions) {
-        if (sensorOptions.Leadshine == null) {
-            throw new InvalidOperationException("雷赛传感器配置不能为空");
-        }
-
-        // 注册传感器工厂 - 依赖 IInputPort（应由 Drivers 层的 AddLeadshineIoServices 或 Host 层预先注册）
+        // 注册传感器工厂 - 依赖 IInputPort 和 ISensorVendorConfigProvider
+        // 两者都应由 Drivers 层或 Host 层预先注册
         services.AddSingleton<ISensorFactory>(sp => {
             var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var inputPort = sp.GetRequiredService<IInputPort>();
+            var configProvider = sp.GetRequiredService<ISensorVendorConfigProvider>();
             return new LeadshineSensorFactory(
                 logger,
                 loggerFactory,
                 inputPort,
-                sensorOptions.Leadshine);
+                configProvider);
         });
 
         // 注册传感器实例

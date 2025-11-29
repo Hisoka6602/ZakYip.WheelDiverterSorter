@@ -32,6 +32,7 @@ public static class LeadshineIoServiceCollectionExtensions
     /// - <see cref="ISwitchingPathExecutor"/> -> <see cref="HardwareSwitchingPathExecutor"/>
     /// - <see cref="IIoLinkageDriver"/> (通过工厂创建)
     /// - <see cref="IIoLinkageCoordinator"/> -> <see cref="DefaultIoLinkageCoordinator"/>
+    /// - <see cref="ISensorVendorConfigProvider"/> -> <see cref="LeadshineSensorVendorConfigProvider"/>
     /// </remarks>
     public static IServiceCollection AddLeadshineIo(this IServiceCollection services)
     {
@@ -77,6 +78,23 @@ public static class LeadshineIoServiceCollectionExtensions
 
         // 注册 IO 联动协调器
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
+
+        // 注册传感器厂商配置提供者
+        services.AddSingleton<ISensorVendorConfigProvider>(sp =>
+        {
+            var options = sp.GetRequiredService<DriverOptions>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger<LeadshineSensorVendorConfigProvider>();
+
+            if (options.Sensor == null)
+            {
+                logger.LogWarning(
+                    "雷赛传感器配置 (DriverOptions.Sensor) 未设置，使用空配置。" +
+                    "如果需要使用传感器功能，请在 appsettings.json 中配置 Driver:Sensor 节点。");
+                return new LeadshineSensorVendorConfigProvider(new LeadshineSensorOptions());
+            }
+            return new LeadshineSensorVendorConfigProvider(options.Sensor);
+        });
 
         return services;
     }

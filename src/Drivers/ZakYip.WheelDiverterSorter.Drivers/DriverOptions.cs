@@ -52,4 +52,9 @@ public class DriverOptions
     /// 雷赛控制器配置
     /// </summary>
     public LeadshineOptions Leadshine { get; set; } = new();
+
+    /// <summary>
+    /// 雷赛传感器配置
+    /// </summary>
+    public LeadshineSensorOptions? Sensor { get; set; }
 }

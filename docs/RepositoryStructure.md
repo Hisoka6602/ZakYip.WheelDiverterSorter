@@ -210,6 +210,7 @@ ZakYip.WheelDiverterSorter.Application/
 │   ├── IPreRunHealthCheckService.cs              # 运行前健康检查服务接口
 │   ├── ISimulationOrchestratorService.cs         # 仿真编排服务接口
 │   ├── ISystemConfigService.cs                   # 系统配置服务接口
+│   ├── IVendorConfigService.cs                   # PR-TD7: 厂商配置服务接口
 │   ├── InMemoryRoutePlanRepository.cs            # 内存路由计划仓储
 │   ├── IoLinkageConfigService.cs                 # IO联动配置服务实现（PR-A2新增）
 │   ├── LoggingConfigService.cs                   # 日志配置服务实现
@@ -217,7 +218,8 @@ ZakYip.WheelDiverterSorter.Application/
 │   ├── PreRunHealthCheckService.cs               # 运行前健康检查服务实现
 │   ├── SimulationModeProvider.cs                 # 仿真模式提供者
 │   ├── SorterMetrics.cs                          # 分拣系统性能指标服务
-│   └── SystemConfigService.cs                    # 系统配置服务实现
+│   ├── SystemConfigService.cs                    # 系统配置服务实现
+│   └── VendorConfigService.cs                    # PR-TD7: 厂商配置服务实现
 └── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication) - 应用服务注册
 ```
 
@@ -232,6 +234,7 @@ ZakYip.WheelDiverterSorter.Application/
 - `IIoLinkageConfigService`/`IoLinkageConfigService`：IO联动配置的业务逻辑，包括IO点操作（PR-A2新增）
 - `IDebugSortService`/`DebugSortService`：调试分拣服务，用于测试分拣流程（PR-A2新增）
 - `IChangeParcelChuteService`/`ChangeParcelChuteService`：改口服务，处理包裹目标格口变更请求（PR-A2新增）
+- `IVendorConfigService`/`VendorConfigService`：厂商配置服务，提供厂商配置的统一访问门面（PR-TD7新增）
 - `ISimulationModeProvider`/`SimulationModeProvider`：判断系统当前是否运行在仿真模式下
 - `SorterMetrics`：分拣系统性能指标，包括计数器、直方图等
 - `OptimizedSortingService`：集成了指标收集、对象池和优化内存管理的分拣服务
@@ -324,6 +327,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   ├── IOutputPort.cs
 │   │   ├── IIoLinkageDriver.cs
 │   │   ├── IVendorIoMapper.cs       # 厂商IO映射器接口 (PR-C3 从 Legacy 迁移)
+│   │   ├── ISensorVendorConfigProvider.cs  # PR-TD7: 厂商无关传感器配置提供者接口
 │   │   └── ...
 │   ├── Execution/                   # 执行层抽象
 │   │   └── ICongestionDataCollector.cs
@@ -360,6 +364,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Configuration/               # 配置模型与仓储（PR4 重构后）
 │   │   ├── Models/                  # 纯配置模型类（26个文件）
 │   │   │   ├── SystemConfiguration.cs
+│   │   │   ├── CabinetIoOptions.cs          # PR-TD7: 厂商无关控制面板IO配置（原 LeadshineCabinetIoOptions）
 │   │   │   ├── ChutePathTopologyConfig.cs
 │   │   │   ├── IoLinkageConfiguration.cs
 │   │   │   ├── CommunicationConfiguration.cs
@@ -506,7 +511,8 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   │   ├── LeadshineOptions.cs          # 雷赛控制器配置
 │   │   │   ├── LeadshineDiverterConfigDto.cs # 摆轮配置DTO
 │   │   │   ├── LeadshineSensorOptions.cs    # 传感器配置
-│   │   │   └── LeadshineSensorConfigDto.cs  # 传感器配置DTO
+│   │   │   ├── LeadshineSensorConfigDto.cs  # 传感器配置DTO
+│   │   │   └── LeadshineSensorVendorConfigProvider.cs  # PR-TD7: 实现 ISensorVendorConfigProvider
 │   │   ├── IoMapping/               # IO映射
 │   │   │   └── LeadshineIoMapper.cs
 │   │   ├── LTDMC.cs                 # 雷赛 SDK P/Invoke 封装
@@ -519,7 +525,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── LeadshineEmcController.cs
 │   │   ├── CoordinatedEmcController.cs
 │   │   ├── LeadshineVendorDriverFactory.cs
-│   │   └── LeadshineIoServiceCollectionExtensions.cs  # DI 扩展
+│   │   └── LeadshineIoServiceCollectionExtensions.cs  # DI 扩展（包含 ISensorVendorConfigProvider 注册）
 │   ├── Siemens/                     # 西门子 S7 PLC 驱动
 │   │   ├── Configuration/           # 西门子配置类
 │   │   │   ├── S7Options.cs                 # S7 PLC 配置
@@ -531,14 +537,16 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── S7OutputPort.cs
 │   │   └── SiemensS7ServiceCollectionExtensions.cs    # DI 扩展
 │   ├── Modi/                        # 摩迪摆轮协议驱动
-│   │   ├── Configuration/           # 摩迪配置类（如有需要）
+│   │   ├── Configuration/           # PR-TD7: 摩迪配置类
+│   │   │   └── ModiOptions.cs               # 摩迪通信配置选项
 │   │   ├── ModiProtocol.cs
 │   │   ├── ModiProtocolEnums.cs
 │   │   ├── ModiWheelDiverterDriver.cs
 │   │   ├── ModiSimulatedDevice.cs
 │   │   └── ModiWheelServiceCollectionExtensions.cs    # DI 扩展
 │   ├── ShuDiNiao/                   # 书迪鸟摆轮协议驱动
-│   │   ├── Configuration/           # 书迪鸟配置类（如有需要）
+│   │   ├── Configuration/           # PR-TD7: 书迪鸟配置类
+│   │   │   └── ShuDiNiaoOptions.cs          # 书迪鸟通信配置选项
 │   │   ├── ShuDiNiaoProtocol.cs
 │   │   ├── ShuDiNiaoProtocolEnums.cs
 │   │   ├── ShuDiNiaoWheelDiverterDriver.cs
@@ -546,7 +554,8 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── ShuDiNiaoSimulatedDevice.cs
 │   │   └── ShuDiNiaoWheelServiceCollectionExtensions.cs # DI 扩展
 │   └── Simulated/                   # 仿真驱动实现
-│       ├── Configuration/           # 仿真配置类（如有需要）
+│       ├── Configuration/           # PR-TD7: 仿真配置类
+│       │   └── SimulatedOptions.cs          # 仿真行为配置选项
 │       ├── IoMapping/
 │       │   └── SimulatedIoMapper.cs
 │       ├── SimulatedWheelDiverterDevice.cs
@@ -560,7 +569,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 ├── WheelCommandExecutor.cs          # 摆轮命令执行器
 ├── IoLinkageExecutor.cs             # IO 联动执行器
 ├── DriverServiceExtensions.cs       # 通用 DI 扩展方法（已弃用，推荐使用厂商特定扩展）
-└── DriverOptions.cs                 # 驱动配置选项
+└── DriverOptions.cs                 # 驱动配置选项（包含 Sensor 属性用于传感器配置）
 ```
 
 **厂商目录结构规范**:
@@ -586,7 +595,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 
 **项目职责**：入口层，负责传感器事件监听、包裹检测、上游通信门面封装。
 
-**注意**：厂商相关配置类已移动到 `Drivers/Vendors/<VendorName>/Configuration/`，Ingress 项目通过引用 Drivers 项目使用这些配置。
+**PR-TD7 变更**：Ingress 项目不再直接引用 `Drivers.Vendors.*` 命名空间，而是通过 Core 层的厂商无关抽象 `ISensorVendorConfigProvider` 获取传感器配置。
 
 ```
 ZakYip.WheelDiverterSorter.Ingress/
@@ -594,7 +603,7 @@ ZakYip.WheelDiverterSorter.Ingress/
 │   └── SensorEventProviderAdapter.cs
 ├── Configuration/                   # 传感器配置（通用配置）
 │   ├── SensorConfiguration.cs
-│   ├── SensorOptions.cs             # 引用 Drivers 中的厂商配置
+│   ├── SensorOptions.cs             # PR-TD7: 厂商无关，通过 ISensorVendorConfigProvider 获取配置
 │   ├── MockSensorConfigDto.cs
 │   └── ParcelDetectionOptions.cs
 ├── Models/                          # 入口层模型
@@ -603,8 +612,8 @@ ZakYip.WheelDiverterSorter.Ingress/
 │   ├── SensorHealthStatus.cs
 │   └── ...
 ├── Sensors/                         # 传感器实现
-│   ├── LeadshineSensor.cs           # 使用 Drivers.Vendors.Leadshine.Configuration
-│   ├── LeadshineSensorFactory.cs    # 使用 Drivers.Vendors.Leadshine.Configuration
+│   ├── LeadshineSensor.cs           # 使用 Core.Abstractions.Drivers 接口
+│   ├── LeadshineSensorFactory.cs    # PR-TD7: 使用 ISensorVendorConfigProvider 替代直接配置引用
 │   ├── MockSensor.cs
 │   └── MockSensorFactory.cs
 ├── Services/                        # 服务实现
@@ -621,7 +630,7 @@ ZakYip.WheelDiverterSorter.Ingress/
 ├── IParcelDetectionService.cs       # 包裹检测服务接口
 ├── ISensor.cs                       # 传感器接口
 ├── ISensorFactory.cs                # 传感器工厂接口
-└── SensorServiceExtensions.cs       # DI 扩展方法
+└── SensorServiceExtensions.cs       # DI 扩展方法（使用 ISensorVendorConfigProvider）
 ```
 
 #### 关键类型概览
@@ -630,6 +639,7 @@ ZakYip.WheelDiverterSorter.Ingress/
 - `ParcelDetectionService`（位于 Services/）：包裹检测服务实现
 - `ISensor`：传感器抽象接口
 - `LeadshineSensor`（位于 Sensors/）：雷赛传感器实现
+- `LeadshineSensorFactory`（位于 Sensors/）：雷赛传感器工厂，通过 `ISensorVendorConfigProvider` 获取配置
 - `IUpstreamFacade`（位于 Upstream/）：上游通信门面接口
 - `SensorHealthMonitor`（位于 Services/）：传感器健康监控服务
 
@@ -1009,31 +1019,34 @@ tools/Profiling/
     - **问题**：Simulation 既是独立可执行程序又被 Host 引用，边界不清晰
     - **PR5 解决方案**：在 Simulation/README.md 中明确定义了公共 API（`ISimulationScenarioRunner`、`SimulationOptions`、`SimulationSummary`）与内部实现的区分，Host 层只应使用公共 API
 
-### 5.7 厂商配置收拢相关（PR-C2）
+### 5.7 厂商配置收拢相关（PR-C2, PR-TD7）
 
-17. **厂商配置已部分移动到 Drivers/Vendors/** ✅ 部分完成 (PR-C2)
-    - **已完成**：
+17. **厂商配置已完全收拢到 Drivers/Vendors/** ✅ 已完成 (PR-C2, PR-TD7)
+    - **PR-C2 完成**：
       - `LeadshineOptions`, `LeadshineDiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Leadshine/Configuration/`
       - `S7Options`, `S7DiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Siemens/Configuration/`
       - `LeadshineSensorOptions`, `LeadshineSensorConfigDto` 从 Ingress 移动到 `Drivers/Vendors/Leadshine/Configuration/`
       - 创建了 `SiemensS7ServiceCollectionExtensions` 统一 DI 扩展
-    - **待处理（技术债务）**：
-      - Core 层 `LeadshineCabinetIoOptions` 仍在 `Core/LineModel/Configuration/Models/` 中
-        - 该类被 `SystemConfiguration` 引用，移动需要更复杂的配置加载机制重构
-        - 建议：后续 PR 将其移动到 Drivers/Vendors/Leadshine/Configuration/ 并更新配置绑定逻辑
-      - Modi 和 ShuDiNiao 的配置类尚未提取到独立的 Configuration 目录
-        - 当前这两个厂商的配置直接从 `WheelDiverterConfiguration` 中读取
-        - 建议：后续 PR 提取厂商特定配置类到各自的 Configuration 目录
+    - **PR-TD7 完成**：
+      - ~~Core 层 `LeadshineCabinetIoOptions` 仍在 `Core/LineModel/Configuration/Models/` 中~~
+      - **已解决**：重命名为厂商无关的 `CabinetIoOptions`，添加 `VendorProfileKey` 字段关联厂商实现
+      - 创建 `ModiOptions`（`Vendors/Modi/Configuration/`）
+      - 创建 `ShuDiNiaoOptions`（`Vendors/ShuDiNiao/Configuration/`）
+      - 创建 `SimulatedOptions`（`Vendors/Simulated/Configuration/`）
+      - 创建 `ISensorVendorConfigProvider` 接口和 `LeadshineSensorVendorConfigProvider` 实现
+      - Ingress 不再直接引用 `Drivers.Vendors.*` 命名空间，通过抽象接口获取配置
 
-17. **Ingress 项目新增 Drivers 依赖**
-    - PR-C2 为了让 Ingress 使用 Drivers 中的配置类，新增了 Ingress -> Drivers 的项目引用
-    - 依赖链变为：Ingress -> Drivers -> Core/Communication
-    - 这是为了避免配置类重复定义的权宜之计
-    - **注意**：需确保 Ingress 不直接使用 Drivers 中的驱动实现类，仅使用配置类
+18. **Ingress 对 Drivers 解耦** ✅ 已完成 (PR-TD7)
+    - ~~PR-C2 为了让 Ingress 使用 Drivers 中的配置类，新增了 Ingress -> Drivers 的项目引用~~
+    - **PR-TD7 解决方案**：
+      - 创建 `ISensorVendorConfigProvider` 抽象接口在 Core 层
+      - Ingress 通过该接口获取传感器配置，不再直接引用 `Drivers.Vendors.*` 命名空间
+      - `LeadshineSensorFactory` 使用 `ISensorVendorConfigProvider` 替代直接配置引用
+      - Drivers 层的 `LeadshineIoServiceCollectionExtensions` 负责注册 `ISensorVendorConfigProvider` 实现
 
 ### 5.8 内联枚举待迁移（PR-C2 白名单）✅ 已解决 (PR-TD6)
 
-18. **接口文件中的内联枚举** ✅ 已解决 (PR-TD6)
+19. **接口文件中的内联枚举** ✅ 已解决 (PR-TD6)
     - ~~`IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举~~
     - ~~`IWheelProtocolMapper.cs` 中定义了 `WheelCommandResultType`, `WheelDeviceState` 枚举~~
     - **已迁移**：所有枚举已迁移到 `Core/Enums/Hardware/` 目录：
@@ -1041,7 +1054,7 @@ tools/Profiling/
       - `WheelCommandResultType.cs`
       - `WheelDeviceState.cs`
 
-19. **DTO 文件中的内联枚举** ✅ 已解决 (PR-TD6)
+20. **DTO 文件中的内联枚举** ✅ 已解决 (PR-TD6)
     - ~~`ChutePathTopologyDto.cs` 中定义了 `SimulationStepType`, `StepStatus` 枚举~~
     - **已迁移**：所有枚举已迁移到 `Core/Enums/Simulation/` 目录：
       - `SimulationStepType.cs`
@@ -1063,6 +1076,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.4 (PR-TD6)  
+**文档版本**：1.5 (PR-TD7)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team

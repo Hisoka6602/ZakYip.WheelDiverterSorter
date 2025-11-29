@@ -23,6 +23,7 @@ public static class ApplicationServiceExtensions
     /// - 日志配置服务 (ILoggingConfigService)
     /// - 通信配置服务 (ICommunicationConfigService)
     /// - IO联动配置服务 (IIoLinkageConfigService)
+    /// - 厂商配置服务 (IVendorConfigService)
     /// - 仿真模式提供者 (ISimulationModeProvider)
     /// - 调试分拣服务 (IDebugSortService)
     /// - 改口服务 (IChangeParcelChuteService)
@@ -36,6 +37,7 @@ public static class ApplicationServiceExtensions
         services.AddScoped<ILoggingConfigService, LoggingConfigService>();
         services.AddScoped<ICommunicationConfigService, CommunicationConfigService>();
         services.AddScoped<IIoLinkageConfigService, IoLinkageConfigService>();
+        services.AddScoped<IVendorConfigService, VendorConfigService>();
         
         // 注册仿真模式提供者
         services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
