@@ -288,6 +288,54 @@ public class DuplicateTypeDetectionTests
     }
 
     /// <summary>
+    /// 检测 Drivers 项目是否存在 Abstractions 目录（禁止存在）
+    /// Detect if Drivers project has Abstractions directory (forbidden)
+    /// </summary>
+    /// <remarks>
+    /// PR-TD4: Drivers 层只负责实现，所有驱动抽象接口必须定义在 Core/Abstractions/Drivers/ 中。
+    /// Drivers 项目中禁止存在 Abstractions 目录，防止重复定义接口。
+    /// </remarks>
+    [Fact]
+    public void Drivers_ShouldNotHaveAbstractionsDirectory()
+    {
+        var driversPath = Path.Combine(SolutionRoot, "src/Drivers/ZakYip.WheelDiverterSorter.Drivers");
+        
+        // Find all directories named "Abstractions" in Drivers project
+        var abstractionsDirectories = Directory.Exists(driversPath)
+            ? Directory.GetDirectories(
+                driversPath,
+                "Abstractions",
+                SearchOption.AllDirectories)
+                .Where(d => !d.Contains("/obj/") && !d.Contains("\\obj\\")
+                         && !d.Contains("/bin/") && !d.Contains("\\bin\\"))
+                .ToList()
+            : new List<string>();
+
+        if (abstractionsDirectories.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine("\n❌ Drivers 项目中发现禁止存在的 Abstractions 目录:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var dir in abstractionsDirectories)
+            {
+                var relativePath = Path.GetRelativePath(SolutionRoot, dir);
+                var fileCount = Directory.GetFiles(dir, "*.cs", SearchOption.AllDirectories).Length;
+                report.AppendLine($"  📁 {relativePath} ({fileCount} 个文件)");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 PR-TD4 修复建议:");
+            report.AppendLine("  Drivers 层只负责实现，所有驱动抽象接口必须定义在 Core/Abstractions/Drivers/ 中。");
+            report.AppendLine("  1. 将 Abstractions 目录中的接口移动到 Core/Abstractions/Drivers/");
+            report.AppendLine("  2. 删除 Drivers/Abstractions 目录");
+            report.AppendLine("  3. 更新 Drivers 项目中的引用，指向 Core 层的接口");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
     /// 生成类型分布报告
     /// Generate type distribution report
     /// </summary>
