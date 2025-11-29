@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ZakYip.WheelDiverterSorter.Core.Enums.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 
@@ -419,68 +420,6 @@ public record SimulationStep
     /// 附加详情
     /// </summary>
     public Dictionary<string, object>? Details { get; init; }
-}
-
-/// <summary>
-/// 模拟步骤类型
-/// </summary>
-public enum SimulationStepType
-{
-    /// <summary>
-    /// 包裹创建
-    /// </summary>
-    ParcelCreation,
-
-    /// <summary>
-    /// 路由请求
-    /// </summary>
-    RoutingRequest,
-
-    /// <summary>
-    /// 运输中
-    /// </summary>
-    Transit,
-
-    /// <summary>
-    /// 传感器检测
-    /// </summary>
-    SensorDetection,
-
-    /// <summary>
-    /// 摆轮动作
-    /// </summary>
-    DiverterAction,
-
-    /// <summary>
-    /// 到达格口
-    /// </summary>
-    ChuteArrival
-}
-
-/// <summary>
-/// 步骤状态
-/// </summary>
-public enum StepStatus
-{
-    /// <summary>
-    /// 成功
-    /// </summary>
-    Success,
-
-    /// <summary>
-    /// 失败
-    /// </summary>
-    Failed,
-
-    /// <summary>
-    /// 超时
-    /// </summary>
-    Timeout,
-
-    /// <summary>
-    /// 路由到异常格口
-    /// </summary>
-    RoutedToException
 }
 
 /// <summary>
