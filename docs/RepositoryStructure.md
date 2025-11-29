@@ -1333,6 +1333,25 @@ tools/Profiling/
       - 上游通信统一使用 Communication 层的 `IUpstreamRoutingClient`（定义在 Core/Abstractions/Upstream/）
       - 调用链简化为：Controller/Application → ISortingOrchestrator → IUpstreamRoutingClient → 具体协议客户端
 
+### 5.12 接口影分身合并（PR-S1）
+
+25. **ICongestionDetector 重复接口** ✅ 已解决 (PR-S1)
+    - ~~`Core/Sorting/Interfaces/ICongestionDetector.cs` 定义了 `DetectCongestionLevel(CongestionMetrics)` 方法~~
+    - ~~`Core/Sorting/Runtime/ICongestionDetector.cs` 定义了 `Detect(in CongestionSnapshot)` 方法~~
+    - ~~两个接口语义相同，但方法签名不同，导致存在两套实现：~~
+      - ~~`ThresholdCongestionDetector` - 实现 Interfaces 版本~~
+      - ~~`ThresholdBasedCongestionDetector` - 实现 Runtime 版本~~
+    - **PR-S1 解决方案**：
+      - 统一接口位置：`Core/Sorting/Interfaces/ICongestionDetector.cs`
+      - 接口包含两个方法，支持两种输入格式：
+        - `DetectCongestionLevel(CongestionMetrics metrics)` - 使用 class 输入
+        - `Detect(in CongestionSnapshot snapshot)` - 使用 readonly struct 输入（高性能版本）
+      - 删除了 `Core/Sorting/Runtime/ICongestionDetector.cs` 重复接口
+      - 合并实现为单一类：`ThresholdCongestionDetector`
+      - 删除了 `ThresholdBasedCongestionDetector` 类及其配置类 `CongestionThresholds`
+      - 更新了测试文件使用统一的 `ReleaseThrottleConfiguration` 配置
+      - **规则**：同一职责禁止再创建第二个平行接口
+
 ---
 
 ## 附录：目录树生成命令
@@ -1349,6 +1368,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.2 (PR-TD10)  
+**文档版本**：2.3 (PR-S1)  
 **最后更新**：2025-11-29  
 **维护团队**：ZakYip Development Team
