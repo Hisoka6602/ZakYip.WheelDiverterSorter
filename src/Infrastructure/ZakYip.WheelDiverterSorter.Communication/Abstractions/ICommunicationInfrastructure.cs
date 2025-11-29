@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using Microsoft.Extensions.Logging;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
@@ -29,7 +30,7 @@ public interface ICommunicationInfrastructure
     /// <summary>
     /// 日志记录器
     /// </summary>
-    ICommunicationLogger Logger { get; }
+    ILogger Logger { get; }
 }
 
 /// <summary>
@@ -116,39 +117,4 @@ public interface IMessageSerializer
     /// <param name="json">JSON字符串</param>
     /// <returns>反序列化后的对象</returns>
     T? DeserializeFromString<T>(string json);
-}
-
-/// <summary>
-/// 通信日志记录器接口
-/// </summary>
-public interface ICommunicationLogger
-{
-    /// <summary>
-    /// 记录信息日志
-    /// </summary>
-    /// <param name="message">日志消息</param>
-    /// <param name="args">格式化参数</param>
-    void LogInformation(string message, params object[] args);
-
-    /// <summary>
-    /// 记录警告日志
-    /// </summary>
-    /// <param name="message">日志消息</param>
-    /// <param name="args">格式化参数</param>
-    void LogWarning(string message, params object[] args);
-
-    /// <summary>
-    /// 记录错误日志
-    /// </summary>
-    /// <param name="exception">异常对象</param>
-    /// <param name="message">日志消息</param>
-    /// <param name="args">格式化参数</param>
-    void LogError(Exception? exception, string message, params object[] args);
-
-    /// <summary>
-    /// 记录调试日志
-    /// </summary>
-    /// <param name="message">日志消息</param>
-    /// <param name="args">格式化参数</param>
-    void LogDebug(string message, params object[] args);
 }

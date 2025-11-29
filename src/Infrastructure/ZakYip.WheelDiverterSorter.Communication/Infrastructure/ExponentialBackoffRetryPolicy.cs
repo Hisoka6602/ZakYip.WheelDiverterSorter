@@ -11,9 +11,9 @@ public class ExponentialBackoffRetryPolicy : IRetryPolicy
 {
     private readonly int _maxRetries;
     private readonly int _initialDelayMs;
-    private readonly ICommunicationLogger _logger;
+    private readonly ILogger _logger;
 
-    public ExponentialBackoffRetryPolicy(RuleEngineConnectionOptions options, ICommunicationLogger logger)
+    public ExponentialBackoffRetryPolicy(RuleEngineConnectionOptions options, ILogger logger)
     {
         if (options == null)
         {

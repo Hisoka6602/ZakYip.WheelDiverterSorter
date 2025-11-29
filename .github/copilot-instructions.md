@@ -510,6 +510,105 @@ public async Task<SortingResult> ProcessParcelAsync(string parcelId)
 }
 ```
 
+### 6. 禁止创建"纯转发"Facade/Adapter/Wrapper/Proxy 类型（PR-S2 新增）
+
+**规则**: 禁止创建"只为转发调用而存在"的 Facade/Adapter/Wrapper/Proxy 类型。
+
+**纯转发类型定义**（满足以下条件判定为影分身，禁止存在）：
+- 类型以 `*Facade` / `*Adapter` / `*Wrapper` / `*Proxy` 结尾
+- 只持有 1~2 个服务接口字段
+- 方法体只做直接调用另一个服务的方法，没有任何附加逻辑
+
+**附加逻辑包括**（有以下任一逻辑则合法）：
+- 类型转换/协议映射逻辑（如 LINQ Select、new 对象初始化器）
+- 事件订阅/转发机制（如 `+=` 事件绑定）
+- 状态跟踪（如 `_lastKnownState` 字段）
+- 批量操作聚合（如 `foreach` + `await`）
+- 验证或重试逻辑
+
+**实施要求**:
+```csharp
+// ❌ 错误：纯转发适配器
+public class CommunicationLoggerAdapter : ICommunicationLogger
+{
+    private readonly ILogger _logger;
+
+    public void LogInformation(string message, params object[] args)
+    {
+        _logger.LogInformation(message, args);  // ❌ 一行转发，无附加值
+    }
+
+    public void LogWarning(string message, params object[] args)
+    {
+        _logger.LogWarning(message, args);  // ❌ 一行转发
+    }
+}
+
+// ✅ 正确：直接使用 ILogger，删除无意义包装
+public class ExponentialBackoffRetryPolicy
+{
+    private readonly ILogger _logger;  // ✅ 直接依赖 ILogger
+
+    public ExponentialBackoffRetryPolicy(ILogger logger)
+    {
+        _logger = logger;
+    }
+}
+
+// ✅ 正确：有附加值的适配器（类型转换）
+public class SensorEventProviderAdapter : ISensorEventProvider
+{
+    private readonly IParcelDetectionService _parcelDetectionService;
+
+    public SensorEventProviderAdapter(IParcelDetectionService service)
+    {
+        _parcelDetectionService = service;
+        _parcelDetectionService.ParcelDetected += OnUnderlyingParcelDetected;  // ✅ 事件订阅
+    }
+
+    private void OnUnderlyingParcelDetected(object? sender, ParcelDetectedEventArgs e)
+    {
+        // ✅ 类型转换
+        var executionArgs = new ParcelDetectedArgs
+        {
+            ParcelId = e.ParcelId,
+            DetectedAt = e.DetectedAt,
+            SensorId = e.SensorId
+        };
+        ParcelDetected?.Invoke(this, executionArgs);
+    }
+}
+
+// ✅ 正确：有附加值的适配器（状态跟踪）
+public class ShuDiNiaoWheelDiverterDeviceAdapter : IWheelDiverterDevice
+{
+    private readonly IWheelDiverterDriver _driver;
+    private WheelDiverterState _lastKnownState = WheelDiverterState.Unknown;  // ✅ 状态跟踪
+
+    public async Task<OperationResult> ExecuteAsync(WheelCommand command, CancellationToken ct)
+    {
+        bool success = command.Direction switch  // ✅ 协议转换
+        {
+            DiverterDirection.Left => await _driver.TurnLeftAsync(ct),
+            DiverterDirection.Right => await _driver.TurnRightAsync(ct),
+            DiverterDirection.Straight => await _driver.PassThroughAsync(ct),
+            _ => false
+        };
+        
+        if (success) _lastKnownState = ...;  // ✅ 状态更新
+        return success ? OperationResult.Success() : OperationResult.Failure(...);
+    }
+}
+```
+
+**防线测试**：`TechnicalDebtComplianceTests.PureForwardingTypeDetectionTests.ShouldNotHavePureForwardingFacadeAdapterTypes`
+
+**修复建议**（当检测到纯转发类型时）：
+1. 删除纯转发类型
+2. 调整 DI 注册与调用方，改为直接使用真正的服务接口
+3. 如果有简单日志逻辑，移动到被调用服务内部
+4. 如果确实需要装饰器模式，确保有明确的横切职责并在注释中说明
+
 ---
 
 ## 三、通讯与重试规则

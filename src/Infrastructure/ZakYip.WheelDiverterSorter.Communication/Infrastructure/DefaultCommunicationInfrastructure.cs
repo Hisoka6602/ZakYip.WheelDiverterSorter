@@ -28,7 +28,7 @@ public class DefaultCommunicationInfrastructure : ICommunicationInfrastructure
             throw new ArgumentNullException(nameof(systemClock));
         }
 
-        Logger = new CommunicationLoggerAdapter(logger);
+        Logger = logger;
         RetryPolicy = new ExponentialBackoffRetryPolicy(options, Logger);
         CircuitBreaker = new SimpleCircuitBreaker(options, Logger, systemClock);
         Serializer = new JsonMessageSerializer();
@@ -37,5 +37,5 @@ public class DefaultCommunicationInfrastructure : ICommunicationInfrastructure
     public IRetryPolicy RetryPolicy { get; }
     public ICircuitBreaker CircuitBreaker { get; }
     public IMessageSerializer Serializer { get; }
-    public ICommunicationLogger Logger { get; }
+    public ILogger Logger { get; }
 }
