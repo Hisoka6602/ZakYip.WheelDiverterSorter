@@ -32,6 +32,7 @@ public static class LeadshineIoServiceCollectionExtensions
     /// - <see cref="ISwitchingPathExecutor"/> -> <see cref="HardwareSwitchingPathExecutor"/>
     /// - <see cref="IIoLinkageDriver"/> (通过工厂创建)
     /// - <see cref="IIoLinkageCoordinator"/> -> <see cref="DefaultIoLinkageCoordinator"/>
+    /// - <see cref="ISensorVendorConfigProvider"/> -> <see cref="LeadshineSensorVendorConfigProvider"/>
     /// </remarks>
     public static IServiceCollection AddLeadshineIo(this IServiceCollection services)
     {
@@ -77,6 +78,18 @@ public static class LeadshineIoServiceCollectionExtensions
 
         // 注册 IO 联动协调器
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
+
+        // 注册传感器厂商配置提供者
+        services.AddSingleton<ISensorVendorConfigProvider>(sp =>
+        {
+            var options = sp.GetRequiredService<DriverOptions>();
+            if (options.Sensor == null)
+            {
+                // 返回一个默认的空配置提供者
+                return new LeadshineSensorVendorConfigProvider(new LeadshineSensorOptions());
+            }
+            return new LeadshineSensorVendorConfigProvider(options.Sensor);
+        });
 
         return services;
     }
