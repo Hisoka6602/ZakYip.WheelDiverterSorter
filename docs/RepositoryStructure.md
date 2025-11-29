@@ -60,20 +60,20 @@
 
 ```
 ZakYip.WheelDiverterSorter.Host
-├── ZakYip.WheelDiverterSorter.Application
+├── ZakYip.WheelDiverterSorter.Application    # DI 聚合层入口
+├── ZakYip.WheelDiverterSorter.Core
+└── ZakYip.WheelDiverterSorter.Observability
+# PR-H1: Host 不再直接依赖 Execution/Drivers/Ingress/Communication/Simulation
+# 这些依赖现在通过 Application 层传递
+
+ZakYip.WheelDiverterSorter.Application        # PR-H1: DI 聚合层
 ├── ZakYip.WheelDiverterSorter.Core
 ├── ZakYip.WheelDiverterSorter.Execution
 ├── ZakYip.WheelDiverterSorter.Drivers
 ├── ZakYip.WheelDiverterSorter.Ingress
+├── ZakYip.WheelDiverterSorter.Communication
 ├── ZakYip.WheelDiverterSorter.Observability
-├── ZakYip.WheelDiverterSorter.Communication
-└── ZakYip.WheelDiverterSorter.Simulation
-
-ZakYip.WheelDiverterSorter.Application
-├── ZakYip.WheelDiverterSorter.Core
-├── ZakYip.WheelDiverterSorter.Execution
-├── ZakYip.WheelDiverterSorter.Communication
-└── ZakYip.WheelDiverterSorter.Observability
+└── ZakYip.WheelDiverterSorter.Simulation     # PR-H1: Application 现在可以依赖 Simulation
 
 ZakYip.WheelDiverterSorter.Execution
 ├── ZakYip.WheelDiverterSorter.Core
@@ -119,21 +119,23 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - **Communication** 依赖 Core 和 Observability，负责与上游 RuleEngine 的通信
 - **Execution** 依赖 Core 和 Observability，负责分拣编排和路径执行
 - **Drivers** 依赖 Core、Execution 和 Communication，实现具体硬件驱动
-- **Application** 依赖 Core、Execution、Communication 和 Observability，提供应用服务/用例服务
 - **Simulation** 依赖除 Host 和 Application 外的所有项目，提供仿真运行环境
-- **Host** 是顶层应用入口，依赖 Application 和所有业务项目
+- **Application** 是 DI 聚合层（PR-H1），依赖 Core、Execution、Drivers、Ingress、Communication、Observability、Simulation，提供统一的服务注册入口
+- **Host** 是顶层应用入口，只依赖 Application、Core、Observability（PR-H1: 依赖收缩），通过 Application 层间接访问其他项目的服务
 
 ### 2.1 层级架构约束（Architecture Constraints）
 
 根据 `copilot-instructions.md` 规范，项目依赖必须遵循以下严格约束，由 `ArchTests` 项目中的 `ApplicationLayerDependencyTests` 强制执行：
 
-#### Host 层约束
+#### Host 层约束（PR-H1 更新）
 - **允许依赖**：Application、Core、Observability
-- **禁止越级访问**：不能直接依赖 Execution/Drivers/Core 中的业务接口
+- **禁止直接依赖**：Execution、Drivers、Ingress、Communication、Simulation
+- **说明**：Host 层通过 Application 层间接访问 Execution/Drivers/Ingress/Communication/Simulation 的服务
 
-#### Application 层约束
-- **允许依赖**：Core、Execution、Drivers、Ingress、Communication、Observability
-- **禁止依赖**：Host、Simulation、Analyzers
+#### Application 层约束（PR-H1 更新）
+- **允许依赖**：Core、Execution、Drivers、Ingress、Communication、Observability、Simulation
+- **禁止依赖**：Host、Analyzers
+- **说明**：Application 层现在是 DI 聚合层，负责统一编排所有下游项目的服务注册
 
 #### 反向依赖禁止
 以下项目 **禁止** 依赖 Application（避免循环依赖）：
@@ -145,9 +147,9 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - Observability
 - Simulation
 
-#### 预期依赖链路
+#### 预期依赖链路（PR-H1 更新）
 ```
-Host → Application → Core/Execution/Drivers/Ingress/Communication/Observability
+Host → Application → Core/Execution/Drivers/Ingress/Communication/Observability/Simulation
 ```
 
 ### 2.2 编码规范约束（Coding Standards）
@@ -185,10 +187,12 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
 
 ### 3.1 ZakYip.WheelDiverterSorter.Application
 
-**项目职责**：应用服务层，封装 Core + Execution + Drivers + Ingress + Communication 的组合逻辑，提供应用服务/用例服务。Host 层通过引用此项目获取所有应用服务。
+**项目职责**：应用服务层 & DI 聚合层（PR-H1），封装 Core + Execution + Drivers + Ingress + Communication + Simulation 的组合逻辑，提供应用服务/用例服务，同时作为 Host 层的统一 DI 入口。
 
 ```
 ZakYip.WheelDiverterSorter.Application/
+├── Extensions/                          # PR-H1: DI 扩展方法（统一服务注册入口）
+│   └── WheelDiverterSorterServiceCollectionExtensions.cs # AddWheelDiverterSorter() 统一DI入口
 ├── Services/                           # 应用服务实现
 │   ├── CachedDriverConfigurationRepository.cs    # 带缓存的IO驱动器配置仓储
 │   ├── CachedSensorConfigurationRepository.cs    # 带缓存的感应IO配置仓储
@@ -214,11 +218,13 @@ ZakYip.WheelDiverterSorter.Application/
 │   ├── SimulationModeProvider.cs                 # 仿真模式提供者
 │   ├── SorterMetrics.cs                          # 分拣系统性能指标服务
 │   └── SystemConfigService.cs                    # 系统配置服务实现
-└── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication)
+└── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication) - 应用服务注册
 ```
 
 #### 关键类型概览
 
+- `WheelDiverterSorterServiceCollectionExtensions`（位于 Extensions/）：PR-H1 统一 DI 入口，提供 `AddWheelDiverterSorter()` 方法注册所有基础服务
+- `ApplicationServiceExtensions`：提供 `AddWheelDiverterApplication()` 注册所有应用服务（被 `AddWheelDiverterSorter()` 调用）
 - `ISystemConfigService`/`SystemConfigService`：系统配置的业务逻辑，包括验证、更新、默认模板生成
 - `ILoggingConfigService`/`LoggingConfigService`：日志配置的查询、更新、重置操作
 - `IPreRunHealthCheckService`/`PreRunHealthCheckService`：运行前验证所有关键配置是否就绪
@@ -231,11 +237,10 @@ ZakYip.WheelDiverterSorter.Application/
 - `OptimizedSortingService`：集成了指标收集、对象池和优化内存管理的分拣服务
 - `CachedSwitchingPathGenerator`：带缓存优化的路径生成器包装器
 - `CongestionDataCollector`：收集系统当前拥堵指标快照
-- `ApplicationServiceExtensions`：提供 `AddWheelDiverterApplication()` 统一注册所有应用服务
 
 ### 3.2 ZakYip.WheelDiverterSorter.Host
 
-**项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。不包含业务逻辑，业务逻辑委托给 Execution、Core 等底层项目。
+**项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。不包含业务逻辑，业务逻辑委托给 Application 层和下游项目。PR-H1 后，Host 层只依赖 Application/Core/Observability，通过 Application 层间接访问其他项目的服务。
 
 ```
 ZakYip.WheelDiverterSorter.Host/
@@ -265,42 +270,43 @@ ZakYip.WheelDiverterSorter.Host/
 │   ├── Config/
 │   └── Panel/
 ├── Pipeline/                        # HTTP 管道中间件（上游分配适配器）
-├── Services/                        # PR3/PR-A2: 重组为按类型分类的子目录，应用服务已移至 Application 层
-│   ├── Extensions/                  # DI 扩展方法
-│   │   ├── ConfigurationRepositoryServiceExtensions.cs
-│   │   ├── HealthCheckServiceExtensions.cs
-│   │   ├── MiddleConveyorServiceExtensions.cs
-│   │   ├── RuntimeProfileServiceExtensions.cs
-│   │   ├── SimulationServiceExtensions.cs
-│   │   ├── SortingServiceExtensions.cs
-│   │   ├── SystemStateServiceExtensions.cs
-│   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR3: 统一DI入口
-│   ├── RuntimeProfiles/             # 运行时配置文件
-│   │   ├── ProductionRuntimeProfile.cs
-│   │   ├── SimulationRuntimeProfile.cs
-│   │   └── PerformanceTestRuntimeProfile.cs
+├── Services/                        # PR-H1: 简化后的服务目录
+│   ├── Extensions/                  # DI 扩展方法（Host 层薄包装）
+│   │   ├── HealthCheckServiceExtensions.cs      # 健康检查服务注册
+│   │   ├── SystemStateServiceExtensions.cs      # 系统状态服务注册
+│   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR-H1: Host 层薄包装，调用 Application.AddWheelDiverterSorter()
 │   └── Workers/                     # 后台工作服务
 │       ├── AlarmMonitoringWorker.cs
 │       ├── BootHostedService.cs
 │       └── RouteTopologyConsistencyCheckWorker.cs
 ├── StateMachine/                    # 系统状态机（启动/运行/停止）
 ├── Swagger/                         # Swagger 配置与过滤器
-├── Program.cs                       # 应用入口点（PR3: 简化为单一 AddWheelDiverterSorter() 调用）
+├── Program.cs                       # 应用入口点（PR-H1: 调用 AddWheelDiverterSorterHost()）
 ├── appsettings.json                 # 配置文件
 ├── nlog.config                      # NLog 日志配置
 └── Dockerfile                       # Docker 构建文件
 ```
 
+**PR-H1 变更说明**：
+- 删除了 `Services/Extensions/` 下的以下文件（已移至 Application 层）：
+  - `ConfigurationRepositoryServiceExtensions.cs`
+  - `MiddleConveyorServiceExtensions.cs`
+  - `RuntimeProfileServiceExtensions.cs`
+  - `SortingServiceExtensions.cs`
+  - `SimulationServiceExtensions.cs`
+- 删除了 `Services/RuntimeProfiles/` 目录（已移至 Application 层作为 file-scoped 类型）
+- `WheelDiverterSorterServiceCollectionExtensions` 现在是 Application 层统一 DI 入口的薄包装
+
 #### 关键类型概览
 
-- `Program.cs`：应用启动入口，通过 `AddWheelDiverterSorter()` 单一入口配置所有服务
+- `Program.cs`：应用启动入口，通过 `AddWheelDiverterSorterHost()` 单一入口配置所有服务（PR-H1）
 - `SystemStateManager`（位于 StateMachine/）：管理系统启动/运行/停止状态转换
 - `BootHostedService`（位于 Services/Workers/）：系统启动引导服务，按顺序初始化各子系统
 - `ApiControllerBase`（位于 Controllers/）：所有 API 控制器的基类，提供统一响应格式
 - `HardwareConfigController`（位于 Controllers/）：统一硬件配置控制器，提供 /api/hardware/leadshine、/api/hardware/modi、/api/hardware/shudiniao 端点
-- `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：统一 DI 入口，提供 `AddWheelDiverterSorter()` 方法
+- `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：Host 层薄包装，提供 `AddWheelDiverterSorterHost()` 方法（PR-H1）
 
-**注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。Host 层不再包含应用服务实现，只负责 DI 配置和 API Controller 定义。
+**注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。PR-H1 进一步将 DI 注册逻辑下沉到 Application 层，Host 层不再包含业务服务实现，也不再直接依赖 Execution/Drivers/Ingress/Communication/Simulation。
 
 ---
 
@@ -964,6 +970,7 @@ tools/Profiling/
     - ~~Host 的 Program.cs 需要调用多个扩展方法来完成注册~~
     - ~~建议：考虑提供统一的 `AddWheelDiverterSorter()` 方法~~
     - **PR3 解决方案**：新增 `WheelDiverterSorterServiceCollectionExtensions.AddWheelDiverterSorter()` 方法，Program.cs 只需调用这一个方法即可完成所有服务注册
+    - **PR-H1 增强**：DI 聚合逻辑下沉到 Application 层，Host 层只保留薄包装（AddWheelDiverterSorterHost）
 
 12. **~~遗留拓扑类型待清理~~** ✅ 已解决 (PR-C3)
     - ~~`Core/LineModel/Topology/Legacy/` 目录下的类型已标记为 `[Obsolete]`~~
@@ -975,23 +982,35 @@ tools/Profiling/
       - 删除了未使用的 `TopologyServiceExtensions.cs`
       - 新增 ArchTests 规则禁止再次创建 Legacy 目录
 
-### 5.5 文档与命名
+### 5.5 Host 层依赖收缩（PR-H1）
 
-13. **~~部分 README.md 可能过时~~** ✅ 已解决 (PR5)
+13. **~~Host 层直接依赖过多下游项目~~** ✅ 已解决 (PR-H1)
+    - ~~Host 项目直接引用 Execution/Drivers/Ingress/Communication/Simulation~~
+    - ~~Host 层应只依赖 Application，由 Application 统一编排下游项目~~
+    - **PR-H1 解决方案**：
+      - Host.csproj 移除对 Execution/Drivers/Ingress/Communication/Simulation 的直接 ProjectReference
+      - Host 现在只依赖 Application/Core/Observability
+      - 在 Application 层创建统一 DI 入口 `AddWheelDiverterSorter()`
+      - Host 层的 `AddWheelDiverterSorterHost()` 是 Application 层的薄包装
+      - 更新 ArchTests 强制执行新的依赖约束
+
+### 5.6 文档与命名
+
+14. **~~部分 README.md 可能过时~~** ✅ 已解决 (PR5)
     - ~~`Drivers/README.md`、`Simulation/README.md` 等需要验证是否与当前代码一致~~
     - **PR5 解决方案**：更新了 `Drivers/README.md` 和 `Simulation/README.md`，反映当前 Vendors 结构和公共 API 定义
 
-14. **~~部分命名空间与物理路径不一致~~** ✅ 部分解决 (PR4)
+15. **~~部分命名空间与物理路径不一致~~** ✅ 部分解决 (PR4)
     - ~~需要检查所有命名空间是否与项目/目录结构对应~~
     - **PR4 解决方案**：`Core/LineModel/Configuration` 已按 Models/Repositories/Validation 拆分，命名空间与路径一致
 
-15. **Simulation 项目边界已明确** ✅ 已解决 (PR5)
+16. **Simulation 项目边界已明确** ✅ 已解决 (PR5)
     - **问题**：Simulation 既是独立可执行程序又被 Host 引用，边界不清晰
     - **PR5 解决方案**：在 Simulation/README.md 中明确定义了公共 API（`ISimulationScenarioRunner`、`SimulationOptions`、`SimulationSummary`）与内部实现的区分，Host 层只应使用公共 API
 
-### 5.6 厂商配置收拢相关（PR-C2）
+### 5.7 厂商配置收拢相关（PR-C2）
 
-16. **厂商配置已部分移动到 Drivers/Vendors/** ✅ 部分完成 (PR-C2)
+17. **厂商配置已部分移动到 Drivers/Vendors/** ✅ 部分完成 (PR-C2)
     - **已完成**：
       - `LeadshineOptions`, `LeadshineDiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Leadshine/Configuration/`
       - `S7Options`, `S7DiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Siemens/Configuration/`
@@ -1011,7 +1030,7 @@ tools/Profiling/
     - 这是为了避免配置类重复定义的权宜之计
     - **注意**：需确保 Ingress 不直接使用 Drivers 中的驱动实现类，仅使用配置类
 
-### 5.7 内联枚举待迁移（PR-C2 白名单）
+### 5.8 内联枚举待迁移（PR-C2 白名单）
 
 18. **接口文件中的内联枚举**
     - `IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举
@@ -1038,6 +1057,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：1.2  
+**文档版本**：1.3 (PR-H1)  
 **最后更新**：2025-11-28  
 **维护团队**：ZakYip Development Team

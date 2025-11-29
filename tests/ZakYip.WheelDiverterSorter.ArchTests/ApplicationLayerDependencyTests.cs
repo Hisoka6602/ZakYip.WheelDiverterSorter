@@ -62,11 +62,16 @@ public class ApplicationLayerDependencyTests
     }
 
     /// <summary>
-    /// 验证 Application 项目不依赖 Host / Simulation / Analyzers
-    /// Application should not depend on Host / Simulation / Analyzers
+    /// 验证 Application 项目不依赖 Host / Analyzers
+    /// Application should not depend on Host / Analyzers
     /// </summary>
+    /// <remarks>
+    /// PR-H1: Application 层现在是 DI 聚合层，可以依赖 Simulation 项目以统一注册所有服务。
+    /// Application is now the DI aggregation layer and can depend on Simulation to register all services.
+    /// Host 层通过 Application 层间接访问 Simulation，不再直接依赖 Simulation。
+    /// </remarks>
     [Fact]
-    public void Application_ShouldNotDependOn_HostOrSimulationOrAnalyzers()
+    public void Application_ShouldNotDependOn_HostOrAnalyzers()
     {
         var applicationCsproj = Path.Combine(
             SolutionRoot, 
@@ -74,7 +79,8 @@ public class ApplicationLayerDependencyTests
         
         var references = GetProjectReferences(applicationCsproj);
         
-        var forbiddenDependencies = new[] { "Host", "Simulation", "Analyzers" };
+        // PR-H1: Simulation 现在是允许的依赖，因为 Application 层负责统一 DI 注册
+        var forbiddenDependencies = new[] { "Host", "Analyzers" };
         var violations = references
             .Where(r => forbiddenDependencies.Any(fd => r.Contains(fd, StringComparison.OrdinalIgnoreCase)))
             .ToList();
@@ -82,7 +88,7 @@ public class ApplicationLayerDependencyTests
         if (violations.Any())
         {
             Assert.Fail($"Application 项目不应依赖以下项目: {string.Join(", ", violations)}\n" +
-                       "根据架构规范，Application 层不能依赖 Host / Simulation / Analyzers");
+                       "根据架构规范，Application 层不能依赖 Host / Analyzers");
         }
     }
 
@@ -90,6 +96,10 @@ public class ApplicationLayerDependencyTests
     /// 验证 Application 项目只允许依赖指定的项目
     /// Application should only depend on allowed projects
     /// </summary>
+    /// <remarks>
+    /// PR-H1: Application 层现在是 DI 聚合层，允许依赖 Simulation 项目以统一注册所有服务。
+    /// Application is now the DI aggregation layer and can depend on Simulation to register all services.
+    /// </remarks>
     [Fact]
     public void Application_ShouldOnlyDependOn_AllowedProjects()
     {
@@ -99,7 +109,7 @@ public class ApplicationLayerDependencyTests
         
         var references = GetProjectReferences(applicationCsproj);
         
-        // Application 允许依赖的项目
+        // PR-H1: Application 允许依赖的项目（新增 Simulation，因为 Application 是 DI 聚合层）
         var allowedProjects = new[]
         {
             "ZakYip.WheelDiverterSorter.Core",
@@ -107,7 +117,8 @@ public class ApplicationLayerDependencyTests
             "ZakYip.WheelDiverterSorter.Drivers",
             "ZakYip.WheelDiverterSorter.Ingress",
             "ZakYip.WheelDiverterSorter.Communication",
-            "ZakYip.WheelDiverterSorter.Observability"
+            "ZakYip.WheelDiverterSorter.Observability",
+            "ZakYip.WheelDiverterSorter.Simulation"  // PR-H1: 允许 Application 依赖 Simulation
         };
 
         var violations = references
@@ -118,6 +129,81 @@ public class ApplicationLayerDependencyTests
         {
             Assert.Fail($"Application 项目包含未允许的依赖: {string.Join(", ", violations)}\n" +
                        $"允许的依赖: {string.Join(", ", allowedProjects)}");
+        }
+    }
+
+    /// <summary>
+    /// 验证 Host 项目只允许依赖 Application/Core/Observability
+    /// Host should only depend on Application/Core/Observability
+    /// </summary>
+    /// <remarks>
+    /// PR-H1: Host 层依赖收缩 - Host 只能依赖 Application/Core/Observability。
+    /// Host 不能直接依赖 Execution/Drivers/Ingress/Communication/Simulation。
+    /// 这些依赖现在通过 Application 层传递。
+    /// </remarks>
+    [Fact]
+    public void Host_ShouldOnlyDependOn_ApplicationCoreObservability()
+    {
+        var hostCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSorter.Host.csproj");
+        
+        var references = GetProjectReferences(hostCsproj);
+        
+        // PR-H1: Host 只允许依赖的项目
+        var allowedProjects = new[]
+        {
+            "ZakYip.WheelDiverterSorter.Application",
+            "ZakYip.WheelDiverterSorter.Core",
+            "ZakYip.WheelDiverterSorter.Observability"
+        };
+
+        var violations = references
+            .Where(r => !allowedProjects.Any(ap => r.Equals(ap, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Host 项目包含未允许的直接依赖: {string.Join(", ", violations)}\n" +
+                       $"允许的依赖: {string.Join(", ", allowedProjects)}\n" +
+                       "PR-H1: Host 层应只依赖 Application/Core/Observability，其他依赖应通过 Application 层传递");
+        }
+    }
+
+    /// <summary>
+    /// 验证 Host 项目不直接依赖 Execution/Drivers/Ingress/Communication/Simulation
+    /// Host should not directly depend on Execution/Drivers/Ingress/Communication/Simulation
+    /// </summary>
+    /// <remarks>
+    /// PR-H1: Host 层依赖收缩 - 这些项目的依赖现在通过 Application 层传递。
+    /// </remarks>
+    [Fact]
+    public void Host_ShouldNotDirectlyDependOn_ExecutionDriversIngressCommunicationSimulation()
+    {
+        var hostCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSorter.Host.csproj");
+        
+        var references = GetProjectReferences(hostCsproj);
+        
+        // PR-H1: Host 禁止直接依赖的项目
+        var forbiddenDependencies = new[]
+        {
+            "Execution",
+            "Drivers",
+            "Ingress",
+            "Communication",
+            "Simulation"
+        };
+
+        var violations = references
+            .Where(r => forbiddenDependencies.Any(fd => r.Contains(fd, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Host 项目不应直接依赖以下项目: {string.Join(", ", violations)}\n" +
+                       "PR-H1: Host 层应通过 Application 层间接访问这些项目的服务");
         }
     }
 
@@ -333,12 +419,12 @@ public class ApplicationLayerDependencyTests
             report.AppendLine();
         }
 
-        report.AppendLine("## Expected Layer Rules\n");
+        report.AppendLine("## Expected Layer Rules (PR-H1)\n");
         report.AppendLine("```");
-        report.AppendLine("Host → Application → Core/Execution/Drivers/Ingress/Communication/Observability");
+        report.AppendLine("Host → Application → Core/Execution/Drivers/Ingress/Communication/Observability/Simulation");
         report.AppendLine("```\n");
-        report.AppendLine("- Host 只能依赖 Application（及少量基础项目）");
-        report.AppendLine("- Application 可以依赖 Core / Execution / Drivers / Ingress / Communication / Observability");
+        report.AppendLine("- Host 只能依赖 Application/Core/Observability（PR-H1: 依赖收缩）");
+        report.AppendLine("- Application 可以依赖 Core/Execution/Drivers/Ingress/Communication/Observability/Simulation（DI 聚合层）");
         report.AppendLine("- 其他项目不得依赖 Application（避免反向依赖）");
 
         Console.WriteLine(report.ToString());

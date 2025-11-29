@@ -29,11 +29,10 @@ try
                     allowIntegerValues: true));
         });
 
-    // PR3: 使用统一的 DI 入口注册所有 WheelDiverterSorter 服务
-    // 该方法内部按顺序注册：基础设施、运行时配置、分拣配置、性能监控、
-    // Prometheus、告警、包裹追踪、配置仓储、拓扑、应用服务、分拣服务、
-    // 驱动器、健康检查、并发控制、传感器、通信、改口功能、仿真、后台服务
-    builder.Services.AddWheelDiverterSorter(builder.Configuration);
+    // PR-H1: 使用 Host 层薄包装的 DI 入口注册所有 WheelDiverterSorter 服务
+    // 此方法内部调用 Application 层的 AddWheelDiverterSorter()，然后添加 Host 特定服务
+    // （健康检查、系统状态管理、健康状态提供器、命令处理器、后台工作服务）
+    builder.Services.AddWheelDiverterSorterHost(builder.Configuration);
 
     // 配置Swagger/OpenAPI
     builder.Services.AddEndpointsApiExplorer();

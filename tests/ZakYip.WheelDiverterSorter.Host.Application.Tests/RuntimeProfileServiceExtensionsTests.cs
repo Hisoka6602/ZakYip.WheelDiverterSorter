@@ -2,23 +2,28 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
-using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
-using ZakYip.WheelDiverterSorter.Host.Services.RuntimeProfiles;
+using ZakYip.WheelDiverterSorter.Application.Extensions;
 using Xunit;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 
 /// <summary>
 /// 运行时配置文件服务扩展测试
-/// Tests for RuntimeProfileServiceExtensions
+/// Tests for RuntimeProfileServiceExtensions (now in Application layer)
 /// </summary>
+/// <remarks>
+/// PR-H1: 测试已更新以使用 Application 层的 AddWheelDiverterSorter 方法，
+/// 该方法内部使用 file-scoped private Runtime Profile 类型。
+/// 测试现在通过接口验证行为，而不是验证具体类型。
+/// </remarks>
 public class RuntimeProfileServiceExtensionsTests
 {
     [Fact]
-    public void AddRuntimeProfile_WithProductionMode_RegistersProductionProfile()
+    public void AddWheelDiverterSorter_WithProductionMode_RegistersProductionProfile()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -27,12 +32,11 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<ProductionRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.Production, profile.Mode);
         Assert.True(profile.UseHardwareDriver);
         Assert.False(profile.IsSimulationMode);
@@ -40,10 +44,11 @@ public class RuntimeProfileServiceExtensionsTests
     }
 
     [Fact]
-    public void AddRuntimeProfile_WithSimulationMode_RegistersSimulationProfile()
+    public void AddWheelDiverterSorter_WithSimulationMode_RegistersSimulationProfile()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -52,12 +57,11 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<SimulationRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.Simulation, profile.Mode);
         Assert.False(profile.UseHardwareDriver);
         Assert.True(profile.IsSimulationMode);
@@ -65,10 +69,11 @@ public class RuntimeProfileServiceExtensionsTests
     }
 
     [Fact]
-    public void AddRuntimeProfile_WithPerformanceTestMode_RegistersPerformanceTestProfile()
+    public void AddWheelDiverterSorter_WithPerformanceTestMode_RegistersPerformanceTestProfile()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -77,12 +82,11 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<PerformanceTestRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.PerformanceTest, profile.Mode);
         Assert.False(profile.UseHardwareDriver);
         Assert.False(profile.IsSimulationMode);
@@ -90,21 +94,21 @@ public class RuntimeProfileServiceExtensionsTests
     }
 
     [Fact]
-    public void AddRuntimeProfile_WithNoConfiguration_DefaultsToProductionProfile()
+    public void AddWheelDiverterSorter_WithNoConfiguration_DefaultsToProductionProfile()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>())
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<ProductionRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.Production, profile.Mode);
     }
 
@@ -112,10 +116,11 @@ public class RuntimeProfileServiceExtensionsTests
     [InlineData("production")]
     [InlineData("PRODUCTION")]
     [InlineData("Production")]
-    public void AddRuntimeProfile_WithCaseInsensitiveProductionMode_RegistersProductionProfile(string modeValue)
+    public void AddWheelDiverterSorter_WithCaseInsensitiveProductionMode_RegistersProductionProfile(string modeValue)
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -124,12 +129,12 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<ProductionRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
+        Assert.Equal(RuntimeMode.Production, profile.Mode);
     }
 
     [Theory]
@@ -137,10 +142,11 @@ public class RuntimeProfileServiceExtensionsTests
     [InlineData("performance-test")]
     [InlineData("PerformanceTest")]
     [InlineData("performancetest")]
-    public void AddRuntimeProfile_WithVariousPerformanceTestFormats_RegistersPerformanceTestProfile(string modeValue)
+    public void AddWheelDiverterSorter_WithVariousPerformanceTestFormats_RegistersPerformanceTestProfile(string modeValue)
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -149,19 +155,20 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<PerformanceTestRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
+        Assert.Equal(RuntimeMode.PerformanceTest, profile.Mode);
     }
 
     [Fact]
-    public void AddRuntimeProfile_WithUnknownMode_DefaultsToProductionProfile()
+    public void AddWheelDiverterSorter_WithUnknownMode_DefaultsToProductionProfile()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -170,19 +177,31 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
-        // Assert
-        Assert.IsType<ProductionRuntimeProfile>(profile);
+        // Assert - verify behavior through interface, not concrete type
+        Assert.Equal(RuntimeMode.Production, profile.Mode);
     }
 
     [Fact]
-    public void ProductionRuntimeProfile_HasExpectedSettings()
+    public void ProductionProfile_HasExpectedSettings()
     {
         // Arrange
-        var profile = new ProductionRuntimeProfile();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "Runtime:Mode", "Production" }
+            })
+            .Build();
+
+        // Act
+        services.AddWheelDiverterSorter(config);
+        var provider = services.BuildServiceProvider();
+        var profile = provider.GetRequiredService<IRuntimeProfile>();
 
         // Assert
         Assert.Equal(RuntimeMode.Production, profile.Mode);
@@ -197,10 +216,22 @@ public class RuntimeProfileServiceExtensionsTests
     }
 
     [Fact]
-    public void SimulationRuntimeProfile_HasExpectedSettings()
+    public void SimulationProfile_HasExpectedSettings()
     {
         // Arrange
-        var profile = new SimulationRuntimeProfile();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "Runtime:Mode", "Simulation" }
+            })
+            .Build();
+
+        // Act
+        services.AddWheelDiverterSorter(config);
+        var provider = services.BuildServiceProvider();
+        var profile = provider.GetRequiredService<IRuntimeProfile>();
 
         // Assert
         Assert.Equal(RuntimeMode.Simulation, profile.Mode);
@@ -215,10 +246,22 @@ public class RuntimeProfileServiceExtensionsTests
     }
 
     [Fact]
-    public void PerformanceTestRuntimeProfile_HasExpectedSettings()
+    public void PerformanceTestProfile_HasExpectedSettings()
     {
         // Arrange
-        var profile = new PerformanceTestRuntimeProfile();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                { "Runtime:Mode", "PerformanceTest" }
+            })
+            .Build();
+
+        // Act
+        services.AddWheelDiverterSorter(config);
+        var provider = services.BuildServiceProvider();
+        var profile = provider.GetRequiredService<IRuntimeProfile>();
 
         // Assert
         Assert.Equal(RuntimeMode.PerformanceTest, profile.Mode);
@@ -237,10 +280,11 @@ public class RuntimeProfileServiceExtensionsTests
     [InlineData("1")]
     [InlineData("2")]
     [InlineData("99")]
-    public void AddRuntimeProfile_WithNumericString_DefaultsToProductionProfile(string modeValue)
+    public void AddWheelDiverterSorter_WithNumericString_DefaultsToProductionProfile(string modeValue)
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
@@ -249,11 +293,11 @@ public class RuntimeProfileServiceExtensionsTests
             .Build();
 
         // Act
-        services.AddRuntimeProfile(config);
+        services.AddWheelDiverterSorter(config);
         var provider = services.BuildServiceProvider();
         var profile = provider.GetRequiredService<IRuntimeProfile>();
 
         // Assert - numeric strings should not be accepted, defaults to Production
-        Assert.IsType<ProductionRuntimeProfile>(profile);
+        Assert.Equal(RuntimeMode.Production, profile.Mode);
     }
 }
