@@ -264,13 +264,12 @@ ZakYip.WheelDiverterSorter.Application/
 
 ### 3.2 ZakYip.WheelDiverterSorter.Host
 
-**项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。不包含业务逻辑，业务逻辑委托给 Application 层和下游项目。PR-H1 后，Host 层只依赖 Application/Core/Observability，通过 Application 层间接访问其他项目的服务。
+**项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。不包含业务逻辑，业务逻辑委托给 Application 层和下游项目。
+
+**PR-H1 / PR-H2 变更**：Host 层只依赖 Application/Core/Observability，通过 Application 层间接访问其他项目的服务。**Host 层不再包含任何接口/命令/仓储/Adapter/业务中间件，只保留启动、状态机、Controller 与 AddWheelDiverterSorterHost() 薄包装。**
 
 ```
 ZakYip.WheelDiverterSorter.Host/
-├── Application/
-│   └── Services/                    # 应用层服务（配置缓存、系统配置服务等）
-├── Commands/                        # CQRS 命令定义与处理器
 ├── Controllers/                     # API 控制器（16个，PR3合并后）
 │   ├── AlarmsController.cs
 │   ├── ChuteAssignmentTimeoutController.cs
@@ -293,12 +292,11 @@ ZakYip.WheelDiverterSorter.Host/
 │   ├── Communication/
 │   ├── Config/
 │   └── Panel/
-├── Pipeline/                        # HTTP 管道中间件（上游分配适配器）
-├── Services/                        # PR-H1: 简化后的服务目录
+├── Services/                        # PR-H1/H2: 简化后的服务目录（只包含 DI 扩展和 Workers）
 │   ├── Extensions/                  # DI 扩展方法（Host 层薄包装）
 │   │   ├── HealthCheckServiceExtensions.cs      # 健康检查服务注册
 │   │   ├── SystemStateServiceExtensions.cs      # 系统状态服务注册
-│   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR-H1: Host 层薄包装，调用 Application.AddWheelDiverterSorter()
+│   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR-H1/H2: Host 层薄包装，调用 Application.AddWheelDiverterSorter()
 │   └── Workers/                     # 后台工作服务
 │       ├── AlarmMonitoringWorker.cs
 │       ├── BootHostedService.cs
@@ -310,6 +308,21 @@ ZakYip.WheelDiverterSorter.Host/
 ├── nlog.config                      # NLog 日志配置
 └── Dockerfile                       # Docker 构建文件
 ```
+
+**PR-H2 变更说明**：
+- 删除了 `Application/` 目录（业务服务接口和实现已移至 Application 层）
+  - 原 `Application/Services/ILoggingConfigService.cs` → `Application.Services.ILoggingConfigService`
+  - 原 `Application/Services/ISystemConfigService.cs` → `Application.Services.ISystemConfigService`
+  - 原 `Application/Services/IPreRunHealthCheckService.cs` → `Application.Services.IPreRunHealthCheckService`
+  - 原 `Application/Services/ISimulationOrchestratorService.cs` → `Application.Services.ISimulationOrchestratorService`
+  - 原 `Application/Services/CachedDriverConfigurationRepository.cs` → `Application.Services.CachedDriverConfigurationRepository`
+  - 原 `Application/Services/CachedSensorConfigurationRepository.cs` → `Application.Services.CachedSensorConfigurationRepository`
+- 删除了 `Commands/` 目录（改口命令已移至 Application 层的 IChangeParcelChuteService）
+  - 原 `Commands/ChangeParcelChuteCommand.cs` → `Application.Services.ChangeParcelChuteCommand`
+  - 原 `Commands/ChangeParcelChuteCommandHandler.cs` → `Application.Services.ChangeParcelChuteService`
+  - 原 `Commands/ChangeParcelChuteResult.cs` → `Application.Services.ChangeParcelChuteResult`
+- 删除了 `Pipeline/` 目录（上游适配器已移至 Execution 层）
+  - 原 `Pipeline/UpstreamAssignmentAdapter.cs` → Execution 层
 
 **PR-H1 变更说明**：
 - 删除了 `Services/Extensions/` 下的以下文件（已移至 Application 层）：
@@ -328,9 +341,17 @@ ZakYip.WheelDiverterSorter.Host/
 - `BootHostedService`（位于 Services/Workers/）：系统启动引导服务，按顺序初始化各子系统
 - `ApiControllerBase`（位于 Controllers/）：所有 API 控制器的基类，提供统一响应格式
 - `HardwareConfigController`（位于 Controllers/）：统一硬件配置控制器，提供 /api/hardware/leadshine、/api/hardware/modi、/api/hardware/shudiniao 端点
-- `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：Host 层薄包装，提供 `AddWheelDiverterSorterHost()` 方法（PR-H1）
+- `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：Host 层薄包装，提供 `AddWheelDiverterSorterHost()` 方法（PR-H1/H2）
 
-**注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。PR-H1 进一步将 DI 注册逻辑下沉到 Application 层，Host 层不再包含业务服务实现，也不再直接依赖 Execution/Drivers/Ingress/Communication/Simulation。
+**注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。PR-H1 进一步将 DI 注册逻辑下沉到 Application 层。**PR-H2 进一步瘦身，删除了 Host 层的 Application/Services、Commands、Pipeline 目录**，Host 层不再包含业务服务实现，也不再直接依赖 Execution/Drivers/Ingress/Communication/Simulation。
+
+#### ArchTests 约束（PR-H2 新增）
+
+由 `ArchTests.HostLayerConstraintTests` 强制执行：
+- **禁止接口定义**：Host 项目内禁止声明任何 interface（除 ISystemStateManager 外）
+- **禁止业务模式类型**：Host 项目内禁止存在 Command/Repository/Adapter/Middleware 命名的类型
+- **禁止业务目录**：Host 项目内禁止存在 Application/Commands/Pipeline/Repositories 目录
+- **Controller 依赖约束**（顾问性）：Controller 应只注入 Application 层服务接口，不直接注入 Execution/Core/Drivers/Ingress/Communication 中的抽象
 
 ---
 
@@ -1117,6 +1138,23 @@ tools/Profiling/
       - 在 Application 层创建统一 DI 入口 `AddWheelDiverterSorter()`
       - Host 层的 `AddWheelDiverterSorterHost()` 是 Application 层的薄包装
       - 更新 ArchTests 强制执行新的依赖约束
+
+### 5.5.1 Host 层继续瘦身（PR-H2）
+
+14. **~~Host 层包含业务接口/Commands/Repository/Adapter/Middleware~~** ✅ 已解决 (PR-H2)
+    - ~~Host/Application/Services/ 目录包含重复的服务接口和实现~~
+    - ~~Host/Commands/ 目录包含 ChangeParcelChuteCommand 相关类型~~
+    - ~~Host/Pipeline/ 目录包含 UpstreamAssignmentAdapter~~
+    - **PR-H2 解决方案**：
+      - 删除 `Host/Application/` 目录，业务服务接口和实现已移至 Application 层
+      - 删除 `Host/Commands/` 目录，改口命令由 Application 层的 IChangeParcelChuteService 处理
+      - 删除 `Host/Pipeline/` 目录，上游适配器已移至 Execution 层
+      - 更新 DivertsController 使用 IChangeParcelChuteService
+      - 新增 ArchTests.HostLayerConstraintTests 强制执行：
+        - 禁止接口定义（除 ISystemStateManager）
+        - 禁止 Command/Repository/Adapter/Middleware 命名的类型
+        - 禁止 Application/Commands/Pipeline/Repositories 目录
+      - Controller 依赖约束为顾问性测试（预留后续 PR 修复）
 
 ### 5.6 文档与命名
 

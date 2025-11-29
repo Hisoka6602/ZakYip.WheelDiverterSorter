@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
-using ZakYip.WheelDiverterSorter.Host.Commands;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 using ZakYip.WheelDiverterSorter.Application.Extensions;
 
@@ -16,11 +15,15 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 /// 所有核心服务注册（Core/Execution/Drivers/Ingress/Communication/Observability/Simulation）
 /// 现在由 Application 层的 WheelDiverterSorterServiceCollectionExtensions 处理。
 /// 
+/// PR-H2: Host 层继续瘦身 - 移除了所有业务接口、Commands、Pipeline、Repository 目录：
+/// - Commands 目录已删除，改口功能由 Application 层 IChangeParcelChuteService 提供
+/// - Pipeline 目录已删除，上游适配器已移至 Execution 层
+/// - Application/Services 目录已删除，业务服务由 Application 层统一提供
+/// 
 /// Host 层只负责注册：
 /// - 健康检查和系统状态管理（Host 特定）
 /// - 健康状态提供器（Host 特定实现）
 /// - 后台工作服务（Host 特定）
-/// - 命令处理器（Host 特定）
 /// 
 /// **依赖关系**：
 /// Host → Application → (Core/Execution/Drivers/Ingress/Communication/Observability/Simulation)
@@ -44,8 +47,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 1. Application 层的所有基础服务（通过 AddWheelDiverterSorter 调用）
     /// 2. 健康检查和系统状态管理（Host 特定）
     /// 3. 健康状态提供器（Host 特定实现）
-    /// 4. 命令处理器（Host 特定）
-    /// 5. 后台工作服务（Host 特定）
+    /// 4. 后台工作服务（Host 特定）
     /// </remarks>
     public static IServiceCollection AddWheelDiverterSorterHost(
         this IServiceCollection services,
@@ -73,10 +75,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddSingleton<Observability.Runtime.Health.IHealthStatusProvider,
             Health.HostHealthStatusProvider>();
 
-        // 4. 注册命令处理器（Host 特定）
-        services.AddSingleton<ChangeParcelChuteCommandHandler>();
-
-        // 5. 注册后台工作服务（Host 特定）
+        // 4. 注册后台工作服务（Host 特定）
         services.AddHostedService<AlarmMonitoringWorker>();
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
 

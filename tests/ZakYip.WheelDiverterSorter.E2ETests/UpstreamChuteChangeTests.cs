@@ -4,7 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Host.Commands;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Routing;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
@@ -30,11 +30,11 @@ public class UpstreamChuteChangeTests
         var replanner = new RouteReplanner(
             pathGenerator.Object,
             Mock.Of<ILogger<RouteReplanner>>());
-        var handler = new ChangeParcelChuteCommandHandler(
+        var service = new ChangeParcelChuteService(
             repository,
             replanner,
             Mock.Of<ISystemClock>(),
-            Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ILogger<ChangeParcelChuteService>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -61,7 +61,7 @@ public class UpstreamChuteChangeTests
         };
 
         // Act
-        var result = await handler.HandleAsync(command);
+        var result = await service.ChangeParcelChuteAsync(command);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -78,10 +78,11 @@ public class UpstreamChuteChangeTests
         var replanner = new RouteReplanner(
             Mock.Of<ISwitchingPathGenerator>(),
             Mock.Of<ILogger<RouteReplanner>>());
-        var handler = new ChangeParcelChuteCommandHandler(
+        var service = new ChangeParcelChuteService(
             repository,
             replanner,
-            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), 
+            Mock.Of<ILogger<ChangeParcelChuteService>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -99,7 +100,7 @@ public class UpstreamChuteChangeTests
         };
 
         // Act
-        var result = await handler.HandleAsync(command);
+        var result = await service.ChangeParcelChuteAsync(command);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -116,10 +117,11 @@ public class UpstreamChuteChangeTests
         var replanner = new RouteReplanner(
             Mock.Of<ISwitchingPathGenerator>(),
             Mock.Of<ILogger<RouteReplanner>>());
-        var handler = new ChangeParcelChuteCommandHandler(
+        var service = new ChangeParcelChuteService(
             repository,
             replanner,
-            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), 
+            Mock.Of<ILogger<ChangeParcelChuteService>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -137,7 +139,7 @@ public class UpstreamChuteChangeTests
         };
 
         // Act
-        var result = await handler.HandleAsync(command);
+        var result = await service.ChangeParcelChuteAsync(command);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -154,10 +156,11 @@ public class UpstreamChuteChangeTests
         var replanner = new RouteReplanner(
             Mock.Of<ISwitchingPathGenerator>(),
             Mock.Of<ILogger<RouteReplanner>>());
-        var handler = new ChangeParcelChuteCommandHandler(
+        var service = new ChangeParcelChuteService(
             repository,
             replanner,
-            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), 
+            Mock.Of<ILogger<ChangeParcelChuteService>>());
 
         var parcelId = 12345L;
         var originalChuteId = 10;
@@ -178,7 +181,7 @@ public class UpstreamChuteChangeTests
         };
 
         // Act
-        var result = await handler.HandleAsync(command);
+        var result = await service.ChangeParcelChuteAsync(command);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -195,10 +198,11 @@ public class UpstreamChuteChangeTests
         var replanner = new RouteReplanner(
             Mock.Of<ISwitchingPathGenerator>(),
             Mock.Of<ILogger<RouteReplanner>>());
-        var handler = new ChangeParcelChuteCommandHandler(
+        var service = new ChangeParcelChuteService(
             repository,
             replanner,
-            Mock.Of<ISystemClock>(), Mock.Of<ILogger<ChangeParcelChuteCommandHandler>>());
+            Mock.Of<ISystemClock>(), 
+            Mock.Of<ILogger<ChangeParcelChuteService>>());
 
         var command = new ChangeParcelChuteCommand
         {
@@ -207,7 +211,7 @@ public class UpstreamChuteChangeTests
         };
 
         // Act
-        var result = await handler.HandleAsync(command);
+        var result = await service.ChangeParcelChuteAsync(command);
 
         // Assert
         Assert.False(result.IsSuccess);
