@@ -1,13 +1,12 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 
 /// <summary>
 /// IO 联动驱动接口
 /// </summary>
 /// <remarks>
-/// 本接口属于 Core 层，定义 IO 联动控制的抽象契约。
+/// 本接口属于 HAL（硬件抽象层），定义 IO 联动控制的抽象契约。
 /// 用于控制中段皮带等设备的 IO 联动，由 Drivers 层实现。
 /// </remarks>
 public interface IIoLinkageDriver

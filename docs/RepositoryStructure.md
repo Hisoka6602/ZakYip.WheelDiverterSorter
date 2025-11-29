@@ -180,11 +180,27 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
   - `LegacyCodeDetectionTests.ShouldNotHaveLegacyNamedTypes()` - 禁止 Legacy 命名
   - `LegacyCodeDetectionTests.ShouldNotHaveDeprecatedNamedTypes()` - 禁止 Deprecated 命名
 
-#### Abstractions 位置约束 (PR-C3 新增)
+#### Abstractions 位置约束 (PR-C3 新增, PR-C6 更新)
 - **规则**：`Abstractions` 目录只能存在于以下位置：
-  - `Core/ZakYip.WheelDiverterSorter.Core/Abstractions/`
+  - `Core/ZakYip.WheelDiverterSorter.Core/Abstractions/`（**不再包含 Drivers 子目录**）
   - `Infrastructure/ZakYip.WheelDiverterSorter.Communication/Abstractions/`
+- **PR-C6 变更**：原 `Core/Abstractions/Drivers/` 已删除，硬件相关抽象统一迁移至 `Core/Hardware/` 的对应子目录
 - **测试**：`DuplicateTypeDetectionTests.AbstractionsShouldOnlyExistInAllowedLocations()`
+
+#### HAL 层约束 (PR-C6 新增)
+- **规则**：HAL 已收敛到 `Core/Hardware/`，**禁止增加新的平行硬件抽象层**
+- **允许的位置**：
+  - `Core/Hardware/Ports/` - IO 端口接口 (IInputPort, IOutputPort)
+  - `Core/Hardware/IoLinkage/` - IO 联动接口 (IIoLinkageDriver)
+  - `Core/Hardware/Devices/` - 设备驱动接口 (IWheelDiverterDriver, IEmcController 等)
+  - `Core/Hardware/Mappings/` - IO 映射接口 (IVendorIoMapper)
+  - `Core/Hardware/Providers/` - 配置提供者接口 (ISensorVendorConfigProvider)
+- **禁止的位置**：
+  - `Core/Abstractions/Drivers/` (已删除)
+  - `Core/Drivers/`, `Core/Adapters/`, `Core/HardwareAbstractions/` 等平行目录
+- **测试**：
+  - `DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers()`
+  - `DuplicateTypeDetectionTests.Core_Hardware_ShouldHaveStandardSubdirectories()`
 
 ---
 
@@ -325,15 +341,6 @@ ZakYip.WheelDiverterSorter.Host/
 ```
 ZakYip.WheelDiverterSorter.Core/
 ├── Abstractions/
-│   ├── Drivers/                     # 驱动层抽象接口
-│   │   ├── IWheelDiverterDriver.cs
-│   │   ├── IDiverterController.cs
-│   │   ├── IInputPort.cs
-│   │   ├── IOutputPort.cs
-│   │   ├── IIoLinkageDriver.cs
-│   │   ├── IVendorIoMapper.cs       # 厂商IO映射器接口 (PR-C3 从 Legacy 迁移)
-│   │   ├── ISensorVendorConfigProvider.cs  # PR-TD7: 厂商无关传感器配置提供者接口
-│   │   └── ...
 │   ├── Execution/                   # 执行层抽象
 │   │   └── ICongestionDataCollector.cs
 │   ├── Ingress/                     # 入口层抽象
@@ -353,12 +360,29 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Simulation/                  # PR-TD6: 新增目录，包含 SimulationStepType, StepStatus
 │   ├── Sorting/
 │   └── System/
-├── Hardware/                        # 硬件设备抽象接口
-│   ├── IWheelDiverterActuator.cs
-│   ├── IWheelDiverterDevice.cs
-│   ├── IConveyorDriveController.cs
-│   ├── ISensorInputReader.cs
-│   └── ...
+├── Hardware/                        # PR-C6: HAL（硬件抽象层）统一目录
+│   ├── Ports/                       # IO 端口接口
+│   │   ├── IInputPort.cs
+│   │   └── IOutputPort.cs
+│   ├── IoLinkage/                   # IO 联动接口
+│   │   └── IIoLinkageDriver.cs
+│   ├── Devices/                     # 设备驱动接口
+│   │   ├── IWheelDiverterDriver.cs
+│   │   ├── IWheelDiverterDriverManager.cs
+│   │   ├── IWheelProtocolMapper.cs
+│   │   ├── IEmcController.cs
+│   │   └── (WheelCommandResult, WheelDeviceStatus 等值对象)
+│   ├── Mappings/                    # IO 映射接口
+│   │   ├── IVendorIoMapper.cs
+│   │   └── VendorIoAddress.cs
+│   ├── Providers/                   # 配置提供者接口
+│   │   └── ISensorVendorConfigProvider.cs
+│   ├── IWheelDiverterActuator.cs    # 摆轮执行器接口
+│   ├── IWheelDiverterDevice.cs      # 摆轮设备接口
+│   ├── IConveyorDriveController.cs  # 传送带驱动控制器接口
+│   ├── ISensorInputReader.cs        # 传感器输入读取接口
+│   ├── HardwareEventArgs.cs         # 硬件事件参数
+│   └── VendorCapabilities.cs        # 厂商能力声明
 ├── IoBinding/                       # IO 绑定模型
 │   ├── IoBindingProfile.cs
 │   ├── SensorBinding.cs
@@ -999,10 +1023,10 @@ tools/Profiling/
    - ~~建议：将相关依赖移到 Core 层，或通过接口解耦~~
    - **PR-TD4 解决方案**：
      - Drivers.csproj 已移除对 Execution 的 ProjectReference
-     - 所有驱动抽象接口定义在 `Core/Abstractions/Drivers/`
+     - 所有驱动抽象接口定义在 `Core/Hardware/` (PR-C6 已从 `Core/Abstractions/Drivers/` 迁移)
      - 新增 ArchTest 规则 `Drivers_ShouldNotDependOn_Execution()` 防止倒退
 
-3. **~~Core 层 Abstractions 目录结构与 Drivers 层重复~~** ✅ 已解决 (PR-TD4)
+3. **~~Core 层 Abstractions 目录结构与 Drivers 层重复~~** ✅ 已解决 (PR-TD4, PR-C6 进一步收敛)
    - ~~`Core/Abstractions/Drivers/` 和 `Drivers/Abstractions/` 存在重复定义~~
    - ~~部分接口通过 `global using` 别名指向 Core 层~~
    - ~~建议：统一接口定义位置，删除重复的抽象层~~
@@ -1010,6 +1034,10 @@ tools/Profiling/
      - `Drivers/Abstractions/` 目录已删除
      - 所有驱动抽象接口仅存在于 `Core/Abstractions/Drivers/`
      - 新增 ArchTest 规则 `Drivers_ShouldNotHaveAbstractionsDirectory()` 防止重生
+   - **PR-C6 进一步收敛**：
+     - `Core/Abstractions/Drivers/` 目录已删除
+     - 所有硬件相关接口统一迁移到 `Core/Hardware/` 的对应子目录
+     - 新增 ArchTest 规则防止创建平行硬件抽象层
 
 ### 5.2 配置相关问题
 
@@ -1067,7 +1095,7 @@ tools/Profiling/
     - **PR3 解决方案**：新增 `WheelDiverterSorterServiceCollectionExtensions.AddWheelDiverterSorter()` 方法，Program.cs 只需调用这一个方法即可完成所有服务注册
     - **PR-H1 增强**：DI 聚合逻辑下沉到 Application 层，Host 层只保留薄包装（AddWheelDiverterSorterHost）
 
-12. **~~遗留拓扑类型待清理~~** ✅ 已解决 (PR-C3)
+12. **~~遗留拓扑类型待清理~~** ✅ 已解决 (PR-C3, PR-C6 位置更新)
     - ~~`Core/LineModel/Topology/Legacy/` 目录下的类型已标记为 `[Obsolete]`~~
     - ~~包括：`LineTopology`, `DiverterNodeConfig`, `ChuteConfig`, `TopologyNode`, `TopologyEdge`, `DeviceBinding`~~
     - ~~接口：`ILineTopologyService`, `IDeviceBindingService`, `IVendorIoMapper`~~
@@ -1076,6 +1104,7 @@ tools/Profiling/
       - `IVendorIoMapper` 和 `VendorIoAddress` 迁移到 `Core/Abstractions/Drivers/`（仍在使用）
       - 删除了未使用的 `TopologyServiceExtensions.cs`
       - 新增 ArchTests 规则禁止再次创建 Legacy 目录
+    - **PR-C6 位置更新**：`IVendorIoMapper` 和 `VendorIoAddress` 已从 `Core/Abstractions/Drivers/` 迁移到 `Core/Hardware/Mappings/`
 
 ### 5.5 Host 层依赖收缩（PR-H1）
 
@@ -1120,13 +1149,14 @@ tools/Profiling/
       - 创建 `ISensorVendorConfigProvider` 接口和 `LeadshineSensorVendorConfigProvider` 实现
       - Ingress 不再直接引用 `Drivers.Vendors.*` 命名空间，通过抽象接口获取配置
 
-18. **Ingress 对 Drivers 解耦** ✅ 已完成 (PR-TD7)
+18. **Ingress 对 Drivers 解耦** ✅ 已完成 (PR-TD7, PR-C6 位置更新)
     - ~~PR-C2 为了让 Ingress 使用 Drivers 中的配置类，新增了 Ingress -> Drivers 的项目引用~~
     - **PR-TD7 解决方案**：
       - 创建 `ISensorVendorConfigProvider` 抽象接口在 Core 层
       - Ingress 通过该接口获取传感器配置，不再直接引用 `Drivers.Vendors.*` 命名空间
       - `LeadshineSensorFactory` 使用 `ISensorVendorConfigProvider` 替代直接配置引用
       - Drivers 层的 `LeadshineIoServiceCollectionExtensions` 负责注册 `ISensorVendorConfigProvider` 实现
+    - **PR-C6 位置更新**：`ISensorVendorConfigProvider` 已从 `Core/Abstractions/Drivers/` 迁移到 `Core/Hardware/Providers/`
 
 ### 5.8 内联枚举待迁移（PR-C2 白名单）✅ 已解决 (PR-TD6, PR-C5)
 
@@ -1145,6 +1175,32 @@ tools/Profiling/
       - `SimulationStepType.cs`
       - `StepStatus.cs`
     - **PR-C5 补充**：已为所有枚举成员添加 `[Description]` 特性和完整的中文注释
+
+### 5.9 HAL 层收敛与 IDiverterController 清理（PR-C6）
+
+21. **Core/Abstractions/Drivers 双轨结构** ✅ 已解决 (PR-C6)
+    - ~~Core 中存在 `Abstractions/Drivers/` 和 `Hardware/` 两个平行的硬件抽象目录~~
+    - ~~部分接口在两处都有定义，职责边界不清晰~~
+    - **PR-C6 解决方案**：
+      - 删除 `Core/Abstractions/Drivers/` 目录
+      - 所有硬件相关接口统一迁移到 `Core/Hardware/` 的对应子目录：
+        - `Hardware/Ports/`: IInputPort, IOutputPort
+        - `Hardware/IoLinkage/`: IIoLinkageDriver
+        - `Hardware/Devices/`: IWheelDiverterDriver, IWheelDiverterDriverManager, IWheelProtocolMapper, IEmcController
+        - `Hardware/Mappings/`: IVendorIoMapper, VendorIoAddress
+        - `Hardware/Providers/`: ISensorVendorConfigProvider
+      - 新增 ArchTest 规则防止创建平行硬件抽象层
+
+22. **IDiverterController 中间层** ✅ 已解决 (PR-C6)
+    - ~~存在 `IDiverterController` (基于角度的低级接口) 和 `IWheelDiverterDriver` (基于方向的高级接口) 两层抽象~~
+    - ~~`RelayWheelDiverterDriver` 作为适配器桥接两者，增加了复杂度~~
+    - **PR-C6 解决方案**：
+      - 删除 `IDiverterController` 接口
+      - 删除 `RelayWheelDiverterDriver` 适配器
+      - 创建直接实现 `IWheelDiverterDriver` 的驱动类：
+        - `LeadshineWheelDiverterDriver` (原 LeadshineDiverterController)
+        - `S7WheelDiverterDriver` (原 S7DiverterController)
+      - 更新 `LeadshineVendorDriverFactory` 和 `SiemensS7ServiceCollectionExtensions` 使用新驱动类
 
 ---
 

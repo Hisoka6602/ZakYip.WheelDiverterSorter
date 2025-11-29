@@ -1,11 +1,14 @@
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 
 /// <summary>
 /// 厂商无关的传感器配置提供者接口
 /// </summary>
 /// <remarks>
-/// <para>此接口定义了获取传感器配置的厂商无关抽象，允许 Ingress 层只依赖此接口而不依赖具体的厂商配置类型。</para>
+/// <para>本接口属于 HAL（硬件抽象层），定义获取传感器配置的厂商无关抽象，允许 Ingress 层只依赖此接口而不依赖具体的厂商配置类型。</para>
 /// <para>具体实现位于 Drivers 层，通过依赖注入在运行时提供具体厂商的配置。</para>
+/// <para>
+/// <b>HAL 角色</b>：为 Ingress 提供 Vendor 无关的传感器映射，隐藏厂商特定的配置细节。
+/// </para>
 /// </remarks>
 public interface ISensorVendorConfigProvider
 {

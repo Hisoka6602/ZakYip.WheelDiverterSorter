@@ -6,7 +6,7 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.S7;
 
-public class S7DiverterControllerTests
+public class S7WheelDiverterDriverTests
 {
     [Fact]
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
@@ -17,66 +17,66 @@ public class S7DiverterControllerTests
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new S7DiverterController(null!, mockOutputPort, config));
+            new S7WheelDiverterDriver(null!, mockOutputPort, config));
     }
 
     [Fact]
     public void Constructor_WithNullOutputPort_ThrowsArgumentNullException()
     {
         // Arrange
-        var mockLogger = Mock.Of<ILogger<S7DiverterController>>();
+        var mockLogger = Mock.Of<ILogger<S7WheelDiverterDriver>>();
         var config = CreateTestConfig();
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new S7DiverterController(mockLogger, null!, config));
+            new S7WheelDiverterDriver(mockLogger, null!, config));
     }
 
     [Fact]
     public void Constructor_WithNullConfig_ThrowsArgumentNullException()
     {
         // Arrange
-        var mockLogger = Mock.Of<ILogger<S7DiverterController>>();
+        var mockLogger = Mock.Of<ILogger<S7WheelDiverterDriver>>();
         var mockOutputPort = CreateMockOutputPort();
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new S7DiverterController(mockLogger, mockOutputPort, null!));
+            new S7WheelDiverterDriver(mockLogger, mockOutputPort, null!));
     }
 
     [Fact]
-    public async Task GetCurrentAngleAsync_InitialValue_ReturnsZero()
+    public async Task GetStatusAsync_InitialValue_ReturnsUnknown()
     {
         // Arrange
-        var controller = CreateController();
+        var driver = CreateDriver();
 
         // Act
-        var angle = await controller.GetCurrentAngleAsync();
+        var status = await driver.GetStatusAsync();
 
         // Assert
-        Assert.Equal(0, angle);
+        Assert.Equal("未知", status);
     }
 
     [Fact]
     public void DiverterId_ReturnsConfiguredId()
     {
         // Arrange
-        var controller = CreateController("TestDiverter123");
+        var driver = CreateDriver("TestDiverter123");
 
         // Act
-        var id = controller.DiverterId;
+        var id = driver.DiverterId;
 
         // Assert
         Assert.Equal("TestDiverter123", id);
     }
 
-    private static S7DiverterController CreateController(string diverterId = "D1")
+    private static S7WheelDiverterDriver CreateDriver(string diverterId = "D1")
     {
-        var mockLogger = Mock.Of<ILogger<S7DiverterController>>();
+        var mockLogger = Mock.Of<ILogger<S7WheelDiverterDriver>>();
         var mockOutputPort = CreateMockOutputPort();
         var config = CreateTestConfig(diverterId);
         
-        return new S7DiverterController(mockLogger, mockOutputPort, config);
+        return new S7WheelDiverterDriver(mockLogger, mockOutputPort, config);
     }
 
     private static S7OutputPort CreateMockOutputPort()

@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.IoBinding;
 
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 
 /// <summary>
 /// 厂商IO地址 - 描述厂商特定的硬件地址
@@ -50,6 +50,7 @@ public record class VendorIoAddress
 /// 厂商IO映射器接口 - 将逻辑IO点映射到厂商特定地址
 /// </summary>
 /// <remarks>
+/// <para>本接口属于 HAL（硬件抽象层），定义 IO 映射的抽象契约。</para>
 /// <para>每个厂商实现此接口，提供从IoPointDescriptor到实际硬件地址的映射。</para>
 /// <para>这样新增厂商时，只需实现此接口即可。</para>
 /// </remarks>

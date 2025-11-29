@@ -1,10 +1,10 @@
-namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Drivers;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 
 /// <summary>
 /// 输入端口接口
 /// </summary>
 /// <remarks>
-/// 本接口属于 Core 层，定义硬件输入端口的抽象契约。
+/// 本接口属于 HAL（硬件抽象层），定义硬件输入端口的抽象契约。
 /// 用于从硬件设备读取信号，由 Drivers 层实现。
 /// </remarks>
 public interface IInputPort
