@@ -660,16 +660,14 @@ ZakYip.WheelDiverterSorter.Ingress/
 ```
 ZakYip.WheelDiverterSorter.Communication/
 ├── Abstractions/                    # 通信抽象接口
-│   ├── IRuleEngineClient.cs
 │   ├── IRuleEngineServer.cs
-│   ├── IRuleEngineClientFactory.cs
 │   ├── IRuleEngineHandler.cs
 │   ├── IUpstreamConnectionManager.cs
+│   ├── IUpstreamRoutingClientFactory.cs
 │   └── IEmcResourceLockManager.cs
 ├── Adapters/                        # 适配器
-│   ├── DefaultUpstreamContractMapper.cs
-│   └── UpstreamRoutingClientAdapter.cs
-├── Clients/                         # 客户端实现
+│   └── DefaultUpstreamContractMapper.cs
+├── Clients/                         # 客户端实现（实现 Core 层的 IUpstreamRoutingClient）
 │   ├── TcpRuleEngineClient.cs
 │   ├── SignalRRuleEngineClient.cs
 │   ├── MqttRuleEngineClient.cs
@@ -700,19 +698,21 @@ ZakYip.WheelDiverterSorter.Communication/
 │   ├── TcpRuleEngineServer.cs
 │   ├── SignalRRuleEngineServer.cs
 │   └── MqttRuleEngineServer.cs
-├── RuleEngineClientFactory.cs       # 客户端工厂
+├── UpstreamRoutingClientFactory.cs  # 客户端工厂（创建 IUpstreamRoutingClient）
 ├── RuleEngineServerFactory.cs       # 服务器工厂
 └── CommunicationServiceExtensions.cs # DI 扩展方法
 ```
 
 #### 关键类型概览
 
-- `IRuleEngineClient`（位于 Abstractions/）：规则引擎客户端接口，定义连接、断开、通知包裹到达等操作
-- `TcpRuleEngineClient`（位于 Clients/）：TCP 协议客户端实现
-- `SignalRRuleEngineClient`（位于 Clients/）：SignalR 协议客户端实现
-- `MqttRuleEngineClient`（位于 Clients/）：MQTT 协议客户端实现
-- `RuleEngineClientFactory`：根据配置创建对应协议的客户端实例
-- `UpstreamRoutingClientAdapter`（位于 Adapters/）：将 IRuleEngineClient 适配为 IUpstreamRoutingClient
+> **PR-U1 架构变更**: IRuleEngineClient 已合并到 Core 层的 IUpstreamRoutingClient 接口，UpstreamRoutingClientAdapter 已删除。
+> 所有客户端实现现在直接实现 IUpstreamRoutingClient 接口。
+
+- `IUpstreamRoutingClient`（位于 Core/Abstractions/Upstream/）：上游路由客户端统一接口，定义连接、断开、通知包裹到达等操作
+- `TcpRuleEngineClient`（位于 Clients/）：TCP 协议客户端实现，实现 IUpstreamRoutingClient
+- `SignalRRuleEngineClient`（位于 Clients/）：SignalR 协议客户端实现，实现 IUpstreamRoutingClient
+- `MqttRuleEngineClient`（位于 Clients/）：MQTT 协议客户端实现，实现 IUpstreamRoutingClient
+- `UpstreamRoutingClientFactory`：根据配置创建对应协议的 IUpstreamRoutingClient 实例
 - `RuleEngineUpstreamHealthChecker`（位于 Health/）：上游连接健康检查
 
 ---
@@ -924,13 +924,17 @@ tools/Profiling/
 
 ### 4.2 上游通信
 
+> **PR-U1 架构变更**: IRuleEngineClient 已合并到 IUpstreamRoutingClient，UpstreamRoutingClientAdapter 已删除。
+
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
-| `IUpstreamRoutingClient` | Core/Abstractions/Upstream/ | 上游路由客户端抽象，用于请求格口分配 |
-| `IRuleEngineClient` | Communication/Abstractions/ | 规则引擎通信客户端接口，支持多协议 |
-| `TcpRuleEngineClient` | Communication/Clients/ | TCP 协议客户端实现 |
-| `SignalRRuleEngineClient` | Communication/Clients/ | SignalR 协议客户端实现 |
-| `UpstreamRoutingClientAdapter` | Communication/Adapters/ | 适配 IRuleEngineClient 为 IUpstreamRoutingClient |
+| `IUpstreamRoutingClient` | Core/Abstractions/Upstream/ | **唯一**上游路由客户端接口，定义连接、断开、通知包裹到达等操作 |
+| `ChuteAssignmentEventArgs` | Core/Abstractions/Upstream/ | 格口分配事件参数，用于上游推送格口分配 |
+| `TcpRuleEngineClient` | Communication/Clients/ | TCP 协议客户端实现，实现 IUpstreamRoutingClient |
+| `SignalRRuleEngineClient` | Communication/Clients/ | SignalR 协议客户端实现，实现 IUpstreamRoutingClient |
+| `MqttRuleEngineClient` | Communication/Clients/ | MQTT 协议客户端实现，实现 IUpstreamRoutingClient |
+| `HttpRuleEngineClient` | Communication/Clients/ | HTTP 协议客户端实现（仅用于测试），实现 IUpstreamRoutingClient |
+| `UpstreamRoutingClientFactory` | Communication/ | 根据配置创建对应协议的 IUpstreamRoutingClient 实例 |
 
 ### 4.3 硬件驱动抽象
 
