@@ -72,9 +72,9 @@ public class HostLayerConstraintTests
             "ISystemStateManager"
         };
         
-        // 接口定义正则表达式
+        // 接口定义正则表达式 - 支持 partial、abstract 等修饰符
         var interfacePattern = new Regex(
-            @"^\s*(?:public|internal)\s+interface\s+(?<interfaceName>\w+)",
+            @"^\s*(?:public|internal)\s+(?:partial\s+)?interface\s+(?<interfaceName>\w+)",
             RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
 
         foreach (var file in sourceFiles)
@@ -149,9 +149,9 @@ public class HostLayerConstraintTests
             ("Middleware", "业务中间件应该在 Execution 层")
         };
         
-        // 类型定义正则表达式（匹配 class、record、struct）
+        // 类型定义正则表达式（匹配 class、record、struct，支持 sealed/partial/abstract/static/readonly 修饰符）
         var typePattern = new Regex(
-            @"^\s*(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct)\s+(?<typeName>\w+)",
+            @"^\s*(?:public|internal)\s+(?:(?:sealed|partial|abstract|static|readonly)\s+)*(?:class|record|struct)\s+(?<typeName>\w+)",
             RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
 
         foreach (var file in sourceFiles)
