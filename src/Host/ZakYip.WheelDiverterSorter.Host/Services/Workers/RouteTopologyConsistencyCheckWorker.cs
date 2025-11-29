@@ -1,7 +1,5 @@
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -14,18 +12,18 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 /// </remarks>
 public class RouteTopologyConsistencyCheckWorker : IHostedService
 {
-    private readonly IRouteTopologyConsistencyChecker _consistencyChecker;
+    private readonly ITopologyConsistencyCheckService _consistencyCheckService;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ILogger<RouteTopologyConsistencyCheckWorker> _logger;
     private readonly IConfiguration _configuration;
 
     public RouteTopologyConsistencyCheckWorker(
-        IRouteTopologyConsistencyChecker consistencyChecker,
+        ITopologyConsistencyCheckService consistencyCheckService,
         ISystemConfigurationRepository systemConfigRepository,
         ILogger<RouteTopologyConsistencyCheckWorker> logger,
         IConfiguration configuration)
     {
-        _consistencyChecker = consistencyChecker ?? throw new ArgumentNullException(nameof(consistencyChecker));
+        _consistencyCheckService = consistencyCheckService ?? throw new ArgumentNullException(nameof(consistencyCheckService));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
@@ -40,7 +38,7 @@ public class RouteTopologyConsistencyCheckWorker : IHostedService
         try
         {
             // 执行一致性检查
-            var result = _consistencyChecker.CheckConsistency();
+            var result = _consistencyCheckService.CheckConsistency();
 
             // 记录检查结果详情
             _logger.LogInformation(
