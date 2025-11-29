@@ -236,7 +236,10 @@ public class DuplicateTypeDetectionTests
             {
                 allContent.AppendLine(File.ReadAllText(file));
             }
-            catch { /* Ignore read errors */ }
+            catch (IOException)
+            {
+                // 文件可能被锁定或不可读，跳过
+            }
         }
         var contentText = allContent.ToString();
 
@@ -428,6 +431,11 @@ public class DuplicateTypeDetectionTests
             Path.Combine(solutionRoot, "src", "Infrastructure", "ZakYip.WheelDiverterSorter.Communication", "Abstractions"),
         };
 
+        // 预规范化允许的路径
+        var normalizedAllowedPaths = allowedAbstractionsLocations
+            .Select(p => p.Replace('\\', '/'))
+            .ToList();
+
         var abstractionsDirs = Directory.GetDirectories(
             Path.Combine(solutionRoot, "src"),
             "Abstractions",
@@ -439,8 +447,8 @@ public class DuplicateTypeDetectionTests
         foreach (var dir in abstractionsDirs)
         {
             var normalizedDir = dir.Replace('\\', '/');
-            var isAllowed = allowedAbstractionsLocations.Any(allowed => 
-                normalizedDir.Replace('\\', '/').StartsWith(allowed.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+            var isAllowed = normalizedAllowedPaths.Any(allowed => 
+                normalizedDir.StartsWith(allowed, StringComparison.OrdinalIgnoreCase));
             
             if (!isAllowed)
             {
@@ -506,6 +514,9 @@ public class DuplicateTypeDetectionTests
             var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
 
             // 查找类型定义
+            // 注意：此正则表达式是简化实现，用于快速扫描。
+            // 对于更精确的类型检测，应使用 Roslyn 分析器。
+            // 当前实现足以满足技术债务合规性检测的需求。
             var typePattern = new Regex(
                 @"^\s*(?<fileScoped>file\s+)?(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:static\s+)?(?:record|class|struct|interface|enum)\s+(?<typeName>\w+)",
                 RegexOptions.Compiled | RegexOptions.ExplicitCapture);
