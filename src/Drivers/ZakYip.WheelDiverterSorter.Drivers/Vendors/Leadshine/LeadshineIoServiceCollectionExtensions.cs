@@ -83,9 +83,14 @@ public static class LeadshineIoServiceCollectionExtensions
         services.AddSingleton<ISensorVendorConfigProvider>(sp =>
         {
             var options = sp.GetRequiredService<DriverOptions>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger<LeadshineSensorVendorConfigProvider>();
+
             if (options.Sensor == null)
             {
-                // 返回一个默认的空配置提供者
+                logger.LogWarning(
+                    "雷赛传感器配置 (DriverOptions.Sensor) 未设置，使用空配置。" +
+                    "如果需要使用传感器功能，请在 appsettings.json 中配置 Driver:Sensor 节点。");
                 return new LeadshineSensorVendorConfigProvider(new LeadshineSensorOptions());
             }
             return new LeadshineSensorVendorConfigProvider(options.Sensor);

@@ -49,7 +49,8 @@ public sealed class VendorConfigService : IVendorConfigService
         var (isValid, errorMessage) = config.Validate();
         if (!isValid)
         {
-            throw new ArgumentException(errorMessage ?? "配置验证失败");
+            throw new ArgumentException(
+                errorMessage ?? "IO驱动器配置验证失败：请检查配置参数是否完整和有效");
         }
 
         _driverRepository.Update(config);
@@ -90,7 +91,8 @@ public sealed class VendorConfigService : IVendorConfigService
         var (isValid, errorMessage) = config.Validate();
         if (!isValid)
         {
-            throw new ArgumentException(errorMessage ?? "配置验证失败");
+            throw new ArgumentException(
+                errorMessage ?? "感应IO配置验证失败：请检查传感器配置参数是否完整和有效");
         }
 
         _sensorRepository.Update(config);
@@ -130,7 +132,8 @@ public sealed class VendorConfigService : IVendorConfigService
         var (isValid, errorMessage) = config.Validate();
         if (!isValid)
         {
-            throw new ArgumentException(errorMessage ?? "配置验证失败");
+            throw new ArgumentException(
+                errorMessage ?? "摆轮配置验证失败：请检查摆轮设备配置参数是否完整和有效");
         }
 
         _wheelRepository.Update(config);

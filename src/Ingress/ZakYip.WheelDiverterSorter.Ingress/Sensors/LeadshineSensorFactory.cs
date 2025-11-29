@@ -50,8 +50,10 @@ public class LeadshineSensorFactory : ISensorFactory {
             try {
                 // 解析传感器类型
                 if (!Enum.TryParse<SensorType>(config.SensorTypeName, out var sensorType)) {
-                    _logger.LogWarning("无法解析传感器类型: {TypeName}，跳过传感器 {SensorId}",
-                        config.SensorTypeName, config.SensorId);
+                    var validTypes = string.Join(", ", Enum.GetNames<SensorType>());
+                    _logger.LogWarning(
+                        "无法解析传感器类型: {TypeName}，跳过传感器 {SensorId}。有效类型: {ValidTypes}",
+                        config.SensorTypeName, config.SensorId, validTypes);
                     continue;
                 }
 
