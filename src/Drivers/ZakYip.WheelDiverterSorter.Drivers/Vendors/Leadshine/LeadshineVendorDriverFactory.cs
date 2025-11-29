@@ -128,14 +128,6 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
         return new LeadshineConveyorSegmentDriver(mapping, _emcController, driverLogger);
     }
 
-    public IReadOnlyList<IWheelDiverterActuator> CreateWheelDiverterActuators()
-    {
-        // Leadshine 实际硬件需要通过具体的 IWheelDiverterDriver 来操作
-        // 硬件抽象层主要用于模拟和测试场景
-        // 这里返回空列表，表示需要通过 CreateWheelDiverterDrivers() 获取驱动
-        return Array.Empty<IWheelDiverterActuator>();
-    }
-
     public ISensorInputReader? CreateSensorInputReader()
     {
         if (_emcController == null)

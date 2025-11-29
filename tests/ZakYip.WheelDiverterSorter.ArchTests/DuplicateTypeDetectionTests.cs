@@ -581,4 +581,63 @@ public class DuplicateTypeDetectionTests
             Console.WriteLine(report.ToString());
         }
     }
+
+    /// <summary>
+    /// 检测是否存在重复的摆轮控制接口（禁止存在）
+    /// Detect duplicate wheel diverter control interfaces (forbidden)
+    /// </summary>
+    /// <remarks>
+    /// PR-TD9: 摆轮控制抽象统一通过 IWheelDiverterDriver 暴露，
+    /// 已删除重复的 IWheelDiverterActuator 接口。
+    /// 此测试确保不会重新引入重复的摆轮控制抽象。
+    /// </remarks>
+    [Fact]
+    public void Core_Hardware_ShouldNotHaveDuplicateWheelDiverterInterfaces()
+    {
+        var hardwarePath = Path.Combine(SolutionRoot, "src/Core/ZakYip.WheelDiverterSorter.Core/Hardware");
+        
+        // 禁止存在的重复接口文件
+        var forbiddenInterfaceFiles = new[]
+        {
+            "IWheelDiverterActuator.cs",  // PR-TD9: 已合并到 IWheelDiverterDriver
+            "IDiverterController.cs"       // PR-C6: 已删除
+        };
+        
+        var violations = new List<string>();
+        
+        foreach (var forbiddenFile in forbiddenInterfaceFiles)
+        {
+            // 搜索整个 Hardware 目录
+            var foundFiles = Directory.GetFiles(
+                hardwarePath,
+                forbiddenFile,
+                SearchOption.AllDirectories);
+            
+            foreach (var file in foundFiles)
+            {
+                violations.Add(Path.GetRelativePath(SolutionRoot, file));
+            }
+        }
+        
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine("\n❌ 发现禁止存在的重复摆轮控制接口:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var violation in violations)
+            {
+                report.AppendLine($"  📄 {violation}");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 PR-TD9 修复建议:");
+            report.AppendLine("  摆轮控制统一通过以下接口暴露：");
+            report.AppendLine("  - IWheelDiverterDriver (Core/Hardware/Devices/) - 基于方向的驱动接口");
+            report.AppendLine("  - IWheelDiverterDevice (Core/Hardware/) - 基于命令的设备接口");
+            report.AppendLine("  禁止引入与上述接口语义重叠的新接口（如 IWheelDiverterActuator, IDiverterController）。");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
 }
