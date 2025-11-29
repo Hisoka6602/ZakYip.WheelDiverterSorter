@@ -262,10 +262,12 @@ public class SortingOrchestratorComplianceTests
         };
 
         // 检查文件内容是否包含独立业务逻辑的依赖
-        foreach (var (pattern, description) in independentLogicPatterns)
+        foreach (var (typeName, description) in independentLogicPatterns)
         {
             // 检查字段声明和构造函数注入
-            if (Regex.IsMatch(content, $@"private\s+(?:readonly\s+)?{pattern}\s+_\w+"))
+            // Note: typeName is escaped to prevent potential ReDoS with special characters
+            var escapedTypeName = Regex.Escape(typeName);
+            if (Regex.IsMatch(content, $@"private\s+(?:readonly\s+)?{escapedTypeName}\s+_\w+"))
             {
                 result.HasIndependentBusinessLogic = true;
                 result.IndependentLogicDetails.Add(description);

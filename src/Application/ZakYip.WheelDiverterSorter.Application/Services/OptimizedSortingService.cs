@@ -37,7 +37,7 @@ public class OptimizedSortingService
     /// </summary>
     public async Task<PathExecutionResult> SortParcelAsync(
         string parcelId,
-        int targetChuteId,
+        long targetChuteId,
         CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -86,7 +86,7 @@ public class OptimizedSortingService
     /// 批量分拣
     /// </summary>
     public async Task<List<PathExecutionResult>> SortBatchAsync(
-        IEnumerable<(string ParcelId, int ChuteId)> parcels,
+        IEnumerable<(string ParcelId, long ChuteId)> parcels,
         CancellationToken cancellationToken = default)
     {
         var tasks = parcels.Select(p => SortParcelAsync(p.ParcelId, p.ChuteId, cancellationToken)).ToList();

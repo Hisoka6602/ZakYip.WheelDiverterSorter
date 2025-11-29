@@ -137,11 +137,11 @@ public class StructuredLoggingTests
     public async Task SortBatchAsync_ShouldProcessAllParcels()
     {
         // Arrange
-        var parcels = new[]
+        var parcels = new (string, long)[]
         {
-            ("PARCEL_A", 1),
-            ("PARCEL_B", 2),
-            ("PARCEL_C", 3)
+            ("PARCEL_A", 1L),
+            ("PARCEL_B", 2L),
+            ("PARCEL_C", 3L)
         };
 
         _mockOrchestrator
