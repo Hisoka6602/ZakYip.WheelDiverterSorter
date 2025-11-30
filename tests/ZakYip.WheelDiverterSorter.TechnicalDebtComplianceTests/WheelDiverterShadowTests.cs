@@ -50,7 +50,7 @@ public class WheelDiverterShadowTests
         // 匹配以 DiverterController 结尾的类型定义（包括接口）
         // 但排除 Swagger/文档相关的 Controller
         var diverterControllerPattern = new Regex(
-            @"(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*DiverterController)(?!\w)(?![A-Z])",
+            @"(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*DiverterController)\b",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
         foreach (var file in sourceFiles)

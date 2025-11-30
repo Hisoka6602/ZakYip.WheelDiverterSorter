@@ -172,6 +172,29 @@ public class NamespaceLocationTests
 
     #region Helper Methods
 
+    /// <summary>
+    /// 项目命名空间前缀
+    /// </summary>
+    private const string ProjectNamespacePrefix = "ZakYip.WheelDiverterSorter.";
+
+    /// <summary>
+    /// 特殊结构中，从项目根目录开始的子目录起始索引
+    /// 例如: src/<ProjectFolder>/SubDir1/File.cs -> 子目录从索引 1 开始
+    /// </summary>
+    private const int SpecialStructureSubDirStartIndex = 1;
+
+    /// <summary>
+    /// 标准结构中，项目文件夹在路径中的索引
+    /// 例如: src/<Category>/<ProjectFolder>/SubDir/File.cs -> 项目文件夹在索引 1
+    /// </summary>
+    private const int StandardStructureProjectFolderIndex = 1;
+
+    /// <summary>
+    /// 标准结构中，子目录的起始索引
+    /// 例如: src/<Category>/<ProjectFolder>/SubDir/File.cs -> 子目录从索引 2 开始
+    /// </summary>
+    private const int StandardStructureSubDirStartIndex = 2;
+
     private static bool IsInExcludedDirectory(string filePath)
     {
         var normalizedPath = filePath.Replace('\\', '/');
@@ -208,12 +231,12 @@ public class NamespaceLocationTests
         string[] subDirs;
 
         // 检查第一个部分是否是完整的项目命名空间（以 ZakYip 开头）
-        if (parts[0].StartsWith("ZakYip.WheelDiverterSorter."))
+        if (parts[0].StartsWith(ProjectNamespacePrefix, StringComparison.Ordinal))
         {
             // 特殊结构：项目直接在 src 下
             projectFolder = parts[0];
-            // 获取子目录（排除文件名）
-            subDirs = parts.Skip(1).Take(parts.Length - 2).ToArray();
+            // 获取子目录（排除文件名）：Skip(1) 跳过项目文件夹，Take(length-2) 排除项目文件夹和文件名
+            subDirs = parts.Skip(SpecialStructureSubDirStartIndex).Take(parts.Length - 2).ToArray();
         }
         else
         {
@@ -222,9 +245,9 @@ public class NamespaceLocationTests
             {
                 return null;
             }
-            projectFolder = parts[1];
-            // 获取子目录（排除文件名）
-            subDirs = parts.Skip(2).Take(parts.Length - 3).ToArray();
+            projectFolder = parts[StandardStructureProjectFolderIndex];
+            // 获取子目录（排除文件名）：Skip(2) 跳过 Category 和项目文件夹，Take(length-3) 排除 Category、项目文件夹和文件名
+            subDirs = parts.Skip(StandardStructureSubDirStartIndex).Take(parts.Length - 3).ToArray();
         }
         
         if (subDirs.Length > 0)
