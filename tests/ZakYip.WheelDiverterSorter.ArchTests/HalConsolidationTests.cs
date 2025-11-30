@@ -173,8 +173,9 @@ public class HalConsolidationTests
             .ToList();
 
         // 匹配包含 WheelDiverter 的公共类定义
+        // 排除 Manager 类型（如 ShuDiNiaoWheelDiverterDriverManager），它们实现 IWheelDiverterDriverManager
         var wheelDiverterPattern = new Regex(
-            @"public\s+(?:sealed\s+)?(?:partial\s+)?class\s+(\w*WheelDiverter\w*)",
+            @"public\s+(?:sealed\s+)?(?:partial\s+)?class\s+(?<typeName>\w*WheelDiverter(?!DriverManager)\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
         var violations = new List<(string TypeName, string FilePath, string Issue)>();
@@ -186,14 +187,22 @@ public class HalConsolidationTests
             
             foreach (Match match in matches)
             {
-                var typeName = match.Groups[1].Value;
+                var typeName = match.Groups["typeName"].Value;
+                
+                // 跳过空匹配或 Manager 类型
+                if (string.IsNullOrEmpty(typeName) || typeName.EndsWith("Manager"))
+                {
+                    continue;
+                }
+                
                 var relativePath = Path.GetRelativePath(SolutionRoot, file);
 
-                // 检查是否实现了 HAL 接口
-                var implementsHal = content.Contains(": IWheelDiverterDevice") ||
-                                   content.Contains(": IWheelDiverterDriver") ||
-                                   content.Contains(", IWheelDiverterDevice") ||
-                                   content.Contains(", IWheelDiverterDriver");
+                // 检查是否实现了 HAL 接口（使用正则表达式更精确匹配）
+                // 匹配类定义中的接口实现部分，排除注释和字符串中的匹配
+                var halImplementationPattern = new Regex(
+                    @"class\s+\w+\s*:\s*[^{]*\b(?<interface>IWheelDiverterDevice|IWheelDiverterDriver)\b",
+                    RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+                var implementsHal = halImplementationPattern.IsMatch(content);
 
                 if (!implementsHal)
                 {
@@ -249,9 +258,24 @@ public class HalConsolidationTests
                      && !f.Contains("/bin/") && !f.Contains("\\bin\\"))
             .ToList();
 
-        // 匹配包含 Diverter 但不符合命名规范的类型
-        var invalidDiverterPattern = new Regex(
-            @"public\s+(?:sealed\s+)?(?:partial\s+)?class\s+(\w*Diverter(?!Driver|Device|Adapter|Manager|Config|Entry|Protocol|Options|Mapping)\w*)",
+        // 使用正向匹配：合法的摆轮类型命名模式
+        var validWheelDiverterSuffixes = new[]
+        {
+            "WheelDiverterDriver",
+            "WheelDiverterDevice", 
+            "WheelDiverterDeviceAdapter",
+            "WheelDiverterDriverManager"
+        };
+        
+        // 允许的辅助类型后缀
+        var allowedAuxiliarySuffixes = new[]
+        {
+            "Config", "Configuration", "Entry", "Protocol", "Options", "Mapping"
+        };
+
+        // 匹配任何包含 Diverter 的类定义
+        var diverterPattern = new Regex(
+            @"public\s+(?:sealed\s+)?(?:partial\s+)?class\s+(?<typeName>\w*Diverter\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
         var warnings = new List<(string TypeName, string FilePath)>();
@@ -259,26 +283,28 @@ public class HalConsolidationTests
         foreach (var file in sourceFiles)
         {
             var content = File.ReadAllText(file);
-            var matches = invalidDiverterPattern.Matches(content);
+            var matches = diverterPattern.Matches(content);
             
             foreach (Match match in matches)
             {
-                var typeName = match.Groups[1].Value;
+                var typeName = match.Groups["typeName"].Value;
                 
-                // 排除已知的合法命名
-                if (typeName.EndsWith("WheelDiverterDriver") ||
-                    typeName.EndsWith("WheelDiverterDevice") ||
-                    typeName.EndsWith("WheelDiverterDeviceAdapter") ||
-                    typeName.EndsWith("WheelDiverterDriverManager") ||
-                    typeName.Contains("Config") ||
-                    typeName.Contains("Protocol") ||
-                    typeName.Contains("Simulated"))
+                // 检查是否符合有效的摆轮类型命名
+                var isValidWheelDiverter = validWheelDiverterSuffixes.Any(suffix => 
+                    typeName.EndsWith(suffix));
+                
+                // 检查是否是允许的辅助类型
+                var isAuxiliaryType = allowedAuxiliarySuffixes.Any(suffix => 
+                    typeName.Contains(suffix));
+                
+                // 排除仿真类型（使用宽松规则）
+                var isSimulated = typeName.StartsWith("Simulated");
+                
+                if (!isValidWheelDiverter && !isAuxiliaryType && !isSimulated)
                 {
-                    continue;
+                    var relativePath = Path.GetRelativePath(SolutionRoot, file);
+                    warnings.Add((typeName, relativePath));
                 }
-                
-                var relativePath = Path.GetRelativePath(SolutionRoot, file);
-                warnings.Add((typeName, relativePath));
             }
         }
 
