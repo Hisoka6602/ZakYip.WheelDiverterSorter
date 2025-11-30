@@ -1013,6 +1013,103 @@ public class CodingStandardsComplianceTests
 
         Assert.True(true, $"VendorConfigProvider pattern check completed with {violations.Count} advisory warnings");
     }
+
+    /// <summary>
+    /// 验证不存在 *DiverterController 命名的类型（禁止新增）
+    /// Verify no *DiverterController naming pattern types exist
+    /// </summary>
+    /// <remarks>
+    /// PR-SD2: HAL 收敛后，禁止使用 *DiverterController 命名。
+    /// 所有摆轮实现必须命名为 *WheelDiverterDriver 或 *WheelDiverterDevice。
+    /// </remarks>
+    [Fact]
+    public void ShouldNotHaveDiverterControllerTypes()
+    {
+        var violations = new List<DiverterControllerViolation>();
+        var solutionRoot = GetSolutionRoot();
+        var srcPath = Path.Combine(solutionRoot, "src");
+        
+        var sourceFiles = Directory.GetFiles(srcPath, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !PathHelper.IsInExcludedDirectory(f))
+            .ToList();
+
+        // 匹配以 DiverterController 结尾的类型定义（类或接口）
+        // 但排除 Swagger/文档相关的 Controller（如 WheelDiverterControllerDocumentFilter）
+        var diverterControllerPattern = new Regex(
+            @"(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(\w*DiverterController)(?!\w)(?![A-Z])",
+            RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+        foreach (var file in sourceFiles)
+        {
+            var lines = File.ReadAllLines(file);
+            
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var line = lines[i].Trim();
+                
+                // 跳过注释
+                if (line.StartsWith("//") || line.StartsWith("///") || line.StartsWith("*"))
+                    continue;
+                
+                var match = diverterControllerPattern.Match(line);
+                if (match.Success)
+                {
+                    var typeName = match.Groups[1].Value;
+                    
+                    // 排除 Swagger 文档过滤器等非硬件相关类型
+                    if (typeName.Contains("DocumentFilter") || 
+                        typeName.Contains("Swagger") ||
+                        typeName.Contains("Api"))
+                    {
+                        continue;
+                    }
+                    
+                    var relativePath = Path.GetRelativePath(solutionRoot, file);
+                    violations.Add(new DiverterControllerViolation
+                    {
+                        TypeName = typeName,
+                        FilePath = relativePath,
+                        LineNumber = i + 1
+                    });
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine($"\n❌ 发现 {violations.Count} 个禁止的 *DiverterController 类型:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            
+            foreach (var violation in violations)
+            {
+                report.AppendLine($"  ⚠️ {violation.TypeName}");
+                report.AppendLine($"     {violation.FilePath}:{violation.LineNumber}");
+            }
+            
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 PR-SD2 修复建议:");
+            report.AppendLine("  所有摆轮实现必须统一命名为：");
+            report.AppendLine("  - <VendorName>WheelDiverterDriver（实现 IWheelDiverterDriver）");
+            report.AppendLine("  - <VendorName>WheelDiverterDevice（实现 IWheelDiverterDevice）");
+            report.AppendLine("  禁止使用 *DiverterController 命名。");
+            
+            Assert.Fail(report.ToString());
+        }
+    }
+}
+
+/// <summary>
+/// DiverterController 命名违规信息
+/// </summary>
+/// <remarks>
+/// PR-SD2: 用于记录禁止的 *DiverterController 命名类型
+/// </remarks>
+public record DiverterControllerViolation
+{
+    public required string TypeName { get; init; }
+    public required string FilePath { get; init; }
+    public required int LineNumber { get; init; }
 }
 
 /// <summary>

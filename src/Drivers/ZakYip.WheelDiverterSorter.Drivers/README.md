@@ -26,7 +26,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── LTDMC.cs                 # 雷赛 SDK P/Invoke 封装
 │   │   ├── LeadshineInputPort.cs
 │   │   ├── LeadshineOutputPort.cs
-│   │   ├── LeadshineDiverterController.cs
+│   │   ├── LeadshineWheelDiverterDriver.cs  # 实现 IWheelDiverterDriver
 │   │   ├── LeadshineConveyorSegmentDriver.cs
 │   │   ├── LeadshineIoLinkageDriver.cs
 │   │   ├── LeadshineEmcController.cs
@@ -36,21 +36,21 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │       └── LeadshineIoMapper.cs
 │   ├── Siemens/                     # 西门子 S7 PLC 驱动
 │   │   ├── S7Connection.cs
-│   │   ├── S7DiverterController.cs
+│   │   ├── S7WheelDiverterDriver.cs  # 实现 IWheelDiverterDriver
 │   │   ├── S7InputPort.cs
 │   │   └── S7OutputPort.cs
 │   ├── Modi/                        # 摩迪摆轮协议驱动
 │   │   ├── ModiProtocol.cs
-│   │   ├── ModiWheelDiverterDriver.cs
+│   │   ├── ModiWheelDiverterDriver.cs  # 实现 IWheelDiverterDriver
 │   │   └── ModiSimulatedDevice.cs
 │   ├── ShuDiNiao/                   # 书迪鸟摆轮协议驱动
 │   │   ├── ShuDiNiaoProtocol.cs
-│   │   ├── ShuDiNiaoWheelDiverterDriver.cs
+│   │   ├── ShuDiNiaoWheelDiverterDriver.cs  # 实现 IWheelDiverterDriver
 │   │   ├── ShuDiNiaoWheelDiverterDriverManager.cs
+│   │   ├── ShuDiNiaoWheelDiverterDeviceAdapter.cs  # IWheelDiverterDriver -> IWheelDiverterDevice 适配器
 │   │   └── ShuDiNiaoSimulatedDevice.cs
 │   └── Simulated/                   # 仿真驱动实现
-│       ├── SimulatedWheelDiverterDevice.cs
-│       ├── SimulatedWheelDiverterActuator.cs
+│       ├── SimulatedWheelDiverterDevice.cs  # 实现 IWheelDiverterDevice
 │       ├── SimulatedConveyorSegmentDriver.cs
 │       ├── SimulatedIoLinkageDriver.cs
 │       ├── SimulatedVendorDriverFactory.cs
@@ -63,7 +63,12 @@ ZakYip.WheelDiverterSorter.Drivers/
 └── DriverOptions.cs                 # 驱动配置选项
 ```
 
-**注意**: 抽象接口（如 `IWheelDiverterDriver`, `IDiverterController`, `IInputPort`, `IOutputPort` 等）定义在 `Core/Abstractions/Drivers/` 目录下，本项目提供具体厂商实现。
+**注意**: HAL（硬件抽象层）接口统一定义在 `Core/Hardware/` 目录下：
+- `IWheelDiverterDevice` - 基于命令的摆轮设备接口（高层 HAL）
+- `IWheelDiverterDriver` - 基于方向的摆轮驱动接口（低层 HAL，位于 `Core/Hardware/Devices/`）
+- `IInputPort`, `IOutputPort` - IO 端口接口（位于 `Core/Hardware/Ports/`）
+
+本项目提供具体厂商实现。所有摆轮实现统一命名为 `<VendorName>WheelDiverterDriver` 或 `<VendorName>WheelDiverterDevice`。
 
 ## 快速开始
 
@@ -163,17 +168,33 @@ public interface IOutputPort
 }
 ```
 
-### IDiverterController - 摆轮控制器接口
+### IWheelDiverterDriver - 摆轮驱动接口
 
-用于控制单个摆轮的角度：
+统一的摆轮驱动接口（HAL - 硬件抽象层），基于方向控制：
 
 ```csharp
-public interface IDiverterController
+public interface IWheelDiverterDriver
 {
     string DiverterId { get; }
-    Task<bool> SetAngleAsync(int angle, CancellationToken cancellationToken = default);
-    Task<int> GetCurrentAngleAsync();
-    Task<bool> ResetAsync(CancellationToken cancellationToken = default);
+    Task<bool> TurnLeftAsync(CancellationToken cancellationToken = default);
+    Task<bool> TurnRightAsync(CancellationToken cancellationToken = default);
+    Task<bool> PassThroughAsync(CancellationToken cancellationToken = default);
+    Task<bool> StopAsync(CancellationToken cancellationToken = default);
+    Task<string> GetStatusAsync();
+}
+```
+
+### IWheelDiverterDevice - 摆轮设备接口
+
+基于命令的高层摆轮设备接口（HAL），用于执行层集成：
+
+```csharp
+public interface IWheelDiverterDevice
+{
+    string DeviceId { get; }
+    Task<OperationResult> ExecuteAsync(WheelCommand command, CancellationToken cancellationToken = default);
+    Task<OperationResult> StopAsync(CancellationToken cancellationToken = default);
+    Task<WheelDiverterState> GetStateAsync(CancellationToken cancellationToken = default);
 }
 ```
 
@@ -210,9 +231,11 @@ public interface IDiverterController
 
 要添加其他厂商的支持，请在 `Vendors/` 目录下创建新的厂商目录，并：
 
-1. 实现 Core 层定义的驱动接口（如 `IWheelDiverterDriver`、`IDiverterController` 等）
+1. 实现 Core 层定义的 HAL 接口（`IWheelDiverterDriver` 或 `IWheelDiverterDevice`）
 2. 创建对应的配置类和工厂类（实现 `IVendorDriverFactory`）
 3. 在 `DriverServiceExtensions` 中添加注册逻辑
+
+**命名规范**：所有摆轮实现必须命名为 `<VendorName>WheelDiverterDriver` 或 `<VendorName>WheelDiverterDevice`。禁止使用 `*DiverterController` 命名。
 
 **注意**：所有厂商实现必须放在 `Vendors/<VendorName>/` 目录下，不允许在其他位置创建厂商实现。
 
