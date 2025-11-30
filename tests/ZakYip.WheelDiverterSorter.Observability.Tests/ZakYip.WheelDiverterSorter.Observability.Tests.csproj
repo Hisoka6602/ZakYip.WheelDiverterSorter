@@ -26,7 +26,8 @@
     <ProjectReference Include="../../src/Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
   </ItemGroup>
 
-  <!-- PR-SORT2: 保留对其他已损坏文件的排除 -->
+  <!-- PR-SORT2: StructuredLoggingTests.cs 已修复并重新启用 -->
+  <!-- 临时排除以下已损坏的测试文件（待修复）： -->
   <ItemGroup>
     <Compile Remove="ZakYip.WheelDiverterSorter.Observability.Tests.cs" />
   </ItemGroup>
