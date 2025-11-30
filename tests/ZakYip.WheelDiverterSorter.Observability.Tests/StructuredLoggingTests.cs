@@ -17,12 +17,13 @@ namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 /// PR-SORT2：OptimizedSortingService 现在委托到 ISortingOrchestrator，
 /// 只负责指标记录和异常包装。
 /// </remarks>
-public class StructuredLoggingTests
+public class StructuredLoggingTests : IDisposable
 {
     private readonly Mock<ISortingOrchestrator> _mockOrchestrator;
     private readonly Mock<ILogger<OptimizedSortingService>> _mockLogger;
     private readonly SorterMetrics _metrics;
     private readonly OptimizedSortingService _service;
+    private readonly ServiceProvider _serviceProvider;
 
     public StructuredLoggingTests()
     {
@@ -31,14 +32,20 @@ public class StructuredLoggingTests
 
         var services = new ServiceCollection();
         services.AddMetrics();
-        var serviceProvider = services.BuildServiceProvider();
-        var meterFactory = serviceProvider.GetRequiredService<IMeterFactory>();
+        _serviceProvider = services.BuildServiceProvider();
+        var meterFactory = _serviceProvider.GetRequiredService<IMeterFactory>();
         _metrics = new SorterMetrics(meterFactory);
 
         _service = new OptimizedSortingService(
             _mockOrchestrator.Object,
             _metrics,
             _mockLogger.Object);
+    }
+
+    public void Dispose()
+    {
+        _serviceProvider.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

@@ -19,6 +19,11 @@ public class OptimizedSortingService
     private readonly SorterMetrics _metrics;
     private readonly AlarmService? _alarmService;
     private readonly ILogger<OptimizedSortingService> _logger;
+    
+    /// <summary>
+    /// 批量分拣的最大并发数
+    /// </summary>
+    private const int MaxBatchConcurrency = 10;
 
     public OptimizedSortingService(
         ISortingOrchestrator orchestrator,
@@ -83,14 +88,31 @@ public class OptimizedSortingService
     }
 
     /// <summary>
-    /// 批量分拣
+    /// 批量分拣（带并发控制）
     /// </summary>
+    /// <remarks>
+    /// 使用 Parallel.ForEachAsync 限制并发数，避免大量包裹同时处理导致系统过载。
+    /// </remarks>
     public async Task<List<PathExecutionResult>> SortBatchAsync(
         IEnumerable<(string ParcelId, long ChuteId)> parcels,
         CancellationToken cancellationToken = default)
     {
-        var tasks = parcels.Select(p => SortParcelAsync(p.ParcelId, p.ChuteId, cancellationToken)).ToList();
-        var results = await Task.WhenAll(tasks);
+        var parcelList = parcels.ToList();
+        var results = new PathExecutionResult[parcelList.Count];
+        
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, parcelList.Count),
+            new ParallelOptions 
+            { 
+                MaxDegreeOfParallelism = MaxBatchConcurrency, 
+                CancellationToken = cancellationToken 
+            },
+            async (index, ct) =>
+            {
+                var parcel = parcelList[index];
+                results[index] = await SortParcelAsync(parcel.ParcelId, parcel.ChuteId, ct);
+            });
+        
         return results.ToList();
     }
 }
