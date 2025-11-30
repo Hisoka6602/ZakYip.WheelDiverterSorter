@@ -660,17 +660,17 @@ public class DuplicateTypeDetectionTests
             .ToList();
 
         // 收集所有 *Options 类型定义
-        foreach (var file in sourceFiles)
+        var allOptionsTypes = sourceFiles
+            .SelectMany(file => ExtractOptionsTypeDefinitions(file, solutionRoot))
+            .ToList();
+        
+        foreach (var type in allOptionsTypes)
         {
-            var types = ExtractOptionsTypeDefinitions(file, solutionRoot);
-            foreach (var type in types)
+            if (!optionsTypesByName.ContainsKey(type.TypeName))
             {
-                if (!optionsTypesByName.ContainsKey(type.TypeName))
-                {
-                    optionsTypesByName[type.TypeName] = new List<OptionsTypeInfo>();
-                }
-                optionsTypesByName[type.TypeName].Add(type);
+                optionsTypesByName[type.TypeName] = new List<OptionsTypeInfo>();
             }
+            optionsTypesByName[type.TypeName].Add(type);
         }
 
         // 查找跨项目重复的 Options 类型
@@ -755,21 +755,13 @@ public class DuplicateTypeDetectionTests
             .Where(f => !IsInExcludedDirectory(f))
             .ToList();
 
-        foreach (var file in sourceFiles)
-        {
-            var types = ExtractOptionsTypeDefinitions(file, solutionRoot);
-            foreach (var type in types)
-            {
-                // 检查是否以厂商名称开头
-                var matchedVendor = vendorPrefixes.FirstOrDefault(v => 
-                    type.TypeName.StartsWith(v, StringComparison.OrdinalIgnoreCase));
-                
-                if (matchedVendor != null)
-                {
-                    violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
-                }
-            }
-        }
+        var vendorNamedTypes = sourceFiles
+            .SelectMany(file => ExtractOptionsTypeDefinitions(file, solutionRoot))
+            .Where(type => vendorPrefixes.Any(v => 
+                type.TypeName.StartsWith(v, StringComparison.OrdinalIgnoreCase)))
+            .Select(type => (type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
+        
+        violations.AddRange(vendorNamedTypes);
 
         if (violations.Any())
         {
@@ -819,8 +811,9 @@ public class DuplicateTypeDetectionTests
             var projectName = ExtractProjectName(filePath, solutionRoot);
 
             // 查找以 Options 结尾的类型定义
+            // 支持: class, struct, record, record class, record struct
             var optionsPattern = new Regex(
-                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+)?(?:class|struct|record)\s+(?<typeName>\w+Options)\b",
+                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+)(?<typeName>\w+Options)\b",
                 RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
             for (int i = 0; i < lines.Length; i++)
