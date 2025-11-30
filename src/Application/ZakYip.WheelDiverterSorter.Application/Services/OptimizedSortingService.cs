@@ -1,122 +1,83 @@
-using System.Buffers;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services;
 
 /// <summary>
-/// 性能优化的分拣服务
-/// 集成了指标收集、对象池和优化的内存管理
+/// 性能优化的分拣服务（委托到 ISortingOrchestrator）
 /// </summary>
+/// <remarks>
+/// PR-SORT2：Application 层的包装服务，只做指标记录和结果转换。
+/// 所有分拣业务逻辑统一在 SortingOrchestrator 中实现。
+/// </remarks>
 public class OptimizedSortingService
 {
-    private readonly ISwitchingPathGenerator _pathGenerator;
-    private readonly ISwitchingPathExecutor _pathExecutor;
+    private readonly ISortingOrchestrator _orchestrator;
     private readonly SorterMetrics _metrics;
     private readonly AlarmService? _alarmService;
     private readonly ILogger<OptimizedSortingService> _logger;
     
-    // 使用ArrayPool减少数组分配
-    private static readonly ArrayPool<char> CharArrayPool = ArrayPool<char>.Shared;
+    /// <summary>
+    /// 批量分拣的最大并发数
+    /// </summary>
+    private const int MaxBatchConcurrency = 10;
 
     public OptimizedSortingService(
-        ISwitchingPathGenerator pathGenerator,
-        ISwitchingPathExecutor pathExecutor,
+        ISortingOrchestrator orchestrator,
         SorterMetrics metrics,
         ILogger<OptimizedSortingService> logger,
         AlarmService? alarmService = null)
     {
-        _pathGenerator = pathGenerator;
-        _pathExecutor = pathExecutor;
-        _metrics = metrics;
+        _orchestrator = orchestrator ?? throw new ArgumentNullException(nameof(orchestrator));
+        _metrics = metrics ?? throw new ArgumentNullException(nameof(metrics));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _alarmService = alarmService;
-        _logger = logger;
     }
 
     /// <summary>
     /// 执行分拣操作（带性能监控）
     /// </summary>
     public async Task<PathExecutionResult> SortParcelAsync(
-        string parcelId, 
-        int targetChuteId, 
+        string parcelId,
+        long targetChuteId,
         CancellationToken cancellationToken = default)
     {
-        var overallStopwatch = Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         _metrics.RecordSortingRequest();
 
         try
         {
-            // 阶段1: 路径生成
-            var pathGenStopwatch = Stopwatch.StartNew();
-            var path = _pathGenerator.GeneratePath(targetChuteId);
-            pathGenStopwatch.Stop();
-            
-            var pathGenDuration = pathGenStopwatch.Elapsed.TotalMilliseconds;
-            _metrics.RecordPathGeneration(pathGenDuration, path != null);
+            var result = await _orchestrator.ExecuteDebugSortAsync(parcelId, targetChuteId, cancellationToken);
+            stopwatch.Stop();
 
-            if (path == null)
-            {
-                _logger.LogWarning("路径生成失败: ParcelId={ParcelId}, ChuteId={ChuteId}", 
-                    parcelId, targetChuteId);
-                
-                overallStopwatch.Stop();
-                _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
-                _alarmService?.RecordSortingFailure();
-                
-                return new PathExecutionResult
-                {
-                    IsSuccess = false,
-                    ActualChuteId = 0,
-                    FailureReason = "目标格口无法映射到任何摆轮组合"
-                };
-            }
-
-            // 阶段2: 路径执行
-            var pathExecStopwatch = Stopwatch.StartNew();
-            var result = await _pathExecutor.ExecuteAsync(path, cancellationToken);
-            pathExecStopwatch.Stop();
-            
-            var pathExecDuration = pathExecStopwatch.Elapsed.TotalMilliseconds;
-            _metrics.RecordPathExecution(pathExecDuration, result.IsSuccess);
-
-            // 记录总体结果
-            overallStopwatch.Stop();
             if (result.IsSuccess)
             {
-                _metrics.RecordSortingSuccess(overallStopwatch.Elapsed.TotalMilliseconds);
+                _metrics.RecordSortingSuccess(stopwatch.Elapsed.TotalMilliseconds);
                 _alarmService?.RecordSortingSuccess();
-                _logger.LogInformation(
-                    "分拣成功: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
-                    "总时长={TotalMs}ms (生成={GenMs}ms, 执行={ExecMs}ms)",
-                    parcelId, result.ActualChuteId,
-                    overallStopwatch.Elapsed.TotalMilliseconds,
-                    pathGenDuration, pathExecDuration);
             }
             else
             {
-                _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
+                _metrics.RecordSortingFailure(stopwatch.Elapsed.TotalMilliseconds);
                 _alarmService?.RecordSortingFailure();
-                _logger.LogWarning(
-                    "分拣失败: ParcelId={ParcelId}, 原因={Reason}, " +
-                    "总时长={TotalMs}ms",
-                    parcelId, result.FailureReason,
-                    overallStopwatch.Elapsed.TotalMilliseconds);
             }
 
-            return result;
+            return new PathExecutionResult
+            {
+                IsSuccess = result.IsSuccess,
+                ActualChuteId = result.ActualChuteId,
+                FailureReason = result.FailureReason
+            };
         }
         catch (Exception ex)
         {
-            overallStopwatch.Stop();
-            _metrics.RecordSortingFailure(overallStopwatch.Elapsed.TotalMilliseconds);
+            stopwatch.Stop();
+            _metrics.RecordSortingFailure(stopwatch.Elapsed.TotalMilliseconds);
             _alarmService?.RecordSortingFailure();
-            
-            _logger.LogError(ex, "分拣过程发生异常: ParcelId={ParcelId}, ChuteId={ChuteId}", 
-                parcelId, targetChuteId);
-            
+            _logger.LogError(ex, "分拣异常: ParcelId={ParcelId}, ChuteId={ChuteId}", parcelId, targetChuteId);
+
             return new PathExecutionResult
             {
                 IsSuccess = false,
@@ -127,17 +88,31 @@ public class OptimizedSortingService
     }
 
     /// <summary>
-    /// 批量分拣（使用对象池和并行处理优化）
+    /// 批量分拣（带并发控制）
     /// </summary>
+    /// <remarks>
+    /// 使用 Parallel.ForEachAsync 限制并发数，避免大量包裹同时处理导致系统过载。
+    /// </remarks>
     public async Task<List<PathExecutionResult>> SortBatchAsync(
-        IEnumerable<(string ParcelId, int ChuteId)> parcels,
+        IEnumerable<(string ParcelId, long ChuteId)> parcels,
         CancellationToken cancellationToken = default)
     {
-        var tasks = parcels
-            .Select(p => SortParcelAsync(p.ParcelId, p.ChuteId, cancellationToken))
-            .ToList();
-
-        var results = await Task.WhenAll(tasks);
+        var parcelList = parcels.ToList();
+        var results = new PathExecutionResult[parcelList.Count];
+        
+        await Parallel.ForEachAsync(
+            Enumerable.Range(0, parcelList.Count),
+            new ParallelOptions 
+            { 
+                MaxDegreeOfParallelism = MaxBatchConcurrency, 
+                CancellationToken = cancellationToken 
+            },
+            async (index, ct) =>
+            {
+                var parcel = parcelList[index];
+                results[index] = await SortParcelAsync(parcel.ParcelId, parcel.ChuteId, ct);
+            });
+        
         return results.ToList();
     }
 }
