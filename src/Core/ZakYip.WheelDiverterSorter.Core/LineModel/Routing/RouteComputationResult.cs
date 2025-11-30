@@ -13,7 +13,7 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 /// PR-S5: 按规范重命名自 OperationResult，避免与公共结果模型命名冲突。
 /// </para>
 /// </remarks>
-internal sealed class RouteComputationResult
+public sealed class RouteComputationResult
 {
     public bool IsSuccess { get; private set; }
     public string? ErrorMessage { get; private set; }

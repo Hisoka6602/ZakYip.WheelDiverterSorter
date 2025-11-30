@@ -7,10 +7,13 @@ using ZakYip.WheelDiverterSorter.Application.Extensions;
 namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 /// <summary>
-/// WheelDiverterSorter 服务集合扩展方法 (Host 层薄包装)
+/// WheelDiverterSorter Host 层服务集合扩展方法
 /// Host layer thin wrapper for WheelDiverterSorter services
 /// </summary>
 /// <remarks>
+/// PR-S6: 重命名为 WheelDiverterSorterHostServiceCollectionExtensions，
+/// 与 Application 层的 WheelDiverterSorterServiceCollectionExtensions 区分开来。
+/// 
 /// PR-H1: Host 层依赖收缩 - 此类现在是 Application 层统一 DI 入口的薄包装。
 /// 所有核心服务注册（Core/Execution/Drivers/Ingress/Communication/Observability/Simulation）
 /// 现在由 Application 层的 WheelDiverterSorterServiceCollectionExtensions 处理。
@@ -33,7 +36,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 /// builder.Services.AddWheelDiverterSorterHost(builder.Configuration);
 /// </code>
 /// </remarks>
-public static class WheelDiverterSorterServiceCollectionExtensions
+public static class WheelDiverterSorterHostServiceCollectionExtensions
 {
     /// <summary>
     /// 注册 WheelDiverterSorter Host 层服务
