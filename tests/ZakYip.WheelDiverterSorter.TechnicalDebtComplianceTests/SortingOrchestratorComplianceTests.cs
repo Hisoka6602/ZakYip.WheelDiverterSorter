@@ -409,11 +409,9 @@ public class SortingOrchestratorComplianceTests
             report.AppendLine("  2. 分拣决策（格口选择、模式判断）应在 SortingOrchestrator 中实现");
             report.AppendLine("  3. 中间件只负责执行管道步骤，不做业务判断");
 
-            // 输出警告但不失败测试（因为可能是误报）
-            Console.WriteLine(report.ToString());
+            // 如果发现违规，测试失败并输出详细报告
+            Assert.False(warnings.Any(), report.ToString());
         }
-
-        Assert.True(true, $"Found {warnings.Count} middleware warnings");
     }
 
     #endregion
