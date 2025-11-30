@@ -3,7 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 
 
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
+using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 

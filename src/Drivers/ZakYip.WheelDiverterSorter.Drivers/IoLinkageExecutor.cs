@@ -3,16 +3,16 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
-
-
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;namespace ZakYip.WheelDiverterSorter.Drivers;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Results;
+
+namespace ZakYip.WheelDiverterSorter.Drivers;
 
 /// <summary>
 /// 默认 IO 联动执行器实现。

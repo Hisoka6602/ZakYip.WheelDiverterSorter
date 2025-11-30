@@ -1,5 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
+using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Services;
