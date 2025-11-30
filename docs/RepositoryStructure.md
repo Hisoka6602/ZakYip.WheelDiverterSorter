@@ -519,6 +519,7 @@ Core 层采用"统一工具 + 领域特化工具"的结构：
 |------|------|----------|
 | `Core/Utilities/` | 通用公共工具（如 ISystemClock） | 公开接口和实现类 |
 | `Core/LineModel/Utilities/` | LineModel 专用工具（如 ChuteIdHelper, LoggingHelper） | 必须使用 `file static class` |
+| `Observability/Utilities/` | 可观测性相关工具（如 ISafeExecutionService） | 公开接口和实现类 |
 
 **规则**：
 1. 通用工具（被多个项目使用）放在 `Core/Utilities/`

@@ -1109,11 +1109,11 @@ public class DuplicateTypeDetectionTests
 
     /// <summary>
     /// PR-SD6: 验证工具类/扩展方法名称不存在跨命名空间重复定义
-    /// Verify that utility classes (*Extensions, *Helper, *Utils) are not duplicated across namespaces
+    /// Verify that utility classes (*Extensions, *Helper, *Utils, *Utilities) are not duplicated across namespaces
     /// </summary>
     /// <remarks>
     /// 此测试验证：
-    /// 1. 同名的 *Extensions / *Helper / *Utils 类型不能在多个命名空间中定义
+    /// 1. 同名的 *Extensions / *Helper / *Utils / *Utilities 类型不能在多个命名空间中定义
     /// 2. file-scoped 类型（file static class）允许同名，因为它们作用域限制在单个文件
     /// 3. 通用工具扩展应统一在 Core/Utilities，领域专用工具在 Core/LineModel/Utilities
     /// 
@@ -1192,7 +1192,7 @@ public class DuplicateTypeDetectionTests
             report.AppendLine("  同名的 *Extensions / *Helper / *Utils 类型只能在一个命名空间中定义。");
             report.AppendLine("\n  允许的工具类位置:");
             report.AppendLine("    - Core/Utilities/: 通用公共工具（如 ISystemClock）");
-            report.AppendLine("    - Core/LineModel/Utilities/: LineModel 专用工具（使用 file-scoped class）");
+            report.AppendLine("    - Core/LineModel/Utilities/: LineModel 专用工具（使用 file static class）");
             report.AppendLine("    - Observability/Utilities/: 可观测性相关工具");
             report.AppendLine("\n  修复建议:");
             report.AppendLine("  1. 保留唯一的统一实现（通常在 Core/Utilities 中）");

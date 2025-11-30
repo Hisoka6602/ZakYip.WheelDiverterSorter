@@ -1229,8 +1229,8 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
 ```
 
 **防线测试**：
-- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilityTypesShouldNotBeDuplicatedAcrossNamespaces`
-- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilitiesDirectoriesShouldFollowConventions`
+- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilityTypesShouldNotBeDuplicatedAcrossNamespaces`（本 PR 新增）
+- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilitiesDirectoriesShouldFollowConventions`（已有）
 
 **禁止行为：**
 
