@@ -10,7 +10,7 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// <para>本配置通过引用其他配置中已定义的ID来组织路径关系：</para>
 /// <list type="bullet">
 /// <item>IO配置 - 引用 SensorConfiguration 中的 SensorId</item>
-/// <item>线体段配置 - 引用 LineSegmentConfig 中的 SegmentId</item>
+/// <item>线体段 - 通过 DiverterPathNode.SegmentId 关联</item>
 /// <item>摆轮配置 - 引用 WheelDiverterConfiguration 中的 DiverterId</item>
 /// </list>
 /// 
@@ -178,7 +178,7 @@ public record class DiverterPathNode
     public required int PositionIndex { get; init; }
 
     /// <summary>
-    /// 前置线体段ID（引用 LineSegmentConfig 中的 SegmentId）
+    /// 前置线体段ID
     /// </summary>
     /// <remarks>
     /// 从上一个节点（入口或上一个摆轮）到本摆轮的线体段
