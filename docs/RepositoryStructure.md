@@ -296,7 +296,7 @@ ZakYip.WheelDiverterSorter.Host/
 │   ├── Extensions/                  # DI 扩展方法（Host 层薄包装）
 │   │   ├── HealthCheckServiceExtensions.cs      # 健康检查服务注册
 │   │   ├── SystemStateServiceExtensions.cs      # 系统状态服务注册
-│   │   └── WheelDiverterSorterServiceCollectionExtensions.cs  # PR-H1/H2: Host 层薄包装，调用 Application.AddWheelDiverterSorter()
+│   │   └── WheelDiverterSorterHostServiceCollectionExtensions.cs  # PR-S6: Host 层薄包装（已从 WheelDiverterSorterServiceCollectionExtensions 重命名）
 │   └── Workers/                     # 后台工作服务
 │       ├── AlarmMonitoringWorker.cs
 │       ├── BootHostedService.cs
@@ -332,7 +332,7 @@ ZakYip.WheelDiverterSorter.Host/
   - `SortingServiceExtensions.cs`
   - `SimulationServiceExtensions.cs`
 - 删除了 `Services/RuntimeProfiles/` 目录（已移至 Application 层作为 file-scoped 类型）
-- `WheelDiverterSorterServiceCollectionExtensions` 现在是 Application 层统一 DI 入口的薄包装
+- `WheelDiverterSorterHostServiceCollectionExtensions` 是 Application 层统一 DI 入口的薄包装（PR-S6: 已从 `WheelDiverterSorterServiceCollectionExtensions` 重命名）
 
 #### 关键类型概览
 
@@ -341,7 +341,7 @@ ZakYip.WheelDiverterSorter.Host/
 - `BootHostedService`（位于 Services/Workers/）：系统启动引导服务，按顺序初始化各子系统
 - `ApiControllerBase`（位于 Controllers/）：所有 API 控制器的基类，提供统一响应格式
 - `HardwareConfigController`（位于 Controllers/）：统一硬件配置控制器，提供 /api/hardware/leadshine、/api/hardware/modi、/api/hardware/shudiniao 端点
-- `WheelDiverterSorterServiceCollectionExtensions`（位于 Services/Extensions/）：Host 层薄包装，提供 `AddWheelDiverterSorterHost()` 方法（PR-H1/H2）
+- `WheelDiverterSorterHostServiceCollectionExtensions`（位于 Services/Extensions/）：Host 层薄包装，提供 `AddWheelDiverterSorterHost()` 方法（PR-H1/H2/S6）
 
 **注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。PR-H1 进一步将 DI 注册逻辑下沉到 Application 层。**PR-H2 进一步瘦身，删除了 Host 层的 Application/Services、Commands、Pipeline 目录**，Host 层不再包含业务服务实现，也不再直接依赖 Execution/Drivers/Ingress/Communication/Simulation。
 
@@ -681,7 +681,7 @@ ZakYip.WheelDiverterSorter.Ingress/
 │   └── ParcelDetectionOptions.cs
 ├── Models/                          # 入口层模型
 │   ├── ParcelDetectedEventArgs.cs
-│   ├── SensorEvent.cs
+│   ├── SensorEvent.cs               # PR-S6: 真实传感器事件模型（唯一的 SensorEvent 定义）
 │   ├── SensorHealthStatus.cs
 │   └── ...
 ├── Sensors/                         # 传感器实现
@@ -703,6 +703,7 @@ ZakYip.WheelDiverterSorter.Ingress/
 - `IParcelDetectionService`：包裹检测服务接口，监听传感器事件并触发 ParcelDetected 事件
 - `ParcelDetectionService`（位于 Services/）：包裹检测服务实现
 - `ISensor`：传感器抽象接口
+- `SensorEvent`（位于 Models/）：真实传感器事件模型（PR-S6: Simulation 层的同名类型已重命名为 `SimulatedSensorEvent`）
 - `LeadshineSensor`（位于 Sensors/）：雷赛传感器实现
 - `LeadshineSensorFactory`（位于 Sensors/）：雷赛传感器工厂，通过 `ISensorVendorConfigProvider` 获取配置
 - `SensorHealthMonitor`（位于 Services/）：传感器健康监控服务
@@ -823,6 +824,10 @@ ZakYip.WheelDiverterSorter.Observability/
 - 命令行入口程序（Program.cs）移动到新项目 `ZakYip.WheelDiverterSorter.Simulation.Cli`
 - Application 层和 Host 层只使用 Simulation 库的公共 API
 
+**PR-S6 重构说明**：
+- `SensorEvent` 类重命名为 `SimulatedSensorEvent`，与 Ingress 层的真实传感器事件区分
+- 文件位置从 `Services/ParcelTimelineFactory.cs` 移动到 `Models/SimulatedSensorEvent.cs`
+
 ```
 ZakYip.WheelDiverterSorter.Simulation/
 ├── Configuration/                   # 仿真配置 [公共 API]
@@ -832,6 +837,8 @@ ZakYip.WheelDiverterSorter.Simulation/
 │   ├── DropoutModelOptions.cs
 │   ├── SensorFaultOptions.cs
 │   └── ...
+├── Models/                          # PR-S6: 仿真模型
+│   └── SimulatedSensorEvent.cs      # PR-S6: 仿真层传感器事件（从 SensorEvent 重命名）
 ├── Results/                         # 仿真结果模型 [公共 API]
 │   ├── SimulationSummary.cs         # 仿真汇总统计 [公共 API]
 │   ├── ParcelSimulationResult.cs
@@ -1431,11 +1438,25 @@ grep -r "ProjectReference" src/**/*.csproj
       - 删除 `Ingress/Configuration/SensorConfiguration.cs`（未使用，与 Core 层 SensorConfiguration 重复）
     - **已知的同名类型**（有明确职责区分）：
       - `OperationResult` (Core/Results/) - 完整的操作结果类型，带 ErrorCode 支持
-      - `OperationResult` (Core/LineModel/Routing/) - 简化的内部操作结果类型
-      - `SensorEvent` (Ingress/Models/) - 入口层传感器事件
-      - `SensorEvent` (Simulation/Services/) - 仿真层传感器事件模拟
-      - `WheelDiverterSorterServiceCollectionExtensions` (Application/) - DI 聚合入口
-      - `WheelDiverterSorterServiceCollectionExtensions` (Host/Services/Extensions/) - Host 层薄包装
+      - `OperationResult` (Core/LineModel/Routing/) - 简化的内部操作结果类型（PR-S5 重命名为 RouteComputationResult）
+
+### 5.15 事件 & DI 扩展影分身清理（PR-S6）
+
+32. **事件类型跨层重名清理** ✅ 新增 (PR-S6)
+    - **问题**：`SensorEvent` 同时存在于 Ingress/Models/ 和 Simulation/Services/，IDE 搜索时需要凭感觉判断
+    - **解决方案**：
+      - 保留 `Ingress/Models/SensorEvent` 为现实世界传感器事件模型
+      - 将仿真侧 `SensorEvent` 重命名为 `SimulatedSensorEvent`
+      - 文件移动到 `Simulation/Models/SimulatedSensorEvent.cs`
+    - **防线测试**：`EventAndExtensionDuplicateDetectionTests.EventTypesShouldNotBeDuplicatedAcrossLayers()`
+
+33. **DI 扩展类跨项目重名清理** ✅ 新增 (PR-S6)
+    - **问题**：`WheelDiverterSorterServiceCollectionExtensions` 同时存在于 Application 和 Host 层
+    - **解决方案**：
+      - 保留 `Application/Extensions/WheelDiverterSorterServiceCollectionExtensions` 为唯一 DI 聚合入口
+      - 将 Host 层扩展类重命名为 `WheelDiverterSorterHostServiceCollectionExtensions`
+      - 文件位于 `Host/Services/Extensions/WheelDiverterSorterHostServiceCollectionExtensions.cs`
+    - **防线测试**：`EventAndExtensionDuplicateDetectionTests.ServiceCollectionExtensionsShouldBeUniquePerProject()`
 
 29. **Utilities 目录位置规范** ✅ 新增 (PR-S3)
     - **允许的 Utilities 目录位置**：
@@ -1458,6 +1479,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.5 (PR-S3)  
-**最后更新**：2025-11-29  
+**文档版本**：2.6 (PR-S6)  
+**最后更新**：2025-11-30  
 **维护团队**：ZakYip Development Team

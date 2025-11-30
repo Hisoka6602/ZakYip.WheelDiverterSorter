@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Models;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 
@@ -79,7 +80,7 @@ public class ParcelTimelineFactory
             ParcelId = parcelId,
             TargetChuteId = path.TargetChuteId,
             EntryTime = startTime,
-            SensorEvents = new List<SensorEvent>(),
+            SensorEvents = new List<SimulatedSensorEvent>(),
             IsSensorFault = false,
             HasJitter = false
         };
@@ -305,7 +306,7 @@ public class ParcelTimelineFactory
         string segmentName, bool shouldJitter, decimal frictionFactor = 1.0m)
     {
         // 添加主传感器事件
-        timeline.SensorEvents.Add(new SensorEvent
+        timeline.SensorEvents.Add(new SimulatedSensorEvent
         {
             SensorId = sensorId,
             TriggerTime = triggerTime,
@@ -322,7 +323,7 @@ public class ParcelTimelineFactory
             for (int j = 1; j <= jitterCount; j++)
             {
                 var jitterTime = triggerTime.AddMilliseconds(j * jitterIntervalMs / (double)jitterCount);
-                timeline.SensorEvents.Add(new SensorEvent
+                timeline.SensorEvents.Add(new SimulatedSensorEvent
                 {
                     SensorId = sensorId + $"_Jitter{j}",
                     TriggerTime = jitterTime,
@@ -362,7 +363,7 @@ public class ParcelTimeline
     /// <summary>
     /// 传感器事件列表（按时间顺序）
     /// </summary>
-    public List<SensorEvent> SensorEvents { get; set; } = new();
+    public List<SimulatedSensorEvent> SensorEvents { get; set; } = new();
 
     /// <summary>
     /// 是否掉包
@@ -398,30 +399,4 @@ public class ParcelTimeline
     /// 是否产生传感器抖动
     /// </summary>
     public bool HasJitter { get; set; }
-}
-
-/// <summary>
-/// 传感器事件
-/// </summary>
-public class SensorEvent
-{
-    /// <summary>
-    /// 传感器ID
-    /// </summary>
-    public required string SensorId { get; set; }
-
-    /// <summary>
-    /// 触发时间
-    /// </summary>
-    public DateTimeOffset TriggerTime { get; set; }
-
-    /// <summary>
-    /// 段名称
-    /// </summary>
-    public required string SegmentName { get; set; }
-
-    /// <summary>
-    /// 摩擦因子（用于调试）
-    /// </summary>
-    public decimal FrictionFactor { get; set; } = 1.0m;
 }
