@@ -29,5 +29,5 @@ public record struct ParcelExpectation
     /// <remarks>
     /// 用于更复杂的验证逻辑，如果为null则使用默认验证
     /// </remarks>
-    public Func<ParcelSimulationResultEventArgs, bool>? AssertPredicate { get; init; }
+    public Func<SimulatedParcelResultEventArgs, bool>? AssertPredicate { get; init; }
 }

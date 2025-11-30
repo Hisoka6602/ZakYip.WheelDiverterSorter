@@ -3,9 +3,13 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
 namespace ZakYip.WheelDiverterSorter.Simulation.Results;
 
 /// <summary>
-/// 包裹仿真结果事件参数
+/// 仿真包裹结果事件参数
+/// Simulated parcel result event arguments
 /// </summary>
-public record struct ParcelSimulationResultEventArgs
+/// <remarks>
+/// PR-SD10: 重命名为 Simulated 前缀以符合仿真事件命名规范。
+/// </remarks>
+public record struct SimulatedParcelResultEventArgs
 {
     /// <summary>
     /// 包裹ID

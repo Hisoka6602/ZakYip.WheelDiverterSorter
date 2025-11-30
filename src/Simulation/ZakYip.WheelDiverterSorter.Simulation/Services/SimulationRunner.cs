@@ -43,7 +43,7 @@ public class SimulationRunner
     
     // 使用 ConcurrentDictionary 实现线程安全 / Use ConcurrentDictionary for thread safety
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments = new();
-    private readonly ConcurrentDictionary<long, ParcelSimulationResultEventArgs> _parcelResults = new();
+    private readonly ConcurrentDictionary<long, SimulatedParcelResultEventArgs> _parcelResults = new();
     private readonly object _lockObject = new();
     private long _misSortCount = 0;
     private DateTimeOffset? _previousEntryTime = null;
@@ -366,7 +366,7 @@ public class SimulationRunner
             // 记录包裹完成（失败）
             _metricsCollector?.RecordParcelCompleted(false, latencyMs);
             
-            var errorResult = new ParcelSimulationResultEventArgs
+            var errorResult = new SimulatedParcelResultEventArgs
             {
                 ParcelId = parcelId,
                 Status = ParcelSimulationStatus.ExecutionError,
@@ -390,7 +390,7 @@ public class SimulationRunner
     /// <summary>
     /// 记录Prometheus指标
     /// </summary>
-    private void RecordMetrics(ParcelSimulationResultEventArgs result)
+    private void RecordMetrics(SimulatedParcelResultEventArgs result)
     {
         var statusLabel = result.Status.ToString();
         var travelTimeSeconds = result.TravelTime?.TotalSeconds;
@@ -444,7 +444,7 @@ public class SimulationRunner
     /// <summary>
     /// 处理错分情况
     /// </summary>
-    private void HandleMisSort(long parcelId, ParcelSimulationResultEventArgs result)
+    private void HandleMisSort(long parcelId, SimulatedParcelResultEventArgs result)
     {
         Interlocked.Increment(ref _misSortCount);
         
@@ -531,7 +531,7 @@ public class SimulationRunner
     /// <summary>
     /// 处理单个包裹的分拣
     /// </summary>
-    private async Task<ParcelSimulationResultEventArgs> ProcessParcelAsync(
+    private async Task<SimulatedParcelResultEventArgs> ProcessParcelAsync(
         long parcelId, 
         DateTimeOffset entryTime,
         CancellationToken cancellationToken)
@@ -557,7 +557,7 @@ public class SimulationRunner
                 LogParcelException(parcelId, null, "无法通知RuleEngine");
                 LogParcelCompleted(parcelId, null, null, ParcelFinalStatus.RuleEngineTimeout);
                 
-                return new ParcelSimulationResultEventArgs
+                return new SimulatedParcelResultEventArgs
                 {
                     ParcelId = parcelId,
                     Status = ParcelSimulationStatus.RuleEngineTimeout,
@@ -581,7 +581,7 @@ public class SimulationRunner
                 LogParcelException(parcelId, null, "等待格口分配超时");
                 LogParcelCompleted(parcelId, null, null, ParcelFinalStatus.RuleEngineTimeout);
                 
-                return new ParcelSimulationResultEventArgs
+                return new SimulatedParcelResultEventArgs
                 {
                     ParcelId = parcelId,
                     Status = ParcelSimulationStatus.RuleEngineTimeout,
@@ -596,7 +596,7 @@ public class SimulationRunner
             {
                 _logger.LogWarning("无法为包裹 {ParcelId} 生成到格口 {ChuteId} 的路径", parcelId, targetChuteId);
                 
-                return new ParcelSimulationResultEventArgs
+                return new SimulatedParcelResultEventArgs
                 {
                     ParcelId = parcelId,
                     TargetChuteId = targetChuteId,
@@ -642,7 +642,7 @@ public class SimulationRunner
             {
                 var travelTime = timeline.SensorEvents.Last().TriggerTime - entryTime;
                 
-                var result = new ParcelSimulationResultEventArgs
+                var result = new SimulatedParcelResultEventArgs
                 {
                     ParcelId = parcelId,
                     TargetChuteId = targetChuteId,
@@ -666,7 +666,7 @@ public class SimulationRunner
             // 如果有传感器问题，直接路由到异常口
             if (hasSensorIssue)
             {
-                var result = new ParcelSimulationResultEventArgs
+                var result = new SimulatedParcelResultEventArgs
                 {
                     ParcelId = parcelId,
                     TargetChuteId = targetChuteId,
@@ -716,7 +716,7 @@ public class SimulationRunner
             // 记录包裹完成
             LogParcelCompleted(parcelId, targetChuteId, finalChuteId, finalStatus);
             
-            return new ParcelSimulationResultEventArgs
+            return new SimulatedParcelResultEventArgs
             {
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
@@ -744,7 +744,7 @@ public class SimulationRunner
     /// <param name="targetChuteId">目标格口ID</param>
     /// <param name="timeline">包裹时间轴</param>
     /// <returns>包裹仿真结果</returns>
-    private ParcelSimulationResultEventArgs ApplyDenseParcelStrategy(
+    private SimulatedParcelResultEventArgs ApplyDenseParcelStrategy(
         long parcelId,
         long targetChuteId,
         ParcelTimeline timeline)
@@ -755,7 +755,7 @@ public class SimulationRunner
 
         return _options.DenseParcelStrategy switch
         {
-            DenseParcelStrategy.RouteToException => new ParcelSimulationResultEventArgs
+            DenseParcelStrategy.RouteToException => new SimulatedParcelResultEventArgs
             {
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
@@ -767,7 +767,7 @@ public class SimulationRunner
                 IsDenseParcel = true
             },
 
-            DenseParcelStrategy.MarkAsTimeout => new ParcelSimulationResultEventArgs
+            DenseParcelStrategy.MarkAsTimeout => new SimulatedParcelResultEventArgs
             {
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
@@ -780,7 +780,7 @@ public class SimulationRunner
                 IsDenseParcel = true
             },
 
-            DenseParcelStrategy.MarkAsDropped => new ParcelSimulationResultEventArgs
+            DenseParcelStrategy.MarkAsDropped => new SimulatedParcelResultEventArgs
             {
                 ParcelId = parcelId,
                 TargetChuteId = targetChuteId,
