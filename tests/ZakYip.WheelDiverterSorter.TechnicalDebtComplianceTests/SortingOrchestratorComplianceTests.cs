@@ -265,7 +265,8 @@ public class SortingOrchestratorComplianceTests
         foreach (var (typeName, description) in independentLogicPatterns)
         {
             // 检查字段声明和构造函数注入
-            // Note: typeName is escaped to prevent potential ReDoS with special characters
+            // 使用 Regex.Escape 防止 ReDoS (Regular Expression Denial of Service) 攻击
+            // Escape typeName to prevent ReDoS attacks when special characters are present
             var escapedTypeName = Regex.Escape(typeName);
             if (Regex.IsMatch(content, $@"private\s+(?:readonly\s+)?{escapedTypeName}\s+_\w+"))
             {
