@@ -137,7 +137,7 @@ public class RoutePlan
     /// <param name="requestedAt">请求时间</param>
     /// <param name="decision">输出决策结果</param>
     /// <returns>操作结果（成功表示已接受，失败表示被拒绝或忽略）</returns>
-    public OperationResult TryApplyChuteChange(
+    public RouteComputationResult TryApplyChuteChange(
         long requestedChuteId,
         DateTimeOffset requestedAt,
         out ChuteChangeDecision decision)
@@ -177,7 +177,7 @@ public class RoutePlan
                 Reason = decision.Reason
             });
 
-            return OperationResult.Failure("改口被忽略：包裹已完成分拣");
+            return RouteComputationResult.Failure("改口被忽略：包裹已完成分拣");
         }
 
         // 规则2: 已进入异常路径，忽略改口
@@ -204,7 +204,7 @@ public class RoutePlan
                 Reason = decision.Reason
             });
 
-            return OperationResult.Failure("改口被忽略：包裹已进入异常路径");
+            return RouteComputationResult.Failure("改口被忽略：包裹已进入异常路径");
         }
 
         // 规则3: 计划已失败，拒绝改口
@@ -231,7 +231,7 @@ public class RoutePlan
                 Reason = decision.Reason
             });
 
-            return OperationResult.Failure("改口被拒绝：计划已失败");
+            return RouteComputationResult.Failure("改口被拒绝：计划已失败");
         }
 
         // 规则4: 检查是否超过最后可改口时间
@@ -258,7 +258,7 @@ public class RoutePlan
                 Reason = decision.Reason
             });
 
-            return OperationResult.Failure("改口被拒绝：已超过可重规划时间");
+            return RouteComputationResult.Failure("改口被拒绝：已超过可重规划时间");
         }
 
         // 规则5: 接受改口（状态为 Created 或 Executing）
@@ -286,7 +286,7 @@ public class RoutePlan
             AcceptedAt = requestedAt
         });
 
-        return OperationResult.Success();
+        return RouteComputationResult.Success();
     }
 
     /// <summary>

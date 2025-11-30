@@ -791,6 +791,179 @@ public class DuplicateTypeDetectionTests
     }
 
     /// <summary>
+    /// PR-S5: 验证 Core 层不存在同名 *Result 类型在多个命名空间的重复定义
+    /// Verify that *Result types are not duplicated across Core namespaces
+    /// </summary>
+    /// <remarks>
+    /// 此测试验证：
+    /// 1. 同名的 *Result 类型不能在 Core 层的多个命名空间中定义
+    /// 2. 唯一公共 OperationResult 必须定义在 Core/Results 命名空间
+    /// 3. 允许的例外：不同语义的领域结果（如 PathExecutionResult、ReroutingResult 等）
+    /// 
+    /// 白名单规则：
+    /// - Core/Results/OperationResult 是唯一公共结果模型
+    /// - 其他命名空间中使用不同名称的内部结果类型
+    /// </remarks>
+    [Fact]
+    public void ResultTypesShouldNotBeDuplicatedAcrossCoreNamespaces()
+    {
+        var solutionRoot = GetSolutionRoot();
+        
+        // 显式白名单：允许在多个命名空间中存在的 Result 类型
+        // 仅用于确实有不同语义的领域结果类型
+        var whitelist = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // 当前无需白名单 - 所有 *Result 类型应使用唯一名称
+        };
+        
+        // 禁止在公共 API 中重复的结果类型名称
+        var forbiddenDuplicateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "OperationResult", // 唯一公共结果模型，必须只在 Core/Results 中定义
+        };
+        
+        var resultTypesByName = new Dictionary<string, List<ResultTypeInfo>>(StringComparer.OrdinalIgnoreCase);
+        
+        // 只扫描 Core 项目
+        var coreDir = Path.Combine(solutionRoot, "src", "Core");
+        if (!Directory.Exists(coreDir))
+        {
+            return; // Core 目录不存在，跳过
+        }
+
+        var sourceFiles = Directory.GetFiles(coreDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        // 收集所有 *Result 类型定义
+        var allResultTypes = sourceFiles
+            .SelectMany(file => ExtractResultTypeDefinitions(file, solutionRoot))
+            .ToList();
+        
+        foreach (var type in allResultTypes)
+        {
+            if (!resultTypesByName.ContainsKey(type.TypeName))
+            {
+                resultTypesByName[type.TypeName] = new List<ResultTypeInfo>();
+            }
+            resultTypesByName[type.TypeName].Add(type);
+        }
+
+        // 查找跨命名空间重复的 Result 类型
+        var duplicates = resultTypesByName
+            .Where(kvp => kvp.Value.Count > 1)
+            // 排除白名单类型
+            .Where(kvp => !whitelist.Contains(kvp.Key))
+            // 只有当在多个不同命名空间中定义时才算重复
+            .Where(kvp => kvp.Value.Select(t => t.Namespace).Distinct().Count() > 1)
+            // 排除 file-scoped 类型
+            .Where(kvp => !kvp.Value.All(t => t.IsFileScoped))
+            .ToList();
+
+        // 特别检查 OperationResult 是否只在 Core/Results 中定义
+        var operationResultLocations = resultTypesByName
+            .Where(kvp => forbiddenDuplicateNames.Contains(kvp.Key))
+            .SelectMany(kvp => kvp.Value)
+            .Where(t => !t.Namespace.EndsWith(".Results"))
+            .ToList();
+
+        var allViolations = new List<(string TypeName, List<ResultTypeInfo> Locations, string ViolationType)>();
+        
+        // 添加重复定义的违规
+        foreach (var (typeName, locations) in duplicates)
+        {
+            allViolations.Add((typeName, locations, "跨命名空间重复定义"));
+        }
+        
+        // 添加 OperationResult 位置违规
+        if (operationResultLocations.Any())
+        {
+            allViolations.Add(("OperationResult", operationResultLocations, "不在指定的 Core/Results 命名空间中"));
+        }
+
+        if (allViolations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-S5 违规: 发现 {allViolations.Count} 个 *Result 类型存在影分身问题:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (typeName, locations, violationType) in allViolations.OrderBy(v => v.TypeName))
+            {
+                report.AppendLine($"\n❌ {typeName} ({violationType}):");
+                foreach (var loc in locations.OrderBy(l => l.Namespace))
+                {
+                    var relativePath = Path.GetRelativePath(solutionRoot, loc.FilePath);
+                    report.AppendLine($"   - 命名空间: {loc.Namespace}");
+                    report.AppendLine($"     位置: {relativePath}:{loc.LineNumber}");
+                }
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-S5 规范:");
+            report.AppendLine("  1. Core/Results/OperationResult 是唯一公共结果模型");
+            report.AppendLine("  2. 任何内部局部结果类型必须使用不同名称");
+            report.AppendLine("  3. 内部结果类型应限制作用域（使用 file 关键字或 internal 修饰符）");
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 将重复的 OperationResult 重命名为场景化名称（如 RouteComputationResult）");
+            report.AppendLine("  2. 删除不必要的重复定义");
+            report.AppendLine("  3. 更新所有引用以使用唯一定义");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 从文件中提取 *Result 类型定义
+    /// Extract *Result type definitions from file
+    /// </summary>
+    private static List<ResultTypeInfo> ExtractResultTypeDefinitions(string filePath, string solutionRoot)
+    {
+        var types = new List<ResultTypeInfo>();
+        
+        try
+        {
+            var lines = File.ReadAllLines(filePath);
+            var content = File.ReadAllText(filePath);
+            
+            // 提取命名空间
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
+
+            // 提取项目名
+            var projectName = ExtractProjectName(filePath, solutionRoot);
+
+            // 查找以 Result 结尾的类型定义
+            // 支持: class, struct, record, record class, record struct, readonly record struct
+            var resultPattern = new Regex(
+                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+)(?<typeName>\w+Result)\b",
+                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var match = resultPattern.Match(lines[i]);
+                if (match.Success)
+                {
+                    types.Add(new ResultTypeInfo
+                    {
+                        TypeName = match.Groups["typeName"].Value,
+                        FilePath = filePath,
+                        LineNumber = i + 1,
+                        Namespace = ns,
+                        ProjectName = projectName,
+                        IsFileScoped = match.Groups["fileScoped"].Success
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error extracting Result types from {filePath}: {ex.Message}");
+        }
+
+        return types;
+    }
+
+    /// <summary>
     /// 从文件中提取 *Options 类型定义
     /// Extract *Options type definitions from file
     /// </summary>
@@ -1046,6 +1219,20 @@ public record UnusedTypeViolation
 /// Options type location information
 /// </summary>
 public record OptionsTypeInfo
+{
+    public required string TypeName { get; init; }
+    public required string FilePath { get; init; }
+    public required int LineNumber { get; init; }
+    public required string Namespace { get; init; }
+    public required string ProjectName { get; init; }
+    public bool IsFileScoped { get; init; }
+}
+
+/// <summary>
+/// PR-S5: Result 类型位置信息
+/// Result type location information
+/// </summary>
+public record ResultTypeInfo
 {
     public required string TypeName { get; init; }
     public required string FilePath { get; init; }

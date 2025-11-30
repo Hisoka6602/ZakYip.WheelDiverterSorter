@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
+using ZakYip.WheelDiverterSorter.Core.Results;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 

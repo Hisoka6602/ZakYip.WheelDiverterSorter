@@ -11,7 +11,9 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;namespace ZakYip.WheelDiverterSorter.Drivers;
+using ZakYip.WheelDiverterSorter.Core.Results;
+
+namespace ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 /// <summary>
