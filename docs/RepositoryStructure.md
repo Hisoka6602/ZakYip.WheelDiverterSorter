@@ -452,8 +452,8 @@ ZakYip.WheelDiverterSorter.Core/
 ├── LineModel/                       # 线体模型（核心领域）
 │   ├── Bindings/
 │   ├── Chutes/                      # 格口相关
-│   ├── Configuration/               # 配置模型与仓储（PR4 重构后）
-│   │   ├── Models/                  # 纯配置模型类（26个文件）
+│   ├── Configuration/               # 配置模型与仓储（PR4 重构后，PR-SD5 瘦身）
+│   │   ├── Models/                  # 纯配置模型类（22个文件，PR-SD5 删除4个未使用模型）
 │   │   │   ├── SystemConfiguration.cs
 │   │   │   ├── CabinetIoOptions.cs          # PR-TD7: 厂商无关控制面板IO配置（原 LeadshineCabinetIoOptions）
 │   │   │   ├── ChutePathTopologyConfig.cs
@@ -461,6 +461,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   │   ├── CommunicationConfiguration.cs
 │   │   │   ├── LoggingConfiguration.cs
 │   │   │   └── ...
+│   │   │   # PR-SD5 已删除：IoPointConfiguration.cs, LineSegmentConfig.cs, PanelIoOptions.cs, SignalTowerOptions.cs
 │   │   ├── Repositories/            # 仓储层
 │   │   │   ├── Interfaces/          # 仓储接口（11个文件）
 │   │   │   │   ├── ISystemConfigurationRepository.cs
@@ -1499,8 +1500,28 @@ grep -r "ProjectReference" src/**/*.csproj
     - **检测范围**：同名类型在不同命名空间中的定义
     - **输出**：顾问性报告，需人工确认是否为真正的重复
 
+### 5.16 配置模型瘦身（PR-SD5）
+
+34. **删除仅测试使用的配置模型** ✅ 新增 (PR-SD5)
+    - **问题**：Core/LineModel/Configuration/Models 中存在仅被测试使用的配置模型
+    - **已删除的模型**：
+      - `IoPointConfiguration.cs` - 统一的 IO 点配置模型（无生产代码使用）
+      - `LineSegmentConfig.cs` - 线体段配置（无生产代码使用，仅在文档注释中引用）
+      - `PanelIoOptions.cs` - 面板 IO 配置选项（无任何使用）
+      - `SignalTowerOptions.cs` - 信号塔配置选项（无任何使用）
+    - **已删除的测试文件**：
+      - `tests/ZakYip.WheelDiverterSorter.Core.Tests/IoPointConfigurationTests.cs`
+      - `tests/ZakYip.WheelDiverterSorter.Core.Tests/LineModel/LineSegmentConfigTests.cs`
+    - **更新的注释引用**：
+      - `ChutePathTopologyConfig.cs` - 移除了对 LineSegmentConfig 的文档引用
+      - `ChutePathTopologyController.cs` - 移除了对 LineSegmentConfig 的文档引用
+    - **配置模型数量变化**：从 26 个减少到 22 个
+    - **防线测试**：`DuplicateTypeDetectionTests.ConfigurationModelsShouldHaveProductionUsage()`
+      - 验证配置模型在生产代码中有实际使用
+      - 允许被其他已使用配置模型引用的 helper types
+
 ---
 
-**文档版本**：2.6 (PR-S6)  
+**文档版本**：2.7 (PR-SD5)  
 **最后更新**：2025-11-30  
 **维护团队**：ZakYip Development Team
