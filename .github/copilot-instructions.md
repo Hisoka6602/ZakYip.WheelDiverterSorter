@@ -667,6 +667,55 @@ if (elapsedMs > UpstreamRoutingConstants.MaxRoutingTimeoutMilliseconds)
 }
 
 var hasCommunicationError = (status & (int)ShuDiNiaoStatusFlags.CommunicationError) != 0;
+```
+
+### 8. 命名空间必须与文件夹结构匹配（PR-SD8 新增）
+
+**规则：**
+
+1. 所有 C# 文件的命名空间必须与其所在的文件夹结构完全匹配：
+   - 命名空间应基于项目根命名空间加上文件相对于项目根目录的路径
+   - 例如：文件 `src/Execution/ZakYip.WheelDiverterSorter.Execution/Extensions/NodeHealthServiceExtensions.cs`
+     必须使用命名空间 `ZakYip.WheelDiverterSorter.Execution.Extensions`
+
+2. 命名空间计算规则：
+   - 项目根命名空间为 `ZakYip.WheelDiverterSorter.<ProjectName>`（如 `Core`、`Execution`、`Drivers` 等）
+   - 子目录名称直接追加到根命名空间后，用 `.` 分隔
+   - 例如：`Services/Config/` 目录对应 `.Services.Config` 命名空间后缀
+
+3. 此规则适用于所有 `src/` 目录下的 C# 文件，包括：
+   - 类、接口、枚举、记录、结构体定义文件
+   - 扩展方法文件
+   - 配置文件
+
+**实施要求：**
+
+```csharp
+// ✅ 正确：命名空间与文件夹结构匹配
+// 文件位置：src/Execution/ZakYip.WheelDiverterSorter.Execution/Extensions/NodeHealthServiceExtensions.cs
+namespace ZakYip.WheelDiverterSorter.Execution.Extensions;
+
+public static class NodeHealthServiceExtensions
+{
+    // ...
+}
+
+// ❌ 错误：命名空间与文件夹结构不匹配
+// 文件位置：src/Execution/ZakYip.WheelDiverterSorter.Execution/Extensions/NodeHealthServiceExtensions.cs
+namespace ZakYip.WheelDiverterSorter.Execution;  // ❌ 缺少 .Extensions 后缀
+
+public static class NodeHealthServiceExtensions
+{
+    // ...
+}
+```
+
+**防线测试**：`TechnicalDebtComplianceTests.NamespaceLocationTests.AllFileNamespacesShouldMatchFolderStructure`
+
+**修复建议**（当检测到命名空间不匹配时）：
+1. 修改文件中的命名空间声明，使其与文件夹结构匹配
+2. 更新所有引用该命名空间的 `using` 语句
+3. 如果需要将文件移动到不同目录，同时更新命名空间
 
 ---
 
