@@ -353,6 +353,26 @@ ZakYip.WheelDiverterSorter.Host/
 - **禁止业务目录**：Host 项目内禁止存在 Application/Commands/Pipeline/Repositories 目录
 - **Controller 依赖约束**（顾问性）：Controller 应只注入 Application 层服务接口，不直接注入 Execution/Core/Drivers/Ingress/Communication 中的抽象
 
+#### TechnicalDebtComplianceTests 约束（PR-SD3 新增）
+
+由 `TechnicalDebtComplianceTests.HostLayerComplianceTests` 强制执行：
+- **禁止 Commands 目录**：Host 项目内禁止存在 Commands 目录。如果需要真正的 Command Bus 模式（如队列/审计/异步处理），必须在测试白名单中显式列出并在此文档说明原因
+- **禁止 I*Service 接口定义**：Host 项目内禁止定义 `I*Service` 结尾的业务服务接口（ISystemStateManager 除外）。所有业务服务接口应定义在 Application 层或 Core 层
+- **禁止业务目录**：Host 项目内禁止存在 Commands/Application/Pipeline/Repositories/Adapters/Middleware 目录
+
+**允许的 Host 层目录结构**：
+- `Controllers/` - API 端点
+- `StateMachine/` - 系统状态机（包含 ISystemStateManager）
+- `Health/` - 健康检查提供者
+- `Models/` - API 请求/响应 DTO
+- `Services/Workers/` - 后台工作服务
+- `Services/Extensions/` - DI 配置扩展
+- `Swagger/` - Swagger 配置
+- `Properties/` - 项目属性
+
+**Command Bus 白名单**（目前为空，如有需要在此添加）：
+- 无
+
 ---
 
 ### 3.3 ZakYip.WheelDiverterSorter.Core
