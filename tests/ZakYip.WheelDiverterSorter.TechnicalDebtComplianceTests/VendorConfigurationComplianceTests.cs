@@ -105,7 +105,7 @@ public class VendorConfigurationComplianceTests
     /// 遗留类型白名单（待后续 PR 清理）：
     /// - ShuDiNiaoWheelDiverterConfig, ShuDiNiaoDeviceEntry (Core 层 LiteDB 持久化)
     /// - ModiWheelDiverterConfig, ModiDeviceEntry (Core 层 LiteDB 持久化)
-    /// - LeadshineDriverConfig, DiverterDriverEntry (Core 层 LiteDB 持久化)
+    /// - LeadshineDriverConfig, DiverterDriverEntry, LeadshineIoConnectionConfig (Core 层 LiteDB 持久化)
     /// </remarks>
     [Fact]
     public void VendorConfigurationTypes_ShouldLiveUnder_DriversVendors()
@@ -121,6 +121,7 @@ public class VendorConfigurationComplianceTests
             "ModiWheelDiverterConfig",
             "ModiDeviceEntry",
             "LeadshineDriverConfig",
+            "LeadshineIoConnectionConfig",
             "DiverterDriverEntry"
         };
 
@@ -265,8 +266,8 @@ public class VendorConfigurationComplianceTests
 
         try
         {
-            var lines = File.ReadAllLines(filePath);
             var content = File.ReadAllText(filePath);
+            var lines = content.Split('\n');
 
             // 提取命名空间
             var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)\s*[;{]");

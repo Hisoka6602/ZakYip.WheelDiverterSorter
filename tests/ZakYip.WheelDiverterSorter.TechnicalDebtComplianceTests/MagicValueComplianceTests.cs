@@ -404,7 +404,11 @@ public class MagicValueComplianceTests
                 foreach (var violation in group.Take(3))
                 {
                     report.AppendLine($"   行 {violation.LineNumber}: {violation.MagicValue}");
-                    report.AppendLine($"   └─ {violation.LineContent.Trim().Substring(0, Math.Min(80, violation.LineContent.Trim().Length))}...");
+                    var trimmedContent = violation.LineContent.Trim();
+                    var displayContent = trimmedContent.Length > 80 
+                        ? trimmedContent.Substring(0, 80) + "..." 
+                        : trimmedContent;
+                    report.AppendLine($"   └─ {displayContent}");
                 }
                 if (group.Count() > 3)
                 {
