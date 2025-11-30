@@ -137,24 +137,22 @@ public class HostLayerComplianceTests
             var content = File.ReadAllText(file);
             var matches = ServiceInterfacePattern.Matches(content);
 
-            foreach (Match match in matches)
-            {
-                var interfaceName = match.Groups["name"].Value;
-
-                // 跳过白名单中的接口
-                if (allowedInterfaces.Contains(interfaceName))
-                {
-                    continue;
-                }
-
-                var relativePath = Path.GetRelativePath(SolutionRoot, file);
-                violations.Add(new ServiceInterfaceViolation
-                {
-                    InterfaceName = interfaceName,
-                    FilePath = relativePath,
-                    FileName = Path.GetFileName(file)
-                });
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => new
+                    {
+                        InterfaceName = match.Groups["name"].Value,
+                        RelativePath = Path.GetRelativePath(SolutionRoot, file),
+                        FileName = Path.GetFileName(file)
+                    })
+                    .Where(x => !allowedInterfaces.Contains(x.InterfaceName))
+                    .Select(x => new ServiceInterfaceViolation
+                    {
+                        InterfaceName = x.InterfaceName,
+                        FilePath = x.RelativePath,
+                        FileName = x.FileName
+                    })
+            );
         }
 
         if (violations.Any())
@@ -262,7 +260,8 @@ public class HostLayerComplianceTests
         var report = new StringBuilder();
         
         report.AppendLine("# Host Layer Compliance Report (PR-SD3)\n");
-        report.AppendLine($"**Generated**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\n");
+        // Note: Using DateTimeOffset.Now for test report timestamp - not business logic
+        report.AppendLine($"**Generated**: {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}\n");
 
         // 检查目录结构
         report.AppendLine("## Directory Structure Compliance\n");
@@ -299,12 +298,15 @@ public class HostLayerComplianceTests
         {
             var content = File.ReadAllText(file);
             var matches = ServiceInterfacePattern.Matches(content);
-            foreach (Match match in matches)
-            {
-                var interfaceName = match.Groups["name"].Value;
-                var isAllowed = interfaceName == "ISystemStateManager";
-                foundInterfaces.Add((interfaceName, Path.GetFileName(file), isAllowed));
-            }
+            foundInterfaces.AddRange(
+                matches.Cast<Match>()
+                    .Select(match =>
+                    {
+                        var interfaceName = match.Groups["name"].Value;
+                        var isAllowed = interfaceName == "ISystemStateManager";
+                        return (interfaceName, Path.GetFileName(file), isAllowed);
+                    })
+            );
         }
 
         if (foundInterfaces.Any())
@@ -329,7 +331,7 @@ public class HostLayerComplianceTests
         report.AppendLine("- [x] Controller 通过构造函数注入 Application 层服务接口");
         report.AppendLine("- [x] 业务逻辑全部委托给 Application 层处理");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         Assert.True(true, "Host layer compliance report generated");
     }
 }
