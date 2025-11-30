@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;

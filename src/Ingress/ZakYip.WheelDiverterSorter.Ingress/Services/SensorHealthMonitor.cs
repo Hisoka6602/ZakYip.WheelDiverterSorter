@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;

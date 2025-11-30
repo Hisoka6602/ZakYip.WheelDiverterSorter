@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -300,7 +301,7 @@ public class ParcelDetectionServiceTests
         });
         var service = new ParcelDetectionService(sensors, options);
 
-        ZakYip.WheelDiverterSorter.Ingress.Models.DuplicateTriggerEventArgs? duplicateArgs = null;
+        ZakYip.WheelDiverterSorter.Core.Events.Sensor.DuplicateTriggerEventArgs? duplicateArgs = null;
         service.DuplicateTriggerDetected += (sender, e) => duplicateArgs = e;
 
         // Start the service

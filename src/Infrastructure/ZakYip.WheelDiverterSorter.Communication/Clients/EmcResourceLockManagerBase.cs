@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Communication;
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
@@ -35,6 +36,26 @@ public abstract class EmcResourceLockManagerBase : IEmcResourceLockManager
     protected virtual void OnEmcLockEventReceived(EmcLockEventArgs e)
     {
         EmcLockEventReceived?.Invoke(this, e);
+    }
+
+    /// <summary>
+    /// 从 EmcLockEvent 创建 EmcLockEventArgs
+    /// Create EmcLockEventArgs from EmcLockEvent
+    /// </summary>
+    /// <param name="lockEvent">EMC锁事件</param>
+    /// <returns>EMC锁事件参数</returns>
+    protected static EmcLockEventArgs CreateEventArgsFromLockEvent(EmcLockEvent lockEvent)
+    {
+        return new EmcLockEventArgs
+        {
+            EventId = lockEvent.EventId,
+            InstanceId = lockEvent.InstanceId,
+            NotificationType = lockEvent.NotificationType,
+            CardNo = lockEvent.CardNo,
+            Timestamp = lockEvent.Timestamp,
+            Message = lockEvent.Message,
+            TimeoutMs = lockEvent.TimeoutMs
+        };
     }
 
     /// <inheritdoc/>

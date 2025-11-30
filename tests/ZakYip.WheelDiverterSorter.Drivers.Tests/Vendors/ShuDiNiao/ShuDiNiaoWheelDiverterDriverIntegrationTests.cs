@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Vendors.ShuDiNiao;

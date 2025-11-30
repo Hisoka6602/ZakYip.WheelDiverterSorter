@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Communication;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Models;
@@ -467,24 +468,22 @@ public class CoordinatedEmcController : IEmcController
     /// </summary>
     private async void OnEmcLockEventReceived(object? sender, EmcLockEventArgs e)
     {
-        var lockEvent = e.LockEvent;
-
         // 只处理针对当前卡号的事件
-        if (lockEvent.CardNo != CardNo)
+        if (e.CardNo != CardNo)
         {
             return;
         }
 
         _logger.LogInformation(
             "收到EMC锁事件: {Type}, 来自实例: {InstanceId}, 卡号: {CardNo}, 消息: {Message}",
-            lockEvent.NotificationType,
-            lockEvent.InstanceId,
-            lockEvent.CardNo,
-            lockEvent.Message);
+            e.NotificationType,
+            e.InstanceId,
+            e.CardNo,
+            e.Message);
 
         try
         {
-            switch (lockEvent.NotificationType)
+            switch (e.NotificationType)
             {
                 case EmcLockNotificationType.ColdReset:
                 case EmcLockNotificationType.HotReset:
@@ -495,7 +494,7 @@ public class CoordinatedEmcController : IEmcController
                     // 发送就绪消息
                     if (_lockManager != null)
                     {
-                        await _lockManager.SendReadyAsync(lockEvent.EventId, CardNo);
+                        await _lockManager.SendReadyAsync(e.EventId, CardNo);
                         _logger.LogInformation("已发送就绪消息，等待重置完成");
                     }
                     break;

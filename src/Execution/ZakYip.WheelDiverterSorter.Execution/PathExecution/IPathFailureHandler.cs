@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
-using ZakYip.WheelDiverterSorter.Execution.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Path;
 
 namespace ZakYip.WheelDiverterSorter.Execution.PathExecution;
 

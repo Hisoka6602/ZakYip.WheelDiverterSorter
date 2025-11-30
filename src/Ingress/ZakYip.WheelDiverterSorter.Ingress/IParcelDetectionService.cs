@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;

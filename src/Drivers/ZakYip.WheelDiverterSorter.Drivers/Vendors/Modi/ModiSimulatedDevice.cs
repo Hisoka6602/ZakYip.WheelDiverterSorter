@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;

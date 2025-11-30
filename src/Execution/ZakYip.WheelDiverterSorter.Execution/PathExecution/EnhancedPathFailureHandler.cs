@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Execution.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Path;
 using ZakYip.WheelDiverterSorter.Observability;
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;

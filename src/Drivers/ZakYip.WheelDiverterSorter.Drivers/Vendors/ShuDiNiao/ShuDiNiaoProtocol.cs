@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using System.Buffers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;

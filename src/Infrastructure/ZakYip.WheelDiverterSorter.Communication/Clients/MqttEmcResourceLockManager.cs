@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Communication;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MQTTnet;
@@ -166,7 +167,7 @@ public class MqttEmcResourceLockManager : EmcResourceLockManagerBase
             if (lockEvent.InstanceId != InstanceId)
             {
                 // 触发事件，通知上层应用
-                OnEmcLockEventReceived(new EmcLockEventArgs(lockEvent));
+                OnEmcLockEventReceived(CreateEventArgsFromLockEvent(lockEvent));
 
                 // 自动响应某些类型的请求
                 if (lockEvent.NotificationType == EmcLockNotificationType.RequestLock ||
