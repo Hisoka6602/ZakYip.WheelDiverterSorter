@@ -1108,6 +1108,143 @@ public class DuplicateTypeDetectionTests
     }
 
     /// <summary>
+    /// PR-SD6: 验证工具类/扩展方法名称不存在跨命名空间重复定义
+    /// Verify that utility classes (*Extensions, *Helper, *Utils) are not duplicated across namespaces
+    /// </summary>
+    /// <remarks>
+    /// 此测试验证：
+    /// 1. 同名的 *Extensions / *Helper / *Utils 类型不能在多个命名空间中定义
+    /// 2. file-scoped 类型（file static class）允许同名，因为它们作用域限制在单个文件
+    /// 3. 通用工具扩展应统一在 Core/Utilities，领域专用工具在 Core/LineModel/Utilities
+    /// 
+    /// 如果检测到重复定义，测试将失败并提示修复方案。
+    /// </remarks>
+    [Fact]
+    public void UtilityTypesShouldNotBeDuplicatedAcrossNamespaces()
+    {
+        var solutionRoot = GetSolutionRoot();
+        
+        var utilityTypesByName = new Dictionary<string, List<UtilityTypeInfo>>(StringComparer.OrdinalIgnoreCase);
+        
+        // 扫描 src 目录下所有 .cs 文件
+        var sourceFiles = Directory.GetFiles(
+            Path.Combine(solutionRoot, "src"),
+            "*.cs",
+            SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        // 收集所有工具类型定义
+        var allUtilityTypes = sourceFiles
+            .SelectMany(file => ExtractUtilityTypeDefinitions(file, solutionRoot))
+            .ToList();
+        
+        foreach (var type in allUtilityTypes)
+        {
+            if (!utilityTypesByName.ContainsKey(type.TypeName))
+            {
+                utilityTypesByName[type.TypeName] = new List<UtilityTypeInfo>();
+            }
+            utilityTypesByName[type.TypeName].Add(type);
+        }
+
+        // 查找跨命名空间重复的工具类型（排除 file-scoped 类型）
+        var duplicates = utilityTypesByName
+            .Where(kvp => kvp.Value.Count > 1)
+            // 只有当在多个不同命名空间中定义时才算重复
+            .Where(kvp => kvp.Value.Select(t => t.Namespace).Distinct().Count() > 1)
+            // 排除 file-scoped 类型
+            .Where(kvp => !kvp.Value.All(t => t.IsFileScoped))
+            .ToList();
+
+        if (duplicates.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-SD6 违规: 发现 {duplicates.Count} 个工具类型存在跨命名空间重复定义:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (typeName, locations) in duplicates.OrderBy(d => d.Key))
+            {
+                report.AppendLine($"\n❌ {typeName}:");
+                foreach (var loc in locations.OrderBy(l => l.Namespace))
+                {
+                    var relativePath = Path.GetRelativePath(solutionRoot, loc.FilePath);
+                    report.AppendLine($"   - 命名空间: {loc.Namespace}");
+                    report.AppendLine($"     位置: {relativePath}:{loc.LineNumber}");
+                    report.AppendLine($"     项目: {loc.ProjectName}");
+                    report.AppendLine($"     file-scoped: {(loc.IsFileScoped ? "是" : "否")}");
+                }
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-SD6 规范:");
+            report.AppendLine("  同名的 *Extensions / *Helper / *Utils 类型只能在一个命名空间中定义。");
+            report.AppendLine("\n  允许的工具类位置:");
+            report.AppendLine("    - Core/Utilities/: 通用公共工具（如 ISystemClock）");
+            report.AppendLine("    - Core/LineModel/Utilities/: LineModel 专用工具（使用 file-scoped class）");
+            report.AppendLine("    - Observability/Utilities/: 可观测性相关工具");
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 保留唯一的统一实现（通常在 Core/Utilities 中）");
+            report.AppendLine("  2. 删除其他重复的定义");
+            report.AppendLine("  3. 更新所有引用以使用唯一定义");
+            report.AppendLine("  4. 如果是项目内部工具，改为 file static class 限制作用域");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 从文件中提取工具类型定义（*Extensions, *Helper, *Utils, *Utilities）
+    /// Extract utility type definitions from file
+    /// </summary>
+    private static List<UtilityTypeInfo> ExtractUtilityTypeDefinitions(string filePath, string solutionRoot)
+    {
+        var types = new List<UtilityTypeInfo>();
+        
+        try
+        {
+            var lines = File.ReadAllLines(filePath);
+            var content = File.ReadAllText(filePath);
+            
+            // 提取命名空间
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
+
+            // 提取项目名
+            var projectName = ExtractProjectName(filePath, solutionRoot);
+
+            // 查找工具类型定义
+            // 支持: static class, file static class
+            var utilityPattern = new Regex(
+                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:static\s+)class\s+(?<typeName>\w+(?:Extensions|Helper|Utils|Utilities))\b",
+                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var match = utilityPattern.Match(lines[i]);
+                if (match.Success)
+                {
+                    types.Add(new UtilityTypeInfo
+                    {
+                        TypeName = match.Groups["typeName"].Value,
+                        FilePath = filePath,
+                        LineNumber = i + 1,
+                        Namespace = ns,
+                        ProjectName = projectName,
+                        IsFileScoped = match.Groups["fileScoped"].Success
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error extracting Utility types from {filePath}: {ex.Message}");
+        }
+
+        return types;
+    }
+
+    /// <summary>
     /// 从文件中提取 *Result 类型定义
     /// Extract *Result type definitions from file
     /// </summary>
@@ -1428,6 +1565,20 @@ public record OptionsTypeInfo
 /// Result type location information
 /// </summary>
 public record ResultTypeInfo
+{
+    public required string TypeName { get; init; }
+    public required string FilePath { get; init; }
+    public required int LineNumber { get; init; }
+    public required string Namespace { get; init; }
+    public required string ProjectName { get; init; }
+    public bool IsFileScoped { get; init; }
+}
+
+/// <summary>
+/// PR-SD6: Utility 类型位置信息
+/// Utility type location information (*Extensions, *Helper, *Utils, *Utilities)
+/// </summary>
+public record UtilityTypeInfo
 {
     public required string TypeName { get; init; }
     public required string FilePath { get; init; }
