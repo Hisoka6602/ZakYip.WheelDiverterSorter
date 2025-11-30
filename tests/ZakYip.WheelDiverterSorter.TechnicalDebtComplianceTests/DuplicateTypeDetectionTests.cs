@@ -626,6 +626,248 @@ public class DuplicateTypeDetectionTests
         }
     }
 
+    /// <summary>
+    /// PR-S4: 验证 *Options 类型不存在跨项目重复定义
+    /// Verify that *Options types are not duplicated across projects
+    /// </summary>
+    /// <remarks>
+    /// 此测试专门针对 *Options 类型进行检测，确保：
+    /// 1. 同名的 Options 类型不能在多个项目中定义
+    /// 2. 为确实需要复用的极少数类型提供显式白名单配置
+    /// 
+    /// 如果检测到重复定义，测试将失败并提示修复方案。
+    /// </remarks>
+    [Fact]
+    public void OptionsTypesShouldNotBeDuplicatedAcrossProjects()
+    {
+        var solutionRoot = GetSolutionRoot();
+        
+        // 显式白名单：允许在多个项目中存在的 Options 类型
+        // 只有经过架构评审的类型才能加入此白名单
+        var whitelist = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // 当前无白名单类型，所有 Options 都必须唯一
+        };
+        
+        var optionsTypesByName = new Dictionary<string, List<OptionsTypeInfo>>(StringComparer.OrdinalIgnoreCase);
+        
+        // 扫描 src 目录下所有 .cs 文件
+        var sourceFiles = Directory.GetFiles(
+            Path.Combine(solutionRoot, "src"),
+            "*.cs",
+            SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        // 收集所有 *Options 类型定义
+        foreach (var file in sourceFiles)
+        {
+            var types = ExtractOptionsTypeDefinitions(file, solutionRoot);
+            foreach (var type in types)
+            {
+                if (!optionsTypesByName.ContainsKey(type.TypeName))
+                {
+                    optionsTypesByName[type.TypeName] = new List<OptionsTypeInfo>();
+                }
+                optionsTypesByName[type.TypeName].Add(type);
+            }
+        }
+
+        // 查找跨项目重复的 Options 类型
+        var duplicates = optionsTypesByName
+            .Where(kvp => kvp.Value.Count > 1)
+            // 排除白名单类型
+            .Where(kvp => !whitelist.Contains(kvp.Key))
+            // 只有当在多个不同项目中定义时才算重复
+            .Where(kvp => kvp.Value.Select(t => t.ProjectName).Distinct().Count() > 1)
+            // 排除 file-scoped 类型
+            .Where(kvp => !kvp.Value.All(t => t.IsFileScoped))
+            .ToList();
+
+        if (duplicates.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-S4 违规: 发现 {duplicates.Count} 个 Options 类型存在跨项目重复定义:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (typeName, locations) in duplicates.OrderBy(d => d.Key))
+            {
+                report.AppendLine($"\n❌ {typeName}:");
+                foreach (var loc in locations.OrderBy(l => l.ProjectName))
+                {
+                    var relativePath = Path.GetRelativePath(solutionRoot, loc.FilePath);
+                    report.AppendLine($"   - 项目: {loc.ProjectName}");
+                    report.AppendLine($"     位置: {relativePath}:{loc.LineNumber}");
+                    report.AppendLine($"     命名空间: {loc.Namespace}");
+                }
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-S4 规范:");
+            report.AppendLine("  同名的 *Options 类型只能在一个项目中定义。");
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 保留唯一的权威定义（通常在 Core 或专属配置项目中）");
+            report.AppendLine("  2. 删除其他重复的定义");
+            report.AppendLine("  3. 更新所有引用以使用唯一定义");
+            report.AppendLine("  4. 如果确实需要复用，请将类型名加入 whitelist");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// PR-S4: 验证 Core 层不存在厂商命名的 *Options 类型
+    /// Verify that Core layer doesn't have vendor-named *Options types
+    /// </summary>
+    /// <remarks>
+    /// 此测试验证：
+    /// 1. Core 层不应存在以厂商名称开头的 Options 类型（如 LeadshineXxxOptions）
+    /// 2. 厂商特定的 Options 类型应定义在 Drivers/Vendors/[VendorName]/Configuration/ 目录下
+    /// 
+    /// 例如：LeadshineCabinetIoOptions 应在 Drivers/Vendors/Leadshine/Configuration/ 而不是 Core 中
+    /// </remarks>
+    [Fact]
+    public void CoreShouldNotHaveVendorNamedOptionsTypes()
+    {
+        var solutionRoot = GetSolutionRoot();
+        
+        // 厂商名称前缀列表
+        var vendorPrefixes = new[]
+        {
+            "Leadshine",
+            "Modi",
+            "ShuDiNiao",
+            "Siemens",
+            "Mitsubishi",
+            "Omron"
+        };
+        
+        var violations = new List<(string TypeName, string FilePath, int LineNumber, string Namespace)>();
+        
+        // 只扫描 Core 项目
+        var coreDir = Path.Combine(solutionRoot, "src", "Core");
+        if (!Directory.Exists(coreDir))
+        {
+            return; // Core 目录不存在，跳过
+        }
+
+        var sourceFiles = Directory.GetFiles(coreDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        foreach (var file in sourceFiles)
+        {
+            var types = ExtractOptionsTypeDefinitions(file, solutionRoot);
+            foreach (var type in types)
+            {
+                // 检查是否以厂商名称开头
+                var matchedVendor = vendorPrefixes.FirstOrDefault(v => 
+                    type.TypeName.StartsWith(v, StringComparison.OrdinalIgnoreCase));
+                
+                if (matchedVendor != null)
+                {
+                    violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-S4 违规: Core 层发现 {violations.Count} 个厂商命名的 Options 类型:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (typeName, filePath, lineNumber, ns) in violations)
+            {
+                var relativePath = Path.GetRelativePath(solutionRoot, filePath);
+                report.AppendLine($"\n❌ {typeName}:");
+                report.AppendLine($"   位置: {relativePath}:{lineNumber}");
+                report.AppendLine($"   命名空间: {ns}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-S4 规范:");
+            report.AppendLine("  厂商特定的 *Options 类型必须定义在 Drivers/Vendors/[VendorName]/Configuration/ 目录下。");
+            report.AppendLine("  Core 层应只包含厂商无关的配置抽象。");
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 将厂商命名的 Options 类型移动到对应的 Drivers/Vendors/[VendorName]/Configuration/ 目录");
+            report.AppendLine("  2. 在 Core 中使用厂商无关的抽象或 VendorProfileKey 模式");
+            report.AppendLine("  3. 更新所有引用以使用新位置");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 从文件中提取 *Options 类型定义
+    /// Extract *Options type definitions from file
+    /// </summary>
+    private static List<OptionsTypeInfo> ExtractOptionsTypeDefinitions(string filePath, string solutionRoot)
+    {
+        var types = new List<OptionsTypeInfo>();
+        
+        try
+        {
+            var lines = File.ReadAllLines(filePath);
+            var content = File.ReadAllText(filePath);
+            
+            // 提取命名空间
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
+
+            // 提取项目名
+            var projectName = ExtractProjectName(filePath, solutionRoot);
+
+            // 查找以 Options 结尾的类型定义
+            var optionsPattern = new Regex(
+                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+)?(?:class|struct|record)\s+(?<typeName>\w+Options)\b",
+                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var match = optionsPattern.Match(lines[i]);
+                if (match.Success)
+                {
+                    types.Add(new OptionsTypeInfo
+                    {
+                        TypeName = match.Groups["typeName"].Value,
+                        FilePath = filePath,
+                        LineNumber = i + 1,
+                        Namespace = ns,
+                        ProjectName = projectName,
+                        IsFileScoped = match.Groups["fileScoped"].Success
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error extracting Options types from {filePath}: {ex.Message}");
+        }
+
+        return types;
+    }
+
+    /// <summary>
+    /// 从文件路径提取项目名
+    /// Extract project name from file path
+    /// </summary>
+    private static string ExtractProjectName(string filePath, string solutionRoot)
+    {
+        var relativePath = Path.GetRelativePath(solutionRoot, filePath);
+        var parts = relativePath.Replace('\\', '/').Split('/');
+        
+        // 查找 .csproj 所在目录名作为项目名
+        // 路径格式通常为: src/[Layer]/[ProjectName]/[SubDirs]/[File].cs
+        // 例如: src/Core/ZakYip.WheelDiverterSorter.Core/Sorting/Policies/UpstreamConnectionOptions.cs
+        if (parts.Length >= 3 && parts[0] == "src")
+        {
+            return parts[2]; // 返回项目目录名
+        }
+        
+        return Path.GetFileName(Path.GetDirectoryName(filePath) ?? "Unknown");
+    }
+
     #region Helper Methods
 
     /// <summary>
@@ -804,4 +1046,18 @@ public record UnusedTypeViolation
     public required string FilePath { get; init; }
     public required int LineNumber { get; init; }
     public required string Namespace { get; init; }
+}
+
+/// <summary>
+/// PR-S4: Options 类型位置信息
+/// Options type location information
+/// </summary>
+public record OptionsTypeInfo
+{
+    public required string TypeName { get; init; }
+    public required string FilePath { get; init; }
+    public required int LineNumber { get; init; }
+    public required string Namespace { get; init; }
+    public required string ProjectName { get; init; }
+    public bool IsFileScoped { get; init; }
 }
