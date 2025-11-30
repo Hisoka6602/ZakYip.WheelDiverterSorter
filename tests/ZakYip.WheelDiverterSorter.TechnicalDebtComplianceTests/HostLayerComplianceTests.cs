@@ -18,6 +18,14 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 public class HostLayerComplianceTests
 {
     private static readonly string SolutionRoot = GetSolutionRoot();
+    
+    /// <summary>
+    /// 匹配 I*Service 接口定义的正则表达式
+    /// Regex pattern to match I*Service interface definitions
+    /// </summary>
+    private static readonly Regex ServiceInterfacePattern = new(
+        @"^\s*(?:public|internal)\s+(?:partial\s+)?interface\s+(?<name>I\w*Service)\b",
+        RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
 
     private static string GetSolutionRoot()
     {
@@ -122,21 +130,16 @@ public class HostLayerComplianceTests
             "ISystemStateManager"
         };
 
-        // 匹配 I*Service 接口定义
-        var serviceInterfacePattern = new Regex(
-            @"^\s*(?:public|internal)\s+(?:partial\s+)?interface\s+(I\w*Service)\b",
-            RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
-
         var violations = new List<ServiceInterfaceViolation>();
 
         foreach (var file in sourceFiles)
         {
             var content = File.ReadAllText(file);
-            var matches = serviceInterfacePattern.Matches(content);
+            var matches = ServiceInterfacePattern.Matches(content);
 
             foreach (Match match in matches)
             {
-                var interfaceName = match.Groups[1].Value;
+                var interfaceName = match.Groups["name"].Value;
 
                 // 跳过白名单中的接口
                 if (allowedInterfaces.Contains(interfaceName))
@@ -291,18 +294,16 @@ public class HostLayerComplianceTests
                 .ToList()
             : new List<string>();
 
-        var serviceInterfacePattern = new Regex(
-            @"^\s*(?:public|internal)\s+(?:partial\s+)?interface\s+(?<name>I\w*Service)\b",
-            RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.ExplicitCapture);
-
-        var foundInterfaces = new List<string>();
+        var foundInterfaces = new List<(string InterfaceName, string FileName, bool IsAllowed)>();
         foreach (var file in sourceFiles)
         {
             var content = File.ReadAllText(file);
-            var matches = serviceInterfacePattern.Matches(content);
+            var matches = ServiceInterfacePattern.Matches(content);
             foreach (Match match in matches)
             {
-                foundInterfaces.Add($"{match.Groups["name"].Value} ({Path.GetFileName(file)})");
+                var interfaceName = match.Groups["name"].Value;
+                var isAllowed = interfaceName == "ISystemStateManager";
+                foundInterfaces.Add((interfaceName, Path.GetFileName(file), isAllowed));
             }
         }
 
@@ -310,10 +311,9 @@ public class HostLayerComplianceTests
         {
             report.AppendLine("| Interface | File | Status |");
             report.AppendLine("|-----------|------|--------|");
-            foreach (var iface in foundInterfaces)
+            foreach (var (interfaceName, fileName, isAllowed) in foundInterfaces)
             {
-                var isAllowed = iface.Contains("ISystemStateManager");
-                report.AppendLine($"| {iface} | {(isAllowed ? "✅ Allowed" : "❌ VIOLATION")} |");
+                report.AppendLine($"| {interfaceName} | {fileName} | {(isAllowed ? "✅ Allowed" : "❌ VIOLATION")} |");
             }
         }
         else
