@@ -47,7 +47,7 @@ public record class SimulationScenario
     /// <remarks>
     /// 如果为 null，则使用系统默认拓扑配置。
     /// </remarks>
-    public SimulationTopology? Topology { get; init; }
+    public SimulationTopologyConfig? Topology { get; init; }
 
     /// <summary>
     /// 包裹生成配置
@@ -71,7 +71,7 @@ public record class SimulationScenario
 /// <summary>
 /// 仿真拓扑配置
 /// </summary>
-public record class SimulationTopology
+public record class SimulationTopologyConfig
 {
     /// <summary>
     /// 摆轮节点数量
