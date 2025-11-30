@@ -24,6 +24,20 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class DuplicateTypeDetectionTests
 {
+    /// <summary>
+    /// PR-SD1: Core 抽象接口名称列表（必须且只能定义在 Core.Abstractions 中）
+    /// </summary>
+    /// <remarks>
+    /// 这些接口遵循 C# 命名约定（I 前缀），在整个解决方案中仅允许在 Core 项目定义。
+    /// </remarks>
+    private static readonly string[] CoreAbstractionInterfaces = 
+    {
+        "ICongestionDataCollector",
+        "ISensorEventProvider",
+        "IUpstreamRoutingClient",
+        "IUpstreamContractMapper"
+    };
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -497,15 +511,6 @@ public class DuplicateTypeDetectionTests
     public void ExecutionProjectShouldNotDefineCoreAbstractionInterfaces()
     {
         var solutionRoot = GetSolutionRoot();
-        
-        // Core 抽象接口名称列表（必须只定义在 Core 中）
-        var coreAbstractionInterfaces = new[]
-        {
-            "ICongestionDataCollector",
-            "ISensorEventProvider",
-            "IUpstreamRoutingClient",
-            "IUpstreamContractMapper"
-        };
 
         var executionDir = Path.Combine(solutionRoot, "src", "Execution");
         if (!Directory.Exists(executionDir))
@@ -524,7 +529,7 @@ public class DuplicateTypeDetectionTests
             var types = ExtractInterfaceDefinitions(file);
             foreach (var type in types)
             {
-                if (coreAbstractionInterfaces.Contains(type.TypeName))
+                if (CoreAbstractionInterfaces.Contains(type.TypeName))
                 {
                     violations.Add((type.TypeName, type.FilePath, type.LineNumber));
                 }
@@ -569,22 +574,12 @@ public class DuplicateTypeDetectionTests
     public void CoreAbstractionInterfacesShouldOnlyBeDefinedInCore()
     {
         var solutionRoot = GetSolutionRoot();
-        
-        // Core 抽象接口名称列表（必须只定义在 Core 中）
-        var coreAbstractionInterfaces = new[]
-        {
-            "ICongestionDataCollector",
-            "ISensorEventProvider",
-            "IUpstreamRoutingClient",
-            "IUpstreamContractMapper"
-        };
 
         var srcDir = Path.Combine(solutionRoot, "src");
-        var coreDir = Path.Combine(srcDir, "Core");
 
         var sourceFiles = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
             .Where(f => !IsInExcludedDirectory(f))
-            .Where(f => !f.Replace('\\', '/').Contains("/Core/")) // 排除 Core 项目
+            .Where(f => !IsInCoreProject(solutionRoot, f)) // 排除 Core 项目
             .ToList();
 
         var violations = new List<(string InterfaceName, string FilePath, int LineNumber, string Namespace)>();
@@ -594,7 +589,7 @@ public class DuplicateTypeDetectionTests
             var types = ExtractInterfaceDefinitions(file);
             foreach (var type in types)
             {
-                if (coreAbstractionInterfaces.Contains(type.TypeName))
+                if (CoreAbstractionInterfaces.Contains(type.TypeName))
                 {
                     violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
                 }
@@ -618,7 +613,7 @@ public class DuplicateTypeDetectionTests
             report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             report.AppendLine("\n💡 根据 PR-SD1 规范:");
             report.AppendLine("  以下接口只能定义在 Core.Abstractions 中:");
-            foreach (var interfaceName in coreAbstractionInterfaces)
+            foreach (var interfaceName in CoreAbstractionInterfaces)
             {
                 report.AppendLine($"     - {interfaceName}");
             }
@@ -636,6 +631,10 @@ public class DuplicateTypeDetectionTests
     /// <summary>
     /// 从文件中提取接口定义
     /// </summary>
+    /// <remarks>
+    /// 此方法检测遵循 C# 命名约定（以 'I' 开头）的接口定义。
+    /// 由于 PR-SD1 规范涉及的所有接口都遵循此约定，这是足够的检测方式。
+    /// </remarks>
     private static List<TypeLocationInfo> ExtractInterfaceDefinitions(string filePath)
     {
         var types = new List<TypeLocationInfo>();
@@ -649,7 +648,8 @@ public class DuplicateTypeDetectionTests
             var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
             var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
 
-            // 查找接口定义
+            // 查找接口定义（遵循 C# 命名约定，以 I 开头）
+            // PR-SD1 规范的所有接口都遵循此命名约定
             var interfacePattern = new Regex(
                 @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:partial\s+)?interface\s+(?<typeName>I\w+)",
                 RegexOptions.Compiled | RegexOptions.ExplicitCapture);
@@ -683,6 +683,20 @@ public class DuplicateTypeDetectionTests
         var normalizedPath = filePath.Replace('\\', '/');
         var excludedDirs = new[] { "/obj/", "/bin/" };
         return excludedDirs.Any(dir => normalizedPath.Contains(dir));
+    }
+
+    /// <summary>
+    /// 检查文件是否位于 Core 项目目录中
+    /// </summary>
+    /// <param name="solutionRoot">解决方案根目录</param>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>如果文件在 Core 项目中返回 true</returns>
+    private static bool IsInCoreProject(string solutionRoot, string filePath)
+    {
+        var coreDir = Path.Combine(solutionRoot, "src", "Core");
+        var relativePath = Path.GetRelativePath(coreDir, filePath);
+        // 如果文件在 Core 目录下，相对路径不会以 ".." 开头
+        return !relativePath.StartsWith("..");
     }
 
     private static bool IsCommonFrameworkType(string typeName)
