@@ -1148,13 +1148,24 @@ public class DuplicateTypeDetectionTests
             utilityTypesByName[type.TypeName].Add(type);
         }
 
-        // 查找跨命名空间重复的工具类型（排除 file-scoped 类型）
+        // 查找跨命名空间重复的工具类型
+        // 规则：只有非 file-scoped 的工具类型之间存在重复时才报错
+        // file-scoped 类型之间允许同名（因为它们作用域限制在单个文件）
         var duplicates = utilityTypesByName
             .Where(kvp => kvp.Value.Count > 1)
             // 只有当在多个不同命名空间中定义时才算重复
             .Where(kvp => kvp.Value.Select(t => t.Namespace).Distinct().Count() > 1)
-            // 排除 file-scoped 类型
-            .Where(kvp => !kvp.Value.All(t => t.IsFileScoped))
+            // 只检查非 file-scoped 类型之间的重复
+            // 如果所有类型都是 file-scoped，则不报错（它们可以同名）
+            // 如果有多个非 file-scoped 类型在不同命名空间，则报错
+            .Where(kvp => 
+            {
+                var nonFileScopedTypes = kvp.Value.Where(t => !t.IsFileScoped).ToList();
+                // 如果只有一个或零个非 file-scoped 类型，不算重复
+                if (nonFileScopedTypes.Count <= 1) return false;
+                // 如果多个非 file-scoped 类型在不同命名空间，则是重复
+                return nonFileScopedTypes.Select(t => t.Namespace).Distinct().Count() > 1;
+            })
             .ToList();
 
         if (duplicates.Any())
@@ -1206,17 +1217,24 @@ public class DuplicateTypeDetectionTests
             var lines = File.ReadAllLines(filePath);
             var content = File.ReadAllText(filePath);
             
-            // 提取命名空间
-            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            // 提取命名空间（支持传统语法和 C# 10+ file-scoped 语法）
+            // 传统: namespace Name { ... }
+            // File-scoped: namespace Name;
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)\s*[;{]");
             var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
 
             // 提取项目名
             var projectName = ExtractProjectName(filePath, solutionRoot);
 
             // 查找工具类型定义
-            // 支持: static class, file static class
+            // 支持多种修饰符顺序：
+            //   - public static class Name
+            //   - internal static class Name  
+            //   - static public class Name (有效但不推荐)
+            //   - static internal class Name (有效但不推荐)
+            //   - file static class Name
             var utilityPattern = new Regex(
-                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:static\s+)class\s+(?<typeName>\w+(?:Extensions|Helper|Utils|Utilities))\b",
+                @"^\s*(?<fileScoped>file\s+)?(?:(?:public|internal|private)\s+static|static\s+(?:public|internal|private))\s+class\s+(?<typeName>\w+(?:Extensions|Helper|Utils|Utilities))\b",
                 RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
             for (int i = 0; i < lines.Length; i++)
