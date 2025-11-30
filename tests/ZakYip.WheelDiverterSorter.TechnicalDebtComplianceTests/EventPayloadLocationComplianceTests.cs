@@ -55,7 +55,7 @@ public class EventPayloadLocationComplianceTests
         "ReroutingFailedEventArgs",            // EnhancedPathFailureHandler.cs
         
         // 仿真项目特有的事件参数
-        "ParcelSimulationResultEventArgs",     // ParcelSimulationResult.cs
+        "SimulatedParcelResultEventArgs",      // ParcelSimulationResult.cs
     };
 
     /// <summary>

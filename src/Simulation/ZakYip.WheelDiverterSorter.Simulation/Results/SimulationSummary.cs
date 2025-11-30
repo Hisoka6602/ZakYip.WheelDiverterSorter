@@ -94,5 +94,5 @@ public class SimulationSummary
     /// <summary>
     /// 包裹结果列表（用于详细分析和测试断言）
     /// </summary>
-    public List<ParcelSimulationResultEventArgs> Parcels { get; set; } = new();
+    public List<SimulatedParcelResultEventArgs> Parcels { get; set; } = new();
 }
