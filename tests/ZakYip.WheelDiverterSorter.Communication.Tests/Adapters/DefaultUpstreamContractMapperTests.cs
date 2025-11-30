@@ -1,13 +1,7 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Communication.Adapters;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
-using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Adapters;
@@ -27,11 +21,11 @@ public class DefaultUpstreamContractMapperTests
         _mapper = new DefaultUpstreamContractMapper();
     }
 
-    [Fact(DisplayName = "ProtocolName 应返回 Default")]
-    public void ProtocolName_ShouldReturnDefault()
+    [Fact(DisplayName = "ProtocolType 应返回 Default")]
+    public void ProtocolType_ShouldReturnDefault()
     {
         // Assert
-        Assert.Equal("Default", _mapper.ProtocolName);
+        Assert.Equal(UpstreamProtocolType.Default, _mapper.ProtocolType);
     }
 
     #region MapToUpstreamRequest 测试

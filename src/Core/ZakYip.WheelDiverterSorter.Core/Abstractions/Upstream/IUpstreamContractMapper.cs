@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 
@@ -43,7 +44,7 @@ public interface IUpstreamContractMapper
     /// <remarks>
     /// 用于标识此映射器所适配的上游协议类型，如 HTTP、TCP、SignalR 等
     /// </remarks>
-    string ProtocolName { get; }
+    UpstreamProtocolType ProtocolType { get; }
 
     /// <summary>
     /// 将领域层分拣请求映射为上游协议请求
