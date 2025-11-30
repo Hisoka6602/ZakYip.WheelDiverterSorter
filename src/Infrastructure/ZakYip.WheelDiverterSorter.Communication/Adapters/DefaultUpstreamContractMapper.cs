@@ -1,11 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
-using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Adapters;
@@ -20,7 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Adapters;
 public sealed class DefaultUpstreamContractMapper : IUpstreamContractMapper
 {
     /// <inheritdoc/>
-    public string ProtocolName => "Default";
+    public UpstreamProtocolType ProtocolType => UpstreamProtocolType.Default;
 
     /// <inheritdoc/>
     public UpstreamSortingRequest MapToUpstreamRequest(SortingRequest request)
@@ -52,7 +46,7 @@ public sealed class DefaultUpstreamContractMapper : IUpstreamContractMapper
             ReasonCode = response.IsSuccess ? "SUCCESS" : "UPSTREAM_FAILED",
             ErrorMessage = response.ErrorMessage,
             ResponseTime = response.ResponseTime,
-            Source = ProtocolName,
+            Source = ProtocolType.ToString(),
             Metadata = response.Metadata
         };
     }
@@ -70,7 +64,7 @@ public sealed class DefaultUpstreamContractMapper : IUpstreamContractMapper
             IsException = false,
             ReasonCode = "SUCCESS",
             ResponseTime = notification.NotificationTime,
-            Source = notification.Source ?? ProtocolName,
+            Source = notification.Source ?? ProtocolType.ToString(),
             Metadata = notification.Metadata
         };
     }
