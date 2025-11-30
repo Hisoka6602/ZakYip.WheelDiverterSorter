@@ -113,7 +113,7 @@ public class TypeLocationComplianceTests
         report.AppendLine("3. **命名约定**: 类型名必须以 `EventArgs` 结尾");
         report.AppendLine("\n⚠️ 标记的命名空间是遗留位置，后续 PR 会逐步迁移到 Core.Events。");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         Assert.True(true, "Audit report generated successfully");
     }
 
@@ -184,7 +184,7 @@ public class TypeLocationComplianceTests
         report.AppendLine("2. **目标命名空间**: `ZakYip.WheelDiverterSorter.Core.Enums.[子命名空间]`");
         report.AppendLine("\n⚠️ 标记的命名空间是遗留位置，后续 PR 会逐步迁移到 Core.Enums。");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         Assert.True(true, "Audit report generated successfully");
     }
 

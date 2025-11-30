@@ -228,7 +228,7 @@ public class EventPayloadLocationComplianceTests
         report.AppendLine("2. **命名空间**: 必须是 `ZakYip.WheelDiverterSorter.Core.Events`");
         report.AppendLine("3. **命名约定**: 类型名必须以 `EventArgs` 结尾");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         Assert.True(true, "Audit report generated successfully");
     }
 

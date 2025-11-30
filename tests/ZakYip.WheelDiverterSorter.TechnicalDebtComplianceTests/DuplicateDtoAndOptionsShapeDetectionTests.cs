@@ -301,7 +301,7 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
             }
         }
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         
         Assert.True(true, "Audit report generated successfully");
     }
@@ -352,10 +352,8 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
                 Path.Combine(solutionRoot, "src", "Host", "ZakYip.WheelDiverterSorter.Host", "bin")
             };
 
-            foreach (var binPath in binPaths)
+            foreach (var binPath in binPaths.Where(Directory.Exists))
             {
-                if (!Directory.Exists(binPath)) continue;
-                
                 var dllFiles = Directory.GetFiles(binPath, "ZakYip.WheelDiverterSorter.*.dll", SearchOption.AllDirectories)
                     .Where(f => !ExcludedAssemblyPatterns.Any(p => f.Contains(p, StringComparison.Ordinal)));
 

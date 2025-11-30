@@ -258,7 +258,7 @@ public class DuplicateTypeDetectionTests_PublicTypes
             report.AppendLine($"- `{name}`");
         }
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         
         Assert.True(true, "Audit report generated successfully");
     }
@@ -312,10 +312,8 @@ public class DuplicateTypeDetectionTests_PublicTypes
                 Path.Combine(solutionRoot, "src", "Simulation", "ZakYip.WheelDiverterSorter.Simulation", "bin")
             };
 
-            foreach (var binPath in binPaths)
+            foreach (var binPath in binPaths.Where(Directory.Exists))
             {
-                if (!Directory.Exists(binPath)) continue;
-                
                 var dllFiles = Directory.GetFiles(binPath, "ZakYip.WheelDiverterSorter.*.dll", SearchOption.AllDirectories)
                     .Where(f => !ExcludedAssemblyPatterns.Any(p => f.Contains(p, StringComparison.Ordinal)));
 

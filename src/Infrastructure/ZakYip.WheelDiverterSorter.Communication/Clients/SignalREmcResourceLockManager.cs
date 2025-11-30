@@ -147,7 +147,7 @@ public class SignalREmcResourceLockManager : EmcResourceLockManagerBase
             if (lockEvent.InstanceId != InstanceId)
             {
                 // 触发事件，通知上层应用
-                OnEmcLockEventReceived(new EmcLockEventArgs { EventId = lockEvent.EventId, InstanceId = lockEvent.InstanceId, NotificationType = lockEvent.NotificationType, CardNo = lockEvent.CardNo, Timestamp = lockEvent.Timestamp, Message = lockEvent.Message, TimeoutMs = lockEvent.TimeoutMs });
+                OnEmcLockEventReceived(CreateEventArgsFromLockEvent(lockEvent));
 
                 // 自动响应某些类型的请求
                 if (lockEvent.NotificationType == EmcLockNotificationType.RequestLock ||
