@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;

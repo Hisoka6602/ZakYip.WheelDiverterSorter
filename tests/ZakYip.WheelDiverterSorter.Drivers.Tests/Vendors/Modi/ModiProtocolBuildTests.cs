@@ -1,4 +1,5 @@
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Modi;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Vendors.Modi;

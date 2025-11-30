@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Modi;
 
 /// <summary>

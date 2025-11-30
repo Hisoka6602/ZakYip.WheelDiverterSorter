@@ -1,4 +1,7 @@
-using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Events.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 

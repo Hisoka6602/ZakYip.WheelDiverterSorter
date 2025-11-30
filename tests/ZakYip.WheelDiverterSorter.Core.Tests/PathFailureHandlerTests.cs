@@ -6,7 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Execution.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Path;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 

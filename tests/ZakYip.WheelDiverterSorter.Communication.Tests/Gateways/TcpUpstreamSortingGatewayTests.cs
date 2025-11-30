@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;

@@ -1,8 +1,9 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;

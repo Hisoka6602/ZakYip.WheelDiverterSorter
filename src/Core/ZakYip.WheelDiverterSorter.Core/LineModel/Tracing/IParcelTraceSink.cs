@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 
 /// <summary>

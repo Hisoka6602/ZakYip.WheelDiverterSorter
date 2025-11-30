@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Abstractions;

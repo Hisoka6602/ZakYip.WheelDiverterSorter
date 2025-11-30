@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Communication;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -146,7 +147,7 @@ public class SignalREmcResourceLockManager : EmcResourceLockManagerBase
             if (lockEvent.InstanceId != InstanceId)
             {
                 // 触发事件，通知上层应用
-                OnEmcLockEventReceived(new EmcLockEventArgs(lockEvent));
+                OnEmcLockEventReceived(new EmcLockEventArgs { EventId = lockEvent.EventId, InstanceId = lockEvent.InstanceId, NotificationType = lockEvent.NotificationType, CardNo = lockEvent.CardNo, Timestamp = lockEvent.Timestamp, Message = lockEvent.Message, TimeoutMs = lockEvent.TimeoutMs });
 
                 // 自动响应某些类型的请求
                 if (lockEvent.NotificationType == EmcLockNotificationType.RequestLock ||

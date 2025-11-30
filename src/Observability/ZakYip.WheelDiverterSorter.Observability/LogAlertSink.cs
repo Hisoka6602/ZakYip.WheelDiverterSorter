@@ -1,8 +1,11 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Events.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 

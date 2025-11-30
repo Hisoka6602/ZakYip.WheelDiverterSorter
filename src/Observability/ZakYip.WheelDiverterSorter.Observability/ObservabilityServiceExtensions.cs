@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
 

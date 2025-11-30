@@ -1,0 +1,128 @@
+using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Execution.Routing;
+
+namespace ZakYip.WheelDiverterSorter.Application.Services.Sorting;
+
+/// <summary>
+/// 改口服务实现
+/// </summary>
+public class ChangeParcelChuteService : IChangeParcelChuteService
+{
+    private readonly IRoutePlanRepository _routePlanRepository;
+    private readonly IRouteReplanner _routeReplanner;
+    private readonly ISystemClock _clock;
+    private readonly ILogger<ChangeParcelChuteService> _logger;
+
+    public ChangeParcelChuteService(
+        IRoutePlanRepository routePlanRepository,
+        IRouteReplanner routeReplanner,
+        ISystemClock clock,
+        ILogger<ChangeParcelChuteService> logger)
+    {
+        _routePlanRepository = routePlanRepository ?? throw new ArgumentNullException(nameof(routePlanRepository));
+        _routeReplanner = routeReplanner ?? throw new ArgumentNullException(nameof(routeReplanner));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    /// <inheritdoc />
+    public async Task<ChangeParcelChuteResult> ChangeParcelChuteAsync(
+        ChangeParcelChuteCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+
+        var requestedAt = command.RequestedAt ?? new DateTimeOffset(_clock.LocalNow);
+
+        _logger.LogInformation(
+            "Processing chute change request for parcel {ParcelId} to chute {ChuteId}",
+            command.ParcelId, command.RequestedChuteId);
+
+        // 1. 加载路由计划
+        var routePlan = await _routePlanRepository.GetByParcelIdAsync(command.ParcelId, cancellationToken);
+
+        if (routePlan == null)
+        {
+            _logger.LogWarning(
+                "Route plan not found for parcel {ParcelId}",
+                command.ParcelId);
+
+            return ChangeParcelChuteResult.Failure(
+                command.ParcelId,
+                command.RequestedChuteId,
+                new DateTimeOffset(_clock.LocalNow),
+                $"Route plan not found for parcel {command.ParcelId}");
+        }
+
+        // 2. 调用领域方法尝试改口
+        var result = routePlan.TryApplyChuteChange(
+            command.RequestedChuteId,
+            requestedAt,
+            out var decision);
+
+        var originalChuteId = decision.OriginalChuteId;
+
+        // 3. 根据决策结果处理
+        if (result.IsSuccess && decision.Outcome == ChuteChangeOutcome.Accepted)
+        {
+            _logger.LogInformation(
+                "Chute change accepted for parcel {ParcelId}: {OriginalChute} -> {NewChute}",
+                command.ParcelId, originalChuteId, command.RequestedChuteId);
+
+            // 4. 调用Execution层重规划路径
+            var replanResult = await _routeReplanner.ReplanAsync(
+                command.ParcelId,
+                command.RequestedChuteId,
+                requestedAt,
+                cancellationToken);
+
+            if (!replanResult.IsSuccess)
+            {
+                _logger.LogWarning(
+                    "Replan failed for parcel {ParcelId}: {Reason}",
+                    command.ParcelId, replanResult.FailureReason);
+
+                // 重规划失败，但领域层已接受改口，这是不一致状态
+                // 实际应用中可能需要回滚或进入异常处理流程
+                // 这里简化处理：标记为异常路由
+                routePlan.MarkAsExceptionRouted(new DateTimeOffset(_clock.LocalNow));
+            }
+
+            // 5. 保存更新后的路由计划
+            await _routePlanRepository.SaveAsync(routePlan, cancellationToken);
+
+            return ChangeParcelChuteResult.Success(
+                command.ParcelId,
+                originalChuteId,
+                command.RequestedChuteId,
+                decision.AppliedChuteId ?? command.RequestedChuteId,
+                decision.Outcome,
+                new DateTimeOffset(_clock.LocalNow),
+                replanResult.IsSuccess
+                    ? "Chute change accepted and path replanned successfully"
+                    : $"Chute change accepted but replan failed: {replanResult.FailureReason}");
+        }
+        else
+        {
+            // 改口被忽略或拒绝
+            _logger.LogInformation(
+                "Chute change ignored/rejected for parcel {ParcelId}: Outcome={Outcome}, Reason={Reason}",
+                command.ParcelId, decision.Outcome, decision.Reason);
+
+            // 保存更新后的路由计划（记录了领域事件）
+            await _routePlanRepository.SaveAsync(routePlan, cancellationToken);
+
+            return ChangeParcelChuteResult.Success(
+                command.ParcelId,
+                originalChuteId,
+                command.RequestedChuteId,
+                decision.AppliedChuteId ?? originalChuteId,
+                decision.Outcome,
+                new DateTimeOffset(_clock.LocalNow),
+                decision.Reason);
+        }
+    }
+}

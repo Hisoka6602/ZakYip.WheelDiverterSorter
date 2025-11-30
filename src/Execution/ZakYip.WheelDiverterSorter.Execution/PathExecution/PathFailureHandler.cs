@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Execution.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Path;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;

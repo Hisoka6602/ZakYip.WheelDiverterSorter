@@ -154,7 +154,8 @@ public class SortingOrchestratorComplianceTests
             "src", 
             "Application", 
             "ZakYip.WheelDiverterSorter.Application", 
-            "Services");
+            "Services",
+            "Sorting");
 
         // 需要检查的服务文件
         var sortingServiceFiles = new[]
@@ -163,10 +164,25 @@ public class SortingOrchestratorComplianceTests
             "OptimizedSortingService.cs"
         };
 
+        // Also check old location for backward compatibility during migration
+        var oldApplicationServicesPath = Path.Combine(
+            solutionRoot, 
+            "src", 
+            "Application", 
+            "ZakYip.WheelDiverterSorter.Application", 
+            "Services");
+
         var foundServices = new List<string>();
         foreach (var fileName in sortingServiceFiles)
         {
+            // Try new location first
             var filePath = Path.Combine(applicationServicesPath, fileName);
+            
+            // Fall back to old location if not found
+            if (!File.Exists(filePath))
+            {
+                filePath = Path.Combine(oldApplicationServicesPath, fileName);
+            }
             
             if (!File.Exists(filePath))
             {

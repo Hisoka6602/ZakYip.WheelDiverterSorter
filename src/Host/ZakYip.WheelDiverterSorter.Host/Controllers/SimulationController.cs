@@ -8,7 +8,8 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Host.Models;
-using ApplicationServices = ZakYip.WheelDiverterSorter.Application.Services;
+using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
+using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
@@ -42,9 +43,9 @@ public class SimulationController : ControllerBase
     private readonly ISystemClock _clock;
     private readonly IPanelInputReader _panelInputReader;
     private readonly ISignalTowerOutput _signalTowerOutput;
-    private readonly ApplicationServices.ISimulationModeProvider _simulationModeProvider;
+    private readonly ISimulationModeProvider _simulationModeProvider;
     private readonly ISimulationScenarioRunner? _scenarioRunner;
-    private readonly ApplicationServices.IDebugSortService? _debugSortService;
+    private readonly IDebugSortService? _debugSortService;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SimulationController> _logger;
     private static CancellationTokenSource? _simulationCts;
@@ -56,11 +57,11 @@ public class SimulationController : ControllerBase
         ISystemClock clock,
         IPanelInputReader panelInputReader,
         ISignalTowerOutput signalTowerOutput,
-        ApplicationServices.ISimulationModeProvider simulationModeProvider,
+        ISimulationModeProvider simulationModeProvider,
         IWebHostEnvironment environment,
         ILogger<SimulationController> logger,
         ISimulationScenarioRunner? scenarioRunner = null,
-        ApplicationServices.IDebugSortService? debugSortService = null)
+        IDebugSortService? debugSortService = null)
     {
         _stateManager = stateManager;
         _clock = clock;

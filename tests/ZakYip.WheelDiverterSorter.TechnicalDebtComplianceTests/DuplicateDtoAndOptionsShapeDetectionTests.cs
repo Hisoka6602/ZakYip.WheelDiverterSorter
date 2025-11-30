@@ -82,6 +82,14 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
         // 现有技术债务 - ModiOptions vs ShuDiNiaoOptions
         // 这两个厂商配置类结构相同，但语义不同（不同厂商），是否合并需要评审
         "ModiOptions,ShuDiNiaoOptions",
+        
+        // 现有技术债务 - OverloadPolicyConfiguration vs OverloadPolicyDto
+        // Core配置模型和Host DTO，结构相同但用途不同（内部配置 vs API传输）
+        "OverloadPolicyConfiguration,OverloadPolicyDto",
+        
+        // 现有技术债务 - StartButtonConfigDto vs StopButtonConfigDto
+        // 这两个按钮配置DTO结构相同，但语义不同（启动按钮 vs 停止按钮）
+        "StartButtonConfigDto,StopButtonConfigDto",
     };
 
     /// <summary>

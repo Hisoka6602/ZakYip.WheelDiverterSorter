@@ -1,6 +1,6 @@
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 

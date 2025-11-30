@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Sorting.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests.Sorting.Events;
 
