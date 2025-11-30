@@ -13,6 +13,13 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class SimulationEventTests
 {
+    private const string SimulatedPrefix = "Simulated";
+    
+    // 静态正则表达式，避免每次调用时重新编译
+    private static readonly Regex EventPattern = new(
+        @"^\s*(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)|record|class|struct)\s+(?<name>\w+(?:EventArgs|Event))\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -82,7 +89,7 @@ public class SimulationEventTests
                 var relativePath = Path.GetRelativePath(solutionRoot, violation.FilePath);
                 report.AppendLine($"\n❌ {violation.TypeName}:");
                 report.AppendLine($"   位置: {relativePath}:{violation.LineNumber}");
-                report.AppendLine($"   建议名称: Simulated{violation.SuggestedSuffix}");
+                report.AppendLine($"   建议名称: {violation.SuggestedName}");
             }
 
             report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -164,7 +171,7 @@ public class SimulationEventTests
             foreach (var evt in incorrectlyPrefixed.OrderBy(e => e.TypeName))
             {
                 var relativePath = Path.GetRelativePath(solutionRoot, evt.FilePath);
-                var suggestedName = $"Simulated{evt.TypeName}";
+                var suggestedName = GetSuggestedSimulatedName(evt.TypeName);
                 report.AppendLine($"| {evt.TypeName} | {suggestedName} | {relativePath}:{evt.LineNumber} |");
             }
             report.AppendLine();
@@ -189,6 +196,14 @@ public class SimulationEventTests
     }
 
     /// <summary>
+    /// 生成建议的仿真事件名称（添加 Simulated 前缀）
+    /// </summary>
+    private static string GetSuggestedSimulatedName(string typeName)
+    {
+        return $"{SimulatedPrefix}{typeName}";
+    }
+
+    /// <summary>
     /// 检测仿真事件命名违规
     /// </summary>
     private static List<SimulationEventViolation> DetectSimulationEventViolations(string filePath, string solutionRoot)
@@ -199,30 +214,22 @@ public class SimulationEventTests
         {
             var lines = File.ReadAllLines(filePath);
 
-            // 匹配以 EventArgs 或 Event 结尾的类型定义
-            var eventPattern = new Regex(
-                @"^\s*(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)|record|class|struct)\s+(?<name>\w+(?:EventArgs|Event))\b",
-                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-
             for (int i = 0; i < lines.Length; i++)
             {
-                var match = eventPattern.Match(lines[i]);
+                var match = EventPattern.Match(lines[i]);
                 if (match.Success)
                 {
                     var typeName = match.Groups["name"].Value;
                     
                     // 检查是否以 Simulated 开头
-                    if (!typeName.StartsWith("Simulated", StringComparison.Ordinal))
+                    if (!typeName.StartsWith(SimulatedPrefix, StringComparison.Ordinal))
                     {
-                        // 计算建议的后缀名
-                        var suggestedSuffix = typeName;
-                        
                         violations.Add(new SimulationEventViolation
                         {
                             TypeName = typeName,
                             FilePath = filePath,
                             LineNumber = i + 1,
-                            SuggestedSuffix = suggestedSuffix
+                            SuggestedName = GetSuggestedSimulatedName(typeName)
                         });
                     }
                 }
@@ -247,17 +254,13 @@ public class SimulationEventTests
         {
             var lines = File.ReadAllLines(filePath);
 
-            var eventPattern = new Regex(
-                @"^\s*(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)|record|class|struct)\s+(?<name>\w+(?:EventArgs|Event))\b",
-                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-
             for (int i = 0; i < lines.Length; i++)
             {
-                var match = eventPattern.Match(lines[i]);
+                var match = EventPattern.Match(lines[i]);
                 if (match.Success)
                 {
                     var typeName = match.Groups["name"].Value;
-                    var hasSimulatedPrefix = typeName.StartsWith("Simulated", StringComparison.Ordinal);
+                    var hasSimulatedPrefix = typeName.StartsWith(SimulatedPrefix, StringComparison.Ordinal);
 
                     types.Add(new SimulationEventTypeInfo
                     {
@@ -301,9 +304,9 @@ public record SimulationEventViolation
     public required int LineNumber { get; init; }
 
     /// <summary>
-    /// 建议的后缀名（用于生成 Simulated* 名称）
+    /// 建议的名称（包含 Simulated 前缀）
     /// </summary>
-    public required string SuggestedSuffix { get; init; }
+    public required string SuggestedName { get; init; }
 }
 
 /// <summary>

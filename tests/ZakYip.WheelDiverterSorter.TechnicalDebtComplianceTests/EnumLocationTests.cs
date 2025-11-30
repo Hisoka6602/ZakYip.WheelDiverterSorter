@@ -16,6 +16,19 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class EnumLocationTests
 {
+    // 静态正则表达式，避免每次调用时重新编译
+    private static readonly Regex InterfacePattern = new(
+        @"^\s*(?:public|internal|private|protected)\s+(?:partial\s+)?interface\s+(?<name>\w+)", 
+        RegexOptions.Compiled);
+    
+    private static readonly Regex DtoClassPattern = new(
+        @"^\s*(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+)(?<name>\w+Dto)\b", 
+        RegexOptions.Compiled);
+    
+    private static readonly Regex EnumPattern = new(
+        @"^\s*(?:public|internal|private|protected)\s+enum\s+(?<name>\w+)", 
+        RegexOptions.Compiled);
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -114,17 +127,12 @@ public class EnumLocationTests
             int containerStartLine = 0;
             int containerBraceDepth = 0;
 
-            // 正则表达式匹配
-            var interfacePattern = new Regex(@"^\s*(?:public|internal|private|protected)\s+(?:partial\s+)?interface\s+(?<name>\w+)", RegexOptions.Compiled);
-            var dtoClassPattern = new Regex(@"^\s*(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+)(?<name>\w+Dto)\b", RegexOptions.Compiled);
-            var enumPattern = new Regex(@"^\s*(?:public|internal|private|protected)\s+enum\s+(?<name>\w+)", RegexOptions.Compiled);
-
             for (int i = 0; i < lines.Length; i++)
             {
                 var line = lines[i];
 
                 // 检查是否进入接口定义
-                var interfaceMatch = interfacePattern.Match(line);
+                var interfaceMatch = InterfacePattern.Match(line);
                 if (interfaceMatch.Success && currentContainerType == null)
                 {
                     currentContainerType = interfaceMatch.Groups["name"].Value;
@@ -134,7 +142,7 @@ public class EnumLocationTests
                 }
 
                 // 检查是否进入DTO类定义
-                var dtoMatch = dtoClassPattern.Match(line);
+                var dtoMatch = DtoClassPattern.Match(line);
                 if (dtoMatch.Success && currentContainerType == null)
                 {
                     currentContainerType = dtoMatch.Groups["name"].Value;
@@ -150,7 +158,7 @@ public class EnumLocationTests
                 // 检查是否在容器内定义了枚举
                 if (currentContainerType != null && braceDepth > containerBraceDepth)
                 {
-                    var enumMatch = enumPattern.Match(line);
+                    var enumMatch = EnumPattern.Match(line);
                     if (enumMatch.Success)
                     {
                         violations.Add(new EnumInlineViolation

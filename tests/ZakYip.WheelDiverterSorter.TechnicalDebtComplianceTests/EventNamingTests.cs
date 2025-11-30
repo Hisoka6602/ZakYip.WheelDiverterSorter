@@ -14,6 +14,11 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class EventNamingTests
 {
+    // 静态正则表达式，避免每次调用时重新编译
+    private static readonly Regex EventArgsPattern = new(
+        @"^\s*(?<modifiers>(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?)(?<kind>record\s+(?:class|struct)|record|class|struct)\s+(?<name>\w+EventArgs)\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -197,17 +202,10 @@ public class EventNamingTests
         try
         {
             var lines = File.ReadAllLines(filePath);
-            var content = File.ReadAllText(filePath);
-
-            // 匹配以 EventArgs 结尾的类型定义
-            // 支持: class, struct, record, record class, record struct
-            var eventArgsPattern = new Regex(
-                @"^\s*(?<modifiers>(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?)(?<kind>record\s+(?:class|struct)|record|class|struct)\s+(?<name>\w+EventArgs)\b",
-                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
             for (int i = 0; i < lines.Length; i++)
             {
-                var match = eventArgsPattern.Match(lines[i]);
+                var match = EventArgsPattern.Match(lines[i]);
                 if (match.Success)
                 {
                     var typeName = match.Groups["name"].Value;
@@ -248,13 +246,9 @@ public class EventNamingTests
         {
             var lines = File.ReadAllLines(filePath);
 
-            var eventArgsPattern = new Regex(
-                @"^\s*(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:readonly\s+)?(?:partial\s+)?(?<kind>record\s+(?:class|struct)|record|class|struct)\s+(?<name>\w+EventArgs)\b",
-                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-
             for (int i = 0; i < lines.Length; i++)
             {
-                var match = eventArgsPattern.Match(lines[i]);
+                var match = EventArgsPattern.Match(lines[i]);
                 if (match.Success)
                 {
                     var typeName = match.Groups["name"].Value;
