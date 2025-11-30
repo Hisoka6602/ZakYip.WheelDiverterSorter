@@ -1479,8 +1479,8 @@ public class DuplicateTypeDetectionTests
             var lines = File.ReadAllLines(filePath);
             var content = File.ReadAllText(filePath);
             
-            // 提取命名空间
-            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            // 提取命名空间（支持传统语法和 C# 10+ file-scoped 语法）
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)\s*[;{]");
             var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
 
             // 提取项目名
