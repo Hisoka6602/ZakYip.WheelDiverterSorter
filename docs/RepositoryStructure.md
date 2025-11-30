@@ -506,10 +506,28 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Policies/                    # 分拣策略
 │   ├── Runtime/                     # 运行时
 │   └── Strategy/                    # 格口选择策略
-└── Utilities/                       # 工具类
-    ├── ISystemClock.cs
-    └── LocalSystemClock.cs
+└── Utilities/                       # 工具类（通用公共工具）
+    ├── ISystemClock.cs              # 系统时钟抽象接口
+    └── LocalSystemClock.cs          # 本地系统时钟实现
 ```
+
+#### Core 层工具类位置规范（PR-SD6 新增）
+
+Core 层采用"统一工具 + 领域特化工具"的结构：
+
+| 位置 | 用途 | 类型要求 |
+|------|------|----------|
+| `Core/Utilities/` | 通用公共工具（如 ISystemClock） | 公开接口和实现类 |
+| `Core/LineModel/Utilities/` | LineModel 专用工具（如 ChuteIdHelper, LoggingHelper） | 必须使用 `file static class` |
+| `Observability/Utilities/` | 可观测性相关工具（如 ISafeExecutionService） | 公开接口和实现类 |
+
+**规则**：
+1. 通用工具（被多个项目使用）放在 `Core/Utilities/`
+2. 领域专用工具（仅 LineModel 内部使用）放在 `Core/LineModel/Utilities/`，必须使用 `file static class` 限制作用域
+3. **禁止**在其他位置新建 `*Helper`、`*Utils`、`*Utilities` 类（除非是 `file static class`）
+4. **禁止**同名工具类在多个命名空间中定义
+
+**防线测试**：`TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilityTypesShouldNotBeDuplicatedAcrossNamespaces`
 
 #### 关键类型概览
 

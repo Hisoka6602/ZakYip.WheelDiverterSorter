@@ -1189,10 +1189,55 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
    - 若发现多处功能重复的方法，应在本次重构或后续 PR 中收敛为一个公共实现。
 3. 新增公共工具方法时，应放置在约定的工具类或工具命名空间中，而不是随意新建零散静态类。
 
+**允许的工具类/扩展方法位置（PR-SD6 新增）：**
+
+| 位置 | 用途 | 类型要求 |
+|------|------|----------|
+| `Core/Utilities/` | 通用公共工具（如 ISystemClock） | 公开接口和实现类 |
+| `Core/LineModel/Utilities/` | LineModel 专用工具（如 ChuteIdHelper, LoggingHelper） | 必须使用 `file static class` |
+| `Observability/Utilities/` | 可观测性相关工具（如 ISafeExecutionService） | 公开接口和实现类 |
+
+**实施要求：**
+
+```csharp
+// ✅ 正确：在 Core/Utilities/ 中定义通用工具接口
+// 位置：src/Core/ZakYip.WheelDiverterSorter.Core/Utilities/ISystemClock.cs
+namespace ZakYip.WheelDiverterSorter.Core.Utilities;
+
+public interface ISystemClock
+{
+    DateTime LocalNow { get; }
+}
+
+// ✅ 正确：在 LineModel/Utilities/ 中定义领域专用工具（使用 file static class）
+// 位置：src/Core/ZakYip.WheelDiverterSorter.Core/LineModel/Utilities/ChuteIdHelper.cs
+file static class ChuteIdHelper
+{
+    public static bool TryParseChuteId(string? chuteId, out long result) { /* ... */ }
+}
+
+// ❌ 错误：在非标准位置新建工具类
+// 位置：src/Execution/ZakYip.WheelDiverterSorter.Execution/Utils/StringHelper.cs
+public static class StringHelper  // ❌ 应放在 Core/Utilities/ 或使用 file static class
+{
+    // ...
+}
+
+// ❌ 错误：同名工具类在多个命名空间中定义
+// 位置：src/Core/.../LoggingHelper.cs
+public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHelper 冲突
+```
+
+**防线测试**：
+- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilityTypesShouldNotBeDuplicatedAcrossNamespaces`（本 PR 新增）
+- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.UtilitiesDirectoriesShouldFollowConventions`（已有）
+
 **禁止行为：**
 
 - 在不同项目或不同类中重复实现相同逻辑的小工具方法（例如多处自行实现相同的字符串处理、时间转换、日志封装等）。
 - 为绕开既有工具方法而复制粘贴一份略有差异的实现。
+- **新增**：在非标准位置创建 `*Extensions`、`*Helper`、`*Utils`、`*Utilities` 类（除非是 `file static class`）。
+- **新增**：在多个命名空间中定义同名工具类。
 
 ---
 
