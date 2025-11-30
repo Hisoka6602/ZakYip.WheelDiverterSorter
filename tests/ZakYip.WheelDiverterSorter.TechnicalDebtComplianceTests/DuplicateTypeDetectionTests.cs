@@ -24,6 +24,20 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class DuplicateTypeDetectionTests
 {
+    /// <summary>
+    /// PR-SD1: Core 抽象接口名称列表（必须且只能定义在 Core.Abstractions 中）
+    /// </summary>
+    /// <remarks>
+    /// 这些接口遵循 C# 命名约定（I 前缀），在整个解决方案中仅允许在 Core 项目定义。
+    /// </remarks>
+    private static readonly string[] CoreAbstractionInterfaces = 
+    {
+        "ICongestionDataCollector",
+        "ISensorEventProvider",
+        "IUpstreamRoutingClient",
+        "IUpstreamContractMapper"
+    };
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -481,13 +495,208 @@ public class DuplicateTypeDetectionTests
         }
     }
 
+    /// <summary>
+    /// PR-SD1: 验证 Execution 项目中不存在 Core 抽象接口的镜像定义
+    /// </summary>
+    /// <remarks>
+    /// 以下接口必须且只能定义在 Core.Abstractions 中：
+    /// - ICongestionDataCollector
+    /// - ISensorEventProvider  
+    /// - IUpstreamRoutingClient
+    /// - IUpstreamContractMapper
+    /// 
+    /// Execution 项目应依赖 Core 接口，不允许定义同名镜像接口。
+    /// </remarks>
+    [Fact]
+    public void ExecutionProjectShouldNotDefineCoreAbstractionInterfaces()
+    {
+        var solutionRoot = GetSolutionRoot();
+
+        var executionDir = Path.Combine(solutionRoot, "src", "Execution");
+        if (!Directory.Exists(executionDir))
+        {
+            return; // Execution 项目不存在，跳过
+        }
+
+        var sourceFiles = Directory.GetFiles(executionDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        var violations = new List<(string InterfaceName, string FilePath, int LineNumber)>();
+
+        foreach (var file in sourceFiles)
+        {
+            var types = ExtractInterfaceDefinitions(file);
+            foreach (var type in types)
+            {
+                if (CoreAbstractionInterfaces.Contains(type.TypeName))
+                {
+                    violations.Add((type.TypeName, type.FilePath, type.LineNumber));
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-SD1 违规: Execution 项目中发现 {violations.Count} 个 Core 抽象接口的镜像定义:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (interfaceName, filePath, lineNumber) in violations)
+            {
+                var relativePath = Path.GetRelativePath(solutionRoot, filePath);
+                report.AppendLine($"  ❌ {interfaceName}");
+                report.AppendLine($"     位置: {relativePath}:{lineNumber}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 修复建议:");
+            report.AppendLine("  1. 删除 Execution 项目中的接口定义");
+            report.AppendLine("  2. 改为依赖 ZakYip.WheelDiverterSorter.Core.Abstractions 中的接口");
+            report.AppendLine("  3. 更新实现类的 using 语句和接口引用");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// PR-SD1: 验证 Core 抽象接口只在 Core 项目中定义
+    /// </summary>
+    /// <remarks>
+    /// 以下接口在整个解决方案中只能定义在 Core.Abstractions 中，
+    /// 其他任何项目（包括 Execution、Application、Drivers、Host）都不允许定义：
+    /// - ICongestionDataCollector
+    /// - ISensorEventProvider  
+    /// - IUpstreamRoutingClient
+    /// - IUpstreamContractMapper
+    /// </remarks>
+    [Fact]
+    public void CoreAbstractionInterfacesShouldOnlyBeDefinedInCore()
+    {
+        var solutionRoot = GetSolutionRoot();
+
+        var srcDir = Path.Combine(solutionRoot, "src");
+
+        var sourceFiles = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .Where(f => !IsInCoreProject(solutionRoot, f)) // 排除 Core 项目
+            .ToList();
+
+        var violations = new List<(string InterfaceName, string FilePath, int LineNumber, string Namespace)>();
+
+        foreach (var file in sourceFiles)
+        {
+            var types = ExtractInterfaceDefinitions(file);
+            foreach (var type in types)
+            {
+                if (CoreAbstractionInterfaces.Contains(type.TypeName))
+                {
+                    violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
+                }
+            }
+        }
+
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-SD1 违规: 在 Core 项目之外发现 {violations.Count} 个 Core 抽象接口定义:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (interfaceName, filePath, lineNumber, ns) in violations)
+            {
+                var relativePath = Path.GetRelativePath(solutionRoot, filePath);
+                report.AppendLine($"  ❌ {interfaceName}");
+                report.AppendLine($"     位置: {relativePath}:{lineNumber}");
+                report.AppendLine($"     命名空间: {ns}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-SD1 规范:");
+            report.AppendLine("  以下接口只能定义在 Core.Abstractions 中:");
+            foreach (var interfaceName in CoreAbstractionInterfaces)
+            {
+                report.AppendLine($"     - {interfaceName}");
+            }
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 删除非 Core 项目中的接口定义文件");
+            report.AppendLine("  2. 改为引用 ZakYip.WheelDiverterSorter.Core 项目");
+            report.AppendLine("  3. 使用 using ZakYip.WheelDiverterSorter.Core.Abstractions.* 导入接口");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
     #region Helper Methods
+
+    /// <summary>
+    /// 从文件中提取接口定义
+    /// </summary>
+    /// <remarks>
+    /// 此方法检测遵循 C# 命名约定（以 'I' 开头）的接口定义。
+    /// 由于 PR-SD1 规范涉及的所有接口都遵循此约定，这是足够的检测方式。
+    /// </remarks>
+    private static List<TypeLocationInfo> ExtractInterfaceDefinitions(string filePath)
+    {
+        var types = new List<TypeLocationInfo>();
+        
+        try
+        {
+            var lines = File.ReadAllLines(filePath);
+            var content = File.ReadAllText(filePath);
+            
+            // 提取命名空间
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
+
+            // 查找接口定义（遵循 C# 命名约定，以 I 开头）
+            // PR-SD1 规范的所有接口都遵循此命名约定
+            var interfacePattern = new Regex(
+                @"^\s*(?<fileScoped>file\s+)?(?:public|internal)\s+(?:partial\s+)?interface\s+(?<typeName>I\w+)",
+                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var match = interfacePattern.Match(lines[i]);
+                if (match.Success)
+                {
+                    types.Add(new TypeLocationInfo
+                    {
+                        TypeName = match.Groups["typeName"].Value,
+                        FilePath = filePath,
+                        LineNumber = i + 1,
+                        Namespace = ns,
+                        IsFileScoped = match.Groups["fileScoped"].Success
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error extracting interfaces from {filePath}: {ex.Message}");
+        }
+
+        return types;
+    }
 
     private static bool IsInExcludedDirectory(string filePath)
     {
         var normalizedPath = filePath.Replace('\\', '/');
         var excludedDirs = new[] { "/obj/", "/bin/" };
         return excludedDirs.Any(dir => normalizedPath.Contains(dir));
+    }
+
+    /// <summary>
+    /// 检查文件是否位于 Core 项目目录中
+    /// </summary>
+    /// <param name="solutionRoot">解决方案根目录</param>
+    /// <param name="filePath">文件路径</param>
+    /// <returns>如果文件在 Core 项目中返回 true</returns>
+    private static bool IsInCoreProject(string solutionRoot, string filePath)
+    {
+        var coreDir = Path.Combine(solutionRoot, "src", "Core");
+        var relativePath = Path.GetRelativePath(coreDir, filePath);
+        // 如果文件在 Core 目录下，相对路径不会以 ".." 开头
+        return !relativePath.StartsWith("..");
     }
 
     private static bool IsCommonFrameworkType(string typeName)
