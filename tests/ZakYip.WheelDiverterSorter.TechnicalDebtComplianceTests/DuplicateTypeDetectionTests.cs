@@ -415,12 +415,22 @@ public class DuplicateTypeDetectionTests
         }
         var testText = testContent.ToString();
 
+        // 预编译所有类型的正则表达式模式（性能优化，处理可能的重复类型名）
+        var typePatterns = new Dictionary<string, Regex>();
+        foreach (var type in configModelTypes)
+        {
+            if (!typePatterns.ContainsKey(type.TypeName))
+            {
+                typePatterns[type.TypeName] = new Regex($@"\b{type.TypeName}\b", RegexOptions.Compiled);
+            }
+        }
+
         // 先识别哪些类型在 src/ 外部被使用（用于后续判断 helper types）
         var usedInProduction = new HashSet<string>();
         foreach (var type in configModelTypes)
         {
-            var pattern = $@"\b{type.TypeName}\b";
-            var srcMatches = Regex.Matches(srcText, pattern);
+            var compiledPattern = typePatterns[type.TypeName];
+            var srcMatches = compiledPattern.Matches(srcText);
             if (srcMatches.Count > 0)
             {
                 usedInProduction.Add(type.TypeName);
@@ -430,14 +440,14 @@ public class DuplicateTypeDetectionTests
         // 检查每个配置模型的使用情况
         foreach (var type in configModelTypes)
         {
-            var pattern = $@"\b{type.TypeName}\b";
+            var compiledPattern = typePatterns[type.TypeName];
             
             // 计算在 src/（配置模型目录之外）的引用次数
-            var srcMatches = Regex.Matches(srcText, pattern);
+            var srcMatches = compiledPattern.Matches(srcText);
             var productionUsageCount = srcMatches.Count;
             
             // 计算在 tests/ 中的引用次数
-            var testMatches = Regex.Matches(testText, pattern);
+            var testMatches = compiledPattern.Matches(testText);
             var testUsageCount = testMatches.Count;
             
             // 如果类型在生产代码中已被使用，跳过
@@ -460,7 +470,7 @@ public class DuplicateTypeDetectionTests
                     try
                     {
                         var otherFileContent = File.ReadAllText(otherTypeFile);
-                        if (Regex.IsMatch(otherFileContent, pattern))
+                        if (compiledPattern.IsMatch(otherFileContent))
                         {
                             isHelperType = true;
                             break;
