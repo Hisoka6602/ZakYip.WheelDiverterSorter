@@ -1384,6 +1384,131 @@ public class DuplicateTypeDetectionTests
         return Path.GetFileName(Path.GetDirectoryName(filePath) ?? "Unknown");
     }
 
+    /// <summary>
+    /// PR-SD7: 验证 *PathGenerator 和 *RoutePlanner 类型只在 Core/LineModel 定义
+    /// Verify that *PathGenerator and *RoutePlanner types are only defined in Core/LineModel
+    /// </summary>
+    /// <remarks>
+    /// 此测试验证：
+    /// 1. *PathGenerator 类型只能在 Core/LineModel 定义
+    /// 2. *RoutePlanner 类型只能在 Core/LineModel 定义
+    /// 3. 允许的例外：Application 层的装饰器/缓存包装器（如 CachedSwitchingPathGenerator）
+    /// 
+    /// 如果检测到违规，测试将失败并提示修复方案。
+    /// </remarks>
+    [Fact]
+    public void PathGeneratorAndRoutePlannerTypesShouldOnlyBeDefinedInCoreLineModel()
+    {
+        var solutionRoot = GetSolutionRoot();
+        
+        var violations = new List<(string TypeName, string FilePath, int LineNumber, string Namespace, string ProjectName)>();
+        
+        // 扫描 src 目录下所有 .cs 文件
+        var sourceFiles = Directory.GetFiles(
+            Path.Combine(solutionRoot, "src"),
+            "*.cs",
+            SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        // 允许定义 *PathGenerator/*RoutePlanner 的目录
+        var allowedDirectories = new[]
+        {
+            "Core/ZakYip.WheelDiverterSorter.Core/LineModel",
+            "Application/ZakYip.WheelDiverterSorter.Application" // 允许装饰器
+        };
+
+        // 收集所有 *PathGenerator 和 *RoutePlanner 类型定义
+        foreach (var file in sourceFiles)
+        {
+            var normalizedPath = file.Replace('\\', '/');
+            
+            // 检查是否在允许的目录中
+            var isInAllowedDirectory = allowedDirectories.Any(dir => 
+                normalizedPath.Contains(dir, StringComparison.OrdinalIgnoreCase));
+            
+            if (isInAllowedDirectory)
+            {
+                continue; // 允许的位置，跳过
+            }
+
+            var types = ExtractPathGeneratorTypes(file, solutionRoot);
+            violations.AddRange(types);
+        }
+
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-SD7 违规: 发现 {violations.Count} 个 *PathGenerator/*RoutePlanner 类型不在允许的位置:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (typeName, filePath, lineNumber, ns, projectName) in violations.OrderBy(v => v.TypeName))
+            {
+                var relativePath = Path.GetRelativePath(solutionRoot, filePath);
+                report.AppendLine($"\n❌ {typeName}:");
+                report.AppendLine($"   位置: {relativePath}:{lineNumber}");
+                report.AppendLine($"   项目: {projectName}");
+                report.AppendLine($"   命名空间: {ns}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-SD7 规范:");
+            report.AppendLine("  *PathGenerator 和 *RoutePlanner 类型只能在以下位置定义:");
+            report.AppendLine("    - Core/LineModel/Topology/ (路径生成器)");
+            report.AppendLine("    - Application/ (装饰器/缓存包装器)");
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 将核心路径生成逻辑移动到 Core/LineModel/Topology");
+            report.AppendLine("  2. 如果是装饰器/缓存，放在 Application 层");
+            report.AppendLine("  3. 如果是其他辅助类型，考虑重命名或合并到现有实现");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
+    /// 从文件中提取 *PathGenerator 和 *RoutePlanner 类型定义
+    /// Extract *PathGenerator and *RoutePlanner type definitions from file
+    /// </summary>
+    private static List<(string TypeName, string FilePath, int LineNumber, string Namespace, string ProjectName)> ExtractPathGeneratorTypes(
+        string filePath, string solutionRoot)
+    {
+        var types = new List<(string TypeName, string FilePath, int LineNumber, string Namespace, string ProjectName)>();
+        
+        try
+        {
+            var lines = File.ReadAllLines(filePath);
+            var content = File.ReadAllText(filePath);
+            
+            // 提取命名空间
+            var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)");
+            var ns = namespaceMatch.Success ? namespaceMatch.Groups[1].Value : "Unknown";
+
+            // 提取项目名
+            var projectName = ExtractProjectName(filePath, solutionRoot);
+
+            // 查找 *PathGenerator 和 *RoutePlanner 类型定义
+            // 支持 class, interface
+            var pattern = new Regex(
+                @"^\s*(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|interface)\s+(?<typeName>\w+(?:PathGenerator|RoutePlanner))\b",
+                RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                var match = pattern.Match(lines[i]);
+                if (match.Success)
+                {
+                    types.Add((match.Groups["typeName"].Value, filePath, i + 1, ns, projectName));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error extracting PathGenerator types from {filePath}: {ex.Message}");
+        }
+
+        return types;
+    }
+
     #region Helper Methods
 
     /// <summary>

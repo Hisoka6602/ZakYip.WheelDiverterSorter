@@ -704,7 +704,7 @@ public static class ScenarioDefinitions
                 IsPauseAtEnd = false
             },
             VendorId = Core.Enums.Hardware.VendorId.Simulated, // 默认模拟，可通过配置切换
-            Topology = new SimulationTopology
+            Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 5,
                 ChuteCount = 5,
@@ -761,7 +761,7 @@ public static class ScenarioDefinitions
                 IsPauseAtEnd = false
             },
             VendorId = Core.Enums.Hardware.VendorId.Simulated,
-            Topology = new SimulationTopology
+            Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 5,
                 ChuteCount = 5,
@@ -823,7 +823,7 @@ public static class ScenarioDefinitions
                 IsPauseAtEnd = false
             },
             VendorId = Core.Enums.Hardware.VendorId.Simulated,
-            Topology = new SimulationTopology
+            Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 5,
                 ChuteCount = 5,
@@ -1112,7 +1112,7 @@ public static class ScenarioDefinitions
                 IsPauseAtEnd = false
             },
             VendorId = Core.Enums.Hardware.VendorId.Simulated,
-            Topology = new SimulationTopology
+            Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 10,
                 ChuteCount = 10,
