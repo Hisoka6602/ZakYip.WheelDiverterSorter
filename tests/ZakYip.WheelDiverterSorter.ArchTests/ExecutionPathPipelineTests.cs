@@ -77,17 +77,16 @@ public class ExecutionPathPipelineTests
             var content = File.ReadAllText(file);
             var matches = usingPattern.Matches(content);
             
-            foreach (Match match in matches)
-            {
-                var namespaceName = match.Groups["namespace"].Value;
-                var relativePath = Path.GetRelativePath(SolutionRoot, file);
-                violations.Add(new NamespaceViolation
-                {
-                    FileName = Path.GetFileName(file),
-                    FilePath = relativePath,
-                    ForbiddenNamespace = namespaceName
-                });
-            }
+            violations.AddRange(
+                matches.Cast<Match>().Select(match =>
+                    new NamespaceViolation
+                    {
+                        FileName = Path.GetFileName(file),
+                        FilePath = Path.GetRelativePath(SolutionRoot, file),
+                        ForbiddenNamespace = match.Groups["namespace"].Value
+                    }
+                )
+            );
         }
 
         if (violations.Any())
@@ -138,17 +137,16 @@ public class ExecutionPathPipelineTests
             var content = File.ReadAllText(file);
             var matches = usingPattern.Matches(content);
             
-            foreach (Match match in matches)
-            {
-                var namespaceName = match.Groups["namespace"].Value;
-                var relativePath = Path.GetRelativePath(SolutionRoot, file);
-                violations.Add(new NamespaceViolation
-                {
-                    FileName = Path.GetFileName(file),
-                    FilePath = relativePath,
-                    ForbiddenNamespace = namespaceName
-                });
-            }
+            violations.AddRange(
+                matches.Cast<Match>().Select(match =>
+                    new NamespaceViolation
+                    {
+                        FileName = Path.GetFileName(file),
+                        FilePath = Path.GetRelativePath(SolutionRoot, file),
+                        ForbiddenNamespace = match.Groups["namespace"].Value
+                    }
+                )
+            );
         }
 
         if (violations.Any())
@@ -280,18 +278,6 @@ public class ExecutionPathPipelineTests
             @"using\s+(?<namespace>ZakYip\.WheelDiverterSorter\.[^;]+);",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        // Allowed namespace prefixes (exclude Core.Hardware)
-        var allowedPrefixes = new[]
-        {
-            "ZakYip.WheelDiverterSorter.Core.Abstractions",
-            "ZakYip.WheelDiverterSorter.Core.Enums",
-            "ZakYip.WheelDiverterSorter.Core.LineModel",
-            "ZakYip.WheelDiverterSorter.Core.Sorting",
-            "ZakYip.WheelDiverterSorter.Core.Utilities",
-            "ZakYip.WheelDiverterSorter.Execution",
-            "ZakYip.WheelDiverterSorter.Observability"
-        };
-
         // Explicitly forbidden namespace prefixes
         var forbiddenPrefixes = new[]
         {
@@ -304,25 +290,19 @@ public class ExecutionPathPipelineTests
             var content = File.ReadAllText(file);
             var matches = usingPattern.Matches(content);
             
-            foreach (Match match in matches)
-            {
-                var namespaceName = match.Groups["namespace"].Value;
-                
-                // Check if this namespace is explicitly forbidden
-                var isForbidden = forbiddenPrefixes.Any(fp => 
-                    namespaceName.StartsWith(fp, StringComparison.OrdinalIgnoreCase));
-                
-                if (isForbidden)
+            var newViolations = matches
+                .Cast<Match>()
+                .Select(match => match.Groups["namespace"].Value)
+                .Where(namespaceName => forbiddenPrefixes.Any(fp =>
+                    namespaceName.StartsWith(fp, StringComparison.OrdinalIgnoreCase)))
+                .Select(namespaceName => new NamespaceViolation
                 {
-                    var relativePath = Path.GetRelativePath(SolutionRoot, file);
-                    violations.Add(new NamespaceViolation
-                    {
-                        FileName = Path.GetFileName(file),
-                        FilePath = relativePath,
-                        ForbiddenNamespace = namespaceName
-                    });
-                }
-            }
+                    FileName = Path.GetFileName(file),
+                    FilePath = Path.GetRelativePath(SolutionRoot, file),
+                    ForbiddenNamespace = namespaceName
+                });
+
+            violations.AddRange(newViolations);
         }
 
         if (violations.Any())
@@ -371,7 +351,7 @@ public class ExecutionPathPipelineTests
         if (sourceFiles.Count == 0)
         {
             report.AppendLine("❌ No middleware files found");
-            Console.WriteLine(report.ToString());
+            Console.WriteLine(report);
             Assert.True(true);
             return;
         }
@@ -379,11 +359,7 @@ public class ExecutionPathPipelineTests
         report.AppendLine("## Middleware Files\n");
         report.AppendLine($"Found {sourceFiles.Count} middleware files:\n");
         
-        foreach (var file in sourceFiles)
-        {
-            var fileName = Path.GetFileName(file);
-            report.AppendLine($"- {fileName}");
-        }
+        report.AppendLine(string.Join(Environment.NewLine, sourceFiles.Select(file => $"- {Path.GetFileName(file)}")));
 
         report.AppendLine("\n## Namespace Dependencies\n");
         
@@ -441,7 +417,7 @@ public class ExecutionPathPipelineTests
         report.AppendLine("- 直接访问 Drivers 或 Core/Hardware 命名空间");
         report.AppendLine("- 直接调用硬件驱动接口");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         
         // This test always passes, just generates a report
         Assert.True(true);

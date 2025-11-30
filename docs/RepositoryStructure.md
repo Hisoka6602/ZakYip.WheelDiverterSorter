@@ -45,6 +45,28 @@
 | ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests | 技术债合规性测试 |
 | ZakYip.WheelDiverterSorter.Benchmarks | 性能基准测试 |
 
+#### ArchTests 关键测试类
+
+| 测试类 | 职责 |
+|-------|------|
+| ApplicationLayerDependencyTests | Application 层依赖约束 |
+| DuplicateTypeDetectionTests | 重复类型检测 |
+| ExecutionPathPipelineTests | PR-SD4: Execution 层管线依赖约束（中间件不依赖 Drivers/Core.Hardware） |
+| HalConsolidationTests | HAL 层收敛约束 |
+| HostLayerConstraintTests | Host 层约束 |
+| RoutingTopologyLayerTests | 路由/拓扑分层约束 |
+
+#### E2ETests 关键测试类
+
+| 测试类 | 职责 |
+|-------|------|
+| CompleteSortingFlowE2ETests | PR-SD4: 完整分拣流程端到端测试（路径生成→执行职责分离验证） |
+| DenseTrafficSimulationTests | 高密度包裹仿真测试 |
+| FaultRecoveryScenarioTests | 故障恢复场景测试 |
+| ParcelSortingWorkflowTests | 包裹分拣工作流测试 |
+| PerformanceBaselineTests | 性能基准测试 |
+| RuleEngineIntegrationTests | 规则引擎集成测试 |
+
 - **工具项目**：
 
 | 项目名称 | 用途 |

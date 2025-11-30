@@ -1,9 +1,4 @@
 using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
-using Moq;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -26,6 +21,12 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </remarks>
 public class CompleteSortingFlowE2ETests : E2ETestBase
 {
+    /// <summary>
+    /// 用于测试的不存在格口ID
+    /// Non-existent chute ID for testing invalid chute scenarios
+    /// </summary>
+    private const int NonExistentChuteId = 99999;
+
     public CompleteSortingFlowE2ETests(E2ETestFactory factory) : base(factory)
     {
         SetupDefaultRouteConfiguration();
@@ -122,11 +123,8 @@ public class CompleteSortingFlowE2ETests : E2ETestBase
     [SimulationScenario("PR-SD4_InvalidChute_NullPath")]
     public void InvalidChute_ShouldReturnNullPath()
     {
-        // Arrange
-        var invalidChuteId = 99999; // 不存在的格口
-
-        // Act
-        var path = PathGenerator.GeneratePath(invalidChuteId);
+        // Arrange & Act
+        var path = PathGenerator.GeneratePath(NonExistentChuteId);
 
         // Assert - 无效格口应返回 null
         path.Should().BeNull("无效格口应返回 null 路径");
