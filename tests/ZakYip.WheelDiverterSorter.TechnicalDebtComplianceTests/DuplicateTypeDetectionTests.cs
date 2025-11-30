@@ -1477,7 +1477,7 @@ public class DuplicateTypeDetectionTests
         try
         {
             var lines = File.ReadAllLines(filePath);
-            var content = File.ReadAllText(filePath);
+            var content = string.Join(Environment.NewLine, lines);
             
             // 提取命名空间（支持传统语法和 C# 10+ file-scoped 语法）
             var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)\s*[;{]");
@@ -1487,9 +1487,9 @@ public class DuplicateTypeDetectionTests
             var projectName = ExtractProjectName(filePath, solutionRoot);
 
             // 查找 *PathGenerator 和 *RoutePlanner 类型定义
-            // 支持 class, interface
+            // 支持 file-scoped types, class, interface, record, static
             var pattern = new Regex(
-                @"^\s*(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|interface)\s+(?<typeName>\w+(?:PathGenerator|RoutePlanner))\b",
+                @"^\s*(?:file\s+)?(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:static\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+|interface\s+)(?<typeName>\w+(?:PathGenerator|RoutePlanner))\b",
                 RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
             for (int i = 0; i < lines.Length; i++)

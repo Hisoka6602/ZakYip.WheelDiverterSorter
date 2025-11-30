@@ -73,19 +73,11 @@ public class TopologyPathExecutionDefenseTests
             .Where(f => !IsInCoreDirectory(coreDir, f)) // 排除 Core 项目
             .ToList();
 
-        var violations = new List<(string TypeName, string FilePath, int LineNumber, string Namespace)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var types = ExtractTypeDefinitions(file);
-            foreach (var type in types)
-            {
-                if (coreTopologyModelNames.Contains(type.TypeName))
-                {
-                    violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
-                }
-            }
-        }
+        var violations = sourceFiles
+            .SelectMany(file => ExtractTypeDefinitions(file)
+                .Where(type => coreTopologyModelNames.Contains(type.TypeName))
+                .Select(type => (type.TypeName, type.FilePath, type.LineNumber, type.Namespace)))
+            .ToList();
 
         if (violations.Any())
         {
@@ -146,32 +138,24 @@ public class TopologyPathExecutionDefenseTests
             "Request", "Response", "Result", "Dto", "Service", "Repository", "Worker", "Controller", "Config"
         };
 
-        var violations = new List<(string TypeName, string FilePath, int LineNumber, string Namespace)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var types = ExtractTypeDefinitions(file);
-            foreach (var type in types)
+        var violations = sourceFiles
+            .SelectMany(file => ExtractTypeDefinitions(file))
+            .Where(type => type.TypeName.Contains("Topology", StringComparison.OrdinalIgnoreCase))
+            .Where(type =>
             {
-                // 检查类型名是否包含 "Topology"
-                if (type.TypeName.Contains("Topology", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 检查是否是允许的模式（服务/DTO/仓储）
-                    var isAllowed = allowedSuffixPatterns.Any(suffix =>
-                        type.TypeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+                // 检查是否是允许的模式（服务/DTO/仓储）
+                var isAllowed = allowedSuffixPatterns.Any(suffix =>
+                    type.TypeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
-                    // 检查是否是接口（I开头）
-                    var isInterface = type.TypeName.StartsWith("I") &&
-                                      type.TypeName.Length > 1 &&
-                                      char.IsUpper(type.TypeName[1]);
+                // 检查是否是接口（I开头）
+                var isInterface = type.TypeName.StartsWith("I") &&
+                                  type.TypeName.Length > 1 &&
+                                  char.IsUpper(type.TypeName[1]);
 
-                    if (!isAllowed && !isInterface)
-                    {
-                        violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
-                    }
-                }
-            }
-        }
+                return !isAllowed && !isInterface;
+            })
+            .Select(type => (type.TypeName, type.FilePath, type.LineNumber, type.Namespace))
+            .ToList();
 
         if (violations.Any())
         {
@@ -228,32 +212,24 @@ public class TopologyPathExecutionDefenseTests
             "Generator", "Executor", "Service", "Middleware"
         };
 
-        var violations = new List<(string TypeName, string FilePath, int LineNumber, string Namespace)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var types = ExtractTypeDefinitions(file);
-            foreach (var type in types)
+        var violations = sourceFiles
+            .SelectMany(file => ExtractTypeDefinitions(file))
+            .Where(type => type.TypeName.Contains("SwitchingPath", StringComparison.OrdinalIgnoreCase))
+            .Where(type =>
             {
-                // 检查类型名是否包含 "SwitchingPath"
-                if (type.TypeName.Contains("SwitchingPath", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 检查是否是允许的模式（实现类）
-                    var isAllowed = allowedSuffixPatterns.Any(suffix =>
-                        type.TypeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+                // 检查是否是允许的模式（实现类）
+                var isAllowed = allowedSuffixPatterns.Any(suffix =>
+                    type.TypeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
-                    // 检查是否是接口（I开头）
-                    var isInterface = type.TypeName.StartsWith("I") &&
-                                      type.TypeName.Length > 1 &&
-                                      char.IsUpper(type.TypeName[1]);
+                // 检查是否是接口（I开头）
+                var isInterface = type.TypeName.StartsWith("I") &&
+                                  type.TypeName.Length > 1 &&
+                                  char.IsUpper(type.TypeName[1]);
 
-                    if (!isAllowed && !isInterface)
-                    {
-                        violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
-                    }
-                }
-            }
-        }
+                return !isAllowed && !isInterface;
+            })
+            .Select(type => (type.TypeName, type.FilePath, type.LineNumber, type.Namespace))
+            .ToList();
 
         if (violations.Any())
         {
@@ -310,33 +286,26 @@ public class TopologyPathExecutionDefenseTests
             "Repository", "Service", "Middleware", "Manager", "Handler"
         };
 
-        var violations = new List<(string TypeName, string FilePath, int LineNumber, string Namespace)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var types = ExtractTypeDefinitions(file);
-            foreach (var type in types)
+        var violations = sourceFiles
+            .SelectMany(file => ExtractTypeDefinitions(file))
+            .Where(type =>
+                type.TypeName.Contains("RoutePlan", StringComparison.OrdinalIgnoreCase) &&
+                !type.TypeName.Contains("RoutePlanning", StringComparison.OrdinalIgnoreCase))
+            .Where(type =>
             {
-                // 检查类型名是否包含 "RoutePlan" (但不是 "RoutePlanning")
-                if (type.TypeName.Contains("RoutePlan", StringComparison.OrdinalIgnoreCase) &&
-                    !type.TypeName.Contains("RoutePlanning", StringComparison.OrdinalIgnoreCase))
-                {
-                    // 检查是否是允许的模式（实现类）
-                    var isAllowed = allowedSuffixPatterns.Any(suffix =>
-                        type.TypeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
+                // 检查是否是允许的模式（实现类）
+                var isAllowed = allowedSuffixPatterns.Any(suffix =>
+                    type.TypeName.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
 
-                    // 检查是否是接口（I开头）
-                    var isInterface = type.TypeName.StartsWith("I") &&
-                                      type.TypeName.Length > 1 &&
-                                      char.IsUpper(type.TypeName[1]);
+                // 检查是否是接口（I开头）
+                var isInterface = type.TypeName.StartsWith("I") &&
+                                  type.TypeName.Length > 1 &&
+                                  char.IsUpper(type.TypeName[1]);
 
-                    if (!isAllowed && !isInterface)
-                    {
-                        violations.Add((type.TypeName, type.FilePath, type.LineNumber, type.Namespace));
-                    }
-                }
-            }
-        }
+                return !isAllowed && !isInterface;
+            })
+            .Select(type => (type.TypeName, type.FilePath, type.LineNumber, type.Namespace))
+            .ToList();
 
         if (violations.Any())
         {
@@ -375,7 +344,6 @@ public class TopologyPathExecutionDefenseTests
     public void ISwitchingPathGenerator_ShouldOnlyBeDefinedInCoreTopology()
     {
         var srcDir = Path.Combine(SolutionRoot, "src");
-        var coreTopologyDir = Path.Combine(srcDir, "Core", "ZakYip.WheelDiverterSorter.Core", "LineModel", "Topology");
 
         var sourceFiles = Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories)
             .Where(f => !IsInExcludedDirectory(f))
@@ -385,7 +353,6 @@ public class TopologyPathExecutionDefenseTests
 
         foreach (var file in sourceFiles)
         {
-            var content = File.ReadAllText(file);
             var lines = File.ReadAllLines(file);
 
             // 查找接口定义
@@ -525,7 +492,7 @@ public class TopologyPathExecutionDefenseTests
         report.AppendLine("\n## Types containing 'PathGenerator' or 'RoutePlanner'\n");
         OutputTypeReport(report, pathGeneratorTypes);
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         Assert.True(true);
     }
 
@@ -571,7 +538,7 @@ public class TopologyPathExecutionDefenseTests
         try
         {
             var lines = File.ReadAllLines(filePath);
-            var content = File.ReadAllText(filePath);
+            var content = string.Join(Environment.NewLine, lines);
 
             // 提取命名空间（支持传统语法和 C# 10+ file-scoped 语法）
             var namespaceMatch = Regex.Match(content, @"namespace\s+([\w.]+)\s*[;{]");
