@@ -51,18 +51,17 @@ public class EventAndExtensionDuplicateDetectionTests
             .ToList();
 
         // 收集所有事件类型定义（*Event 或 *EventArgs）
-        foreach (var file in sourceFiles)
-        {
-            var eventTypes = ExtractEventTypeDefinitions(file, solutionRoot);
-            foreach (var eventType in eventTypes)
-            {
-                if (!eventTypesByName.ContainsKey(eventType.TypeName))
-                {
-                    eventTypesByName[eventType.TypeName] = new List<EventTypeInfo>();
-                }
-                eventTypesByName[eventType.TypeName].Add(eventType);
-            }
-        }
+        eventTypesByName = sourceFiles
+            .SelectMany(file => ExtractEventTypeDefinitions(file, solutionRoot))
+            .GroupBy(eventType => eventType.TypeName, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.ToList(),
+                StringComparer.OrdinalIgnoreCase
+            );
+
+        // 构建所有事件类型名的集合，便于查找对应的非 Simulated 类型
+        var allEventTypeNames = new HashSet<string>(eventTypesByName.Keys, StringComparer.OrdinalIgnoreCase);
 
         // 查找跨项目重复的事件类型
         var duplicates = eventTypesByName
@@ -71,8 +70,13 @@ public class EventAndExtensionDuplicateDetectionTests
             .Where(kvp => kvp.Value.Select(t => t.ProjectName).Distinct().Count() > 1)
             // 排除 file-scoped 类型
             .Where(kvp => !kvp.Value.All(t => t.IsFileScoped))
-            // 排除以 Simulated 开头的类型（仿真侧明确命名）
-            .Where(kvp => !kvp.Key.StartsWith("Simulated", StringComparison.OrdinalIgnoreCase))
+            // 仅当 Simulated* 有对应非 Simulated 类型时才豁免，否则仍检测重复
+            .Where(kvp =>
+                !(
+                    kvp.Key.StartsWith("Simulated", StringComparison.OrdinalIgnoreCase)
+                    && allEventTypeNames.Contains(kvp.Key.Substring("Simulated".Length))
+                )
+            )
             .ToList();
 
         if (duplicates.Any())
