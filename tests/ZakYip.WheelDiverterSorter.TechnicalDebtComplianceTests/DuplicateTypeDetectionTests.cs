@@ -323,6 +323,191 @@ public class DuplicateTypeDetectionTests
     }
 
     /// <summary>
+    /// PR-SD5: 验证配置模型在生产代码中有实际使用，而不是仅在测试中使用
+    /// Verify that configuration models in Core/LineModel/Configuration/Models have production usage
+    /// </summary>
+    /// <remarks>
+    /// 此测试验证：
+    /// 1. Core/LineModel/Configuration/Models 中的配置模型在 src/ 目录有引用（除了定义本身）
+    /// 2. 仅在 tests/ 目录中使用的配置模型应该移动到测试项目或删除
+    /// 
+    /// 这是一个强制性测试（会失败），因为生产代码中不应保留未使用的配置模型。
+    /// 
+    /// 注意：如果类型仅在同一文件的其他类型中作为属性使用，视为有效使用（例如：
+    /// DriverConfiguration 使用 LeadshineDriverConfig 作为属性，LeadshineDriverConfig 使用 DiverterDriverEntry）
+    /// </remarks>
+    [Fact]
+    public void ConfigurationModelsShouldHaveProductionUsage()
+    {
+        var solutionRoot = GetSolutionRoot();
+        var violations = new List<(string TypeName, string FilePath, int ProductionUsageCount, int TestUsageCount)>();
+        
+        // 只扫描 Core/LineModel/Configuration/Models 目录
+        var configModelsDir = Path.Combine(
+            solutionRoot, "src", "Core", 
+            "ZakYip.WheelDiverterSorter.Core", 
+            "LineModel", "Configuration", "Models");
+            
+        if (!Directory.Exists(configModelsDir))
+        {
+            return; // 目录不存在，跳过
+        }
+
+        var modelFiles = Directory.GetFiles(configModelsDir, "*.cs", SearchOption.TopDirectoryOnly)
+            .Where(f => !IsInExcludedDirectory(f))
+            .ToList();
+
+        // 收集所有配置模型类型
+        var configModelTypes = new List<TypeLocationInfo>();
+        foreach (var file in modelFiles)
+        {
+            configModelTypes.AddRange(ExtractTypeDefinitions(file).Where(t => !t.IsFileScoped));
+        }
+
+        // 读取配置模型目录本身的所有代码（用于检测 helper types）
+        var configModelsContent = new StringBuilder();
+        foreach (var file in modelFiles)
+        {
+            try
+            {
+                configModelsContent.AppendLine(File.ReadAllText(file));
+            }
+            catch (IOException) { }
+        }
+        var configModelsText = configModelsContent.ToString();
+
+        // 读取 src/ 目录的源代码内容（排除配置模型定义文件本身）
+        var srcFiles = Directory.GetFiles(
+            Path.Combine(solutionRoot, "src"),
+            "*.cs",
+            SearchOption.AllDirectories)
+            .Where(f => !IsInExcludedDirectory(f))
+            .Where(f => !f.Replace('\\', '/').Contains("/LineModel/Configuration/Models/"))
+            .ToList();
+
+        var srcContent = new StringBuilder();
+        foreach (var file in srcFiles)
+        {
+            try
+            {
+                srcContent.AppendLine(File.ReadAllText(file));
+            }
+            catch (IOException) { }
+        }
+        var srcText = srcContent.ToString();
+
+        // 读取 tests/ 目录的源代码内容
+        var testsDir = Path.Combine(solutionRoot, "tests");
+        var testFiles = Directory.Exists(testsDir) 
+            ? Directory.GetFiles(testsDir, "*.cs", SearchOption.AllDirectories)
+                .Where(f => !IsInExcludedDirectory(f))
+                .ToList()
+            : new List<string>();
+
+        var testContent = new StringBuilder();
+        foreach (var file in testFiles)
+        {
+            try
+            {
+                testContent.AppendLine(File.ReadAllText(file));
+            }
+            catch (IOException) { }
+        }
+        var testText = testContent.ToString();
+
+        // 先识别哪些类型在 src/ 外部被使用（用于后续判断 helper types）
+        var usedInProduction = new HashSet<string>();
+        foreach (var type in configModelTypes)
+        {
+            var pattern = $@"\b{type.TypeName}\b";
+            var srcMatches = Regex.Matches(srcText, pattern);
+            if (srcMatches.Count > 0)
+            {
+                usedInProduction.Add(type.TypeName);
+            }
+        }
+
+        // 检查每个配置模型的使用情况
+        foreach (var type in configModelTypes)
+        {
+            var pattern = $@"\b{type.TypeName}\b";
+            
+            // 计算在 src/（配置模型目录之外）的引用次数
+            var srcMatches = Regex.Matches(srcText, pattern);
+            var productionUsageCount = srcMatches.Count;
+            
+            // 计算在 tests/ 中的引用次数
+            var testMatches = Regex.Matches(testText, pattern);
+            var testUsageCount = testMatches.Count;
+            
+            // 如果类型在生产代码中已被使用，跳过
+            if (productionUsageCount > 0)
+            {
+                continue;
+            }
+
+            // 检查是否是 "helper type"：被同目录中其他已使用类型引用
+            // 例如：LeadshineDriverConfig 被 DriverConfiguration 引用，而 DriverConfiguration 在 src/ 中被使用
+            var isHelperType = false;
+            foreach (var otherType in usedInProduction)
+            {
+                if (otherType == type.TypeName) continue;
+                
+                // 检查其他已使用类型的定义文件是否引用了当前类型
+                var otherTypeFile = configModelTypes.FirstOrDefault(t => t.TypeName == otherType)?.FilePath;
+                if (otherTypeFile != null)
+                {
+                    try
+                    {
+                        var otherFileContent = File.ReadAllText(otherTypeFile);
+                        if (Regex.IsMatch(otherFileContent, pattern))
+                        {
+                            isHelperType = true;
+                            break;
+                        }
+                    }
+                    catch (IOException) { }
+                }
+            }
+
+            // 如果是 helper type（被其他已使用类型引用），则视为有效使用
+            if (isHelperType)
+            {
+                continue;
+            }
+            
+            // 如果在 src/ 中没有使用（0次引用），且不是 helper type，则为违规
+            violations.Add((type.TypeName, type.FilePath, productionUsageCount, testUsageCount));
+        }
+
+        if (violations.Any())
+        {
+            var report = new StringBuilder();
+            report.AppendLine($"\n❌ PR-SD5 违规: 发现 {violations.Count} 个配置模型仅在测试中使用:");
+            report.AppendLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+            foreach (var (typeName, filePath, productionUsage, testUsage) in violations.OrderBy(v => v.TypeName))
+            {
+                var relativePath = Path.GetRelativePath(solutionRoot, filePath);
+                report.AppendLine($"\n❌ {typeName}:");
+                report.AppendLine($"   位置: {relativePath}");
+                report.AppendLine($"   生产代码引用: {productionUsage}");
+                report.AppendLine($"   测试代码引用: {testUsage}");
+            }
+
+            report.AppendLine("\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            report.AppendLine("\n💡 根据 PR-SD5 规范:");
+            report.AppendLine("  配置模型必须在生产代码中有明确使用位置。");
+            report.AppendLine("\n  修复建议:");
+            report.AppendLine("  1. 如果类型是为未实现的功能准备的，应删除并在需要时重新添加");
+            report.AppendLine("  2. 如果类型仅用于测试，应移动到测试项目中");
+            report.AppendLine("  3. 如果类型是遗留代码，应直接删除");
+
+            Assert.Fail(report.ToString());
+        }
+    }
+
+    /// <summary>
     /// 验证 Utilities 目录位置规范
     /// Verify Utilities directory location conventions
     /// </summary>
