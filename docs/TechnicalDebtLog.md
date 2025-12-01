@@ -103,11 +103,42 @@
 
 ## [TD-004] LineModel/Configuration 目录文件过多
 
-**状态**：⏳ 进行中
+**状态**：⏳ 进行中 (PR-TD-ZERO01)
 
 **问题描述**：
 - 包含 50+ 文件，混合了配置模型、仓储接口、LiteDB 实现
 - 建议：拆分为 Models/、Repositories/Interfaces/、Repositories/LiteDb/ 等子目录
+
+**当前实现状态 (PR-TD-ZERO01)**：
+
+1. **目录结构已符合目标形态**：
+   - `Models/`: 22 个配置模型文件（纯配置模型和相关枚举/值对象）
+   - `Repositories/Interfaces/`: 11 个仓储接口文件
+   - `Validation/`: 1 个验证器文件 (`IoEndpointValidator.cs`)
+   - Configuration 目录根下无平铺的 .cs 文件
+
+2. **已新增结构防线测试**：
+   - `ConfigurationDirectoryStructureTests` 测试类（6 个测试方法）
+   - 验证直接子目录只允许 { "Models", "Repositories", "Validation" }
+   - 验证 Configuration 目录根下禁止平铺 .cs 文件
+   - 验证各子目录职责单一
+
+3. **LiteDB 实现已迁移**：
+   - 根据 TD-030，LiteDB 仓储实现已迁移到 `Configuration.Persistence` 项目
+   - `Repositories/` 目录下只保留 `Interfaces/` 子目录
+
+**防线测试**：
+- `TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests.ConfigurationDirectoryShouldOnlyHaveAllowedSubdirectories`
+- `TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests.ConfigurationDirectoryShouldNotHaveFlatCsFiles`
+- `TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests.RepositoriesShouldHaveCorrectStructure`
+- `TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests.ModelsShouldOnlyContainConfigurationModels`
+- `TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests.ValidationShouldOnlyContainValidators`
+- `TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests.GenerateConfigurationDirectoryStructureReport`
+
+**待完成事项**（下一 PR 收尾）：
+- 最终确认所有配置模型职责正确
+- 将状态从「⏳ 进行中」更新为「✅ 已解决」
+- 更新统计信息
 
 ---
 
