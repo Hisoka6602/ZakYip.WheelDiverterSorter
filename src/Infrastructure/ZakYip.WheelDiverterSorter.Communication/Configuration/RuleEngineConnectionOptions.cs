@@ -6,13 +6,18 @@ namespace ZakYip.WheelDiverterSorter.Communication.Configuration;
 /// <summary>
 /// RuleEngine连接配置选项
 /// </summary>
+/// <remarks>
+/// PR-UPSTREAM01: HTTP 模式已移除，默认使用 TCP 模式。
+/// 只支持 TCP/SignalR/MQTT 三种协议。
+/// </remarks>
 public class RuleEngineConnectionOptions
 {
     /// <summary>
     /// 通信模式
     /// </summary>
     /// <remarks>
-    /// 默认使用TCP模式，因为HTTP仅用于测试场景，生产环境不使用HTTP
+    /// 默认使用TCP模式，只支持 Tcp/SignalR/Mqtt。
+    /// PR-UPSTREAM01: HTTP 模式已移除。
     /// </remarks>
     public CommunicationMode Mode { get; set; } = CommunicationMode.Tcp;
 
@@ -40,11 +45,6 @@ public class RuleEngineConnectionOptions
     /// MQTT主题
     /// </summary>
     public string MqttTopic { get; set; } = "sorting/chute/assignment";
-
-    /// <summary>
-    /// HTTP API URL
-    /// </summary>
-    public string? HttpApi { get; set; }
 
     /// <summary>
     /// 请求超时时间（毫秒）
@@ -124,11 +124,6 @@ public class RuleEngineConnectionOptions
     /// TCP相关配置
     /// </summary>
     public TcpOptions Tcp { get; set; } = new();
-
-    /// <summary>
-    /// HTTP相关配置
-    /// </summary>
-    public HttpOptions Http { get; set; } = new();
 
     /// <summary>
     /// MQTT相关配置

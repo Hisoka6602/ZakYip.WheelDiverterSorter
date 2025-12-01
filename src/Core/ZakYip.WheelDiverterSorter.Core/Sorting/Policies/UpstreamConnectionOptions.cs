@@ -8,8 +8,9 @@ namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 /// 上游连接配置选项（强类型）
 /// </summary>
 /// <remarks>
-/// 统一管理与上游 RuleEngine 的 TCP/SignalR/MQTT/HTTP 连接参数。
-/// 通过 IValidateOptions 实现启动时校验。
+/// <para>统一管理与上游 RuleEngine 的 TCP/SignalR/MQTT 连接参数。</para>
+/// <para>通过 IValidateOptions 实现启动时校验。</para>
+/// <para>PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT。</para>
 /// </remarks>
 public record UpstreamConnectionOptions
 {
@@ -22,7 +23,7 @@ public record UpstreamConnectionOptions
     /// 通信模式
     /// </summary>
     /// <remarks>
-    /// 可选值：Tcp（推荐生产环境）、SignalR、Mqtt、Http（仅测试）
+    /// PR-UPSTREAM01: HTTP 已移除，可选值：Tcp（默认，推荐生产环境）、SignalR、Mqtt
     /// </remarks>
     public CommunicationMode Mode { get; init; } = CommunicationMode.Tcp;
 
@@ -62,14 +63,6 @@ public record UpstreamConnectionOptions
     /// MQTT主题
     /// </summary>
     public string MqttTopic { get; init; } = "sorting/chute/assignment";
-
-    /// <summary>
-    /// HTTP API URL
-    /// </summary>
-    /// <remarks>
-    /// 当 Mode 为 Http 时必须配置
-    /// </remarks>
-    public string? HttpApi { get; init; }
 
     /// <summary>
     /// 请求超时时间（毫秒）
@@ -119,8 +112,9 @@ public record UpstreamConnectionOptions
 /// UpstreamConnectionOptions 校验器
 /// </summary>
 /// <remarks>
-/// 实现 IValidateOptions，在应用启动时校验配置合法性。
-/// 根据不同通信模式校验对应的必填配置项。
+/// <para>实现 IValidateOptions，在应用启动时校验配置合法性。</para>
+/// <para>根据不同通信模式校验对应的必填配置项。</para>
+/// <para>PR-UPSTREAM01: 移除 HTTP 模式校验。</para>
 /// </remarks>
 public class UpstreamConnectionOptionsValidator : IValidateOptions<UpstreamConnectionOptions>
 {
@@ -154,13 +148,6 @@ public class UpstreamConnectionOptionsValidator : IValidateOptions<UpstreamConne
                 if (string.IsNullOrWhiteSpace(options.MqttTopic))
                 {
                     errors.Add("MQTT模式下，MqttTopic 不能为空");
-                }
-                break;
-
-            case CommunicationMode.Http:
-                if (string.IsNullOrWhiteSpace(options.HttpApi))
-                {
-                    errors.Add("HTTP模式下，HttpApi 不能为空");
                 }
                 break;
         }

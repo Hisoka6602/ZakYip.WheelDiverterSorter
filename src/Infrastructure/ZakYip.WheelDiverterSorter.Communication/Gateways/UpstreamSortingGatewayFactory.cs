@@ -21,7 +21,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 /// <para>根据配置创建相应的网关实现。</para>
 /// <para>网关使用 <see cref="IUpstreamContractMapper"/> 进行领域对象与协议 DTO 之间的转换，
 /// 确保协议细节不渗透到领域层。</para>
-/// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
+/// <para>PR-UPSTREAM01: 移除 HTTP 网关支持，只支持 TCP/SignalR。</para>
 /// </remarks>
 public class UpstreamSortingGatewayFactory
 {
@@ -52,6 +52,10 @@ public class UpstreamSortingGatewayFactory
     /// <summary>
     /// 创建网关实例
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 网关支持。
+    /// 目前只支持 TCP 和 SignalR 网关。MQTT 可以通过 TCP 网关实现。
+    /// </remarks>
     public IUpstreamSortingGateway CreateGateway()
     {
         return _options.Mode switch
@@ -68,14 +72,14 @@ public class UpstreamSortingGatewayFactory
                 _loggerFactory.CreateLogger<SignalRUpstreamSortingGateway>(),
                 _options),
 
-            CommunicationMode.Http => new HttpUpstreamSortingGateway(
+            CommunicationMode.Mqtt => new TcpUpstreamSortingGateway(
                 _client,
                 _mapper,
-                _loggerFactory.CreateLogger<HttpUpstreamSortingGateway>(),
+                _loggerFactory.CreateLogger<TcpUpstreamSortingGateway>(),
                 _options),
 
             _ => throw new NotSupportedException(
-                $"不支持的通信模式: {_options.Mode}")
+                $"不支持的通信模式: {_options.Mode}。只支持 Tcp/SignalR/Mqtt。")
         };
     }
 }
