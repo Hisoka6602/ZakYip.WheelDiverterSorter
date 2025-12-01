@@ -117,14 +117,16 @@ public partial class TechnicalDebtIndexComplianceTests
             var status = match.Groups["status"].Value.Trim();
             var summary = match.Groups["summary"].Value.Trim();
 
-            if (status.Contains(PendingStatusMarker))
+            // 状态判断：优先检查以哪个状态标记开头
+            if (status.StartsWith(PendingStatusMarker))
             {
                 pendingItems.Add((id, status, summary));
             }
-            else if (status.Contains(NotStartedStatusMarker) && !status.Contains(ResolvedStatusMarker))
+            else if (status.StartsWith(NotStartedStatusMarker))
             {
                 notStartedItems.Add((id, status, summary));
             }
+            // 以 ✅ 开头的已解决状态不需要记录
         }
 
         if (pendingItems.Count > 0 || notStartedItems.Count > 0)
@@ -190,15 +192,16 @@ public partial class TechnicalDebtIndexComplianceTests
         {
             var status = match.Groups["status"].Value.Trim();
 
-            if (status.Contains(ResolvedStatusMarker))
+            // 使用 StartsWith 确保准确判断状态
+            if (status.StartsWith(ResolvedStatusMarker))
             {
                 actualResolved++;
             }
-            else if (status.Contains(PendingStatusMarker))
+            else if (status.StartsWith(PendingStatusMarker))
             {
                 actualPending++;
             }
-            else if (status.Contains(NotStartedStatusMarker))
+            else if (status.StartsWith(NotStartedStatusMarker))
             {
                 actualNotStarted++;
             }
@@ -213,7 +216,13 @@ public partial class TechnicalDebtIndexComplianceTests
         foreach (Match match in statsMatches)
         {
             var statusLabel = match.Groups["label"].Value.Trim();
-            var count = int.Parse(match.Groups["count"].Value.Trim());
+            var countText = match.Groups["count"].Value.Trim();
+            
+            if (!int.TryParse(countText, out var count))
+            {
+                // 跳过无法解析的条目，继续处理其他条目
+                continue;
+            }
 
             if (statusLabel.Contains("已解决"))
             {
@@ -304,18 +313,18 @@ public partial class TechnicalDebtIndexComplianceTests
         var repositoryStructureContent = File.ReadAllText(repositoryStructurePath);
         var technicalDebtLogContent = File.ReadAllText(technicalDebtLogPath);
 
-        // 从 RepositoryStructure.md 提取技术债 ID
+        // 从 RepositoryStructure.md 提取技术债 ID（使用 Ordinal 比较保持大小写一致性）
         var indexMatches = TechnicalDebtEntryPattern().Matches(repositoryStructureContent);
-        var indexIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var indexIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match match in indexMatches)
         {
             indexIds.Add(match.Groups["id"].Value.Trim());
         }
 
-        // 从 TechnicalDebtLog.md 提取章节标题中的技术债 ID
+        // 从 TechnicalDebtLog.md 提取章节标题中的技术债 ID（使用 Ordinal 比较保持大小写一致性）
         var logIdPattern = TechnicalDebtLogIdPattern();
         var logMatches = logIdPattern.Matches(technicalDebtLogContent);
-        var logIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var logIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (Match match in logMatches)
         {
             logIds.Add(match.Groups["id"].Value.Trim());
@@ -392,15 +401,16 @@ public partial class TechnicalDebtIndexComplianceTests
             var status = match.Groups["status"].Value.Trim();
             var summary = match.Groups["summary"].Value.Trim();
 
-            if (status.Contains(ResolvedStatusMarker))
+            // 使用 StartsWith 确保准确判断状态
+            if (status.StartsWith(ResolvedStatusMarker))
             {
                 resolvedItems.Add((id, summary));
             }
-            else if (status.Contains(PendingStatusMarker))
+            else if (status.StartsWith(PendingStatusMarker))
             {
                 pendingItems.Add((id, summary));
             }
-            else if (status.Contains(NotStartedStatusMarker))
+            else if (status.StartsWith(NotStartedStatusMarker))
             {
                 notStartedItems.Add((id, summary));
             }
