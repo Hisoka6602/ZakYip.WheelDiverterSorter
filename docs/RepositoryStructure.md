@@ -560,6 +560,9 @@ Core 层采用"统一工具 + 领域特化工具"的结构：
 - `IWheelDiverterDriver`（位于 Hardware/Devices/）：摆轮驱动器抽象接口，定义左转/右转/直通操作
 - `IUpstreamRoutingClient`（位于 Abstractions/Upstream/）：上游路由客户端抽象，用于请求格口分配
 - `ISystemClock`（位于 Utilities/）：系统时钟抽象，所有时间获取必须通过此接口
+- `OperationResult`（位于 Results/）：统一的操作结果类型，包含错误码和错误消息
+- `ErrorCodes`（位于 Results/）：统一错误码定义，所有错误码必须在此类中定义
+- `VendorCapabilities`（位于 Hardware/）：厂商能力声明，定义硬件厂商支持的特性
 - `SwitchingPath`（位于 LineModel/Topology/）：摆轮切换路径模型，包含目标格口和切换段序列
 - `SystemConfiguration`（位于 LineModel/Configuration/）：系统配置模型，包含异常格口等核心参数
 - `ChutePathTopologyConfig`（位于 LineModel/Configuration/）：格口-路径拓扑配置
@@ -1103,6 +1106,10 @@ tools/Profiling/
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
 | `ISystemClock` | Core/Utilities/ | 系统时钟抽象，所有时间获取必须通过此接口 |
+| `LocalSystemClock` | Core/Utilities/ | 系统时钟默认实现，返回本地时间 |
+| `OperationResult` | Core/Results/ | 统一的操作结果类型（不携带数据），包含错误码和错误消息 |
+| `OperationResult<T>` | Core/Results/ | 统一的操作结果类型（携带数据），包含错误码、错误消息和数据负载 |
+| `ErrorCodes` | Core/Results/ | 统一错误码定义，所有错误码必须在此类中定义 |
 | `ISafeExecutionService` | Observability/Utilities/ | 安全执行服务接口，捕获异常防止进程崩溃 |
 | `PrometheusMetrics` | Observability/ | Prometheus 指标定义与收集 |
 | `AlarmService` | Observability/ | 告警服务，处理系统告警 |
@@ -1516,6 +1523,8 @@ tools/Profiling/
 | **摆轮控制** | `IWheelDiverterDriver` (方向接口)<br/>`IWheelDiverterDevice` (命令接口) | `Core/Hardware/Devices/`<br/>`Core/Hardware/` | ❌ 定义 `IDiverterController`（已删除）<br/>❌ 定义 `IWheelDiverterActuator`（已删除）<br/>❌ 其他语义重叠的摆轮控制接口 | `TechnicalDebtComplianceTests.WheelDiverterShadowTests`<br/>`ArchTests.HalConsolidationTests` |
 | **拥堵检测** | `ICongestionDetector`, `ThresholdCongestionDetector` | `Core/Sorting/Interfaces/` (接口)<br/>`Core/Sorting/Runtime/` (实现) | ❌ `Core/Sorting/Runtime/ICongestionDetector.cs`（已删除）<br/>❌ 定义 `ThresholdBasedCongestionDetector`（已删除）<br/>❌ 其他平行拥堵检测接口 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests` |
 | **EMC 控制** | `IEmcController`, `IEmcResourceLockManager`, `EmcLockEvent`, `EmcLockEventArgs` | `Core/Hardware/Devices/` (控制器、锁管理接口)<br/>`Core/Events/Communication/` (事件模型) | ❌ `Communication/` 中定义 EMC 接口（PR-RS11 已迁移）<br/>❌ `Execution/` 中定义 EMC 接口<br/>❌ `Host/` 中直接操作 EMC | `TechnicalDebtComplianceTests.EmcShadowTests`<br/>`ApplicationLayerDependencyTests.Drivers_ShouldNotDependOn_Execution_Or_Communication` |
+| **操作结果 / 错误码** | `OperationResult`, `OperationResult<T>`, `ErrorCodes` | `Core/Results/` | ❌ 其他项目中定义 `*OperationResult*` 类型<br/>❌ 其他项目中定义 `*ErrorCodes*` 类型<br/>❌ `Execution/`、`Application/`、`Drivers/` 中重复定义结果类型 | `TechnicalDebtComplianceTests.OperationResultShadowTests` |
+| **HAL 工具类 / VendorCapabilities** | `VendorCapabilities` | `Core/Hardware/` | ❌ `Drivers/` 中定义重复的能力/状态结构<br/>❌ `Execution/` 中定义硬件能力结构<br/>❌ 其他项目中定义 `*VendorCapabilities*` 类型 | `TechnicalDebtComplianceTests.OperationResultShadowTests` |
 
 ### 6.2 影分身处理流程
 
@@ -1696,6 +1705,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：3.1 (PR-RS11)  
+**文档版本**：3.2 (PR-RS12)  
 **最后更新**：2025-12-01  
 **维护团队**：ZakYip Development Team
