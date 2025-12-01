@@ -1517,33 +1517,34 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
 
 > 本节用于约束技术债务（Technical Debt）的记录方式，以及所有 PR 对技术债务的处理优先级，确保技术债务不会被忽略或遗忘。
 
-### 1. 技术债务必须记录在 RepositoryStructure.md 中
+### 1. 技术债务文档结构（PR-RS13 更新）
 
-**规则：**
+**文档分工**：
+- **`docs/RepositoryStructure.md` 第 5 章节**：技术债索引表（ID + 状态 + 简短摘要）
+- **`docs/TechnicalDebtLog.md`**：技术债详细日志（PR 号、文件迁移列表、测试更新说明等）
 
-1. 所有已知的技术债务必须记录在 `docs/RepositoryStructure.md` 中，而不是仅存在于代码注释、TODO 注释或口头约定中：
-   - 包括但不限于：架构混乱、目录层级不合理、重复/冗余代码、性能隐患、测试缺失、约束未实现、Legacy 代码尚未删除等。
-   - 禁止出现“代码中有 TODO / FIXME，但在 RepositoryStructure.md 中没有对应记录”的情况。
+**规则**：
 
-2. 建议在 `RepositoryStructure.md` 中为每个项目或模块维护独立的“技术债务”小节，例如：
+1. 所有已知的技术债务必须在 `docs/RepositoryStructure.md` 第 5 章节的索引表中登记：
+   - 登记点是索引表，包含 ID、状态、1-2 行摘要
+   - 不再在 RepositoryStructure.md 中保留完整的过程描述
+   - 禁止出现"代码中有 TODO / FIXME，但在索引表中没有对应记录"的情况
 
-   - `3.x ZakYip.WheelDiverterSorter.XXX`  
-     - `Known Technical Debt / 技术债务清单`
+2. 技术债的详细描述（PR 过程、文件列表、测试变更等）统一存放在 `docs/TechnicalDebtLog.md` 中：
+   - 按 TD-xxx 编号组织
+   - 包含完整的问题描述、解决方案、影响范围
+   - 索引表中的详情链接指向此文件的对应章节
 
-3. 每条技术债务条目至少应包含以下信息：
+3. 当在代码中使用 `TODO` / `FIXME` 等注释时：
+   - 必须在 RepositoryStructure.md 索引表中新增条目
+   - 在代码注释中标明关联标识（例如 `TD-030`）
+   - 在 TechnicalDebtLog.md 中添加详细描述
 
-   - **位置**：明确模块 / 项目 / 目录 / 文件路径；
-   - **问题描述**：简要说明问题内容（结构问题、重复实现、缺少测试等）；
-   - **影响范围**：对维护成本、性能、稳定性或扩展性的影响；
-   - **处理建议**：推荐的解决思路（例如“合并两套实现，删除 LegacyXxx 类”）；
-   - **优先级**：如 `P1/P2/P3` 或 `High/Medium/Low`。
+**禁止行为**：
 
-4. 当在代码中使用 `TODO` / `FIXME` 等注释时，必须在 `RepositoryStructure.md` 中增加对应的技术债务条目，并在注释中标明关联标识（例如 `TD-001`），保持代码与文档的一致关系。
-
-**禁止行为：**
-
-- 仅在代码中写 TODO / FIXME，而不在 `RepositoryStructure.md` 中记录对应技术债务；
-- 仅在 PR 描述中提到“这里有技术债务”，但不写入 `RepositoryStructure.md`。
+- 仅在代码中写 TODO / FIXME，而不在索引表中记录对应技术债
+- 仅在 PR 描述中提到"这里有技术债务"，但不更新文档
+- 在 RepositoryStructure.md 中保留大段过程性描述（应移至 TechnicalDebtLog.md）
 
 ---
 
@@ -1609,39 +1610,48 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
 
 > 本节用于约束 Copilot 在创建 PR 时的工作顺序，要求始终以 `docs/RepositoryStructure.md` 和 `copilot-instructions.md` 作为项目结构、技术债务与编码规范的优先信息来源，从而减少无效尝试和错误假设。
 
-### 1. 创建 PR 前必须优先读取两个文档
+### 1. 创建 PR 前必须优先读取文档（PR-RS13 更新）
 
-**规则：**
+**文档阅读顺序**：
 
-1. 每次创建 PR（包括功能开发、重构、技术债清理、Bug 修复），Copilot 在进行任何结构推断、修改建议或代码重构之前，必须按如下顺序读取并理解文档：
+1. **`docs/RepositoryStructure.md`**（必读）：
+   - **第 1-4 章节**：项目结构、分层边界、命名空间约定与依赖关系
+   - **第 5 章节**：技术债索引表（ID + 状态 + 摘要）
+   - **第 6 章节**：单一权威实现表（防止影分身）
 
-   1. 读取 `docs/RepositoryStructure.md`：
-      - 获取当前项目结构、分层边界、命名空间约定与依赖关系；
-      - 获取各模块的技术债务清单及优先级。
-   2. 读取 `copilot-instructions.md`：
-      - 获取统一的编码规范、命名约束、枚举和 Id 规则、测试与技术债约束；
-      - 获取当前仓库对 PR 行为（如必须修复测试、禁止 global using 等）的要求。
+2. **`copilot-instructions.md`**（必读）：
+   - 统一的编码规范、命名约束、枚举和 Id 规则
+   - PR 行为要求（必须修复测试、禁止 global using 等）
 
-2. 在未读取上述两个文件之前，Copilot 不得：
+3. **`docs/TechnicalDebtLog.md`**（按需阅读）：
+   - 当需要了解某个技术债的详细过程时查阅
+   - 在 RepositoryStructure.md 第 5 章节看到 `[TD-xxx]` 标记时跳转查阅
+
+**规则**：
+
+1. 每次创建 PR（包括功能开发、重构、技术债清理、Bug 修复），Copilot 在进行任何结构推断、修改建议或代码重构之前，必须按上述顺序读取并理解文档。
+
+2. 在未读取上述文件之前，Copilot 不得：
    - 自行推测项目分层结构、模块职责；
    - 自行决定新增项目/目录的层级位置；
    - 自行放宽已有的编码规范或测试/技术债约束。
 
 3. 若 `RepositoryStructure.md` 与 `copilot-instructions.md` 内容存在冲突时，应遵循以下处理顺序：
 
-   1. 以 `copilot-instructions.md` 中的“全局规范与约束”为硬规则基线（如禁止 global using、Id 必须为 long、测试必须通过等）；
+   1. 以 `copilot-instructions.md` 中的"全局规范与约束"为硬规则基线（如禁止 global using、Id 必须为 long、测试必须通过等）；
    2. 在不违反上述硬规则的前提下，以 `RepositoryStructure.md` 作为架构与结构设计的权威来源；
    3. 如确认现有文档本身存在设计缺陷或已过期，本次 PR 必须包含：
       - 对相应文档的更新（两者保持一致）；
       - 对代码结构或实现的同步调整。
 
-**禁止行为：**
+**禁止行为**：
 
 - 在未阅读 `RepositoryStructure.md` 和 `copilot-instructions.md` 的前提下，直接生成重构方案或 PR 计划。
 - 无视两个文档中已存在的约束，自行设计与文档冲突的结构或编码风格。
 
 ---
 
+### 2. 以两个文档为 PR 规划与验收的基础
 ### 2. 以两个文档为 PR 规划与验收的基础
 
 **规则：**
@@ -1742,6 +1752,6 @@ Code Review 时会重点检查：
 15. 不能抑制错误和警告,有错误和警告都必须处理
 ---
 
-**文档版本**: 1.1  
-**最后更新**: 2025-11-26  
+**文档版本**: 1.2 (PR-RS13)  
+**最后更新**: 2025-12-01  
 **维护团队**: ZakYip Development Team
