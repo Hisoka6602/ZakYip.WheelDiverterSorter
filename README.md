@@ -230,11 +230,11 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 | 数据结构 | 位置 |
 |---------|------|
-| `ParcelDetectionNotification` | `src/Communication/Models/` |
-| `ChuteAssignmentRequest` | `src/Communication/Models/` |
-| `ChuteAssignmentResponse` | `src/Communication/Models/` |
-| `ChuteAssignmentEventArgs` | `src/Core/Abstractions/Upstream/` |
-| `IUpstreamRoutingClient` | `src/Core/Abstractions/Upstream/` |
+| `ParcelDetectionNotification` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentRequest` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentResponse` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentEventArgs` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
+| `IUpstreamRoutingClient` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
 
 ## 文档导航
 

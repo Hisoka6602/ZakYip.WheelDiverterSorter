@@ -246,7 +246,7 @@ public partial class ConfigurationDirectoryStructureTests
 
             // 这是一个警告性测试，不会导致失败
             // 如果需要严格检查，可以将 Console.WriteLine 改为 Assert.Fail
-            Console.WriteLine(report.ToString());
+            Console.WriteLine(report);
         }
     }
 
@@ -363,7 +363,7 @@ public partial class ConfigurationDirectoryStructureTests
             report.AppendLine("  - 配置验证器（*Validator）");
             report.AppendLine("  - 验证规则定义");
 
-            Console.WriteLine(report.ToString());
+            Console.WriteLine(report);
         }
     }
 
@@ -460,7 +460,7 @@ public partial class ConfigurationDirectoryStructureTests
         report.AppendLine($"  - 允许的子目录: {subdirectories.Count(d => AllowedSubdirectories.Contains(d))}");
         report.AppendLine($"  - 平铺文件数: {rootFiles.Count}");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
         
         Assert.True(true, "Report generated successfully");
     }
