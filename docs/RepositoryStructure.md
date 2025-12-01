@@ -2,9 +2,24 @@
 
 > 本文档由 AI 基于当前仓库完整代码生成，用于后续架构重构与 PR 规划。
 > 
-> **生成时间**：2025-11-28
+> **生成时间**：2025-12-01
 > 
 > **维护说明**：后续任何 PR 改动项目结构或者增减文件都需要更新本文档。
+
+---
+
+## 文档导航（Copilot 优先阅读顺序）
+
+Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文档：
+
+1. **[1. 解决方案概览](#1-解决方案概览)** - 了解项目组成和测试项目
+2. **[2. 项目依赖关系](#2-项目依赖关系)** - 理解分层架构和依赖约束
+3. **[3. 各项目内部结构](#3-各项目内部结构)** - 查阅具体项目的目录组织（尤其是 Core/Application/Host）
+4. **[4. 跨项目的关键类型与职责](#4-跨项目的关键类型与职责)** - 定位核心接口和服务
+5. **[5. 技术债索引](#5-技术债索引)** - 仅作索引，详细描述见 `TechnicalDebtLog.md`
+6. **[6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)** - 防止重复抽象的权威实现表
+
+> **注意**：第 5 章节仅保留技术债 ID、状态和简短摘要。如需了解某个技术债的详细过程（PR 号、文件迁移列表、测试更新说明等），请点击索引表中的"详情"链接跳转到 **[TechnicalDebtLog.md](./TechnicalDebtLog.md)**。
 
 ---
 
@@ -1189,310 +1204,62 @@ tools/Profiling/
 
 ---
 
-## 5. 当前结构中已发现的问题标记
+## 5. 技术债索引
 
-> 以下问题仅记录，本 PR 不做任何修改。这些问题将由后续 5 个重构 PR 分批解决。
+> 本章节仅保留技术债的 **ID + 状态 + 简短摘要**，详细描述（PR 号、文件迁移列表、测试更新说明等）请查阅 **[TechnicalDebtLog.md](./TechnicalDebtLog.md)**。
+>
+> **登记规则**：所有已知技术债务必须在本表中登记。新增技术债时，同步更新本表和 TechnicalDebtLog.md。
 
-### 5.1 层级职责混淆
+### 技术债状态说明
 
-1. **~~Execution 项目根目录文件过多~~** ✅ 已解决 (PR-TD4)
-   - ~~`ISwitchingPathExecutor.cs`、`AnomalyDetector.cs`、`ConveyorSegment.cs` 等文件直接放在项目根目录~~
-   - ~~建议：按职责归类到对应子目录（如 Abstractions/、Segments/）~~
-   - **PR-TD4 解决方案**：
-     - `ISwitchingPathExecutor` 已移至 `Core/Abstractions/Execution/`
-     - `AnomalyDetector` 已移至 `Execution/Diagnostics/`
-     - `ConveyorSegment` 已移至 `Execution/Segments/`
-     - `PathExecutionService` 已移至 `Execution/PathExecution/`
-     - `DefaultStrategyFactory`、`DefaultSystemRunStateService` 已移至 `Execution/Infrastructure/`
-     - `NodeHealthServiceExtensions` 已移至 `Execution/Extensions/`
-     - 新增 ArchTest 规则确保 Execution 根目录不再堆放业务类型
+| 状态 | 说明 |
+|------|------|
+| ✅ 已解决 | 问题已在对应 PR 中完全解决 |
+| ⏳ 进行中 | 问题正在处理，部分已解决 |
+| ❌ 未开始 | 问题已识别，尚未开始处理 |
 
-2. **~~Drivers 层依赖 Execution 层~~** ✅ 已解决 (PR-TD4)
-   - ~~`ZakYip.WheelDiverterSorter.Drivers.csproj` 引用了 `Execution` 项目~~
-   - ~~这违反了分层架构原则，驱动层应该是底层，不应依赖执行层~~
-   - ~~建议：将相关依赖移到 Core 层，或通过接口解耦~~
-   - **PR-TD4 解决方案**：
-     - Drivers.csproj 已移除对 Execution 的 ProjectReference
-     - 所有驱动抽象接口定义在 `Core/Hardware/` (PR-C6 已从 `Core/Abstractions/Drivers/` 迁移)
-     - 新增 ArchTest 规则 `Drivers_ShouldNotDependOn_Execution()` 防止倒退
+### 技术债索引表
 
-3. **~~Core 层 Abstractions 目录结构与 Drivers 层重复~~** ✅ 已解决 (PR-TD4, PR-C6 进一步收敛)
-   - ~~`Core/Abstractions/Drivers/` 和 `Drivers/Abstractions/` 存在重复定义~~
-   - ~~部分接口通过 `global using` 别名指向 Core 层~~
-   - ~~建议：统一接口定义位置，删除重复的抽象层~~
-   - **PR-TD4 解决方案**：
-     - `Drivers/Abstractions/` 目录已删除
-     - 所有驱动抽象接口仅存在于 `Core/Abstractions/Drivers/`
-     - 新增 ArchTest 规则 `Drivers_ShouldNotHaveAbstractionsDirectory()` 防止重生
-   - **PR-C6 进一步收敛**：
-     - `Core/Abstractions/Drivers/` 目录已删除
-     - 所有硬件相关接口统一迁移到 `Core/Hardware/` 的对应子目录
-     - 新增 ArchTest 规则防止创建平行硬件抽象层
+| ID | 状态 | 摘要 | 详情链接 |
+|----|------|------|----------|
+| TD-001 | ✅ 已解决 | Execution 根目录文件过多 → 已按职责归类到子目录 (PR-TD4) | [详情](./TechnicalDebtLog.md#td-001-execution-根目录文件过多) |
+| TD-002 | ✅ 已解决 | Drivers 层依赖 Execution 层 → 已移除依赖，接口定义在 Core/Hardware/ (PR-TD4) | [详情](./TechnicalDebtLog.md#td-002-drivers-层依赖-execution-层) |
+| TD-003 | ✅ 已解决 | Core/Abstractions 与 Drivers 层重复 → 统一迁移到 Core/Hardware/ (PR-TD4, PR-C6) | [详情](./TechnicalDebtLog.md#td-003-core-层-abstractions-与-drivers-层重复) |
+| TD-004 | ⏳ 进行中 | LineModel/Configuration 目录文件过多 → 待拆分为 Models/Repositories/Validation 子目录 | [详情](./TechnicalDebtLog.md#td-004-linemodelconfiguration-目录文件过多) |
+| TD-005 | ✅ 已解决 | 重复 Options 类定义 → 验证确认不存在重复 (PR-TD5) | [详情](./TechnicalDebtLog.md#td-005-重复-options-类定义) |
+| TD-006 | ✅ 已解决 | Host 层 Controllers 数量过多 → 合并为 HardwareConfigController (PR3) | [详情](./TechnicalDebtLog.md#td-006-host-层-controllers-数量过多) |
+| TD-007 | ✅ 已解决 | Host/Services 目录混合多种类型 → 拆分为 Workers/Extensions/ (PR3) | [详情](./TechnicalDebtLog.md#td-007-hostservices-目录混合多种类型) |
+| TD-008 | ✅ 已解决 | Simulation 项目既是库又是可执行程序 → 拆分为 Library + CLI (PR-TD6) | [详情](./TechnicalDebtLog.md#td-008-simulation-项目既是库又是可执行程序) |
+| TD-009 | ✅ 已解决 | 接口多层别名 → 删除 alias-only 文件，改用显式 using (PR5) | [详情](./TechnicalDebtLog.md#td-009-接口多层别名) |
+| TD-010 | ✅ 已解决 | Execution/Core 层 Abstractions 职责边界不清 → 职责边界已明确 (PR-C4) | [详情](./TechnicalDebtLog.md#td-010-execution-层-abstractions-与-core-层职责边界) |
+| TD-011 | ✅ 已解决 | 缺少统一 DI 注册中心 → AddWheelDiverterSorter() 在 Application 层 (PR3, PR-H1) | [详情](./TechnicalDebtLog.md#td-011-缺少统一的-di-注册中心) |
+| TD-012 | ✅ 已解决 | 遗留拓扑类型待清理 → 删除 Legacy 目录，迁移有用接口 (PR-C3, PR-C6) | [详情](./TechnicalDebtLog.md#td-012-遗留拓扑类型待清理) |
+| TD-013 | ✅ 已解决 | Host 层直接依赖过多下游项目 → 只依赖 Application/Core/Observability (PR-H1) | [详情](./TechnicalDebtLog.md#td-013-host-层直接依赖过多下游项目) |
+| TD-014 | ✅ 已解决 | Host 层包含业务接口/Commands/Repository → 下沉到 Application 层 (PR-H2) | [详情](./TechnicalDebtLog.md#td-014-host-层包含业务接口commandsrepository) |
+| TD-015 | ✅ 已解决 | 部分 README.md 可能过时 → 已更新 Drivers/Simulation README (PR5) | [详情](./TechnicalDebtLog.md#td-015-部分-readmemd-可能过时) |
+| TD-016 | ⏳ 部分解决 | 命名空间与物理路径不一致 → Configuration 已拆分 (PR4) | [详情](./TechnicalDebtLog.md#td-016-命名空间与物理路径不一致) |
+| TD-017 | ✅ 已解决 | Simulation 项目边界不清 → 明确定义公共 API (PR5) | [详情](./TechnicalDebtLog.md#td-017-simulation-项目边界) |
+| TD-018 | ✅ 已解决 | 厂商配置收拢 → 全部移到 Drivers/Vendors/ (PR-C2, PR-TD7) | [详情](./TechnicalDebtLog.md#td-018-厂商配置收拢) |
+| TD-019 | ✅ 已解决 | Ingress 对 Drivers 解耦 → 通过 ISensorVendorConfigProvider 抽象 (PR-TD7, PR-C6) | [详情](./TechnicalDebtLog.md#td-019-ingress-对-drivers-解耦) |
+| TD-020 | ✅ 已解决 | 内联枚举待迁移 → 迁移到 Core/Enums/ (PR-TD6, PR-C5) | [详情](./TechnicalDebtLog.md#td-020-内联枚举待迁移) |
+| TD-021 | ✅ 已解决 | HAL 层收敛与 IDiverterController 清理 → 统一到 Core/Hardware/ (PR-C6) | [详情](./TechnicalDebtLog.md#td-021-hal-层收敛与-idivertercontroller-清理) |
+| TD-022 | ✅ 已解决 | IWheelDiverterActuator 重复抽象 → 删除，统一用 IWheelDiverterDriver (PR-TD9) | [详情](./TechnicalDebtLog.md#td-022-iwheeldiverteractuator-重复抽象) |
+| TD-023 | ✅ 已解决 | Ingress 层冗余 UpstreamFacade → 删除，统一用 IUpstreamRoutingClient (PR-TD8) | [详情](./TechnicalDebtLog.md#td-023-ingress-层冗余-upstreamfacade) |
+| TD-024 | ✅ 已解决 | ICongestionDetector 重复接口 → 合并为单一接口 (PR-S1) | [详情](./TechnicalDebtLog.md#td-024-icongestiondetector-重复接口) |
+| TD-025 | ✅ 已解决 | CommunicationLoggerAdapter 纯转发适配器 → 删除，直接用 ILogger (PR-S2) | [详情](./TechnicalDebtLog.md#td-025-communicationloggeradapter-纯转发适配器) |
+| TD-026 | ✅ 新增 | Facade/Adapter 防线规则 → 新增测试检测纯转发类型 (PR-S2) | [详情](./TechnicalDebtLog.md#td-026-facadeadapter-防线规则) |
+| TD-027 | ✅ 新增 | DTO/Options/Utilities 统一规范 → 明确命名规则和位置约束 (PR-S3) | [详情](./TechnicalDebtLog.md#td-027-dtooptionsutilities-统一规范) |
+| TD-028 | ✅ 新增 | 事件 & DI 扩展影分身清理 → SensorEvent/ServiceCollectionExtensions 重命名 (PR-S6) | [详情](./TechnicalDebtLog.md#td-028-事件--di-扩展影分身清理) |
+| TD-029 | ✅ 新增 | 配置模型瘦身 → 删除 4 个仅测试使用的模型 (PR-SD5) | [详情](./TechnicalDebtLog.md#td-029-配置模型瘦身) |
 
-### 5.2 配置相关问题
+### 技术债统计
 
-4. **LineModel/Configuration 目录文件过多**
-   - 包含 50+ 文件，混合了配置模型、仓储接口、LiteDB 实现
-   - 建议：拆分为 Models/、Repositories/Interfaces/、Repositories/LiteDb/ 等子目录
-
-5. **~~存在重复的 Options 类定义~~** ✅ 已解决 (PR-TD5)
-   - ~~`UpstreamConnectionOptions` 在 `Execution/Orchestration/SortingOrchestrator.cs` 中定义（仅含 FallbackTimeoutSeconds 属性）~~
-   - ~~`Core/Sorting/Policies/UpstreamConnectionOptions.cs` 中定义了完整的上游连接配置类~~
-   - ~~两者职责不同但命名相同，容易造成混淆~~
-   - **PR-TD5 验证结果**：经代码审查确认，`UpstreamConnectionOptions` 仅存在于 `Core/Sorting/Policies/` 中，不存在重复定义。`SortingOrchestrator` 通过 `IOptions<UpstreamConnectionOptions>` 注入使用 Core 层的完整配置，其中 `FallbackTimeoutSeconds` 属性用于上游路由超时计算的降级逻辑
-
-### 5.3 代码组织问题
-
-6. **~~Host 层 Controllers 数量过多~~** ✅ 已解决 (PR3)
-   - ~~18 个 Controller，部分功能可能可以合并~~
-   - ~~`LeadshineIoDriverConfigController`、`ModiConfigController`、`ShuDiNiaoConfigController` 可考虑合并为统一的驱动配置 Controller~~
-   - **PR3 解决方案**：已合并为统一的 `HardwareConfigController`，提供 `/api/hardware/leadshine`、`/api/hardware/modi`、`/api/hardware/shudiniao` 端点
-
-7. **~~Host/Services 目录混合了多种类型~~** ✅ 已解决 (PR3)
-   - ~~包含 Workers、扩展方法、业务服务、运行时配置~~
-   - ~~建议：拆分为 Workers/、Extensions/、BusinessServices/ 等~~
-   - **PR3 解决方案**：已拆分为 `Services/Workers/`（后台任务）、`Services/Extensions/`（DI扩展方法）、`Services/Application/`（应用服务）
-
-8. **~~Simulation 项目既是库又是可执行程序~~** ✅ 已解决 (PR-TD6)
-   - ~~`OutputType` 为 `Exe`，同时被 Host 项目引用~~
-   - ~~这种设计可能导致构建和部署复杂性~~
-   - **PR-TD6 解决方案**：
-     - Simulation 项目的 `OutputType` 改为 `Library`
-     - 新增 `ZakYip.WheelDiverterSorter.Simulation.Cli` 项目作为独立的命令行入口
-     - Simulation.Cli 引用 Simulation 库，Host 只引用 Simulation 库
-     - 在 `TechnicalDebtComplianceTests` 中新增 `InterfacesAndDtosShouldNotContainInlineEnums` 测试防止内联枚举
-
-### 5.4 技术债务
-
-9. **~~部分接口存在多层别名~~** ✅ 已解决 (PR5)
-   - ~~`Drivers/Abstractions/IWheelDiverterDriver.cs` 仅包含 `global using` 指向 Core 层~~
-   - ~~这种间接引用增加了理解成本~~
-   - **PR5 解决方案**：删除了 Observability 层的 alias-only 文件（`ParcelFinalStatus.cs`、`AlarmLevel.cs`、`AlarmType.cs`、`AlertSeverity.cs`、`SystemClockAliases.cs`），删除了 Communication 层的 `EmcLockNotificationType.cs`，并为受影响的文件添加了显式 using 语句。
-
-10. **~~Execution 层 Abstractions 与 Core 层 Abstractions 的职责边界不清~~** ✅ 已解决 (PR-C4)
-    - ~~两层都定义了 `ISensorEventProvider`、`IUpstreamRoutingClient` 等接口~~
-    - ~~建议：明确哪些接口属于核心契约（Core），哪些属于执行层特定（Execution）~~
-    - **PR-C4 验证结果**：
-      - 跨层核心契约（`ISensorEventProvider`、`IUpstreamRoutingClient`、`IUpstreamContractMapper`、`IIoLinkageDriver`）仅在 `Core/Abstractions/` 中定义
-      - Execution 和 Drivers 中不存在重复定义
-      - Execution 中的接口（如 `IPathExecutionService`、`IAnomalyDetector` 等）均为执行层特有的抽象
-      - 职责边界已清晰
-
-11. **~~缺少统一的 DI 注册中心~~** ✅ 已解决 (PR3)
-    - ~~各项目都有自己的 `*ServiceExtensions.cs` 扩展方法~~
-    - ~~Host 的 Program.cs 需要调用多个扩展方法来完成注册~~
-    - ~~建议：考虑提供统一的 `AddWheelDiverterSorter()` 方法~~
-    - **PR3 解决方案**：新增 `WheelDiverterSorterServiceCollectionExtensions.AddWheelDiverterSorter()` 方法，Program.cs 只需调用这一个方法即可完成所有服务注册
-    - **PR-H1 增强**：DI 聚合逻辑下沉到 Application 层，Host 层只保留薄包装（AddWheelDiverterSorterHost）
-
-12. **~~遗留拓扑类型待清理~~** ✅ 已解决 (PR-C3, PR-C6 位置更新)
-    - ~~`Core/LineModel/Topology/Legacy/` 目录下的类型已标记为 `[Obsolete]`~~
-    - ~~包括：`LineTopology`, `DiverterNodeConfig`, `ChuteConfig`, `TopologyNode`, `TopologyEdge`, `DeviceBinding`~~
-    - ~~接口：`ILineTopologyService`, `IDeviceBindingService`, `IVendorIoMapper`~~
-    - **PR-C3 解决方案**：
-      - 删除了整个 `Core/LineModel/Topology/Legacy/` 目录
-      - `IVendorIoMapper` 和 `VendorIoAddress` 迁移到 `Core/Abstractions/Drivers/`（仍在使用）
-      - 删除了未使用的 `TopologyServiceExtensions.cs`
-      - 新增 ArchTests 规则禁止再次创建 Legacy 目录
-    - **PR-C6 位置更新**：`IVendorIoMapper` 和 `VendorIoAddress` 已从 `Core/Abstractions/Drivers/` 迁移到 `Core/Hardware/Mappings/`
-
-### 5.5 Host 层依赖收缩（PR-H1）
-
-13. **~~Host 层直接依赖过多下游项目~~** ✅ 已解决 (PR-H1)
-    - ~~Host 项目直接引用 Execution/Drivers/Ingress/Communication/Simulation~~
-    - ~~Host 层应只依赖 Application，由 Application 统一编排下游项目~~
-    - **PR-H1 解决方案**：
-      - Host.csproj 移除对 Execution/Drivers/Ingress/Communication/Simulation 的直接 ProjectReference
-      - Host 现在只依赖 Application/Core/Observability
-      - 在 Application 层创建统一 DI 入口 `AddWheelDiverterSorter()`
-      - Host 层的 `AddWheelDiverterSorterHost()` 是 Application 层的薄包装
-      - 更新 ArchTests 强制执行新的依赖约束
-
-### 5.5.1 Host 层继续瘦身（PR-H2）
-
-14. **~~Host 层包含业务接口/Commands/Repository/Adapter/Middleware~~** ✅ 已解决 (PR-H2)
-    - ~~Host/Application/Services/ 目录包含重复的服务接口和实现~~
-    - ~~Host/Commands/ 目录包含 ChangeParcelChuteCommand 相关类型~~
-    - ~~Host/Pipeline/ 目录包含 UpstreamAssignmentAdapter~~
-    - **PR-H2 解决方案**：
-      - 删除 `Host/Application/` 目录，业务服务接口和实现已移至 Application 层
-      - 删除 `Host/Commands/` 目录，改口命令由 Application 层的 IChangeParcelChuteService 处理
-      - 删除 `Host/Pipeline/` 目录，上游适配器已移至 Execution 层
-      - 更新 DivertsController 使用 IChangeParcelChuteService
-      - 新增 ArchTests.HostLayerConstraintTests 强制执行：
-        - 禁止接口定义（除 ISystemStateManager）
-        - 禁止 Command/Repository/Adapter/Middleware 命名的类型
-        - 禁止 Application/Commands/Pipeline/Repositories 目录
-      - Controller 依赖约束为顾问性测试（预留后续 PR 修复）
-
-### 5.6 文档与命名
-
-14. **~~部分 README.md 可能过时~~** ✅ 已解决 (PR5)
-    - ~~`Drivers/README.md`、`Simulation/README.md` 等需要验证是否与当前代码一致~~
-    - **PR5 解决方案**：更新了 `Drivers/README.md` 和 `Simulation/README.md`，反映当前 Vendors 结构和公共 API 定义
-
-15. **~~部分命名空间与物理路径不一致~~** ✅ 部分解决 (PR4)
-    - ~~需要检查所有命名空间是否与项目/目录结构对应~~
-    - **PR4 解决方案**：`Core/LineModel/Configuration` 已按 Models/Repositories/Validation 拆分，命名空间与路径一致
-
-16. **Simulation 项目边界已明确** ✅ 已解决 (PR5)
-    - **问题**：Simulation 既是独立可执行程序又被 Host 引用，边界不清晰
-    - **PR5 解决方案**：在 Simulation/README.md 中明确定义了公共 API（`ISimulationScenarioRunner`、`SimulationOptions`、`SimulationSummary`）与内部实现的区分，Host 层只应使用公共 API
-
-### 5.7 厂商配置收拢相关（PR-C2, PR-TD7）
-
-17. **厂商配置已完全收拢到 Drivers/Vendors/** ✅ 已完成 (PR-C2, PR-TD7)
-    - **PR-C2 完成**：
-      - `LeadshineOptions`, `LeadshineDiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Leadshine/Configuration/`
-      - `S7Options`, `S7DiverterConfigDto` 从 Drivers 根目录移动到 `Vendors/Siemens/Configuration/`
-      - `LeadshineSensorOptions`, `LeadshineSensorConfigDto` 从 Ingress 移动到 `Drivers/Vendors/Leadshine/Configuration/`
-      - 创建了 `SiemensS7ServiceCollectionExtensions` 统一 DI 扩展
-    - **PR-TD7 完成**：
-      - ~~Core 层 `LeadshineCabinetIoOptions` 仍在 `Core/LineModel/Configuration/Models/` 中~~
-      - **已解决**：重命名为厂商无关的 `CabinetIoOptions`，添加 `VendorProfileKey` 字段关联厂商实现
-      - 创建 `ModiOptions`（`Vendors/Modi/Configuration/`）
-      - 创建 `ShuDiNiaoOptions`（`Vendors/ShuDiNiao/Configuration/`）
-      - 创建 `SimulatedOptions`（`Vendors/Simulated/Configuration/`）
-      - 创建 `ISensorVendorConfigProvider` 接口和 `LeadshineSensorVendorConfigProvider` 实现
-      - Ingress 不再直接引用 `Drivers.Vendors.*` 命名空间，通过抽象接口获取配置
-
-18. **Ingress 对 Drivers 解耦** ✅ 已完成 (PR-TD7, PR-C6 位置更新)
-    - ~~PR-C2 为了让 Ingress 使用 Drivers 中的配置类，新增了 Ingress -> Drivers 的项目引用~~
-    - **PR-TD7 解决方案**：
-      - 创建 `ISensorVendorConfigProvider` 抽象接口在 Core 层
-      - Ingress 通过该接口获取传感器配置，不再直接引用 `Drivers.Vendors.*` 命名空间
-      - `LeadshineSensorFactory` 使用 `ISensorVendorConfigProvider` 替代直接配置引用
-      - Drivers 层的 `LeadshineIoServiceCollectionExtensions` 负责注册 `ISensorVendorConfigProvider` 实现
-    - **PR-C6 位置更新**：`ISensorVendorConfigProvider` 已从 `Core/Abstractions/Drivers/` 迁移到 `Core/Hardware/Providers/`
-
-### 5.8 内联枚举待迁移（PR-C2 白名单）✅ 已解决 (PR-TD6, PR-C5)
-
-19. **接口文件中的内联枚举** ✅ 已解决 (PR-TD6)
-    - ~~`IWheelDiverterDevice.cs` 中定义了 `WheelDiverterState` 枚举~~
-    - ~~`IWheelProtocolMapper.cs` 中定义了 `WheelCommandResultType`, `WheelDeviceState` 枚举~~
-    - **已迁移**：所有枚举已迁移到 `Core/Enums/Hardware/` 目录：
-      - `WheelDiverterState.cs`
-      - `WheelCommandResultType.cs`
-      - `WheelDeviceState.cs`
-    - **PR-C5 补充**：已为所有枚举成员添加 `[Description]` 特性和完整的中文注释
-
-20. **DTO 文件中的内联枚举** ✅ 已解决 (PR-TD6)
-    - ~~`ChutePathTopologyDto.cs` 中定义了 `SimulationStepType`, `StepStatus` 枚举~~
-    - **已迁移**：所有枚举已迁移到 `Core/Enums/Simulation/` 目录：
-      - `SimulationStepType.cs`
-      - `StepStatus.cs`
-    - **PR-C5 补充**：已为所有枚举成员添加 `[Description]` 特性和完整的中文注释
-
-### 5.9 HAL 层收敛与 IDiverterController 清理（PR-C6）
-
-21. **Core/Abstractions/Drivers 双轨结构** ✅ 已解决 (PR-C6)
-    - ~~Core 中存在 `Abstractions/Drivers/` 和 `Hardware/` 两个平行的硬件抽象目录~~
-    - ~~部分接口在两处都有定义，职责边界不清晰~~
-    - **PR-C6 解决方案**：
-      - 删除 `Core/Abstractions/Drivers/` 目录
-      - 所有硬件相关接口统一迁移到 `Core/Hardware/` 的对应子目录：
-        - `Hardware/Ports/`: IInputPort, IOutputPort
-        - `Hardware/IoLinkage/`: IIoLinkageDriver
-        - `Hardware/Devices/`: IWheelDiverterDriver, IWheelDiverterDriverManager, IWheelProtocolMapper, IEmcController
-        - `Hardware/Mappings/`: IVendorIoMapper, VendorIoAddress
-        - `Hardware/Providers/`: ISensorVendorConfigProvider
-      - 新增 ArchTest 规则防止创建平行硬件抽象层
-
-22. **IDiverterController 中间层** ✅ 已解决 (PR-C6)
-    - ~~存在 `IDiverterController` (基于角度的低级接口) 和 `IWheelDiverterDriver` (基于方向的高级接口) 两层抽象~~
-    - ~~`RelayWheelDiverterDriver` 作为适配器桥接两者，增加了复杂度~~
-    - **PR-C6 解决方案**：
-      - 删除 `IDiverterController` 接口
-      - 删除 `RelayWheelDiverterDriver` 适配器
-      - 创建直接实现 `IWheelDiverterDriver` 的驱动类：
-        - `LeadshineWheelDiverterDriver` (原 LeadshineDiverterController)
-        - `S7WheelDiverterDriver` (原 S7DiverterController)
-      - 更新 `LeadshineVendorDriverFactory` 和 `SiemensS7ServiceCollectionExtensions` 使用新驱动类
-
-### 5.10 摆轮控制抽象去重（PR-TD9）
-
-23. **IWheelDiverterActuator 重复抽象** ✅ 已解决 (PR-TD9)
-    - ~~`IWheelDiverterActuator` 与 `IWheelDiverterDriver` 方法签名完全相同，属于重复抽象~~
-    - ~~`IVendorDriverFactory` 同时暴露 `CreateWheelDiverterDrivers()` 和 `CreateWheelDiverterActuators()` 两个方法~~
-    - ~~`SimulatedWheelDiverterActuator` 是唯一的 `IWheelDiverterActuator` 实现，`Leadshine` 实现返回空列表~~
-    - **PR-TD9 解决方案**：
-      - 删除 `Core/Hardware/IWheelDiverterActuator.cs` 接口（与 `IWheelDiverterDriver` 语义重复）
-      - 删除 `Drivers/Vendors/Simulated/SimulatedWheelDiverterActuator.cs` 实现类
-      - 从 `IVendorDriverFactory` 移除 `CreateWheelDiverterActuators()` 方法
-      - 更新所有厂商工厂实现（`LeadshineVendorDriverFactory`、`SimulatedVendorDriverFactory`）
-      - 摆轮控制统一通过 `IWheelDiverterDriver`（方向接口）或 `IWheelDiverterDevice`（命令接口）暴露
-      - 新增 ArchTest 规则防止重新引入重复的摆轮控制接口
-
-### 5.11 上游路由 Facade / Middleware 去重（PR-TD8）
-
-24. **Ingress 层冗余 UpstreamFacade** ✅ 已解决 (PR-TD8)
-    - ~~Ingress 层存在 `IUpstreamFacade`、`UpstreamFacade`、`IUpstreamChannel`、`IUpstreamCommandSender`、`HttpUpstreamChannel` 等类型~~
-    - ~~这些类型虽然被定义和注册（`AddUpstreamServices`），但 `AddUpstreamServices` 从未被调用~~
-    - ~~上游通信实际使用的是 Communication 层的 `IUpstreamRoutingClient`~~
-    - **PR-TD8 解决方案**：
-      - 删除了整个 `Ingress/Upstream/` 目录，包括：
-        - `IUpstreamFacade.cs` - 冗余的上游门面接口
-        - `UpstreamFacade.cs` - 冗余的上游门面实现
-        - `IUpstreamChannel.cs` - 冗余的上游通道接口
-        - `IUpstreamCommandSender.cs` - 冗余的命令发送器接口
-        - `IUpstreamEventListener.cs` - 冗余的事件监听器接口
-        - `OperationResult.cs` - 冗余的操作结果模型
-        - `UpstreamServiceExtensions.cs` - 从未被调用的 DI 扩展
-        - `Configuration/IngressOptions.cs` - 冗余的配置选项
-        - `Http/HttpUpstreamChannel.cs` - 冗余的 HTTP 通道实现
-      - 删除了对应的测试文件：
-        - `Ingress.Tests/Upstream/UpstreamFacadeTests.cs`
-        - `Ingress.Tests/Upstream/HttpUpstreamChannelTests.cs`
-      - 上游通信统一使用 Communication 层的 `IUpstreamRoutingClient`（定义在 Core/Abstractions/Upstream/）
-      - 调用链简化为：Controller/Application → ISortingOrchestrator → IUpstreamRoutingClient → 具体协议客户端
-
-### 5.12 接口影分身合并（PR-S1）
-
-25. **ICongestionDetector 重复接口** ✅ 已解决 (PR-S1)
-    - ~~`Core/Sorting/Interfaces/ICongestionDetector.cs` 定义了 `DetectCongestionLevel(CongestionMetrics)` 方法~~
-    - ~~`Core/Sorting/Runtime/ICongestionDetector.cs` 定义了 `Detect(in CongestionSnapshot)` 方法~~
-    - ~~两个接口语义相同，但方法签名不同，导致存在两套实现：~~
-      - ~~`ThresholdCongestionDetector` - 实现 Interfaces 版本~~
-      - ~~`ThresholdBasedCongestionDetector` - 实现 Runtime 版本~~
-    - **PR-S1 解决方案**：
-      - 统一接口位置：`Core/Sorting/Interfaces/ICongestionDetector.cs`
-      - 接口包含两个方法，支持两种输入格式：
-        - `DetectCongestionLevel(CongestionMetrics metrics)` - 使用 class 输入
-        - `Detect(in CongestionSnapshot snapshot)` - 使用 readonly struct 输入（高性能版本）
-      - 删除了 `Core/Sorting/Runtime/ICongestionDetector.cs` 重复接口
-      - 合并实现为单一类：`ThresholdCongestionDetector`
-      - 删除了 `ThresholdBasedCongestionDetector` 类及其配置类 `CongestionThresholds`
-      - 更新了测试文件使用统一的 `ReleaseThrottleConfiguration` 配置
-      - **规则**：同一职责禁止再创建第二个平行接口
-
-### 5.13 纯转发 Facade/Adapter 清理（PR-S2）
-
-26. **CommunicationLoggerAdapter 纯转发适配器** ✅ 已解决 (PR-S2)
-    - ~~`Communication/Infrastructure/CommunicationLoggerAdapter.cs` 是纯转发类，仅包装 `ILogger` 接口~~
-    - ~~所有方法都是简单的一行转发调用，没有任何附加值~~
-    - **PR-S2 解决方案**：
-      - 删除 `CommunicationLoggerAdapter` 类
-      - 删除 `ICommunicationLogger` 接口（位于 `ICommunicationInfrastructure.cs`）
-      - 更新 `DefaultCommunicationInfrastructure` 直接使用 `ILogger`
-      - 更新 `ExponentialBackoffRetryPolicy` 直接使用 `ILogger`
-      - 更新 `SimpleCircuitBreaker` 直接使用 `ILogger`
-      - 新增 TechnicalDebtComplianceTests 规则 `ShouldNotHavePureForwardingFacadeAdapterTypes` 检测纯转发类型
-
-27. **Facade/Adapter 防线规则** ✅ 新增 (PR-S2)
-    - 新增测试规则 `PureForwardingTypeDetectionTests.ShouldNotHavePureForwardingFacadeAdapterTypes`
-    - **纯转发类型定义**（满足以下条件判定为影分身，应删除）：
-      - 类型以 `*Facade` / `*Adapter` / `*Wrapper` / `*Proxy` 结尾
-      - 只持有 1~2 个服务接口字段
-      - 方法体只做直接调用另一个服务的方法，没有：
-        - 类型转换/协议映射逻辑
-        - 事件订阅/转发机制
-        - 状态跟踪
-        - 批量操作聚合
-        - 验证或重试逻辑
-    - **合法的 Adapter/Facade**（应保留）：
-      - 有明确的类型转换逻辑（如 `SensorEventProviderAdapter`）
-      - 有协议适配逻辑（如 `ShuDiNiaoWheelDiverterDeviceAdapter`）
-      - 有状态跟踪（如 `LeadshineDiscreteIoPort`）
+| 状态 | 数量 |
+|------|------|
+| ✅ 已解决 | 27 |
+| ⏳ 进行中 | 2 |
+| ❌ 未开始 | 0 |
+| **总计** | **29** |
 
 ---
 
@@ -1533,7 +1300,8 @@ tools/Profiling/
 当发现代码中存在与上表"权威实现"语义重叠的类型时，必须按以下流程处理：
 
 1. **立即登记技术债**：
-   - 在本文档 `## 5. 当前结构中已发现的问题标记` 中新增条目
+   - 在本文档 `## 5. 技术债索引` 中新增条目
+   - 在 `TechnicalDebtLog.md` 中添加详细描述
    - 标明：影分身位置、权威实现位置、影响范围
 
 2. **在 TechnicalDebtComplianceTests 中新增防线**：
@@ -1630,81 +1398,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-### 5.14 DTO/Options/Utilities 统一规范（PR-S3）
-
-28. **DTO/Model/Response 类型统一命名规则** ✅ 新增 (PR-S3)
-    - **问题**：相同业务概念在多个项目中存在多个字段相同的 DTO/Model/Response 类型
-    - **统一命名规则**：
-      - `*Configuration`: 持久化配置模型（存储在 LiteDB），位于 `Core/LineModel/Configuration/Models/`
-      - `*Options`: 运行时配置选项（通过 IOptions<T> 注入），位于各项目的 `Configuration/` 目录
-      - `*Request`: API 请求模型，位于 `Host/Models/` 或 `Host/Models/Config/`
-      - `*Response`: API 响应模型，位于 `Host/Models/` 或 `Host/Models/Config/`
-      - `*Dto`: 跨层数据传输对象（仅在必要时使用）
-    - **已清理的重复类型**：
-      - 删除 `Ingress/Configuration/SensorConfiguration.cs`（未使用，与 Core 层 SensorConfiguration 重复）
-    - **已知的同名类型**（有明确职责区分）：
-      - `OperationResult` (Core/Results/) - 完整的操作结果类型，带 ErrorCode 支持
-      - `OperationResult` (Core/LineModel/Routing/) - 简化的内部操作结果类型（PR-S5 重命名为 RouteComputationResult）
-
-### 5.15 事件 & DI 扩展影分身清理（PR-S6）
-
-32. **事件类型跨层重名清理** ✅ 新增 (PR-S6)
-    - **问题**：`SensorEvent` 同时存在于 Ingress/Models/ 和 Simulation/Services/，IDE 搜索时需要凭感觉判断
-    - **解决方案**：
-      - 保留 `Ingress/Models/SensorEvent` 为现实世界传感器事件模型
-      - 将仿真侧 `SensorEvent` 重命名为 `SimulatedSensorEvent`
-      - 文件移动到 `Simulation/Models/SimulatedSensorEvent.cs`
-    - **防线测试**：`EventAndExtensionDuplicateDetectionTests.EventTypesShouldNotBeDuplicatedAcrossLayers()`
-
-33. **DI 扩展类跨项目重名清理** ✅ 新增 (PR-S6)
-    - **问题**：`WheelDiverterSorterServiceCollectionExtensions` 同时存在于 Application 和 Host 层
-    - **解决方案**：
-      - 保留 `Application/Extensions/WheelDiverterSorterServiceCollectionExtensions` 为唯一 DI 聚合入口
-      - 将 Host 层扩展类重命名为 `WheelDiverterSorterHostServiceCollectionExtensions`
-      - 文件位于 `Host/Services/Extensions/WheelDiverterSorterHostServiceCollectionExtensions.cs`
-    - **防线测试**：`EventAndExtensionDuplicateDetectionTests.ServiceCollectionExtensionsShouldBeUniquePerProject()`
-
-29. **Utilities 目录位置规范** ✅ 新增 (PR-S3)
-    - **允许的 Utilities 目录位置**：
-      - `Core/Utilities/` - 公共工具类（如 ISystemClock）
-      - `Core/LineModel/Utilities/` - LineModel 内部工具类（使用 file-scoped class）
-      - `Observability/Utilities/` - 可观测性相关工具类
-    - **禁止在其他项目中新增 Utilities 目录**
-    - **项目特定工具应使用 `file static class`** 保持文件作用域
-    - **防线测试**：`DuplicateTypeDetectionTests.UtilitiesDirectoriesShouldFollowConventions()`
-
-30. **未使用类型检测** ✅ 新增 (PR-S3)
-    - **测试**：`DuplicateTypeDetectionTests.ShouldNotHaveUnusedDtoOrOptionsTypes()`
-    - **检测范围**：以 `Dto`, `Options`, `Configuration`, `Config` 结尾的类型
-    - **注意**：Options 类型可能通过 IOptions<T> 隐式绑定，检测结果为顾问性
-
-31. **同名不同命名空间类型检测** ✅ 新增 (PR-S3)
-    - **测试**：`DuplicateTypeDetectionTests.ShouldNotHaveDuplicateTypeNameAcrossNamespaces()`
-    - **检测范围**：同名类型在不同命名空间中的定义
-    - **输出**：顾问性报告，需人工确认是否为真正的重复
-
-### 5.16 配置模型瘦身（PR-SD5）
-
-34. **删除仅测试使用的配置模型** ✅ 新增 (PR-SD5)
-    - **问题**：Core/LineModel/Configuration/Models 中存在仅被测试使用的配置模型
-    - **已删除的模型**：
-      - `IoPointConfiguration.cs` - 统一的 IO 点配置模型（无生产代码使用）
-      - `LineSegmentConfig.cs` - 线体段配置（无生产代码使用，仅在文档注释中引用）
-      - `PanelIoOptions.cs` - 面板 IO 配置选项（无任何使用）
-      - `SignalTowerOptions.cs` - 信号塔配置选项（无任何使用）
-    - **已删除的测试文件**：
-      - `tests/ZakYip.WheelDiverterSorter.Core.Tests/IoPointConfigurationTests.cs`
-      - `tests/ZakYip.WheelDiverterSorter.Core.Tests/LineModel/LineSegmentConfigTests.cs`
-    - **更新的注释引用**：
-      - `ChutePathTopologyConfig.cs` - 移除了对 LineSegmentConfig 的文档引用
-      - `ChutePathTopologyController.cs` - 移除了对 LineSegmentConfig 的文档引用
-    - **配置模型数量变化**：从 26 个减少到 22 个
-    - **防线测试**：`DuplicateTypeDetectionTests.ConfigurationModelsShouldHaveProductionUsage()`
-      - 验证配置模型在生产代码中有实际使用
-      - 允许被其他已使用配置模型引用的 helper types
-
----
-
-**文档版本**：3.2 (PR-RS12)  
+**文档版本**：3.3 (PR-RS13)  
 **最后更新**：2025-12-01  
 **维护团队**：ZakYip Development Team
