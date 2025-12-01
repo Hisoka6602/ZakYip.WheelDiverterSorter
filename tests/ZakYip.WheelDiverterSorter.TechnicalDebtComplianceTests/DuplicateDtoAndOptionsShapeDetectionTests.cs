@@ -67,9 +67,7 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
     /// </summary>
     private static readonly HashSet<string> AllowedStructuralDuplicates = new(StringComparer.Ordinal)
     {
-        // 现有技术债务 - HttpConfig vs HttpOptions
-        // 待清理: Communication.Configuration.HttpOptions 和 Core.LineModel.Configuration.Models.HttpConfig 结构相同
-        "HttpConfig,HttpOptions",
+        // PR-UPSTREAM01: HttpConfig 和 HttpOptions 已删除，不再是技术债务
         
         // 现有技术债务 - MqttConfig vs MqttOptions
         // 待清理: Communication.Configuration.MqttOptions 和 Core.LineModel.Configuration.Models.MqttConfig 结构相同

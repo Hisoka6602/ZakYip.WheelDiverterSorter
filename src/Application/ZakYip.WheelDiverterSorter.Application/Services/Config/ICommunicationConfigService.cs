@@ -90,11 +90,6 @@ public record UpdateCommunicationConfigCommand
     public TcpConfigCommand? Tcp { get; init; }
 
     /// <summary>
-    /// HTTP 配置
-    /// </summary>
-    public HttpConfigCommand? Http { get; init; }
-
-    /// <summary>
     /// MQTT 配置
     /// </summary>
     public MqttConfigCommand? Mqtt { get; init; }
@@ -129,37 +124,6 @@ public record TcpConfigCommand
     /// 禁用 Nagle 算法
     /// </summary>
     public bool NoDelay { get; init; } = true;
-}
-
-/// <summary>
-/// HTTP 配置命令
-/// </summary>
-public record HttpConfigCommand
-{
-    /// <summary>
-    /// HTTP API 地址
-    /// </summary>
-    public string? HttpApi { get; init; }
-
-    /// <summary>
-    /// 每服务器最大连接数
-    /// </summary>
-    public int MaxConnectionsPerServer { get; init; } = 10;
-
-    /// <summary>
-    /// 连接池空闲超时
-    /// </summary>
-    public int PooledConnectionIdleTimeout { get; init; } = 60;
-
-    /// <summary>
-    /// 连接池生命周期
-    /// </summary>
-    public int PooledConnectionLifetime { get; init; } = 0;
-
-    /// <summary>
-    /// 是否使用 HTTP/2
-    /// </summary>
-    public bool UseHttp2 { get; init; } = false;
 }
 
 /// <summary>

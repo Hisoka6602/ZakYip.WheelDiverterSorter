@@ -6,13 +6,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Communication;
 /// <summary>
 /// 通信配置响应模型
 /// </summary>
+/// <remarks>
+/// PR-UPSTREAM01: HTTP 模式已移除，只支持 Tcp/SignalR/Mqtt。
+/// </remarks>
 [SwaggerSchema(Description = "通信配置信息，参数按协议分组")]
 public class CommunicationConfigurationResponse
 {
     /// <summary>
     /// 通信模式
     /// </summary>
-    [SwaggerSchema(Description = "当前使用的通信协议")]
+    [SwaggerSchema(Description = "当前使用的通信协议：Tcp/SignalR/Mqtt")]
     public CommunicationMode Mode { get; init; }
 
     /// <summary>
@@ -50,12 +53,6 @@ public class CommunicationConfigurationResponse
     /// </summary>
     [SwaggerSchema(Description = "TCP 协议配置（Mode=Tcp时有效）")]
     public TcpConfigDto? Tcp { get; init; }
-
-    /// <summary>
-    /// HTTP 相关配置
-    /// </summary>
-    [SwaggerSchema(Description = "HTTP 协议配置（Mode=Http时有效）")]
-    public HttpConfigDto? Http { get; init; }
 
     /// <summary>
     /// MQTT 相关配置

@@ -291,11 +291,12 @@ public class CommunicationApiValidationTests : IClassFixture<WebApplicationFacto
     public async Task UpdateConfiguration_WithMinimumValidValues_ReturnsSuccess()
     {
         // Arrange - Minimum valid values at boundary
+        // PR-UPSTREAM01: HTTP 模式已移除，改用 TCP 模式
         var config = new CommunicationConfiguration
         {
-            Mode = CommunicationMode.Http,
+            Mode = CommunicationMode.Tcp,
             ConnectionMode = ConnectionMode.Client,
-            HttpApi = "http://localhost:5000/api/chute",
+            TcpServer = "localhost:9000",
             TimeoutMs = 1000,      // Minimum
             RetryCount = 0,         // Minimum
             RetryDelayMs = 100,     // Minimum

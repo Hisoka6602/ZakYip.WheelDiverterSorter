@@ -243,12 +243,14 @@ public class CommunicationController : ControllerBase {
     /// <summary>
     /// 获取服务器地址
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: HTTP 模式已移除。
+    /// </remarks>
     private static string? GetServerAddress(CommunicationConfiguration config)
     {
         return config.Mode switch
         {
             CommunicationMode.Tcp => config.TcpServer,
-            CommunicationMode.Http => config.HttpApi,
             CommunicationMode.Mqtt => config.MqttBroker,
             CommunicationMode.SignalR => config.SignalRHub,
             _ => null
@@ -317,6 +319,7 @@ public class CommunicationController : ControllerBase {
         try {
             var config = _configRepository.Get();
             
+            // PR-UPSTREAM01: HTTP 配置已移除
             var response = new CommunicationConfigurationResponse
             {
                 Mode = config.Mode,
@@ -331,14 +334,6 @@ public class CommunicationController : ControllerBase {
                     ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
                     SendBufferSize = config.Tcp.SendBufferSize,
                     NoDelay = config.Tcp.NoDelay
-                },
-                Http = new HttpConfigDto
-                {
-                    HttpApi = config.HttpApi,
-                    MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
-                    PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
-                    PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
-                    UseHttp2 = config.Http.UseHttp2
                 },
                 Mqtt = new MqttConfigDto
                 {
@@ -460,7 +455,6 @@ public class CommunicationController : ControllerBase {
                 RetryDelayMs = request.RetryDelayMs,
                 EnableAutoReconnect = request.EnableAutoReconnect,
                 TcpServer = request.Tcp?.TcpServer,
-                HttpApi = request.Http?.HttpApi,
                 MqttBroker = request.Mqtt?.MqttBroker,
                 MqttTopic = request.Mqtt?.MqttTopic ?? "sorting/chute/assignment",
                 SignalRHub = request.SignalR?.SignalRHub,
@@ -469,13 +463,6 @@ public class CommunicationController : ControllerBase {
                     ReceiveBufferSize = request.Tcp?.ReceiveBufferSize ?? 8192,
                     SendBufferSize = request.Tcp?.SendBufferSize ?? 8192,
                     NoDelay = request.Tcp?.NoDelay ?? true
-                },
-                Http = new Core.LineModel.Configuration.Models.HttpConfig
-                {
-                    MaxConnectionsPerServer = request.Http?.MaxConnectionsPerServer ?? 10,
-                    PooledConnectionIdleTimeout = request.Http?.PooledConnectionIdleTimeout ?? 60,
-                    PooledConnectionLifetime = request.Http?.PooledConnectionLifetime ?? 0,
-                    UseHttp2 = request.Http?.UseHttp2 ?? false
                 },
                 Mqtt = new Core.LineModel.Configuration.Models.MqttConfig
                 {
@@ -574,6 +561,9 @@ public class CommunicationController : ControllerBase {
     /// 将 CommunicationConfiguration 映射到 RuleEngineConnectionOptions
     /// Map CommunicationConfiguration to RuleEngineConnectionOptions
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: HTTP 配置已移除。
+    /// </remarks>
     private static RuleEngineConnectionOptions MapToRuleEngineConnectionOptions(CommunicationConfiguration config)
     {
         return new RuleEngineConnectionOptions
@@ -584,7 +574,6 @@ public class CommunicationController : ControllerBase {
             SignalRHub = config.SignalRHub,
             MqttBroker = config.MqttBroker,
             MqttTopic = config.MqttTopic,
-            HttpApi = config.HttpApi,
             TimeoutMs = config.TimeoutMs,
             RetryCount = config.RetryCount,
             RetryDelayMs = config.RetryDelayMs,
@@ -594,13 +583,6 @@ public class CommunicationController : ControllerBase {
                 ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
                 SendBufferSize = config.Tcp.SendBufferSize,
                 NoDelay = config.Tcp.NoDelay
-            },
-            Http = new Communication.Configuration.HttpOptions
-            {
-                MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
-                PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
-                PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
-                UseHttp2 = config.Http.UseHttp2
             },
             Mqtt = new Communication.Configuration.MqttOptions
             {

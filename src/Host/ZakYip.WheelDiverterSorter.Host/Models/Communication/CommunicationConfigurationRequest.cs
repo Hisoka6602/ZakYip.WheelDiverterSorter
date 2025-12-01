@@ -7,13 +7,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Communication;
 /// <summary>
 /// 通信配置请求模型
 /// </summary>
+/// <remarks>
+/// PR-UPSTREAM01: HTTP 模式已移除，只支持 Tcp/SignalR/Mqtt。
+/// </remarks>
 [SwaggerSchema(Description = "更新通信配置的请求，参数按协议分组")]
 public class CommunicationConfigurationRequest
 {
     /// <summary>
     /// 通信模式
     /// </summary>
-    [SwaggerSchema(Description = "通信协议类型：Http(0), Tcp(1), SignalR(2), Mqtt(3)")]
+    [SwaggerSchema(Description = "通信协议类型：Tcp(0), SignalR(1), Mqtt(2)")]
     [Required(ErrorMessage = "通信模式不能为空")]
     public CommunicationMode Mode { get; set; }
 
@@ -58,12 +61,6 @@ public class CommunicationConfigurationRequest
     public TcpConfigDto? Tcp { get; set; }
 
     /// <summary>
-    /// HTTP 相关配置
-    /// </summary>
-    [SwaggerSchema(Description = "HTTP 协议专用配置（仅当Mode=Http时生效）")]
-    public HttpConfigDto? Http { get; set; }
-
-    /// <summary>
     /// MQTT 相关配置
     /// </summary>
     [SwaggerSchema(Description = "MQTT 协议专用配置（仅当Mode=Mqtt时生效）")]
@@ -105,43 +102,6 @@ public class TcpConfigDto
     /// </summary>
     [SwaggerSchema(Description = "是否禁用Nagle算法（true=低延迟，false=高吞吐）")]
     public bool NoDelay { get; set; } = true;
-}
-
-/// <summary>
-/// HTTP 配置
-/// </summary>
-[SwaggerSchema(Description = "HTTP REST API 通信配置")]
-public class HttpConfigDto
-{
-    /// <summary>
-    /// HTTP API URL
-    /// </summary>
-    [SwaggerSchema(Description = "HTTP API端点地址，例如：http://192.168.1.100:5000/api/sorting/chute")]
-    public string? HttpApi { get; set; }
-
-    /// <summary>
-    /// 每个服务器的最大连接数
-    /// </summary>
-    [SwaggerSchema(Description = "连接池中每个服务器的最大连接数")]
-    public int MaxConnectionsPerServer { get; set; } = 10;
-
-    /// <summary>
-    /// 连接池中空闲连接的超时时间（秒）
-    /// </summary>
-    [SwaggerSchema(Description = "连接池中空闲连接的超时时间，单位：秒")]
-    public int PooledConnectionIdleTimeout { get; set; } = 60;
-
-    /// <summary>
-    /// 连接池中连接的生命周期（秒，0表示无限制）
-    /// </summary>
-    [SwaggerSchema(Description = "连接池中连接的最大生命周期，0表示无限制，单位：秒")]
-    public int PooledConnectionLifetime { get; set; } = 0;
-
-    /// <summary>
-    /// 是否使用HTTP/2协议
-    /// </summary>
-    [SwaggerSchema(Description = "是否启用HTTP/2协议（需要服务器支持）")]
-    public bool UseHttp2 { get; set; } = false;
 }
 
 /// <summary>
