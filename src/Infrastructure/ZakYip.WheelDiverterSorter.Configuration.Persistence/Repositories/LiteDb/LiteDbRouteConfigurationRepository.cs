@@ -4,7 +4,7 @@ using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
 /// 基于LiteDB的路由配置仓储实现

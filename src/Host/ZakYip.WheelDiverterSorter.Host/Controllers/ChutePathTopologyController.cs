@@ -10,7 +10,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Simulation;
 using ZakYip.WheelDiverterSorter.Host.Models;

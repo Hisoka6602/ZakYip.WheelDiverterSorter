@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;

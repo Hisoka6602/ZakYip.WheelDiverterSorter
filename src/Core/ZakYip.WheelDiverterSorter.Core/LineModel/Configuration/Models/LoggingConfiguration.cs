@@ -1,5 +1,3 @@
-using LiteDB;
-
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 
 /// <summary>
@@ -27,9 +25,8 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 public class LoggingConfiguration
 {
     /// <summary>
-    /// 配置ID（LiteDB自动生成）
+    /// 配置ID（由持久化层自动生成）
     /// </summary>
-    [BsonId]
     public int Id { get; set; }
 
     /// <summary>

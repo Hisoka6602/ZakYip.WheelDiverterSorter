@@ -1,6 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -14,9 +13,8 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 public sealed record class PanelConfiguration
 {
     /// <summary>
-    /// 配置ID（LiteDB自动生成）
+    /// 配置ID（由持久化层自动生成）
     /// </summary>
-    [BsonId]
     public int Id { get; init; }
 
     /// <summary>

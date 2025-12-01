@@ -2,42 +2,42 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
-/// 基于 LiteDB 的 IO 联动配置仓储实现
+/// 基于LiteDB的面板配置仓储实现
 /// </summary>
-public class LiteDbIoLinkageConfigurationRepository : IIoLinkageConfigurationRepository, IDisposable
+public class LiteDbPanelConfigurationRepository : IPanelConfigurationRepository, IDisposable
 {
     private readonly LiteDatabase _database;
-    private readonly ILiteCollection<IoLinkageConfiguration> _collection;
-    private const string CollectionName = "IoLinkageConfiguration";
-    private const string ConfigName = "io_linkage";
+    private readonly ILiteCollection<PanelConfiguration> _collection;
+    private const string CollectionName = "PanelConfiguration";
+    private const string PanelConfigName = "panel";
 
     /// <summary>
-    /// 初始化 LiteDB IO 联动配置仓储
+    /// 初始化LiteDB面板配置仓储
     /// </summary>
-    /// <param name="databasePath">LiteDB 数据库文件路径</param>
-    public LiteDbIoLinkageConfigurationRepository(string databasePath)
+    /// <param name="databasePath">LiteDB数据库文件路径</param>
+    public LiteDbPanelConfigurationRepository(string databasePath)
     {
-        // 使用 Shared 模式允许多个仓储实例共享同一个数据库文件
+        // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        _collection = _database.GetCollection<IoLinkageConfiguration>(CollectionName);
+        _collection = _database.GetCollection<PanelConfiguration>(CollectionName);
         
-        // 为 ConfigName 字段创建唯一索引
+        // 为ConfigName字段创建唯一索引
         _collection.EnsureIndex(x => x.ConfigName, unique: true);
     }
 
     /// <summary>
-    /// 获取 IO 联动配置
+    /// 获取面板配置
     /// </summary>
-    /// <returns>IO 联动配置，如不存在则返回默认配置</returns>
-    public IoLinkageConfiguration Get()
+    /// <returns>面板配置，如不存在则返回默认配置</returns>
+    public PanelConfiguration Get()
     {
         var config = _collection
             .Query()
-            .Where(x => x.ConfigName == ConfigName)
+            .Where(x => x.ConfigName == PanelConfigName)
             .FirstOrDefault();
 
         if (config == null)
@@ -46,18 +46,18 @@ public class LiteDbIoLinkageConfigurationRepository : IIoLinkageConfigurationRep
             InitializeDefault();
             config = _collection
                 .Query()
-                .Where(x => x.ConfigName == ConfigName)
+                .Where(x => x.ConfigName == PanelConfigName)
                 .FirstOrDefault();
         }
 
-        return config ?? IoLinkageConfiguration.GetDefault();
+        return config ?? PanelConfiguration.GetDefault();
     }
 
     /// <summary>
-    /// 更新 IO 联动配置
+    /// 更新面板配置
     /// </summary>
-    /// <param name="configuration">IO 联动配置</param>
-    public void Update(IoLinkageConfiguration configuration)
+    /// <param name="configuration">面板配置</param>
+    public void Update(PanelConfiguration configuration)
     {
         if (configuration == null)
         {
@@ -74,23 +74,23 @@ public class LiteDbIoLinkageConfigurationRepository : IIoLinkageConfigurationRep
         // 查找现有配置
         var existing = _collection
             .Query()
-            .Where(x => x.ConfigName == ConfigName)
+            .Where(x => x.ConfigName == PanelConfigName)
             .FirstOrDefault();
 
         if (existing != null)
         {
-            // 更新现有配置，保持现有的 Id
+            // 更新现有配置，保持现有的Id
             configuration = configuration with 
             { 
-                ConfigName = ConfigName,
+                ConfigName = PanelConfigName,
                 Id = existing.Id 
             };
             _collection.Update(configuration);
         }
         else
         {
-            // 插入新配置，ConfigName 需确保为 io_linkage
-            configuration = configuration with { ConfigName = ConfigName };
+            // 插入新配置，ConfigName需确保为panel
+            configuration = configuration with { ConfigName = PanelConfigName };
             _collection.Insert(configuration);
         }
     }
@@ -103,12 +103,12 @@ public class LiteDbIoLinkageConfigurationRepository : IIoLinkageConfigurationRep
     {
         var existing = _collection
             .Query()
-            .Where(x => x.ConfigName == ConfigName)
+            .Where(x => x.ConfigName == PanelConfigName)
             .FirstOrDefault();
 
         if (existing == null)
         {
-            var defaultConfig = IoLinkageConfiguration.GetDefault();
+            var defaultConfig = PanelConfiguration.GetDefault();
             
             if (currentTime.HasValue)
             {

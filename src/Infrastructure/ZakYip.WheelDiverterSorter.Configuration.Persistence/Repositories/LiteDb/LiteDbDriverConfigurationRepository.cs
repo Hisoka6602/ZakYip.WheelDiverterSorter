@@ -2,7 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
 /// 基于LiteDB的驱动器配置仓储实现

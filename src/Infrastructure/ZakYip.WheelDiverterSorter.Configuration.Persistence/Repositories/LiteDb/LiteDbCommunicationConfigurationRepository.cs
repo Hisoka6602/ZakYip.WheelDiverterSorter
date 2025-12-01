@@ -2,34 +2,34 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
-/// 基于LiteDB的传感器配置仓储实现
+/// 基于LiteDB的通信配置仓储实现
 /// </summary>
-public class LiteDbSensorConfigurationRepository : ISensorConfigurationRepository
+public class LiteDbCommunicationConfigurationRepository : ICommunicationConfigurationRepository
 {
     private readonly string _connectionString;
-    private const string CollectionName = "SensorConfiguration";
+    private const string CollectionName = "CommunicationConfiguration";
 
-    public LiteDbSensorConfigurationRepository(string databasePath)
+    public LiteDbCommunicationConfigurationRepository(string databasePath)
     {
         _connectionString = $"Filename={databasePath};Connection=shared";
     }
 
     /// <summary>
-    /// 获取传感器配置
+    /// 获取通信配置
     /// </summary>
-    public SensorConfiguration Get()
+    public CommunicationConfiguration Get()
     {
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<SensorConfiguration>(CollectionName);
+        var collection = db.GetCollection<CommunicationConfiguration>(CollectionName);
         
         var config = collection.FindAll().FirstOrDefault();
         if (config == null)
         {
             // 如果没有配置，返回默认配置并保存
-            config = SensorConfiguration.GetDefault();
+            config = CommunicationConfiguration.GetDefault();
             collection.Insert(config);
         }
 
@@ -37,9 +37,9 @@ public class LiteDbSensorConfigurationRepository : ISensorConfigurationRepositor
     }
 
     /// <summary>
-    /// 更新传感器配置
+    /// 更新通信配置
     /// </summary>
-    public void Update(SensorConfiguration configuration)
+    public void Update(CommunicationConfiguration configuration)
     {
         if (configuration == null)
         {
@@ -57,7 +57,7 @@ public class LiteDbSensorConfigurationRepository : ISensorConfigurationRepositor
         configuration.Version++;
 
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<SensorConfiguration>(CollectionName);
+        var collection = db.GetCollection<CommunicationConfiguration>(CollectionName);
 
         if (configuration.Id == 0)
         {
@@ -78,12 +78,12 @@ public class LiteDbSensorConfigurationRepository : ISensorConfigurationRepositor
     public void InitializeDefault()
     {
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<SensorConfiguration>(CollectionName);
+        var collection = db.GetCollection<CommunicationConfiguration>(CollectionName);
 
         // 只有在集合为空时才初始化
         if (!collection.Exists(_ => true))
         {
-            var defaultConfig = SensorConfiguration.GetDefault();
+            var defaultConfig = CommunicationConfiguration.GetDefault();
             collection.Insert(defaultConfig);
         }
     }

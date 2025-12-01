@@ -3,7 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
 /// 基于LiteDB的格口路径拓扑配置仓储实现

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Caching;
 

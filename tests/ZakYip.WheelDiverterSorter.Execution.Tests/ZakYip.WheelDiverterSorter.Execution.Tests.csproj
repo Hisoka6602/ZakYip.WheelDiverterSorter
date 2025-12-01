@@ -24,6 +24,7 @@
     <ProjectReference Include="../../src/Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj" />
     <ProjectReference Include="../../src/Execution/ZakYip.WheelDiverterSorter.Execution/ZakYip.WheelDiverterSorter.Execution.csproj" />
     <ProjectReference Include="../../src/Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
+    <ProjectReference Include="../../src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/ZakYip.WheelDiverterSorter.Configuration.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

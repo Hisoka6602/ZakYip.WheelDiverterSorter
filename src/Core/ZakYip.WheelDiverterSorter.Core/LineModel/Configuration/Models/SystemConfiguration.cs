@@ -1,4 +1,3 @@
-using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
@@ -14,9 +13,8 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 public class SystemConfiguration
 {
     /// <summary>
-    /// 配置ID（LiteDB自动生成）
+    /// 配置ID（由持久化层自动生成）
     /// </summary>
-    [BsonId]
     public int Id { get; set; }
 
     /// <summary>
