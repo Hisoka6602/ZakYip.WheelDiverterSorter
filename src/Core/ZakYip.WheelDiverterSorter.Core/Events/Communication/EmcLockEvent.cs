@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 namespace ZakYip.WheelDiverterSorter.Core.Events.Communication;
 
