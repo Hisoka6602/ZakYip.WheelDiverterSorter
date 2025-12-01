@@ -27,7 +27,7 @@
 - [TD-013] Host 层直接依赖过多下游项目 (PR-H1)
 - [TD-014] Host 层包含业务接口/Commands/Repository (PR-H2)
 - [TD-015] 部分 README.md 可能过时 (PR5)
-- [TD-016] 命名空间与物理路径不一致 (PR4)
+- [TD-016] 命名空间与物理路径不一致 (PR4, PR-RS12)
 - [TD-017] Simulation 项目边界 (PR5)
 - [TD-018] 厂商配置收拢 (PR-C2, PR-TD7)
 - [TD-019] Ingress 对 Drivers 解耦 (PR-TD7)
@@ -300,14 +300,39 @@
 
 ## [TD-016] 命名空间与物理路径不一致
 
-**状态**：⏳ 部分解决 (PR4)
+**状态**：✅ 已解决 (PR-RS12)
 
 **问题描述**：
 - 需要检查所有命名空间是否与项目/目录结构对应
 
-**解决方案**：
+**PR4 解决方案**：
 - `Core/LineModel/Configuration` 已按 Models/Repositories/Validation 拆分
 - 命名空间与路径一致
+
+**PR-RS12 完成**：
+- 验证所有 594 个 C# 源文件的命名空间与物理路径 100% 对齐
+- 新增 `ArchTests.NamespaceConsistencyTests` 架构防线测试：
+  - `AllSourceFiles_ShouldHaveNamespaceMatchingPhysicalPath` - 验证命名空间与物理路径一致
+  - `AllSourceFiles_ShouldHaveCorrectRootNamespace` - 验证根命名空间以 ZakYip.WheelDiverterSorter 开头
+  - `Namespaces_ShouldNotSkipDirectoryLevels` - 验证命名空间不跳级
+  - `GenerateNamespaceConsistencyReport` - 生成对齐报告
+- 配合 `TechnicalDebtComplianceTests.NamespaceLocationTests` 双重防线
+
+**对齐率统计**（PR-RS12 验证结果）：
+| 项目 | 文件数 | 对齐率 |
+|------|--------|--------|
+| ZakYip.WheelDiverterSorter.Analyzers | 4 | 100% |
+| ZakYip.WheelDiverterSorter.Application | 30 | 100% |
+| ZakYip.WheelDiverterSorter.Communication | 46 | 100% |
+| ZakYip.WheelDiverterSorter.Core | 260 | 100% |
+| ZakYip.WheelDiverterSorter.Drivers | 65 | 100% |
+| ZakYip.WheelDiverterSorter.Execution | 48 | 100% |
+| ZakYip.WheelDiverterSorter.Host | 67 | 100% |
+| ZakYip.WheelDiverterSorter.Ingress | 20 | 100% |
+| ZakYip.WheelDiverterSorter.Observability | 28 | 100% |
+| ZakYip.WheelDiverterSorter.Simulation | 25 | 100% |
+| ZakYip.WheelDiverterSorter.Simulation.Cli | 1 | 100% |
+| **总计** | **594** | **100%** |
 
 ---
 

@@ -69,6 +69,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | ExecutionPathPipelineTests | PR-SD4: Execution 层管线依赖约束（中间件不依赖 Drivers/Core.Hardware） |
 | HalConsolidationTests | HAL 层收敛约束 |
 | HostLayerConstraintTests | Host 层约束 |
+| NamespaceConsistencyTests | PR-RS12: 命名空间与物理路径一致性检测 |
 | RoutingTopologyLayerTests | 路由/拓扑分层约束 |
 
 #### E2ETests 关键测试类
@@ -1237,7 +1238,7 @@ tools/Profiling/
 | TD-013 | ✅ 已解决 | Host 层直接依赖过多下游项目 → 只依赖 Application/Core/Observability (PR-H1) | [详情](./TechnicalDebtLog.md#td-013-host-层直接依赖过多下游项目) |
 | TD-014 | ✅ 已解决 | Host 层包含业务接口/Commands/Repository → 下沉到 Application 层 (PR-H2) | [详情](./TechnicalDebtLog.md#td-014-host-层包含业务接口commandsrepository) |
 | TD-015 | ✅ 已解决 | 部分 README.md 可能过时 → 已更新 Drivers/Simulation README (PR5) | [详情](./TechnicalDebtLog.md#td-015-部分-readmemd-可能过时) |
-| TD-016 | ⏳ 部分解决 | 命名空间与物理路径不一致 → Configuration 已拆分 (PR4) | [详情](./TechnicalDebtLog.md#td-016-命名空间与物理路径不一致) |
+| TD-016 | ✅ 已解决 | 命名空间与物理路径不一致 → 完全对齐，增加 NamespaceConsistencyTests 防线 (PR-RS12) | [详情](./TechnicalDebtLog.md#td-016-命名空间与物理路径不一致) |
 | TD-017 | ✅ 已解决 | Simulation 项目边界不清 → 明确定义公共 API (PR5) | [详情](./TechnicalDebtLog.md#td-017-simulation-项目边界) |
 | TD-018 | ✅ 已解决 | 厂商配置收拢 → 全部移到 Drivers/Vendors/ (PR-C2, PR-TD7) | [详情](./TechnicalDebtLog.md#td-018-厂商配置收拢) |
 | TD-019 | ✅ 已解决 | Ingress 对 Drivers 解耦 → 通过 ISensorVendorConfigProvider 抽象 (PR-TD7, PR-C6) | [详情](./TechnicalDebtLog.md#td-019-ingress-对-drivers-解耦) |
@@ -1256,8 +1257,8 @@ tools/Profiling/
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 27 |
-| ⏳ 进行中 | 2 |
+| ✅ 已解决 | 28 |
+| ⏳ 进行中 | 1 |
 | ❌ 未开始 | 0 |
 | **总计** | **29** |
 
