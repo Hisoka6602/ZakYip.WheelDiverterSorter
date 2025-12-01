@@ -159,10 +159,18 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 
 根据 `copilot-instructions.md` 规范，项目依赖必须遵循以下严格约束，由 `ArchTests` 项目中的 `ApplicationLayerDependencyTests` 强制执行：
 
-#### Host 层约束（PR-H1 更新）
+#### Host 层约束（PR-RS9 更新）
 - **允许依赖**：Application、Core、Observability
 - **禁止直接依赖**：Execution、Drivers、Ingress、Communication、Simulation
 - **说明**：Host 层通过 Application 层间接访问 Execution/Drivers/Ingress/Communication/Simulation 的服务
+
+**Host 层"薄层"原则（PR-RS9 强化）**：
+- **职责边界**：Host 只负责 DI 配置、API Controller 壳、启动引导、Swagger 文档
+- **禁止的内容**：
+  - 业务服务接口定义（`I*Service`，ISystemStateManager 除外）
+  - Command/Repository/Adapter/Middleware 等业务模式类型
+  - Application/Commands/Pipeline/Repositories 等业务目录
+- **详细目录清单**：见 [3.2 Host 层结构约束](#host-层结构约束pr-rs9-强化)
 
 #### Application 层约束（PR-H1 更新）
 - **允许依赖**：Core、Execution、Drivers、Ingress、Communication、Observability、Simulation
@@ -253,71 +261,74 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
 ```
 ZakYip.WheelDiverterSorter.Application/
 ├── Extensions/                          # PR-H1: DI 扩展方法（统一服务注册入口）
-│   └── WheelDiverterSorterServiceCollectionExtensions.cs # AddWheelDiverterSorter() 统一DI入口
-├── Services/                           # 应用服务实现
-│   ├── CachedDriverConfigurationRepository.cs    # 带缓存的IO驱动器配置仓储
-│   ├── CachedSensorConfigurationRepository.cs    # 带缓存的感应IO配置仓储
-│   ├── CachedSwitchingPathGenerator.cs           # 带缓存的路径生成器
-│   ├── ChangeParcelChuteService.cs               # 改口服务实现（PR-A2新增）
-│   ├── CommunicationConfigService.cs             # 通信配置服务实现（PR-A2新增）
-│   ├── CommunicationStatsService.cs              # 通信统计服务
-│   ├── CongestionDataCollector.cs                # 拥堵数据收集器
-│   ├── DebugSortService.cs                       # 调试分拣服务实现（PR-A2新增）
-│   ├── IChangeParcelChuteService.cs              # 改口服务接口（PR-A2新增）
-│   ├── ICommunicationConfigService.cs            # 通信配置服务接口（PR-A2新增）
-│   ├── IDebugSortService.cs                      # 调试分拣服务接口（PR-A2新增）
-│   ├── IIoLinkageConfigService.cs                # IO联动配置服务接口（PR-A2新增）
-│   ├── ILoggingConfigService.cs                  # 日志配置服务接口
-│   ├── IPreRunHealthCheckService.cs              # 运行前健康检查服务接口
-│   ├── ISimulationOrchestratorService.cs         # 仿真编排服务接口
-│   ├── ISystemConfigService.cs                   # 系统配置服务接口
-│   ├── IVendorConfigService.cs                   # PR-TD7: 厂商配置服务接口
-│   ├── InMemoryRoutePlanRepository.cs            # 内存路由计划仓储
-│   ├── IoLinkageConfigService.cs                 # IO联动配置服务实现（PR-A2新增）
-│   ├── LoggingConfigService.cs                   # 日志配置服务实现
-│   ├── OptimizedSortingService.cs                # 性能优化的分拣服务
-│   ├── PreRunHealthCheckService.cs               # 运行前健康检查服务实现
-│   ├── SimulationModeProvider.cs                 # 仿真模式提供者
-│   ├── SorterMetrics.cs                          # 分拣系统性能指标服务
-│   ├── SystemConfigService.cs                    # 系统配置服务实现
-│   └── VendorConfigService.cs                    # PR-TD7: 厂商配置服务实现
-└── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication) - 应用服务注册
+│   └── WheelDiverterSorterServiceCollectionExtensions.cs
+├── Services/                           # 应用服务实现（按职责分组）
+│   ├── Caching/                        # 缓存相关服务
+│   │   ├── CachedDriverConfigurationRepository.cs
+│   │   ├── CachedSensorConfigurationRepository.cs
+│   │   ├── CachedSwitchingPathGenerator.cs
+│   │   └── InMemoryRoutePlanRepository.cs
+│   ├── Config/                         # 配置服务（接口+实现）
+│   │   ├── ISystemConfigService.cs, SystemConfigService.cs
+│   │   ├── ILoggingConfigService.cs, LoggingConfigService.cs
+│   │   ├── ICommunicationConfigService.cs, CommunicationConfigService.cs
+│   │   ├── IIoLinkageConfigService.cs, IoLinkageConfigService.cs
+│   │   └── IVendorConfigService.cs, VendorConfigService.cs
+│   ├── Debug/                          # 调试分拣服务
+│   │   └── IDebugSortService.cs, DebugSortService.cs
+│   ├── Health/                         # 健康检查服务
+│   │   └── IPreRunHealthCheckService.cs, PreRunHealthCheckService.cs
+│   ├── Metrics/                        # 性能指标服务
+│   │   ├── CommunicationStatsService.cs
+│   │   ├── CongestionDataCollector.cs
+│   │   └── SorterMetrics.cs
+│   ├── Simulation/                     # 仿真相关服务
+│   │   ├── ISimulationOrchestratorService.cs
+│   │   └── SimulationModeProvider.cs
+│   ├── Sorting/                        # 分拣业务服务
+│   │   ├── IChangeParcelChuteService.cs, ChangeParcelChuteService.cs
+│   │   └── OptimizedSortingService.cs
+│   └── Topology/                       # 拓扑服务
+│       └── IChutePathTopologyService.cs, ChutePathTopologyService.cs
+└── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication)
 ```
 
-#### 关键类型概览
+> **注意**：Application 层包含众多配置/统计/辅助服务，上述目录树展示主要结构。完整服务列表请查看源码目录 `src/Application/ZakYip.WheelDiverterSorter.Application/Services/`。本文档不再逐一枚举所有服务类，避免文档频繁同步更新。
 
-- `WheelDiverterSorterServiceCollectionExtensions`（位于 Extensions/）：PR-H1 统一 DI 入口，提供 `AddWheelDiverterSorter()` 方法注册所有基础服务
-- `ApplicationServiceExtensions`：提供 `AddWheelDiverterApplication()` 注册所有应用服务（被 `AddWheelDiverterSorter()` 调用）
-- `ISystemConfigService`/`SystemConfigService`：系统配置的业务逻辑，包括验证、更新、默认模板生成
-- `ILoggingConfigService`/`LoggingConfigService`：日志配置的查询、更新、重置操作
-- `IPreRunHealthCheckService`/`PreRunHealthCheckService`：运行前验证所有关键配置是否就绪
-- `ICommunicationConfigService`/`CommunicationConfigService`：通信配置的业务逻辑，包括连接测试、热更新（PR-A2新增）
-- `IIoLinkageConfigService`/`IoLinkageConfigService`：IO联动配置的业务逻辑，包括IO点操作（PR-A2新增）
-- `IDebugSortService`/`DebugSortService`：调试分拣服务，用于测试分拣流程（PR-A2新增）
-- `IChangeParcelChuteService`/`ChangeParcelChuteService`：改口服务，处理包裹目标格口变更请求（PR-A2新增）
-- `IVendorConfigService`/`VendorConfigService`：厂商配置服务，提供厂商配置的统一访问门面（PR-TD7新增）
-- `ISimulationModeProvider`/`SimulationModeProvider`：判断系统当前是否运行在仿真模式下
-- `SorterMetrics`：分拣系统性能指标，包括计数器、直方图等
-- `OptimizedSortingService`：集成了指标收集、对象池和优化内存管理的分拣服务
-- `CachedSwitchingPathGenerator`：带缓存优化的路径生成器包装器
-- `CongestionDataCollector`：收集系统当前拥堵指标快照
+#### 关键角色（边界 & DI 入口）
+
+- **`WheelDiverterSorterServiceCollectionExtensions`**（Extensions/）：统一 DI 入口，提供 `AddWheelDiverterSorter()` 方法
+- **`ApplicationServiceExtensions`**：提供 `AddWheelDiverterApplication()` 注册所有应用服务
+
+#### 核心配置服务（供 Controller 注入）
+
+- `ISystemConfigService` / `ILoggingConfigService` / `ICommunicationConfigService` / `IIoLinkageConfigService` / `IVendorConfigService`
+
+#### 核心业务服务
+
+- `IChangeParcelChuteService`：改口服务，处理包裹目标格口变更
+- `IPreRunHealthCheckService`：运行前健康检查
+- `ISimulationOrchestratorService`：仿真编排服务接口
+- `OptimizedSortingService`：性能优化的分拣服务
+- `SorterMetrics`：分拣系统性能指标
 
 ### 3.2 ZakYip.WheelDiverterSorter.Host
 
-**项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。不包含业务逻辑，业务逻辑委托给 Application 层和下游项目。
+**项目职责**：Web API 主机入口，负责 DI 容器配置、API Controller 定义、启动引导和 Swagger 文档生成。**Host 必须保持"薄层"原则**：不包含业务逻辑，业务逻辑委托给 Application 层和下游项目。
 
-**PR-H1 / PR-H2 变更**：Host 层只依赖 Application/Core/Observability，通过 Application 层间接访问其他项目的服务。**Host 层不再包含任何接口/命令/仓储/Adapter/业务中间件，只保留启动、状态机、Controller 与 AddWheelDiverterSorterHost() 薄包装。**
+> **核心原则（PR-RS9 强化）**：Host 层只依赖 Application/Core/Observability，通过 Application 层间接访问其他项目的服务。**Host 层不包含任何业务接口/命令/仓储/Adapter/业务中间件，只保留启动、状态机、Controller 与薄包装 DI 扩展。**
 
 ```
 ZakYip.WheelDiverterSorter.Host/
-├── Controllers/                     # API 控制器（16个，PR3合并后）
+├── Controllers/                     # API 控制器（16个）
+│   ├── ApiControllerBase.cs
 │   ├── AlarmsController.cs
 │   ├── ChuteAssignmentTimeoutController.cs
 │   ├── ChutePathTopologyController.cs
 │   ├── CommunicationController.cs
 │   ├── DivertsController.cs
+│   ├── HardwareConfigController.cs
 │   ├── HealthController.cs
-│   ├── HardwareConfigController.cs  # PR3: 统一硬件配置控制器（合并雷赛/莫迪/数递鸟）
 │   ├── IoLinkageController.cs
 │   ├── LoggingConfigController.cs
 │   ├── PanelConfigController.cs
@@ -325,93 +336,81 @@ ZakYip.WheelDiverterSorter.Host/
 │   ├── SimulationConfigController.cs
 │   ├── SimulationController.cs
 │   ├── SystemConfigController.cs
-│   ├── SystemOperationsController.cs
-│   └── ApiControllerBase.cs
+│   └── SystemOperationsController.cs
 ├── Health/                          # 健康检查提供者
+│   └── HostHealthStatusProvider.cs
 ├── Models/                          # API 请求/响应 DTO
-│   ├── Communication/
-│   ├── Config/
-│   └── Panel/
-├── Services/                        # PR-H1/H2: 简化后的服务目录（只包含 DI 扩展和 Workers）
-│   ├── Extensions/                  # DI 扩展方法（Host 层薄包装）
-│   │   ├── HealthCheckServiceExtensions.cs      # 健康检查服务注册
-│   │   ├── SystemStateServiceExtensions.cs      # 系统状态服务注册
-│   │   └── WheelDiverterSorterHostServiceCollectionExtensions.cs  # PR-S6: Host 层薄包装（已从 WheelDiverterSorterServiceCollectionExtensions 重命名）
+│   ├── Communication/               # 通信相关 DTO
+│   ├── Config/                      # 配置相关 DTO
+│   └── Panel/                       # 面板相关 DTO
+├── Services/                        # Host 层服务（仅 DI 扩展和 Workers）
+│   ├── Extensions/                  # DI 扩展方法
+│   │   ├── HealthCheckServiceExtensions.cs
+│   │   ├── SystemStateServiceExtensions.cs
+│   │   └── WheelDiverterSorterHostServiceCollectionExtensions.cs
 │   └── Workers/                     # 后台工作服务
 │       ├── AlarmMonitoringWorker.cs
 │       ├── BootHostedService.cs
 │       └── RouteTopologyConsistencyCheckWorker.cs
-├── StateMachine/                    # 系统状态机（启动/运行/停止）
+├── StateMachine/                    # 系统状态机
+│   ├── BootstrapStage.cs
+│   ├── ISystemStateManager.cs
+│   ├── SystemState.cs
+│   ├── SystemStateManager.cs
+│   └── SystemStateManagerWithBoot.cs
 ├── Swagger/                         # Swagger 配置与过滤器
-├── Program.cs                       # 应用入口点（PR-H1: 调用 AddWheelDiverterSorterHost()）
+│   ├── IoDriverConfigurationSchemaFilter.cs
+│   ├── WheelDiverterConfigurationSchemaFilter.cs
+│   └── WheelDiverterControllerDocumentFilter.cs
+├── Program.cs                       # 应用入口点
 ├── appsettings.json                 # 配置文件
 ├── nlog.config                      # NLog 日志配置
 └── Dockerfile                       # Docker 构建文件
 ```
 
-**PR-H2 变更说明**：
-- 删除了 `Application/` 目录（业务服务接口和实现已移至 Application 层）
-  - 原 `Application/Services/ILoggingConfigService.cs` → `Application.Services.ILoggingConfigService`
-  - 原 `Application/Services/ISystemConfigService.cs` → `Application.Services.ISystemConfigService`
-  - 原 `Application/Services/IPreRunHealthCheckService.cs` → `Application.Services.IPreRunHealthCheckService`
-  - 原 `Application/Services/ISimulationOrchestratorService.cs` → `Application.Services.ISimulationOrchestratorService`
-  - 原 `Application/Services/CachedDriverConfigurationRepository.cs` → `Application.Services.CachedDriverConfigurationRepository`
-  - 原 `Application/Services/CachedSensorConfigurationRepository.cs` → `Application.Services.CachedSensorConfigurationRepository`
-- 删除了 `Commands/` 目录（改口命令已移至 Application 层的 IChangeParcelChuteService）
-  - 原 `Commands/ChangeParcelChuteCommand.cs` → `Application.Services.ChangeParcelChuteCommand`
-  - 原 `Commands/ChangeParcelChuteCommandHandler.cs` → `Application.Services.ChangeParcelChuteService`
-  - 原 `Commands/ChangeParcelChuteResult.cs` → `Application.Services.ChangeParcelChuteResult`
-- 删除了 `Pipeline/` 目录（上游适配器已移至 Execution 层）
-  - 原 `Pipeline/UpstreamAssignmentAdapter.cs` → Execution 层
+#### Host 层结构约束（PR-RS9 强化）
 
-**PR-H1 变更说明**：
-- 删除了 `Services/Extensions/` 下的以下文件（已移至 Application 层）：
-  - `ConfigurationRepositoryServiceExtensions.cs`
-  - `MiddleConveyorServiceExtensions.cs`
-  - `RuntimeProfileServiceExtensions.cs`
-  - `SortingServiceExtensions.cs`
-  - `SimulationServiceExtensions.cs`
-- 删除了 `Services/RuntimeProfiles/` 目录（已移至 Application 层作为 file-scoped 类型）
-- `WheelDiverterSorterHostServiceCollectionExtensions` 是 Application 层统一 DI 入口的薄包装（PR-S6: 已从 `WheelDiverterSorterServiceCollectionExtensions` 重命名）
+##### ✅ 允许的目录（白名单）
+
+| 目录 | 用途 | 允许的内容 |
+|------|------|-----------|
+| `Controllers/` | API 端点 | API Controller 类，继承 ApiControllerBase |
+| `Health/` | 健康检查 | 健康检查提供者类 |
+| `Models/` | DTO | API 请求/响应模型（不含业务逻辑） |
+| `Services/Extensions/` | DI 配置 | Host 层 DI 扩展方法（薄包装） |
+| `Services/Workers/` | 后台任务 | BackgroundService / IHostedService 实现 |
+| `StateMachine/` | 状态机 | 系统状态管理（唯一允许定义 `ISystemStateManager` 接口的位置） |
+| `Swagger/` | API 文档 | Swagger 过滤器和配置 |
+| `Properties/` | 项目属性 | launchSettings.json 等 |
+
+##### ❌ 禁止的目录/概念（黑名单）
+
+| 禁止的目录/概念 | 原因 | 应放置位置 |
+|----------------|------|-----------|
+| `Application/` | 业务服务应在 Application 层 | `Application/Services/` |
+| `Commands/` | Command 模式应在 Application 层 | `Application/Services/Sorting/` |
+| `Pipeline/` | 中间件/管道应在 Execution 层 | `Execution/Pipeline/` |
+| `Repositories/` | 仓储实现应在 Core 层 | `Core/LineModel/Configuration/Repositories/` |
+| `Adapters/` | 适配器应在对应业务层 | `Execution/` 或 `Drivers/` |
+| `Middleware/` | 业务中间件应在 Execution 层 | `Execution/Pipeline/Middlewares/` |
+| `I*Service` 接口（ISystemStateManager 除外）¹ | 业务服务接口应在 Application/Core 层 | `Application/Services/` |
+
+> ¹ **ISystemStateManager 例外说明**：`ISystemStateManager` 是 Host 层状态机的核心接口，定义系统启动/运行/停止状态转换契约。该接口直接与 Host 层的启动引导职责绑定，不属于可下沉到 Application/Core 的业务服务，因此允许在 `StateMachine/` 目录定义。
+
+##### 测试防线
+
+| 测试类 | 约束内容 |
+|-------|---------|
+| `ArchTests.HostLayerConstraintTests` | 禁止接口定义、禁止业务模式类型、禁止业务目录 |
+| `TechnicalDebtComplianceTests.HostLayerComplianceTests` | 禁止 Commands/Application/Pipeline 等目录 |
 
 #### 关键类型概览
 
-- `Program.cs`：应用启动入口，通过 `AddWheelDiverterSorterHost()` 单一入口配置所有服务（PR-H1）
-- `SystemStateManager`（位于 StateMachine/）：管理系统启动/运行/停止状态转换
-- `BootHostedService`（位于 Services/Workers/）：系统启动引导服务，按顺序初始化各子系统
-- `ApiControllerBase`（位于 Controllers/）：所有 API 控制器的基类，提供统一响应格式
-- `HardwareConfigController`（位于 Controllers/）：统一硬件配置控制器，提供 /api/hardware/leadshine、/api/hardware/modi、/api/hardware/shudiniao 端点
-- `WheelDiverterSorterHostServiceCollectionExtensions`（位于 Services/Extensions/）：Host 层薄包装，提供 `AddWheelDiverterSorterHost()` 方法（PR-H1/H2/S6）
-
-**注意**：PR-A2 将原 Host/Services/Application 目录下的服务（OptimizedSortingService、SorterMetrics、DebugSortService 等）统一移至 Application 层。PR-H1 进一步将 DI 注册逻辑下沉到 Application 层。**PR-H2 进一步瘦身，删除了 Host 层的 Application/Services、Commands、Pipeline 目录**，Host 层不再包含业务服务实现，也不再直接依赖 Execution/Drivers/Ingress/Communication/Simulation。
-
-#### ArchTests 约束（PR-H2 新增）
-
-由 `ArchTests.HostLayerConstraintTests` 强制执行：
-- **禁止接口定义**：Host 项目内禁止声明任何 interface（除 ISystemStateManager 外）
-- **禁止业务模式类型**：Host 项目内禁止存在 Command/Repository/Adapter/Middleware 命名的类型
-- **禁止业务目录**：Host 项目内禁止存在 Application/Commands/Pipeline/Repositories 目录
-- **Controller 依赖约束**（顾问性）：Controller 应只注入 Application 层服务接口，不直接注入 Execution/Core/Drivers/Ingress/Communication 中的抽象
-
-#### TechnicalDebtComplianceTests 约束（PR-SD3 新增）
-
-由 `TechnicalDebtComplianceTests.HostLayerComplianceTests` 强制执行：
-- **禁止 Commands 目录**：Host 项目内禁止存在 Commands 目录。如果需要真正的 Command Bus 模式（如队列/审计/异步处理），必须在测试白名单中显式列出并在此文档说明原因
-- **禁止 I*Service 接口定义**：Host 项目内禁止定义 `I*Service` 结尾的业务服务接口（ISystemStateManager 除外）。所有业务服务接口应定义在 Application 层或 Core 层
-- **禁止业务目录**：Host 项目内禁止存在 Commands/Application/Pipeline/Repositories/Adapters/Middleware 目录
-
-**允许的 Host 层目录结构**：
-- `Controllers/` - API 端点
-- `StateMachine/` - 系统状态机（包含 ISystemStateManager）
-- `Health/` - 健康检查提供者
-- `Models/` - API 请求/响应 DTO
-- `Services/Workers/` - 后台工作服务
-- `Services/Extensions/` - DI 配置扩展
-- `Swagger/` - Swagger 配置
-- `Properties/` - 项目属性
-
-**Command Bus 白名单**（目前为空，如有需要在此添加）：
-- 无
+- **`Program.cs`**：应用启动入口，调用 `AddWheelDiverterSorterHost()` 完成所有服务注册
+- **`SystemStateManager`**（StateMachine/）：系统启动/运行/停止状态转换管理
+- **`BootHostedService`**（Services/Workers/）：启动引导服务，按顺序初始化各子系统
+- **`ApiControllerBase`**（Controllers/）：所有 Controller 的基类，提供统一响应格式
+- **`WheelDiverterSorterHostServiceCollectionExtensions`**（Services/Extensions/）：Host 层薄包装，调用 Application 层的 `AddWheelDiverterSorter()`
 
 ---
 
@@ -1558,6 +1557,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.8 (PR-RS8)  
+**文档版本**：2.9 (PR-RS9)  
 **最后更新**：2025-12-01  
 **维护团队**：ZakYip Development Team
