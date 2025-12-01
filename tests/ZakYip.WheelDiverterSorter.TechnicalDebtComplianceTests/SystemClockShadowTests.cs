@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Text.RegularExpressions;
 using ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
@@ -28,6 +29,18 @@ public class SystemClockShadowTests
     /// </summary>
     private const string AuthoritativeLocalSystemClockNamespace = "ZakYip.WheelDiverterSorter.Core.Utilities";
     private const string AuthoritativeLocalSystemClockTypeName = "LocalSystemClock";
+
+    /// <summary>
+    /// 预编译的正则表达式用于检测 SystemClock 类定义
+    /// Precompiled regex for detecting SystemClock class definitions
+    /// </summary>
+    private static readonly Regex SystemClockClassPattern = new(@"\bclass\s+\w*SystemClock\b", RegexOptions.Compiled);
+
+    /// <summary>
+    /// 预编译的正则表达式用于检测 ISystemClock 接口定义
+    /// Precompiled regex for detecting ISystemClock interface definitions
+    /// </summary>
+    private static readonly Regex ISystemClockInterfacePattern = new(@"\binterface\s+I\w*SystemClock\b", RegexOptions.Compiled);
 
     /// <summary>
     /// 获取所有非测试项目的程序集
@@ -233,31 +246,33 @@ public class SystemClockShadowTests
         {
             try
             {
-                var content = File.ReadAllText(file);
                 var lines = File.ReadAllLines(file);
                 
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
-                    // 查找接口定义
-                    if (line.Contains("interface ISystemClock") || 
-                        line.Contains("interface I") && line.Contains("SystemClock"))
+                    
+                    // 排除注释和 using 语句
+                    if (line.StartsWith("//") || 
+                        line.StartsWith("*") || 
+                        line.StartsWith("///") ||
+                        line.StartsWith("using"))
                     {
-                        // 排除 using 语句和注释
-                        if (!line.StartsWith("//") && 
-                            !line.StartsWith("*") && 
-                            !line.StartsWith("///") &&
-                            !line.StartsWith("using"))
-                        {
-                            var relativePath = GetRelativePath(file);
-                            violations.Add($"{relativePath}:{i + 1} - {line}");
-                        }
+                        continue;
+                    }
+                    
+                    // 使用预编译的正则表达式查找接口定义
+                    if (ISystemClockInterfacePattern.IsMatch(line))
+                    {
+                        var relativePath = GetRelativePath(file);
+                        violations.Add($"{relativePath}:{i + 1} - {line}");
                     }
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
-                Console.WriteLine($"Error scanning {file}: {ex.Message}");
+                // 文件读取错误，记录并继续
+                Console.WriteLine($"IO Error scanning {file}: {ex.Message}");
             }
         }
 
@@ -289,29 +304,32 @@ public class SystemClockShadowTests
         {
             try
             {
-                var content = File.ReadAllText(file);
                 var lines = File.ReadAllLines(file);
                 
                 for (int i = 0; i < lines.Length; i++)
                 {
                     var line = lines[i].Trim();
-                    // 查找类定义 (class XxxSystemClock)
-                    if (System.Text.RegularExpressions.Regex.IsMatch(line, @"\bclass\s+\w*SystemClock\b"))
+                    
+                    // 排除注释
+                    if (line.StartsWith("//") || 
+                        line.StartsWith("*") || 
+                        line.StartsWith("///"))
                     {
-                        // 排除注释
-                        if (!line.StartsWith("//") && 
-                            !line.StartsWith("*") && 
-                            !line.StartsWith("///"))
-                        {
-                            var relativePath = GetRelativePath(file);
-                            violations.Add($"{relativePath}:{i + 1} - {line}");
-                        }
+                        continue;
+                    }
+                    
+                    // 使用预编译的正则表达式查找类定义
+                    if (SystemClockClassPattern.IsMatch(line))
+                    {
+                        var relativePath = GetRelativePath(file);
+                        violations.Add($"{relativePath}:{i + 1} - {line}");
                     }
                 }
             }
-            catch (Exception ex)
+            catch (IOException ex)
             {
-                Console.WriteLine($"Error scanning {file}: {ex.Message}");
+                // 文件读取错误，记录并继续
+                Console.WriteLine($"IO Error scanning {file}: {ex.Message}");
             }
         }
 

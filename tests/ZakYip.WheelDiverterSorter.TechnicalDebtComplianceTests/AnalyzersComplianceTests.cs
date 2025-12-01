@@ -39,28 +39,8 @@ public class AnalyzersComplianceTests
         
         try
         {
-            // 尝试从当前目录加载
-            var currentDir = Directory.GetCurrentDirectory();
-            var possiblePaths = new[]
-            {
-                Path.Combine(currentDir, $"{AnalyzersAssemblyName}.dll"),
-                Path.Combine(currentDir, "..", "..", "..", "..", "..", "src", "ZakYip.WheelDiverterSorter.Analyzers", "bin", "Debug", "netstandard2.0", $"{AnalyzersAssemblyName}.dll"),
-            };
-
-            foreach (var path in possiblePaths)
-            {
-                if (File.Exists(path))
-                {
-                    assembly = Assembly.LoadFrom(path);
-                    break;
-                }
-            }
-
-            // 如果路径加载失败，尝试按名称加载
-            if (assembly == null)
-            {
-                assembly = Assembly.Load(AnalyzersAssemblyName);
-            }
+            // 首先尝试按名称加载
+            assembly = TryLoadAnalyzersAssembly();
         }
         catch (Exception ex)
         {
@@ -310,10 +290,21 @@ public class AnalyzersComplianceTests
 
             foreach (var path in possiblePaths)
             {
-                if (File.Exists(path))
+                if (!File.Exists(path))
                 {
-                    return Assembly.LoadFrom(path);
+                    continue;
                 }
+                
+                // 验证路径在解决方案目录内，防止加载非预期位置的程序集
+                var fullPath = Path.GetFullPath(path);
+                var solutionRootFull = Path.GetFullPath(solutionRoot);
+                if (!fullPath.StartsWith(solutionRootFull, StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine($"⚠️ 跳过路径 {path}：不在解决方案目录内");
+                    continue;
+                }
+                
+                return Assembly.LoadFrom(fullPath);
             }
 
             return null;
