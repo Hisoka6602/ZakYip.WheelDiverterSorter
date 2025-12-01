@@ -1,8 +1,7 @@
-using ZakYip.WheelDiverterSorter.Simulation.Results;
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 
@@ -10,7 +9,8 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 /// 预定义的仿真场景集合
 /// </summary>
 /// <remarks>
-/// 提供标准的测试场景，用于验证系统在不同条件下的行为
+/// 提供标准的测试场景，用于验证系统在不同条件下的行为。
+/// 此类为公共 API，供 Simulation、E2ETests 和 Tools 项目共享使用。
 /// </remarks>
 public static class ScenarioDefinitions
 {
@@ -703,7 +703,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated, // 默认模拟，可通过配置切换
+            VendorId = VendorId.Simulated, // 默认模拟，可通过配置切换
             Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 5,
@@ -760,7 +760,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 5,
@@ -822,7 +822,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 5,
@@ -888,7 +888,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             FaultInjection = new FaultInjectionConfig
             {
                 InjectUpstreamDelay = true,
@@ -939,7 +939,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             FaultInjection = new FaultInjectionConfig
             {
                 InjectNodeFailure = true,
@@ -1005,7 +1005,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             Expectations = null
         };
     }
@@ -1061,7 +1061,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             Expectations = null
         };
     }
@@ -1111,7 +1111,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             Topology = new SimulationTopologyConfig
             {
                 DiverterCount = 10,
@@ -1162,7 +1162,7 @@ public static class ScenarioDefinitions
                 IsEnableVerboseLogging = false,
                 IsPauseAtEnd = false
             },
-            VendorId = Core.Enums.Hardware.VendorId.Simulated,
+            VendorId = VendorId.Simulated,
             FaultInjection = new FaultInjectionConfig
             {
                 InjectSensorFailure = true,

@@ -1,10 +1,6 @@
-// This file contains simulation scenario definitions.
-// The enum ParcelGenerationMode has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Parcel namespace.
-
-using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 

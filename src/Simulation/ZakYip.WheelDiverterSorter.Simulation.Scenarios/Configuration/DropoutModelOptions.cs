@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
+namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 
 /// <summary>
 /// 掉包模型配置选项

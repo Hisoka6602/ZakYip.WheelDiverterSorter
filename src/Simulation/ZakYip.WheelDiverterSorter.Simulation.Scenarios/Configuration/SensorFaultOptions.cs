@@ -1,9 +1,6 @@
-// This file is maintained for backward compatibility.
-// The enum has been moved to ZakYip.WheelDiverterSorter.Core.Enums.Hardware namespace.
-
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
+namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 
 /// <summary>
 /// 传感器故障仿真配置选项
