@@ -39,6 +39,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | 入口层 | ZakYip.WheelDiverterSorter.Ingress | src/Ingress/ |
 | 可观测性层 | ZakYip.WheelDiverterSorter.Observability | src/Observability/ |
 | 通信层 | ZakYip.WheelDiverterSorter.Communication | src/Infrastructure/ |
+| 配置持久化层 | ZakYip.WheelDiverterSorter.Configuration.Persistence | src/Infrastructure/ |
 | 仿真库 | ZakYip.WheelDiverterSorter.Simulation | src/Simulation/ |
 | 仿真CLI | ZakYip.WheelDiverterSorter.Simulation.Cli | src/Simulation/Cli/ |
 | 分析器 | ZakYip.WheelDiverterSorter.Analyzers | src/ZakYip.WheelDiverterSorter.Analyzers/ |
@@ -111,6 +112,7 @@ ZakYip.WheelDiverterSorter.Application        # PR-H1: DI 聚合层
 ├── ZakYip.WheelDiverterSorter.Drivers
 ├── ZakYip.WheelDiverterSorter.Ingress
 ├── ZakYip.WheelDiverterSorter.Communication
+├── ZakYip.WheelDiverterSorter.Configuration.Persistence  # PR-RS13: LiteDB 仓储实现
 ├── ZakYip.WheelDiverterSorter.Observability
 └── ZakYip.WheelDiverterSorter.Simulation     # PR-H1: Application 现在可以依赖 Simulation
 
@@ -130,6 +132,10 @@ ZakYip.WheelDiverterSorter.Observability
 └── ZakYip.WheelDiverterSorter.Core
 
 ZakYip.WheelDiverterSorter.Communication
+├── ZakYip.WheelDiverterSorter.Core
+└── ZakYip.WheelDiverterSorter.Observability
+
+ZakYip.WheelDiverterSorter.Configuration.Persistence  # PR-RS13: LiteDB 仓储实现层
 ├── ZakYip.WheelDiverterSorter.Core
 └── ZakYip.WheelDiverterSorter.Observability
 
@@ -1252,15 +1258,16 @@ tools/Profiling/
 | TD-027 | ✅ 新增 | DTO/Options/Utilities 统一规范 → 明确命名规则和位置约束 (PR-S3) | [详情](./TechnicalDebtLog.md#td-027-dtooptionsutilities-统一规范) |
 | TD-028 | ✅ 新增 | 事件 & DI 扩展影分身清理 → SensorEvent/ServiceCollectionExtensions 重命名 (PR-S6) | [详情](./TechnicalDebtLog.md#td-028-事件--di-扩展影分身清理) |
 | TD-029 | ✅ 新增 | 配置模型瘦身 → 删除 4 个仅测试使用的模型 (PR-SD5) | [详情](./TechnicalDebtLog.md#td-029-配置模型瘦身) |
+| TD-030 | ✅ 已解决 | Core 混入 LiteDB 持久化实现 → 拆分到 Configuration.Persistence 项目 (PR-RS13) | [详情](./TechnicalDebtLog.md#td-030-core-混入-litedb-持久化实现) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 28 |
+| ✅ 已解决 | 29 |
 | ⏳ 进行中 | 1 |
 | ❌ 未开始 | 0 |
-| **总计** | **29** |
+| **总计** | **30** |
 
 ---
 

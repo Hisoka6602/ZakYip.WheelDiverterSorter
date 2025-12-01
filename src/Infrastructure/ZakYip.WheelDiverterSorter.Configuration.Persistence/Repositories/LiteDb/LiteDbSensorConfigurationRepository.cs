@@ -2,34 +2,34 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
-/// 基于LiteDB的摆轮配置仓储实现
+/// 基于LiteDB的传感器配置仓储实现
 /// </summary>
-public class LiteDbWheelDiverterConfigurationRepository : IWheelDiverterConfigurationRepository
+public class LiteDbSensorConfigurationRepository : ISensorConfigurationRepository
 {
     private readonly string _connectionString;
-    private const string CollectionName = "WheelDiverterConfiguration";
+    private const string CollectionName = "SensorConfiguration";
 
-    public LiteDbWheelDiverterConfigurationRepository(string databasePath)
+    public LiteDbSensorConfigurationRepository(string databasePath)
     {
         _connectionString = $"Filename={databasePath};Connection=shared";
     }
 
     /// <summary>
-    /// 获取摆轮配置
+    /// 获取传感器配置
     /// </summary>
-    public WheelDiverterConfiguration Get()
+    public SensorConfiguration Get()
     {
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<WheelDiverterConfiguration>(CollectionName);
+        var collection = db.GetCollection<SensorConfiguration>(CollectionName);
         
         var config = collection.FindAll().FirstOrDefault();
         if (config == null)
         {
             // 如果没有配置，返回默认配置并保存
-            config = WheelDiverterConfiguration.GetDefault();
+            config = SensorConfiguration.GetDefault();
             collection.Insert(config);
         }
 
@@ -37,9 +37,9 @@ public class LiteDbWheelDiverterConfigurationRepository : IWheelDiverterConfigur
     }
 
     /// <summary>
-    /// 更新摆轮配置
+    /// 更新传感器配置
     /// </summary>
-    public void Update(WheelDiverterConfiguration configuration)
+    public void Update(SensorConfiguration configuration)
     {
         if (configuration == null)
         {
@@ -53,10 +53,11 @@ public class LiteDbWheelDiverterConfigurationRepository : IWheelDiverterConfigur
         }
 
         // UpdatedAt 由调用者设置（通过 ISystemClock.LocalNow）
+        // configuration.UpdatedAt 应该在调用此方法前已由调用者设置
         configuration.Version++;
 
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<WheelDiverterConfiguration>(CollectionName);
+        var collection = db.GetCollection<SensorConfiguration>(CollectionName);
 
         if (configuration.Id == 0)
         {
@@ -77,12 +78,12 @@ public class LiteDbWheelDiverterConfigurationRepository : IWheelDiverterConfigur
     public void InitializeDefault()
     {
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<WheelDiverterConfiguration>(CollectionName);
+        var collection = db.GetCollection<SensorConfiguration>(CollectionName);
 
         // 只有在集合为空时才初始化
         if (!collection.Exists(_ => true))
         {
-            var defaultConfig = WheelDiverterConfiguration.GetDefault();
+            var defaultConfig = SensorConfiguration.GetDefault();
             collection.Insert(defaultConfig);
         }
     }

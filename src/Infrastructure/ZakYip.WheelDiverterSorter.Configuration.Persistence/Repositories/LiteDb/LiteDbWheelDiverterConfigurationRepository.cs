@@ -2,34 +2,34 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 
-namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.LiteDb;
+namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
 /// <summary>
-/// 基于LiteDB的通信配置仓储实现
+/// 基于LiteDB的摆轮配置仓储实现
 /// </summary>
-public class LiteDbCommunicationConfigurationRepository : ICommunicationConfigurationRepository
+public class LiteDbWheelDiverterConfigurationRepository : IWheelDiverterConfigurationRepository
 {
     private readonly string _connectionString;
-    private const string CollectionName = "CommunicationConfiguration";
+    private const string CollectionName = "WheelDiverterConfiguration";
 
-    public LiteDbCommunicationConfigurationRepository(string databasePath)
+    public LiteDbWheelDiverterConfigurationRepository(string databasePath)
     {
         _connectionString = $"Filename={databasePath};Connection=shared";
     }
 
     /// <summary>
-    /// 获取通信配置
+    /// 获取摆轮配置
     /// </summary>
-    public CommunicationConfiguration Get()
+    public WheelDiverterConfiguration Get()
     {
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<CommunicationConfiguration>(CollectionName);
+        var collection = db.GetCollection<WheelDiverterConfiguration>(CollectionName);
         
         var config = collection.FindAll().FirstOrDefault();
         if (config == null)
         {
             // 如果没有配置，返回默认配置并保存
-            config = CommunicationConfiguration.GetDefault();
+            config = WheelDiverterConfiguration.GetDefault();
             collection.Insert(config);
         }
 
@@ -37,9 +37,9 @@ public class LiteDbCommunicationConfigurationRepository : ICommunicationConfigur
     }
 
     /// <summary>
-    /// 更新通信配置
+    /// 更新摆轮配置
     /// </summary>
-    public void Update(CommunicationConfiguration configuration)
+    public void Update(WheelDiverterConfiguration configuration)
     {
         if (configuration == null)
         {
@@ -53,11 +53,10 @@ public class LiteDbCommunicationConfigurationRepository : ICommunicationConfigur
         }
 
         // UpdatedAt 由调用者设置（通过 ISystemClock.LocalNow）
-        // configuration.UpdatedAt 应该在调用此方法前已由调用者设置
         configuration.Version++;
 
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<CommunicationConfiguration>(CollectionName);
+        var collection = db.GetCollection<WheelDiverterConfiguration>(CollectionName);
 
         if (configuration.Id == 0)
         {
@@ -78,12 +77,12 @@ public class LiteDbCommunicationConfigurationRepository : ICommunicationConfigur
     public void InitializeDefault()
     {
         using var db = new LiteDatabase(_connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        var collection = db.GetCollection<CommunicationConfiguration>(CollectionName);
+        var collection = db.GetCollection<WheelDiverterConfiguration>(CollectionName);
 
         // 只有在集合为空时才初始化
         if (!collection.Exists(_ => true))
         {
-            var defaultConfig = CommunicationConfiguration.GetDefault();
+            var defaultConfig = WheelDiverterConfiguration.GetDefault();
             collection.Insert(defaultConfig);
         }
     }
