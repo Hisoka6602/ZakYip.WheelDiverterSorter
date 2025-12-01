@@ -29,6 +29,8 @@
     <ProjectReference Include="../../src/Ingress/ZakYip.WheelDiverterSorter.Ingress/ZakYip.WheelDiverterSorter.Ingress.csproj" />
     <ProjectReference Include="../../src/Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
     <ProjectReference Include="../../src/Simulation/ZakYip.WheelDiverterSorter.Simulation/ZakYip.WheelDiverterSorter.Simulation.csproj" />
+    <!-- PR-RS14: Reference shared scenario definitions library for standard test scenarios -->
+    <ProjectReference Include="../../src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Scenarios/ZakYip.WheelDiverterSorter.Simulation.Scenarios.csproj" />
     <ProjectReference Include="../../src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/ZakYip.WheelDiverterSorter.Configuration.Persistence.csproj" />
   </ItemGroup>
 

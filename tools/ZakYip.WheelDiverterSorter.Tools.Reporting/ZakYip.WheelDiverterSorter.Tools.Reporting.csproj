@@ -1,7 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="../../src/Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
+    <!-- PR-RS14: Reference shared scenario definitions library for reporting scenario analysis -->
+    <ProjectReference Include="../../src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Scenarios/ZakYip.WheelDiverterSorter.Simulation.Scenarios.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

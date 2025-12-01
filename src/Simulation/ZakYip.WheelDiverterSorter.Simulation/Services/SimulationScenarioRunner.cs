@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;

@@ -8,7 +8,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;

@@ -76,7 +76,6 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
                 new() { DiverterId = 1, Host = "192.168.0.100", Port = 2000, DeviceAddress = 0x51 }
             }
         };
-        config.Modi = null;
         _wheelDiverterRepository.Update(config);
 
         // Act - Get Swagger JSON
@@ -99,9 +98,6 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
             
             // ShuDiNiao property should exist (either inline or as $ref)
             Assert.True(shuDiNiaoProperty.ValueKind == JsonValueKind.Object);
-            
-            // Should NOT have modi property (filtered out)
-            Assert.False(properties.TryGetProperty("modi", out _), "Modi property should be filtered out");
         }
     }
 
@@ -137,9 +133,9 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
     }
 
     [Fact]
-    public async Task SwaggerSchema_ChangesWhenWheelDiverterVendorTypeChanges()
+    public async Task SwaggerSchema_ShowsCorrectVendorType_ForWheelDiverterConfiguration()
     {
-        // Arrange - Start with ShuDiNiao
+        // Arrange - Set wheel diverter to ShuDiNiao
         var config = _wheelDiverterRepository.Get();
         config.VendorType = WheelDiverterVendorType.ShuDiNiao;
         config.ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
@@ -151,48 +147,20 @@ public class SwaggerDriverConfigSchemaTests : IClassFixture<CustomWebApplication
         };
         _wheelDiverterRepository.Update(config);
 
-        // Act 1 - Get Swagger with ShuDiNiao
-        var response1 = await _client.GetAsync("/swagger/v1/swagger.json");
-        var swagger1 = await response1.Content.ReadAsStringAsync();
+        // Act - Get Swagger with ShuDiNiao
+        var response = await _client.GetAsync("/swagger/v1/swagger.json");
+        var swaggerJson = await response.Content.ReadAsStringAsync();
 
-        // Arrange - Change to Modi
-        config.VendorType = WheelDiverterVendorType.Modi;
-        config.Modi = new ModiWheelDiverterConfig
-        {
-            Devices = new List<ModiDeviceEntry>
-            {
-                new() { DiverterId = 1, Host = "192.168.1.100", Port = 8000, DeviceId = 1 }
-            }
-        };
-        _wheelDiverterRepository.Update(config);
-
-        // Act 2 - Get Swagger with Modi
-        var response2 = await _client.GetAsync("/swagger/v1/swagger.json");
-        var swagger2 = await response2.Content.ReadAsStringAsync();
-
-        // Assert - Swagger schemas should be different
-        Assert.NotEqual(swagger1, swagger2);
+        // Assert
+        response.EnsureSuccessStatusCode();
         
         // Verify ShuDiNiao version has shuDiNiao property
-        using (var doc1 = JsonDocument.Parse(swagger1))
+        using var doc = JsonDocument.Parse(swaggerJson);
+        var schemas = doc.RootElement.GetProperty("components").GetProperty("schemas");
+        if (schemas.TryGetProperty("WheelDiverterConfiguration", out var schema))
         {
-            var schemas1 = doc1.RootElement.GetProperty("components").GetProperty("schemas");
-            if (schemas1.TryGetProperty("WheelDiverterConfiguration", out var schema1))
-            {
-                var properties1 = schema1.GetProperty("properties");
-                Assert.True(properties1.TryGetProperty("shuDiNiao", out _));
-            }
-        }
-        
-        // Verify Modi version has modi property
-        using (var doc2 = JsonDocument.Parse(swagger2))
-        {
-            var schemas2 = doc2.RootElement.GetProperty("components").GetProperty("schemas");
-            if (schemas2.TryGetProperty("WheelDiverterConfiguration", out var schema2))
-            {
-                var properties2 = schema2.GetProperty("properties");
-                Assert.True(properties2.TryGetProperty("modi", out _));
-            }
+            var properties = schema.GetProperty("properties");
+            Assert.True(properties.TryGetProperty("shuDiNiao", out _), "ShuDiNiao property should be present");
         }
     }
 }

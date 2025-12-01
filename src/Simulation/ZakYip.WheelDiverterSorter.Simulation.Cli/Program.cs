@@ -23,7 +23,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;

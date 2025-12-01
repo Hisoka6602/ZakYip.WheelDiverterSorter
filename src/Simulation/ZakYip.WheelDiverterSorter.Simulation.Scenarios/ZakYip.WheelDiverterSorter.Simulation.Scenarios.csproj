@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>ZakYip.WheelDiverterSorter.Simulation.Scenarios</RootNamespace>
+    <AssemblyName>ZakYip.WheelDiverterSorter.Simulation.Scenarios</AssemblyName>
+    <Description>Shared simulation scenario definitions for the Wheel Diverter Sorter system. Provides scenario models and predefined scenarios for use by Simulation, E2ETests, and Tools projects.</Description>
+  </PropertyGroup>
+
+  <!-- 
+    PR-RS14: Simulation.Scenarios dependencies
+    - Allowed: Core, Execution, Drivers, Ingress, Observability (same as Simulation)
+    - Prohibited: Host, Application, Communication (keep pure simulation/domain side)
+  -->
+  <ItemGroup>
+    <ProjectReference Include="../../Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
+  </ItemGroup>
+
+</Project>

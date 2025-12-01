@@ -145,39 +145,6 @@ public sealed class VendorConfigService : IVendorConfigService
     }
 
     /// <inheritdoc/>
-    public ModiWheelDiverterConfig? GetModiConfiguration()
-    {
-        return _wheelRepository.Get().Modi;
-    }
-
-    /// <inheritdoc/>
-    public void UpdateModiConfiguration(ModiWheelDiverterConfig modiConfig)
-    {
-        ArgumentNullException.ThrowIfNull(modiConfig);
-
-        var config = _wheelRepository.Get();
-        config.Modi = modiConfig;
-
-        if (modiConfig.Devices.Any())
-        {
-            config.VendorType = WheelDiverterVendorType.Modi;
-        }
-
-        var (isValid, errorMessage) = config.Validate();
-        if (!isValid)
-        {
-            throw new ArgumentException(errorMessage ?? "配置验证失败");
-        }
-
-        _wheelRepository.Update(config);
-
-        _logger.LogInformation(
-            "莫迪摆轮配置已更新: 设备数量={DeviceCount}, 仿真模式={UseSimulation}",
-            modiConfig.Devices.Count,
-            modiConfig.UseSimulation);
-    }
-
-    /// <inheritdoc/>
     public ShuDiNiaoWheelDiverterConfig? GetShuDiNiaoConfiguration()
     {
         return _wheelRepository.Get().ShuDiNiao;
@@ -205,45 +172,8 @@ public sealed class VendorConfigService : IVendorConfigService
         _wheelRepository.Update(config);
 
         _logger.LogInformation(
-            "数递鸟摆轮配置已更新: 设备数量={DeviceCount}, 仿真模式={UseSimulation}",
-            shuDiNiaoConfig.Devices.Count,
-            shuDiNiaoConfig.UseSimulation);
-    }
-
-    /// <inheritdoc/>
-    public void ToggleModiSimulation(bool useSimulation)
-    {
-        var config = _wheelRepository.Get();
-
-        if (config.Modi == null)
-        {
-            throw new InvalidOperationException("未配置莫迪摆轮设备");
-        }
-
-        config.Modi = config.Modi with { UseSimulation = useSimulation };
-        _wheelRepository.Update(config);
-
-        _logger.LogInformation(
-            "莫迪摆轮仿真模式已切换: UseSimulation={UseSimulation}",
-            useSimulation);
-    }
-
-    /// <inheritdoc/>
-    public void ToggleShuDiNiaoSimulation(bool useSimulation)
-    {
-        var config = _wheelRepository.Get();
-
-        if (config.ShuDiNiao == null)
-        {
-            throw new InvalidOperationException("未配置数递鸟摆轮设备");
-        }
-
-        config.ShuDiNiao = config.ShuDiNiao with { UseSimulation = useSimulation };
-        _wheelRepository.Update(config);
-
-        _logger.LogInformation(
-            "数递鸟摆轮仿真模式已切换: UseSimulation={UseSimulation}",
-            useSimulation);
+            "数递鸟摆轮配置已更新: 设备数量={DeviceCount}",
+            shuDiNiaoConfig.Devices.Count);
     }
 
     #endregion

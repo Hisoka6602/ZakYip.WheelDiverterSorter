@@ -55,7 +55,7 @@ public interface IVendorConfigService
 
     #endregion
 
-    #region 摆轮配置 (Modi/ShuDiNiao)
+    #region 摆轮配置 (ShuDiNiao)
 
     /// <summary>
     /// 获取摆轮配置
@@ -70,18 +70,6 @@ public interface IVendorConfigService
     void UpdateWheelDiverterConfiguration(WheelDiverterConfiguration config);
 
     /// <summary>
-    /// 获取莫迪摆轮配置
-    /// </summary>
-    /// <returns>莫迪配置，如果未配置则返回null</returns>
-    ModiWheelDiverterConfig? GetModiConfiguration();
-
-    /// <summary>
-    /// 更新莫迪摆轮配置
-    /// </summary>
-    /// <param name="modiConfig">莫迪配置</param>
-    void UpdateModiConfiguration(ModiWheelDiverterConfig modiConfig);
-
-    /// <summary>
     /// 获取数递鸟摆轮配置
     /// </summary>
     /// <returns>数递鸟配置，如果未配置则返回null</returns>
@@ -92,18 +80,6 @@ public interface IVendorConfigService
     /// </summary>
     /// <param name="shuDiNiaoConfig">数递鸟配置</param>
     void UpdateShuDiNiaoConfiguration(ShuDiNiaoWheelDiverterConfig shuDiNiaoConfig);
-
-    /// <summary>
-    /// 切换莫迪仿真模式
-    /// </summary>
-    /// <param name="useSimulation">是否使用仿真</param>
-    void ToggleModiSimulation(bool useSimulation);
-
-    /// <summary>
-    /// 切换数递鸟仿真模式
-    /// </summary>
-    /// <param name="useSimulation">是否使用仿真</param>
-    void ToggleShuDiNiaoSimulation(bool useSimulation);
 
     #endregion
 }

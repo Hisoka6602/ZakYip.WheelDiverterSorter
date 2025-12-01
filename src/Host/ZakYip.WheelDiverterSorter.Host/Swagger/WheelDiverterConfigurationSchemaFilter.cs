@@ -50,8 +50,7 @@ public class WheelDiverterConfigurationSchemaFilter : ISchemaFilter
             // List of vendor-specific property names
             var vendorProperties = new Dictionary<WheelDiverterVendorType, string[]>
             {
-                { WheelDiverterVendorType.ShuDiNiao, new[] { "shuDiNiao" } },
-                { WheelDiverterVendorType.Modi, new[] { "modi" } }
+                { WheelDiverterVendorType.ShuDiNiao, new[] { "shuDiNiao" } }
             };
 
             // Remove all vendor-specific properties except the current vendor's
@@ -88,7 +87,6 @@ public class WheelDiverterConfigurationSchemaFilter : ISchemaFilter
         return vendorType switch
         {
             WheelDiverterVendorType.ShuDiNiao => "数递鸟摆轮设备",
-            WheelDiverterVendorType.Modi => "莫迪摆轮设备",
             _ => "未知"
         };
     }

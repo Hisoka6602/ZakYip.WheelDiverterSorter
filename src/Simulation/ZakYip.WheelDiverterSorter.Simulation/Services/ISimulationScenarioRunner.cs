@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;

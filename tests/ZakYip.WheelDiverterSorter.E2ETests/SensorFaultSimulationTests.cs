@@ -17,7 +17,7 @@ using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Observability;
-using ZakYip.WheelDiverterSorter.Simulation.Configuration;
+using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 using ZakYip.WheelDiverterSorter.Simulation.Results;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios;
 using ZakYip.WheelDiverterSorter.Simulation.Services;

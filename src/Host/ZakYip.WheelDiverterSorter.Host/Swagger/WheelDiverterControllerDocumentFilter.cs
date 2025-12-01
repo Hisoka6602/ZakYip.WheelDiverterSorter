@@ -41,8 +41,7 @@ public class WheelDiverterControllerDocumentFilter : IDocumentFilter
         // Define vendor-specific path prefixes
         var vendorPathPrefixes = new Dictionary<WheelDiverterVendorType, string>
         {
-            { WheelDiverterVendorType.ShuDiNiao, "/api/config/wheeldiverter/shudiniao" },
-            { WheelDiverterVendorType.Modi, "/api/config/wheeldiverter/modi" }
+            { WheelDiverterVendorType.ShuDiNiao, "/api/config/wheeldiverter/shudiniao" }
         };
 
         // Remove paths that don't match the current vendor
@@ -76,14 +75,11 @@ public class WheelDiverterControllerDocumentFilter : IDocumentFilter
             case WheelDiverterVendorType.ShuDiNiao:
                 vendorTagsToKeep.Add("数递鸟摆轮配置");
                 break;
-            case WheelDiverterVendorType.Modi:
-                vendorTagsToKeep.Add("莫迪摆轮配置");
-                break;
         }
 
         // Remove vendor tags that shouldn't be shown
         var tagsToRemove = swaggerDoc.Tags?
-            .Where(t => (t.Name == "莫迪摆轮配置" || t.Name == "数递鸟摆轮配置") 
+            .Where(t => t.Name == "数递鸟摆轮配置" 
                         && !vendorTagsToKeep.Contains(t.Name))
             .ToList() ?? new List<OpenApiTag>();
 

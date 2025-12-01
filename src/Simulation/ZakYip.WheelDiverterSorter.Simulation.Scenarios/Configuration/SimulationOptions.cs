@@ -1,7 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Parcel;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
-namespace ZakYip.WheelDiverterSorter.Simulation.Configuration;
+namespace ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
 
 /// <summary>
 /// 仿真配置选项
