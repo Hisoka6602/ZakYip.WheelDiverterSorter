@@ -21,4 +21,4 @@
 > **禁止创建影分身**：所有协议实现必须直接实现 Core 层定义的 `IUpstreamRoutingClient` 接口。
 
 - 接口定义位置：`Core/Abstractions/Upstream/`
-- 扩展新协议只需实现接口并在工厂中注册
+- 扩展新协议：参考 `Gateways/TcpUpstreamSortingGateway.cs` 实现

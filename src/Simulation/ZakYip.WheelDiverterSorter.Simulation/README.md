@@ -19,5 +19,9 @@ dotnet run --project src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli
 
 > **禁止创建影分身**：仿真使用现有层的接口，不创建仿真专用的硬编码路径。
 
-- 使用 `Drivers/Vendors/Simulated/` 的模拟驱动
-- 使用 `InMemoryRuleEngineClient` 模拟上游
+必须遵守的接口约定：
+- 驱动：使用 `Drivers/Vendors/Simulated/` 的 `IWheelDiverterDriver` 实现
+- 上游：使用 `InMemoryRuleEngineClient` 实现 `IUpstreamRoutingClient`
+- 传感器：使用 `MockSensor` 实现 `ISensor`
+
+违反检测：`TechnicalDebtComplianceTests` 会检测影分身类型。

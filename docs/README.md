@@ -28,6 +28,6 @@
 
 ## Copilot 阅读顺序
 
-1. `RepositoryStructure.md` - 了解项目结构和技术债
-2. `../.github/copilot-instructions.md` - 编码规范和约束
+1. `docs/RepositoryStructure.md` - 了解项目结构和技术债
+2. `.github/copilot-instructions.md` - 编码规范和约束（相对于仓库根目录）
 3. 具体目标文档
