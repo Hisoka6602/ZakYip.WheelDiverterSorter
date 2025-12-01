@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
@@ -55,6 +56,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 
     private readonly IRouteConfigurationRepository? _routeRepository;
     private readonly IChutePathTopologyRepository? _topologyRepository;
+    private readonly ISystemClock? _systemClock;
 
     /// <summary>
     /// 初始化路径生成器（使用路由配置仓储）
@@ -69,9 +71,13 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// 初始化路径生成器（使用拓扑配置仓储，支持 N 摆轮模型）
     /// </summary>
     /// <param name="topologyRepository">拓扑配置仓储</param>
-    public DefaultSwitchingPathGenerator(IChutePathTopologyRepository topologyRepository)
+    /// <param name="systemClock">系统时钟</param>
+    public DefaultSwitchingPathGenerator(
+        IChutePathTopologyRepository topologyRepository,
+        ISystemClock systemClock)
     {
         _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -79,15 +85,18 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </summary>
     /// <param name="routeRepository">路由配置仓储</param>
     /// <param name="topologyRepository">拓扑配置仓储</param>
+    /// <param name="systemClock">系统时钟</param>
     /// <remarks>
     /// 当同时提供两种仓储时，优先使用拓扑配置仓储（支持 N 摆轮模型）
     /// </remarks>
     public DefaultSwitchingPathGenerator(
         IRouteConfigurationRepository routeRepository,
-        IChutePathTopologyRepository topologyRepository)
+        IChutePathTopologyRepository topologyRepository,
+        ISystemClock systemClock)
     {
         _routeRepository = routeRepository;
         _topologyRepository = topologyRepository;
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -185,7 +194,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         {
             TargetChuteId = targetChuteId,
             Segments = segments.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.Now,
+            GeneratedAt = _systemClock!.LocalNowOffset,
             FallbackChuteId = topologyConfig.ExceptionChuteId
         };
     }
@@ -219,7 +228,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         {
             TargetChuteId = topologyConfig.ExceptionChuteId,
             Segments = segments.AsReadOnly(),
-            GeneratedAt = DateTimeOffset.Now,
+            GeneratedAt = _systemClock!.LocalNowOffset,
             FallbackChuteId = topologyConfig.ExceptionChuteId
         };
     }

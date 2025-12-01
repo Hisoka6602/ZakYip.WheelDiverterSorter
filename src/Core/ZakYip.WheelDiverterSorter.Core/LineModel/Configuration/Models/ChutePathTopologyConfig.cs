@@ -407,23 +407,16 @@ public static class ChutePathTopologyValidator
             return (false, "至少需要配置一个摆轮节点 - At least one diverter node is required");
         }
 
-        // 验证所有格口ID唯一
+        // 验证所有格口ID唯一 - 使用 SelectMany 和 Concat 替代嵌套 foreach
         var allChuteIds = new HashSet<long>();
-        foreach (var node in config.DiverterNodes)
+        var allChutes = config.DiverterNodes
+            .SelectMany(node => node.LeftChuteIds.Concat(node.RightChuteIds));
+        
+        foreach (var chuteId in allChutes)
         {
-            foreach (var chuteId in node.LeftChuteIds)
+            if (!allChuteIds.Add(chuteId))
             {
-                if (!allChuteIds.Add(chuteId))
-                {
-                    return (false, $"格口ID {chuteId} 重复 - Duplicate chute ID {chuteId}");
-                }
-            }
-            foreach (var chuteId in node.RightChuteIds)
-            {
-                if (!allChuteIds.Add(chuteId))
-                {
-                    return (false, $"格口ID {chuteId} 重复 - Duplicate chute ID {chuteId}");
-                }
+                return (false, $"格口ID {chuteId} 重复 - Duplicate chute ID {chuteId}");
             }
         }
 

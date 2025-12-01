@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
@@ -480,6 +481,15 @@ public class DefaultSwitchingPathGeneratorTests
 
     #region PR-TOPO02: N 摆轮模型路径生成测试
 
+    private static Mock<ISystemClock> CreateMockSystemClock()
+    {
+        var mockClock = new Mock<ISystemClock>();
+        var testTime = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        mockClock.Setup(c => c.LocalNowOffset).Returns(testTime);
+        mockClock.Setup(c => c.LocalNow).Returns(testTime.LocalDateTime);
+        return mockClock;
+    }
+
     [Fact]
     public void GeneratePath_FromTopology_N1_LeftChute_GeneratesCorrectPath()
     {
@@ -487,8 +497,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(1);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求左侧格口
         var result = generator.GeneratePath(1); // 左侧格口
@@ -507,8 +518,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(1);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求右侧格口
         var result = generator.GeneratePath(2); // 右侧格口
@@ -527,8 +539,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(1);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求异常口
         var result = generator.GeneratePath(999); // 异常口
@@ -547,8 +560,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(3);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求第2个摆轮的左侧格口
         var result = generator.GeneratePath(3); // D2的左侧格口
@@ -572,8 +586,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(3);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求第3个摆轮的右侧格口
         var result = generator.GeneratePath(6); // D3的右侧格口
@@ -597,8 +612,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(4);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求第4个摆轮的格口
         var result = generator.GeneratePath(7); // D4的左侧格口
@@ -622,8 +638,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(4);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求异常口
         var result = generator.GeneratePath(999);
@@ -641,8 +658,9 @@ public class DefaultSwitchingPathGeneratorTests
         var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
         var config = CreateTopologyConfig(3);
         mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        var mockClock = CreateMockSystemClock();
         
-        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, mockClock.Object);
 
         // Act - 请求不存在的格口
         var result = generator.GeneratePath(12345);
@@ -652,11 +670,25 @@ public class DefaultSwitchingPathGeneratorTests
     }
 
     [Fact]
-    public void Constructor_WithTopologyRepository_ThrowsOnNull()
+    public void Constructor_WithTopologyRepository_ThrowsOnNullTopologyRepository()
     {
+        // Arrange
+        var mockClock = CreateMockSystemClock();
+        
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new DefaultSwitchingPathGenerator((IChutePathTopologyRepository)null!));
+            new DefaultSwitchingPathGenerator((IChutePathTopologyRepository)null!, mockClock.Object));
+    }
+
+    [Fact]
+    public void Constructor_WithTopologyRepository_ThrowsOnNullSystemClock()
+    {
+        // Arrange
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => 
+            new DefaultSwitchingPathGenerator(mockTopologyRepo.Object, null!));
     }
 
     #region 测试辅助常量和方法
