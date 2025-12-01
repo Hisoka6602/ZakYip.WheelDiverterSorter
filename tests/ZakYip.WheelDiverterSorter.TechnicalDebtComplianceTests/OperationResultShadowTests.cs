@@ -59,7 +59,7 @@ public class OperationResultShadowTests
     /// Precompiled regex for detecting OperationResult class definitions (exact match)
     /// </summary>
     private static readonly Regex OperationResultExactClassPattern = new(
-        @"\b(?:class|struct|record)\s+OperationResult\b(?![\w])", 
+        @"\b(?:class|struct|record)\s+OperationResult\b", 
         RegexOptions.Compiled);
 
     /// <summary>
@@ -77,6 +77,26 @@ public class OperationResultShadowTests
     private static readonly Regex VendorCapabilitiesClassPattern = new(
         @"\b(?:class|struct|record)\s+\w*VendorCapabilities\w*\b", 
         RegexOptions.Compiled);
+
+    /// <summary>
+    /// 获取 Core 程序集（缓存加载）
+    /// </summary>
+    private static readonly Lazy<Assembly> CoreAssemblyLazy = new(
+        () => Assembly.Load("ZakYip.WheelDiverterSorter.Core"));
+    
+    private static Assembly CoreAssembly => CoreAssemblyLazy.Value;
+
+    /// <summary>
+    /// 判断是否应该跳过某一行（注释或 using 语句）
+    /// </summary>
+    private static bool ShouldSkipLine(string line)
+    {
+        var trimmedLine = line.Trim();
+        return trimmedLine.StartsWith("//") || 
+               trimmedLine.StartsWith("*") || 
+               trimmedLine.StartsWith("///") ||
+               trimmedLine.StartsWith("using");
+    }
 
     /// <summary>
     /// 获取所有非测试项目的程序集
@@ -225,25 +245,20 @@ public class OperationResultShadowTests
     {
         // Arrange
         var violations = new List<string>();
-        var allowedFullNames = new HashSet<string>
-        {
-            $"{AuthoritativeOperationResultNamespace}.{AuthoritativeOperationResultTypeName}",
-            $"{AuthoritativeOperationResultNamespace}.{AuthoritativeOperationResultTypeName}`1" // OperationResult<T>
-        };
 
         // Act: 扫描所有程序集查找任何名称完全是 OperationResult 的类型（排除领域特定类型）
         foreach (var assembly in GetNonTestAssemblies())
         {
+            // 匹配 OperationResult 和 OperationResult`N (任意泛型参数数量)
             var operationResultTypes = assembly.GetTypes()
-                .Where(t => t.Name == "OperationResult" || t.Name == "OperationResult`1")
+                .Where(t => t.Name == "OperationResult" || t.Name.StartsWith("OperationResult`"))
                 .Where(t => !t.IsNested)
                 .ToList();
 
             violations.AddRange(
                 operationResultTypes
-                    .Select(type => new { type, fullName = $"{type.Namespace ?? "global"}.{type.Name}" })
-                    .Where(x => !allowedFullNames.Contains(x.fullName))
-                    .Select(x => $"[{assembly.GetName().Name}] {x.fullName}")
+                    .Where(type => (type.Namespace ?? "global") != AuthoritativeOperationResultNamespace)
+                    .Select(type => $"[{assembly.GetName().Name}] {type.Namespace ?? "global"}.{type.Name}")
             );
         }
 
@@ -297,8 +312,7 @@ public class OperationResultShadowTests
     public void CoreResults_ShouldContainOperationResult()
     {
         // Arrange & Act: 验证权威位置存在 OperationResult 类型
-        var coreAssembly = Assembly.Load("ZakYip.WheelDiverterSorter.Core");
-        var operationResult = coreAssembly.GetTypes()
+        var operationResult = CoreAssembly.GetTypes()
             .FirstOrDefault(t => t.Name == AuthoritativeOperationResultTypeName && 
                                  t.Namespace == AuthoritativeOperationResultNamespace);
 
@@ -313,8 +327,7 @@ public class OperationResultShadowTests
     public void CoreResults_ShouldContainOperationResultGeneric()
     {
         // Arrange & Act: 验证权威位置存在 OperationResult<T> 类型
-        var coreAssembly = Assembly.Load("ZakYip.WheelDiverterSorter.Core");
-        var operationResultGeneric = coreAssembly.GetTypes()
+        var operationResultGeneric = CoreAssembly.GetTypes()
             .FirstOrDefault(t => t.Name == "OperationResult`1" && 
                                  t.Namespace == AuthoritativeOperationResultNamespace);
 
@@ -330,8 +343,7 @@ public class OperationResultShadowTests
     public void CoreResults_ShouldContainErrorCodes()
     {
         // Arrange & Act: 验证权威位置存在 ErrorCodes 类型
-        var coreAssembly = Assembly.Load("ZakYip.WheelDiverterSorter.Core");
-        var errorCodes = coreAssembly.GetTypes()
+        var errorCodes = CoreAssembly.GetTypes()
             .FirstOrDefault(t => t.Name == AuthoritativeErrorCodesTypeName && 
                                  t.Namespace == AuthoritativeErrorCodesNamespace);
 
@@ -349,8 +361,7 @@ public class OperationResultShadowTests
     public void CoreHardware_ShouldContainVendorCapabilities()
     {
         // Arrange & Act: 验证权威位置存在 VendorCapabilities 类型
-        var coreAssembly = Assembly.Load("ZakYip.WheelDiverterSorter.Core");
-        var vendorCapabilities = coreAssembly.GetTypes()
+        var vendorCapabilities = CoreAssembly.GetTypes()
             .FirstOrDefault(t => t.Name == AuthoritativeVendorCapabilitiesTypeName && 
                                  t.Namespace == AuthoritativeVendorCapabilitiesNamespace);
 
@@ -381,10 +392,7 @@ public class OperationResultShadowTests
                     var line = lines[i].Trim();
                     
                     // 排除注释和 using 语句
-                    if (line.StartsWith("//") || 
-                        line.StartsWith("*") || 
-                        line.StartsWith("///") ||
-                        line.StartsWith("using"))
+                    if (ShouldSkipLine(line))
                     {
                         continue;
                     }
@@ -397,10 +405,9 @@ public class OperationResultShadowTests
                     }
                 }
             }
-            catch (IOException ex)
+            catch (IOException)
             {
-                // 文件读取错误，记录并继续
-                Console.WriteLine($"IO Error scanning {file}: {ex.Message}");
+                // 文件读取错误，跳过继续处理其他文件
             }
         }
 
@@ -438,10 +445,7 @@ public class OperationResultShadowTests
                     var line = lines[i].Trim();
                     
                     // 排除注释和 using 语句
-                    if (line.StartsWith("//") || 
-                        line.StartsWith("*") || 
-                        line.StartsWith("///") ||
-                        line.StartsWith("using"))
+                    if (ShouldSkipLine(line))
                     {
                         continue;
                     }
@@ -454,10 +458,9 @@ public class OperationResultShadowTests
                     }
                 }
             }
-            catch (IOException ex)
+            catch (IOException)
             {
-                // 文件读取错误，记录并继续
-                Console.WriteLine($"IO Error scanning {file}: {ex.Message}");
+                // 文件读取错误，跳过继续处理其他文件
             }
         }
 
@@ -494,10 +497,7 @@ public class OperationResultShadowTests
                     var line = lines[i].Trim();
                     
                     // 排除注释和 using 语句
-                    if (line.StartsWith("//") || 
-                        line.StartsWith("*") || 
-                        line.StartsWith("///") ||
-                        line.StartsWith("using"))
+                    if (ShouldSkipLine(line))
                     {
                         continue;
                     }
@@ -510,10 +510,9 @@ public class OperationResultShadowTests
                     }
                 }
             }
-            catch (IOException ex)
+            catch (IOException)
             {
-                // 文件读取错误，记录并继续
-                Console.WriteLine($"IO Error scanning {file}: {ex.Message}");
+                // 文件读取错误，跳过继续处理其他文件
             }
         }
 
