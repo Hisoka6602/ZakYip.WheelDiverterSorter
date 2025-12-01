@@ -26,310 +26,51 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 
 ## 文档文件总览 (Markdown Index)
 
-> **Copilot 维护指令**：Copilot 在修改或新增任意 Markdown 文件时，必须同步维护本表，使其反映仓库当前完整的文档集合。
+> **Copilot 维护指令**：Copilot 在修改或新增任意 Markdown 文件时，必须同步维护本表。
 
-本节索引仓库中所有 `.md` 文件，按类别分组并标注用途。索引使用以下命令生成（排除 `obj/`、`bin/`、`node_modules/` 等生成目录）：
-
-```bash
-find . -type f -name "*.md" \
-  -not -path "./obj/*" \
-  -not -path "./bin/*" \
-  -not -path "./node_modules/*" \
-  -not -path "./.git/*" \
-  | sort
-```
-
-### 根目录文档
+### 核心文档
 
 | 文件 | 路径 | 作用 | Copilot 优先级 |
 |------|------|------|----------------|
-| README.md | `./README.md` | 项目主文档，系统概述、运行流程和完成度 | 🔴 高 |
+| README.md | `./README.md` | 项目主文档 | 🔴 高 |
+| copilot-instructions.md | `./.github/copilot-instructions.md` | Copilot 编码规范（**必读**） | 🔴 高 |
+| PULL_REQUEST_TEMPLATE.md | `./.github/PULL_REQUEST_TEMPLATE.md` | PR 模板 | 🟡 中 |
 
-### GitHub 相关文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| copilot-instructions.md | `./.github/copilot-instructions.md` | Copilot 编码规范和仓库约束（**必读**） | 🔴 高 |
-| REQUEST_TEMPLATE.md | `./REQUEST_TEMPLATE.md` | Issue/PR 请求模板 | 🟡 中 |
-
-### docs/ 核心文档
+### docs/ 文档
 
 | 文件 | 路径 | 作用 | Copilot 优先级 |
 |------|------|------|----------------|
-| RepositoryStructure.md | `./docs/RepositoryStructure.md` | 仓库结构快照、技术债索引、单一权威实现表（**本文档**） | 🔴 高 |
-| TechnicalDebtLog.md | `./docs/TechnicalDebtLog.md` | 技术债详细说明（与第 5 章索引对应） | 🔴 高 |
-| DOCUMENTATION_INDEX.md | `./docs/DOCUMENTATION_INDEX.md` | 文档分类导航和学习路径 | 🔴 高 |
+| RepositoryStructure.md | `./docs/RepositoryStructure.md` | 仓库结构、技术债索引（**本文档**） | 🔴 高 |
+| TechnicalDebtLog.md | `./docs/TechnicalDebtLog.md` | 技术债详细日志 | 🔴 高 |
+| DOCUMENTATION_INDEX.md | `./docs/DOCUMENTATION_INDEX.md` | 文档索引 | 🟡 中 |
 | README.md | `./docs/README.md` | docs 目录说明 | 🟢 低 |
+| ARCHITECTURE_PRINCIPLES.md | `./docs/ARCHITECTURE_PRINCIPLES.md` | 架构原则 | 🟡 中 |
+| CODING_GUIDELINES.md | `./docs/CODING_GUIDELINES.md` | 编码规范 | 🟡 中 |
 
-### docs/ 架构文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| ARCHITECTURE_OVERVIEW.md | `./docs/ARCHITECTURE_OVERVIEW.md` | 架构概览 | 🔴 高 |
-| ARCHITECTURE_PRINCIPLES.md | `./docs/ARCHITECTURE_PRINCIPLES.md` | 架构原则 | 🔴 高 |
-| CONCURRENCY_CONTROL.md | `./docs/architecture/CONCURRENCY_CONTROL.md` | 并发控制机制 | 🟡 中 |
-| CONFIGURATION_PERSISTENCE_POLICY.md | `./docs/architecture/CONFIGURATION_PERSISTENCE_POLICY.md` | 配置持久化策略 | 🟡 中 |
-| SYSTEM_SCOPE_CLARIFICATION.md | `./docs/architecture/SYSTEM_SCOPE_CLARIFICATION.md` | 系统范围说明 | 🟡 中 |
-
-### docs/ 指南文档
+### docs/guides/ 使用指南
 
 | 文件 | 路径 | 作用 | Copilot 优先级 |
 |------|------|------|----------------|
 | API_USAGE_GUIDE.md | `./docs/guides/API_USAGE_GUIDE.md` | API 使用指南 | 🟡 中 |
-| COMMUNICATION_DEVELOPER_GUIDE.md | `./docs/guides/COMMUNICATION_DEVELOPER_GUIDE.md` | 通信层开发指南 | 🟡 中 |
-| DYNAMIC_TTL_GUIDE.md | `./docs/guides/DYNAMIC_TTL_GUIDE.md` | 动态 TTL 配置指南 | 🟢 低 |
-| GRAFANA_DASHBOARD_GUIDE.md | `./docs/guides/GRAFANA_DASHBOARD_GUIDE.md` | Grafana 仪表盘配置 | 🟢 低 |
-| PATH_FAILURE_DETECTION_GUIDE.md | `./docs/guides/PATH_FAILURE_DETECTION_GUIDE.md` | 路径失败检测指南 | 🟡 中 |
-| SYSTEM_CONFIG_GUIDE.md | `./docs/guides/SYSTEM_CONFIG_GUIDE.md` | 系统配置完整指南 | 🟡 中 |
-| UPSTREAM_CONNECTION_GUIDE.md | `./docs/guides/UPSTREAM_CONNECTION_GUIDE.md` | 上游连接配置指南 | 🟡 中 |
-| VENDOR_EXTENSION_GUIDE.md | `./docs/guides/VENDOR_EXTENSION_GUIDE.md` | 厂商扩展开发指南 | 🟡 中 |
-| 配置管理完整指南.md | `./docs/guides/配置管理完整指南.md` | 配置管理中文指南 | 🟡 中 |
-| 面板配置与仿真API使用指南.md | `./docs/guides/面板配置与仿真API使用指南.md` | 面板配置和仿真 API 指南 | 🟡 中 |
+| SYSTEM_CONFIG_GUIDE.md | `./docs/guides/SYSTEM_CONFIG_GUIDE.md` | 系统配置指南 | 🟡 中 |
+| UPSTREAM_CONNECTION_GUIDE.md | `./docs/guides/UPSTREAM_CONNECTION_GUIDE.md` | 上游连接配置 | 🟡 中 |
+| VENDOR_EXTENSION_GUIDE.md | `./docs/guides/VENDOR_EXTENSION_GUIDE.md` | 厂商扩展开发 | 🟡 中 |
 
-### docs/ 实现文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| ALARM_RULES.md | `./docs/implementation/ALARM_RULES.md` | 告警规则配置 | 🟢 低 |
-| ARCHITECTURE_REFACTORING_SUMMARY.md | `./docs/implementation/ARCHITECTURE_REFACTORING_SUMMARY.md` | 架构重构总结 | 🟢 低 |
-| CALLBACK_SAFETY_STRATEGY.md | `./docs/implementation/CALLBACK_SAFETY_STRATEGY.md` | 回调安全策略 | 🟢 低 |
-| CHUTE_CHANGE_FEATURE_SUMMARY.md | `./docs/implementation/CHUTE_CHANGE_FEATURE_SUMMARY.md` | 格口变更功能总结 | 🟢 低 |
-| CI_CD_SETUP.md | `./docs/implementation/CI_CD_SETUP.md` | CI/CD 设置 | 🟢 低 |
-| COMMUNICATION_INTEGRATION.md | `./docs/implementation/COMMUNICATION_INTEGRATION.md` | 通信集成实现 | 🟡 中 |
-| COMPLETE_IMPLEMENTATION_PLAN.md | `./docs/implementation/COMPLETE_IMPLEMENTATION_PLAN.md` | 完整实现计划 | 🟢 低 |
-| COMPLIANCE_VALIDATION_COMPLETE.md | `./docs/implementation/COMPLIANCE_VALIDATION_COMPLETE.md` | 合规验证完成报告 | 🟢 低 |
-| CONFIGURATION_API.md | `./docs/implementation/CONFIGURATION_API.md` | 配置 API 实现 | 🟡 中 |
-| CONFIGURATION_API_COVERAGE_REPORT.md | `./docs/implementation/CONFIGURATION_API_COVERAGE_REPORT.md` | 配置 API 覆盖率报告 | 🟢 低 |
-| DRIVER_SENSOR_SEPARATION.md | `./docs/implementation/DRIVER_SENSOR_SEPARATION.md` | 驱动传感器分离实现 | 🟡 中 |
-| E2E_TESTING_SUMMARY.md | `./docs/implementation/E2E_TESTING_SUMMARY.md` | 端到端测试总结 | 🟡 中 |
-| EMC_DISTRIBUTED_LOCK.md | `./docs/implementation/EMC_DISTRIBUTED_LOCK.md` | EMC 分布式锁实现 | 🟡 中 |
-| ERROR_CORRECTION_MECHANISM.md | `./docs/implementation/ERROR_CORRECTION_MECHANISM.md` | 错误纠正机制 | 🟡 中 |
-| HARDWARE_DRIVER_CONFIG.md | `./docs/implementation/HARDWARE_DRIVER_CONFIG.md` | 硬件驱动配置 | 🟡 中 |
-| HIGH_LOAD_PERFORMANCE_TESTING_SUMMARY.md | `./docs/implementation/HIGH_LOAD_PERFORMANCE_TESTING_SUMMARY.md` | 高负载性能测试总结 | 🟢 低 |
-| IMPLEMENTATION_COMPLETE.md | `./docs/implementation/IMPLEMENTATION_COMPLETE.md` | 实现完成报告 | 🟢 低 |
-| IMPLEMENTATION_SUMMARY.md | `./docs/implementation/IMPLEMENTATION_SUMMARY.md` | 实现总结 | 🟢 低 |
-| IMPLEMENTATION_SUMMARY_CONCURRENCY.md | `./docs/implementation/IMPLEMENTATION_SUMMARY_CONCURRENCY.md` | 并发实现总结 | 🟢 低 |
-| IMPLEMENTATION_SUMMARY_PUSH_MODEL.md | `./docs/implementation/IMPLEMENTATION_SUMMARY_PUSH_MODEL.md` | 推送模型实现总结 | 🟢 低 |
-| LONGRUN_DENSEFLOW_IMPLEMENTATION.md | `./docs/implementation/LONGRUN_DENSEFLOW_IMPLEMENTATION.md` | 长时间密集流量实现 | 🟢 低 |
-| LONG_RUN_SIMULATION_IMPLEMENTATION.md | `./docs/implementation/LONG_RUN_SIMULATION_IMPLEMENTATION.md` | 长时间仿真实现 | 🟢 低 |
-| MONITORING_INTEGRATION_SUMMARY.md | `./docs/implementation/MONITORING_INTEGRATION_SUMMARY.md` | 监控集成总结 | 🟢 低 |
-| PANEL_AND_SIGNAL_TOWER_IMPLEMENTATION.md | `./docs/implementation/PANEL_AND_SIGNAL_TOWER_IMPLEMENTATION.md` | 面板和信号塔实现 | 🟡 中 |
-| PANEL_BUTTON_STATE_MACHINE_IMPLEMENTATION.md | `./docs/implementation/PANEL_BUTTON_STATE_MACHINE_IMPLEMENTATION.md` | 面板按钮状态机实现 | 🟡 中 |
-| PERFORMANCE_OPTIMIZATION.md | `./docs/implementation/PERFORMANCE_OPTIMIZATION.md` | 性能优化 | 🟡 中 |
-| PERFORMANCE_SUMMARY.md | `./docs/implementation/PERFORMANCE_SUMMARY.md` | 性能总结 | 🟢 低 |
-| PERMANENT_CONSTRAINTS_TODO.md | `./docs/implementation/PERMANENT_CONSTRAINTS_TODO.md` | 永久约束待办事项 | 🟢 低 |
-| PR-2_IMPLEMENTATION_SUMMARY.md | `./docs/implementation/PR-2_IMPLEMENTATION_SUMMARY.md` | PR-2 实现总结 | 🟢 低 |
-| PR-3_IMPLEMENTATION_SUMMARY.md | `./docs/implementation/PR-3_IMPLEMENTATION_SUMMARY.md` | PR-3 实现总结 | 🟢 低 |
-| README_OLD_BACKUP.md | `./docs/implementation/README_OLD_BACKUP.md` | 旧 README 备份 | 🟢 低 |
-| REFACTORING_SUMMARY.md | `./docs/implementation/REFACTORING_SUMMARY.md` | 重构总结 | 🟢 低 |
-| RELATIONSHIP_WITH_RULEENGINE.md | `./docs/implementation/RELATIONSHIP_WITH_RULEENGINE.md` | 与 RuleEngine 关系 | 🟡 中 |
-| SENSOR_FAULT_SIMULATION_IMPLEMENTATION.md | `./docs/implementation/SENSOR_FAULT_SIMULATION_IMPLEMENTATION.md` | 传感器故障仿真实现 | 🟢 低 |
-| SENSOR_IMPLEMENTATION_SUMMARY.md | `./docs/implementation/SENSOR_IMPLEMENTATION_SUMMARY.md` | 传感器实现总结 | 🟢 低 |
-| SIMULATION_TESTING_SUMMARY.md | `./docs/implementation/SIMULATION_TESTING_SUMMARY.md` | 仿真测试总结 | 🟢 低 |
-| TASK_COMPLETION_REPORT.md | `./docs/implementation/TASK_COMPLETION_REPORT.md` | 任务完成报告 | 🟢 低 |
-| TASK_COMPLETION_SUMMARY.md | `./docs/implementation/TASK_COMPLETION_SUMMARY.md` | 任务完成总结 | 🟢 低 |
-| TECHNICAL_DEBT_COMPLIANCE_STATUS.md | `./docs/implementation/TECHNICAL_DEBT_COMPLIANCE_STATUS.md` | 技术债合规状态 | 🟡 中 |
-| TECHNICAL_DEBT_IMPLEMENTATION_GUIDE.md | `./docs/implementation/TECHNICAL_DEBT_IMPLEMENTATION_GUIDE.md` | 技术债实现指南 | 🟡 中 |
-| TESTING_IMPLEMENTATION_STATUS.md | `./docs/implementation/TESTING_IMPLEMENTATION_STATUS.md` | 测试实现状态 | 🟢 低 |
-
-### docs/ 内部文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| API_INVENTORY.md | `./docs/internal/API_INVENTORY.md` | API 清单 | 🟡 中 |
-| SortingFlow.md | `./docs/internal/SortingFlow.md` | 分拣流程说明 | 🟡 中 |
-
-### docs/ 遗留文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| REMOVED_EXAMPLES_REFERENCE.md | `./docs/legacy/REMOVED_EXAMPLES_REFERENCE.md` | 已移除示例参考 | 🟢 低 |
-
-### docs/ PR 总结文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| ARCHITECTURE_REFACTORING_SUMMARY.md | `./docs/pr-summaries/ARCHITECTURE_REFACTORING_SUMMARY.md` | 架构重构总结 | 🟢 低 |
-| CLIENT_SERVER_CONNECTION_IMPLEMENTATION.md | `./docs/pr-summaries/CLIENT_SERVER_CONNECTION_IMPLEMENTATION.md` | 客户端服务器连接实现 | 🟢 低 |
-| PR02_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR02_IMPLEMENTATION_SUMMARY.md` | PR02 实现总结 | 🟢 低 |
-| PR03_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR03_IMPLEMENTATION_SUMMARY.md` | PR03 实现总结 | 🟢 低 |
-| PR04_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR04_IMPLEMENTATION_SUMMARY.md` | PR04 实现总结 | 🟢 低 |
-| PR04_TEST_COVERAGE_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR04_TEST_COVERAGE_IMPLEMENTATION_SUMMARY.md` | PR04 测试覆盖率总结 | 🟢 低 |
-| PR06_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR06_IMPLEMENTATION_SUMMARY.md` | PR06 实现总结 | 🟢 低 |
-| PR07_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR07_IMPLEMENTATION_SUMMARY.md` | PR07 实现总结 | 🟢 低 |
-| PR07_USAGE_GUIDE.md | `./docs/pr-summaries/PR07_USAGE_GUIDE.md` | PR07 使用指南 | 🟢 低 |
-| PR08_OVERLOAD_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR08_OVERLOAD_IMPLEMENTATION_SUMMARY.md` | PR08 过载实现总结 | 🟢 低 |
-| PR08_THROTTLING_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR08_THROTTLING_IMPLEMENTATION_SUMMARY.md` | PR08 节流实现总结 | 🟢 低 |
-| PR08_USAGE_GUIDE.md | `./docs/pr-summaries/PR08_USAGE_GUIDE.md` | PR08 使用指南 | 🟢 低 |
-| PR08B_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR08B_IMPLEMENTATION_SUMMARY.md` | PR08B 实现总结 | 🟢 低 |
-| PR08C_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR08C_IMPLEMENTATION_SUMMARY.md` | PR08C 实现总结 | 🟢 低 |
-| PR09_HEALTHCHECK_AND_SELFTEST_GUIDE.md | `./docs/pr-summaries/PR09_HEALTHCHECK_AND_SELFTEST_GUIDE.md` | PR09 健康检查和自检指南 | 🟢 低 |
-| PR09_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR09_IMPLEMENTATION_SUMMARY.md` | PR09 实现总结 | 🟢 低 |
-| PR10_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR10_IMPLEMENTATION_SUMMARY.md` | PR10 实现总结 | 🟢 低 |
-| PR10_PARCEL_TRACE_LOGGING.md | `./docs/pr-summaries/PR10_PARCEL_TRACE_LOGGING.md` | PR10 包裹追踪日志 | 🟢 低 |
-| PR14_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR14_IMPLEMENTATION_SUMMARY.md` | PR14 实现总结 | 🟢 低 |
-| PR15_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR15_IMPLEMENTATION_SUMMARY.md` | PR15 实现总结 | 🟢 低 |
-| PR17_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR17_IMPLEMENTATION_SUMMARY.md` | PR17 实现总结 | 🟢 低 |
-| PR18_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR18_IMPLEMENTATION_SUMMARY.md` | PR18 实现总结 | 🟢 低 |
-| PR19_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR19_IMPLEMENTATION_SUMMARY.md` | PR19 实现总结 | 🟢 低 |
-| PR21_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR21_IMPLEMENTATION_SUMMARY.md` | PR21 实现总结 | 🟢 低 |
-| PR22_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR22_IMPLEMENTATION_SUMMARY.md` | PR22 实现总结 | 🟢 低 |
-| PR23_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR23_IMPLEMENTATION_SUMMARY.md` | PR23 实现总结 | 🟢 低 |
-| PR24_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR24_IMPLEMENTATION_SUMMARY.md` | PR24 实现总结 | 🟢 低 |
-| PR25_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR25_IMPLEMENTATION_SUMMARY.md` | PR25 实现总结 | 🟢 低 |
-| PR26_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR26_IMPLEMENTATION_SUMMARY.md` | PR26 实现总结 | 🟢 低 |
-| PR26_USAGE_GUIDE.md | `./docs/pr-summaries/PR26_USAGE_GUIDE.md` | PR26 使用指南 | 🟢 低 |
-| PR27_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR27_IMPLEMENTATION_SUMMARY.md` | PR27 实现总结 | 🟢 低 |
-| PR27_VENDOR_TESTING_GUIDE.md | `./docs/pr-summaries/PR27_VENDOR_TESTING_GUIDE.md` | PR27 厂商测试指南 | 🟢 低 |
-| PR31_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR31_IMPLEMENTATION_SUMMARY.md` | PR31 实现总结 | 🟢 低 |
-| PR32_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR32_IMPLEMENTATION_SUMMARY.md` | PR32 实现总结 | 🟢 低 |
-| PR33_PR34_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR33_PR34_IMPLEMENTATION_SUMMARY.md` | PR33/PR34 实现总结 | 🟢 低 |
-| PR34_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR34_IMPLEMENTATION_SUMMARY.md` | PR34 实现总结 | 🟢 低 |
-| PR35_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR35_IMPLEMENTATION_SUMMARY.md` | PR35 实现总结 | 🟢 低 |
-| PR36_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR36_IMPLEMENTATION_SUMMARY.md` | PR36 实现总结 | 🟢 低 |
-| PR37_ENHANCED_TESTING_SUMMARY.md | `./docs/pr-summaries/PR37_ENHANCED_TESTING_SUMMARY.md` | PR37 增强测试总结 | 🟢 低 |
-| PR37_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR37_IMPLEMENTATION_SUMMARY.md` | PR37 实现总结 | 🟢 低 |
-| PR38_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR38_IMPLEMENTATION_SUMMARY.md` | PR38 实现总结 | 🟢 低 |
-| PR38_TESTING_COMPLETION_REPORT.md | `./docs/pr-summaries/PR38_TESTING_COMPLETION_REPORT.md` | PR38 测试完成报告 | 🟢 低 |
-| PR39_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR39_IMPLEMENTATION_SUMMARY.md` | PR39 实现总结 | 🟢 低 |
-| PR40_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR40_IMPLEMENTATION_SUMMARY.md` | PR40 实现总结 | 🟢 低 |
-| PR40_SIMULATION_SCENARIOS.md | `./docs/pr-summaries/PR40_SIMULATION_SCENARIOS.md` | PR40 仿真场景 | 🟢 低 |
-| PR41_E2E_SIMULATION_SUMMARY.md | `./docs/pr-summaries/PR41_E2E_SIMULATION_SUMMARY.md` | PR41 端到端仿真总结 | 🟢 低 |
-| PR41_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR41_IMPLEMENTATION_SUMMARY.md` | PR41 实现总结 | 🟢 低 |
-| PR42_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR42_IMPLEMENTATION_SUMMARY.md` | PR42 实现总结 | 🟢 低 |
-| PR42_PARCEL_FIRST_SPECIFICATION.md | `./docs/pr-summaries/PR42_PARCEL_FIRST_SPECIFICATION.md` | PR42 Parcel-First 规范 | 🟡 中 |
-| PR42_SECURITY_SUMMARY.md | `./docs/pr-summaries/PR42_SECURITY_SUMMARY.md` | PR42 安全总结 | 🟢 低 |
-| PR42_SIMULATION_REGRESSION_SUITE.md | `./docs/pr-summaries/PR42_SIMULATION_REGRESSION_SUITE.md` | PR42 仿真回归套件 | 🟢 低 |
-| PR44_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR44_IMPLEMENTATION_SUMMARY.md` | PR44 实现总结 | 🟢 低 |
-| PR48_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PR48_IMPLEMENTATION_SUMMARY.md` | PR48 实现总结 | 🟢 低 |
-| PROJECT_STATUS_ANALYSIS_2025-11-16.md | `./docs/pr-summaries/PROJECT_STATUS_ANALYSIS_2025-11-16.md` | 项目状态分析 | 🟢 低 |
-| PROMETHEUS_GUIDE.md | `./docs/pr-summaries/PROMETHEUS_GUIDE.md` | Prometheus 指南 | 🟡 中 |
-| PROMETHEUS_IMPLEMENTATION_SUMMARY.md | `./docs/pr-summaries/PROMETHEUS_IMPLEMENTATION_SUMMARY.md` | Prometheus 实现总结 | 🟢 低 |
-| PROTOCOL_CONFIGURATION_GUIDE.md | `./docs/pr-summaries/PROTOCOL_CONFIGURATION_GUIDE.md` | 协议配置指南 | 🟡 中 |
-| PRXX_实施总结.md | `./docs/pr-summaries/PRXX_实施总结.md` | PRXX 实施总结（中文） | 🟢 低 |
-| PRXX_最终交付报告.md | `./docs/pr-summaries/PRXX_最终交付报告.md` | PRXX 最终交付报告（中文） | 🟢 低 |
-| PRXX_路由配置拓扑配置收敛分析.md | `./docs/pr-summaries/PRXX_路由配置拓扑配置收敛分析.md` | PRXX 路由拓扑收敛分析（中文） | 🟢 低 |
-| PR_COMPLETION_SUMMARY.md | `./docs/pr-summaries/PR_COMPLETION_SUMMARY.md` | PR 完成总结 | 🟢 低 |
-| PR_ROUTING_TOPOLOGY_CONSISTENCY_IMPLEMENTATION.md | `./docs/pr-summaries/PR_ROUTING_TOPOLOGY_CONSISTENCY_IMPLEMENTATION.md` | 路由拓扑一致性实现 | 🟢 低 |
-| PR_SCOPE_ASSESSMENT.md | `./docs/pr-summaries/PR_SCOPE_ASSESSMENT.md` | PR 范围评估 | 🟢 低 |
-
-### docs/ 测试文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| ACCEPTANCE_SCENARIOS.md | `./docs/testing/ACCEPTANCE_SCENARIOS.md` | 验收场景 | 🟡 中 |
-| API_TESTING_AND_CODECOV_COMPLETION_REPORT.md | `./docs/testing/API_TESTING_AND_CODECOV_COMPLETION_REPORT.md` | API 测试和代码覆盖完成报告 | 🟢 低 |
-| COMPLIANCE_VALIDATION_FRAMEWORK.md | `./docs/testing/COMPLIANCE_VALIDATION_FRAMEWORK.md` | 合规验证框架 | 🟡 中 |
-| HIGH_LOAD_PERFORMANCE_TESTING.md | `./docs/testing/HIGH_LOAD_PERFORMANCE_TESTING.md` | 高负载性能测试 | 🟡 中 |
-| OBSERVABILITY_TESTING.md | `./docs/testing/OBSERVABILITY_TESTING.md` | 可观测性测试 | 🟢 低 |
-| PERFORMANCE_TESTING_QUICKSTART.md | `./docs/testing/PERFORMANCE_TESTING_QUICKSTART.md` | 性能测试快速入门 | 🟡 中 |
-| PR48_COVERAGE_90_ROADMAP.md | `./docs/testing/PR48_COVERAGE_90_ROADMAP.md` | PR48 90% 覆盖率路线图 | 🟢 低 |
-| SCENARIO_E_DOCUMENTATION.md | `./docs/testing/SCENARIO_E_DOCUMENTATION.md` | 场景 E 文档（高摩擦有丢失） | 🟢 低 |
-| SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md | `./docs/testing/SCENARIO_F_HIGH_DENSITY_UPSTREAM_DISRUPTION.md` | 场景 F 文档（高密度上游中断） | 🟢 低 |
-| SCENARIO_G_MULTI_VENDOR_MIXED.md | `./docs/testing/SCENARIO_G_MULTI_VENDOR_MIXED.md` | 场景 G 文档（多厂商混合） | 🟢 低 |
-| SCENARIO_H_LONG_RUN_STABILITY.md | `./docs/testing/SCENARIO_H_LONG_RUN_STABILITY.md` | 场景 H 文档（长时间稳定性） | 🟢 低 |
-| TESTING.md | `./docs/testing/TESTING.md` | 测试总体文档 | 🟡 中 |
-| TESTING_STRATEGY.md | `./docs/testing/TESTING_STRATEGY.md` | 测试策略 | 🟡 中 |
-
-### docs/ 其他文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| API_CONSOLIDATION_SUMMARY.md | `./docs/API_CONSOLIDATION_SUMMARY.md` | API 整合总结 | 🟢 低 |
-| API_MIGRATION_GUIDE.md | `./docs/API_MIGRATION_GUIDE.md` | API 迁移指南 | 🟡 中 |
-| API_REFACTORING_SUMMARY.md | `./docs/API_REFACTORING_SUMMARY.md` | API 重构总结 | 🟢 低 |
-| BASELINE_STATUS.md | `./docs/BASELINE_STATUS.md` | 基线状态 | 🟢 低 |
-| CHUTE_PATH_TOPOLOGY_CONFIGURATION.md | `./docs/CHUTE_PATH_TOPOLOGY_CONFIGURATION.md` | 格口路径拓扑配置 | 🟡 中 |
-| CODE_REVIEW_CHECKLIST.md | `./docs/CODE_REVIEW_CHECKLIST.md` | 代码审查清单 | 🟡 中 |
-| CODING_GUIDELINES.md | `./docs/CODING_GUIDELINES.md` | 编码指南 | 🟡 中 |
-| COMMUNICATION_DEVELOPER_COURSE.md | `./docs/COMMUNICATION_DEVELOPER_COURSE.md` | 通信开发课程 | 🟢 低 |
-| COMMUNICATION_E2E_TESTING_GUIDE.md | `./docs/COMMUNICATION_E2E_TESTING_GUIDE.md` | 通信端到端测试指南 | 🟡 中 |
-| CONFIG_MIGRATION_GUIDE.md | `./docs/CONFIG_MIGRATION_GUIDE.md` | 配置迁移指南 | 🟡 中 |
-| DEFECT_ANALYSIS_REPORT.md | `./docs/DEFECT_ANALYSIS_REPORT.md` | 缺陷分析报告 | 🟡 中 |
-| PERFORMANCE_BASELINE.md | `./docs/PERFORMANCE_BASELINE.md` | 性能基线 | 🟢 低 |
-| PR-5_COMPLETION_SUMMARY.md | `./docs/PR-5_COMPLETION_SUMMARY.md` | PR-5 完成总结 | 🟢 低 |
-| PR-5_PERFORMANCE_OPTIMIZATION_SUMMARY.md | `./docs/PR-5_PERFORMANCE_OPTIMIZATION_SUMMARY.md` | PR-5 性能优化总结 | 🟢 低 |
-| PR-7_OBSOLETE_CODE_CLEANUP.md | `./docs/PR-7_OBSOLETE_CODE_CLEANUP.md` | PR-7 过时代码清理 | 🟢 低 |
-| PR-9_ROUTING_TOPOLOGY_LAYERING.md | `./docs/PR-9_ROUTING_TOPOLOGY_LAYERING.md` | PR-9 路由拓扑分层 | 🟢 低 |
-| PR-XX_FINAL_SUMMARY.md | `./docs/PR-XX_FINAL_SUMMARY.md` | PR-XX 最终总结 | 🟢 低 |
-| PR-XX_IMPLEMENTATION_SUMMARY.md | `./docs/PR-XX_IMPLEMENTATION_SUMMARY.md` | PR-XX 实现总结 | 🟢 低 |
-| PR41_CHAOS_TESTING_GUIDE.md | `./docs/PR41_CHAOS_TESTING_GUIDE.md` | PR41 混沌测试指南 | 🟢 低 |
-| PR41_PERFORMANCE_BASELINE.md | `./docs/PR41_PERFORMANCE_BASELINE.md` | PR41 性能基线 | 🟢 低 |
-| PR46_IMPLEMENTATION_SUMMARY.md | `./docs/PR46_IMPLEMENTATION_SUMMARY.md` | PR46 实现总结 | 🟢 低 |
-| PR47_FINAL_SUMMARY.md | `./docs/PR47_FINAL_SUMMARY.md` | PR47 最终总结 | 🟢 低 |
-| PR47_HOST_API_ASSESSMENT.md | `./docs/PR47_HOST_API_ASSESSMENT.md` | PR47 Host API 评估 | 🟢 低 |
-| PR47_IMPLEMENTATION_GUIDE.md | `./docs/PR47_IMPLEMENTATION_GUIDE.md` | PR47 实现指南 | 🟢 低 |
-| PR47_README.md | `./docs/PR47_README.md` | PR47 说明 | 🟢 低 |
-| PR49_TEST_INFRASTRUCTURE_FIX.md | `./docs/PR49_TEST_INFRASTRUCTURE_FIX.md` | PR49 测试基础设施修复 | 🟢 低 |
-| PRE_RUN_HEALTH_CHECK.md | `./docs/PRE_RUN_HEALTH_CHECK.md` | 运行前健康检查 | 🟡 中 |
-| PR_COMPILATION_ERRORS_FIX.md | `./docs/PR_COMPILATION_ERRORS_FIX.md` | PR 编译错误修复 | 🟢 低 |
-| REPORTING_OFFLINE_ANALYSIS.md | `./docs/REPORTING_OFFLINE_ANALYSIS.md` | 离线报告分析 | 🟢 低 |
-| SORTING_MODES.md | `./docs/SORTING_MODES.md` | 分拣模式说明 | 🟡 中 |
-| SORTING_PIPELINE_SEQUENCE.md | `./docs/SORTING_PIPELINE_SEQUENCE.md` | 分拣管道序列 | 🟡 中 |
-| STRATEGY_EXPERIMENT_GUIDE.md | `./docs/STRATEGY_EXPERIMENT_GUIDE.md` | 策略实验指南 | 🟢 低 |
-| TCP_MESSAGE_RECEIVING.md | `./docs/TCP_MESSAGE_RECEIVING.md` | TCP 消息接收 | 🟢 低 |
-| TOPOLOGY_VS_ROUTING_CLARIFICATION.md | `./docs/TOPOLOGY_VS_ROUTING_CLARIFICATION.md` | 拓扑 vs 路由澄清 | 🟡 中 |
-| 线体拓扑与超时计算.md | `./docs/线体拓扑与超时计算.md` | 线体拓扑与超时计算（中文） | 🟡 中 |
-
-### 监控和性能测试文档
+### 其他目录
 
 | 文件 | 路径 | 作用 | Copilot 优先级 |
 |------|------|------|----------------|
 | README.md | `./monitoring/README.md` | 监控目录说明 | 🟢 低 |
-| README.md | `./performance-tests/README.md` | 性能测试目录说明 | 🟢 低 |
+| README.md | `./performance-tests/README.md` | 性能测试说明 | 🟢 低 |
 
 ### 源码项目文档
 
 | 文件 | 路径 | 作用 | Copilot 优先级 |
 |------|------|------|----------------|
-| AnalyzerReleases.Shipped.md | `./src/ZakYip.WheelDiverterSorter.Analyzers/AnalyzerReleases.Shipped.md` | 分析器已发布版本 | 🟡 中 |
-| AnalyzerReleases.Unshipped.md | `./src/ZakYip.WheelDiverterSorter.Analyzers/AnalyzerReleases.Unshipped.md` | 分析器未发布版本 | 🟡 中 |
-| README.md | `./src/Drivers/ZakYip.WheelDiverterSorter.Drivers/README.md` | Drivers 项目说明 | 🟡 中 |
-| README.md | `./src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/README.md` | 雷赛驱动说明 | 🟢 低 |
-| README_EMC_LOCK.md | `./src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/README_EMC_LOCK.md` | 雷赛 EMC 锁说明 | 🟢 低 |
-| README.md | `./src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/README.md` | 西门子驱动说明 | 🟢 低 |
-| README.md | `./src/Execution/ZakYip.WheelDiverterSorter.Execution/Concurrency/README.md` | 并发模块说明 | 🟢 低 |
-| README.md | `./src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/README.md` | Communication 项目说明 | 🟡 中 |
-| README.md | `./src/Ingress/ZakYip.WheelDiverterSorter.Ingress/README.md` | Ingress 项目说明 | 🟡 中 |
-| SENSOR_FACTORY.md | `./src/Ingress/ZakYip.WheelDiverterSorter.Ingress/SENSOR_FACTORY.md` | 传感器工厂说明 | 🟢 低 |
-
-### 仿真项目文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| IMPLEMENTATION_COMPLETE.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/IMPLEMENTATION_COMPLETE.md` | 仿真实现完成 | 🟢 低 |
-| README.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/README.md` | Simulation 项目说明 | 🟡 中 |
-| SIMULATION_GUIDE.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/SIMULATION_GUIDE.md` | 仿真指南 | 🟡 中 |
-| README.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/Scenarios/README.md` | 仿真场景说明 | 🟢 低 |
-| README.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/Strategies/README.md` | 仿真策略说明 | 🟢 低 |
-| strategy-experiment-2025-11-18-072935.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/reports/strategy/strategy-experiment-2025-11-18-072935.md` | 策略实验报告 | 🟢 低 |
-| README.md | `./src/Simulation/ZakYip.WheelDiverterSorter.Simulation/simulation-config/README.md` | 仿真配置说明 | 🟢 低 |
-
-### 测试项目文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| README.md | `./tests/ZakYip.WheelDiverterSorter.ArchTests/README.md` | ArchTests 项目说明 | 🟡 中 |
-| README.md | `./tests/ZakYip.WheelDiverterSorter.Benchmarks/README.md` | Benchmarks 项目说明 | 🟢 低 |
-| TEST_FIXES_NEEDED.md | `./tests/ZakYip.WheelDiverterSorter.Drivers.Tests/TEST_FIXES_NEEDED.md` | Drivers 测试修复需求 | 🟢 低 |
-| README.md | `./tests/ZakYip.WheelDiverterSorter.E2ETests/README.md` | E2ETests 项目说明 | 🟡 中 |
-| README.md | `./tests/ZakYip.WheelDiverterSorter.E2ETests/Simulation/README.md` | E2E 仿真说明 | 🟢 低 |
-| README.md | `./tests/ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests/README.md` | TechnicalDebtComplianceTests 项目说明 | 🟡 中 |
-
-### 工具文档
-
-| 文件 | 路径 | 作用 | Copilot 优先级 |
-|------|------|------|----------------|
-| README.md | `./tools/Profiling/README.md` | 性能剖析脚本说明 | 🟢 低 |
-
-### 索引维护规则
-
-1. **新增 `.md` 文件时**：必须在本表对应类别中添加条目
-2. **删除/重命名 `.md` 文件时**：必须同步更新本索引表
-3. **优先级说明**：
-   - 🔴 **高**：Copilot 进行代码修改或 PR 规划时必读
-   - 🟡 **中**：根据任务需要选择性阅读
-   - 🟢 **低**：历史记录或特定场景参考
+| README.md | `./src/Drivers/.../README.md` | Drivers 项目说明 | 🟡 中 |
+| README.md | `./src/Infrastructure/.../README.md` | Communication 项目说明 | 🟡 中 |
+| README.md | `./src/Ingress/.../README.md` | Ingress 项目说明 | 🟡 中 |
+| README.md | `./src/Simulation/.../README.md` | Simulation 项目说明 | 🟡 中 |
 
 ---
 
