@@ -123,6 +123,119 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 | FixedChute | 所有包裹发送到固定格口 | 调试测试 |
 | RoundRobin | 按配置列表循环分配 | 均匀分布测试 |
 
+## 上游通信数据结构
+
+系统支持与上游 RuleEngine 通过多种协议（TCP/SignalR/MQTT/HTTP）进行通信。以下是通信过程中使用的核心数据结构：
+
+### 通信流程
+
+```
+┌──────────────────┐                      ┌──────────────────┐
+│   分拣系统        │                      │   RuleEngine     │
+│  (WheelDiverter) │                      │   (上游系统)      │
+└────────┬─────────┘                      └────────┬─────────┘
+         │                                         │
+         │  1. ParcelDetectionNotification         │
+         │  ─────────────────────────────────────▶ │
+         │  (包裹检测通知)                          │
+         │                                         │
+         │  2. ChuteAssignmentResponse             │
+         │  ◀───────────────────────────────────── │
+         │  (格口分配响应)                          │
+         │                                         │
+```
+
+### 数据结构定义
+
+#### ParcelDetectionNotification（包裹检测通知）
+
+当系统检测到包裹时，发送此通知给 RuleEngine。
+
+```json
+{
+  "ParcelId": 1701446263000,
+  "DetectionTime": "2024-12-01T18:57:43+08:00",
+  "Metadata": {
+    "SensorId": "Sensor001",
+    "LineId": "Line01"
+  }
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
+| `DetectionTime` | DateTimeOffset | ✅ | 检测时间 |
+| `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
+
+#### ChuteAssignmentRequest（格口分配请求）
+
+分拣系统向上游请求格口分配时使用。
+
+```json
+{
+  "ParcelId": 1701446263000,
+  "RequestTime": "2024-12-01T18:57:43+08:00"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
+| `RequestTime` | DateTimeOffset | ✅ | 请求时间 |
+
+#### ChuteAssignmentResponse（格口分配响应）
+
+上游 RuleEngine 返回的格口分配结果。
+
+```json
+{
+  "ParcelId": 1701446263000,
+  "ChuteId": 101,
+  "IsSuccess": true,
+  "ErrorMessage": null,
+  "ResponseTime": "2024-12-01T18:57:43.500+08:00"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
+| `ChuteId` | long | ✅ | 目标格口ID（数字ID） |
+| `IsSuccess` | bool | ✅ | 是否成功（默认 true） |
+| `ErrorMessage` | string | ❌ | 错误消息（如果失败） |
+| `ResponseTime` | DateTimeOffset | ✅ | 响应时间 |
+
+#### ChuteAssignmentEventArgs（格口分配事件参数）
+
+系统内部事件传递使用的数据结构（定义在 Core 层）。
+
+```json
+{
+  "ParcelId": 1701446263000,
+  "ChuteId": 101,
+  "NotificationTime": "2024-12-01T18:57:43.500+08:00",
+  "Metadata": null
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ParcelId` | long | ✅ | 包裹ID |
+| `ChuteId` | long | ✅ | 分配的格口ID |
+| `NotificationTime` | DateTimeOffset | ✅ | 通知时间 |
+| `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
+
+### 源码位置
+
+| 数据结构 | 位置 |
+|---------|------|
+| `ParcelDetectionNotification` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentRequest` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentResponse` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentEventArgs` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
+| `IUpstreamRoutingClient` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
+
 ## 文档导航
 
 | 文档 | 说明 |
