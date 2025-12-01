@@ -1,6 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Topology;
 
@@ -15,18 +16,22 @@ public class ChutePathTopologyService : IChutePathTopologyService
 {
     private readonly IChutePathTopologyRepository _topologyRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
+    private readonly ISwitchingPathGenerator _pathGenerator;
 
     /// <summary>
     /// 初始化格口路径拓扑服务
     /// </summary>
     /// <param name="topologyRepository">拓扑配置仓储</param>
     /// <param name="sensorRepository">传感器配置仓储</param>
+    /// <param name="pathGenerator">摆轮路径生成器</param>
     public ChutePathTopologyService(
         IChutePathTopologyRepository topologyRepository,
-        ISensorConfigurationRepository sensorRepository)
+        ISensorConfigurationRepository sensorRepository,
+        ISwitchingPathGenerator pathGenerator)
     {
         _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
         _sensorRepository = sensorRepository ?? throw new ArgumentNullException(nameof(sensorRepository));
+        _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
     }
 
     /// <inheritdoc />
@@ -38,6 +43,13 @@ public class ChutePathTopologyService : IChutePathTopologyService
     /// <inheritdoc />
     public void UpdateTopology(ChutePathTopologyConfig config)
     {
+        // 验证配置
+        var validationResult = ChutePathTopologyValidator.Validate(config);
+        if (!validationResult.IsValid)
+        {
+            throw new InvalidOperationException($"拓扑配置验证失败: {validationResult.ErrorMessage}");
+        }
+
         _topologyRepository.Update(config);
     }
 
@@ -165,6 +177,14 @@ public class ChutePathTopologyService : IChutePathTopologyService
     }
 
     /// <inheritdoc />
+    public (bool IsValid, string? ErrorMessage) ValidateNDiverterTopology(
+        IReadOnlyList<DiverterNodeConfig> diverters,
+        long abnormalChuteId)
+    {
+        return ChutePathTopologyValidator.ValidateNDiverterTopology(diverters, abnormalChuteId);
+    }
+
+    /// <inheritdoc />
     public DiverterPathNode? FindNodeByChuteId(long chuteId)
     {
         var config = _topologyRepository.Get();
@@ -176,5 +196,11 @@ public class ChutePathTopologyService : IChutePathTopologyService
     {
         var config = _topologyRepository.Get();
         return config.GetPathToChute(chuteId);
+    }
+
+    /// <inheritdoc />
+    public SwitchingPath? CreatePathForParcel(long targetChuteId)
+    {
+        return _pathGenerator.GeneratePath(targetChuteId);
     }
 }

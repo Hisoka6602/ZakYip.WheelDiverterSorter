@@ -58,6 +58,8 @@ public class TopologyShadowTests
         "ChutePathTopologyConfigEntity",
         "IChutePathTopologyRepository",
         "LiteDbChutePathTopologyRepository",
+        "ChutePathTopologyValidator",  // PR-TOPO02: N 摆轮模型验证器
+        "DiverterNodeConfig",          // PR-TOPO02: N 摆轮简化配置
         // Core/LineModel/Orchestration
         "IRouteTopologyConsistencyChecker",
         "RouteTopologyConsistencyChecker",

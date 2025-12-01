@@ -214,7 +214,7 @@ public class DefaultSwitchingPathGeneratorTests
     public void Constructor_WithNullRepository_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new DefaultSwitchingPathGenerator(null!));
+        Assert.Throws<ArgumentNullException>(() => new DefaultSwitchingPathGenerator((IRouteConfigurationRepository)null!));
     }
 
     [Fact]
@@ -477,4 +477,221 @@ public class DefaultSwitchingPathGeneratorTests
         Assert.Throws<ArgumentException>(() =>
             DefaultSwitchingPathGenerator.ValidateToleranceTime(segmentConfig, -100));
     }
+
+    #region PR-TOPO02: N 摆轮模型路径生成测试
+
+    [Fact]
+    public void GeneratePath_FromTopology_N1_LeftChute_GeneratesCorrectPath()
+    {
+        // Arrange - N=1 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(1);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求左侧格口
+        var result = generator.GeneratePath(1); // 左侧格口
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1, result.TargetChuteId);
+        Assert.Single(result.Segments);
+        Assert.Equal(DiverterDirection.Left, result.Segments[0].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_N1_RightChute_GeneratesCorrectPath()
+    {
+        // Arrange - N=1 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(1);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求右侧格口
+        var result = generator.GeneratePath(2); // 右侧格口
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(2, result.TargetChuteId);
+        Assert.Single(result.Segments);
+        Assert.Equal(DiverterDirection.Right, result.Segments[0].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_N1_ExceptionChute_GeneratesAllStraightPath()
+    {
+        // Arrange - N=1 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(1);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求异常口
+        var result = generator.GeneratePath(999); // 异常口
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(999, result.TargetChuteId);
+        Assert.Single(result.Segments);
+        Assert.Equal(DiverterDirection.Straight, result.Segments[0].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_N3_MiddleChute_GeneratesCorrectPath()
+    {
+        // Arrange - N=3 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(3);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求第2个摆轮的左侧格口
+        var result = generator.GeneratePath(3); // D2的左侧格口
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(3, result.TargetChuteId);
+        Assert.Equal(3, result.Segments.Count);
+        // D1: 直通
+        Assert.Equal(DiverterDirection.Straight, result.Segments[0].TargetDirection);
+        // D2: 左
+        Assert.Equal(DiverterDirection.Left, result.Segments[1].TargetDirection);
+        // D3: 直通（包裹已经被分走了）
+        Assert.Equal(DiverterDirection.Straight, result.Segments[2].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_N3_LastChute_GeneratesCorrectPath()
+    {
+        // Arrange - N=3 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(3);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求第3个摆轮的右侧格口
+        var result = generator.GeneratePath(6); // D3的右侧格口
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(6, result.TargetChuteId);
+        Assert.Equal(3, result.Segments.Count);
+        // D1: 直通
+        Assert.Equal(DiverterDirection.Straight, result.Segments[0].TargetDirection);
+        // D2: 直通
+        Assert.Equal(DiverterDirection.Straight, result.Segments[1].TargetDirection);
+        // D3: 右
+        Assert.Equal(DiverterDirection.Right, result.Segments[2].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_N4_PathSegmentsLinearlyIncreaseWithN()
+    {
+        // Arrange - N=4 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(4);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求第4个摆轮的格口
+        var result = generator.GeneratePath(7); // D4的左侧格口
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(4, result.Segments.Count); // N=4 时应该有4个段
+        // D1-D3: 直通
+        for (int i = 0; i < 3; i++)
+        {
+            Assert.Equal(DiverterDirection.Straight, result.Segments[i].TargetDirection);
+        }
+        // D4: 左
+        Assert.Equal(DiverterDirection.Left, result.Segments[3].TargetDirection);
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_N4_ExceptionChute_AllStraight()
+    {
+        // Arrange - N=4 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(4);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求异常口
+        var result = generator.GeneratePath(999);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(4, result.Segments.Count);
+        Assert.All(result.Segments, s => Assert.Equal(DiverterDirection.Straight, s.TargetDirection));
+    }
+
+    [Fact]
+    public void GeneratePath_FromTopology_WithUnknownChute_ReturnsNull()
+    {
+        // Arrange - N=3 摆轮配置
+        var mockTopologyRepo = new Mock<IChutePathTopologyRepository>();
+        var config = CreateTopologyConfig(3);
+        mockTopologyRepo.Setup(r => r.Get()).Returns(config);
+        
+        var generator = new DefaultSwitchingPathGenerator(mockTopologyRepo.Object);
+
+        // Act - 请求不存在的格口
+        var result = generator.GeneratePath(12345);
+
+        // Assert
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void Constructor_WithTopologyRepository_ThrowsOnNull()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => 
+            new DefaultSwitchingPathGenerator((IChutePathTopologyRepository)null!));
+    }
+
+    /// <summary>
+    /// 创建 N 摆轮拓扑配置用于测试
+    /// 格口编号规则：
+    /// - 摆轮 i 的左侧格口 ID = (i-1)*2 + 1
+    /// - 摆轮 i 的右侧格口 ID = (i-1)*2 + 2
+    /// - 异常口 ID = 999
+    /// </summary>
+    private static ChutePathTopologyConfig CreateTopologyConfig(int diverterCount)
+    {
+        var nodes = new List<DiverterPathNode>();
+        for (int i = 1; i <= diverterCount; i++)
+        {
+            nodes.Add(new DiverterPathNode
+            {
+                DiverterId = i,
+                DiverterName = $"摆轮D{i}",
+                PositionIndex = i,
+                SegmentId = i,
+                FrontSensorId = i + 100,
+                LeftChuteIds = new List<long> { (i - 1) * 2 + 1 },
+                RightChuteIds = new List<long> { (i - 1) * 2 + 2 }
+            });
+        }
+
+        return new ChutePathTopologyConfig
+        {
+            TopologyId = $"test-n{diverterCount}",
+            TopologyName = $"N={diverterCount}测试拓扑",
+            EntrySensorId = 1,
+            DiverterNodes = nodes,
+            ExceptionChuteId = 999
+        };
+    }
+
+    #endregion
 }

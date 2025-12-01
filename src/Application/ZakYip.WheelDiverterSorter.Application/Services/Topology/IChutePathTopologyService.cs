@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Topology;
 
@@ -37,6 +38,16 @@ public interface IChutePathTopologyService
         long exceptionChuteId);
 
     /// <summary>
+    /// 验证简化的 N 摆轮拓扑配置（PR-TOPO02）
+    /// </summary>
+    /// <param name="diverters">简化的摆轮配置列表</param>
+    /// <param name="abnormalChuteId">异常格口ID</param>
+    /// <returns>验证结果，如果验证通过返回 (true, null)，否则返回 (false, 错误消息)</returns>
+    (bool IsValid, string? ErrorMessage) ValidateNDiverterTopology(
+        IReadOnlyList<DiverterNodeConfig> diverters,
+        long abnormalChuteId);
+
+    /// <summary>
     /// 根据格口ID查找对应的摆轮节点
     /// </summary>
     /// <param name="chuteId">格口ID</param>
@@ -49,4 +60,15 @@ public interface IChutePathTopologyService
     /// <param name="chuteId">目标格口ID</param>
     /// <returns>从入口到目标格口经过的摆轮节点列表</returns>
     IReadOnlyList<DiverterPathNode>? GetPathToChute(long chuteId);
+
+    /// <summary>
+    /// 为包裹创建摆轮路径（PR-TOPO02）
+    /// </summary>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <returns>生成的摆轮路径，如果无法生成则返回 null</returns>
+    /// <remarks>
+    /// 此方法内部调用 ISwitchingPathGenerator.GeneratePath(chuteId)，
+    /// 上层（如 SortingOrchestrator）完全不关心当前系统有几个摆轮，只依赖此服务。
+    /// </remarks>
+    SwitchingPath? CreatePathForParcel(long targetChuteId);
 }

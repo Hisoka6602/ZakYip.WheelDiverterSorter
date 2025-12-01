@@ -16,6 +16,7 @@
 |------|------|
 | [ARCHITECTURE_PRINCIPLES.md](ARCHITECTURE_PRINCIPLES.md) | 架构原则 |
 | [CODING_GUIDELINES.md](CODING_GUIDELINES.md) | 编码规范 |
+| [TOPOLOGY_LINEAR_N_DIVERTERS.md](TOPOLOGY_LINEAR_N_DIVERTERS.md) | N 摆轮线性拓扑模型（PR-TOPO02） |
 | [../.github/copilot-instructions.md](../.github/copilot-instructions.md) | Copilot 约束说明 |
 
 ## 使用指南

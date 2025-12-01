@@ -14,14 +14,16 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// <item>摆轮配置 - 引用 WheelDiverterConfiguration 中的 DiverterId</item>
 /// </list>
 /// 
-/// <para><b>拓扑结构示例：</b></para>
+/// <para><b>N 摆轮线性拓扑模型（PR-TOPO02）：</b></para>
+/// <para>支持 N 个摆轮，每个摆轮左右各一个格口，末端一个异常口，总格口数 = N × 2 + 1。</para>
 /// <code>
 ///       格口B     格口D     格口F
 ///         ↑         ↑         ↑
-/// 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(默认异常口)
+/// 入口 → 摆轮D1 → 摆轮D2 → 摆轮D3 → 末端(异常口)
 ///   ↓     ↓         ↓         ↓
 /// 传感器  格口A      格口C     格口E
 /// </code>
+/// <para>可通过 <see cref="Diverters"/> 属性配置简化的 N 摆轮模型，或使用 <see cref="DiverterNodes"/> 配置详细的路径节点。</para>
 /// </remarks>
 public record class ChutePathTopologyConfig
 {
@@ -146,6 +148,51 @@ public record class ChutePathTopologyConfig
     /// 获取所有格口的总数
     /// </summary>
     public int TotalChuteCount => DiverterNodes.Sum(n => n.LeftChuteIds.Count + n.RightChuteIds.Count);
+
+    /// <summary>
+    /// 简化的 N 摆轮配置列表（PR-TOPO02）
+    /// </summary>
+    /// <remarks>
+    /// <para>用于简化的 N 摆轮模型，每个摆轮仅有左右各一个格口。</para>
+    /// <para>如果设置此属性，可通过 <see cref="ChutePathTopologyValidator"/> 验证配置是否符合 N 摆轮模型约束。</para>
+    /// <para>此属性与 <see cref="DiverterNodes"/> 互补，简化模型使用此属性，复杂模型使用 DiverterNodes。</para>
+    /// </remarks>
+    public IReadOnlyList<DiverterNodeConfig>? Diverters { get; init; }
+
+    /// <summary>
+    /// 末端异常格口ID（别名，与 ExceptionChuteId 等价）
+    /// </summary>
+    /// <remarks>
+    /// <para>用于 N 摆轮简化模型的异常格口配置。</para>
+    /// <para>当包裹无法分拣到任何目标格口时，所有摆轮设为直通，包裹落入末端异常口。</para>
+    /// </remarks>
+    public long AbnormalChuteId => ExceptionChuteId;
+
+    /// <summary>
+    /// 从简化的 Diverters 配置生成 DiverterNodes
+    /// </summary>
+    /// <returns>生成的 DiverterPathNode 列表</returns>
+    /// <remarks>
+    /// 当使用简化的 N 摆轮模型时，可通过此方法将 <see cref="Diverters"/> 转换为 <see cref="DiverterNodes"/> 格式
+    /// </remarks>
+    public IReadOnlyList<DiverterPathNode> GenerateNodesFromDiverters()
+    {
+        if (Diverters == null || Diverters.Count == 0)
+        {
+            return DiverterNodes;
+        }
+
+        return Diverters.Select(d => new DiverterPathNode
+        {
+            DiverterId = d.Index,
+            DiverterName = $"摆轮D{d.Index}",
+            PositionIndex = d.Index,
+            SegmentId = d.Index,
+            FrontSensorId = d.Index + 100, // 默认传感器ID偏移
+            LeftChuteIds = new[] { d.LeftChuteId },
+            RightChuteIds = new[] { d.RightChuteId }
+        }).ToList();
+    }
 }
 
 /// <summary>
@@ -224,4 +271,164 @@ public record class DiverterPathNode
     /// 右侧是否有格口
     /// </summary>
     public bool HasRightChute => RightChuteIds.Count > 0;
+}
+
+/// <summary>
+/// 简化的摆轮节点配置（PR-TOPO02）
+/// </summary>
+/// <remarks>
+/// <para>用于 N 摆轮线性拓扑模型，每个摆轮左右各一个格口。</para>
+/// <para>总格口数 = N × 2 + 1（末端异常口）</para>
+/// </remarks>
+public readonly record struct DiverterNodeConfig
+{
+    /// <summary>
+    /// 摆轮索引（从 1 开始）
+    /// </summary>
+    /// <example>1, 2, 3</example>
+    public required int Index { get; init; }
+
+    /// <summary>
+    /// 左侧格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮左转时分拣到的格口
+    /// </remarks>
+    public required long LeftChuteId { get; init; }
+
+    /// <summary>
+    /// 右侧格口ID
+    /// </summary>
+    /// <remarks>
+    /// 摆轮右转时分拣到的格口
+    /// </remarks>
+    public required long RightChuteId { get; init; }
+}
+
+/// <summary>
+/// 格口路径拓扑配置验证器（PR-TOPO02）
+/// </summary>
+/// <remarks>
+/// <para>验证简化的 N 摆轮模型配置是否符合约束：</para>
+/// <list type="bullet">
+/// <item>至少一个摆轮：Diverters.Count >= 1</item>
+/// <item>格口数量 = 摆轮数量 × 2</item>
+/// <item>异常格口不在普通格口集合中</item>
+/// <item>所有格口ID全局唯一</item>
+/// <item>总格口数（含异常口）= 摆轮数量 × 2 + 1</item>
+/// </list>
+/// </remarks>
+public static class ChutePathTopologyValidator
+{
+    /// <summary>
+    /// 验证简化的 N 摆轮拓扑配置
+    /// </summary>
+    /// <param name="diverters">摆轮配置列表</param>
+    /// <param name="abnormalChuteId">异常格口ID</param>
+    /// <returns>验证结果：(是否有效, 错误消息)</returns>
+    public static (bool IsValid, string? ErrorMessage) ValidateNDiverterTopology(
+        IReadOnlyList<DiverterNodeConfig> diverters,
+        long abnormalChuteId)
+    {
+        // 验证至少一个摆轮
+        if (diverters == null || diverters.Count < 1)
+        {
+            return (false, "至少需要配置一个摆轮 - At least one diverter is required");
+        }
+
+        // 收集所有格口ID
+        var allChutes = new HashSet<long>();
+        foreach (var diverter in diverters)
+        {
+            if (!allChutes.Add(diverter.LeftChuteId))
+            {
+                return (false, $"格口ID {diverter.LeftChuteId} 重复 - Duplicate chute ID {diverter.LeftChuteId}");
+            }
+            if (!allChutes.Add(diverter.RightChuteId))
+            {
+                return (false, $"格口ID {diverter.RightChuteId} 重复 - Duplicate chute ID {diverter.RightChuteId}");
+            }
+        }
+
+        // 验证格口数量 = 摆轮数量 × 2
+        var expectedChuteCount = diverters.Count * 2;
+        if (allChutes.Count != expectedChuteCount)
+        {
+            return (false, $"格口数量 ({allChutes.Count}) 不等于摆轮数量 × 2 ({expectedChuteCount}) - Chute count mismatch");
+        }
+
+        // 验证异常格口不在普通格口集合中
+        if (allChutes.Contains(abnormalChuteId))
+        {
+            return (false, $"异常格口ID ({abnormalChuteId}) 不能与普通格口重复 - Abnormal chute ID cannot duplicate with normal chutes");
+        }
+
+        // 验证总格口数（含异常口）= 摆轮数量 × 2 + 1
+        var totalChuteCount = allChutes.Count + 1; // +1 for abnormal chute
+        var expectedTotalCount = diverters.Count * 2 + 1;
+        if (totalChuteCount != expectedTotalCount)
+        {
+            return (false, $"总格口数 ({totalChuteCount}) 不等于 N × 2 + 1 ({expectedTotalCount}) - Total chute count should be N × 2 + 1");
+        }
+
+        // 验证摆轮索引从1开始连续
+        var indices = diverters.Select(d => d.Index).OrderBy(i => i).ToList();
+        for (int i = 0; i < indices.Count; i++)
+        {
+            if (indices[i] != i + 1)
+            {
+                return (false, $"摆轮索引应从1开始连续，发现索引 {indices[i]} 不符合要求 - Diverter index should start from 1 and be consecutive");
+            }
+        }
+
+        return (true, null);
+    }
+
+    /// <summary>
+    /// 验证 ChutePathTopologyConfig 中的简化 N 摆轮配置
+    /// </summary>
+    /// <param name="config">拓扑配置</param>
+    /// <returns>验证结果：(是否有效, 错误消息)</returns>
+    public static (bool IsValid, string? ErrorMessage) Validate(ChutePathTopologyConfig config)
+    {
+        if (config.Diverters != null && config.Diverters.Count > 0)
+        {
+            // 使用简化模型验证
+            return ValidateNDiverterTopology(config.Diverters, config.AbnormalChuteId);
+        }
+
+        // 使用详细模型验证（DiverterNodes）
+        if (config.DiverterNodes == null || config.DiverterNodes.Count < 1)
+        {
+            return (false, "至少需要配置一个摆轮节点 - At least one diverter node is required");
+        }
+
+        // 验证所有格口ID唯一
+        var allChuteIds = new HashSet<long>();
+        foreach (var node in config.DiverterNodes)
+        {
+            foreach (var chuteId in node.LeftChuteIds)
+            {
+                if (!allChuteIds.Add(chuteId))
+                {
+                    return (false, $"格口ID {chuteId} 重复 - Duplicate chute ID {chuteId}");
+                }
+            }
+            foreach (var chuteId in node.RightChuteIds)
+            {
+                if (!allChuteIds.Add(chuteId))
+                {
+                    return (false, $"格口ID {chuteId} 重复 - Duplicate chute ID {chuteId}");
+                }
+            }
+        }
+
+        // 验证异常格口不在普通格口集合中
+        if (allChuteIds.Contains(config.ExceptionChuteId))
+        {
+            return (false, $"异常格口ID ({config.ExceptionChuteId}) 不能与普通格口重复 - Exception chute ID cannot duplicate with normal chutes");
+        }
+
+        return (true, null);
+    }
 }
