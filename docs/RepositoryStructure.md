@@ -1283,7 +1283,7 @@ tools/Profiling/
 | TD-001 | ✅ 已解决 | Execution 根目录文件过多 → 已按职责归类到子目录 (PR-TD4) | [详情](./TechnicalDebtLog.md#td-001-execution-根目录文件过多) |
 | TD-002 | ✅ 已解决 | Drivers 层依赖 Execution 层 → 已移除依赖，接口定义在 Core/Hardware/ (PR-TD4) | [详情](./TechnicalDebtLog.md#td-002-drivers-层依赖-execution-层) |
 | TD-003 | ✅ 已解决 | Core/Abstractions 与 Drivers 层重复 → 统一迁移到 Core/Hardware/ (PR-TD4, PR-C6) | [详情](./TechnicalDebtLog.md#td-003-core-层-abstractions-与-drivers-层重复) |
-| TD-004 | ⏳ 进行中 | LineModel/Configuration 目录文件过多 → 已拆分为 Models/Repositories/Validation，已新增防线测试 (PR-TD-ZERO01) | [详情](./TechnicalDebtLog.md#td-004-linemodelconfiguration-目录文件过多) |
+| TD-004 | ✅ 已解决 | LineModel/Configuration 目录文件过多 → 目录拆分 + 结构防线已完成 (PR-TD-ZERO01, PR-TD-ZERO02) | [详情](./TechnicalDebtLog.md#td-004-linemodelconfiguration-目录文件过多) |
 | TD-005 | ✅ 已解决 | 重复 Options 类定义 → 验证确认不存在重复 (PR-TD5) | [详情](./TechnicalDebtLog.md#td-005-重复-options-类定义) |
 | TD-006 | ✅ 已解决 | Host 层 Controllers 数量过多 → 合并为 HardwareConfigController (PR3) | [详情](./TechnicalDebtLog.md#td-006-host-层-controllers-数量过多) |
 | TD-007 | ✅ 已解决 | Host/Services 目录混合多种类型 → 拆分为 Workers/Extensions/ (PR3) | [详情](./TechnicalDebtLog.md#td-007-hostservices-目录混合多种类型) |
@@ -1315,8 +1315,8 @@ tools/Profiling/
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 29 |
-| ⏳ 进行中 | 1 |
+| ✅ 已解决 | 30 |
+| ⏳ 进行中 | 0 |
 | ❌ 未开始 | 0 |
 | **总计** | **30** |
 

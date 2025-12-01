@@ -1618,6 +1618,54 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
 - 以“文档以后再补”为理由合并涉及结构/架构变更的 PR。
 
 ---
+
+### 4. 处理技术债的步骤 (PR-TD-ZERO02 新增)
+
+**工作流程**：
+
+Copilot 在修改或新增技术债时，必须按以下步骤执行：
+
+1. **读取文档**：
+   - 先读 `RepositoryStructure.md` 第 5 章节（技术债索引表）
+   - 再读 `TechnicalDebtLog.md` 对应 TD 段落（如存在）
+
+2. **同步更新三处位置**：
+   - **技术债索引表**（`RepositoryStructure.md` 第 5 章节）：更新状态和摘要
+   - **技术债统计表**（`RepositoryStructure.md` 技术债统计）：更新数量
+   - **详细日志**（`TechnicalDebtLog.md`）：更新详细描述
+
+3. **更新合规测试**：
+   - 如果新增技术债，`TechnicalDebtIndexComplianceTests.TechnicalDebtIndexShouldNotContainPendingItems` 会失败
+   - 可通过设置环境变量 `ALLOW_PENDING_TECHNICAL_DEBT=true` 临时禁用零技术债检查
+   - 技术债解决后，移除环境变量设置，恢复零技术债测试通过
+
+**新增技术债时的处理**：
+
+```markdown
+1. 在 TechnicalDebtLog.md 中登记：
+   - 添加新的 [TD-xxx] 章节
+   - 状态设为「❌ 未开始」或「⏳ 进行中」
+
+2. 在 RepositoryStructure.md 第 5 章节同步更新：
+   - 在索引表中添加新条目
+   - 更新统计表数量
+
+3. 设置环境变量临时禁用零技术债检查（如需要）：
+   - export ALLOW_PENDING_TECHNICAL_DEBT=true
+
+4. 完成技术债后：
+   - 更新状态为「✅ 已解决」
+   - 更新统计表
+   - 移除环境变量设置
+```
+
+**防线测试**：
+
+- `TechnicalDebtComplianceTests.TechnicalDebtIndexComplianceTests.TechnicalDebtIndexShouldNotContainPendingItems`
+- `TechnicalDebtComplianceTests.TechnicalDebtIndexComplianceTests.TechnicalDebtStatisticsShouldBeConsistent`
+- `TechnicalDebtComplianceTests.TechnicalDebtIndexComplianceTests.TechnicalDebtEntriesShouldBeConsistentBetweenDocuments`
+
+---
 ## 十四、Copilot PR 工作流：优先读取 RepositoryStructure.md 与 copilot-instructions.md
 
 > 本节用于约束 Copilot 在创建 PR 时的工作顺序，要求始终以 `docs/RepositoryStructure.md` 和 `copilot-instructions.md` 作为项目结构、技术债务与编码规范的优先信息来源，从而减少无效尝试和错误假设。
