@@ -6,6 +6,20 @@
 
 ---
 
+## 零、文档读取顺序
+
+**在修改文档或规划 PR 时，必须按以下顺序阅读文档：**
+
+1. **`docs/RepositoryStructure.md`** - 仓库结构、技术债索引
+2. **`docs/DOCUMENTATION_INDEX.md`** - 完整文档索引
+3. 具体目标 md 文件
+
+**禁止行为**：
+- 禁止随意新增散落的 `*.md` 文件
+- 新增文档必须同步更新 `docs/RepositoryStructure.md` 中的文档索引
+
+---
+
 ## 一、总体原则（不可破坏）
 
 ### 1. 上游通讯必须遵守"Parcel-First"流程
@@ -26,8 +40,6 @@ var chuteId = await RequestRoutingFromUpstream(parcel.ParcelId);
 var chuteId = await RequestRoutingFromUpstream();  // 没有 ParcelId！
 var parcel = CreateParcel(chuteId);
 ```
-
-**相关文档**: [PR42_PARCEL_FIRST_SPECIFICATION.md](../PR42_PARCEL_FIRST_SPECIFICATION.md)
 
 ### 2. 所有时间一律通过 ISystemClock 获取
 
