@@ -1,7 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Communication;
 using System.Collections.Concurrent;
-using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;

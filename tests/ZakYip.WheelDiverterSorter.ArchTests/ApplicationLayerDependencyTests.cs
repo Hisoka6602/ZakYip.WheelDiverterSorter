@@ -309,6 +309,78 @@ public class ApplicationLayerDependencyTests
     }
 
     /// <summary>
+    /// 验证 Drivers 项目不依赖 Execution 或 Communication（PR-RS11）
+    /// Drivers should not depend on Execution or Communication
+    /// </summary>
+    /// <remarks>
+    /// PR-RS11: Drivers 层只应依赖 Core（可选 Observability），完全不依赖 Execution / Communication。
+    /// HAL 接口定义在 Core/Hardware/**，Drivers 实现这些接口。
+    /// </remarks>
+    [Fact]
+    public void Drivers_ShouldNotDependOn_Execution_Or_Communication()
+    {
+        var driversCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj");
+        
+        var references = GetProjectReferences(driversCsproj);
+        
+        // PR-RS11: Drivers 禁止依赖的项目
+        var forbiddenDependencies = new[]
+        {
+            "Execution",
+            "Communication"
+        };
+
+        var violations = references
+            .Where(r => forbiddenDependencies.Any(fd => r.Contains(fd, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Drivers 项目不应依赖以下项目: {string.Join(", ", violations)}\n" +
+                       "PR-RS11: Drivers 层只应依赖 Core（可选 Observability），不应依赖 Execution / Communication。\n" +
+                       "如果需要共享抽象，应将接口上移到 Core/Hardware/** 层。");
+        }
+    }
+
+    /// <summary>
+    /// 验证 Drivers 只允许依赖 Core 和 Observability（PR-RS11）
+    /// Drivers should only depend on Core and optionally Observability
+    /// </summary>
+    /// <remarks>
+    /// PR-RS11: Drivers 层的目标状态是只依赖 Core（必要时可依赖 Observability）。
+    /// 这确保了 Drivers 层是纯粹的硬件驱动实现层。
+    /// </remarks>
+    [Fact]
+    public void Drivers_ShouldOnlyDependOn_CoreOrObservability()
+    {
+        var driversCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj");
+        
+        var references = GetProjectReferences(driversCsproj);
+        
+        // PR-RS11: Drivers 只允许依赖的项目
+        var allowedProjects = new[]
+        {
+            "ZakYip.WheelDiverterSorter.Core",
+            "ZakYip.WheelDiverterSorter.Observability"
+        };
+
+        var violations = references
+            .Where(r => !allowedProjects.Any(ap => r.Equals(ap, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Drivers 项目包含未允许的依赖: {string.Join(", ", violations)}\n" +
+                       $"允许的依赖: {string.Join(", ", allowedProjects)}\n" +
+                       "PR-RS11: Drivers 层只应依赖 Core（可选 Observability），不应依赖其他项目。");
+        }
+    }
+
+    /// <summary>
     /// 验证 Communication 项目不依赖 Application
     /// Communication should not depend on Application
     /// </summary>

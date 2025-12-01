@@ -23,7 +23,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../../Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
-    <ProjectReference Include="../../Infrastructure/ZakYip.WheelDiverterSorter.Communication/ZakYip.WheelDiverterSorter.Communication.csproj" />
   </ItemGroup>
 
   <ItemGroup>

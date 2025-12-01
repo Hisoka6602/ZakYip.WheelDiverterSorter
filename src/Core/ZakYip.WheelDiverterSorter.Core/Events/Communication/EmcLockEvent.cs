@@ -1,10 +1,14 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
-namespace ZakYip.WheelDiverterSorter.Communication.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Events.Communication;
 
 /// <summary>
 /// EMC锁事件
 /// </summary>
+/// <remarks>
+/// 用于在多实例部署环境中传递 EMC 资源锁的协调信息。
+/// 配合 <see cref="IEmcResourceLockManager"/> 使用。
+/// </remarks>
 public class EmcLockEvent
 {
     /// <summary>

@@ -1,12 +1,15 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Communication;
-using ZakYip.WheelDiverterSorter.Communication.Models;
 
-namespace ZakYip.WheelDiverterSorter.Communication.Abstractions;
+namespace ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 /// <summary>
 /// EMC资源锁管理器接口
 /// 用于协调多个实例对共享EMC硬件资源的访问
 /// </summary>
+/// <remarks>
+/// 本接口属于 HAL（硬件抽象层），定义 EMC 分布式锁协调的抽象契约。
+/// 在多实例部署场景中，确保对共享 EMC 硬件的安全访问。
+/// </remarks>
 public interface IEmcResourceLockManager : IDisposable
 {
     /// <summary>
