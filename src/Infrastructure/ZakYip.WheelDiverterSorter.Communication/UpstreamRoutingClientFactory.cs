@@ -19,6 +19,14 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 /// </remarks>
 public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
 {
+    /// <summary>
+    /// 默认 TCP 服务器地址（仅用于配置缺失时的降级方案）
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 当 TcpServer 配置为空且需要降级到 TCP 模式时，使用此默认值。
+    /// </remarks>
+    private const string DefaultTcpServerFallback = "localhost:9000";
+
     private readonly ILoggerFactory _loggerFactory;
     private readonly RuleEngineConnectionOptions _options;
     private readonly ISystemClock _systemClock;
@@ -96,7 +104,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = string.IsNullOrWhiteSpace(_options.TcpServer) 
-                ? "localhost:9000" 
+                ? DefaultTcpServerFallback 
                 : _options.TcpServer,
             TimeoutMs = _options.TimeoutMs,
             RetryCount = _options.RetryCount,

@@ -1,6 +1,8 @@
 using System.Reflection;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 
@@ -20,12 +22,21 @@ public class UpstreamProtocolTests
     /// <summary>
     /// 获取 Communication 程序集
     /// </summary>
-    private static readonly Assembly CommunicationAssembly = typeof(ZakYip.WheelDiverterSorter.Communication.CommunicationServiceExtensions).Assembly;
+    private static readonly Assembly CommunicationAssembly = typeof(RuleEngineConnectionOptions).Assembly;
 
     /// <summary>
     /// 获取 Core 程序集
     /// </summary>
     private static readonly Assembly CoreAssembly = typeof(CommunicationMode).Assembly;
+
+    /// <summary>
+    /// 辅助方法：验证类型不包含指定属性
+    /// </summary>
+    private static void AssertTypeDoesNotHaveProperty(Type type, string propertyName)
+    {
+        var property = type.GetProperty(propertyName);
+        Assert.Null(property);
+    }
 
     [Fact]
     public void Communication_Clients_ShouldNotHaveHttpTypes()
@@ -99,49 +110,29 @@ public class UpstreamProtocolTests
     [Fact]
     public void RuleEngineConnectionOptions_ShouldNotHaveHttpApiProperty()
     {
-        // Arrange - 获取 RuleEngineConnectionOptions 类型
-        var optionsType = CommunicationAssembly.GetType("ZakYip.WheelDiverterSorter.Communication.Configuration.RuleEngineConnectionOptions");
-        Assert.NotNull(optionsType);
-
-        // Assert - 不应存在 HttpApi 属性
-        var httpApiProperty = optionsType.GetProperty("HttpApi");
-        Assert.Null(httpApiProperty);
+        // Assert - 使用 typeof() 确保编译时类型安全
+        AssertTypeDoesNotHaveProperty(typeof(RuleEngineConnectionOptions), "HttpApi");
     }
 
     [Fact]
     public void RuleEngineConnectionOptions_ShouldNotHaveHttpProperty()
     {
-        // Arrange - 获取 RuleEngineConnectionOptions 类型
-        var optionsType = CommunicationAssembly.GetType("ZakYip.WheelDiverterSorter.Communication.Configuration.RuleEngineConnectionOptions");
-        Assert.NotNull(optionsType);
-
-        // Assert - 不应存在 Http 属性
-        var httpProperty = optionsType.GetProperty("Http");
-        Assert.Null(httpProperty);
+        // Assert - 使用 typeof() 确保编译时类型安全
+        AssertTypeDoesNotHaveProperty(typeof(RuleEngineConnectionOptions), "Http");
     }
 
     [Fact]
     public void CommunicationConfiguration_ShouldNotHaveHttpApiProperty()
     {
-        // Arrange - 获取 CommunicationConfiguration 类型
-        var configType = CoreAssembly.GetType("ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration");
-        Assert.NotNull(configType);
-
-        // Assert - 不应存在 HttpApi 属性
-        var httpApiProperty = configType.GetProperty("HttpApi");
-        Assert.Null(httpApiProperty);
+        // Assert - 使用 typeof() 确保编译时类型安全
+        AssertTypeDoesNotHaveProperty(typeof(CommunicationConfiguration), "HttpApi");
     }
 
     [Fact]
     public void CommunicationConfiguration_ShouldNotHaveHttpConfigProperty()
     {
-        // Arrange - 获取 CommunicationConfiguration 类型
-        var configType = CoreAssembly.GetType("ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration");
-        Assert.NotNull(configType);
-
-        // Assert - 不应存在 Http 属性
-        var httpProperty = configType.GetProperty("Http");
-        Assert.Null(httpProperty);
+        // Assert - 使用 typeof() 确保编译时类型安全
+        AssertTypeDoesNotHaveProperty(typeof(CommunicationConfiguration), "Http");
     }
 
     [Fact]
