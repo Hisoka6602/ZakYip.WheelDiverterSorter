@@ -2,10 +2,10 @@
 
 > 本文档存放每个技术债/重构 PR 的详细过程记录。
 >
-> **索引位置**：`docs/RepositoryStructure.md` 的第 5 章节保留技术债的 ID、当前状态和 1-2 行摘要，详细描述全部在本文件中。
+> **索引位置**：`docs/RepositoryStructure.md` 的第 5 章节保留技术债的 ID、当前状态和简短摘要，详细描述全部在本文件中。
 >
 > **阅读说明**：
-> - Copilot 在 `RepositoryStructure.md` 中看到 `[TD-xxx]` 标记时，可跳转到本文件查阅详情
+> - Copilot 在 `RepositoryStructure.md` 技术债索引表中点击"详情"链接时，跳转到本文件对应章节
 > - 技术债登记点依然在 `RepositoryStructure.md`（通过 ID + 状态表），本文件仅作详细过程补充
 
 ---

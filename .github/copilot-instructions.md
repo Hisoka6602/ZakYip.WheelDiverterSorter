@@ -1652,7 +1652,6 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
 ---
 
 ### 2. 以两个文档为 PR 规划与验收的基础
-### 2. 以两个文档为 PR 规划与验收的基础
 
 **规则：**
 
