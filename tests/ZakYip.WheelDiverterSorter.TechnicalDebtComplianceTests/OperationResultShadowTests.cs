@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Text;
 using System.Text.RegularExpressions;
 using ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.Utilities;
 
@@ -59,7 +58,7 @@ public class OperationResultShadowTests
     /// Precompiled regex for detecting OperationResult class definitions (exact match)
     /// </summary>
     private static readonly Regex OperationResultExactClassPattern = new(
-        @"\b(?:class|struct|record)\s+OperationResult\b", 
+        @"\b(?:(?:record\s+)?(?:class|struct)|record)\s+OperationResult\b", 
         RegexOptions.Compiled);
 
     /// <summary>
@@ -75,7 +74,7 @@ public class OperationResultShadowTests
     /// Precompiled regex for detecting VendorCapabilities class definitions
     /// </summary>
     private static readonly Regex VendorCapabilitiesClassPattern = new(
-        @"\b(?:class|struct|record)\s+\w*VendorCapabilities\w*\b", 
+        @"\b(?:(?:record\s+)?(?:class|struct)|record)\s+\w*VendorCapabilities\w*\b", 
         RegexOptions.Compiled);
 
     /// <summary>
@@ -533,22 +532,15 @@ public class OperationResultShadowTests
         // 这个测试用于记录和验证所有已知的领域特定 *OperationResult 类型
         // 如果发现新的领域特定结果类型，应该将其添加到白名单并更新此测试
 
-        // Arrange
-        var foundDomainSpecificTypes = new List<string>();
-
         // Act: 扫描所有程序集查找任何以 *OperationResult 命名的类型（排除基础 OperationResult）
-        foreach (var assembly in GetNonTestAssemblies())
-        {
-            var resultTypes = assembly.GetTypes()
-                .Where(t => t.Name.EndsWith("OperationResult") && 
-                           t.Name != "OperationResult" &&
-                           !t.IsNested)
-                .ToList();
-
-            foundDomainSpecificTypes.AddRange(
-                resultTypes.Select(type => $"{type.Namespace ?? "global"}.{type.Name}")
-            );
-        }
+        var foundDomainSpecificTypes = GetNonTestAssemblies()
+            .SelectMany(assembly => assembly.GetTypes()
+                .Where(t => t.Name.EndsWith("OperationResult") &&
+                            t.Name != "OperationResult" &&
+                            !t.IsNested)
+                .Select(type => $"{type.Namespace ?? "global"}.{type.Name}")
+            )
+            .ToList();
 
         // Assert: 验证所有发现的领域特定类型都在白名单中
         var undocumentedTypes = foundDomainSpecificTypes
