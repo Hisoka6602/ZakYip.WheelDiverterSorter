@@ -83,8 +83,6 @@ public class PersistenceLayerComplianceTests
             }
         }
 
-        Assert.Empty(violations);
-        
         if (violations.Any())
         {
             Assert.Fail(
