@@ -99,6 +99,7 @@ public class ApplicationLayerDependencyTests
     /// <remarks>
     /// PR-H1: Application 层现在是 DI 聚合层，允许依赖 Simulation 项目以统一注册所有服务。
     /// Application is now the DI aggregation layer and can depend on Simulation to register all services.
+    /// PR-RS13: Application 允许依赖 Configuration.Persistence 以注册 LiteDB 仓储实现。
     /// </remarks>
     [Fact]
     public void Application_ShouldOnlyDependOn_AllowedProjects()
@@ -110,6 +111,7 @@ public class ApplicationLayerDependencyTests
         var references = GetProjectReferences(applicationCsproj);
         
         // PR-H1: Application 允许依赖的项目（新增 Simulation，因为 Application 是 DI 聚合层）
+        // PR-RS13: 新增 Configuration.Persistence，因为 Application 负责注册 LiteDB 仓储实现
         var allowedProjects = new[]
         {
             "ZakYip.WheelDiverterSorter.Core",
@@ -118,7 +120,8 @@ public class ApplicationLayerDependencyTests
             "ZakYip.WheelDiverterSorter.Ingress",
             "ZakYip.WheelDiverterSorter.Communication",
             "ZakYip.WheelDiverterSorter.Observability",
-            "ZakYip.WheelDiverterSorter.Simulation"  // PR-H1: 允许 Application 依赖 Simulation
+            "ZakYip.WheelDiverterSorter.Simulation",  // PR-H1: 允许 Application 依赖 Simulation
+            "ZakYip.WheelDiverterSorter.Configuration.Persistence"  // PR-RS13: 允许依赖 Configuration.Persistence（LiteDB 仓储实现）
         };
 
         var violations = references
@@ -477,6 +480,76 @@ public class ApplicationLayerDependencyTests
     }
 
     /// <summary>
+    /// 验证 Configuration.Persistence 项目不依赖 Host / Application / Simulation
+    /// Configuration.Persistence should not depend on Host / Application / Simulation
+    /// </summary>
+    /// <remarks>
+    /// PR-RS13: Configuration.Persistence 是基础设施层，只能依赖 Core 和 Observability。
+    /// </remarks>
+    [Fact]
+    public void ConfigurationPersistence_ShouldNotDependOn_HostApplicationSimulation()
+    {
+        var configPersistenceCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/ZakYip.WheelDiverterSorter.Configuration.Persistence.csproj");
+        
+        var references = GetProjectReferences(configPersistenceCsproj);
+        
+        // PR-RS13: Configuration.Persistence 禁止依赖的项目
+        var forbiddenDependencies = new[]
+        {
+            "Host",
+            "Application",
+            "Simulation"
+        };
+
+        var violations = references
+            .Where(r => forbiddenDependencies.Any(fd => r.Contains(fd, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Configuration.Persistence 项目不应依赖以下项目: {string.Join(", ", violations)}\n" +
+                       "PR-RS13: Configuration.Persistence 是基础设施层，只能依赖 Core 和 Observability");
+        }
+    }
+
+    /// <summary>
+    /// 验证 Configuration.Persistence 只允许依赖 Core 和 Observability
+    /// Configuration.Persistence should only depend on Core and Observability
+    /// </summary>
+    /// <remarks>
+    /// PR-RS13: Configuration.Persistence 层的目标是只依赖 Core（必要时可依赖 Observability）。
+    /// </remarks>
+    [Fact]
+    public void ConfigurationPersistence_ShouldOnlyDependOn_CoreOrObservability()
+    {
+        var configPersistenceCsproj = Path.Combine(
+            SolutionRoot, 
+            "src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/ZakYip.WheelDiverterSorter.Configuration.Persistence.csproj");
+        
+        var references = GetProjectReferences(configPersistenceCsproj);
+        
+        // PR-RS13: Configuration.Persistence 只允许依赖的项目
+        var allowedProjects = new[]
+        {
+            "ZakYip.WheelDiverterSorter.Core",
+            "ZakYip.WheelDiverterSorter.Observability"
+        };
+
+        var violations = references
+            .Where(r => !allowedProjects.Any(ap => r.Equals(ap, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        if (violations.Any())
+        {
+            Assert.Fail($"Configuration.Persistence 项目包含未允许的依赖: {string.Join(", ", violations)}\n" +
+                       $"允许的依赖: {string.Join(", ", allowedProjects)}\n" +
+                       "PR-RS13: Configuration.Persistence 层只应依赖 Core（可选 Observability）");
+        }
+    }
+
+    /// <summary>
     /// 生成依赖关系报告
     /// Generate dependency report
     /// </summary>
@@ -495,6 +568,7 @@ public class ApplicationLayerDependencyTests
             ("Core", "src/Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj"),
             ("Drivers", "src/Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj"),
             ("Communication", "src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/ZakYip.WheelDiverterSorter.Communication.csproj"),
+            ("Configuration.Persistence", "src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/ZakYip.WheelDiverterSorter.Configuration.Persistence.csproj"),  // PR-RS13
             ("Ingress", "src/Ingress/ZakYip.WheelDiverterSorter.Ingress/ZakYip.WheelDiverterSorter.Ingress.csproj"),
             ("Observability", "src/Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj"),
             ("Simulation", "src/Simulation/ZakYip.WheelDiverterSorter.Simulation/ZakYip.WheelDiverterSorter.Simulation.csproj")

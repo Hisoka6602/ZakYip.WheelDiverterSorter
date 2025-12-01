@@ -16,7 +16,7 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
     public const string DefaultTopologyId = "default";
     
     private readonly LiteDatabase _database;
-    private readonly ILiteCollection<ChutePathTopologyConfigEntity> _collection;
+    private readonly ILiteCollection<ChutePathConfigStorageEntity> _collection;
     private readonly ISystemClock _systemClock;
     private const string CollectionName = "ChutePathTopologyConfiguration";
 
@@ -30,7 +30,7 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
-        _collection = _database.GetCollection<ChutePathTopologyConfigEntity>(CollectionName);
+        _collection = _database.GetCollection<ChutePathConfigStorageEntity>(CollectionName);
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         
         // 为TopologyId字段创建唯一索引
@@ -141,7 +141,7 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
         };
     }
 
-    private static ChutePathTopologyConfig MapToConfig(ChutePathTopologyConfigEntity entity)
+    private static ChutePathTopologyConfig MapToConfig(ChutePathConfigStorageEntity entity)
     {
         return new ChutePathTopologyConfig
         {
@@ -156,9 +156,9 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
         };
     }
 
-    private static ChutePathTopologyConfigEntity MapToEntity(ChutePathTopologyConfig config)
+    private static ChutePathConfigStorageEntity MapToEntity(ChutePathTopologyConfig config)
     {
-        return new ChutePathTopologyConfigEntity
+        return new ChutePathConfigStorageEntity
         {
             TopologyId = config.TopologyId,
             TopologyName = config.TopologyName,
@@ -174,7 +174,7 @@ public class LiteDbChutePathTopologyRepository : IChutePathTopologyRepository, I
     /// <summary>
     /// LiteDB存储实体
     /// </summary>
-    private class ChutePathTopologyConfigEntity
+    private class ChutePathConfigStorageEntity
     {
         [BsonId]
         public int Id { get; set; }

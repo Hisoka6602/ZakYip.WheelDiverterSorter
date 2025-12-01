@@ -41,6 +41,7 @@
 - [TD-027] DTO/Options/Utilities 统一规范 (PR-S3)
 - [TD-028] 事件 & DI 扩展影分身清理 (PR-S6)
 - [TD-029] 配置模型瘦身 (PR-SD5)
+- [TD-030] Core 混入 LiteDB 持久化实现 (PR-RS13)
 
 ---
 
@@ -649,6 +650,62 @@
 
 **防线测试**：
 - `DuplicateTypeDetectionTests.ConfigurationModelsShouldHaveProductionUsage()` - 验证配置模型在生产代码中有实际使用
+
+---
+
+## [TD-030] Core 混入 LiteDB 持久化实现
+
+**状态**：✅ 已解决 (PR-RS13)
+
+**问题描述**：
+- Core/LineModel/Configuration/Repositories/ 中混入了 LiteDB 的具体实现
+- Core 项目直接引用 LiteDB NuGet 包
+- 这违反了 "Core 只定义抽象" 的原则
+- 将来如果需要支持其他持久化方式（EF Core、文件配置等），会进一步污染 Core
+
+**解决方案**：
+1. 新建 `ZakYip.WheelDiverterSorter.Configuration.Persistence` 项目在 `src/Infrastructure/`
+2. 将 12 个 LiteDB 仓储实现文件移动到新项目
+3. 更新命名空间为 `ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb`
+4. 从 Core.csproj 移除 LiteDB 包引用
+5. 从 Core 配置模型中移除 `[BsonId]` 属性，改在 LiteDbMapperConfig 中通过 BsonMapper 配置
+6. Application 层添加对 Configuration.Persistence 的依赖，负责 DI 注册
+
+**移动的文件**：
+- `LiteDbChutePathTopologyRepository.cs`
+- `LiteDbCommunicationConfigurationRepository.cs`
+- `LiteDbDriverConfigurationRepository.cs`
+- `LiteDbIoLinkageConfigurationRepository.cs`
+- `LiteDbLoggingConfigurationRepository.cs`
+- `LiteDbMapperConfig.cs`
+- `LiteDbPanelConfigurationRepository.cs`
+- `LiteDbRouteConfigurationRepository.cs`
+- `LiteDbSensorConfigurationRepository.cs`
+- `LiteDbSystemConfigurationRepository.cs`
+- `LiteDbWheelBindingsRepository.cs`
+- `LiteDbWheelDiverterConfigurationRepository.cs`
+
+**更新的 Core 模型（移除 [BsonId]）**：
+- `SystemConfiguration.cs`
+- `IoLinkageConfiguration.cs`
+- `LoggingConfiguration.cs`
+- `PanelConfiguration.cs`
+
+**依赖关系**：
+- `Configuration.Persistence → Core` (允许)
+- `Configuration.Persistence → Observability` (允许，如需要)
+- `Application → Configuration.Persistence` (允许，负责 DI 注册)
+- `Configuration.Persistence → Host/Application/Simulation` (禁止)
+
+**防线测试**：
+- `PersistenceLayerComplianceTests.Core_ShouldNotReferenceLiteDB()` - Core 不引用 LiteDB 包
+- `PersistenceLayerComplianceTests.Core_ShouldNotHaveLiteDbDirectory()` - Core 中无 LiteDb 目录
+- `PersistenceLayerComplianceTests.Core_ShouldNotHaveLiteDBUsings()` - Core 源文件无 using LiteDB
+- `PersistenceLayerComplianceTests.ConfigurationPersistence_ShouldContainLiteDbRepositories()` - 新项目包含仓储实现
+- `PersistenceLayerComplianceTests.ConfigurationPersistence_ShouldReferenceLiteDB()` - 新项目引用 LiteDB
+- `ApplicationLayerDependencyTests.Application_ShouldOnlyDependOn_AllowedProjects()` - Application 允许依赖 Configuration.Persistence
+- `ApplicationLayerDependencyTests.ConfigurationPersistence_ShouldNotDependOn_HostApplicationSimulation()` - 新项目不依赖 Host/Application/Simulation
+- `ApplicationLayerDependencyTests.ConfigurationPersistence_ShouldOnlyDependOn_CoreOrObservability()` - 新项目只依赖 Core/Observability
 
 ---
 
