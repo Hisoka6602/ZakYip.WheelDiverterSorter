@@ -98,6 +98,31 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     }
 
     /// <summary>
+    /// 将事件中的 DWS 数据转换为 Core 层的 DwsMeasurement
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 提取为公共方法以减少重复代码
+    /// </remarks>
+    protected static DwsMeasurement? MapDwsPayload(Core.Events.Chute.DwsMeasurementEventArgs? eventArgs)
+    {
+        if (eventArgs == null)
+        {
+            return null;
+        }
+
+        return new DwsMeasurement
+        {
+            WeightGrams = eventArgs.WeightGrams,
+            LengthMm = eventArgs.LengthMm,
+            WidthMm = eventArgs.WidthMm,
+            HeightMm = eventArgs.HeightMm,
+            VolumetricWeightGrams = eventArgs.VolumetricWeightGrams,
+            Barcode = eventArgs.Barcode,
+            MeasuredAt = eventArgs.MeasuredAt
+        };
+    }
+
+    /// <summary>
     /// 执行带重试的操作
     /// </summary>
     /// <typeparam name="T">返回类型</typeparam>

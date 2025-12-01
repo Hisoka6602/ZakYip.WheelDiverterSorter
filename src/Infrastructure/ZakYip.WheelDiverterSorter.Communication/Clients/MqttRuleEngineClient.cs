@@ -333,27 +333,12 @@ public class MqttRuleEngineClient : RuleEngineClientBase
                     args.ApplicationMessage.Topic,
                     payload);
 
-                // PR-UPSTREAM02: 转换 DWS 数据
-                DwsMeasurement? dwsPayload = null;
-                if (notification.DwsPayload != null)
-                {
-                    dwsPayload = new DwsMeasurement
-                    {
-                        WeightGrams = notification.DwsPayload.WeightGrams,
-                        LengthMm = notification.DwsPayload.LengthMm,
-                        WidthMm = notification.DwsPayload.WidthMm,
-                        HeightMm = notification.DwsPayload.HeightMm,
-                        VolumetricWeightGrams = notification.DwsPayload.VolumetricWeightGrams,
-                        Barcode = notification.DwsPayload.Barcode,
-                        MeasuredAt = notification.DwsPayload.MeasuredAt
-                    };
-                }
-
+                // PR-UPSTREAM02: 使用共享方法转换 DWS 数据
                 OnChuteAssignmentReceived(
                     notification.ParcelId,
                     notification.ChuteId,
                     notification.AssignedAt,
-                    dwsPayload,
+                    MapDwsPayload(notification.DwsPayload),
                     notification.Metadata);
             }
             else
