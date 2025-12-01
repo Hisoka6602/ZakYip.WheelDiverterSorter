@@ -1,13 +1,13 @@
-namespace ZakYip.WheelDiverterSorter.Core.Events.Chute;
+namespace ZakYip.WheelDiverterSorter.Communication.Models;
 
 /// <summary>
-/// 格口分配通知事件参数（用于JSON反序列化）
+/// 格口分配通知（上游主动推送）
 /// </summary>
 /// <remarks>
-/// 当RuleEngine推送格口分配时触发此事件。
-/// PR-UPSTREAM02: 扩展以支持 DWS 数据和新的分配时间字段。
+/// PR-UPSTREAM02: 从 ChuteAssignmentResponse 重命名为 ChuteAssignmentNotification，
+/// 体现"上游主动推送"的语义，而非"请求-响应"模式。
 /// </remarks>
-public record ChuteAssignmentNotificationEventArgs
+public record ChuteAssignmentNotification
 {
     /// <summary>
     /// 包裹ID
@@ -22,15 +22,12 @@ public record ChuteAssignmentNotificationEventArgs
     /// <summary>
     /// 分配时间
     /// </summary>
-    /// <remarks>
-    /// PR-UPSTREAM02: 从 NotificationTime 重命名为 AssignedAt
-    /// </remarks>
     public required DateTimeOffset AssignedAt { get; init; }
 
     /// <summary>
-    /// DWS 数据（可选）
+    /// DWS（尺寸重量扫描）数据（可选）
     /// </summary>
-    public DwsMeasurementEventArgs? DwsPayload { get; init; }
+    public DwsMeasurementDto? DwsPayload { get; init; }
 
     /// <summary>
     /// 额外的元数据（可选）
@@ -39,12 +36,13 @@ public record ChuteAssignmentNotificationEventArgs
 }
 
 /// <summary>
-/// DWS 测量数据事件参数
+/// DWS（尺寸重量扫描）测量数据 DTO
 /// </summary>
 /// <remarks>
-/// PR-UPSTREAM02: 新增类型，用于事件中传递 DWS 数据。
+/// PR-UPSTREAM02: 新增类型，用于通信层传输 DWS 数据。
+/// 与 Core 层的 DwsMeasurement 对应。
 /// </remarks>
-public record DwsMeasurementEventArgs
+public record DwsMeasurementDto
 {
     /// <summary>
     /// 重量（克）

@@ -75,7 +75,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await client.ConnectAsync();
 
         var tcs = new TaskCompletionSource<ChuteAssignmentEventArgs>();
-        client.ChuteAssignmentReceived += (sender, args) =>
+        client.ChuteAssigned += (sender, args) =>
         {
             tcs.TrySetResult(args);
         };
@@ -107,7 +107,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await client.ConnectAsync();
 
         var tcs = new TaskCompletionSource<ChuteAssignmentEventArgs>();
-        client.ChuteAssignmentReceived += (sender, args) =>
+        client.ChuteAssigned += (sender, args) =>
         {
             tcs.TrySetResult(args);
         };
@@ -187,7 +187,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await client.ConnectAsync();
 
         var notifications = new List<ChuteAssignmentEventArgs>();
-        client.ChuteAssignmentReceived += (sender, args) =>
+        client.ChuteAssigned += (sender, args) =>
         {
             notifications.Add(args);
         };

@@ -76,9 +76,9 @@ public class TcpUpstreamSortingGatewayTests
                 {
                     ParcelId = parcelId,
                     ChuteId = 5,
-                    NotificationTime = DateTimeOffset.Now
+                    AssignedAt = DateTimeOffset.Now
                 };
-                _mockClient.Raise(x => x.ChuteAssignmentReceived += null, _mockClient.Object, eventArgs);
+                _mockClient.Raise(x => x.ChuteAssigned += null, _mockClient.Object, eventArgs);
             })
             .ReturnsAsync(true);
 
@@ -120,9 +120,9 @@ public class TcpUpstreamSortingGatewayTests
                 {
                     ParcelId = parcelId,
                     ChuteId = 1,
-                    NotificationTime = DateTimeOffset.Now
+                    AssignedAt = DateTimeOffset.Now
                 };
-                _mockClient.Raise(x => x.ChuteAssignmentReceived += null, _mockClient.Object, eventArgs);
+                _mockClient.Raise(x => x.ChuteAssigned += null, _mockClient.Object, eventArgs);
             })
             .ReturnsAsync(true);
 

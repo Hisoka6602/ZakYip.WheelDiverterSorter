@@ -60,9 +60,10 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
         _pendingAssignments = new System.Collections.Concurrent.ConcurrentDictionary<long, TaskCompletionSource<long>>();
 
         // 仅在需要时订阅格口分配事件
+        // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         if (_subscribeToEvents)
         {
-            _upstreamClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
+            _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
         }
     }
 
@@ -245,9 +246,10 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
     /// </summary>
     public void Dispose()
     {
+        // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         if (_subscribeToEvents)
         {
-            _upstreamClient.ChuteAssignmentReceived -= OnChuteAssignmentReceived;
+            _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
         }
 
         // 取消所有待处理的分配

@@ -50,9 +50,9 @@ public class MqttRuleEngineClientTests
     public async Task NotifyParcelDetectedAsync_WhenNotConnected_ReturnsFalse()
         var parcelId = 123456789L;
         var result = await client.NotifyParcelDetectedAsync(parcelId, new CancellationTokenSource(1000).Token);
-    public void ChuteAssignmentReceived_EventCanBeSubscribed()
+    public void ChuteAssigned_EventCanBeSubscribed()
         var eventRaised = false;
-        client.ChuteAssignmentReceived += (sender, args) =>
+        client.ChuteAssigned += (sender, args) =>
             eventRaised = true;
         // Assert - just verify event can be subscribed without error
         Assert.False(eventRaised); // Event not raised yet

@@ -1,12 +1,11 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
@@ -17,6 +16,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// <remarks>
 /// 推荐生产环境使用，提供低延迟、高吞吐量的通信
 /// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
+/// PR-UPSTREAM02: 添加落格完成通知，更新消息处理以支持新的格口分配通知格式
 /// </remarks>
 public class TcpRuleEngineClient : RuleEngineClientBase
 {
@@ -229,6 +229,79 @@ public class TcpRuleEngineClient : RuleEngineClientBase
         Logger.LogInformation(
             "[上游通信-发送完成] TCP通道成功发送包裹检测通知 | ParcelId={ParcelId} | 字节数={ByteCount}",
             parcelId,
+            notificationBytes.Length);
+    }
+
+    /// <summary>
+    /// 通知RuleEngine包裹已完成落格
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 新增方法，发送落格完成通知（fire-and-forget）
+    /// </remarks>
+    public override async Task<bool> NotifySortingCompletedAsync(
+        SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        // 尝试连接（如果未连接）
+        if (!await EnsureConnectedAsync(cancellationToken))
+        {
+            return false;
+        }
+
+        try
+        {
+            await SendSortingCompletedNotificationAsync(notification, cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 发送失败只记录日志，不重试
+            Logger.LogError(
+                ex,
+                "[上游通信-发送] TCP通道发送落格完成通知失败 | ParcelId={ParcelId} | ChuteId={ChuteId}",
+                notification.ParcelId,
+                notification.ActualChuteId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 发送落格完成通知
+    /// </summary>
+    private async Task SendSortingCompletedNotificationAsync(
+        SortingCompletedNotification notification,
+        CancellationToken cancellationToken)
+    {
+        var dto = new SortingCompletedNotificationDto
+        {
+            ParcelId = notification.ParcelId,
+            ActualChuteId = notification.ActualChuteId,
+            CompletedAt = notification.CompletedAt,
+            IsSuccess = notification.IsSuccess,
+            FailureReason = notification.FailureReason
+        };
+        
+        var notificationJson = JsonSerializer.Serialize(dto);
+        var notificationBytes = Encoding.UTF8.GetBytes(notificationJson + "\n");
+
+        Logger.LogInformation(
+            "[上游通信-发送] TCP通道发送落格完成通知 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess} | 消息内容={MessageContent}",
+            notification.ParcelId,
+            notification.ActualChuteId,
+            notification.IsSuccess,
+            notificationJson);
+
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(Options.TimeoutMs);
+
+        await _stream!.WriteAsync(notificationBytes, cts.Token);
+        await _stream.FlushAsync(cts.Token);
+
+        Logger.LogInformation(
+            "[上游通信-发送完成] TCP通道成功发送落格完成通知 | ParcelId={ParcelId} | 字节数={ByteCount}",
+            notification.ParcelId,
             notificationBytes.Length);
     }
 
@@ -512,6 +585,9 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 处理接收到的消息
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 更新以使用 ChuteAssignmentNotificationEventArgs 和新的 AssignedAt 字段
+    /// </remarks>
     private void ProcessReceivedMessage(string messageJson)
     {
         try
@@ -527,16 +603,32 @@ public class TcpRuleEngineClient : RuleEngineClientBase
             if (notification != null)
             {
                 Logger.LogInformation(
-                    "[上游通信-接收] TCP通道收到格口分配响应 | ParcelId={ParcelId} | ChuteId={ChuteId} | 消息内容={MessageContent}",
+                    "[上游通信-接收] TCP通道收到格口分配通知 | ParcelId={ParcelId} | ChuteId={ChuteId} | 消息内容={MessageContent}",
                     notification.ParcelId,
                     notification.ChuteId,
                     messageJson);
 
-                // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+                // PR-UPSTREAM02: 转换 DWS 数据并触发事件
+                DwsMeasurement? dwsPayload = null;
+                if (notification.DwsPayload != null)
+                {
+                    dwsPayload = new DwsMeasurement
+                    {
+                        WeightGrams = notification.DwsPayload.WeightGrams,
+                        LengthMm = notification.DwsPayload.LengthMm,
+                        WidthMm = notification.DwsPayload.WidthMm,
+                        HeightMm = notification.DwsPayload.HeightMm,
+                        VolumetricWeightGrams = notification.DwsPayload.VolumetricWeightGrams,
+                        Barcode = notification.DwsPayload.Barcode,
+                        MeasuredAt = notification.DwsPayload.MeasuredAt
+                    };
+                }
+
                 OnChuteAssignmentReceived(
                     notification.ParcelId,
                     notification.ChuteId,
-                    notification.NotificationTime,
+                    notification.AssignedAt,
+                    dwsPayload,
                     notification.Metadata);
             }
             else

@@ -228,7 +228,7 @@ internal class TcpMockServer : IDisposable
                 {
                     ParcelId = notification.ParcelId,
                     ChuteId = 1,
-                    NotificationTime = DateTimeOffset.Now
+                    AssignedAt = DateTimeOffset.Now
                 };
                 await SendResponseAsync(stream, response, cancellationToken);
                 break;
@@ -244,7 +244,7 @@ internal class TcpMockServer : IDisposable
                 {
                     ParcelId = notification.ParcelId,
                     ChuteId = 2,
-                    NotificationTime = DateTimeOffset.Now
+                    AssignedAt = DateTimeOffset.Now
                 };
                 await SendResponseAsync(stream, delayedResponse, cancellationToken);
                 break;

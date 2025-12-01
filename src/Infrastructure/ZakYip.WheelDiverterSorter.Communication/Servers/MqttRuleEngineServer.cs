@@ -119,15 +119,15 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             return;
         }
 
-        var response = new ChuteAssignmentResponse
+        // PR-UPSTREAM02: 使用 ChuteAssignmentNotification 代替 ChuteAssignmentResponse
+        var notification = new ChuteAssignmentNotification
         {
             ParcelId = parcelId,
             ChuteId = int.Parse(chuteId),
-            IsSuccess = true,
-            ResponseTime = _systemClock.LocalNowOffset
+            AssignedAt = _systemClock.LocalNowOffset
         };
 
-        var json = JsonSerializer.Serialize(response);
+        var json = JsonSerializer.Serialize(notification);
         var payload = Encoding.UTF8.GetBytes(json);
 
         var message = new MqttApplicationMessageBuilder()
@@ -212,20 +212,21 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             }
 
             var json = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
-            var request = JsonSerializer.Deserialize<ChuteAssignmentRequest>(json);
+            // PR-UPSTREAM02: 使用 ParcelDetectionNotification 代替 ChuteAssignmentRequest
+            var notification = JsonSerializer.Deserialize<ParcelDetectionNotification>(json);
 
-            if (request != null)
+            if (notification != null)
             {
                 _logger.LogInformation(
-                    "[{LocalTime}] 收到MQTT客户端 {ClientId} 的包裹通知: ParcelId={ParcelId}",
+                    "[{LocalTime}] 收到MQTT客户端 {ClientId} 的包裹检测通知: ParcelId={ParcelId}",
                     _systemClock.LocalNow,
                     args.ClientId,
-                    request.ParcelId);
+                    notification.ParcelId);
 
                 // 触发包裹通知接收事件
                 ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
                 {
-                    ParcelId = request.ParcelId,
+                    ParcelId = notification.ParcelId,
                     ClientId = args.ClientId,
                     ReceivedAt = _systemClock.LocalNow
                 });
@@ -233,13 +234,13 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                 // 如果有处理器，调用处理器
                 if (_handler != null)
                 {
-                    var notification = new ChuteAssignmentNotificationEventArgs
+                    var eventArgs = new ChuteAssignmentNotificationEventArgs
                     {
-                        ParcelId = request.ParcelId,
+                        ParcelId = notification.ParcelId,
                         ChuteId = 0, // Server模式下由RuleEngine决定
-                        NotificationTime = request.RequestTime
+                        AssignedAt = notification.DetectionTime
                     };
-                    await _handler.HandleChuteAssignmentAsync(notification);
+                    await _handler.HandleChuteAssignmentAsync(eventArgs);
                 }
             }
         }

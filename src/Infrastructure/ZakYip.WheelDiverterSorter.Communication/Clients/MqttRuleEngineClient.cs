@@ -1,13 +1,12 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
 using MQTTnet.Client;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
@@ -18,6 +17,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// <remarks>
 /// 推荐生产环境使用，提供轻量级IoT消息协议，支持QoS保证
 /// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
+/// PR-UPSTREAM02: 添加落格完成通知，更新消息处理以支持新的格口分配通知格式
 /// </remarks>
 public class MqttRuleEngineClient : RuleEngineClientBase
 {
@@ -29,6 +29,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     private IMqttClient? _mqttClient;
     private readonly string _detectionTopic;
     private readonly string _assignmentTopic;
+    private readonly string _completionTopic;
 
     /// <summary>
     /// 客户端是否已连接
@@ -53,6 +54,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
 
         _detectionTopic = $"{options.MqttTopic}/detection";
         _assignmentTopic = $"{options.MqttTopic}/assignment";
+        _completionTopic = $"{options.MqttTopic}/completion";
 
         InitializeMqttClient();
     }
@@ -213,6 +215,82 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     }
 
     /// <summary>
+    /// 通知RuleEngine包裹已完成落格
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 新增方法，发送落格完成通知（fire-and-forget）
+    /// </remarks>
+    public override async Task<bool> NotifySortingCompletedAsync(
+        SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        // 尝试连接（如果未连接）
+        if (!await EnsureConnectedAsync(cancellationToken))
+        {
+            Logger.LogError(
+                "[上游通信-发送] MQTT通道无法连接 | ParcelId={ParcelId}",
+                notification.ParcelId);
+            return false;
+        }
+
+        try
+        {
+            var dto = new SortingCompletedNotificationDto
+            {
+                ParcelId = notification.ParcelId,
+                ActualChuteId = notification.ActualChuteId,
+                CompletedAt = notification.CompletedAt,
+                IsSuccess = notification.IsSuccess,
+                FailureReason = notification.FailureReason
+            };
+
+            var notificationJson = JsonSerializer.Serialize(dto);
+            var qosLevel = GetQosLevel();
+
+            if (Logger.IsEnabled(LogLevel.Information))
+            {
+                Logger.LogInformation(
+                    "[上游通信-发送] MQTT通道发送落格完成通知 | ParcelId={ParcelId} | ChuteId={ChuteId} | Topic={Topic} | IsSuccess={IsSuccess} | 消息内容={MessageContent}",
+                    notification.ParcelId,
+                    notification.ActualChuteId,
+                    _completionTopic,
+                    notification.IsSuccess,
+                    notificationJson);
+            }
+
+            var messageBuilder = new MqttApplicationMessageBuilder()
+                .WithTopic(_completionTopic)
+                .WithPayload(notificationJson)
+                .WithQualityOfServiceLevel(qosLevel);
+
+            if (Options.Mqtt.MessageExpiryInterval > 0)
+            {
+                messageBuilder.WithMessageExpiryInterval((uint)Options.Mqtt.MessageExpiryInterval);
+            }
+
+            var message = messageBuilder.Build();
+
+            await _mqttClient!.PublishAsync(message, cancellationToken);
+
+            Logger.LogInformation(
+                "[上游通信-发送完成] MQTT通道成功发送落格完成通知 | ParcelId={ParcelId} | Topic={Topic}",
+                notification.ParcelId,
+                _completionTopic);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "[上游通信-发送] MQTT通道发送落格完成通知失败 | ParcelId={ParcelId}",
+                notification.ParcelId);
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 获取QoS级别
     /// </summary>
     private MQTTnet.Protocol.MqttQualityOfServiceLevel GetQosLevel()
@@ -228,6 +306,9 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 处理接收到的MQTT消息
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 更新以使用新的 AssignedAt 字段和 DWS 数据
+    /// </remarks>
     private Task OnMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
     {
         try
@@ -246,17 +327,33 @@ public class MqttRuleEngineClient : RuleEngineClientBase
             if (notification != null)
             {
                 Logger.LogInformation(
-                    "[上游通信-接收] MQTT通道收到格口分配响应 | ParcelId={ParcelId} | ChuteId={ChuteId} | Topic={Topic} | 消息内容={MessageContent}",
+                    "[上游通信-接收] MQTT通道收到格口分配通知 | ParcelId={ParcelId} | ChuteId={ChuteId} | Topic={Topic} | 消息内容={MessageContent}",
                     notification.ParcelId,
                     notification.ChuteId,
                     args.ApplicationMessage.Topic,
                     payload);
-                
-                // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+
+                // PR-UPSTREAM02: 转换 DWS 数据
+                DwsMeasurement? dwsPayload = null;
+                if (notification.DwsPayload != null)
+                {
+                    dwsPayload = new DwsMeasurement
+                    {
+                        WeightGrams = notification.DwsPayload.WeightGrams,
+                        LengthMm = notification.DwsPayload.LengthMm,
+                        WidthMm = notification.DwsPayload.WidthMm,
+                        HeightMm = notification.DwsPayload.HeightMm,
+                        VolumetricWeightGrams = notification.DwsPayload.VolumetricWeightGrams,
+                        Barcode = notification.DwsPayload.Barcode,
+                        MeasuredAt = notification.DwsPayload.MeasuredAt
+                    };
+                }
+
                 OnChuteAssignmentReceived(
                     notification.ParcelId,
                     notification.ChuteId,
-                    notification.NotificationTime,
+                    notification.AssignedAt,
+                    dwsPayload,
                     notification.Metadata);
             }
             else

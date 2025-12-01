@@ -119,15 +119,15 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
         string chuteId,
         CancellationToken cancellationToken = default)
     {
-        var response = new ChuteAssignmentResponse
+        // PR-UPSTREAM02: 使用 ChuteAssignmentNotification 代替 ChuteAssignmentResponse
+        var notification = new ChuteAssignmentNotification
         {
             ParcelId = parcelId,
             ChuteId = int.Parse(chuteId),
-            IsSuccess = true,
-            ResponseTime = _systemClock.LocalNowOffset
+            AssignedAt = _systemClock.LocalNowOffset
         };
 
-        var json = JsonSerializer.Serialize(response);
+        var json = JsonSerializer.Serialize(notification);
         var bytes = Encoding.UTF8.GetBytes(json + "\n");
 
         var disconnectedClients = new List<string>();
@@ -241,19 +241,20 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                 
                 try
                 {
-                    var request = JsonSerializer.Deserialize<ChuteAssignmentRequest>(json);
-                    if (request != null)
+                    // PR-UPSTREAM02: 使用 ParcelDetectionNotification 代替 ChuteAssignmentRequest
+                    var notification = JsonSerializer.Deserialize<ParcelDetectionNotification>(json);
+                    if (notification != null)
                     {
                         _logger.LogInformation(
-                            "[{LocalTime}] 收到客户端 {ClientId} 的包裹通知: ParcelId={ParcelId}",
+                            "[{LocalTime}] 收到客户端 {ClientId} 的包裹检测通知: ParcelId={ParcelId}",
                             _systemClock.LocalNow,
                             client.ClientId,
-                            request.ParcelId);
+                            notification.ParcelId);
 
                         // 触发包裹通知接收事件
                         ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
                         {
-                            ParcelId = request.ParcelId,
+                            ParcelId = notification.ParcelId,
                             ClientId = client.ClientId,
                             ReceivedAt = _systemClock.LocalNow
                         });
@@ -261,13 +262,13 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                         // 如果有处理器，调用处理器
                         if (_handler != null)
                         {
-                            var notification = new ChuteAssignmentNotificationEventArgs
+                            var eventArgs = new ChuteAssignmentNotificationEventArgs
                             {
-                                ParcelId = request.ParcelId,
+                                ParcelId = notification.ParcelId,
                                 ChuteId = 0, // Server模式下由RuleEngine决定
-                                NotificationTime = request.RequestTime
+                                AssignedAt = notification.DetectionTime
                             };
-                            await _handler.HandleChuteAssignmentAsync(notification);
+                            await _handler.HandleChuteAssignmentAsync(eventArgs);
                         }
                     }
                 }

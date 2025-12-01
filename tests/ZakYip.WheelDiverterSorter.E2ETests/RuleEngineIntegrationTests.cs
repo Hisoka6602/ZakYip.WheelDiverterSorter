@@ -126,10 +126,10 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Act - Simulate RuleEngine sending chute assignment (push model)
         // In the push model, the client receives assignments without explicitly requesting them
         var assignmentArgs = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId
-        , NotificationTime = DateTimeOffset.Now };
+        , AssignedAt = DateTimeOffset.Now };
 
         Factory.MockRuleEngineClient.Raise(
-            x => x.ChuteAssignmentReceived += null,
+            x => x.ChuteAssigned += null,
             Factory.MockRuleEngineClient.Object,
             assignmentArgs);
 
@@ -137,10 +137,10 @@ public class RuleEngineIntegrationTests : E2ETestBase
         await Task.Delay(300);
 
         // Assert - In push model, chute assignment is received via event
-        // The orchestrator subscribes to ChuteAssignmentReceived event on startup
+        // The orchestrator subscribes to ChuteAssigned event on startup
         // Verify the event subscription was set up
         Factory.MockRuleEngineClient.VerifyAdd(
-            x => x.ChuteAssignmentReceived += It.IsAny<EventHandler<ChuteAssignmentEventArgs>>(),
+            x => x.ChuteAssigned += It.IsAny<EventHandler<ChuteAssignmentEventArgs>>(),
             Times.AtLeastOnce);
 
         await _orchestrator.StopAsync();

@@ -11,6 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// 用于仿真和测试，不进行真实的网络通信。
 /// 支持三种模式：Formal（从配置获取格口）、FixedChute（固定格口）、RoundRobin（轮询）
 /// PR-U1: 直接实现 IUpstreamRoutingClient
+/// PR-UPSTREAM02: 更新事件名和添加落格完成通知
 /// </remarks>
 public class InMemoryRuleEngineClient : IUpstreamRoutingClient, IDisposable
 {
@@ -21,9 +22,12 @@ public class InMemoryRuleEngineClient : IUpstreamRoutingClient, IDisposable
     private bool _isDisposed;
 
     /// <summary>
-    /// 格口分配通知事件
+    /// 格口分配事件
     /// </summary>
-    public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssignmentReceived;
+    /// <remarks>
+    /// PR-UPSTREAM02: 从 ChuteAssignmentReceived 重命名为 ChuteAssigned
+    /// </remarks>
+    public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssigned;
 
     /// <summary>
     /// 客户端是否已连接
@@ -107,13 +111,43 @@ public class InMemoryRuleEngineClient : IUpstreamRoutingClient, IDisposable
         {
             ParcelId = parcelId,
             ChuteId = chuteId,
-            NotificationTime = _systemClock.LocalNowOffset
+            AssignedAt = _systemClock.LocalNowOffset
         };
 
         _logger?.LogDebug("内存模拟客户端：推送格口分配 {ParcelId} -> 格口 {ChuteId}", parcelId, chuteId);
-        ChuteAssignmentReceived?.Invoke(this, eventArgs);
+        ChuteAssigned?.Invoke(this, eventArgs);
 
         return true;
+    }
+
+    /// <summary>
+    /// 通知上游系统包裹已完成落格（模拟实现）
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 新增方法
+    /// </remarks>
+    public Task<bool> NotifySortingCompletedAsync(
+        SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        if (_isDisposed)
+        {
+            throw new ObjectDisposedException(nameof(InMemoryRuleEngineClient));
+        }
+
+        if (!_isConnected)
+        {
+            _logger?.LogWarning("内存模拟客户端：未连接，无法发送落格完成通知");
+            return Task.FromResult(false);
+        }
+
+        _logger?.LogDebug(
+            "内存模拟客户端：落格完成通知 ParcelId={ParcelId}, ChuteId={ChuteId}, IsSuccess={IsSuccess}",
+            notification.ParcelId,
+            notification.ActualChuteId,
+            notification.IsSuccess);
+
+        return Task.FromResult(true);
     }
 
     /// <summary>

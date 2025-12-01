@@ -82,19 +82,20 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
             var tcs = new TaskCompletionSource<SortingResponse>();
             
             // 订阅事件处理响应
+            // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
             EventHandler<ChuteAssignmentEventArgs>? handler = null;
             handler = (sender, eventArgs) =>
             {
                 if (eventArgs.ParcelId == request.ParcelId)
                 {
-                    _client.ChuteAssignmentReceived -= handler;
+                    _client.ChuteAssigned -= handler;
                     
                     // 使用映射器将协议通知转换为领域层响应
                     var notification = new UpstreamChuteAssignmentNotification
                     {
                         ParcelId = eventArgs.ParcelId,
                         ChuteId = eventArgs.ChuteId,
-                        NotificationTime = eventArgs.NotificationTime,
+                        NotificationTime = eventArgs.AssignedAt,
                         Source = "TcpUpstreamGateway"
                     };
                     var response = _mapper.MapFromUpstreamNotification(notification);
@@ -103,7 +104,7 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
                 }
             };
             
-            _client.ChuteAssignmentReceived += handler;
+            _client.ChuteAssigned += handler;
 
             try
             {
@@ -114,7 +115,7 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
 
                 if (!notified)
                 {
-                    _client.ChuteAssignmentReceived -= handler;
+                    _client.ChuteAssigned -= handler;
                     throw new UpstreamUnavailableException("发送包裹通知失败");
                 }
 
@@ -136,7 +137,7 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
             }
             catch
             {
-                _client.ChuteAssignmentReceived -= handler;
+                _client.ChuteAssigned -= handler;
                 throw;
             }
         }
