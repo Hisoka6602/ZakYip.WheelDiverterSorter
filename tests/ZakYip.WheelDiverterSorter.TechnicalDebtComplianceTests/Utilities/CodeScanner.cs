@@ -8,9 +8,13 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.Utilities;
 /// </summary>
 public static class CodeScanner
 {
-    private static readonly string SolutionRoot = GetSolutionRoot();
+    private static readonly string SolutionRootPath = GetSolutionRoot();
 
-    private static string GetSolutionRoot()
+    /// <summary>
+    /// 获取解决方案根目录路径
+    /// Get solution root directory path
+    /// </summary>
+    public static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
         while (currentDir != null && !File.Exists(Path.Combine(currentDir, "ZakYip.WheelDiverterSorter.sln")))
@@ -26,7 +30,7 @@ public static class CodeScanner
     /// </summary>
     public static IEnumerable<string> GetAllSourceFiles(string directoryPattern = "src")
     {
-        var searchPath = Path.Combine(SolutionRoot, directoryPattern);
+        var searchPath = Path.Combine(SolutionRootPath, directoryPattern);
         if (!Directory.Exists(searchPath))
         {
             return Enumerable.Empty<string>();
@@ -34,6 +38,16 @@ public static class CodeScanner
         
         return Directory.GetFiles(searchPath, "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains("/obj/") && !f.Contains("/bin/") && !f.Contains("\\obj\\") && !f.Contains("\\bin\\"));
+    }
+
+    /// <summary>
+    /// 获取相对于 src 目录的路径
+    /// Get path relative to src directory
+    /// </summary>
+    public static string GetRelativePath(string fullPath)
+    {
+        var parts = fullPath.Split(new[] { "/src/", "\\src\\" }, StringSplitOptions.None);
+        return parts.Length > 1 ? "src/" + parts[1] : fullPath;
     }
 
     /// <summary>
