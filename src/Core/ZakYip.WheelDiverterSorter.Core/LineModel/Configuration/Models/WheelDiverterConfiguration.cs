@@ -22,9 +22,7 @@ public class WheelDiverterConfiguration
     /// </summary>
     /// <remarks>
     /// 可选值:
-    /// - Mock: 模拟摆轮（用于测试）
     /// - ShuDiNiao: 数递鸟摆轮设备（默认）
-    /// - Modi: 莫迪摆轮设备
     /// </remarks>
     public WheelDiverterVendorType VendorType { get; set; } = WheelDiverterVendorType.ShuDiNiao;
 
@@ -32,11 +30,6 @@ public class WheelDiverterConfiguration
     /// 数递鸟摆轮设备配置
     /// </summary>
     public ShuDiNiaoWheelDiverterConfig? ShuDiNiao { get; set; }
-
-    /// <summary>
-    /// 莫迪摆轮设备配置
-    /// </summary>
-    public ModiWheelDiverterConfig? Modi { get; set; }
 
     /// <summary>
     /// 配置版本号
@@ -82,11 +75,6 @@ public class WheelDiverterConfiguration
             return (false, "使用数递鸟摆轮时，必须配置数递鸟参数");
         }
 
-        if (VendorType == WheelDiverterVendorType.Modi && Modi == null)
-        {
-            return (false, "使用莫迪摆轮时，必须配置莫迪参数");
-        }
-
         if (ShuDiNiao != null)
         {
             if (ShuDiNiao.Devices == null || !ShuDiNiao.Devices.Any())
@@ -107,26 +95,6 @@ public class WheelDiverterConfiguration
             }
         }
 
-        if (Modi != null)
-        {
-            if (Modi.Devices == null || !Modi.Devices.Any())
-            {
-                return (false, "莫迪摆轮设备配置不能为空");
-            }
-
-            // 检查DiverterId不能重复
-            var duplicateIds = Modi.Devices
-                .GroupBy(d => d.DiverterId)
-                .Where(g => g.Count() > 1)
-                .Select(g => g.Key)
-                .ToList();
-
-            if (duplicateIds.Any())
-            {
-                return (false, $"莫迪摆轮ID重复: {string.Join(", ", duplicateIds)}");
-            }
-        }
-
         return (true, null);
     }
 }
@@ -140,25 +108,4 @@ public record class ShuDiNiaoWheelDiverterConfig
     /// 数递鸟摆轮设备列表
     /// </summary>
     public required List<ShuDiNiaoDeviceEntry> Devices { get; init; }
-
-    /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; init; } = false;
-}
-
-/// <summary>
-/// 莫迪摆轮设备配置
-/// </summary>
-public record class ModiWheelDiverterConfig
-{
-    /// <summary>
-    /// 莫迪摆轮设备列表
-    /// </summary>
-    public required List<ModiDeviceEntry> Devices { get; init; }
-
-    /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; init; } = false;
 }

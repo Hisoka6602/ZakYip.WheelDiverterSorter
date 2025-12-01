@@ -497,25 +497,6 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 // 获取厂商显示名称
                 var vendorDisplayName = GetWheelDiverterVendorDisplayName(wheelConfig.VendorType);
 
-                // 检查是否处于仿真模式
-                var isSimulation = wheelConfig.VendorType switch
-                {
-                    WheelDiverterVendorType.ShuDiNiao => wheelConfig.ShuDiNiao?.UseSimulation ?? true,
-                    WheelDiverterVendorType.Modi => wheelConfig.Modi?.UseSimulation ?? true,
-                    _ => true
-                };
-
-                // 仿真模式返回不健康（正式环境运行准备检查）
-                if (isSimulation)
-                {
-                    return new HealthCheckItem
-                    {
-                        Name = "WheelDiverterDriverConnected",
-                        Status = HealthStatus.Unhealthy,
-                        Message = $"摆轮驱动器处于仿真模式，厂商类型: {vendorDisplayName}（正式环境不应使用仿真驱动）"
-                    };
-                }
-
                 // 检查实际连接状态（如果有驱动管理器）
                 if (_wheelDiverterDriverManager != null)
                 {
@@ -594,7 +575,6 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         return vendorType switch
         {
             WheelDiverterVendorType.ShuDiNiao => "数递鸟",
-            WheelDiverterVendorType.Modi => "莫迪",
             _ => vendorType.ToString()
         };
     }
@@ -607,7 +587,6 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         return config.VendorType switch
         {
             WheelDiverterVendorType.ShuDiNiao => config.ShuDiNiao?.Devices.Count(d => d.IsEnabled) ?? 0,
-            WheelDiverterVendorType.Modi => config.Modi?.Devices.Count(d => d.IsEnabled) ?? 0,
             _ => 0
         };
     }

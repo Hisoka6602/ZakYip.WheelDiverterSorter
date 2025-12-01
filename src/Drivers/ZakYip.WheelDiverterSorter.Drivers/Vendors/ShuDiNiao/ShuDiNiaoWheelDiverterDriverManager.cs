@@ -90,25 +90,7 @@ public sealed class ShuDiNiaoWheelDiverterDriverManager : IWheelDiverterDriverMa
                 };
             }
 
-            // 3. 如果是仿真模式，不需要真正连接
-            if (configuration.ShuDiNiao.UseSimulation)
-            {
-                _logger.LogInformation("数递鸟配置使用仿真模式，跳过真实连接");
-                lock (_lock)
-                {
-                    _drivers.Clear();
-                }
-                return new WheelDiverterConfigApplyResult
-                {
-                    IsSuccess = true,
-                    ConnectedCount = 0,
-                    TotalCount = configuration.ShuDiNiao.Devices.Count,
-                    FailedDriverIds = Array.Empty<string>(),
-                    ErrorMessage = "仿真模式已启用，未创建真实连接"
-                };
-            }
-
-            // 4. 创建新的驱动器实例
+            // 3. 创建新的驱动器实例
             var newDrivers = new Dictionary<string, ShuDiNiaoWheelDiverterDriver>();
             var failedDriverIds = new List<string>();
             var enabledDevices = configuration.ShuDiNiao.Devices

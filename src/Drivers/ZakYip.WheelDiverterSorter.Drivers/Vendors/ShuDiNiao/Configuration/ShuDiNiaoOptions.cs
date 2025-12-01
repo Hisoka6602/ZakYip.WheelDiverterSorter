@@ -15,11 +15,6 @@ public class ShuDiNiaoOptions
     public const string SectionName = "WheelDiverter:ShuDiNiao";
 
     /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; set; } = false;
-
-    /// <summary>
     /// 默认TCP连接超时（毫秒）
     /// </summary>
     public int ConnectionTimeoutMs { get; set; } = 5000;
