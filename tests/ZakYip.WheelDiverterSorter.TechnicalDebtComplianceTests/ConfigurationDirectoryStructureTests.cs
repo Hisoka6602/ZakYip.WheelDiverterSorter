@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 
@@ -18,7 +19,7 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// 
 /// PR-TD-ZERO01: 新增此测试类作为 TD-004 的结构防线
 /// </remarks>
-public class ConfigurationDirectoryStructureTests
+public partial class ConfigurationDirectoryStructureTests
 {
     /// <summary>
     /// 允许在 Configuration 目录根下存在的直接子目录
@@ -44,6 +45,19 @@ public class ConfigurationDirectoryStructureTests
         // "ConfigurationModule.cs",
     };
 
+    // 编译的正则表达式用于文件内容检查
+    [GeneratedRegex(@"\binterface\s+I\w+Repository\b", RegexOptions.Compiled)]
+    private static partial Regex RepositoryInterfacePattern();
+
+    [GeneratedRegex(@"\b(?:interface|class)\s+\w+(?:Service|Validator|Handler)\b", RegexOptions.Compiled)]
+    private static partial Regex ServiceValidatorHandlerPattern();
+
+    [GeneratedRegex(@"\bclass\s+\w+Configuration\b", RegexOptions.Compiled)]
+    private static partial Regex ClassConfigurationPattern();
+
+    [GeneratedRegex(@"\brecord\s+\w+Configuration\b", RegexOptions.Compiled)]
+    private static partial Regex RecordConfigurationPattern();
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -64,6 +78,17 @@ public class ConfigurationDirectoryStructureTests
     }
 
     /// <summary>
+    /// 验证目录存在，如果不存在则使测试失败
+    /// </summary>
+    private static void AssertDirectoryExists(string path, string description)
+    {
+        if (!Directory.Exists(path))
+        {
+            Assert.Fail($"{description} not found: {path}");
+        }
+    }
+
+    /// <summary>
     /// TD-004: 验证 Configuration 目录的直接子目录只允许指定的目录
     /// Verify that Configuration directory only has allowed subdirectories
     /// </summary>
@@ -79,12 +104,7 @@ public class ConfigurationDirectoryStructureTests
     public void ConfigurationDirectoryShouldOnlyHaveAllowedSubdirectories()
     {
         var configDir = GetConfigurationDirectory();
-        
-        if (!Directory.Exists(configDir))
-        {
-            Assert.Fail($"Configuration directory not found: {configDir}");
-            return;
-        }
+        AssertDirectoryExists(configDir, "Configuration directory");
 
         var actualSubdirectories = Directory.GetDirectories(configDir)
             .Select(d => Path.GetFileName(d))
@@ -135,13 +155,7 @@ public class ConfigurationDirectoryStructureTests
     public void ConfigurationDirectoryShouldNotHaveFlatCsFiles()
     {
         var configDir = GetConfigurationDirectory();
-        var solutionRoot = GetSolutionRoot();
-        
-        if (!Directory.Exists(configDir))
-        {
-            Assert.Fail($"Configuration directory not found: {configDir}");
-            return;
-        }
+        AssertDirectoryExists(configDir, "Configuration directory");
 
         var flatCsFiles = Directory.GetFiles(configDir, "*.cs", SearchOption.TopDirectoryOnly)
             .Select(f => Path.GetFileName(f))
@@ -189,13 +203,7 @@ public class ConfigurationDirectoryStructureTests
     {
         var configDir = GetConfigurationDirectory();
         var modelsDir = Path.Combine(configDir, "Models");
-        var solutionRoot = GetSolutionRoot();
-        
-        if (!Directory.Exists(modelsDir))
-        {
-            Assert.Fail($"Models directory not found: {modelsDir}");
-            return;
-        }
+        AssertDirectoryExists(modelsDir, "Models directory");
 
         var violations = new List<(string FileName, string ViolationType)>();
         var csFiles = Directory.GetFiles(modelsDir, "*.cs", SearchOption.TopDirectoryOnly);
@@ -206,13 +214,13 @@ public class ConfigurationDirectoryStructureTests
             var content = File.ReadAllText(file);
 
             // 检查是否包含接口定义（仓储接口不应在 Models 目录）
-            if (System.Text.RegularExpressions.Regex.IsMatch(content, @"\binterface\s+I\w+Repository\b"))
+            if (RepositoryInterfacePattern().IsMatch(content))
             {
                 violations.Add((fileName, "包含仓储接口定义，应移至 Repositories/Interfaces/"));
             }
 
             // 检查是否包含服务接口或实现
-            if (System.Text.RegularExpressions.Regex.IsMatch(content, @"\b(?:interface|class)\s+\w+(?:Service|Validator|Handler)\b") &&
+            if (ServiceValidatorHandlerPattern().IsMatch(content) &&
                 !fileName.Contains("Configuration", StringComparison.OrdinalIgnoreCase))
             {
                 violations.Add((fileName, "包含服务/验证器定义，应移至 Validation/ 或其他适当目录"));
@@ -258,12 +266,7 @@ public class ConfigurationDirectoryStructureTests
     {
         var configDir = GetConfigurationDirectory();
         var repositoriesDir = Path.Combine(configDir, "Repositories");
-        
-        if (!Directory.Exists(repositoriesDir))
-        {
-            Assert.Fail($"Repositories directory not found: {repositoriesDir}");
-            return;
-        }
+        AssertDirectoryExists(repositoriesDir, "Repositories directory");
 
         var violations = new List<string>();
 
@@ -330,14 +333,14 @@ public class ConfigurationDirectoryStructureTests
             var content = File.ReadAllText(file);
 
             // 检查是否包含配置模型定义（应在 Models 目录）
-            if (System.Text.RegularExpressions.Regex.IsMatch(content, @"\bclass\s+\w+Configuration\b") ||
-                System.Text.RegularExpressions.Regex.IsMatch(content, @"\brecord\s+\w+Configuration\b"))
+            if (ClassConfigurationPattern().IsMatch(content) ||
+                RecordConfigurationPattern().IsMatch(content))
             {
                 violations.Add((fileName, "包含配置模型定义，应移至 Models/"));
             }
 
             // 检查是否包含仓储接口（应在 Repositories/Interfaces 目录）
-            if (System.Text.RegularExpressions.Regex.IsMatch(content, @"\binterface\s+I\w+Repository\b"))
+            if (RepositoryInterfacePattern().IsMatch(content))
             {
                 violations.Add((fileName, "包含仓储接口定义，应移至 Repositories/Interfaces/"));
             }
@@ -376,7 +379,6 @@ public class ConfigurationDirectoryStructureTests
     public void GenerateConfigurationDirectoryStructureReport()
     {
         var configDir = GetConfigurationDirectory();
-        var solutionRoot = GetSolutionRoot();
         
         if (!Directory.Exists(configDir))
         {
