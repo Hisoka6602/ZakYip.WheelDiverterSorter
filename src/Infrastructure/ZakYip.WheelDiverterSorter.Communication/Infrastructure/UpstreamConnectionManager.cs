@@ -285,6 +285,12 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
             status);
     }
 
+    /// <summary>
+    /// 获取服务器地址（用于日志）
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 地址获取。
+    /// </remarks>
     private static string GetServerAddress(RuleEngineConnectionOptions options)
     {
         return options.Mode switch
@@ -292,7 +298,6 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
             CommunicationMode.Tcp => options.TcpServer ?? "unknown",
             CommunicationMode.SignalR => options.SignalRHub ?? "unknown",
             CommunicationMode.Mqtt => options.MqttBroker ?? "unknown",
-            CommunicationMode.Http => options.HttpApi ?? "unknown",
             _ => "unknown"
         };
     }

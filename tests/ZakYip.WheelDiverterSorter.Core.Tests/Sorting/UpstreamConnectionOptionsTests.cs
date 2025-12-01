@@ -7,6 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Tests.Sorting;
 
 /// <summary>
 /// UpstreamConnectionOptions 和 UpstreamConnectionOptionsValidator 单元测试
+/// PR-UPSTREAM01: HTTP 相关测试已移除
 /// </summary>
 public class UpstreamConnectionOptionsTests
 {
@@ -27,7 +28,6 @@ public class UpstreamConnectionOptionsTests
         Assert.Null(options.SignalRHub);
         Assert.Null(options.MqttBroker);
         Assert.Equal("sorting/chute/assignment", options.MqttTopic);
-        Assert.Null(options.HttpApi);
         Assert.Equal(5000, options.TimeoutMs);
         Assert.True(options.EnableAutoReconnect);
         Assert.Equal(200, options.InitialBackoffMs);
@@ -192,46 +192,7 @@ public class UpstreamConnectionOptionsTests
 
     #endregion
 
-    #region HTTP 模式校验
-
-    [Fact]
-    public void Validate_HttpMode_WithoutHttpApi_ShouldFail()
-    {
-        // Arrange
-        var options = new UpstreamConnectionOptions
-        {
-            Mode = CommunicationMode.Http,
-            HttpApi = null
-        };
-
-        // Act
-        var result = _validator.Validate(null, options);
-
-        // Assert
-        Assert.True(result.Failed);
-        Assert.Contains("HttpApi", result.FailureMessage);
-    }
-
-    [Fact]
-    public void Validate_HttpMode_WithValidHttpApi_ShouldPass()
-    {
-        // Arrange
-        var options = new UpstreamConnectionOptions
-        {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api/sorting/chute"
-        };
-
-        // Act
-        var result = _validator.Validate(null, options);
-
-        // Assert
-        Assert.True(result.Succeeded);
-    }
-
-    #endregion
-
-    #region 通用配置校验
+    #region 通用配置校验（PR-UPSTREAM01: 改用 TCP 模式）
 
     [Theory]
     [InlineData(0)]
@@ -242,8 +203,8 @@ public class UpstreamConnectionOptionsTests
         // Arrange
         var options = new UpstreamConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api",
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000",
             TimeoutMs = timeoutMs
         };
 
@@ -263,8 +224,8 @@ public class UpstreamConnectionOptionsTests
         // Arrange
         var options = new UpstreamConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api",
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000",
             InitialBackoffMs = backoffMs
         };
 
@@ -284,8 +245,8 @@ public class UpstreamConnectionOptionsTests
         // Arrange
         var options = new UpstreamConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api",
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000",
             MaxBackoffMs = backoffMs
         };
 
@@ -303,8 +264,8 @@ public class UpstreamConnectionOptionsTests
         // Arrange
         var options = new UpstreamConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api",
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000",
             InitialBackoffMs = 2000,
             MaxBackoffMs = 1000
         };

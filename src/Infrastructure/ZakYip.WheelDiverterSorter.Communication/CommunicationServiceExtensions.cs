@@ -25,18 +25,21 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 /// <remarks>
 /// 提供低耦合的服务注册方式，便于扩展新的通信协议
 /// PR-U1: 合并上游路由客户端接口，删除中间适配层
+/// PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT
 /// </remarks>
 public static class CommunicationServiceExtensions
 {
     /// <summary>
     /// 默认配置常量
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 相关常量
+    /// </remarks>
     private static class DefaultConfiguration
     {
         public const string TcpServer = "localhost:9000";
         public const string SignalRHub = "http://localhost:5001/ruleengine";
         public const string MqttBroker = "localhost";
-        public const string HttpApi = "http://localhost:9999/api/ruleengine";
     }
     /// <summary>
     /// 添加上游路由通信服务
@@ -52,7 +55,7 @@ public static class CommunicationServiceExtensions
     ///   <item>正式环境启动时从 LiteDB 数据库加载持久化配置</item>
     ///   <item>测试环境可以使用 appsettings.json 中的配置（仅用于自动化测试）</item>
     /// </list>
-    /// PR-U1: 直接注册 IUpstreamRoutingClient，移除 IRuleEngineClient 中间层
+    /// <para>PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT，默认使用 TCP。</para>
     /// </remarks>
     public static IServiceCollection AddRuleEngineCommunication(
         this IServiceCollection services,
@@ -81,12 +84,6 @@ public static class CommunicationServiceExtensions
                 // Test environment: use configuration from appsettings.json (for automated tests only)
                 var testOptions = new RuleEngineConnectionOptions();
                 configuration.GetSection("RuleEngineConnection").Bind(testOptions);
-                
-                // 在测试环境下，如果配置为空，提供默认测试配置
-                if (string.IsNullOrWhiteSpace(testOptions.HttpApi) && testOptions.Mode == CommunicationMode.Http)
-                {
-                    testOptions.HttpApi = "http://localhost:9999/test-stub";
-                }
                 
                 ValidateOptions(testOptions);
                 
@@ -235,7 +232,8 @@ public static class CommunicationServiceExtensions
     /// </summary>
     /// <param name="options">连接配置</param>
     /// <remarks>
-    /// 无论任何情况下都不会抛出异常导致程序崩溃，只记录警告信息
+    /// <para>无论任何情况下都不会抛出异常导致程序崩溃，只记录警告信息。</para>
+    /// <para>PR-UPSTREAM01: 移除 HTTP 模式验证，不支持的模式降级为 TCP。</para>
     /// </remarks>
     private static void ValidateOptions(RuleEngineConnectionOptions options)
     {
@@ -265,22 +263,14 @@ public static class CommunicationServiceExtensions
                 }
                 break;
 
-            case CommunicationMode.Http:
-                if (string.IsNullOrWhiteSpace(options.HttpApi))
-                {
-                    options.HttpApi = DefaultConfiguration.HttpApi;
-                    Console.WriteLine($"⚠️ [配置警告] HTTP模式下，HttpApi配置为空，已使用默认值: {options.HttpApi}");
-                }
-                break;
-
             default:
-                // 不支持的通信模式，使用默认的Http模式
-                Console.WriteLine($"⚠️ [配置警告] 不支持的通信模式: {options.Mode}，已切换为Http模式");
-                options.Mode = CommunicationMode.Http;
-                if (string.IsNullOrWhiteSpace(options.HttpApi))
+                // PR-UPSTREAM01: 不支持的通信模式，使用默认的 TCP 模式
+                Console.WriteLine($"⚠️ [配置警告] 不支持的通信模式: {options.Mode}，已切换为 TCP 模式");
+                options.Mode = CommunicationMode.Tcp;
+                if (string.IsNullOrWhiteSpace(options.TcpServer))
                 {
-                    options.HttpApi = DefaultConfiguration.HttpApi;
-                    Console.WriteLine($"⚠️ [配置警告] HTTP模式下，HttpApi配置为空，已使用默认值: {options.HttpApi}");
+                    options.TcpServer = DefaultConfiguration.TcpServer;
+                    Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {options.TcpServer}");
                 }
                 break;
         }
@@ -290,6 +280,9 @@ public static class CommunicationServiceExtensions
     /// 将数据库配置映射到 RuleEngineConnectionOptions
     /// Map database configuration to RuleEngineConnectionOptions
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 配置映射。
+    /// </remarks>
     private static RuleEngineConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration dbConfig)
     {
         return new RuleEngineConnectionOptions
@@ -300,7 +293,6 @@ public static class CommunicationServiceExtensions
             SignalRHub = dbConfig.SignalRHub,
             MqttBroker = dbConfig.MqttBroker,
             MqttTopic = dbConfig.MqttTopic,
-            HttpApi = dbConfig.HttpApi,
             TimeoutMs = dbConfig.TimeoutMs,
             RetryCount = dbConfig.RetryCount,
             RetryDelayMs = dbConfig.RetryDelayMs,
@@ -313,13 +305,6 @@ public static class CommunicationServiceExtensions
                 ReceiveBufferSize = dbConfig.Tcp.ReceiveBufferSize,
                 SendBufferSize = dbConfig.Tcp.SendBufferSize,
                 NoDelay = dbConfig.Tcp.NoDelay
-            },
-            Http = new HttpOptions
-            {
-                MaxConnectionsPerServer = dbConfig.Http.MaxConnectionsPerServer,
-                PooledConnectionIdleTimeout = dbConfig.Http.PooledConnectionIdleTimeout,
-                PooledConnectionLifetime = dbConfig.Http.PooledConnectionLifetime,
-                UseHttp2 = dbConfig.Http.UseHttp2
             },
             Mqtt = new MqttOptions
             {
@@ -343,6 +328,9 @@ public static class CommunicationServiceExtensions
     /// 获取服务器地址（用于日志）
     /// Get server address (for logging)
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 地址获取。
+    /// </remarks>
     private static string GetServerAddress(RuleEngineConnectionOptions options)
     {
         return options.Mode switch
@@ -350,7 +338,6 @@ public static class CommunicationServiceExtensions
             CommunicationMode.Tcp => options.TcpServer ?? "未配置",
             CommunicationMode.SignalR => options.SignalRHub ?? "未配置",
             CommunicationMode.Mqtt => options.MqttBroker ?? "未配置",
-            CommunicationMode.Http => options.HttpApi ?? "未配置",
             _ => "未知模式"
         };
     }

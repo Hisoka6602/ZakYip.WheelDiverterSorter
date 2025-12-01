@@ -278,18 +278,29 @@ public class CommunicationConfigService : ICommunicationConfigService
         _logger.LogInformation("通信统计已重置 - Communication statistics reset");
     }
 
+    /// <summary>
+    /// 获取服务器地址（用于日志）
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 地址获取。
+    /// </remarks>
     private static string? GetServerAddress(CommunicationConfiguration config)
     {
         return config.Mode switch
         {
             CommunicationMode.Tcp => config.TcpServer,
-            CommunicationMode.Http => config.HttpApi,
             CommunicationMode.Mqtt => config.MqttBroker,
             CommunicationMode.SignalR => config.SignalRHub,
             _ => null
         };
     }
 
+    /// <summary>
+    /// 映射更新命令到配置对象
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 配置映射。
+    /// </remarks>
     private static CommunicationConfiguration MapToConfiguration(UpdateCommunicationConfigCommand command)
     {
         return new CommunicationConfiguration
@@ -301,7 +312,6 @@ public class CommunicationConfigService : ICommunicationConfigService
             RetryDelayMs = command.RetryDelayMs,
             EnableAutoReconnect = command.EnableAutoReconnect,
             TcpServer = command.Tcp?.TcpServer,
-            HttpApi = command.Http?.HttpApi,
             MqttBroker = command.Mqtt?.MqttBroker,
             MqttTopic = command.Mqtt?.MqttTopic ?? "sorting/chute/assignment",
             SignalRHub = command.SignalR?.SignalRHub,
@@ -310,13 +320,6 @@ public class CommunicationConfigService : ICommunicationConfigService
                 ReceiveBufferSize = command.Tcp?.ReceiveBufferSize ?? 8192,
                 SendBufferSize = command.Tcp?.SendBufferSize ?? 8192,
                 NoDelay = command.Tcp?.NoDelay ?? true
-            },
-            Http = new HttpConfig
-            {
-                MaxConnectionsPerServer = command.Http?.MaxConnectionsPerServer ?? 10,
-                PooledConnectionIdleTimeout = command.Http?.PooledConnectionIdleTimeout ?? 60,
-                PooledConnectionLifetime = command.Http?.PooledConnectionLifetime ?? 0,
-                UseHttp2 = command.Http?.UseHttp2 ?? false
             },
             Mqtt = new MqttConfig
             {
@@ -336,6 +339,12 @@ public class CommunicationConfigService : ICommunicationConfigService
         };
     }
 
+    /// <summary>
+    /// 映射配置对象到 RuleEngineConnectionOptions
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: 移除 HTTP 配置映射。
+    /// </remarks>
     private static RuleEngineConnectionOptions MapToRuleEngineConnectionOptions(CommunicationConfiguration config)
     {
         return new RuleEngineConnectionOptions
@@ -346,7 +355,6 @@ public class CommunicationConfigService : ICommunicationConfigService
             SignalRHub = config.SignalRHub,
             MqttBroker = config.MqttBroker,
             MqttTopic = config.MqttTopic,
-            HttpApi = config.HttpApi,
             TimeoutMs = config.TimeoutMs,
             RetryCount = config.RetryCount,
             RetryDelayMs = config.RetryDelayMs,
@@ -356,13 +364,6 @@ public class CommunicationConfigService : ICommunicationConfigService
                 ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
                 SendBufferSize = config.Tcp.SendBufferSize,
                 NoDelay = config.Tcp.NoDelay
-            },
-            Http = new Communication.Configuration.HttpOptions
-            {
-                MaxConnectionsPerServer = config.Http.MaxConnectionsPerServer,
-                PooledConnectionIdleTimeout = config.Http.PooledConnectionIdleTimeout,
-                PooledConnectionLifetime = config.Http.PooledConnectionLifetime,
-                UseHttp2 = config.Http.UseHttp2
             },
             Mqtt = new Communication.Configuration.MqttOptions
             {

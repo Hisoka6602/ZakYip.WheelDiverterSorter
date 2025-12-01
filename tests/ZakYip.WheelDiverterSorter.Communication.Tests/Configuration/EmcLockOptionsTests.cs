@@ -65,11 +65,13 @@ public class EmcLockOptionsTests
         Assert.Equal(10000, options.ReconnectIntervalMs);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 移除 HTTP 模式测试
+    /// </summary>
     [Theory]
     [InlineData(CommunicationMode.Tcp)]
     [InlineData(CommunicationMode.SignalR)]
     [InlineData(CommunicationMode.Mqtt)]
-    [InlineData(CommunicationMode.Http)]
     public void EmcLockOptions_SupportsDifferentCommunicationModes(CommunicationMode mode)
     {
         // Act

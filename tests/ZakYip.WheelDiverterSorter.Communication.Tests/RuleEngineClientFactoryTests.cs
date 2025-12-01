@@ -11,6 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 /// <summary>
 /// 通信适配器测试：推送模型、超时保护
 /// UpstreamRoutingClientFactory tests
+/// PR-UPSTREAM01: HTTP 模式已移除，改用 TCP 作为默认/降级模式
 /// </summary>
 public class UpstreamRoutingClientFactoryTests
 {
@@ -34,8 +35,8 @@ public class UpstreamRoutingClientFactoryTests
         // Arrange
         var options = new RuleEngineConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api/chute"
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000"
         };
 
         // Act & Assert
@@ -106,42 +107,26 @@ public class UpstreamRoutingClientFactoryTests
         Assert.IsType<MqttRuleEngineClient>(client);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 无效模式应降级为 TCP
+    /// </summary>
     [Fact]
-    public void CreateClient_WithHttpMode_ReturnsHttpRuleEngineClient()
-    {
-        // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api/chute"
-        };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
-
-        // Act
-        using var client = factory.CreateClient();
-
-        // Assert
-        Assert.NotNull(client);
-        Assert.IsType<HttpRuleEngineClient>(client);
-    }
-
-    [Fact]
-    public void CreateClient_WithInvalidMode_UsesHttpFallback()
+    public void CreateClient_WithInvalidMode_UsesTcpFallback()
     {
         // Arrange
         var options = new RuleEngineConnectionOptions
         {
             Mode = (CommunicationMode)999, // Invalid mode
-            HttpApi = "http://localhost:5000/api/chute"
+            TcpServer = "localhost:9000"
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
 
-        // Assert - should fallback to HttpRuleEngineClient instead of throwing
+        // Assert - should fallback to TcpRuleEngineClient instead of throwing
         Assert.NotNull(client);
-        Assert.IsType<HttpRuleEngineClient>(client);
+        Assert.IsType<TcpRuleEngineClient>(client);
     }
 
     [Fact]
@@ -150,8 +135,8 @@ public class UpstreamRoutingClientFactoryTests
         // Arrange
         var options = new RuleEngineConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api/chute"
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000"
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
@@ -165,11 +150,13 @@ public class UpstreamRoutingClientFactoryTests
         Assert.NotSame(client1, client2);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 移除 HTTP 模式测试
+    /// </summary>
     [Theory]
     [InlineData(CommunicationMode.Tcp)]
     [InlineData(CommunicationMode.SignalR)]
     [InlineData(CommunicationMode.Mqtt)]
-    [InlineData(CommunicationMode.Http)]
     public void CreateClient_WithAllSupportedModes_SuccessfullyCreatesClient(CommunicationMode mode)
     {
         // Arrange
@@ -178,8 +165,7 @@ public class UpstreamRoutingClientFactoryTests
             Mode = mode,
             TcpServer = "localhost:9999",
             SignalRHub = "http://localhost:5000/sorterhub",
-            MqttBroker = "mqtt://localhost:1883",
-            HttpApi = "http://localhost:5000/api/chute"
+            MqttBroker = "mqtt://localhost:1883"
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
@@ -190,14 +176,17 @@ public class UpstreamRoutingClientFactoryTests
         Assert.NotNull(client);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 改用 TCP 模式
+    /// </summary>
     [Fact]
     public void CreateClient_WithTimeoutConfiguration_ClientHasCorrectTimeout()
     {
         // Arrange
         var options = new RuleEngineConnectionOptions
         {
-            Mode = CommunicationMode.Http,
-            HttpApi = "http://localhost:5000/api/chute",
+            Mode = CommunicationMode.Tcp,
+            TcpServer = "localhost:9000",
             TimeoutMs = 10000
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
@@ -269,82 +258,71 @@ public class UpstreamRoutingClientFactoryTests
         Assert.True(client is SignalRRuleEngineClient);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 空 TcpServer 应使用默认值
+    /// </summary>
     [Fact]
-    public void CreateClient_WithEmptyHttpApi_FallsBackToHttpWithDefaults()
+    public void CreateClient_WithEmptyTcpServer_FallsBackToTcpWithDefaults()
     {
-        // Arrange - empty HttpApi should be handled by fallback
-        var options = new RuleEngineConnectionOptions
-        {
-            Mode = CommunicationMode.Http,
-            HttpApi = "" // Empty configuration
-        };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
-
-        // Act
-        using var client = factory.CreateClient();
-
-        // Assert - should fallback and work
-        Assert.NotNull(client);
-        Assert.IsType<HttpRuleEngineClient>(client);
-    }
-
-    [Fact]
-    public void CreateClient_WithEmptyTcpServer_FallsBackToHttp()
-    {
-        // Arrange - empty TcpServer should trigger fallback
+        // Arrange - empty TcpServer should be handled by fallback
         var options = new RuleEngineConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
-            TcpServer = "", // Empty configuration
-            HttpApi = "http://localhost:5000/api/chute"
+            TcpServer = "" // Empty configuration
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
-        // Act - should catch exception and fallback to Http
+        // Act - should catch exception and fallback to Tcp with defaults
         using var client = factory.CreateClient();
 
-        // Assert - should fallback to Http client
+        // Assert - should fallback to Tcp client with defaults
         Assert.NotNull(client);
-        Assert.IsType<HttpRuleEngineClient>(client);
+        Assert.IsType<TcpRuleEngineClient>(client);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 空 SignalRHub 应降级为 TCP
+    /// </summary>
     [Fact]
-    public void CreateClient_WithEmptySignalRHub_FallsBackToHttp()
+    public void CreateClient_WithEmptySignalRHub_FallsBackToTcp()
     {
         // Arrange - empty SignalRHub should trigger fallback
         var options = new RuleEngineConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             SignalRHub = "", // Empty configuration
-            HttpApi = "http://localhost:5000/api/chute"
+            TcpServer = "localhost:9000"
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
-        // Act - should catch exception and fallback to Http
+        // Act - should catch exception and fallback to Tcp
         using var client = factory.CreateClient();
 
-        // Assert - should fallback to Http client
+        // Assert - should fallback to Tcp client
         Assert.NotNull(client);
-        Assert.IsType<HttpRuleEngineClient>(client);
+        Assert.IsType<TcpRuleEngineClient>(client);
     }
 
+    /// <summary>
+    /// PR-UPSTREAM01: 空 MqttBroker 应降级为 TCP
+    /// </summary>
     [Fact]
-    public void CreateClient_WithEmptyMqttBroker_FallsBackToHttp()
+    public void CreateClient_WithEmptyMqttBroker_FallsBackToTcp()
     {
         // Arrange - empty MqttBroker should trigger fallback
         var options = new RuleEngineConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             MqttBroker = "", // Empty configuration
-            HttpApi = "http://localhost:5000/api/chute"
+            TcpServer = "localhost:9000"
         };
         var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
 
-        // Act - should catch exception and fallback to Http
+        // Act - should catch exception and fallback to Tcp
         using var client = factory.CreateClient();
 
-        // Assert - should fallback to Http client
+        // Assert - should fallback to Tcp client
         Assert.NotNull(client);
-        Assert.IsType<HttpRuleEngineClient>(client);
+        Assert.IsType<TcpRuleEngineClient>(client);
     }
 }

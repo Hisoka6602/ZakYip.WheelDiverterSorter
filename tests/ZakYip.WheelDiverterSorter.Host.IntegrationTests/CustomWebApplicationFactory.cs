@@ -41,10 +41,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 // Mark this as test environment to enable test-friendly defaults
                 ["IsTestEnvironment"] = "true",
                 
-                // Configure RuleEngine communication with minimal valid settings
-                // This prevents validation errors in AddRuleEngineCommunication
-                ["RuleEngineConnection:Mode"] = "Http",
-                ["RuleEngineConnection:HttpApi"] = "http://localhost:9999/test",
+                // PR-UPSTREAM01: Configure RuleEngine communication with TCP mode
+                ["RuleEngineConnection:Mode"] = "Tcp",
+                ["RuleEngineConnection:TcpServer"] = "localhost:9999",
                 ["RuleEngineConnection:TimeoutMs"] = "5000",
                 
                 // Configure simulation mode - use Runtime:Mode (PR-13 new approach)

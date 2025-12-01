@@ -18,14 +18,16 @@ public class CommunicationConfiguration
     /// 通信模式
     /// </summary>
     /// <remarks>
-    /// 可选值:
-    /// - Http: HTTP REST API（仅用于测试，生产环境禁用）
-    /// - Tcp: TCP Socket（推荐生产环境）
-    /// - SignalR: SignalR（推荐生产环境）
-    /// - Mqtt: MQTT（推荐生产环境）
+    /// <para>PR-UPSTREAM01: HTTP 模式已移除。</para>
+    /// <para>可选值:</para>
+    /// <list type="bullet">
+    ///   <item>Tcp: TCP Socket（默认，推荐生产环境）</item>
+    ///   <item>SignalR: SignalR（推荐生产环境）</item>
+    ///   <item>Mqtt: MQTT（推荐生产环境）</item>
+    /// </list>
     /// </remarks>
     [Required(ErrorMessage = "通信模式不能为空")]
-    public CommunicationMode Mode { get; set; } = CommunicationMode.Http;
+    public CommunicationMode Mode { get; set; } = CommunicationMode.Tcp;
 
     /// <summary>
     /// 连接模式（客户端或服务端）
@@ -58,11 +60,6 @@ public class CommunicationConfiguration
     [Required(ErrorMessage = "MQTT主题不能为空")]
     [StringLength(200, ErrorMessage = "MQTT主题长度不能超过200个字符")]
     public string MqttTopic { get; set; } = "sorting/chute/assignment";
-
-    /// <summary>
-    /// HTTP API URL
-    /// </summary>
-    public string? HttpApi { get; set; }
 
     /// <summary>
     /// 请求超时时间（毫秒）
@@ -119,11 +116,6 @@ public class CommunicationConfiguration
     public TcpConfig Tcp { get; set; } = new();
 
     /// <summary>
-    /// HTTP相关配置
-    /// </summary>
-    public HttpConfig Http { get; set; } = new();
-
-    /// <summary>
     /// MQTT相关配置
     /// </summary>
     public MqttConfig Mqtt { get; set; } = new();
@@ -157,6 +149,9 @@ public class CommunicationConfiguration
     /// <summary>
     /// 获取默认配置
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: HTTP 配置已移除，默认使用 TCP 模式。
+    /// </remarks>
     public static CommunicationConfiguration GetDefault()
     {
         var now = ConfigurationDefaults.DefaultTimestamp;
@@ -168,7 +163,6 @@ public class CommunicationConfiguration
             SignalRHub = "http://192.168.1.100:5000/sortingHub",
             MqttBroker = "mqtt://192.168.1.100:1883",
             MqttTopic = "sorting/chute/assignment",
-            HttpApi = "http://localhost:5000/api/sorting/chute",
             TimeoutMs = 5000,
             RetryCount = 3,
             RetryDelayMs = 1000,
@@ -181,13 +175,6 @@ public class CommunicationConfiguration
                 ReceiveBufferSize = 8192,
                 SendBufferSize = 8192,
                 NoDelay = true
-            },
-            Http = new HttpConfig
-            {
-                MaxConnectionsPerServer = 10,
-                PooledConnectionIdleTimeout = 60,
-                PooledConnectionLifetime = 0,
-                UseHttp2 = false
             },
             Mqtt = new MqttConfig
             {
@@ -212,6 +199,9 @@ public class CommunicationConfiguration
     /// <summary>
     /// 验证配置
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM01: HTTP 模式验证已移除。
+    /// </remarks>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
         if (!Enum.IsDefined(typeof(CommunicationMode), Mode))
@@ -244,13 +234,6 @@ public class CommunicationConfiguration
                 if (string.IsNullOrWhiteSpace(MqttTopic))
                 {
                     return (false, "MQTT模式下，MqttTopic不能为空");
-                }
-                break;
-
-            case CommunicationMode.Http:
-                if (string.IsNullOrWhiteSpace(HttpApi))
-                {
-                    return (false, "HTTP模式下，HttpApi不能为空");
                 }
                 break;
         }
@@ -293,32 +276,6 @@ public class TcpConfig
     /// 禁用Nagle算法以减少延迟
     /// </summary>
     public bool NoDelay { get; set; } = true;
-}
-
-/// <summary>
-/// HTTP配置
-/// </summary>
-public class HttpConfig
-{
-    /// <summary>
-    /// 每个服务器的最大连接数
-    /// </summary>
-    public int MaxConnectionsPerServer { get; set; } = 10;
-    
-    /// <summary>
-    /// 连接池中空闲连接的超时时间（秒）
-    /// </summary>
-    public int PooledConnectionIdleTimeout { get; set; } = 60;
-    
-    /// <summary>
-    /// 连接池中连接的生命周期（秒，0表示无限制）
-    /// </summary>
-    public int PooledConnectionLifetime { get; set; } = 0;
-    
-    /// <summary>
-    /// 是否使用HTTP/2协议
-    /// </summary>
-    public bool UseHttp2 { get; set; } = false;
 }
 
 /// <summary>

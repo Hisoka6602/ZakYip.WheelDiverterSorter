@@ -809,7 +809,9 @@ ZakYip.WheelDiverterSorter.Drivers/
 
 **PR-TD7 变更**：Ingress 项目不再直接引用 `Drivers.Vendors.*` 命名空间，而是通过 Core 层的厂商无关抽象 `ISensorVendorConfigProvider` 获取传感器配置。
 
-**PR-TD8 变更**：删除了冗余的 `Upstream/` 目录（`IUpstreamFacade`、`UpstreamFacade`、`IUpstreamChannel`、`HttpUpstreamChannel` 等），上游通信统一使用 `Communication` 层的 `IUpstreamRoutingClient`。
+**PR-TD8 变更**：删除了冗余的 `Upstream/` 目录（`IUpstreamFacade`、`UpstreamFacade`、`IUpstreamChannel` 等），上游通信统一使用 `Communication` 层的 `IUpstreamRoutingClient`。
+
+> **PR-UPSTREAM01**：`HttpUpstreamChannel` 引用已删除，HTTP 协议不再支持。
 
 ```
 ZakYip.WheelDiverterSorter.Ingress/
@@ -853,7 +855,9 @@ ZakYip.WheelDiverterSorter.Ingress/
 
 ### 3.7 ZakYip.WheelDiverterSorter.Communication
 
-**项目职责**：通信基础设施层，实现与上游 RuleEngine 的多协议通信（TCP/SignalR/MQTT/HTTP），支持客户端和服务器两种模式。
+**项目职责**：通信基础设施层，实现与上游 RuleEngine 的多协议通信（TCP/SignalR/MQTT），支持客户端和服务器两种模式。
+
+> **PR-UPSTREAM01**：HTTP 协议已移除，只支持 TCP/SignalR/MQTT 三种协议，默认使用 TCP。
 
 ```
 ZakYip.WheelDiverterSorter.Communication/
@@ -869,21 +873,21 @@ ZakYip.WheelDiverterSorter.Communication/
 │   ├── TcpRuleEngineClient.cs
 │   ├── SignalRRuleEngineClient.cs
 │   ├── MqttRuleEngineClient.cs
-│   ├── HttpRuleEngineClient.cs
 │   ├── InMemoryRuleEngineClient.cs
 │   ├── RuleEngineClientBase.cs
 │   └── EmcResourceLockManager*.cs   # 实现 Core/Hardware/Devices/IEmcResourceLockManager
+# PR-UPSTREAM01: HttpRuleEngineClient.cs 已删除
 ├── Configuration/                   # 通信配置
 │   ├── RuleEngineConnectionOptions.cs
 │   ├── TcpOptions.cs
 │   ├── SignalROptions.cs
-│   ├── MqttOptions.cs
-│   └── HttpOptions.cs
+│   └── MqttOptions.cs
+# PR-UPSTREAM01: HttpOptions.cs 已删除
 ├── Gateways/                        # 上游网关
 │   ├── TcpUpstreamSortingGateway.cs
 │   ├── SignalRUpstreamSortingGateway.cs
-│   ├── HttpUpstreamSortingGateway.cs
 │   └── UpstreamSortingGatewayFactory.cs
+# PR-UPSTREAM01: HttpUpstreamSortingGateway.cs 已删除
 ├── Health/                          # 健康检查
 │   └── RuleEngineUpstreamHealthChecker.cs
 ├── Infrastructure/                  # 基础设施
@@ -1140,11 +1144,12 @@ tools/Profiling/
 |-----|------|-----|
 | `IUpstreamRoutingClient` | Core/Abstractions/Upstream/ | **唯一**上游路由客户端接口，定义连接、断开、通知包裹到达等操作 |
 | `ChuteAssignmentEventArgs` | Core/Abstractions/Upstream/ | 格口分配事件参数，用于上游推送格口分配 |
-| `TcpRuleEngineClient` | Communication/Clients/ | TCP 协议客户端实现，实现 IUpstreamRoutingClient |
+| `TcpRuleEngineClient` | Communication/Clients/ | TCP 协议客户端实现（默认），实现 IUpstreamRoutingClient |
 | `SignalRRuleEngineClient` | Communication/Clients/ | SignalR 协议客户端实现，实现 IUpstreamRoutingClient |
 | `MqttRuleEngineClient` | Communication/Clients/ | MQTT 协议客户端实现，实现 IUpstreamRoutingClient |
-| `HttpRuleEngineClient` | Communication/Clients/ | HTTP 协议客户端实现（仅用于测试），实现 IUpstreamRoutingClient |
 | `UpstreamRoutingClientFactory` | Communication/ | 根据配置创建对应协议的 IUpstreamRoutingClient 实例 |
+
+> **PR-UPSTREAM01**：`HttpRuleEngineClient` 已删除，HTTP 协议不再支持。
 
 ### 4.3 硬件驱动抽象
 

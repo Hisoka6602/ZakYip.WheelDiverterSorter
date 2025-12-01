@@ -349,12 +349,12 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 }
 
                 // 检查根据通信模式，相应的连接地址是否已配置
+                // PR-UPSTREAM01: 移除 HTTP 模式检查
                 var isConfigured = config.Mode switch
                 {
                     CommunicationMode.Tcp => !string.IsNullOrWhiteSpace(config.TcpServer),
                     CommunicationMode.SignalR => !string.IsNullOrWhiteSpace(config.SignalRHub),
                     CommunicationMode.Mqtt => !string.IsNullOrWhiteSpace(config.MqttBroker),
-                    CommunicationMode.Http => !string.IsNullOrWhiteSpace(config.HttpApi),
                     _ => false
                 };
 
