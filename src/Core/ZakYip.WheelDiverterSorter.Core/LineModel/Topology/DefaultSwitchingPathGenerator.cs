@@ -1,6 +1,8 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
@@ -13,37 +15,88 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 /// <remarks>
 /// <para><b>拓扑配置说明：</b></para>
 /// <para>
-/// 本生成器依赖摆轮拓扑配置来确定路径。拓扑配置描述了直线输送线上的摆轮节点顺序，
-/// 以及每个节点能分到哪些Chute。相关配置类参见：
+/// 本生成器支持两种路径生成方式：
 /// <list type="bullet">
-/// <item><description><see cref="SorterTopology"/>: 描述完整的拓扑结构（入口 → A → B → C → 末端）</description></item>
-/// <item><description><see cref="DiverterNode"/>: 表示单个摆轮节点及其支持的动作（直行/左/右）</description></item>
-/// <item><description><see cref="DefaultSorterTopologyProvider"/>: 提供默认的硬编码拓扑示例</description></item>
+/// <item><description>基于 <see cref="IRouteConfigurationRepository"/>：使用预定义的格口到摆轮映射（传统方式）</description></item>
+/// <item><description>基于 <see cref="IChutePathTopologyRepository"/>：使用 N 摆轮拓扑配置动态生成路径（PR-TOPO02）</description></item>
 /// </list>
 /// </para>
+/// <para><b>N 摆轮线性拓扑模型（PR-TOPO02）：</b></para>
 /// <para>
-/// 当前实现使用LiteDB数据库存储的配置映射，支持动态修改配置而无需重新编译部署。
+/// 支持 N 个摆轮，每个摆轮左右各一个格口，末端一个异常口。
+/// 路径生成策略：
+/// <list type="bullet">
+/// <item>若 targetChuteId == AbnormalChuteId → 生成全直通路径</item>
+/// <item>否则在 Diverters 中找到匹配的节点：
+///   <list type="bullet">
+///   <item>对该节点之前的所有节点：TargetDirection = Straight</item>
+///   <item>对该节点：根据匹配结果设为 Left / Right</item>
+///   <item>对后续节点：全部 Straight</item>
+///   </list>
+/// </item>
+/// </list>
 /// </para>
 /// </remarks>
 public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 {
     /// <summary>
-    /// 默认的段TTL值（毫秒）
+    /// 默认的段 TTL 值（毫秒）- 5秒
     /// </summary>
     /// <remarks>
-    /// 当前使用固定值，后续可通过配置或策略进行动态设置
+    /// <para>此值用于拓扑模式下的路径段超时设置。</para>
+    /// <para>选择 5000ms 的原因：</para>
+    /// <list type="bullet">
+    /// <item>典型皮带段长度 3-5m，运行速度 0.5-1.5m/s</item>
+    /// <item>理论通过时间约 2-10 秒</item>
+    /// <item>5 秒作为保守默认值，覆盖大多数场景</item>
+    /// </list>
+    /// <para>实际应用中，应根据具体线体参数通过 <see cref="DiverterConfigurationEntry"/> 配置。</para>
     /// </remarks>
     private const int DefaultSegmentTtlMs = 5000;
 
-    private readonly IRouteConfigurationRepository _routeRepository;
+    private readonly IRouteConfigurationRepository? _routeRepository;
+    private readonly IChutePathTopologyRepository? _topologyRepository;
+    private readonly ISystemClock? _systemClock;
 
     /// <summary>
-    /// 初始化路径生成器
+    /// 初始化路径生成器（使用路由配置仓储）
     /// </summary>
     /// <param name="routeRepository">路由配置仓储</param>
     public DefaultSwitchingPathGenerator(IRouteConfigurationRepository routeRepository)
     {
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
+    }
+
+    /// <summary>
+    /// 初始化路径生成器（使用拓扑配置仓储，支持 N 摆轮模型）
+    /// </summary>
+    /// <param name="topologyRepository">拓扑配置仓储</param>
+    /// <param name="systemClock">系统时钟</param>
+    public DefaultSwitchingPathGenerator(
+        IChutePathTopologyRepository topologyRepository,
+        ISystemClock systemClock)
+    {
+        _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+    }
+
+    /// <summary>
+    /// 初始化路径生成器（同时支持两种配置源）
+    /// </summary>
+    /// <param name="routeRepository">路由配置仓储</param>
+    /// <param name="topologyRepository">拓扑配置仓储</param>
+    /// <param name="systemClock">系统时钟</param>
+    /// <remarks>
+    /// 当同时提供两种仓储时，优先使用拓扑配置仓储（支持 N 摆轮模型）
+    /// </remarks>
+    public DefaultSwitchingPathGenerator(
+        IRouteConfigurationRepository routeRepository,
+        IChutePathTopologyRepository topologyRepository,
+        ISystemClock systemClock)
+    {
+        _routeRepository = routeRepository;
+        _topologyRepository = topologyRepository;
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -57,6 +110,142 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     public SwitchingPath? GeneratePath(long targetChuteId)
     {
         if (targetChuteId <= 0)
+        {
+            return null;
+        }
+
+        // 优先使用拓扑配置仓储（支持 N 摆轮模型）
+        if (_topologyRepository != null)
+        {
+            return GeneratePathFromTopology(targetChuteId);
+        }
+
+        // 回退到传统的路由配置方式
+        return GeneratePathFromRouteConfig(targetChuteId);
+    }
+
+    /// <summary>
+    /// 基于 N 摆轮拓扑配置生成路径（PR-TOPO02）
+    /// </summary>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <returns>生成的摆轮路径</returns>
+    private SwitchingPath? GeneratePathFromTopology(long targetChuteId)
+    {
+        var topologyConfig = _topologyRepository!.Get();
+        
+        // 如果目标是异常口，生成全直通路径
+        if (targetChuteId == topologyConfig.ExceptionChuteId)
+        {
+            return GenerateExceptionPath(topologyConfig);
+        }
+
+        // 查找目标格口所在的摆轮节点
+        var targetNode = topologyConfig.FindNodeByChuteId(targetChuteId);
+        if (targetNode == null)
+        {
+            // 无法找到目标格口，返回 null，由调用方处理（走异常口）
+            return null;
+        }
+
+        // 确定目标格口的方向（左/右）
+        var direction = topologyConfig.GetChuteDirection(targetChuteId);
+        if (direction == null)
+        {
+            return null;
+        }
+
+        // 生成路径段
+        var segments = new List<SwitchingPathSegment>();
+        var sortedNodes = topologyConfig.DiverterNodes
+            .OrderBy(n => n.PositionIndex)
+            .ToList();
+
+        for (int i = 0; i < sortedNodes.Count; i++)
+        {
+            var node = sortedNodes[i];
+            DiverterDirection targetDirection;
+
+            if (node.PositionIndex < targetNode.PositionIndex)
+            {
+                // 在目标节点之前的节点：直通
+                targetDirection = DiverterDirection.Straight;
+            }
+            else if (node.PositionIndex == targetNode.PositionIndex)
+            {
+                // 目标节点：根据格口位置设置左/右
+                targetDirection = direction.Value;
+            }
+            else
+            {
+                // 在目标节点之后的节点：直通（包裹已经被分拣走）
+                targetDirection = DiverterDirection.Straight;
+            }
+
+            segments.Add(new SwitchingPathSegment
+            {
+                SequenceNumber = i + 1,
+                DiverterId = node.DiverterId,
+                TargetDirection = targetDirection,
+                TtlMilliseconds = DefaultSegmentTtlMs
+            });
+        }
+
+        return new SwitchingPath
+        {
+            TargetChuteId = targetChuteId,
+            Segments = segments.AsReadOnly(),
+            GeneratedAt = _systemClock!.LocalNowOffset,
+            FallbackChuteId = topologyConfig.ExceptionChuteId
+        };
+    }
+
+    /// <summary>
+    /// 生成到异常口的全直通路径
+    /// </summary>
+    /// <param name="topologyConfig">拓扑配置</param>
+    /// <returns>全直通路径</returns>
+    private SwitchingPath GenerateExceptionPath(ChutePathTopologyConfig topologyConfig)
+    {
+        var sortedNodes = topologyConfig.DiverterNodes
+            .OrderBy(n => n.PositionIndex)
+            .ToList();
+
+        var segments = new List<SwitchingPathSegment>(sortedNodes.Count);
+        
+        for (int i = 0; i < sortedNodes.Count; i++)
+        {
+            var node = sortedNodes[i];
+            segments.Add(new SwitchingPathSegment
+            {
+                SequenceNumber = i + 1,
+                DiverterId = node.DiverterId,
+                TargetDirection = DiverterDirection.Straight,
+                TtlMilliseconds = DefaultSegmentTtlMs
+            });
+        }
+
+        return new SwitchingPath
+        {
+            TargetChuteId = topologyConfig.ExceptionChuteId,
+            Segments = segments.AsReadOnly(),
+            GeneratedAt = _systemClock!.LocalNowOffset,
+            FallbackChuteId = topologyConfig.ExceptionChuteId
+        };
+    }
+
+    /// <summary>
+    /// 基于传统路由配置生成路径
+    /// </summary>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <returns>生成的摆轮路径</returns>
+    /// <remarks>
+    /// 当使用仅拓扑仓储的构造函数时，此方法将返回 null。
+    /// 这是预期行为，因为路径生成已在 <see cref="GeneratePathFromTopology"/> 中处理。
+    /// </remarks>
+    private SwitchingPath? GeneratePathFromRouteConfig(long targetChuteId)
+    {
+        // 当使用仅拓扑仓储的构造函数时，_routeRepository 为 null
+        if (_routeRepository == null)
         {
             return null;
         }

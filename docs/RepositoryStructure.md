@@ -46,6 +46,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | README.md | `./docs/README.md` | docs 目录说明 | 🟢 低 |
 | ARCHITECTURE_PRINCIPLES.md | `./docs/ARCHITECTURE_PRINCIPLES.md` | 架构原则 | 🟡 中 |
 | CODING_GUIDELINES.md | `./docs/CODING_GUIDELINES.md` | 编码规范 | 🟡 中 |
+| TOPOLOGY_LINEAR_N_DIVERTERS.md | `./docs/TOPOLOGY_LINEAR_N_DIVERTERS.md` | N 摆轮线性拓扑模型（PR-TOPO02） | 🟡 中 |
 
 ### docs/guides/ 使用指南
 
@@ -553,7 +554,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   ├── Models/                  # 纯配置模型类（22个文件，PR-SD5 删除4个未使用模型）
 │   │   │   ├── SystemConfiguration.cs
 │   │   │   ├── CabinetIoOptions.cs          # PR-TD7: 厂商无关控制面板IO配置（原 LeadshineCabinetIoOptions）
-│   │   │   ├── ChutePathTopologyConfig.cs
+│   │   │   ├── ChutePathTopologyConfig.cs   # PR-TOPO02: N 摆轮拓扑配置，含 DiverterNodeConfig 和 ChutePathTopologyValidator
 │   │   │   ├── IoLinkageConfiguration.cs
 │   │   │   ├── CommunicationConfiguration.cs
 │   │   │   ├── LoggingConfiguration.cs
@@ -578,11 +579,11 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Runtime/                     # 运行时模型
 │   ├── Segments/                    # 输送段模型
 │   ├── Services/                    # 线体服务接口
-│   ├── Topology/                    # 拓扑与路径生成
+│   ├── Topology/                    # 拓扑与路径生成（PR-TOPO02: N 摆轮支持）
 │   │   ├── SorterTopology.cs        # 当前标准拓扑模型
 │   │   ├── SwitchingPath.cs         # 摆轮切换路径
 │   │   ├── ISwitchingPathGenerator.cs
-│   │   ├── DefaultSwitchingPathGenerator.cs
+│   │   ├── DefaultSwitchingPathGenerator.cs  # 支持 N 摆轮路径生成
 │   │   └── SwitchingPathSegment.cs  # 路径段模型
 │   ├── Tracing/                     # 追踪接口
 │   └── Utilities/
