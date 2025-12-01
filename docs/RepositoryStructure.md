@@ -250,6 +250,8 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
   - `DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers()`
   - `DuplicateTypeDetectionTests.Core_Hardware_ShouldHaveStandardSubdirectories()`
 
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：HAL 接口的完整权威列表和禁止位置。
+
 ---
 
 ## 3. 各项目内部结构
@@ -301,6 +303,8 @@ ZakYip.WheelDiverterSorter.Application/
 - **`ApplicationServiceExtensions`**：提供 `AddWheelDiverterApplication()` 注册所有应用服务
 
 #### 核心配置服务（供 Controller 注入）
+
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：配置服务的权威位置和禁止出现的位置。
 
 - `ISystemConfigService` / `ILoggingConfigService` / `ICommunicationConfigService` / `IIoLinkageConfigService` / `IVendorConfigService`
 
@@ -1033,7 +1037,11 @@ tools/Profiling/
 
 ## 4. 跨项目的关键类型与职责
 
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：系统性防止影分身的权威实现表。
+
 ### 4.1 分拣编排核心
+
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：分拣编排和拓扑/路径生成的权威位置。
 
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
@@ -1046,6 +1054,8 @@ tools/Profiling/
 ### 4.2 上游通信
 
 > **PR-U1 架构变更**: IRuleEngineClient 已合并到 IUpstreamRoutingClient，UpstreamRoutingClientAdapter 已删除。
+>
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：上游通信接口的权威位置和禁止出现的位置。
 
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
@@ -1058,6 +1068,8 @@ tools/Profiling/
 | `UpstreamRoutingClientFactory` | Communication/ | 根据配置创建对应协议的 IUpstreamRoutingClient 实例 |
 
 ### 4.3 硬件驱动抽象
+
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：HAL 接口的完整权威列表和禁止位置。
 
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
@@ -1072,6 +1084,8 @@ tools/Profiling/
 
 ### 4.4 配置与仓储
 
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：配置模型和仓储的权威位置。
+
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
 | `SystemConfiguration` | Core/LineModel/Configuration/ | 系统配置模型，包含异常格口 ID、版本等 |
@@ -1081,6 +1095,8 @@ tools/Profiling/
 
 ### 4.5 基础设施服务
 
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：日志/指标服务和系统时钟的权威位置。
+
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
 | `ISystemClock` | Core/Utilities/ | 系统时钟抽象，所有时间获取必须通过此接口 |
@@ -1089,6 +1105,8 @@ tools/Profiling/
 | `AlarmService` | Observability/ | 告警服务，处理系统告警 |
 
 ### 4.6 仿真相关
+
+> **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：仿真的权威位置和禁止出现的位置。
 
 | 类型 | 位置 | 职责 |
 |-----|------|-----|
@@ -1468,6 +1486,124 @@ tools/Profiling/
 
 ---
 
+## 6. 单一权威实现 & 禁止影分身
+
+> 本章节集中列出所有容易出现"影分身"（重复抽象）的关键概念，明确唯一的权威实现位置，防止在不同项目中出现功能重叠的平行抽象。
+>
+> **核心原则**：每个业务概念只允许一个权威接口/实现，发现影分身必须立即登记技术债并规划收敛。
+
+### 6.1 单一权威实现表
+
+| 概念 | 权威接口 / 类型 | 权威所在项目 & 目录 | 禁止出现的位置 | 测试防线 |
+|------|----------------|--------------------|--------------|---------| 
+| **HAL / 硬件抽象层** | `IWheelDiverterDriver`, `IWheelDiverterDevice`, `IInputPort`, `IOutputPort`, `IIoLinkageDriver`, `IVendorIoMapper`, `ISensorVendorConfigProvider`, `IEmcController` | `Core/Hardware/**` (Ports/, Devices/, IoLinkage/, Mappings/, Providers/) | ❌ `Core/Abstractions/Drivers/`（已删除）<br/>❌ `Drivers/Abstractions/`<br/>❌ `Execution/` 中定义硬件接口<br/>❌ `Host/` 中定义硬件接口 | `ArchTests.HalConsolidationTests`<br/>`DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers` |
+| **上游通信 / RuleEngine 客户端** | `IUpstreamRoutingClient`, `IUpstreamContractMapper` | `Core/Abstractions/Upstream/` | ❌ `Execution/` 中定义 `IRuleEngineClient` 等平行接口<br/>❌ `Communication/` 中定义平行路由接口<br/>❌ `Ingress/Upstream/`（已删除）<br/>❌ `Host/` 中定义上游通信接口 | `ArchTests.RoutingTopologyLayerTests`<br/>`TechnicalDebtComplianceTests.TopologyShadowTests` |
+| **拓扑 / 路径生成** | `ISwitchingPathGenerator`, `DefaultSwitchingPathGenerator`, `SwitchingPath`, `SwitchingPathSegment` | `Core/LineModel/Topology/` | ❌ `Execution/` 中定义新的 `*PathGenerator` 接口（除装饰器外）<br/>❌ `Drivers/` 中定义路径生成逻辑<br/>❌ `Application/` 中重新实现路径生成 | `ArchTests.RoutingTopologyLayerTests`<br/>`ArchTests.TopologyPathExecutionDefenseTests`<br/>`TechnicalDebtComplianceTests.SwitchingPathGenerationTests` |
+| **路径执行** | `ISwitchingPathExecutor`, `IPathExecutionService` | `Core/Abstractions/Execution/` (接口)<br/>`Execution/PathExecution/` (实现) | ❌ `Drivers/` 中定义路径执行逻辑<br/>❌ `Core/` 中包含执行实现<br/>❌ `Host/` 中直接调用硬件 | `ArchTests.ExecutionPathPipelineTests` |
+| **分拣编排** | `ISortingOrchestrator`, `SortingOrchestrator` | `Core/Sorting/Orchestration/` (接口)<br/>`Execution/Orchestration/` (实现) | ❌ `Host/` 中实现分拣逻辑<br/>❌ `Application/` 中重复实现编排器<br/>❌ `Drivers/` 中包含分拣逻辑 | `TechnicalDebtComplianceTests.SortingOrchestratorComplianceTests` |
+| **配置服务** | `ISystemConfigService`, `ILoggingConfigService`, `ICommunicationConfigService`, `IIoLinkageConfigService`, `IVendorConfigService` | `Application/Services/Config/` | ❌ `Host/` 中重新定义配置服务接口<br/>❌ `Core/` 中实现配置服务<br/>❌ `Execution/` 中定义配置服务 | `ArchTests.HostLayerConstraintTests`<br/>`TechnicalDebtComplianceTests.HostLayerComplianceTests` |
+| **配置模型** | `SystemConfiguration`, `ChutePathTopologyConfig`, `IoLinkageConfiguration`, `CommunicationConfiguration` 等 | `Core/LineModel/Configuration/Models/` | ❌ 其他项目中定义同名配置模型<br/>❌ `Host/Models/` 中定义持久化配置（只允许 DTO）<br/>❌ `Application/` 中重复定义配置模型 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests` |
+| **配置仓储** | `ISystemConfigurationRepository`, `IChutePathTopologyRepository` 等 | `Core/LineModel/Configuration/Repositories/Interfaces/` (接口)<br/>`Core/LineModel/Configuration/Repositories/LiteDb/` (实现) | ❌ `Host/` 中定义仓储接口或实现<br/>❌ `Application/` 中定义仓储（只使用缓存装饰器）<br/>❌ `Execution/` 中定义仓储 | `ArchTests.HostLayerConstraintTests` |
+| **日志 / 指标** | `IParcelLifecycleLogger`, `PrometheusMetrics`, `AlarmService`, `ISafeExecutionService` | `Observability/` | ❌ `Host/` 中重新定义日志服务<br/>❌ `Execution/` 中定义指标收集<br/>❌ `Core/` 中实现日志服务 | `TechnicalDebtComplianceTests.LoggingConfigShadowTests` |
+| **系统时钟** | `ISystemClock`, `LocalSystemClock` | `Core/Utilities/` | ❌ 其他项目中定义时钟接口<br/>❌ 直接使用 `DateTime.Now` 或 `DateTime.UtcNow` | `Analyzers.DateTimeNowUsageAnalyzer`<br/>`TechnicalDebtComplianceTests.DateTimeUsageComplianceTests` |
+| **仿真** | `ISimulationScenarioRunner`, `SimulationRunner`, `SimulationOptions`, `SimulationSummary` | `Simulation/` (库项目)<br/>`Simulation.Cli/` (入口项目) | ❌ `Execution/` 中包含仿真专用逻辑<br/>❌ `Host/` 中实现仿真逻辑（只通过 API 调用）<br/>❌ `Drivers/` 中的仿真驱动之外定义仿真逻辑 | `TechnicalDebtComplianceTests.SimulationShadowTests` |
+| **面板 / IO 联动** | `IoLinkageConfiguration`, `CabinetIoOptions`, `IIoLinkageDriver` | `Core/LineModel/Configuration/Models/` (配置)<br/>`Core/Hardware/IoLinkage/` (接口) | ❌ `Drivers/` 中硬编码面板逻辑（应通过配置）<br/>❌ `Host/` 中直接操作 IO<br/>❌ `Execution/` 中定义 IO 配置模型 | `TechnicalDebtComplianceTests.PanelConfigShadowTests`<br/>`TechnicalDebtComplianceTests.IoShadowTests` |
+| **传感器事件** | `SensorEvent`, `ParcelDetectedEventArgs`, `IParcelDetectionService` | `Ingress/Models/` (事件模型)<br/>`Ingress/` (服务接口) | ❌ `Simulation/` 中定义同名 `SensorEvent`（已重命名为 `SimulatedSensorEvent`）<br/>❌ `Execution/` 中定义传感器事件 | `TechnicalDebtComplianceTests.SimulationEventTests`<br/>`EventAndExtensionDuplicateDetectionTests` |
+| **DI 聚合入口** | `AddWheelDiverterSorter()`, `WheelDiverterSorterServiceCollectionExtensions` | `Application/Extensions/` | ❌ `Host/` 中重复定义同名扩展类（已重命名为 `WheelDiverterSorterHostServiceCollectionExtensions`）<br/>❌ 其他项目中定义全局 DI 聚合 | `EventAndExtensionDuplicateDetectionTests.ServiceCollectionExtensionsShouldBeUniquePerProject` |
+| **摆轮控制** | `IWheelDiverterDriver` (方向接口)<br/>`IWheelDiverterDevice` (命令接口) | `Core/Hardware/Devices/`<br/>`Core/Hardware/` | ❌ 定义 `IDiverterController`（已删除）<br/>❌ 定义 `IWheelDiverterActuator`（已删除）<br/>❌ 其他语义重叠的摆轮控制接口 | `TechnicalDebtComplianceTests.WheelDiverterShadowTests`<br/>`ArchTests.HalConsolidationTests` |
+| **拥堵检测** | `ICongestionDetector`, `ThresholdCongestionDetector` | `Core/Sorting/Interfaces/` (接口)<br/>`Core/Sorting/Runtime/` (实现) | ❌ `Core/Sorting/Runtime/ICongestionDetector.cs`（已删除）<br/>❌ 定义 `ThresholdBasedCongestionDetector`（已删除）<br/>❌ 其他平行拥堵检测接口 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests` |
+| **EMC 控制** | `IEmcController`, `IEmcResourceLockManager` | `Core/Hardware/Devices/` (控制器)<br/>`Communication/Abstractions/` (锁管理) | ❌ `Execution/` 中定义 EMC 接口<br/>❌ `Host/` 中直接操作 EMC | `TechnicalDebtComplianceTests.EmcShadowTests` |
+
+### 6.2 影分身处理流程
+
+#### 6.2.1 发现新的影分身实现时
+
+当发现代码中存在与上表"权威实现"语义重叠的类型时，必须按以下流程处理：
+
+1. **立即登记技术债**：
+   - 在本文档 `## 5. 当前结构中已发现的问题标记` 中新增条目
+   - 标明：影分身位置、权威实现位置、影响范围
+
+2. **在 TechnicalDebtComplianceTests 中新增防线**：
+   - 如果该领域尚无防线测试，必须新增测试类或测试方法
+   - 测试应检测该影分身类型的存在，并输出警告或失败
+
+3. **在"单一权威实现表"的备注列登记**：
+   - 在上表对应概念行的"测试防线"列追加说明
+   - 标记为"技术债（需收敛）"直到完成清理
+
+**示例登记格式**：
+
+```markdown
+### 5.XX 新发现的影分身（PR-XXX）
+
+XX. **XXX 重复接口** ⚠️ 技术债
+    - **位置**：`SomeProject/SomeDirectory/IDuplicateInterface.cs`
+    - **权威实现**：`Core/Hardware/Devices/IWheelDiverterDriver.cs`
+    - **影响**：调用方需要判断使用哪个接口
+    - **处理建议**：删除重复接口，调用方切换到权威实现
+    - **防线测试**：`TechnicalDebtComplianceTests.XxxShadowTests`（待新增）
+```
+
+#### 6.2.2 执行收敛 PR 时
+
+当提交清理影分身的 PR 时，必须：
+
+1. **更新本表**：
+   - 确认权威实现位置正确
+   - 从"禁止出现的位置"列确认已删除所有影分身
+   - 更新"测试防线"列，确认防线测试已启用
+
+2. **PR 描述必须包含**：
+   - **被保留实现**：列出权威接口/类型的完整路径
+   - **被删除实现**：列出所有被清理的影分身类型
+   - **调用方变更**：列出受影响的调用方及其修改方式
+
+3. **同步更新 `copilot-instructions.md`**：
+   - 如果收敛涉及新的结构约束，需在编码规范中体现
+
+**示例 PR 描述格式**：
+
+```markdown
+## PR-XXX: 清理 XXX 影分身
+
+### 被保留实现（权威）
+- `Core/Hardware/Devices/IWheelDiverterDriver.cs`
+
+### 被删除实现（影分身）
+- `Execution/Abstractions/IDiverterController.cs`
+- `Drivers/Adapters/RelayWheelDiverterDriver.cs`
+
+### 调用方变更
+- `Execution/Orchestration/SortingOrchestrator.cs`：从 `IDiverterController` 切换到 `IWheelDiverterDriver`
+- `Drivers/Vendors/Leadshine/LeadshineVendorDriverFactory.cs`：直接实现 `IWheelDiverterDriver`
+
+### 新增/更新防线测试
+- `ArchTests.HalConsolidationTests.ShouldNotHaveDuplicateDiverterInterface()`
+```
+
+### 6.3 快速查阅指南
+
+当需要确定某个概念"应该放在哪里"时，按以下顺序查阅：
+
+1. **首先查本表**：在 6.1 单一权威实现表中查找对应概念的"权威所在项目 & 目录"列
+2. **然后查 copilot-instructions.md**：获取更详细的编码规范和约束说明
+3. **最后查各项目的内部结构（第 3 节）**：了解具体的目录组织
+
+**常见问题快速定位**：
+
+| 我想要... | 查找位置 |
+|----------|---------|
+| 定义新的硬件接口 | → 6.1 表格 "HAL / 硬件抽象层" 行 → `Core/Hardware/**` |
+| 定义新的配置模型 | → 6.1 表格 "配置模型" 行 → `Core/LineModel/Configuration/Models/` |
+| 添加新的上游协议支持 | → 6.1 表格 "上游通信" 行 → 实现 `IUpstreamRoutingClient` → `Communication/Clients/` |
+| 添加新的路径生成策略 | → 6.1 表格 "拓扑 / 路径生成" 行 → 实现 `ISwitchingPathGenerator` 或使用装饰器 |
+| 添加新的配置服务 | → 6.1 表格 "配置服务" 行 → `Application/Services/Config/` |
+| 添加新的日志/指标 | → 6.1 表格 "日志 / 指标" 行 → `Observability/` |
+| 添加新的厂商驱动 | → 第 3.5 节 Drivers 结构 → `Drivers/Vendors/<VendorName>/` |
+
+---
+
 ## 附录：目录树生成命令
 
 本文档的目录树使用以下命令生成并手工整理：
@@ -1557,6 +1693,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.9 (PR-RS9)  
+**文档版本**：3.0 (PR-RS10)  
 **最后更新**：2025-12-01  
 **维护团队**：ZakYip Development Team
