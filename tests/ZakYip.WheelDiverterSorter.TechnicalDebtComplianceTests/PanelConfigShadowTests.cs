@@ -51,13 +51,12 @@ public class PanelConfigShadowTests
         {
             var content = File.ReadAllText(file);
             var matches = vendorCabinetPattern.Matches(content);
+            var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-                var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                violations.Add((typeName, relativePath));
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => (match.Groups["typeName"].Value, relativePath))
+            );
         }
 
         if (violations.Any())
@@ -147,20 +146,16 @@ public class PanelConfigShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*(?:Cabinet|Panel)\w*(?:Config|Options|Controller|Service)?\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = panelPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = panelPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                foundTypes.Add((typeName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (TypeName: match.Groups["typeName"].Value, FilePath: relativePath));
+            })
+            .ToList();
 
         if (foundTypes.Count == 0)
         {

@@ -74,20 +74,14 @@ public class LoggingConfigShadowTests
         {
             var content = File.ReadAllText(file);
             var matches = loggingConfigPattern.Matches(content);
+            var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-
-                // 检查是否在允许列表中
-                if (AllowedLoggingTypes.Contains(typeName))
-                {
-                    continue;
-                }
-
-                var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                violations.Add((typeName, relativePath));
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => match.Groups["typeName"].Value)
+                    .Where(typeName => !AllowedLoggingTypes.Contains(typeName))
+                    .Select(typeName => (typeName, relativePath))
+            );
         }
 
         if (violations.Any())
@@ -139,21 +133,21 @@ public class LoggingConfigShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*(?:Logging|Log)(?:Config|Options|Settings)\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath, bool IsAllowed)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = loggingPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = loggingPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                var isAllowed = AllowedLoggingTypes.Contains(typeName);
-                foundTypes.Add((typeName, relativePath, isAllowed));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match =>
+                    {
+                        var typeName = match.Groups["typeName"].Value;
+                        var isAllowed = AllowedLoggingTypes.Contains(typeName);
+                        return (TypeName: typeName, FilePath: relativePath, IsAllowed: isAllowed);
+                    });
+            })
+            .ToList();
 
         report.AppendLine("## 发现的日志配置类型\n");
         report.AppendLine("| 类型名称 | 位置 | 状态 |");

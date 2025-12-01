@@ -62,17 +62,14 @@ public class SwitchingPathGenerationTests
         {
             var content = File.ReadAllText(file);
             var matches = implementationPattern.Matches(content);
+            var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-
-                if (!AllowedImplementations.Contains(typeName))
-                {
-                    var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                    violations.Add((typeName, relativePath));
-                }
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => match.Groups["typeName"].Value)
+                    .Where(typeName => !AllowedImplementations.Contains(typeName))
+                    .Select(typeName => (typeName, relativePath))
+            );
         }
 
         if (violations.Any())
@@ -199,21 +196,17 @@ public class SwitchingPathGenerationTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?class\s+(?<typeName>\w*PathGenerator\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath, bool ImplementsInterface)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = pathGeneratorPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = pathGeneratorPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
                 var implementsInterface = content.Contains("ISwitchingPathGenerator");
-                foundTypes.Add((typeName, relativePath, implementsInterface));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (TypeName: match.Groups["typeName"].Value, FilePath: relativePath, ImplementsInterface: implementsInterface));
+            })
+            .ToList();
 
         report.AppendLine("## 发现的 PathGenerator 类型\n");
         report.AppendLine("| 类型名称 | 位置 | 实现 ISwitchingPathGenerator | 状态 |");

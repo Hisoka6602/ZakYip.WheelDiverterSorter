@@ -57,22 +57,17 @@ public class WheelDiverterShadowTests
         {
             var content = File.ReadAllText(file);
             var matches = diverterControllerPattern.Matches(content);
+            var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-
-                // 排除 Swagger 文档过滤器等非硬件相关类型
-                if (typeName.Contains("DocumentFilter") ||
-                    typeName.Contains("Swagger") ||
-                    typeName.Contains("Api"))
-                {
-                    continue;
-                }
-
-                var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                violations.Add((typeName, relativePath));
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => match.Groups["typeName"].Value)
+                    .Where(typeName =>
+                        !typeName.Contains("DocumentFilter") &&
+                        !typeName.Contains("Swagger") &&
+                        !typeName.Contains("Api"))
+                    .Select(typeName => (typeName, relativePath))
+            );
         }
 
         if (violations.Any())
@@ -176,20 +171,16 @@ public class WheelDiverterShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*(?:WheelDiverter|Diverter)\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = wheelDiverterPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = wheelDiverterPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                foundTypes.Add((typeName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (TypeName: match.Groups["typeName"].Value, FilePath: relativePath));
+            })
+            .ToList();
 
         // 按项目分组
         var byProject = foundTypes

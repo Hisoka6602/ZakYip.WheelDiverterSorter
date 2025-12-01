@@ -52,40 +52,6 @@ public class VendorCodeLocationTests
     };
 
     /// <summary>
-    /// 允许的厂商关键词上下文（正则模式）
-    /// 这些模式表示允许在任何位置出现的厂商关键词使用方式
-    /// </summary>
-    private static readonly string[] AllowedVendorContextPatterns =
-    {
-        // 枚举成员定义（如 Leadshine = 1）
-        @"^\s*(Leadshine|Modi|ShuDiNiao|Siemens)\s*=\s*\d+",
-        // 注释中的厂商名
-        @"^\s*///.*",
-        @"^\s*//.*",
-        // 字符串字面量中的厂商名（如 "leadshine"）
-        @"""[^""]*""",
-        // VendorProfileKey 赋值
-        @"VendorProfileKey\s*=\s*""(leadshine|modi|shudiniao|siemens)""",
-        // 配置路径字符串
-        @"""(Leadshine|Modi|ShuDiNiao|Siemens):.*""",
-        // Swagger 文档和 API 路由
-        @"\[Route\(""api/hardware/(leadshine|modi|shudiniao)",
-        @"SwaggerOperation.*Summary.*=.*""(雷赛|摩迪|书迪鸟)",
-        // Options 配置键名
-        @"GetSection\(""(Leadshine|Modi|ShuDiNiao|Siemens)",
-        // 枚举成员引用（如 VendorId.Leadshine）
-        @"VendorId\.(Leadshine|Modi|ShuDiNiao|Siemens)",
-        @"DriverVendorType\.(Leadshine|Modi|ShuDiNiao|Siemens)",
-        @"SensorVendorType\.(Leadshine|Modi|ShuDiNiao|Siemens)",
-        @"WheelDiverterVendorType\.(Leadshine|Modi|ShuDiNiao|Siemens)",
-        // switch 表达式中的枚举匹配
-        @"case\s+(VendorId|DriverVendorType|SensorVendorType|WheelDiverterVendorType)\.(Leadshine|Modi|ShuDiNiao|Siemens)",
-        @"(VendorId|DriverVendorType|SensorVendorType|WheelDiverterVendorType)\.(Leadshine|Modi|ShuDiNiao|Siemens)\s*=>",
-        // Description 特性中的厂商名
-        @"\[Description\("".*""\)\]",
-    };
-
-    /// <summary>
     /// 验证所有包含厂商关键词的类型只存在于允许的位置
     /// All vendor-named types should reside in Drivers or Communication
     /// </summary>
@@ -120,16 +86,14 @@ public class VendorCodeLocationTests
             var content = File.ReadAllText(file);
             var matches = vendorTypePattern.Matches(content);
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-                violations.Add(new VendorCodeViolation
+            violations.AddRange(
+                matches.Select(match => new VendorCodeViolation
                 {
                     FilePath = relativePath,
-                    TypeOrUsage = typeName,
+                    TypeOrUsage = match.Groups["typeName"].Value,
                     ViolationType = "厂商命名的类型定义"
-                });
-            }
+                })
+            );
         }
 
         if (violations.Any())

@@ -250,14 +250,9 @@ public class NamespaceLocationTests
             subDirs = parts.Skip(StandardStructureSubDirStartIndex).Take(parts.Length - 3).ToArray();
         }
         
-        if (subDirs.Length > 0)
-        {
-            return $"{projectFolder}.{string.Join(".", subDirs)}";
-        }
-        else
-        {
-            return projectFolder;
-        }
+        return subDirs.Length > 0
+            ? $"{projectFolder}.{string.Join(".", subDirs)}"
+            : projectFolder;
     }
 
     /// <summary>

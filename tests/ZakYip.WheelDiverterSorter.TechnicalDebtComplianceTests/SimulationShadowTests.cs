@@ -85,41 +85,22 @@ public class SimulationShadowTests
             var content = File.ReadAllText(file);
             var matches = simulationPattern.Matches(content);
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-
-                // 检查是否在允许列表中且在正确位置
-                if (AllowedSimulationTypeLocations.TryGetValue(typeName, out var allowedPaths))
-                {
-                    if (allowedPaths.Any(p => relativePath.Contains(p, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        continue; // 在允许位置
-                    }
-                }
-
-                // 检查是否在 Simulation 项目中（通用规则）
-                if (relativePath.Contains("Simulation/"))
-                {
-                    continue; // Simulation 项目中允许
-                }
-
-                // 检查是否在 Simulated vendors 目录中
-                if (relativePath.Contains("Drivers/Vendors/Simulated/"))
-                {
-                    continue; // 仿真驱动允许
-                }
-
-                // 排除一些常见的非仿真类型
-                if (typeName.Contains("Request") || typeName.Contains("Response") ||
-                    typeName.Contains("Config") || typeName.Contains("Options") ||
-                    typeName.Contains("DTO") || typeName.Contains("Dto"))
-                {
-                    continue;
-                }
-
-                violations.Add((typeName, relativePath, "仿真引擎/服务应该在 Simulation 项目中"));
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => match.Groups["typeName"].Value)
+                    .Where(typeName =>
+                        // 检查是否在允许列表中且在正确位置，或在 Simulation 项目中
+                        !(AllowedSimulationTypeLocations.TryGetValue(typeName, out var allowedPaths) &&
+                          allowedPaths.Any(p => relativePath.Contains(p, StringComparison.OrdinalIgnoreCase)))
+                        && !relativePath.Contains("Simulation/")
+                        && !relativePath.Contains("Drivers/Vendors/Simulated/")
+                        // 排除一些常见的非仿真类型
+                        && !(typeName.Contains("Request") || typeName.Contains("Response") ||
+                             typeName.Contains("Config") || typeName.Contains("Options") ||
+                             typeName.Contains("DTO") || typeName.Contains("Dto"))
+                    )
+                    .Select(typeName => (typeName, relativePath, "仿真引擎/服务应该在 Simulation 项目中"))
+            );
         }
 
         if (violations.Any())
@@ -173,20 +154,16 @@ public class SimulationShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*(?:Simulation|Simulator|Simulated)\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = simulationPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = simulationPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                foundTypes.Add((typeName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (TypeName: match.Groups["typeName"].Value, FilePath: relativePath));
+            })
+            .ToList();
 
         // 按项目分组
         var byProject = foundTypes

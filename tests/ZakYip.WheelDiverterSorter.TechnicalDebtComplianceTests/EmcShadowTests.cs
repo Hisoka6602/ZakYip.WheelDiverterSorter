@@ -51,18 +51,17 @@ public class EmcShadowTests
             @"(?:public|internal|private|protected)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct)\s+(?<typeName>\w*Emc\w*Controller\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = emcControllerPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var violations2 = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = emcControllerPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                violations.Add((typeName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (match.Groups["typeName"].Value, relativePath));
+            })
+            .ToList();
+        violations.AddRange(violations2);
 
         if (violations.Any())
         {
@@ -171,20 +170,16 @@ public class EmcShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*Emc\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = emcPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = emcPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                foundTypes.Add((typeName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (TypeName: match.Groups["typeName"].Value, FilePath: relativePath));
+            })
+            .ToList();
 
         if (foundTypes.Count == 0)
         {

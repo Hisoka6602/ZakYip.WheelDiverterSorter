@@ -213,25 +213,14 @@ public class TopologyShadowTests
             var content = File.ReadAllText(file);
             var matches = topologyTypePattern.Matches(content);
 
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups["typeName"].Value;
-
-                // 检查是否在白名单中
-                if (AllowedTopologyTypes.Contains(typeName))
-                {
-                    continue;
-                }
-
-                // 检查是否在允许的路径中
-                if (AllowedTopologyPaths.Any(p => relativePath.Contains(p, StringComparison.OrdinalIgnoreCase)))
-                {
-                    // 在允许路径中的新类型，添加到白名单建议
-                    continue;
-                }
-
-                violations.Add((typeName, relativePath));
-            }
+            violations.AddRange(
+                matches.Cast<Match>()
+                    .Select(match => match.Groups["typeName"].Value)
+                    .Where(typeName =>
+                        !AllowedTopologyTypes.Contains(typeName) &&
+                        !AllowedTopologyPaths.Any(p => relativePath.Contains(p, StringComparison.OrdinalIgnoreCase)))
+                    .Select(typeName => (typeName, relativePath))
+            );
         }
 
         if (violations.Any())
@@ -283,21 +272,21 @@ public class TopologyShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>\w*(?:Topology|SwitchingPath|RoutePlan)\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath, bool IsAllowed)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = topologyTypePattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = topologyTypePattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                var isAllowed = AllowedTopologyTypes.Contains(typeName);
-                foundTypes.Add((typeName, relativePath, isAllowed));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match =>
+                    {
+                        var typeName = match.Groups["typeName"].Value;
+                        var isAllowed = AllowedTopologyTypes.Contains(typeName);
+                        return (TypeName: typeName, FilePath: relativePath, IsAllowed: isAllowed);
+                    });
+            })
+            .ToList();
 
         // 按项目分组
         var byProject = foundTypes

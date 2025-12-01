@@ -63,19 +63,17 @@ public class IoShadowTests
                 .Where(f => !IsInExcludedDirectory(f))
                 .ToList();
 
-            foreach (var file in sourceFiles)
-            {
-                var content = File.ReadAllText(file);
-
-                foreach (var sdkNamespace in VendorSdkNamespaces)
-                {
-                    if (content.Contains(sdkNamespace, StringComparison.OrdinalIgnoreCase))
+            violations.AddRange(
+                sourceFiles
+                    .SelectMany(file =>
                     {
+                        var content = File.ReadAllText(file);
                         var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                        violations.Add((relativePath, $"引用厂商 SDK: {sdkNamespace}"));
-                    }
-                }
-            }
+                        return VendorSdkNamespaces
+                            .Where(sdkNamespace => content.Contains(sdkNamespace, StringComparison.OrdinalIgnoreCase))
+                            .Select(sdkNamespace => (relativePath, $"引用厂商 SDK: {sdkNamespace}"));
+                    })
+            );
         }
 
         if (violations.Any())
@@ -128,28 +126,17 @@ public class IoShadowTests
             @"(?:public|internal)\s+interface\s+(?<interfaceName>IInputPort|IOutputPort|ISensorInputReader|IIoLinkageDriver)\b",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var violations = new List<(string InterfaceName, string FilePath)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var normalizedPath = file.Replace("\\", "/");
-
-            // 如果文件在允许的路径中，跳过
-            if (normalizedPath.Contains(allowedPath))
+        var violations = sourceFiles
+            .Where(file => !file.Replace("\\", "/").Contains(allowedPath))
+            .SelectMany(file =>
             {
-                continue;
-            }
-
-            var content = File.ReadAllText(file);
-            var matches = ioHalInterfacePattern.Matches(content);
-
-            foreach (Match match in matches)
-            {
-                var interfaceName = match.Groups["interfaceName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = ioHalInterfacePattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                violations.Add((interfaceName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (match.Groups["interfaceName"].Value, relativePath));
+            })
+            .ToList();
 
         if (violations.Any())
         {
@@ -197,20 +184,16 @@ public class IoShadowTests
             @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:class|record|struct|interface)\s+(?<typeName>I?(?:Sensor|Input|Output)(?:Port|Reader|Writer|Provider|Driver|Factory)\w*)",
             RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
-        var foundTypes = new List<(string TypeName, string FilePath)>();
-
-        foreach (var file in sourceFiles)
-        {
-            var content = File.ReadAllText(file);
-            var matches = ioPattern.Matches(content);
-
-            foreach (Match match in matches)
+        var foundTypes = sourceFiles
+            .SelectMany(file =>
             {
-                var typeName = match.Groups["typeName"].Value;
+                var content = File.ReadAllText(file);
+                var matches = ioPattern.Matches(content);
                 var relativePath = Path.GetRelativePath(solutionRoot, file).Replace("\\", "/");
-                foundTypes.Add((typeName, relativePath));
-            }
-        }
+                return matches.Cast<Match>()
+                    .Select(match => (TypeName: match.Groups["typeName"].Value, FilePath: relativePath));
+            })
+            .ToList();
 
         // 按项目分组
         var byProject = foundTypes
