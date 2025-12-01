@@ -165,14 +165,12 @@ public class SystemClockShadowTests
                 .Where(t => t.Name.EndsWith("SystemClock") && !t.IsNested)
                 .ToList();
 
-            foreach (var type in systemClockTypes)
-            {
-                var fullName = $"{type.Namespace ?? "global"}.{type.Name}";
-                if (!allowedTypes.Contains(fullName))
-                {
-                    violations.Add($"[{assembly.GetName().Name}] {fullName}");
-                }
-            }
+            violations.AddRange(
+                systemClockTypes
+                    .Select(type => new { type, fullName = $"{type.Namespace ?? "global"}.{type.Name}" })
+                    .Where(x => !allowedTypes.Contains(x.fullName))
+                    .Select(x => $"[{assembly.GetName().Name}] {x.fullName}")
+            );
         }
 
         // Assert
@@ -200,10 +198,8 @@ public class SystemClockShadowTests
 
         // Assert
         Assert.NotNull(iSystemClock);
-        Assert.True(iSystemClock.GetProperty("LocalNow") != null, 
-            "ISystemClock 必须包含 LocalNow 属性");
-        Assert.True(iSystemClock.GetProperty("LocalNowOffset") != null, 
-            "ISystemClock 必须包含 LocalNowOffset 属性");
+        Assert.NotNull(iSystemClock.GetProperty("LocalNow"));
+        Assert.NotNull(iSystemClock.GetProperty("LocalNowOffset"));
     }
 
     [Fact]
@@ -264,7 +260,7 @@ public class SystemClockShadowTests
                     // 使用预编译的正则表达式查找接口定义
                     if (ISystemClockInterfacePattern.IsMatch(line))
                     {
-                        var relativePath = GetRelativePath(file);
+                        var relativePath = CodeScanner.GetRelativePath(file);
                         violations.Add($"{relativePath}:{i + 1} - {line}");
                     }
                 }
@@ -321,7 +317,7 @@ public class SystemClockShadowTests
                     // 使用预编译的正则表达式查找类定义
                     if (SystemClockClassPattern.IsMatch(line))
                     {
-                        var relativePath = GetRelativePath(file);
+                        var relativePath = CodeScanner.GetRelativePath(file);
                         violations.Add($"{relativePath}:{i + 1} - {line}");
                     }
                 }
@@ -342,11 +338,5 @@ public class SystemClockShadowTests
                 $"⚠️ SystemClock 实现类只能定义在 Core/Utilities/ 目录中。\n" +
                 $"请删除这些重复的类定义，改为使用 Core.Utilities.LocalSystemClock。");
         }
-    }
-
-    private static string GetRelativePath(string fullPath)
-    {
-        var parts = fullPath.Split(new[] { "/src/", "\\src\\" }, StringSplitOptions.None);
-        return parts.Length > 1 ? "src/" + parts[1] : fullPath;
     }
 }

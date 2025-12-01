@@ -1,5 +1,6 @@
 using System.Reflection;
 using Microsoft.CodeAnalysis.Diagnostics;
+using ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 
@@ -105,19 +106,48 @@ public class AnalyzersComplianceTests
             return;
         }
 
-        // Act
-        var dateTimeAnalyzers = assembly.GetTypes()
+        // Act: 通过诊断 ID 查找 DateTime 相关分析器
+        var analyzerTypes = assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract)
             .Where(t => typeof(DiagnosticAnalyzer).IsAssignableFrom(t))
-            .Where(t => t.Name.Contains("DateTime") || t.Name.Contains("Utc"))
             .ToList();
+
+        var dateTimeAnalyzers = new List<(Type AnalyzerType, string[] SupportedIds)>();
+        var foundIds = new HashSet<string>();
+
+        foreach (var type in analyzerTypes)
+        {
+            try
+            {
+                var analyzer = (DiagnosticAnalyzer?)Activator.CreateInstance(type);
+                if (analyzer == null) continue;
+                var supportedIds = analyzer.SupportedDiagnostics.Select(d => d.Id).ToArray();
+                if (supportedIds.Any(id => ExpectedDateTimeAnalyzerIds.Contains(id)))
+                {
+                    dateTimeAnalyzers.Add((type, supportedIds));
+                    foreach (var id in supportedIds)
+                    {
+                        if (ExpectedDateTimeAnalyzerIds.Contains(id))
+                            foundIds.Add(id);
+                    }
+                }
+            }
+            catch
+            {
+                // 忽略无法实例化的分析器
+            }
+        }
 
         // Assert
         Assert.NotEmpty(dateTimeAnalyzers);
-        Console.WriteLine($"✅ 发现 {dateTimeAnalyzers.Count} 个 DateTime 相关分析器:");
-        foreach (var type in dateTimeAnalyzers)
+        foreach (var expectedId in ExpectedDateTimeAnalyzerIds)
         {
-            Console.WriteLine($"   - {type.Name}");
+            Assert.Contains(expectedId, foundIds);
+        }
+        Console.WriteLine($"✅ 发现 {dateTimeAnalyzers.Count} 个 DateTime 相关分析器 (按诊断ID):");
+        foreach (var (type, ids) in dateTimeAnalyzers)
+        {
+            Console.WriteLine($"   - {type.Name} (Supported IDs: {string.Join(", ", ids)})");
         }
     }
 
@@ -268,19 +298,7 @@ public class AnalyzersComplianceTests
         catch
         {
             // 尝试从已知路径加载
-            var currentDir = Directory.GetCurrentDirectory();
-            
-            // 查找解决方案根目录
-            var solutionRoot = currentDir;
-            while (solutionRoot != null && !File.Exists(Path.Combine(solutionRoot, "ZakYip.WheelDiverterSorter.sln")))
-            {
-                solutionRoot = Directory.GetParent(solutionRoot)?.FullName;
-            }
-
-            if (solutionRoot == null)
-            {
-                return null;
-            }
+            var solutionRoot = CodeScanner.GetSolutionRoot();
 
             var possiblePaths = new[]
             {
