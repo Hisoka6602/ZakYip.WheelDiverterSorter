@@ -182,13 +182,17 @@ public record class ChutePathTopologyConfig
             return DiverterNodes;
         }
 
+        // 默认传感器ID偏移量：摆轮索引 + 此偏移量 = 前置传感器ID
+        // 此值应与实际系统配置中的传感器ID规划一致
+        const int DefaultSensorIdOffset = 100;
+
         return Diverters.Select(d => new DiverterPathNode
         {
             DiverterId = d.Index,
             DiverterName = $"摆轮D{d.Index}",
             PositionIndex = d.Index,
             SegmentId = d.Index,
-            FrontSensorId = d.Index + 100, // 默认传感器ID偏移
+            FrontSensorId = d.Index + DefaultSensorIdOffset,
             LeftChuteIds = new[] { d.LeftChuteId },
             RightChuteIds = new[] { d.RightChuteId }
         }).ToList();

@@ -659,13 +659,39 @@ public class DefaultSwitchingPathGeneratorTests
             new DefaultSwitchingPathGenerator((IChutePathTopologyRepository)null!));
     }
 
+    #region 测试辅助常量和方法
+
+    /// <summary>
+    /// 测试用传感器ID偏移量（与生产代码保持一致）
+    /// </summary>
+    private const int TestSensorIdOffset = 100;
+
+    /// <summary>
+    /// 测试用异常口ID
+    /// </summary>
+    private const long TestExceptionChuteId = 999;
+
+    /// <summary>
+    /// 计算左侧格口ID
+    /// </summary>
+    /// <param name="diverterIndex">摆轮索引（从1开始）</param>
+    private static long CalculateLeftChuteId(int diverterIndex) => (diverterIndex - 1) * 2 + 1;
+
+    /// <summary>
+    /// 计算右侧格口ID
+    /// </summary>
+    /// <param name="diverterIndex">摆轮索引（从1开始）</param>
+    private static long CalculateRightChuteId(int diverterIndex) => (diverterIndex - 1) * 2 + 2;
+
     /// <summary>
     /// 创建 N 摆轮拓扑配置用于测试
+    /// </summary>
+    /// <remarks>
     /// 格口编号规则：
     /// - 摆轮 i 的左侧格口 ID = (i-1)*2 + 1
     /// - 摆轮 i 的右侧格口 ID = (i-1)*2 + 2
     /// - 异常口 ID = 999
-    /// </summary>
+    /// </remarks>
     private static ChutePathTopologyConfig CreateTopologyConfig(int diverterCount)
     {
         var nodes = new List<DiverterPathNode>();
@@ -677,9 +703,9 @@ public class DefaultSwitchingPathGeneratorTests
                 DiverterName = $"摆轮D{i}",
                 PositionIndex = i,
                 SegmentId = i,
-                FrontSensorId = i + 100,
-                LeftChuteIds = new List<long> { (i - 1) * 2 + 1 },
-                RightChuteIds = new List<long> { (i - 1) * 2 + 2 }
+                FrontSensorId = i + TestSensorIdOffset,
+                LeftChuteIds = new List<long> { CalculateLeftChuteId(i) },
+                RightChuteIds = new List<long> { CalculateRightChuteId(i) }
             });
         }
 
@@ -689,9 +715,11 @@ public class DefaultSwitchingPathGeneratorTests
             TopologyName = $"N={diverterCount}测试拓扑",
             EntrySensorId = 1,
             DiverterNodes = nodes,
-            ExceptionChuteId = 999
+            ExceptionChuteId = TestExceptionChuteId
         };
     }
+
+    #endregion
 
     #endregion
 }

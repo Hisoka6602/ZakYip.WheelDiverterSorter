@@ -39,10 +39,17 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 {
     /// <summary>
-    /// 默认的段TTL值（毫秒）
+    /// 默认的段 TTL 值（毫秒）- 5秒
     /// </summary>
     /// <remarks>
-    /// 当前使用固定值，后续可通过配置或策略进行动态设置
+    /// <para>此值用于拓扑模式下的路径段超时设置。</para>
+    /// <para>选择 5000ms 的原因：</para>
+    /// <list type="bullet">
+    /// <item>典型皮带段长度 3-5m，运行速度 0.5-1.5m/s</item>
+    /// <item>理论通过时间约 2-10 秒</item>
+    /// <item>5 秒作为保守默认值，覆盖大多数场景</item>
+    /// </list>
+    /// <para>实际应用中，应根据具体线体参数通过 <see cref="DiverterConfigurationEntry"/> 配置。</para>
     /// </remarks>
     private const int DefaultSegmentTtlMs = 5000;
 
@@ -222,8 +229,13 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </summary>
     /// <param name="targetChuteId">目标格口ID</param>
     /// <returns>生成的摆轮路径</returns>
+    /// <remarks>
+    /// 当使用仅拓扑仓储的构造函数时，此方法将返回 null。
+    /// 这是预期行为，因为路径生成已在 <see cref="GeneratePathFromTopology"/> 中处理。
+    /// </remarks>
     private SwitchingPath? GeneratePathFromRouteConfig(long targetChuteId)
     {
+        // 当使用仅拓扑仓储的构造函数时，_routeRepository 为 null
         if (_routeRepository == null)
         {
             return null;
