@@ -103,9 +103,9 @@ ZakYip.WheelDiverterSorter.Execution
 └── ZakYip.WheelDiverterSorter.Observability
 
 ZakYip.WheelDiverterSorter.Drivers
-├── ZakYip.WheelDiverterSorter.Core
-└── ZakYip.WheelDiverterSorter.Communication
-# PR-TD4/PR-C6: Drivers 不再依赖 Execution，所有 HAL 接口已统一迁移至 Core/Hardware/
+└── ZakYip.WheelDiverterSorter.Core
+# PR-RS11: Drivers 只依赖 Core，不再依赖 Execution/Communication
+# 所有 HAL 接口已统一迁移至 Core/Hardware/（IEmcResourceLockManager 等）
 
 ZakYip.WheelDiverterSorter.Ingress
 └── ZakYip.WheelDiverterSorter.Core
@@ -145,15 +145,14 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - **Ingress** 依赖 Core，处理传感器和包裹检测
 - **Communication** 依赖 Core 和 Observability，负责与上游 RuleEngine 的通信
 - **Execution** 依赖 Core 和 Observability，负责分拣编排和路径执行
-- **Drivers** 依赖 Core 和 Communication，实现具体硬件驱动（实现 Core/Hardware/ 定义的 HAL 接口）
+- **Drivers** 只依赖 Core（PR-RS11），实现具体硬件驱动（实现 Core/Hardware/ 定义的 HAL 接口）
 - **Simulation** 依赖除 Host 和 Application 外的所有项目，提供仿真运行环境
 - **Application** 是 DI 聚合层（PR-H1），依赖 Core、Execution、Drivers、Ingress、Communication、Observability、Simulation，提供统一的服务注册入口
 - **Host** 是顶层应用入口，只依赖 Application、Core、Observability（PR-H1: 依赖收缩），通过 Application 层间接访问其他项目的服务
 
-> **PR-RS8 依赖约束澄清**：
+> **PR-RS8 / PR-RS11 依赖约束澄清**：
 > - **Execution 与 Drivers 互不依赖**，两者都只依赖 Core 中的 HAL 抽象接口（位于 `Core/Hardware/`）以及 Observability 基础设施
-> - Drivers 当前依赖 Communication 是因为部分硬件驱动需要使用 TCP/串口通信基础设施
-> - 如果未来需要将 Drivers 从 Communication 解耦，应在 Core 层定义通用的通信抽象接口
+> - **PR-RS11**: Drivers 不再依赖 Communication，所有原 Communication 层的 EMC 锁管理接口（`IEmcResourceLockManager`、`EmcLockEvent`）已迁移至 Core/Hardware/
 
 ### 2.1 层级架构约束（Architecture Constraints）
 
@@ -182,10 +181,10 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - **禁止依赖**：Drivers、Communication、Ingress、Host、Application、Simulation
 - **说明**：Execution 层负责分拣编排和路径执行，通过 Core/Hardware/ 定义的 HAL 接口访问硬件能力，由 DI 在运行时注入具体实现
 
-#### Drivers 层约束（PR-RS8 新增）
-- **允许依赖**：Core、Communication（用于 TCP/串口通信基础设施）
-- **禁止依赖**：Execution、Ingress、Host、Application、Simulation
-- **当前状态/目标状态**：当前 Drivers 依赖 Communication，理想状态是 Drivers 仅依赖 Core，通信抽象提取到 Core 层（标记为技术债务，低优先级）
+#### Drivers 层约束（PR-RS8 新增, PR-RS11 更新）
+- **允许依赖**：Core（可选 Observability）
+- **禁止依赖**：Execution、Communication、Ingress、Host、Application、Simulation
+- **当前状态**：PR-RS11 已完成 - Drivers 仅依赖 Core，`IEmcResourceLockManager` 和 `EmcLockEvent` 已迁移至 Core/Hardware/Devices
 - **说明**：Drivers 层实现 Core/Hardware/ 定义的 HAL 接口，封装具体厂商硬件的驱动逻辑
 
 > **重要约束**：**Execution 与 Drivers 互不依赖**，这是分层架构的核心原则。两者通过 Core/Hardware/ 定义的接口解耦，由 Application 层在 DI 容器中组装。
@@ -235,20 +234,23 @@ Host → Application → Core/Execution/Drivers/Ingress/Communication/Observabil
 - **PR-C6 变更**：原 `Core/Abstractions/Drivers/` 已删除，硬件相关抽象统一迁移至 `Core/Hardware/` 的对应子目录
 - **测试**：`DuplicateTypeDetectionTests.AbstractionsShouldOnlyExistInAllowedLocations()`
 
-#### HAL 层约束 (PR-C6 新增)
+#### HAL 层约束 (PR-C6 新增, PR-RS11 更新)
 - **规则**：HAL 已收敛到 `Core/Hardware/`，**禁止增加新的平行硬件抽象层**
 - **允许的位置**：
   - `Core/Hardware/Ports/` - IO 端口接口 (IInputPort, IOutputPort)
   - `Core/Hardware/IoLinkage/` - IO 联动接口 (IIoLinkageDriver)
-  - `Core/Hardware/Devices/` - 设备驱动接口 (IWheelDiverterDriver, IEmcController 等)
+  - `Core/Hardware/Devices/` - 设备驱动接口 (IWheelDiverterDriver, IEmcController, IEmcResourceLockManager 等)
   - `Core/Hardware/Mappings/` - IO 映射接口 (IVendorIoMapper)
   - `Core/Hardware/Providers/` - 配置提供者接口 (ISensorVendorConfigProvider)
+- **PR-RS11 变更**：`IEmcResourceLockManager` 从 `Communication/Abstractions/` 迁移至 `Core/Hardware/Devices/`，`EmcLockEvent` 从 `Communication/Models/` 迁移至 `Core/Events/Communication/`
 - **禁止的位置**：
   - `Core/Abstractions/Drivers/` (已删除)
   - `Core/Drivers/`, `Core/Adapters/`, `Core/HardwareAbstractions/` 等平行目录
 - **测试**：
   - `DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers()`
   - `DuplicateTypeDetectionTests.Core_Hardware_ShouldHaveStandardSubdirectories()`
+  - `ApplicationLayerDependencyTests.Drivers_ShouldNotDependOn_Execution_Or_Communication()` (PR-RS11 新增)
+  - `ApplicationLayerDependencyTests.Drivers_ShouldOnlyDependOn_CoreOrObservability()` (PR-RS11 新增)
 
 > **详见 [6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)**：HAL 接口的完整权威列表和禁止位置。
 
@@ -455,6 +457,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   │   ├── IWheelDiverterDriverManager.cs
 │   │   ├── IWheelProtocolMapper.cs
 │   │   ├── IEmcController.cs
+│   │   ├── IEmcResourceLockManager.cs  # PR-RS11: 从 Communication 迁移
 │   │   └── (WheelCommandResult, WheelDeviceStatus 等值对象)
 │   ├── Mappings/                    # IO 映射接口
 │   │   ├── IVendorIoMapper.cs
@@ -782,8 +785,8 @@ ZakYip.WheelDiverterSorter.Communication/
 │   ├── IRuleEngineServer.cs
 │   ├── IRuleEngineHandler.cs
 │   ├── IUpstreamConnectionManager.cs
-│   ├── IUpstreamRoutingClientFactory.cs
-│   └── IEmcResourceLockManager.cs
+│   └── IUpstreamRoutingClientFactory.cs
+# PR-RS11: IEmcResourceLockManager 已迁移至 Core/Hardware/Devices/
 ├── Adapters/                        # 适配器
 │   └── DefaultUpstreamContractMapper.cs
 ├── Clients/                         # 客户端实现（实现 Core 层的 IUpstreamRoutingClient）
@@ -793,7 +796,7 @@ ZakYip.WheelDiverterSorter.Communication/
 │   ├── HttpRuleEngineClient.cs
 │   ├── InMemoryRuleEngineClient.cs
 │   ├── RuleEngineClientBase.cs
-│   └── EmcResourceLockManager*.cs
+│   └── EmcResourceLockManager*.cs   # 实现 Core/Hardware/Devices/IEmcResourceLockManager
 ├── Configuration/                   # 通信配置
 │   ├── RuleEngineConnectionOptions.cs
 │   ├── TcpOptions.cs
@@ -811,8 +814,8 @@ ZakYip.WheelDiverterSorter.Communication/
 ├── Models/                          # 通信模型
 │   ├── ChuteAssignmentRequest.cs
 │   ├── ChuteAssignmentResponse.cs
-│   ├── ParcelDetectionNotification.cs
-│   └── EmcLockEvent.cs
+│   └── ParcelDetectionNotification.cs
+# PR-RS11: EmcLockEvent 已迁移至 Core/Events/Communication/
 ├── Servers/                         # 服务器实现
 │   ├── TcpRuleEngineServer.cs
 │   ├── SignalRRuleEngineServer.cs
@@ -1512,7 +1515,7 @@ tools/Profiling/
 | **DI 聚合入口** | `AddWheelDiverterSorter()`, `WheelDiverterSorterServiceCollectionExtensions` | `Application/Extensions/` | ❌ `Host/` 中重复定义同名扩展类（已重命名为 `WheelDiverterSorterHostServiceCollectionExtensions`）<br/>❌ 其他项目中定义全局 DI 聚合 | `EventAndExtensionDuplicateDetectionTests.ServiceCollectionExtensionsShouldBeUniquePerProject` |
 | **摆轮控制** | `IWheelDiverterDriver` (方向接口)<br/>`IWheelDiverterDevice` (命令接口) | `Core/Hardware/Devices/`<br/>`Core/Hardware/` | ❌ 定义 `IDiverterController`（已删除）<br/>❌ 定义 `IWheelDiverterActuator`（已删除）<br/>❌ 其他语义重叠的摆轮控制接口 | `TechnicalDebtComplianceTests.WheelDiverterShadowTests`<br/>`ArchTests.HalConsolidationTests` |
 | **拥堵检测** | `ICongestionDetector`, `ThresholdCongestionDetector` | `Core/Sorting/Interfaces/` (接口)<br/>`Core/Sorting/Runtime/` (实现) | ❌ `Core/Sorting/Runtime/ICongestionDetector.cs`（已删除）<br/>❌ 定义 `ThresholdBasedCongestionDetector`（已删除）<br/>❌ 其他平行拥堵检测接口 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests` |
-| **EMC 控制** | `IEmcController`, `IEmcResourceLockManager` | `Core/Hardware/Devices/` (控制器)<br/>`Communication/Abstractions/` (锁管理) | ❌ `Execution/` 中定义 EMC 接口<br/>❌ `Host/` 中直接操作 EMC | `TechnicalDebtComplianceTests.EmcShadowTests` |
+| **EMC 控制** | `IEmcController`, `IEmcResourceLockManager`, `EmcLockEvent`, `EmcLockEventArgs` | `Core/Hardware/Devices/` (控制器、锁管理接口)<br/>`Core/Events/Communication/` (事件模型) | ❌ `Communication/` 中定义 EMC 接口（PR-RS11 已迁移）<br/>❌ `Execution/` 中定义 EMC 接口<br/>❌ `Host/` 中直接操作 EMC | `TechnicalDebtComplianceTests.EmcShadowTests`<br/>`ApplicationLayerDependencyTests.Drivers_ShouldNotDependOn_Execution_Or_Communication` |
 
 ### 6.2 影分身处理流程
 
@@ -1693,6 +1696,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：3.0 (PR-RS10)  
+**文档版本**：3.1 (PR-RS11)  
 **最后更新**：2025-12-01  
 **维护团队**：ZakYip Development Team
