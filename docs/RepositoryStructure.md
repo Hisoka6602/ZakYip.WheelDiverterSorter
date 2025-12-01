@@ -105,7 +105,7 @@ ZakYip.WheelDiverterSorter.Execution
 ZakYip.WheelDiverterSorter.Drivers
 ├── ZakYip.WheelDiverterSorter.Core
 └── ZakYip.WheelDiverterSorter.Communication
-# PR-TD4: Drivers 不再依赖 Execution，所有驱动抽象接口定义在 Core/Abstractions/Drivers/ 中
+# PR-TD4/PR-C6: Drivers 不再依赖 Execution，所有 HAL 接口已统一迁移至 Core/Hardware/
 
 ZakYip.WheelDiverterSorter.Ingress
 └── ZakYip.WheelDiverterSorter.Core
@@ -140,15 +140,20 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 
 **依赖层次说明**：
 
-- **Core** 是最底层，不依赖其他业务项目，定义核心抽象和领域模型
+- **Core** 是最底层，不依赖其他业务项目，定义核心抽象（包括 HAL 接口）和领域模型
 - **Observability** 依赖 Core，提供监控、日志、告警等基础设施
 - **Ingress** 依赖 Core，处理传感器和包裹检测
 - **Communication** 依赖 Core 和 Observability，负责与上游 RuleEngine 的通信
 - **Execution** 依赖 Core 和 Observability，负责分拣编排和路径执行
-- **Drivers** 依赖 Core、Execution 和 Communication，实现具体硬件驱动
+- **Drivers** 依赖 Core 和 Communication，实现具体硬件驱动（实现 Core/Hardware/ 定义的 HAL 接口）
 - **Simulation** 依赖除 Host 和 Application 外的所有项目，提供仿真运行环境
 - **Application** 是 DI 聚合层（PR-H1），依赖 Core、Execution、Drivers、Ingress、Communication、Observability、Simulation，提供统一的服务注册入口
 - **Host** 是顶层应用入口，只依赖 Application、Core、Observability（PR-H1: 依赖收缩），通过 Application 层间接访问其他项目的服务
+
+> **PR-RS8 依赖约束澄清**：
+> - **Execution 与 Drivers 互不依赖**，两者都只依赖 Core 中的 HAL 抽象接口（位于 `Core/Hardware/`）以及 Observability 基础设施
+> - Drivers 当前依赖 Communication 是因为部分硬件驱动需要使用 TCP/串口通信基础设施
+> - 如果未来需要将 Drivers 从 Communication 解耦，应在 Core 层定义通用的通信抽象接口
 
 ### 2.1 层级架构约束（Architecture Constraints）
 
@@ -163,6 +168,19 @@ ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats
 - **允许依赖**：Core、Execution、Drivers、Ingress、Communication、Observability、Simulation
 - **禁止依赖**：Host、Analyzers
 - **说明**：Application 层现在是 DI 聚合层，负责统一编排所有下游项目的服务注册
+
+#### Execution 层约束（PR-RS8 新增）
+- **允许依赖**：Core、Observability
+- **禁止依赖**：Drivers、Communication、Ingress、Host、Application、Simulation
+- **说明**：Execution 层负责分拣编排和路径执行，通过 Core/Hardware/ 定义的 HAL 接口访问硬件能力，由 DI 在运行时注入具体实现
+
+#### Drivers 层约束（PR-RS8 新增）
+- **允许依赖**：Core、Communication（用于 TCP/串口通信基础设施）
+- **禁止依赖**：Execution、Ingress、Host、Application、Simulation
+- **当前状态/目标状态**：当前 Drivers 依赖 Communication，理想状态是 Drivers 仅依赖 Core，通信抽象提取到 Core 层（标记为技术债务，低优先级）
+- **说明**：Drivers 层实现 Core/Hardware/ 定义的 HAL 接口，封装具体厂商硬件的驱动逻辑
+
+> **重要约束**：**Execution 与 Drivers 互不依赖**，这是分层架构的核心原则。两者通过 Core/Hardware/ 定义的接口解耦，由 Application 层在 DI 容器中组装。
 
 #### 反向依赖禁止
 以下项目 **禁止** 依赖 Application（避免循环依赖）：
@@ -533,7 +551,7 @@ Core 层采用"统一工具 + 领域特化工具"的结构：
 
 - `ISortingOrchestrator`（位于 Sorting/Orchestration/）：分拣编排服务接口，定义核心业务流程入口
 - `ISwitchingPathGenerator`（位于 LineModel/Topology/）：摆轮路径生成器接口，根据目标格口生成摆轮指令序列
-- `IWheelDiverterDriver`（位于 Abstractions/Drivers/）：摆轮驱动器抽象接口，定义左转/右转/直通操作
+- `IWheelDiverterDriver`（位于 Hardware/Devices/）：摆轮驱动器抽象接口，定义左转/右转/直通操作
 - `IUpstreamRoutingClient`（位于 Abstractions/Upstream/）：上游路由客户端抽象，用于请求格口分配
 - `ISystemClock`（位于 Utilities/）：系统时钟抽象，所有时间获取必须通过此接口
 - `SwitchingPath`（位于 LineModel/Topology/）：摆轮切换路径模型，包含目标格口和切换段序列
@@ -1540,6 +1558,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：2.7 (PR-SD5)  
-**最后更新**：2025-11-30  
+**文档版本**：2.8 (PR-RS8)  
+**最后更新**：2025-12-01  
 **维护团队**：ZakYip Development Team

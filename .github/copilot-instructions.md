@@ -1021,15 +1021,23 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 
 1. 仅允许在下列位置存在 `Abstractions` 目录：
 
-   - `Core/Abstractions/**`
-   - （如存在）`Execution/Abstractions/ExecutionSpecific/**`
+   - `Core/Abstractions/**`（仅包含 Execution/、Ingress/、Upstream/ 子目录，**不包含 Drivers/ 子目录**）
+   - `Infrastructure/ZakYip.WheelDiverterSorter.Communication/Abstractions/`
 
-2. 其他任何项目、路径一律 **禁止** 新建 `Abstractions` 目录。
+2. **HAL 接口唯一权威位置**：所有硬件抽象层接口（原 `Core/Abstractions/Drivers/`）已统一迁移到 `Core/Hardware/` 及其子目录：
+   - `Core/Hardware/Devices/` - 设备驱动接口（IWheelDiverterDriver、IEmcController 等）
+   - `Core/Hardware/Ports/` - IO 端口接口（IInputPort、IOutputPort）
+   - `Core/Hardware/IoLinkage/` - IO 联动接口（IIoLinkageDriver）
+   - `Core/Hardware/Mappings/` - IO 映射接口（IVendorIoMapper）
+   - `Core/Hardware/Providers/` - 配置提供者接口（ISensorVendorConfigProvider）
+
+3. 其他任何项目、路径一律 **禁止** 新建 `Abstractions` 目录。
 
 **禁止行为**:
 
 - 在 `Drivers/`, `Ingress/`, `Communication/`, `Host/`, `Simulation/` 等项目中新建 `Abstractions` 目录。
-- 新增仅包含 `global using` 或简单别名转发的“空壳 Abstractions 文件”。
+- 新增仅包含 `global using` 或简单别名转发的"空壳 Abstractions 文件"。
+- **在 `Core/Abstractions/` 下重建 `Drivers/` 目录**（HAL 接口必须放在 `Core/Hardware/`）。
 
 ---
 
@@ -1051,7 +1059,9 @@ public async Task Should_Route_To_Exception_Chute_When_Timeout()
 
 **实施要求**:
 
-- 访问硬件能力一律通过 Core 定义的抽象接口（如 `IWheelDiverterDriver`、`IDiverterController` 等），由 DI 注入不同厂商实现。
+- 访问硬件能力一律通过 Core/Hardware/ 定义的 HAL 接口（如 `IWheelDiverterDriver`、`IInputPort`、`IOutputPort` 等），由 DI 注入不同厂商实现。
+- **HAL 唯一权威位置**：`Core/Hardware/` 及其子目录（Devices/、Ports/、IoLinkage/、Mappings/、Providers/）。Copilot 只能在此目录下新增或修改硬件抽象接口。
+- 原 `Core/Abstractions/Drivers/` 目录已删除，**禁止**在 Abstractions 下重建任何硬件相关目录。
 
 ---
 
