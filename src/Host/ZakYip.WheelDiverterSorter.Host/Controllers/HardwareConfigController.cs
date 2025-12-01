@@ -25,12 +25,11 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// <remarks>
 /// 提供统一的硬件配置管理功能，包括：
 /// - 雷赛IO驱动器配置（/api/hardware/leadshine）
-/// - 莫迪摆轮配置（/api/hardware/modi）
 /// - 数递鸟摆轮配置（/api/hardware/shudiniao）
 /// 
 /// **概念区分**：
 /// - **IO驱动器**（/api/hardware/leadshine）: 基于雷赛运动控制卡，控制IO端点（输入/输出位），用于传感器信号读取和继电器控制
-/// - **摆轮驱动器**（/api/hardware/modi, /api/hardware/shudiniao）: 控制摆轮转向（左转、右转、回中）
+/// - **摆轮驱动器**（/api/hardware/shudiniao）: 控制摆轮转向（左转、右转、回中）
 /// 
 /// **配置生效时机**：
 /// 配置更新后立即生效，无需重启服务。正在运行的分拣任务不受影响，只对新的分拣任务生效。
@@ -406,205 +405,6 @@ public class HardwareConfigController : ControllerBase
 
     #endregion
 
-    #region 莫迪摆轮配置 (Modi Wheel Diverter)
-
-    /// <summary>
-    /// 获取莫迪摆轮配置
-    /// </summary>
-    /// <returns>莫迪摆轮配置信息</returns>
-    /// <response code="200">成功返回配置</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpGet("modi")]
-    [SwaggerOperation(
-        Summary = "获取莫迪摆轮配置",
-        Description = "返回当前系统的莫迪摆轮设备配置，包括所有设备列表和仿真模式设置",
-        OperationId = "GetModiWheelConfig",
-        Tags = new[] { "硬件配置" }
-    )]
-    [SwaggerResponse(200, "成功返回配置", typeof(ModiWheelDiverterConfig))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ModiWheelDiverterConfig), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ModiWheelDiverterConfig?> GetModiConfig()
-    {
-        try
-        {
-            var config = _wheelRepository.Get();
-            return Ok(config.Modi);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取莫迪摆轮配置失败");
-            return StatusCode(500, new { message = "获取莫迪摆轮配置失败" });
-        }
-    }
-
-    /// <summary>
-    /// 更新莫迪摆轮配置
-    /// </summary>
-    /// <param name="request">莫迪摆轮配置请求</param>
-    /// <returns>更新后的完整摆轮配置</returns>
-    /// <response code="200">更新成功</response>
-    /// <response code="400">请求参数无效</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpPut("modi")]
-    [SwaggerOperation(
-        Summary = "更新莫迪摆轮配置",
-        Description = "更新莫迪摆轮设备配置，支持多设备和仿真模式切换",
-        OperationId = "UpdateModiWheelConfig",
-        Tags = new[] { "硬件配置" }
-    )]
-    [SwaggerResponse(200, "更新成功", typeof(WheelDiverterConfiguration))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<WheelDiverterConfiguration> UpdateModiConfig(
-        [FromBody] UpdateModiConfigRequest request)
-    {
-        try
-        {
-            if (!ModelState.IsValid)
-            {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
-            }
-
-            var config = _wheelRepository.Get();
-
-            config.Modi = new ModiWheelDiverterConfig
-            {
-                Devices = request.Devices.Select(d => new ModiDeviceEntry
-                {
-                    DiverterId = d.DiverterId,
-                    Host = d.Host,
-                    Port = d.Port,
-                    DeviceId = d.DeviceId,
-                    IsEnabled = d.IsEnabled
-                }).ToList(),
-                UseSimulation = request.UseSimulation
-            };
-
-            if (request.Devices.Any())
-            {
-                config.VendorType = WheelDiverterVendorType.Modi;
-            }
-
-            var (isValid, errorMessage) = config.Validate();
-            if (!isValid)
-            {
-                return BadRequest(new { message = errorMessage });
-            }
-
-            _wheelRepository.Update(config);
-
-            _logger.LogInformation(
-                "莫迪摆轮配置已更新: 设备数量={DeviceCount}, 仿真模式={UseSimulation}",
-                request.Devices.Count,
-                request.UseSimulation);
-
-            var updatedConfig = _wheelRepository.Get();
-            return Ok(updatedConfig);
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "莫迪摆轮配置验证失败");
-            return BadRequest(new { message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新莫迪摆轮配置失败");
-            return StatusCode(500, new { message = "更新莫迪摆轮配置失败" });
-        }
-    }
-
-    /// <summary>
-    /// 切换莫迪摆轮仿真模式
-    /// </summary>
-    /// <param name="useSimulation">是否使用仿真模式</param>
-    /// <returns>更新后的完整摆轮配置</returns>
-    /// <response code="200">切换成功</response>
-    /// <response code="400">请求参数无效或未配置莫迪设备</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpPost("modi/simulation")]
-    [SwaggerOperation(
-        Summary = "切换莫迪仿真模式",
-        Description = "切换莫迪摆轮设备的仿真模式",
-        OperationId = "ToggleModiSimulation",
-        Tags = new[] { "硬件配置" }
-    )]
-    [SwaggerResponse(200, "切换成功", typeof(WheelDiverterConfiguration))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<WheelDiverterConfiguration> ToggleModiSimulation(
-        [FromQuery, Required] bool useSimulation)
-    {
-        try
-        {
-            var config = _wheelRepository.Get();
-
-            if (config.Modi == null)
-            {
-                return BadRequest(new { message = "未配置莫迪摆轮设备" });
-            }
-
-            config.Modi = config.Modi with { UseSimulation = useSimulation };
-            _wheelRepository.Update(config);
-
-            _logger.LogInformation(
-                "莫迪摆轮仿真模式已切换: UseSimulation={UseSimulation}",
-                useSimulation);
-
-            var updatedConfig = _wheelRepository.Get();
-            return Ok(updatedConfig);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "切换莫迪摆轮仿真模式失败");
-            return StatusCode(500, new { message = "切换莫迪摆轮仿真模式失败" });
-        }
-    }
-
-    /// <summary>
-    /// 测试莫迪摆轮转向（调试/测试用）
-    /// </summary>
-    /// <param name="request">测试请求</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>测试执行结果</returns>
-    /// <response code="200">测试执行成功</response>
-    /// <response code="400">请求参数无效或驱动管理器未注册</response>
-    /// <response code="409">系统正在运行中或处于急停状态</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpPost("modi/test")]
-    [SwaggerOperation(
-        Summary = "测试莫迪摆轮转向",
-        Description = "测试指定摆轮的转向功能，系统运行中或急停状态下禁止使用。",
-        OperationId = "TestModiDiverters",
-        Tags = new[] { "硬件配置" }
-    )]
-    [SwaggerResponse(200, "测试执行成功", typeof(WheelDiverterTestResponse))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(409, "系统正在运行中或处于急停状态")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(WheelDiverterTestResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 409)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<ActionResult<WheelDiverterTestResponse>> TestModiDiverters(
-        [FromBody] WheelDiverterTestRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        return await TestDivertersInternal(request, "莫迪", cancellationToken);
-    }
-
-    #endregion
-
     #region 数递鸟摆轮配置 (ShuDiNiao Wheel Diverter)
 
     /// <summary>
@@ -633,8 +433,7 @@ public class HardwareConfigController : ControllerBase
             {
                 return Ok(new ShuDiNiaoWheelDiverterConfig
                 {
-                    Devices = new List<ShuDiNiaoDeviceEntry>(),
-                    UseSimulation = false
+                    Devices = new List<ShuDiNiaoDeviceEntry>()
                 });
             }
             return Ok(config.ShuDiNiao);
@@ -658,7 +457,7 @@ public class HardwareConfigController : ControllerBase
     [HttpPut("shudiniao")]
     [SwaggerOperation(
         Summary = "更新数递鸟摆轮配置",
-        Description = "更新数递鸟摆轮设备配置，支持多设备和仿真模式切换。配置更新后会自动执行热更新。",
+        Description = "更新数递鸟摆轮设备配置，配置更新后会自动执行热更新。",
         OperationId = "UpdateShuDiNiaoWheelConfig",
         Tags = new[] { "硬件配置" }
     )]
@@ -693,8 +492,7 @@ public class HardwareConfigController : ControllerBase
                     Port = d.Port,
                     DeviceAddress = d.DeviceAddress,
                     IsEnabled = d.IsEnabled
-                }).ToList(),
-                UseSimulation = request.UseSimulation
+                }).ToList()
             };
 
             if (request.Devices.Any())
@@ -711,9 +509,8 @@ public class HardwareConfigController : ControllerBase
             _wheelRepository.Update(config);
 
             _logger.LogInformation(
-                "数递鸟摆轮配置已更新: 设备数量={DeviceCount}, 仿真模式={UseSimulation}",
-                request.Devices.Count,
-                request.UseSimulation);
+                "数递鸟摆轮配置已更新: 设备数量={DeviceCount}",
+                request.Devices.Count);
 
             if (_driverManager != null)
             {
@@ -736,7 +533,7 @@ public class HardwareConfigController : ControllerBase
             }
             else
             {
-                _logger.LogDebug("驱动管理器未注册，跳过热更新（可能是仿真模式或启动阶段）");
+                _logger.LogDebug("驱动管理器未注册，跳过热更新");
             }
 
             var updatedConfig = _wheelRepository.Get();
@@ -754,84 +551,6 @@ public class HardwareConfigController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// 切换数递鸟摆轮仿真模式
-    /// </summary>
-    /// <param name="useSimulation">是否使用仿真模式</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>更新后的完整摆轮配置</returns>
-    /// <response code="200">切换成功</response>
-    /// <response code="400">请求参数无效或未配置数递鸟设备</response>
-    /// <response code="500">服务器内部错误</response>
-    [HttpPost("shudiniao/simulation")]
-    [SwaggerOperation(
-        Summary = "切换数递鸟仿真模式",
-        Description = "切换数递鸟摆轮设备的仿真模式，切换时会自动执行连接/断连操作。",
-        OperationId = "ToggleShuDiNiaoSimulation",
-        Tags = new[] { "硬件配置" }
-    )]
-    [SwaggerResponse(200, "切换成功", typeof(WheelDiverterConfiguration))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(WheelDiverterConfiguration), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<ActionResult<WheelDiverterConfiguration>> ToggleShuDiNiaoSimulation(
-        [FromQuery, Required] bool useSimulation,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var config = _wheelRepository.Get();
-
-            if (config.ShuDiNiao == null)
-            {
-                return BadRequest(new { message = "未配置数递鸟摆轮设备" });
-            }
-
-            config.ShuDiNiao = config.ShuDiNiao with { UseSimulation = useSimulation };
-            _wheelRepository.Update(config);
-
-            _logger.LogInformation(
-                "数递鸟摆轮仿真模式已切换: UseSimulation={UseSimulation}",
-                useSimulation);
-
-            if (_driverManager != null)
-            {
-                if (useSimulation)
-                {
-                    await _driverManager.DisconnectAllAsync(cancellationToken);
-                    _logger.LogInformation("已断开所有数递鸟摆轮真实连接（切换到仿真模式）");
-                }
-                else
-                {
-                    var applyResult = await _driverManager.ApplyConfigurationAsync(config, cancellationToken);
-
-                    if (applyResult.IsSuccess)
-                    {
-                        _logger.LogInformation(
-                            "数递鸟摆轮驱动器已重连: 已连接={ConnectedCount}/{TotalCount}",
-                            applyResult.ConnectedCount,
-                            applyResult.TotalCount);
-                    }
-                    else
-                    {
-                        _logger.LogWarning(
-                            "数递鸟摆轮驱动器重连部分失败: {ErrorMessage}",
-                            applyResult.ErrorMessage);
-                    }
-                }
-            }
-
-            var updatedConfig = _wheelRepository.Get();
-            return Ok(updatedConfig);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "切换数递鸟摆轮仿真模式失败");
-            return StatusCode(500, new { message = "切换数递鸟摆轮仿真模式失败" });
-        }
-    }
 
     /// <summary>
     /// 测试数递鸟摆轮转向（调试/测试用）
@@ -1110,60 +829,6 @@ public record LeadshineRestartResult
 }
 
 /// <summary>
-/// 更新莫迪摆轮配置请求
-/// </summary>
-public record class UpdateModiConfigRequest
-{
-    /// <summary>
-    /// 莫迪摆轮设备列表
-    /// </summary>
-    [Required(ErrorMessage = "设备列表不能为空")]
-    public required List<ModiDeviceRequest> Devices { get; init; }
-
-    /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; init; } = false;
-}
-
-/// <summary>
-/// 莫迪摆轮设备请求
-/// </summary>
-public record class ModiDeviceRequest
-{
-    /// <summary>
-    /// 摆轮标识符
-    /// </summary>
-    [Required(ErrorMessage = "摆轮标识符不能为空")]
-    [Range(1, long.MaxValue, ErrorMessage = "摆轮标识符必须大于0")]
-    public required long DiverterId { get; init; }
-
-    /// <summary>
-    /// TCP连接主机地址
-    /// </summary>
-    [Required(ErrorMessage = "主机地址不能为空")]
-    [StringLength(255, ErrorMessage = "主机地址长度不能超过255个字符")]
-    public required string Host { get; init; }
-
-    /// <summary>
-    /// TCP连接端口
-    /// </summary>
-    [Range(1, 65535, ErrorMessage = "端口号必须在1到65535之间")]
-    public required int Port { get; init; }
-
-    /// <summary>
-    /// 设备编号
-    /// </summary>
-    [Range(1, int.MaxValue, ErrorMessage = "设备编号必须大于0")]
-    public required int DeviceId { get; init; }
-
-    /// <summary>
-    /// 是否启用该设备
-    /// </summary>
-    public bool IsEnabled { get; init; } = true;
-}
-
-/// <summary>
 /// 更新数递鸟摆轮配置请求
 /// </summary>
 public record class UpdateShuDiNiaoConfigRequest
@@ -1173,11 +838,6 @@ public record class UpdateShuDiNiaoConfigRequest
     /// </summary>
     [Required(ErrorMessage = "设备列表不能为空")]
     public required List<ShuDiNiaoDeviceRequest> Devices { get; init; }
-
-    /// <summary>
-    /// 是否启用仿真模式
-    /// </summary>
-    public bool UseSimulation { get; init; } = false;
 }
 
 /// <summary>
