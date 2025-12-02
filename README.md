@@ -334,11 +334,11 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
          │                                         │
          │  1. ParcelDetectionNotification         │
          │  ─────────────────────────────────────▶ │
-         │  (检测通知: ParcelId, DetectionTime)    │
+         │  (检测通知: ParcelId, DetectionTime)   │
          │                                         │
          │  2. ChuteAssignmentNotification         │
          │  ◀───────────────────────────────────── │
-         │  (格口分配: ParcelId, ChuteId, DWS数据) │
+         │  (格口分配: ParcelId, ChuteId, DWS 数据)│
          │                                         │
          │  3. SortingCompletedNotification        │
          │  ─────────────────────────────────────▶ │
