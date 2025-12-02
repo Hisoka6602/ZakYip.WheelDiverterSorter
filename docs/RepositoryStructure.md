@@ -1409,15 +1409,16 @@ tools/Profiling/
 | TD-031 | ✅ 已解决 | Upstream 协议文档收敛 & README 精简 → 收敛到 UPSTREAM_CONNECTION_GUIDE.md (PR-DOC-UPSTREAM01) | [详情](./TechnicalDebtLog.md#td-031-upstream-协议文档收敛) |
 | TD-032 | ✅ 已解决 | Tests & Tools 结构规范 → 新增测试项目/工具项目结构约束和防线测试 (PR-RS-TESTS01) | [详情](./TechnicalDebtLog.md#td-032-tests-与-tools-结构规范) |
 | TD-033 | ✅ 已解决 | 单一权威实现表扩展 & 自动化验证 → 扩展权威表并让测试读表执行 (PR-RS-SINGLEAUTH01) | [详情](./TechnicalDebtLog.md#td-033-单一权威实现表扩展--自动化验证) |
+| TD-034 | ✅ 已解决 | 配置缓存统一 → 所有配置服务统一使用 ISlidingConfigCache，消灭分散缓存实现 (PR-CONFIG-HOTRELOAD01) | [详情](./TechnicalDebtLog.md#td-034-配置缓存统一) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 33 |
+| ✅ 已解决 | 34 |
 | ⏳ 进行中 | 0 |
 | ❌ 未开始 | 0 |
-| **总计** | **33** |
+| **总计** | **34** |
 
 ---
 
@@ -1431,6 +1432,7 @@ tools/Profiling/
 
 | 概念 | 权威接口 / 类型 | 权威所在项目 & 目录 | 禁止出现的位置 | 测试防线 |
 |------|----------------|--------------------|--------------|---------| 
+| **配置缓存 / 热更新管道** | `ISlidingConfigCache`, `SlidingConfigCache` | `Application/Services/Caching/` | ❌ `Configuration.Persistence/` 中自带缓存（已删除）<br/>❌ `Host/Controllers/` 中自定义缓存<br/>❌ `Core/` 中实现配置缓存<br/>❌ `Execution/` 中定义配置缓存<br/>❌ `Drivers/` 中实现配置缓存<br/>❌ `Ingress/` 中实现配置缓存<br/>❌ 其他项目中定义 `*ConfigCache`、`*OptionsProvider`、`*Cached*Repository`（正则匹配） | `TechnicalDebtComplianceTests.ConfigCacheShadowTests`<br/>`SingleAuthorityCatalogTests.Configuration_Cache_Should_Be_In_Application_Services_Caching` |
 | **HAL / 硬件抽象层** | `IWheelDiverterDriver`, `IWheelDiverterDevice`, `IInputPort`, `IOutputPort`, `IIoLinkageDriver`, `IVendorIoMapper`, `ISensorVendorConfigProvider`, `IEmcController` | `Core/Hardware/**` (Ports/, Devices/, IoLinkage/, Mappings/, Providers/) | ❌ `Core/Abstractions/Drivers/`（已删除）<br/>❌ `Drivers/Abstractions/`<br/>❌ `Execution/` 中定义硬件接口<br/>❌ `Host/` 中定义硬件接口 | `ArchTests.HalConsolidationTests`<br/>`DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers` |
 | **上游通信 / RuleEngine 客户端** | `IUpstreamRoutingClient`, `IUpstreamContractMapper` | `Core/Abstractions/Upstream/` | ❌ `Execution/` 中定义 `IRuleEngineClient` 等平行接口<br/>❌ `Communication/` 中定义平行路由接口<br/>❌ `Ingress/Upstream/`（已删除）<br/>❌ `Host/` 中定义上游通信接口 | `ArchTests.RoutingTopologyLayerTests`<br/>`TechnicalDebtComplianceTests.TopologyShadowTests`<br/>`SingleAuthorityCatalogTests` |
 | **上游契约 / 事件** | `ChuteAssignmentEventArgs`, `SortingCompletedNotification`, `DwsMeasurement` (Core 事件)<br/>`ParcelDetectionNotification`, `ChuteAssignmentNotification`, `SortingCompletedNotificationDto`, `DwsMeasurementDto` (传输 DTO) | `Core/Abstractions/Upstream/` (Core 事件)<br/>`Infrastructure/Communication/Models/` (传输 DTO) | ❌ 其他项目定义 `*Parcel*Notification`<br/>❌ 其他项目定义 `*AssignmentNotification`<br/>❌ 其他项目定义 `SortingCompleted*` 相关 DTO/事件 | `SingleAuthorityCatalogTests` |
@@ -1559,6 +1561,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：3.6 (PR-RS-SINGLEAUTH01)  
+**文档版本**：3.7 (PR-CONFIG-HOTRELOAD01)  
 **最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team

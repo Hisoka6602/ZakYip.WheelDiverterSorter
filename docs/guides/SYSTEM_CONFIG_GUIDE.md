@@ -211,6 +211,77 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/config/system" `
 }
 ```
 
+## 配置热更新与缓存语义
+
+系统采用统一的配置缓存机制 (`ISlidingConfigCache`)，确保配置读取高效且更新后立即生效。
+
+### 缓存策略
+
+- **滑动过期时间**：1 小时
+- **无绝对过期时间**：只要配置在被使用，缓存就会保持有效
+- **缓存优先级**：高优先级 (CacheItemPriority.High)，减少内存压力时被淘汰的概率
+
+### 读取语义
+
+- **首次读取**：访问 LiteDB 数据库，将配置加载到内存缓存
+- **后续读取（1 小时内）**：直接从内存缓存返回，不访问数据库
+- **性能优化**：命中缓存时返回 `Task.FromResult(cached)`，避免额外 Task 分配
+
+### 更新语义
+
+- **写入顺序**：先写持久化 (LiteDB)，再刷新缓存 (`_configCache.Set()`)
+- **生效时间**：立即生效，下一次 `GetSystemConfig()` 等方法调用必定返回新值
+- **无需重启**：配置更新不需要重启 Host 或重建 DI 容器
+
+### 适用范围
+
+所有业务配置统一采用此缓存机制，包括：
+- 系统配置 (`SystemConfiguration`)
+- 通信配置 (`CommunicationConfiguration`)
+- IO 联动配置 (`IoLinkageConfiguration`)
+- 日志配置 (`LoggingConfiguration`)
+- 厂商配置 (`DriverConfiguration`, `SensorConfiguration`, `WheelDiverterConfiguration`)
+
+### 示例流程
+
+#### 配置更新流程
+```
+1. API 收到 PUT /api/config/system 请求
+2. SystemConfigService.UpdateSystemConfigAsync() 执行：
+   a. 验证配置
+   b. _repository.Update(config)  // 写入 LiteDB
+   c. var updated = _repository.Get()  // 读取确认
+   d. _configCache.Set(cacheKey, updated)  // 刷新缓存
+3. 返回成功响应
+4. 下一次 GetSystemConfig() 调用直接从缓存返回新值
+```
+
+#### 配置读取流程（缓存命中）
+```
+1. 业务代码调用 _configService.GetSystemConfig()
+2. _configCache.GetOrAdd() 检查缓存
+3. 缓存命中，直接返回缓存对象（无 LiteDB 访问）
+```
+
+#### 配置读取流程（缓存未命中）
+```
+1. 业务代码调用 _configService.GetSystemConfig()
+2. _configCache.GetOrAdd() 检查缓存
+3. 缓存未命中，调用 factory: () => _repository.Get()
+4. 从 LiteDB 读取配置
+5. 将配置存入缓存（1 小时滑动过期）
+6. 返回配置对象
+```
+
+### 高频场景下的性能
+
+对于高频读取配置的场景（如路径生成、包裹超时判定、IO 联动执行）：
+- **首次读取**：访问 LiteDB（约 1-5ms）
+- **后续 1 小时内**：内存缓存命中（约 0.01ms）
+- **性能提升**：100-500 倍性能提升
+
+---
+
 ## 热重载机制
 
 配置更新后，系统会立即从数据库读取最新配置：
