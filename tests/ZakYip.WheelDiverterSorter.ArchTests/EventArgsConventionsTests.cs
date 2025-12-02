@@ -188,13 +188,9 @@ public class EventArgsConventionsTests
             }
 
             var eventTypes = ExtractEventArgsDefinitions(file);
-            foreach (var eventType in eventTypes)
+            foreach (var eventType in eventTypes.Where(e => !WhitelistedEventTypes.Contains(e.TypeName)))
             {
-                // 检查白名单
-                if (!WhitelistedEventTypes.Contains(eventType.TypeName))
-                {
-                    violations.Add((eventType.TypeName, file));
-                }
+                violations.Add((eventType.TypeName, file));
             }
         }
 

@@ -9,8 +9,6 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using WdsClientConnectionEventArgs = ZakYip.WheelDiverterSorter.Communication.Abstractions.ClientConnectionEventArgs;
-using WdsParcelNotificationReceivedEventArgs = ZakYip.WheelDiverterSorter.Communication.Abstractions.ParcelNotificationReceivedEventArgs;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 
@@ -170,7 +168,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             clientId);
 
         // 触发客户端连接事件
-        ClientConnected?.Invoke(this, new WdsClientConnectionEventArgs
+        ClientConnected?.Invoke(this, new ClientConnectionEventArgs
         {
             ClientId = clientId,
             ConnectedAt = clientInfo.ConnectedAt,
@@ -192,7 +190,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                 clientId);
 
             // 触发客户端断开事件
-            ClientDisconnected?.Invoke(this, new WdsClientConnectionEventArgs
+            ClientDisconnected?.Invoke(this, new ClientConnectionEventArgs
             {
                 ClientId = clientId,
                 ConnectedAt = clientInfo.ConnectedAt,
@@ -226,7 +224,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                     notification.ParcelId);
 
                 // 触发包裹通知接收事件
-                ParcelNotificationReceived?.Invoke(this, new WdsParcelNotificationReceivedEventArgs
+                ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
                 {
                     ParcelId = notification.ParcelId,
                     ClientId = args.ClientId,

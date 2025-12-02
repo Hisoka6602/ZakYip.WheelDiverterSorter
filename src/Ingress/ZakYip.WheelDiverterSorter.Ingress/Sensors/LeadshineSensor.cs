@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
@@ -21,6 +22,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 public class LeadshineSensor : ISensor {
     private readonly ILogger _logger;
     private readonly IInputPort _inputPort;
+    private readonly ISystemClock _systemClock;
     private readonly int _inputBit;
     private readonly string _sensorTypeName;
     private CancellationTokenSource? _cts;
@@ -60,17 +62,20 @@ public class LeadshineSensor : ISensor {
     /// <param name="type">传感器类型</param>
     /// <param name="inputPort">输入端口</param>
     /// <param name="inputBit">输入位索引</param>
+    /// <param name="systemClock">系统时钟</param>
     public LeadshineSensor(
         ILogger logger,
         string sensorId,
         SensorType type,
         IInputPort inputPort,
-        int inputBit) {
+        int inputBit,
+        ISystemClock systemClock) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
         Type = type;
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _inputBit = inputBit;
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _lastState = false;
         
         // 根据传感器类型设置名称（用于日志）
@@ -142,7 +147,7 @@ public class LeadshineSensor : ISensor {
                     var sensorEvent = new SensorEvent {
                         SensorId = SensorId,
                         SensorType = Type,
-                        TriggerTime = DateTimeOffset.Now,
+                        TriggerTime = _systemClock.LocalNowOffset,
                         IsTriggered = currentState
                     };
 
@@ -170,7 +175,7 @@ public class LeadshineSensor : ISensor {
                     Type = Type,
                     ErrorMessage = $"读取输入位失败: {ex.Message}",
                     Exception = ex,
-                    ErrorTime = DateTimeOffset.Now
+                    ErrorTime = _systemClock.LocalNowOffset
                 });
 
                 // 发生错误时等待一段时间再重试

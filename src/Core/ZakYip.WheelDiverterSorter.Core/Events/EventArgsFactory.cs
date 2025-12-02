@@ -20,7 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Events;
 /// </list>
 /// <para>工厂方法尽量内联，不引入新的抽象层。</para>
 /// </remarks>
-internal static class EventArgsFactory
+file static class EventArgsFactory
 {
     #region Hardware Events
 
