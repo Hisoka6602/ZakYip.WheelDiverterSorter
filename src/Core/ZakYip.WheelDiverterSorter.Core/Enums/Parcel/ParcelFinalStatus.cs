@@ -53,5 +53,15 @@ public enum ParcelFinalStatus
     /// 规则引擎超时
     /// </summary>
     [Description("规则引擎超时")]
-    RuleEngineTimeout
+    RuleEngineTimeout,
+
+    /// <summary>
+    /// 包裹丢失（超过最大存活时间仍未完成落格）
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 从首次检测时间起，若超过 MaxLifetimeBeforeLost 仍未获得落格确认，
+    /// 也没有有效的位置状态，则判定为"包裹丢失"。
+    /// </remarks>
+    [Description("包裹丢失")]
+    Lost
 }

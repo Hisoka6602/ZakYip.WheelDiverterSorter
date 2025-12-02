@@ -6,7 +6,8 @@ namespace ZakYip.WheelDiverterSorter.Observability;
 /// 包裹生命周期日志记录器接口
 /// </summary>
 /// <remarks>
-/// 负责记录包裹从创建到完成的完整生命周期
+/// 负责记录包裹从创建到完成的完整生命周期。
+/// PR-NOSHADOW-ALL: 扩展接口，添加超时和丢失事件的日志记录方法。
 /// </remarks>
 public interface IParcelLifecycleLogger
 {
@@ -43,4 +44,30 @@ public interface IParcelLifecycleLogger
     /// <param name="context">包裹生命周期上下文</param>
     /// <param name="reason">异常原因</param>
     void LogException(ParcelLifecycleContext context, string reason);
+
+    /// <summary>
+    /// 记录包裹超时事件
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当包裹在规定时间内未完成某阶段（分配超时或落格超时）时调用。
+    /// <list type="bullet">
+    ///   <item>分配超时：检测后超过 DetectionToAssignmentTimeoutSeconds 未收到格口分配</item>
+    ///   <item>落格超时：分配后超过 AssignmentToSortingTimeoutSeconds 未完成落格</item>
+    /// </list>
+    /// </remarks>
+    /// <param name="context">包裹生命周期上下文</param>
+    /// <param name="timeoutType">超时类型（"AssignmentTimeout" 或 "SortingTimeout"）</param>
+    /// <param name="elapsedSeconds">已经过时间（秒）</param>
+    void LogTimeout(ParcelLifecycleContext context, string timeoutType, double elapsedSeconds);
+
+    /// <summary>
+    /// 记录包裹丢失事件
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当包裹超过最大存活时间仍未完成落格，且无法确定位置时调用。
+    /// 此时包裹已超出系统控制范围，仅记录和通知上游。
+    /// </remarks>
+    /// <param name="context">包裹生命周期上下文</param>
+    /// <param name="lifetimeSeconds">包裹在系统中的总存活时间（秒）</param>
+    void LogLost(ParcelLifecycleContext context, double lifetimeSeconds);
 }
