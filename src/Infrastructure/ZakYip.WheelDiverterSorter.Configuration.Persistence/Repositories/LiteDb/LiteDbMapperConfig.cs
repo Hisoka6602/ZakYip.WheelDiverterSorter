@@ -58,6 +58,9 @@ public static class LiteDbMapperConfig
         
         mapper.Entity<WheelBindingsConfig>()
             .Id(x => x.Id);
+        
+        mapper.Entity<ChutePathTopologyConfig>()
+            .Id(x => x.TopologyId);
     }
 
     /// <summary>
