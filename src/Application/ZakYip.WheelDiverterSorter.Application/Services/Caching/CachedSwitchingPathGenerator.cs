@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -6,24 +5,59 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 namespace ZakYip.WheelDiverterSorter.Application.Services.Caching;
 
 /// <summary>
+/// 路径缓存管理接口
+/// </summary>
+/// <remarks>
+/// 用于在拓扑配置变更时清除路径缓存
+/// </remarks>
+public interface IPathCacheManager
+{
+    /// <summary>
+    /// 清除指定格口的路径缓存
+    /// </summary>
+    /// <param name="targetChuteId">目标格口ID</param>
+    void InvalidateCache(long targetChuteId);
+
+    /// <summary>
+    /// 清除所有路径缓存
+    /// </summary>
+    /// <param name="knownChuteIds">已知的格口ID列表，用于逐个清除</param>
+    void InvalidateAllCache(IEnumerable<long>? knownChuteIds = null);
+}
+
+/// <summary>
 /// 带缓存优化的路径生成器包装器
 /// </summary>
-public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
+/// <remarks>
+/// 使用统一的 ISlidingConfigCache，采用 1 小时滑动过期策略。
+/// 当拓扑配置变更时，应调用 InvalidateCache 清除相关缓存。
+/// 
+/// 性能优化：
+/// - 使用 readonly record struct 作为缓存键，避免频繁创建堆对象
+/// - 缓存键是值类型，不会造成内存泄漏
+/// </remarks>
+public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheManager
+{
+    /// <summary>
+    /// 路径缓存键（值类型，避免堆分配）
+    /// </summary>
+    private readonly record struct PathCacheKey(long ChuteId);
+
     private readonly ISwitchingPathGenerator _innerGenerator;
-    private readonly IMemoryCache _cache;
+    private readonly ISlidingConfigCache _configCache;
     private readonly ISystemClock _clock;
     private readonly ILogger<CachedSwitchingPathGenerator> _logger;
-    private const int CacheDurationMinutes = 5;
 
     public CachedSwitchingPathGenerator(
         ISwitchingPathGenerator innerGenerator,
-        IMemoryCache cache,
+        ISlidingConfigCache configCache,
         ISystemClock clock,
-        ILogger<CachedSwitchingPathGenerator> logger) {
-        _innerGenerator = innerGenerator;
-        _cache = cache;
-        _clock = clock;
-        _logger = logger;
+        ILogger<CachedSwitchingPathGenerator> logger)
+    {
+        _innerGenerator = innerGenerator ?? throw new ArgumentNullException(nameof(innerGenerator));
+        _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public SwitchingPath? GeneratePath(long targetChuteId)
@@ -33,10 +67,12 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
             return null;
         }
 
-        var cacheKey = $"path_{targetChuteId}";
+        // 使用值类型缓存键，避免堆分配
+        var cacheKey = new PathCacheKey(targetChuteId);
 
         // 尝试从缓存中获取
-        if (_cache.TryGetValue<SwitchingPath?>(cacheKey, out var cachedPath) && cachedPath != null) {
+        if (_configCache.TryGetValue<SwitchingPath>(cacheKey, out var cachedPath) && cachedPath != null)
+        {
             _logger.LogDebug("路径缓存命中: {ChuteId}", targetChuteId);
 
             // 返回缓存的路径，更新生成时间
@@ -48,36 +84,40 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator {
         var path = _innerGenerator.GeneratePath(targetChuteId);
 
         // 将路径放入缓存（只缓存成功的路径）
-        if (path != null) {
-            var cacheOptions = new MemoryCacheEntryOptions {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(CacheDurationMinutes),
-                Size = 1 // 用于LRU淘汰
-            };
-
-            _cache.Set(cacheKey, path, cacheOptions);
-            _logger.LogDebug("路径已缓存: {ChuteId}, 过期时间: {Minutes}分钟", targetChuteId, CacheDurationMinutes);
+        if (path != null)
+        {
+            _configCache.Set(cacheKey, path);
+            _logger.LogDebug("路径已缓存（1小时滑动过期）: {ChuteId}", targetChuteId);
         }
 
         return path;
     }
 
-    /// <summary>
-    /// 清除指定格口的缓存
-    /// </summary>
+    /// <inheritdoc />
     public void InvalidateCache(long targetChuteId)
     {
-        var cacheKey = $"path_{targetChuteId}";
-        _cache.Remove(cacheKey);
-        _logger.LogInformation("已清除格口缓存: {ChuteId}", targetChuteId);
+        var cacheKey = new PathCacheKey(targetChuteId);
+        _configCache.Remove(cacheKey);
+        _logger.LogInformation("已清除格口路径缓存: {ChuteId}", targetChuteId);
     }
 
-    /// <summary>
-    /// 清除所有缓存
-    /// </summary>
-    public void InvalidateAllCache() {
-        if (_cache is MemoryCache memoryCache) {
-            memoryCache.Compact(1.0); // 清除所有缓存
-            _logger.LogInformation("已清除所有路径缓存");
+    /// <inheritdoc />
+    public void InvalidateAllCache(IEnumerable<long>? knownChuteIds = null)
+    {
+        if (knownChuteIds != null)
+        {
+            var count = 0;
+            foreach (var chuteId in knownChuteIds)
+            {
+                var cacheKey = new PathCacheKey(chuteId);
+                _configCache.Remove(cacheKey);
+                count++;
+            }
+            _logger.LogInformation("已清除 {Count} 个格口的路径缓存", count);
+        }
+        else
+        {
+            _logger.LogWarning("InvalidateAllCache 被调用但未提供格口ID列表，无法清除缓存");
         }
     }
 }

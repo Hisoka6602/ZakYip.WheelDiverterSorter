@@ -20,6 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 public class LoggingConfigServiceTests
 {
     private readonly Mock<ILoggingConfigurationRepository> _mockRepository;
+    private readonly Mock<ISlidingConfigCache> _mockConfigCache;
     private readonly Mock<ILogger<LoggingConfigService>> _mockLogger;
     private readonly LoggingConfigService _service;
     private readonly LoggingConfiguration _defaultConfig;
@@ -27,13 +28,19 @@ public class LoggingConfigServiceTests
     public LoggingConfigServiceTests()
     {
         _mockRepository = new Mock<ILoggingConfigurationRepository>();
+        _mockConfigCache = new Mock<ISlidingConfigCache>();
         _mockLogger = new Mock<ILogger<LoggingConfigService>>();
 
         _defaultConfig = LoggingConfiguration.GetDefault();
         _mockRepository.Setup(r => r.Get()).Returns(_defaultConfig);
+        
+        // Setup cache to delegate to repository for GetOrAdd
+        _mockConfigCache.Setup(c => c.GetOrAdd(It.IsAny<object>(), It.IsAny<Func<LoggingConfiguration>>()))
+            .Returns((object key, Func<LoggingConfiguration> factory) => factory());
 
         _service = new LoggingConfigService(
             _mockRepository.Object,
+            _mockConfigCache.Object,
             _mockLogger.Object);
     }
 

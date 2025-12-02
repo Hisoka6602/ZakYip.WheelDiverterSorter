@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
@@ -17,11 +18,19 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 /// 通信配置服务实现
 /// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </summary>
+/// <remarks>
+/// 支持配置缓存与热更新：
+/// - 读取：通过统一滑动缓存（1小时过期）
+/// - 更新：先写 LiteDB，再立即刷新缓存
+/// </remarks>
 public class CommunicationConfigService : ICommunicationConfigService
 {
+    private static readonly object CommunicationConfigCacheKey = new();
+
     private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ICommunicationConfigurationRepository _configRepository;
     private readonly ICommunicationStatsService _statsService;
+    private readonly ISlidingConfigCache _configCache;
     private readonly ISystemClock _systemClock;
     private readonly IUpstreamConnectionManager? _connectionManager;
     private readonly UpstreamServerBackgroundService? _serverBackgroundService;
@@ -31,6 +40,7 @@ public class CommunicationConfigService : ICommunicationConfigService
         IUpstreamRoutingClient upstreamClient,
         ICommunicationConfigurationRepository configRepository,
         ICommunicationStatsService statsService,
+        ISlidingConfigCache configCache,
         ISystemClock systemClock,
         ILogger<CommunicationConfigService> logger,
         IUpstreamConnectionManager? connectionManager = null,
@@ -39,6 +49,7 @@ public class CommunicationConfigService : ICommunicationConfigService
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _statsService = statsService ?? throw new ArgumentNullException(nameof(statsService));
+        _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connectionManager = connectionManager;
@@ -48,7 +59,7 @@ public class CommunicationConfigService : ICommunicationConfigService
     /// <inheritdoc />
     public CommunicationConfiguration GetConfiguration()
     {
-        return _configRepository.Get();
+        return _configCache.GetOrAdd(CommunicationConfigCacheKey, () => _configRepository.Get());
     }
 
     /// <inheritdoc />
@@ -68,17 +79,21 @@ public class CommunicationConfigService : ICommunicationConfigService
 
             _configRepository.Update(config);
 
+            // 热更新：立即刷新缓存
+            var updatedConfig = _configRepository.Get();
+            _configCache.Set(CommunicationConfigCacheKey, updatedConfig);
+
             _logger.LogInformation(
-                "通信配置已更新 - Communication configuration updated: Mode={Mode}, ConnectionMode={ConnectionMode}, Version={Version}",
-                config.Mode,
-                config.ConnectionMode,
-                config.Version);
+                "通信配置已更新（热更新生效） - Communication configuration updated: Mode={Mode}, ConnectionMode={ConnectionMode}, Version={Version}",
+                updatedConfig.Mode,
+                updatedConfig.ConnectionMode,
+                updatedConfig.Version);
 
             // 根据连接模式触发对应的重新连接/重启
-            var updatedOptions = MapToRuleEngineConnectionOptions(config);
+            var updatedOptions = MapToRuleEngineConnectionOptions(updatedConfig);
 
             // Client模式：通过 UpstreamConnectionManager 触发重新连接
-            if (config.ConnectionMode == ConnectionMode.Client && _connectionManager != null)
+            if (updatedConfig.ConnectionMode == ConnectionMode.Client && _connectionManager != null)
             {
                 try
                 {
@@ -96,7 +111,7 @@ public class CommunicationConfigService : ICommunicationConfigService
                 }
             }
             // Server模式：通过 UpstreamServerBackgroundService 触发服务器重启
-            else if (config.ConnectionMode == ConnectionMode.Server && _serverBackgroundService != null)
+            else if (updatedConfig.ConnectionMode == ConnectionMode.Server && _serverBackgroundService != null)
             {
                 try
                 {
@@ -118,13 +133,11 @@ public class CommunicationConfigService : ICommunicationConfigService
                 _logger.LogWarning(
                     "配置已更新但无法触发重新连接/重启：ConnectionMode={ConnectionMode}, " +
                     "ConnectionManager={HasConnectionManager}, ServerBackgroundService={HasServerService}",
-                    config.ConnectionMode,
+                    updatedConfig.ConnectionMode,
                     _connectionManager != null,
                     _serverBackgroundService != null);
             }
 
-            // 返回更新后的配置
-            var updatedConfig = _configRepository.Get();
             return new CommunicationConfigUpdateResult(true, null, updatedConfig);
         }
         catch (ArgumentException ex)
@@ -145,9 +158,13 @@ public class CommunicationConfigService : ICommunicationConfigService
         var defaultConfig = CommunicationConfiguration.GetDefault();
         _configRepository.Update(defaultConfig);
 
-        _logger.LogInformation("通信配置已重置为默认值 - Communication configuration reset to defaults");
+        // 热更新：立即刷新缓存
+        var updatedConfig = _configRepository.Get();
+        _configCache.Set(CommunicationConfigCacheKey, updatedConfig);
 
-        return _configRepository.Get();
+        _logger.LogInformation("通信配置已重置为默认值（热更新生效） - Communication configuration reset to defaults");
+
+        return updatedConfig;
     }
 
     /// <inheritdoc />

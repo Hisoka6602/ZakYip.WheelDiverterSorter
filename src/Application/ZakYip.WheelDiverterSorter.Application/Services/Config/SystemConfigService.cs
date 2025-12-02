@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
@@ -8,25 +9,35 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 /// <summary>
 /// 系统配置服务实现
 /// </summary>
+/// <remarks>
+/// 支持配置缓存与热更新：
+/// - 读取：通过统一滑动缓存（1小时过期）
+/// - 更新：先写 LiteDB，再立即刷新缓存
+/// </remarks>
 public class SystemConfigService : ISystemConfigService
 {
+    private static readonly object SystemConfigCacheKey = new();
+
     private readonly ISystemConfigurationRepository _repository;
     private readonly IRouteConfigurationRepository _routeRepository;
+    private readonly ISlidingConfigCache _configCache;
     private readonly ILogger<SystemConfigService> _logger;
 
     public SystemConfigService(
         ISystemConfigurationRepository repository,
         IRouteConfigurationRepository routeRepository,
+        ISlidingConfigCache configCache,
         ILogger<SystemConfigService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
+        _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public SystemConfiguration GetSystemConfig()
     {
-        return _repository.Get();
+        return _configCache.GetOrAdd(SystemConfigCacheKey, () => _repository.Get());
     }
 
     public SystemConfiguration GetDefaultTemplate()
@@ -65,16 +76,18 @@ public class SystemConfigService : ISystemConfigService
                 return new SystemConfigUpdateResult(false, error, null);
             }
 
-            // 更新配置
+            // 更新配置到持久化
             _repository.Update(config);
 
-            _logger.LogInformation(
-                "系统配置已更新: ExceptionChuteId={ExceptionChuteId}, Version={Version}",
-                config.ExceptionChuteId,
-                config.Version);
-
-            // 重新获取更新后的配置
+            // 热更新：立即刷新缓存
             var updatedConfig = _repository.Get();
+            _configCache.Set(SystemConfigCacheKey, updatedConfig);
+
+            _logger.LogInformation(
+                "系统配置已更新（热更新生效）: ExceptionChuteId={ExceptionChuteId}, Version={Version}",
+                updatedConfig.ExceptionChuteId,
+                updatedConfig.Version);
+
             return new SystemConfigUpdateResult(true, null, updatedConfig);
         }
         catch (ArgumentException ex)
@@ -95,14 +108,18 @@ public class SystemConfigService : ISystemConfigService
         var defaultConfig = SystemConfiguration.GetDefault();
         _repository.Update(defaultConfig);
 
-        _logger.LogInformation("系统配置已重置为默认值");
+        // 热更新：立即刷新缓存
+        var updatedConfig = _repository.Get();
+        _configCache.Set(SystemConfigCacheKey, updatedConfig);
 
-        return _repository.Get();
+        _logger.LogInformation("系统配置已重置为默认值（热更新生效）");
+
+        return updatedConfig;
     }
 
     public SortingModeInfo GetSortingMode()
     {
-        var config = _repository.Get();
+        var config = GetSystemConfig();
         return new SortingModeInfo(
             config.SortingMode,
             config.FixedChuteId,
@@ -137,17 +154,19 @@ public class SystemConfigService : ISystemConfigService
                 return new SortingModeUpdateResult(false, errorMessage, null);
             }
 
-            // 更新配置
+            // 更新配置到持久化
             _repository.Update(config);
 
-            _logger.LogInformation(
-                "分拣模式已更新: SortingMode={SortingMode}, FixedChuteId={FixedChuteId}, AvailableChuteIds={AvailableChuteIds}",
-                config.SortingMode,
-                config.FixedChuteId,
-                string.Join(",", config.AvailableChuteIds));
-
-            // 重新获取更新后的配置
+            // 热更新：立即刷新缓存
             var updatedConfig = _repository.Get();
+            _configCache.Set(SystemConfigCacheKey, updatedConfig);
+
+            _logger.LogInformation(
+                "分拣模式已更新（热更新生效）: SortingMode={SortingMode}, FixedChuteId={FixedChuteId}, AvailableChuteIds={AvailableChuteIds}",
+                updatedConfig.SortingMode,
+                updatedConfig.FixedChuteId,
+                string.Join(",", updatedConfig.AvailableChuteIds ?? new List<long>()));
+
             var updatedMode = new SortingModeInfo(
                 updatedConfig.SortingMode,
                 updatedConfig.FixedChuteId,
