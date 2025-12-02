@@ -17,6 +17,31 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class SingleAuthorityCatalogTests
 {
+    #region Static Regex Patterns (compiled once)
+
+    /// <summary>
+    /// 通用类型定义匹配模式
+    /// </summary>
+    private static readonly Regex TypeDefinitionPattern = new(
+        @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:readonly\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+|interface\s+)(?<typeName>\w+)",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+    /// <summary>
+    /// 通知类型匹配模式
+    /// </summary>
+    private static readonly Regex NotificationTypePattern = new(
+        @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+)(?<typeName>\w+(?:Notification|AssignmentEventArgs))\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+    /// <summary>
+    /// Options 类型匹配模式
+    /// </summary>
+    private static readonly Regex OptionsTypePattern = new(
+        @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+)(?<typeName>\w+Options)\b",
+        RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+
+    #endregion
+
     #region Authority Catalog Constants
 
     /// <summary>
@@ -221,14 +246,11 @@ public class SingleAuthorityCatalogTests
 
         // 收集所有类型定义
         var allTypeDefinitions = new Dictionary<string, List<string>>(StringComparer.Ordinal);
-        var typePattern = new Regex(
-            @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:readonly\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+|interface\s+)(?<typeName>\w+)",
-            RegexOptions.Compiled | RegexOptions.ExplicitCapture);
 
         foreach (var file in sourceFiles)
         {
             var content = File.ReadAllText(file);
-            var matches = typePattern.Matches(content);
+            var matches = TypeDefinitionPattern.Matches(content);
             var relativePath = Path.GetRelativePath(solutionRoot, file).Replace('\\', '/');
 
             foreach (Match match in matches)
@@ -363,11 +385,6 @@ public class SingleAuthorityCatalogTests
             "Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/"
         };
 
-        // 检测模式：查找类似 *Notification, *AssignmentNotification 等的类型定义
-        var notificationPattern = new Regex(
-            @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+)(?<typeName>\w+(?:Notification|AssignmentEventArgs))\b",
-            RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-
         foreach (var file in sourceFiles)
         {
             var relativePath = Path.GetRelativePath(solutionRoot, file).Replace('\\', '/');
@@ -379,7 +396,7 @@ public class SingleAuthorityCatalogTests
             }
 
             var content = File.ReadAllText(file);
-            var matches = notificationPattern.Matches(content);
+            var matches = NotificationTypePattern.Matches(content);
 
             foreach (Match match in matches)
             {
@@ -409,10 +426,6 @@ public class SingleAuthorityCatalogTests
 
         var vendorPrefixes = new[] { "Leadshine", "Modi", "ShuDiNiao", "Siemens", "Mitsubishi", "Omron" };
 
-        var optionsPattern = new Regex(
-            @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+)(?<typeName>\w+Options)\b",
-            RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-
         foreach (var file in sourceFiles)
         {
             var relativePath = Path.GetRelativePath(solutionRoot, file).Replace('\\', '/');
@@ -424,7 +437,7 @@ public class SingleAuthorityCatalogTests
             }
 
             var content = File.ReadAllText(file);
-            var matches = optionsPattern.Matches(content);
+            var matches = OptionsTypePattern.Matches(content);
 
             foreach (Match match in matches)
             {
@@ -516,11 +529,6 @@ public class SingleAuthorityCatalogTests
             .Where(f => !IsInExcludedDirectory(f))
             .ToList();
 
-        // 收集所有类型定义
-        var typePattern = new Regex(
-            @"(?:public|internal)\s+(?:sealed\s+)?(?:partial\s+)?(?:readonly\s+)?(?:record\s+(?:class|struct)\s+|record\s+|class\s+|struct\s+|interface\s+)(?<typeName>\w+)",
-            RegexOptions.Compiled | RegexOptions.ExplicitCapture);
-
         foreach (var entry in AllAuthorityEntries)
         {
             report.AppendLine($"## {entry.ConceptName}\n");
@@ -534,7 +542,7 @@ public class SingleAuthorityCatalogTests
                 foreach (var file in sourceFiles)
                 {
                     var content = File.ReadAllText(file);
-                    var matches = typePattern.Matches(content);
+                    var matches = TypeDefinitionPattern.Matches(content);
 
                     foreach (Match match in matches)
                     {
