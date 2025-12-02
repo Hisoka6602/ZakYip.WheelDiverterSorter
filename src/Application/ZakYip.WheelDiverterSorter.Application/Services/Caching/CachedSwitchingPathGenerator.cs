@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -34,43 +33,15 @@ public interface IPathCacheManager
 /// 当拓扑配置变更时，应调用 InvalidateCache 清除相关缓存。
 /// 
 /// 性能优化：
-/// - 使用对象池化的缓存键，避免频繁创建对象
-/// - 缓存键按格口ID池化，重复使用同一对象
+/// - 使用 readonly record struct 作为缓存键，避免频繁创建堆对象
+/// - 缓存键是值类型，不会造成内存泄漏
 /// </remarks>
 public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheManager
 {
     /// <summary>
-    /// 路径缓存键，使用池化避免频繁创建对象
+    /// 路径缓存键（值类型，避免堆分配）
     /// </summary>
-    private sealed class PathCacheKey : IEquatable<PathCacheKey>
-    {
-        public long ChuteId { get; }
-
-        public PathCacheKey(long chuteId)
-        {
-            ChuteId = chuteId;
-        }
-
-        public bool Equals(PathCacheKey? other)
-        {
-            return other is not null && ChuteId == other.ChuteId;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return obj is PathCacheKey other && ChuteId == other.ChuteId;
-        }
-
-        public override int GetHashCode()
-        {
-            return ChuteId.GetHashCode();
-        }
-    }
-
-    /// <summary>
-    /// 缓存键对象池，按格口ID池化缓存键对象
-    /// </summary>
-    private static readonly ConcurrentDictionary<long, PathCacheKey> CacheKeyPool = new();
+    private readonly record struct PathCacheKey(long ChuteId);
 
     private readonly ISwitchingPathGenerator _innerGenerator;
     private readonly ISlidingConfigCache _configCache;
@@ -89,14 +60,6 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheM
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <summary>
-    /// 获取或创建池化的缓存键
-    /// </summary>
-    private static PathCacheKey GetOrCreateCacheKey(long chuteId)
-    {
-        return CacheKeyPool.GetOrAdd(chuteId, id => new PathCacheKey(id));
-    }
-
     public SwitchingPath? GeneratePath(long targetChuteId)
     {
         if (targetChuteId <= 0)
@@ -104,8 +67,8 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheM
             return null;
         }
 
-        // 使用池化的缓存键，避免频繁创建对象
-        var cacheKey = GetOrCreateCacheKey(targetChuteId);
+        // 使用值类型缓存键，避免堆分配
+        var cacheKey = new PathCacheKey(targetChuteId);
 
         // 尝试从缓存中获取
         if (_configCache.TryGetValue<SwitchingPath>(cacheKey, out var cachedPath) && cachedPath != null)
@@ -133,7 +96,7 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheM
     /// <inheritdoc />
     public void InvalidateCache(long targetChuteId)
     {
-        var cacheKey = GetOrCreateCacheKey(targetChuteId);
+        var cacheKey = new PathCacheKey(targetChuteId);
         _configCache.Remove(cacheKey);
         _logger.LogInformation("已清除格口路径缓存: {ChuteId}", targetChuteId);
     }
@@ -146,7 +109,7 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheM
             var count = 0;
             foreach (var chuteId in knownChuteIds)
             {
-                var cacheKey = GetOrCreateCacheKey(chuteId);
+                var cacheKey = new PathCacheKey(chuteId);
                 _configCache.Remove(cacheKey);
                 count++;
             }
