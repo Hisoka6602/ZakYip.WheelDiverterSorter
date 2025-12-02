@@ -43,6 +43,7 @@
 - [TD-029] 配置模型瘦身 (PR-SD5)
 - [TD-030] Core 混入 LiteDB 持久化实现 (PR-RS13)
 - [TD-031] Upstream 协议文档收敛 (PR-DOC-UPSTREAM01)
+- [TD-032] Tests 与 Tools 结构规范 (PR-RS-TESTS01)
 
 ---
 
@@ -779,6 +780,68 @@
 
 ---
 
-**文档版本**：1.1 (PR-DOC-UPSTREAM01)  
+## [TD-032] Tests 与 Tools 结构规范
+
+**状态**：✅ 已解决 (PR-RS-TESTS01)
+
+**问题描述**：
+- 测试项目和工具项目缺少统一的结构规则
+- 未来容易在 tests/tools 里重新定义 DTO/Options/Enums 等，违反"单一权威实现"的原则
+- 没有显式记录测试项目的依赖边界和职责
+
+**解决方案 (PR-RS-TESTS01)**：
+
+1. **在 RepositoryStructure.md 中补充文档**：
+   - 新增"测试项目结构"章节，描述每个测试项目的职责和依赖边界
+   - 新增"工具项目结构"章节，描述工具项目的职责和依赖方向
+   - 更新解决方案概览中的测试项目列表
+
+2. **新增结构防线测试 (TechnicalDebtComplianceTests)**：
+   - `TestProjectsStructureTests.ShouldNotDefineDomainModelsInTests()`
+     - 检测测试项目中是否定义了 Core/Domain 命名空间的类型
+     - 允许测试辅助类型（Mock/Stub/Fake/Test/Helper 等命名模式）
+   - `TestProjectsStructureTests.ShouldNotHaveLegacyDirectoriesInTests()`
+     - 沿用 src 目录的规则，测试项目也禁止 Legacy 目录
+   - `TestProjectsStructureTests.ShouldNotUseGlobalUsingsInTests()`
+     - 沿用 src 目录的规则，测试项目也禁止 global using
+   - `TestProjectsStructureTests.ShouldNotDuplicateProductionTypesInTests()`
+     - 警告性检测：在测试项目中发现与 src 同名的类型
+   - `TestProjectsStructureTests.ToolsShouldNotDefineDomainModels()`
+     - 工具项目不应定义 Core/Domain 命名空间的业务模型
+   - `TestProjectsStructureTests.GenerateTestProjectsStructureReport()`
+     - 生成测试项目结构报告
+
+3. **更新 copilot-instructions.md**：
+   - 当 PR 改动 tests/ 或 tools/ 目录时，Copilot 必须先看：
+     - `docs/RepositoryStructure.md` 的"测试项目结构/工具项目结构"章节
+     - `TechnicalDebtComplianceTests` 中的结构测试列表
+
+**测试项目结构约束**：
+
+| 约束 | 说明 |
+|------|------|
+| ❌ 禁止定义 Core 命名空间类型 | 测试项目不应定义 `ZakYip.WheelDiverterSorter.Core.*` 命名空间的类型 |
+| ❌ 禁止 Legacy 目录 | 沿用 src 目录规则 |
+| ❌ 禁止 global using | 沿用 src 目录规则 |
+| ✅ 允许测试辅助类型 | Mock/Stub/Fake/Test/Helper 等命名模式 |
+| ✅ 允许引用 src 项目 | 用于测试 |
+
+**工具项目结构约束**：
+
+| 约束 | 说明 |
+|------|------|
+| ❌ 禁止定义 Core/Domain 类型 | 工具项目不应定义业务模型 |
+| ✅ 允许引用 Core 项目 | 获取模型定义 |
+| ✅ 使用工具项目命名空间 | 工具专用类型应使用 `*.Tools.*` 命名空间 |
+
+**防线测试**：
+- `TechnicalDebtComplianceTests.TestProjectsStructureTests.ShouldNotDefineDomainModelsInTests`
+- `TechnicalDebtComplianceTests.TestProjectsStructureTests.ShouldNotHaveLegacyDirectoriesInTests`
+- `TechnicalDebtComplianceTests.TestProjectsStructureTests.ShouldNotUseGlobalUsingsInTests`
+- `TechnicalDebtComplianceTests.TestProjectsStructureTests.ToolsShouldNotDefineDomainModels`
+
+---
+
+**文档版本**：1.2 (PR-RS-TESTS01)  
 **最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team

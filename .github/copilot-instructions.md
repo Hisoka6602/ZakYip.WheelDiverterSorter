@@ -28,6 +28,32 @@
 - 新增文档必须同步更新 `docs/RepositoryStructure.md` 中的文档索引
 - 禁止在 README 或其他文档中重复上游协议字段表/JSON 示例
 
+**测试/工具项目相关修改的额外读取要求**（TD-032 新增）：
+
+当 PR 涉及 `tests/` 或 `tools/` 目录的修改时，Copilot 必须优先读取：
+
+1. **`docs/RepositoryStructure.md`** 的「3.10 工具项目结构」和「3.11 测试项目结构」章节
+2. **`TechnicalDebtComplianceTests` 中的结构测试列表**，尤其是：
+   - `TestProjectsStructureTests.ShouldNotDefineDomainModelsInTests`
+   - `TestProjectsStructureTests.ShouldNotHaveLegacyDirectoriesInTests`
+   - `TestProjectsStructureTests.ShouldNotUseGlobalUsingsInTests`
+   - `TestProjectsStructureTests.ToolsShouldNotDefineDomainModels`
+
+> **目的**：防止在测试/工具项目中重新定义 DTO/Options/Enums 等"影分身"类型，确保业务模型只在 src/ 目录中定义。
+
+**测试项目约束**：
+- ❌ 禁止定义 `ZakYip.WheelDiverterSorter.Core.*` 命名空间的类型
+- ❌ 禁止定义以 `.Domain` 结尾的命名空间的类型
+- ❌ 禁止 Legacy 目录
+- ❌ 禁止 global using
+- ✅ 允许测试辅助类型（Mock/Stub/Fake/Test/Helper/Builder/Factory 等命名模式）
+- ✅ 允许引用 src 中的所有项目（用于测试）
+
+**工具项目约束**：
+- ❌ 禁止定义 Core/Domain 命名空间的业务模型
+- ✅ 允许引用 Core 项目获取模型定义
+- ✅ 工具专用类型应使用工具项目自己的命名空间（`*.Tools.*`）
+
 ---
 
 ## 一、总体原则（不可破坏）
@@ -1820,8 +1846,9 @@ Code Review 时会重点检查：
 14. 不能包含过时方法、属性、字段、类
 15. 不能抑制错误和警告,有错误和警告都必须处理
 16. **上游协议相关修改是否只引用权威文档**（禁止在 README 等处重复字段表/JSON 示例）
+17. **测试/工具项目修改是否遵守结构约束**（TD-032）
 ---
 
-**文档版本**: 1.3 (PR-DOC-UPSTREAM01)  
+**文档版本**: 1.4 (PR-RS-TESTS01)  
 **最后更新**: 2025-12-02  
 **维护团队**: ZakYip Development Team
