@@ -45,7 +45,7 @@ The WheelDiverterSorter actively connects to an upstream RuleEngine server.
 
 **Features**:
 - Automatic reconnection with exponential backoff
-- Maximum backoff time: 2 seconds (hardcoded)
+- Maximum backoff time: 2 seconds (hardcoded, configuration value ignored)
 - Infinite retry attempts
 - Suitable for: Connecting to centralized RuleEngine server
 
@@ -57,13 +57,14 @@ The WheelDiverterSorter actively connects to an upstream RuleEngine server.
     "ConnectionMode": "Client",
     "TcpServer": "ruleengine.example.com:5000",
     "EnableAutoReconnect": true,
-    "MaxBackoffSeconds": 2,
     "TimeoutMs": 5000,
     "RetryCount": 3,
     "RetryDelayMs": 1000
   }
 }
 ```
+
+> **注意**：`MaxBackoffSeconds` 配置项已废弃，系统始终使用硬编码的 2 秒上限。
 
 ### 2. Server Mode
 The WheelDiverterSorter listens for incoming connections from RuleEngine.
@@ -242,6 +243,8 @@ The application uses `IOptionsMonitor<RuleEngineConnectionOptions>` to detect co
 - Communication protocol changes (TCP, SignalR, MQTT)
 - Protocol-specific options (buffer sizes, keep-alive settings, etc.)
 
+> **注意**：`MaxBackoffSeconds` 不支持热更新（已硬编码为 2 秒）。HTTP 协议支持已移除。
+
 ### How to Hot Reload
 
 #### Option 1: Update appsettings.json
@@ -282,8 +285,6 @@ Content-Type: application/json
 - **Reconnection**: MQTT client library handles reconnection
 - **特点**: 适用于物联网场景
 
-> **注意**：HTTP 协议支持已在 PR-UPSTREAM01 中移除，当前默认使用 TCP 协议。
-
 ## Configuration Properties
 
 | Property | Type | Default | Description |
@@ -291,11 +292,14 @@ Content-Type: application/json
 | `Mode` | CommunicationMode | Tcp | Protocol: Tcp, SignalR, Mqtt |
 | `ConnectionMode` | ConnectionMode | Client | Client or Server mode |
 | `EnableAutoReconnect` | bool | true | Enable automatic reconnection (Client mode) |
-| `MaxBackoffSeconds` | int | 2 | Maximum backoff time between reconnection attempts (hardcoded) |
 | `TimeoutMs` | int | 5000 | Connection/request timeout |
 | `RetryCount` | int | 3 | Number of retries per operation |
 | `RetryDelayMs` | int | 1000 | Initial delay between retries |
 | `ChuteAssignmentTimeoutMs` | int | 10000 | Max wait time for chute assignment |
+
+> **注意**：
+> - `MaxBackoffSeconds` 配置项已废弃，系统使用硬编码的 2 秒最大退避时间
+> - HTTP 协议支持已在 PR-UPSTREAM01 中移除
 
 ## Protocol-Specific Configuration
 
