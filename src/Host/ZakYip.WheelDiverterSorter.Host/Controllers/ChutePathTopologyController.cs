@@ -112,8 +112,8 @@ public class ChutePathTopologyController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取格口路径拓扑配置失败");
-            return StatusCode(500, ApiResponse<object>.ServerError("获取格口路径拓扑配置失败 - Failed to get chute path topology configuration"));
+            _logger.LogError(ex, "获取格口路径拓扑配置失败: {ErrorMessage}", ex.Message);
+            return StatusCode(500, ApiResponse<object>.ServerError($"获取格口路径拓扑配置失败: {ex.Message}"));
         }
     }
 

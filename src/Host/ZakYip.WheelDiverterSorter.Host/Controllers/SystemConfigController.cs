@@ -64,8 +64,8 @@ public class SystemConfigController : ApiControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取系统配置失败");
-            return ServerError<SystemConfigResponse>("获取系统配置失败");
+            _logger.LogError(ex, "获取系统配置失败: {ErrorMessage}", ex.Message);
+            return ServerError<SystemConfigResponse>($"获取系统配置失败: {ex.Message}");
         }
     }
 

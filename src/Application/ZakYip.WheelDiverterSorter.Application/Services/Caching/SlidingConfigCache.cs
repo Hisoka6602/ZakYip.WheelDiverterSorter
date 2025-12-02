@@ -63,6 +63,7 @@ internal sealed class SlidingConfigCache : ISlidingConfigCache
         {
             entry.SlidingExpiration = SlidingExpiration;
             entry.Priority = CacheItemPriority.High;
+            entry.Size = 1; // Each config entry counts as size 1
             return factory();
         })!;
     }
@@ -77,7 +78,8 @@ internal sealed class SlidingConfigCache : ISlidingConfigCache
         var options = new MemoryCacheEntryOptions
         {
             SlidingExpiration = SlidingExpiration,
-            Priority = CacheItemPriority.High
+            Priority = CacheItemPriority.High,
+            Size = 1 // Each config entry counts as size 1
             // 不设置 AbsoluteExpiration，满足"无上限绝对时间"的要求
         };
 
@@ -110,7 +112,8 @@ internal sealed class SlidingConfigCache : ISlidingConfigCache
         var options = new MemoryCacheEntryOptions
         {
             SlidingExpiration = SlidingExpiration,
-            Priority = CacheItemPriority.High
+            Priority = CacheItemPriority.High,
+            Size = 1 // Each config entry counts as size 1
             // 不设置 AbsoluteExpiration，满足"无上限绝对时间"的要求
         };
 

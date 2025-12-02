@@ -81,8 +81,8 @@ public class LoggingConfigController : ApiControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取日志配置失败");
-            return ServerError<LoggingConfigResponse>("获取日志配置失败");
+            _logger.LogError(ex, "获取日志配置失败: {ErrorMessage}", ex.Message);
+            return ServerError<LoggingConfigResponse>($"获取日志配置失败: {ex.Message}");
         }
     }
 
