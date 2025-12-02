@@ -114,6 +114,10 @@ public class TcpRuleEngineClient : RuleEngineClientBase
                 NoDelay = Options.Tcp.NoDelay
             };
             await _client.ConnectAsync(host, port, cancellationToken);
+            
+            // 配置TCP KeepAlive
+            ConfigureKeepAlive(_client);
+            
             _stream = _client.GetStream();
             _isConnected = true;
 
@@ -636,6 +640,84 @@ public class TcpRuleEngineClient : RuleEngineClientBase
                 ex,
                 "[上游通信-接收] TCP通道处理消息时发生异常 | 消息内容={MessageContent}",
                 messageJson);
+        }
+    }
+
+    /// <summary>
+    /// 配置TCP KeepAlive
+    /// </summary>
+    /// <remarks>
+    /// 根据配置启用TCP KeepAlive功能，防止长时间空闲连接被中间设备断开
+    /// </remarks>
+    private void ConfigureKeepAlive(TcpClient client)
+    {
+        if (!Options.Tcp.EnableKeepAlive)
+        {
+            Logger.LogDebug("TCP KeepAlive已禁用");
+            return;
+        }
+
+        try
+        {
+            var socket = client.Client;
+            
+            // 启用 KeepAlive
+            socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+
+            // 在支持的平台上设置详细的 KeepAlive 参数
+            if (OperatingSystem.IsWindows())
+            {
+                // Windows使用特殊的IOControl来配置KeepAlive参数
+                // 结构: [onoff(4 bytes), keepalivetime(4 bytes), keepaliveinterval(4 bytes)]
+                var keepAliveTime = Options.Tcp.KeepAliveTime * 1000; // 转换为毫秒
+                var keepAliveInterval = Options.Tcp.KeepAliveInterval * 1000; // 转换为毫秒
+                
+                byte[] inOptionValues = new byte[12];
+                BitConverter.GetBytes(1).CopyTo(inOptionValues, 0); // 启用
+                BitConverter.GetBytes(keepAliveTime).CopyTo(inOptionValues, 4);
+                BitConverter.GetBytes(keepAliveInterval).CopyTo(inOptionValues, 8);
+
+                socket.IOControl(IOControlCode.KeepAliveValues, inOptionValues, null);
+                
+                Logger.LogInformation(
+                    "TCP KeepAlive已启用 (Windows) | 空闲时间={KeepAliveTime}秒 | 探测间隔={KeepAliveInterval}秒",
+                    Options.Tcp.KeepAliveTime,
+                    Options.Tcp.KeepAliveInterval);
+            }
+            else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            {
+                // Linux/Unix系统使用Socket选项
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveTime, Options.Tcp.KeepAliveTime);
+                socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveInterval, Options.Tcp.KeepAliveInterval);
+                
+                // Linux支持设置重试次数
+                if (OperatingSystem.IsLinux())
+                {
+                    socket.SetSocketOption(SocketOptionLevel.Tcp, SocketOptionName.TcpKeepAliveRetryCount, Options.Tcp.KeepAliveRetryCount);
+                    
+                    Logger.LogInformation(
+                        "TCP KeepAlive已启用 (Linux) | 空闲时间={KeepAliveTime}秒 | 探测间隔={KeepAliveInterval}秒 | 重试次数={RetryCount}",
+                        Options.Tcp.KeepAliveTime,
+                        Options.Tcp.KeepAliveInterval,
+                        Options.Tcp.KeepAliveRetryCount);
+                }
+                else
+                {
+                    Logger.LogInformation(
+                        "TCP KeepAlive已启用 (macOS) | 空闲时间={KeepAliveTime}秒 | 探测间隔={KeepAliveInterval}秒",
+                        Options.Tcp.KeepAliveTime,
+                        Options.Tcp.KeepAliveInterval);
+                }
+            }
+            else
+            {
+                // 其他平台只设置基本的KeepAlive
+                Logger.LogInformation("TCP KeepAlive已启用 (基本模式)");
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "配置TCP KeepAlive失败，将继续使用默认设置");
         }
     }
 

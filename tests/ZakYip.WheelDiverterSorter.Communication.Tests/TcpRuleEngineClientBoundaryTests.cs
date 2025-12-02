@@ -86,7 +86,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     [Theory]
     [InlineData(-1)]
     [InlineData(-10)]
-    public void Constructor_WithInvalidRetryCount_ThrowsArgumentException(int retryCount)
+    public void Constructor_WithInvalidRetryCount_ShouldNotThrow_BecauseRetryCountIsDeprecated(int retryCount)
     {
         // Arrange
         var options = new RuleEngineConnectionOptions
@@ -96,7 +96,9 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock));
+        // RetryCount 已废弃，不再进行验证，因此不应抛出异常
+        var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
+        Assert.NotNull(client);
     }
 
     [Fact]
