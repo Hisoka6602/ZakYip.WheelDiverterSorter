@@ -44,6 +44,7 @@
 - [TD-030] Core 混入 LiteDB 持久化实现 (PR-RS13)
 - [TD-031] Upstream 协议文档收敛 (PR-DOC-UPSTREAM01)
 - [TD-032] Tests 与 Tools 结构规范 (PR-RS-TESTS01)
+- [TD-033] 单一权威实现表扩展 & 自动化验证 (PR-RS-SINGLEAUTH01)
 
 ---
 
@@ -842,6 +843,52 @@
 
 ---
 
-**文档版本**：1.2 (PR-RS-TESTS01)  
+## [TD-033] 单一权威实现表扩展 & 自动化验证
+
+**状态**：✅ 已解决 (PR-RS-SINGLEAUTH01)
+
+**问题描述**：
+- 单一权威实现表（6.1 节）只覆盖了部分概念（HAL/硬件抽象、Ingress 抽象、配置服务），缺少 Upstream 契约、配置 Options、事件等概念的系统化列入
+- 现有架构测试（DuplicateTypeDetectionTests、ApplicationLayerDependencyTests 等）的规则是硬编码的，和文档是两套独立的规则
+- 文档与测试没有联动，容易导致"文档写的和实际测试规则不一样"的隐性技术债
+
+**解决方案 (PR-RS-SINGLEAUTH01)**：
+
+1. **扩展 6.1"单一权威实现表"**：
+   - 新增 **上游契约/事件** 行：明确 `ChuteAssignmentEventArgs`, `SortingCompletedNotification` (Core 事件) 和传输 DTO (`ParcelDetectionNotification`, `ChuteAssignmentNotification`, `SortingCompletedNotificationDto`) 的权威位置
+   - 新增 **运行时 Options** 行：明确 `UpstreamConnectionOptions`, `SortingSystemOptions`, `RoutingOptions` (Core) 和通信/厂商 Options 的权威位置
+   - 更新现有行的测试防线列，添加 `SingleAuthorityCatalogTests` 引用
+
+2. **新增 SingleAuthorityCatalogTests 测试类**：
+   - 解析 `docs/RepositoryStructure.md` 中 6.1 表格
+   - 对表格中的每个条目：
+     - 验证权威类型存在于指定目录
+     - 扫描解决方案确保禁止位置没有匹配模式的类型定义
+   - 自动化验证使文档成为"源数据"，测试读取并执行
+
+3. **重构现有硬编码规则**：
+   - 将 `DuplicateTypeDetectionTests.CoreAbstractionInterfacesShouldOnlyBeDefinedInCore()` 等测试的模式抽取为可配置常量
+   - 减少与权威表重复的硬编码规则
+
+**扩展的权威表条目**：
+
+| 概念 | 权威类型 | 权威位置 | 禁止位置 |
+|------|---------|---------|---------|
+| 上游契约/事件 | `ChuteAssignmentEventArgs`, `SortingCompletedNotification`, `DwsMeasurement` (Core)<br/>`ParcelDetectionNotification`, `ChuteAssignmentNotification`, `SortingCompletedNotificationDto` (DTO) | `Core/Abstractions/Upstream/`<br/>`Infrastructure/Communication/Models/` | 其他项目定义 `*Parcel*Notification`, `*AssignmentNotification`, `SortingCompleted*` |
+| 运行时 Options | `UpstreamConnectionOptions`, `SortingSystemOptions`, `RoutingOptions` (Core)<br/>`TcpOptions`, `SignalROptions`, `MqttOptions` (Communication)<br/>`LeadshineOptions`, `S7Options`, `ShuDiNiaoOptions` (Vendors) | `Core/Sorting/Policies/`<br/>`Infrastructure/Communication/Configuration/`<br/>`Drivers/Vendors/<VendorName>/Configuration/` | Host 中定义运行时选项<br/>Core 中定义厂商命名 Options<br/>同名 Options 跨项目重复 |
+
+**新增防线测试**：
+- `TechnicalDebtComplianceTests.SingleAuthorityCatalogTests.AuthoritativeTypesShouldExistInSpecifiedLocations`
+- `TechnicalDebtComplianceTests.SingleAuthorityCatalogTests.ForbiddenPatternsShouldNotExistInForbiddenLocations`
+- `TechnicalDebtComplianceTests.SingleAuthorityCatalogTests.ParseAndValidateSingleAuthorityTable`
+
+**变更影响**：
+- 以后只要修改 `RepositoryStructure.md` 中的权威表，测试就会自动验证新规则
+- 减少了"文档与测试脱节"的技术债风险
+- 新增/修改概念时，只需更新文档表格，无需额外修改测试代码
+
+---
+
+**文档版本**：1.3 (PR-RS-SINGLEAUTH01)  
 **最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team

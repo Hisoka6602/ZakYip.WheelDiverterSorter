@@ -1408,15 +1408,16 @@ tools/Profiling/
 | TD-030 | ✅ 已解决 | Core 混入 LiteDB 持久化实现 → 拆分到 Configuration.Persistence 项目 (PR-RS13) | [详情](./TechnicalDebtLog.md#td-030-core-混入-litedb-持久化实现) |
 | TD-031 | ✅ 已解决 | Upstream 协议文档收敛 & README 精简 → 收敛到 UPSTREAM_CONNECTION_GUIDE.md (PR-DOC-UPSTREAM01) | [详情](./TechnicalDebtLog.md#td-031-upstream-协议文档收敛) |
 | TD-032 | ✅ 已解决 | Tests & Tools 结构规范 → 新增测试项目/工具项目结构约束和防线测试 (PR-RS-TESTS01) | [详情](./TechnicalDebtLog.md#td-032-tests-与-tools-结构规范) |
+| TD-033 | ✅ 已解决 | 单一权威实现表扩展 & 自动化验证 → 扩展权威表并让测试读表执行 (PR-RS-SINGLEAUTH01) | [详情](./TechnicalDebtLog.md#td-033-单一权威实现表扩展--自动化验证) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 32 |
+| ✅ 已解决 | 33 |
 | ⏳ 进行中 | 0 |
 | ❌ 未开始 | 0 |
-| **总计** | **32** |
+| **总计** | **33** |
 
 ---
 
@@ -1431,7 +1432,8 @@ tools/Profiling/
 | 概念 | 权威接口 / 类型 | 权威所在项目 & 目录 | 禁止出现的位置 | 测试防线 |
 |------|----------------|--------------------|--------------|---------| 
 | **HAL / 硬件抽象层** | `IWheelDiverterDriver`, `IWheelDiverterDevice`, `IInputPort`, `IOutputPort`, `IIoLinkageDriver`, `IVendorIoMapper`, `ISensorVendorConfigProvider`, `IEmcController` | `Core/Hardware/**` (Ports/, Devices/, IoLinkage/, Mappings/, Providers/) | ❌ `Core/Abstractions/Drivers/`（已删除）<br/>❌ `Drivers/Abstractions/`<br/>❌ `Execution/` 中定义硬件接口<br/>❌ `Host/` 中定义硬件接口 | `ArchTests.HalConsolidationTests`<br/>`DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers` |
-| **上游通信 / RuleEngine 客户端** | `IUpstreamRoutingClient`, `IUpstreamContractMapper` | `Core/Abstractions/Upstream/` | ❌ `Execution/` 中定义 `IRuleEngineClient` 等平行接口<br/>❌ `Communication/` 中定义平行路由接口<br/>❌ `Ingress/Upstream/`（已删除）<br/>❌ `Host/` 中定义上游通信接口 | `ArchTests.RoutingTopologyLayerTests`<br/>`TechnicalDebtComplianceTests.TopologyShadowTests` |
+| **上游通信 / RuleEngine 客户端** | `IUpstreamRoutingClient`, `IUpstreamContractMapper` | `Core/Abstractions/Upstream/` | ❌ `Execution/` 中定义 `IRuleEngineClient` 等平行接口<br/>❌ `Communication/` 中定义平行路由接口<br/>❌ `Ingress/Upstream/`（已删除）<br/>❌ `Host/` 中定义上游通信接口 | `ArchTests.RoutingTopologyLayerTests`<br/>`TechnicalDebtComplianceTests.TopologyShadowTests`<br/>`SingleAuthorityCatalogTests` |
+| **上游契约 / 事件** | `ChuteAssignmentEventArgs`, `SortingCompletedNotification`, `DwsMeasurement` (Core 事件)<br/>`ParcelDetectionNotification`, `ChuteAssignmentNotification`, `SortingCompletedNotificationDto`, `DwsMeasurementDto` (传输 DTO) | `Core/Abstractions/Upstream/` (Core 事件)<br/>`Infrastructure/Communication/Models/` (传输 DTO) | ❌ 其他项目定义 `*Parcel*Notification`<br/>❌ 其他项目定义 `*AssignmentNotification`<br/>❌ 其他项目定义 `SortingCompleted*` 相关 DTO/事件 | `SingleAuthorityCatalogTests` |
 | **上游协议文档** | `UPSTREAM_CONNECTION_GUIDE.md` (字段表、示例 JSON、时序说明、超时/丢失规则) | `docs/guides/UPSTREAM_CONNECTION_GUIDE.md` | ❌ 在 README 中重复字段表/JSON 示例<br/>❌ 在其他文档中定义完整协议说明<br/>❌ 新建上游协议相关的 md 文件 | TD-031: 文档收敛 |
 | **拓扑 / 路径生成** | `ISwitchingPathGenerator`, `DefaultSwitchingPathGenerator`, `SwitchingPath`, `SwitchingPathSegment` | `Core/LineModel/Topology/` | ❌ `Execution/` 中定义新的 `*PathGenerator` 接口（除装饰器外）<br/>❌ `Drivers/` 中定义路径生成逻辑<br/>❌ `Application/` 中重新实现路径生成 | `ArchTests.RoutingTopologyLayerTests`<br/>`ArchTests.TopologyPathExecutionDefenseTests`<br/>`TechnicalDebtComplianceTests.SwitchingPathGenerationTests` |
 | **路径执行** | `ISwitchingPathExecutor`, `IPathExecutionService` | `Core/Abstractions/Execution/` (接口)<br/>`Execution/PathExecution/` (实现) | ❌ `Drivers/` 中定义路径执行逻辑<br/>❌ `Core/` 中包含执行实现<br/>❌ `Host/` 中直接调用硬件 | `ArchTests.ExecutionPathPipelineTests` |
@@ -1439,6 +1441,7 @@ tools/Profiling/
 | **配置服务** | `ISystemConfigService`, `ILoggingConfigService`, `ICommunicationConfigService`, `IIoLinkageConfigService`, `IVendorConfigService` | `Application/Services/Config/` | ❌ `Host/` 中重新定义配置服务接口<br/>❌ `Core/` 中实现配置服务<br/>❌ `Execution/` 中定义配置服务 | `ArchTests.HostLayerConstraintTests`<br/>`TechnicalDebtComplianceTests.HostLayerComplianceTests` |
 | **配置模型** | `SystemConfiguration`, `ChutePathTopologyConfig`, `IoLinkageConfiguration`, `CommunicationConfiguration` 等 | `Core/LineModel/Configuration/Models/` | ❌ 其他项目中定义同名配置模型<br/>❌ `Host/Models/` 中定义持久化配置（只允许 DTO）<br/>❌ `Application/` 中重复定义配置模型<br/>❌ `Configuration/` 目录根下平铺 .cs 文件 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests`<br/>`TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests` |
 | **配置仓储** | `ISystemConfigurationRepository`, `IChutePathTopologyRepository` 等 | `Core/LineModel/Configuration/Repositories/Interfaces/` (接口)<br/>`Configuration.Persistence` (LiteDB 实现，TD-030 迁移) | ❌ `Host/` 中定义仓储接口或实现<br/>❌ `Application/` 中定义仓储（只使用缓存装饰器）<br/>❌ `Execution/` 中定义仓储<br/>❌ `Repositories/` 目录根下平铺 .cs 文件 | `ArchTests.HostLayerConstraintTests`<br/>`TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests` |
+| **运行时 Options** | `UpstreamConnectionOptions`, `SortingSystemOptions`, `RoutingOptions`, `ChuteAssignmentTimeoutOptions` 等 (Core)<br/>`TcpOptions`, `SignalROptions`, `MqttOptions`, `RuleEngineConnectionOptions` (Communication)<br/>`LeadshineOptions`, `S7Options`, `ShuDiNiaoOptions`, `SimulatedOptions` (Drivers/Vendors) | `Core/Sorting/Policies/` (分拣策略选项)<br/>`Core/LineModel/Configuration/Models/` (持久化配置关联选项)<br/>`Infrastructure/Communication/Configuration/` (通信协议选项)<br/>`Drivers/Vendors/<VendorName>/Configuration/` (厂商选项) | ❌ `Host/` 中定义运行时配置选项（只允许 API 请求/响应 DTO）<br/>❌ 厂商命名 Options 在 Core 中定义<br/>❌ 同名 Options 跨项目重复定义 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.OptionsTypesShouldNotBeDuplicatedAcrossProjects`<br/>`TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.CoreShouldNotHaveVendorNamedOptionsTypes`<br/>`SingleAuthorityCatalogTests` |
 | **日志 / 指标** | `IParcelLifecycleLogger`, `PrometheusMetrics`, `AlarmService`, `ISafeExecutionService` | `Observability/` | ❌ `Host/` 中重新定义日志服务<br/>❌ `Execution/` 中定义指标收集<br/>❌ `Core/` 中实现日志服务 | `TechnicalDebtComplianceTests.LoggingConfigShadowTests` |
 | **系统时钟** | `ISystemClock`, `LocalSystemClock` | `Core/Utilities/` | ❌ 其他项目中定义时钟接口<br/>❌ 直接使用 `DateTime.Now` 或 `DateTime.UtcNow` | `Analyzers.DateTimeNowUsageAnalyzer`<br/>`TechnicalDebtComplianceTests.DateTimeUsageComplianceTests`<br/>`TechnicalDebtComplianceTests.SystemClockShadowTests`<br/>`TechnicalDebtComplianceTests.AnalyzersComplianceTests` |
 | **仿真** | `ISimulationScenarioRunner`, `SimulationRunner`, `SimulationOptions`, `SimulationSummary` | `Simulation/` (库项目)<br/>`Simulation.Cli/` (入口项目) | ❌ `Execution/` 中包含仿真专用逻辑<br/>❌ `Host/` 中实现仿真逻辑（只通过 API 调用）<br/>❌ `Drivers/` 中的仿真驱动之外定义仿真逻辑 | `TechnicalDebtComplianceTests.SimulationShadowTests` |
@@ -1556,6 +1559,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：3.5 (PR-RS-TESTS01)  
+**文档版本**：3.6 (PR-RS-SINGLEAUTH01)  
 **最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team
