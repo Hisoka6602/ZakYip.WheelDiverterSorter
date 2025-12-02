@@ -4,8 +4,8 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// 格口分配超时配置选项
 /// </summary>
 /// <remarks>
-/// 用于配置格口分配等待超时的安全系数，以及包裹生命周期超时/丢失判定参数。
-/// PR-NOSHADOW-ALL: 扩展原有配置，添加丢失判定参数，避免新增配置类。
+/// 用于配置格口分配等待超时的安全系数。
+/// PR-NOSHADOW-ALL: 落格超时和最大存活时间由程序根据输送线长度和速度计算，不需要配置。
 /// </remarks>
 public class ChuteAssignmentTimeoutOptions
 {
@@ -28,32 +28,14 @@ public class ChuteAssignmentTimeoutOptions
     public decimal FallbackTimeoutSeconds { get; set; } = 5m;
 
     /// <summary>
-    /// 从检测到格口分配的最大允许时间（秒）
+    /// 丢失判定的安全系数（范围：1.0 ~ 3.0，默认：1.5）
     /// </summary>
     /// <remarks>
-    /// PR-NOSHADOW-ALL: 超过此时间未收到格口分配，判定为"分配超时"。
-    /// 默认值 5 秒。
+    /// PR-NOSHADOW-ALL: 包裹最大存活时间 = 理论通过时间 × LostDetectionSafetyFactor。
+    /// 超过此时间仍未完成落格，且无法确定位置，则判定为"包裹丢失"。
+    /// 系数大于1是为了容忍输送线速度波动和传感器延迟。
     /// </remarks>
-    public decimal DetectionToAssignmentTimeoutSeconds { get; set; } = 5m;
-
-    /// <summary>
-    /// 从格口分配到落格确认的最大允许时间（秒）
-    /// </summary>
-    /// <remarks>
-    /// PR-NOSHADOW-ALL: 超过此时间未完成落格，判定为"落格超时"。
-    /// 默认值 30 秒。
-    /// </remarks>
-    public decimal AssignmentToSortingTimeoutSeconds { get; set; } = 30m;
-
-    /// <summary>
-    /// 包裹在系统中的最大存活时间（秒）
-    /// </summary>
-    /// <remarks>
-    /// PR-NOSHADOW-ALL: 从首次检测时间起，若超过此时间仍未完成落格，
-    /// 且无法通过任何传感器/编排状态确定位置，则判定为"包裹丢失"。
-    /// 默认值 120 秒（2分钟）。
-    /// </remarks>
-    public decimal MaxLifetimeBeforeLostSeconds { get; set; } = 120m;
+    public decimal LostDetectionSafetyFactor { get; set; } = 1.5m;
 
     /// <summary>
     /// 验证配置参数的有效性
@@ -71,26 +53,9 @@ public class ChuteAssignmentTimeoutOptions
             return (false, "降级超时时间必须在1到60秒之间");
         }
 
-        if (DetectionToAssignmentTimeoutSeconds < 1m || DetectionToAssignmentTimeoutSeconds > 60m)
+        if (LostDetectionSafetyFactor < 1.0m || LostDetectionSafetyFactor > 3.0m)
         {
-            return (false, "检测到分配超时时间必须在1到60秒之间");
-        }
-
-        if (AssignmentToSortingTimeoutSeconds < 5m || AssignmentToSortingTimeoutSeconds > 300m)
-        {
-            return (false, "分配到落格超时时间必须在5到300秒之间");
-        }
-
-        if (MaxLifetimeBeforeLostSeconds < 30m || MaxLifetimeBeforeLostSeconds > 600m)
-        {
-            return (false, "最大存活时间必须在30到600秒之间");
-        }
-
-        // PR-NOSHADOW-ALL: 最大存活时间必须大于等于任一超时时间
-        if (MaxLifetimeBeforeLostSeconds < DetectionToAssignmentTimeoutSeconds &&
-            MaxLifetimeBeforeLostSeconds < AssignmentToSortingTimeoutSeconds)
-        {
-            return (false, "最大存活时间必须至少大于等于一种超时时间");
+            return (false, "丢失判定安全系数必须在1.0到3.0之间");
         }
 
         return (true, null);

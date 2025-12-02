@@ -57,35 +57,41 @@
 
 #### 包裹超时如何判断
 
-系统基于 `ChuteAssignmentTimeoutOptions` 配置进行超时判定：
+系统基于输送线长度和速度自动计算超时时间：
 
 1. **分配超时**（AssignmentTimeout）：
-   - 条件：包裹检测后超过 `DetectionToAssignmentTimeoutSeconds` 未收到格口分配
-   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游
+   - 条件：包裹检测后超过动态计算的超时时间未收到格口分配
+   - 计算：`超时时间 = 入口到首个决策点距离 / 线速 × SafetyFactor`
+   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游（Outcome=Timeout）
 
 2. **落格超时**（SortingTimeout）：
-   - 条件：格口分配后超过 `AssignmentToSortingTimeoutSeconds` 未完成落格确认
-   - 动作：标记为 `Timeout` 状态，通知上游（此时包裹可能已超出控制范围）
+   - 条件：格口分配后超过理论通过时间未完成落格确认
+   - 计算：`超时时间 = 路径总长度 / 线速`（根据生成的路径自动计算）
+   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游（Outcome=Timeout）
 
 ```json
 {
   "ChuteAssignmentTimeout": {
     "SafetyFactor": 0.9,
     "FallbackTimeoutSeconds": 5,
-    "DetectionToAssignmentTimeoutSeconds": 5,
-    "AssignmentToSortingTimeoutSeconds": 30,
-    "MaxLifetimeBeforeLostSeconds": 120
+    "LostDetectionSafetyFactor": 1.5
   }
 }
 ```
 
 #### 包裹丢失如何判断
 
-**丢失判定**：
-- 条件：从首次检测时间起，超过 `MaxLifetimeBeforeLostSeconds` 仍未完成落格，且无法通过任何传感器/编排状态确定位置
-- 动作：标记为 `Lost` 状态，记录日志，通知上游
+**丢失判定**（由程序根据输送线参数自动计算）：
+- 条件：从首次检测时间起，超过 `理论通过时间 × LostDetectionSafetyFactor` 仍未完成落格，且无法确定位置
+- 计算：`最大存活时间 = 输送线总长度 / 线速 × LostDetectionSafetyFactor`
+- 动作：
+  1. 标记为 `Lost` 状态
+  2. **从缓存中清除包裹记录**（避免队列错分）
+  3. 通知上游（Outcome=Lost, ActualChuteId=0）
 
-> **注意**：丢失判定时，包裹已超出系统物理控制范围，无法执行路径切换，仅记录和通知。
+> **重要区别**：
+> - **超时**：包裹仍在输送线上，可以导向异常口
+> - **丢失**：包裹已不在输送线上，无法导向异常口，必须从缓存清除
 
 #### 包裹超时处理流程图
 

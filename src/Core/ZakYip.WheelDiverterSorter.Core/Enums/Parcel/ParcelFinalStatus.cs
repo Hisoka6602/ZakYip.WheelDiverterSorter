@@ -61,6 +61,7 @@ public enum ParcelFinalStatus
     /// <remarks>
     /// PR-NOSHADOW-ALL: 从首次检测时间起，若超过 MaxLifetimeBeforeLost 仍未获得落格确认，
     /// 也没有有效的位置状态，则判定为"包裹丢失"。
+    /// 与 Timeout 的区别：Lost 表示包裹已不在输送线上，无法导向异常口，需从缓存清除。
     /// </remarks>
     [Description("包裹丢失")]
     Lost

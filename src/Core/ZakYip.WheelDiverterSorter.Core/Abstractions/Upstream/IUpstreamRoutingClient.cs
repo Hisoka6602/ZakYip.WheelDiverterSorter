@@ -171,6 +171,7 @@ public readonly record struct DwsMeasurement
 /// </summary>
 /// <remarks>
 /// PR-UPSTREAM02: 新增类型，用于通知上游包裹已完成落格。
+/// PR-NOSHADOW-ALL: 使用 ParcelFinalStatus 区分 Success/Timeout/Lost 等结果。
 /// </remarks>
 public record SortingCompletedNotification
 {
@@ -182,6 +183,9 @@ public record SortingCompletedNotification
     /// <summary>
     /// 实际落格格口ID
     /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当 FinalStatus = Lost 时，此字段为 0（包裹已不在输送线上）。
+    /// </remarks>
     public required long ActualChuteId { get; init; }
 
     /// <summary>
@@ -198,4 +202,18 @@ public record SortingCompletedNotification
     /// 失败原因（如果失败）
     /// </summary>
     public string? FailureReason { get; init; }
+
+    /// <summary>
+    /// 包裹最终状态
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 新增字段，使用现有 ParcelFinalStatus 枚举区分结果类型：
+    /// <list type="bullet">
+    ///   <item>Success - 成功分拣到目标格口</item>
+    ///   <item>Timeout - 超时，包裹仍在输送线上，已导向异常口</item>
+    ///   <item>Lost - 丢失，包裹已不在输送线上，无法导向异常口，已从缓存清除</item>
+    ///   <item>ExecutionError - 执行错误</item>
+    /// </list>
+    /// </remarks>
+    public Core.Enums.Parcel.ParcelFinalStatus FinalStatus { get; init; } = Core.Enums.Parcel.ParcelFinalStatus.Success;
 }
