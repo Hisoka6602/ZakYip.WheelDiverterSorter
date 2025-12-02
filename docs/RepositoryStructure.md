@@ -366,8 +366,10 @@ ZakYip.WheelDiverterSorter.Application/
 │   ├── Sorting/                        # 分拣业务服务
 │   │   ├── IChangeParcelChuteService.cs, ChangeParcelChuteService.cs
 │   │   └── OptimizedSortingService.cs
-│   └── Topology/                       # 拓扑服务
-│       └── IChutePathTopologyService.cs, ChutePathTopologyService.cs
+│   ├── Topology/                       # 拓扑服务
+│   │   └── IChutePathTopologyService.cs, ChutePathTopologyService.cs
+│   └── Tracking/                       # PR-NOSHADOW-ALL: 包裹跟踪服务
+│       └── ParcelTrackingService.cs    # IParcelTrackingService 实现（内存存储）
 └── ApplicationServiceExtensions.cs     # DI 扩展方法 (AddWheelDiverterApplication)
 ```
 
@@ -518,7 +520,7 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Monitoring/
 │   ├── Parcel/
 │   ├── Simulation/                  # PR-TD6: 新增目录，包含 SimulationStepType, StepStatus
-│   ├── Sorting/
+│   ├── Sorting/                     # PR-NOSHADOW-ALL: 新增 ParcelLifecycleStatus, SortingOutcome
 │   └── System/
 ├── Hardware/                        # PR-C6: HAL（硬件抽象层）统一目录
 │   ├── Ports/                       # IO 端口接口
@@ -603,7 +605,11 @@ ZakYip.WheelDiverterSorter.Core/
 │   ├── Pipeline/                    # 分拣管道
 │   ├── Policies/                    # 分拣策略
 │   ├── Runtime/                     # 运行时
-│   └── Strategy/                    # 格口选择策略
+│   ├── Strategy/                    # 格口选择策略
+│   └── Tracking/                    # PR-NOSHADOW-ALL: 包裹生命周期跟踪
+│       ├── IParcelTrackingService.cs   # 包裹跟踪服务接口
+│       ├── ParcelTimeoutOptions.cs     # 包裹超时配置选项
+│       └── ParcelTrackingRecord.cs     # 包裹生命周期跟踪记录
 └── Utilities/                       # 工具类（通用公共工具）
     ├── ISystemClock.cs              # 系统时钟抽象接口
     └── LocalSystemClock.cs          # 本地系统时钟实现
@@ -669,6 +675,8 @@ ZakYip.WheelDiverterSorter.Execution/
 ├── Infrastructure/                  # 基础设施实现（PR-TD4）
 │   ├── DefaultStrategyFactory.cs
 │   └── DefaultSystemRunStateService.cs
+├── Monitoring/                      # PR-NOSHADOW-ALL: 包裹生命周期监控
+│   └── ParcelLifetimeMonitor.cs    # 包裹超时/丢失监控 BackgroundService
 ├── Orchestration/                   # 核心编排实现
 │   ├── SortingOrchestrator.cs       # 分拣编排器主实现
 │   └── SortingExceptionHandler.cs
@@ -708,6 +716,7 @@ ZakYip.WheelDiverterSorter.Execution/
 - `DiverterResourceLockManager`（位于 Concurrency/）：摆轮资源锁管理器，防止并发冲突
 - `PathHealthChecker`（位于 Health/）：路径健康检查器，执行前验证路径可用性
 - `ConveyorSegment`（位于 Segments/）：中段皮带段实现
+- `ParcelLifetimeMonitor`（位于 Monitoring/）：PR-NOSHADOW-ALL 新增，包裹超时/丢失监控服务
 
 ---
 
@@ -1357,6 +1366,7 @@ tools/Profiling/
 | **EMC 控制** | `IEmcController`, `IEmcResourceLockManager`, `EmcLockEvent`, `EmcLockEventArgs` | `Core/Hardware/Devices/` (控制器、锁管理接口)<br/>`Core/Events/Communication/` (事件模型) | ❌ `Communication/` 中定义 EMC 接口（PR-RS11 已迁移）<br/>❌ `Execution/` 中定义 EMC 接口<br/>❌ `Host/` 中直接操作 EMC | `TechnicalDebtComplianceTests.EmcShadowTests`<br/>`ApplicationLayerDependencyTests.Drivers_ShouldNotDependOn_Execution_Or_Communication` |
 | **操作结果 / 错误码** | `OperationResult`, `OperationResult<T>`, `ErrorCodes` | `Core/Results/` | ❌ 其他项目中定义 `*OperationResult*` 类型<br/>❌ 其他项目中定义 `*ErrorCodes*` 类型<br/>❌ `Execution/`、`Application/`、`Drivers/` 中重复定义结果类型 | `TechnicalDebtComplianceTests.OperationResultShadowTests` |
 | **HAL 工具类 / VendorCapabilities** | `VendorCapabilities` | `Core/Hardware/` | ❌ `Drivers/` 中定义重复的能力/状态结构<br/>❌ `Execution/` 中定义硬件能力结构<br/>❌ 其他项目中定义 `*VendorCapabilities*` 类型 | `TechnicalDebtComplianceTests.OperationResultShadowTests` |
+| **包裹生命周期跟踪** (PR-NOSHADOW-ALL) | `IParcelTrackingService`, `ParcelTrackingRecord`, `ParcelTimeoutOptions`, `ParcelLifecycleStatus`, `SortingOutcome`, `ParcelTimedOutEventArgs`, `ParcelLostEventArgs`, `ParcelLifetimeMonitor` | `Core/Sorting/Tracking/` (接口、模型)<br/>`Core/Enums/Sorting/` (枚举)<br/>`Core/Events/Sorting/` (事件)<br/>`Application/Services/Tracking/` (实现)<br/>`Execution/Monitoring/` (监控服务) | ❌ `Host/` 中定义包裹跟踪接口<br/>❌ `Drivers/` 中定义包裹生命周期逻辑<br/>❌ 其他项目中定义 `*ParcelTracking*` 类型<br/>❌ 其他项目中定义 `*ParcelLifecycle*` 枚举 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests` |
 
 ### 6.2 影分身处理流程
 
@@ -1463,6 +1473,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：3.4 (PR-DOC00)  
-**最后更新**：2025-12-01  
+**文档版本**：3.5 (PR-NOSHADOW-ALL)  
+**最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team
