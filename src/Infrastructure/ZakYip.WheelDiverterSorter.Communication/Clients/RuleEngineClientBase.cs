@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
@@ -103,7 +104,7 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// <remarks>
     /// PR-UPSTREAM02: 提取为公共方法以减少重复代码
     /// </remarks>
-    protected static DwsMeasurement? MapDwsPayload(Core.Events.Chute.DwsMeasurementEventArgs? eventArgs)
+    protected static DwsMeasurement? MapDwsPayload(DwsMeasurementEventArgs? eventArgs)
     {
         if (eventArgs == null)
         {
