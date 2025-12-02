@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
@@ -10,12 +11,20 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 /// </summary>
 /// <remarks>
 /// 封装所有厂商配置的 CRUD 操作，为 Host 层提供统一的配置访问门面。
+/// 支持配置缓存与热更新：
+/// - 读取：通过统一滑动缓存（1小时过期）
+/// - 更新：先写 LiteDB，再立即刷新缓存
 /// </remarks>
 public sealed class VendorConfigService : IVendorConfigService
 {
+    private static readonly object DriverConfigCacheKey = new();
+    private static readonly object SensorConfigCacheKey = new();
+    private static readonly object WheelDiverterConfigCacheKey = new();
+
     private readonly IDriverConfigurationRepository _driverRepository;
     private readonly ISensorConfigurationRepository _sensorRepository;
     private readonly IWheelDiverterConfigurationRepository _wheelRepository;
+    private readonly ISlidingConfigCache _configCache;
     private readonly ILogger<VendorConfigService> _logger;
 
     /// <summary>
@@ -25,11 +34,13 @@ public sealed class VendorConfigService : IVendorConfigService
         IDriverConfigurationRepository driverRepository,
         ISensorConfigurationRepository sensorRepository,
         IWheelDiverterConfigurationRepository wheelRepository,
+        ISlidingConfigCache configCache,
         ILogger<VendorConfigService> logger)
     {
         _driverRepository = driverRepository ?? throw new ArgumentNullException(nameof(driverRepository));
         _sensorRepository = sensorRepository ?? throw new ArgumentNullException(nameof(sensorRepository));
         _wheelRepository = wheelRepository ?? throw new ArgumentNullException(nameof(wheelRepository));
+        _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -38,7 +49,7 @@ public sealed class VendorConfigService : IVendorConfigService
     /// <inheritdoc/>
     public DriverConfiguration GetDriverConfiguration()
     {
-        return _driverRepository.Get();
+        return _configCache.GetOrAdd(DriverConfigCacheKey, () => _driverRepository.Get());
     }
 
     /// <inheritdoc/>
@@ -55,11 +66,15 @@ public sealed class VendorConfigService : IVendorConfigService
 
         _driverRepository.Update(config);
 
+        // 热更新：立即刷新缓存
+        var updatedConfig = _driverRepository.Get();
+        _configCache.Set(DriverConfigCacheKey, updatedConfig);
+
         _logger.LogInformation(
-            "IO驱动器配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
-            config.VendorType,
-            config.UseHardwareDriver,
-            config.Version);
+            "IO驱动器配置已更新（热更新生效）: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
+            updatedConfig.VendorType,
+            updatedConfig.UseHardwareDriver,
+            updatedConfig.Version);
     }
 
     /// <inheritdoc/>
@@ -68,9 +83,13 @@ public sealed class VendorConfigService : IVendorConfigService
         var defaultConfig = DriverConfiguration.GetDefault();
         _driverRepository.Update(defaultConfig);
 
-        _logger.LogInformation("IO驱动器配置已重置为默认值");
+        // 热更新：立即刷新缓存
+        var updatedConfig = _driverRepository.Get();
+        _configCache.Set(DriverConfigCacheKey, updatedConfig);
 
-        return _driverRepository.Get();
+        _logger.LogInformation("IO驱动器配置已重置为默认值（热更新生效）");
+
+        return updatedConfig;
     }
 
     #endregion
@@ -80,7 +99,7 @@ public sealed class VendorConfigService : IVendorConfigService
     /// <inheritdoc/>
     public SensorConfiguration GetSensorConfiguration()
     {
-        return _sensorRepository.Get();
+        return _configCache.GetOrAdd(SensorConfigCacheKey, () => _sensorRepository.Get());
     }
 
     /// <inheritdoc/>
@@ -97,10 +116,14 @@ public sealed class VendorConfigService : IVendorConfigService
 
         _sensorRepository.Update(config);
 
+        // 热更新：立即刷新缓存
+        var updatedConfig = _sensorRepository.Get();
+        _configCache.Set(SensorConfigCacheKey, updatedConfig);
+
         _logger.LogInformation(
-            "感应IO配置已更新: SensorCount={SensorCount}, Version={Version}",
-            config.Sensors?.Count ?? 0,
-            config.Version);
+            "感应IO配置已更新（热更新生效）: SensorCount={SensorCount}, Version={Version}",
+            updatedConfig.Sensors?.Count ?? 0,
+            updatedConfig.Version);
     }
 
     /// <inheritdoc/>
@@ -109,9 +132,13 @@ public sealed class VendorConfigService : IVendorConfigService
         var defaultConfig = SensorConfiguration.GetDefault();
         _sensorRepository.Update(defaultConfig);
 
-        _logger.LogInformation("感应IO配置已重置为默认值");
+        // 热更新：立即刷新缓存
+        var updatedConfig = _sensorRepository.Get();
+        _configCache.Set(SensorConfigCacheKey, updatedConfig);
 
-        return _sensorRepository.Get();
+        _logger.LogInformation("感应IO配置已重置为默认值（热更新生效）");
+
+        return updatedConfig;
     }
 
     #endregion
@@ -121,7 +148,7 @@ public sealed class VendorConfigService : IVendorConfigService
     /// <inheritdoc/>
     public WheelDiverterConfiguration GetWheelDiverterConfiguration()
     {
-        return _wheelRepository.Get();
+        return _configCache.GetOrAdd(WheelDiverterConfigCacheKey, () => _wheelRepository.Get());
     }
 
     /// <inheritdoc/>
@@ -138,16 +165,20 @@ public sealed class VendorConfigService : IVendorConfigService
 
         _wheelRepository.Update(config);
 
+        // 热更新：立即刷新缓存
+        var updatedConfig = _wheelRepository.Get();
+        _configCache.Set(WheelDiverterConfigCacheKey, updatedConfig);
+
         _logger.LogInformation(
-            "摆轮配置已更新: VendorType={VendorType}, Version={Version}",
-            config.VendorType,
-            config.Version);
+            "摆轮配置已更新（热更新生效）: VendorType={VendorType}, Version={Version}",
+            updatedConfig.VendorType,
+            updatedConfig.Version);
     }
 
     /// <inheritdoc/>
     public ShuDiNiaoWheelDiverterConfig? GetShuDiNiaoConfiguration()
     {
-        return _wheelRepository.Get().ShuDiNiao;
+        return GetWheelDiverterConfiguration().ShuDiNiao;
     }
 
     /// <inheritdoc/>
@@ -171,8 +202,12 @@ public sealed class VendorConfigService : IVendorConfigService
 
         _wheelRepository.Update(config);
 
+        // 热更新：立即刷新缓存
+        var updatedConfig = _wheelRepository.Get();
+        _configCache.Set(WheelDiverterConfigCacheKey, updatedConfig);
+
         _logger.LogInformation(
-            "数递鸟摆轮配置已更新: 设备数量={DeviceCount}",
+            "数递鸟摆轮配置已更新（热更新生效）: 设备数量={DeviceCount}",
             shuDiNiaoConfig.Devices.Count);
     }
 

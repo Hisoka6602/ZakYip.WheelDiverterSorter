@@ -27,6 +27,7 @@ public static class ApplicationServiceExtensions
     /// <returns>服务集合</returns>
     /// <remarks>
     /// 该方法注册以下服务：
+    /// - 统一滑动配置缓存 (ISlidingConfigCache) - 1小时滑动过期，支持热更新
     /// - 系统配置服务 (ISystemConfigService)
     /// - 日志配置服务 (ILoggingConfigService)
     /// - 通信配置服务 (ICommunicationConfigService)
@@ -40,6 +41,9 @@ public static class ApplicationServiceExtensions
     /// </remarks>
     public static IServiceCollection AddWheelDiverterApplication(this IServiceCollection services)
     {
+        // 注册统一滑动配置缓存（1小时滑动过期，支持热更新）
+        services.AddSingleton<ISlidingConfigCache, SlidingConfigCache>();
+        
         // 注册配置服务
         services.AddScoped<ISystemConfigService, SystemConfigService>();
         services.AddScoped<ILoggingConfigService, LoggingConfigService>();

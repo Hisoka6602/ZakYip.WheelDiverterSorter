@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
@@ -18,11 +19,19 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 /// <summary>
 /// IO 联动配置服务实现
 /// </summary>
+/// <remarks>
+/// 支持配置缓存与热更新：
+/// - 读取：通过统一滑动缓存（1小时过期）
+/// - 更新：先写 LiteDB，再立即刷新缓存
+/// </remarks>
 public class IoLinkageConfigService : IIoLinkageConfigService
 {
+    private static readonly object IoLinkageConfigCacheKey = new();
+
     private readonly IIoLinkageConfigurationRepository _repository;
     private readonly IIoLinkageDriver _ioLinkageDriver;
     private readonly IIoLinkageCoordinator _ioLinkageCoordinator;
+    private readonly ISlidingConfigCache _configCache;
     private readonly ISystemClock _systemClock;
     private readonly ILogger<IoLinkageConfigService> _logger;
 
@@ -30,12 +39,14 @@ public class IoLinkageConfigService : IIoLinkageConfigService
         IIoLinkageConfigurationRepository repository,
         IIoLinkageDriver ioLinkageDriver,
         IIoLinkageCoordinator ioLinkageCoordinator,
+        ISlidingConfigCache configCache,
         ISystemClock systemClock,
         ILogger<IoLinkageConfigService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _ioLinkageDriver = ioLinkageDriver ?? throw new ArgumentNullException(nameof(ioLinkageDriver));
         _ioLinkageCoordinator = ioLinkageCoordinator ?? throw new ArgumentNullException(nameof(ioLinkageCoordinator));
+        _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -43,7 +54,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
     /// <inheritdoc />
     public IoLinkageConfiguration GetConfiguration()
     {
-        return _repository.Get();
+        return _configCache.GetOrAdd(IoLinkageConfigCacheKey, () => _repository.Get());
     }
 
     /// <inheritdoc />
@@ -57,21 +68,23 @@ public class IoLinkageConfigService : IIoLinkageConfigService
             // 保存配置
             _repository.Update(config);
 
+            // 热更新：立即刷新缓存
+            var updatedConfig = _repository.Get();
+            _configCache.Set(IoLinkageConfigCacheKey, updatedConfig);
+
             _logger.LogInformation(
-                "IO 联动配置已更新: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}, " +
+                "IO 联动配置已更新（热更新生效）: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}, " +
                 "EmergencyStopIos={EmergencyStopCount}, UpstreamExceptionIos={UpstreamExceptionCount}, DiverterExceptionIos={DiverterExceptionCount}, " +
                 "PostPreStartWarningIos={PostPreStartWarningCount}, WheelDiverterDisconnectedIos={WheelDiverterDisconnectedCount}",
-                config.Enabled,
-                config.RunningStateIos.Count,
-                config.StoppedStateIos.Count,
-                config.EmergencyStopStateIos.Count,
-                config.UpstreamConnectionExceptionStateIos.Count,
-                config.DiverterExceptionStateIos.Count,
-                config.PostPreStartWarningStateIos.Count,
-                config.WheelDiverterDisconnectedStateIos.Count);
+                updatedConfig.Enabled,
+                updatedConfig.RunningStateIos.Count,
+                updatedConfig.StoppedStateIos.Count,
+                updatedConfig.EmergencyStopStateIos.Count,
+                updatedConfig.UpstreamConnectionExceptionStateIos.Count,
+                updatedConfig.DiverterExceptionStateIos.Count,
+                updatedConfig.PostPreStartWarningStateIos.Count,
+                updatedConfig.WheelDiverterDisconnectedStateIos.Count);
 
-            // 重新获取更新后的配置
-            var updatedConfig = _repository.Get();
             return new IoLinkageConfigUpdateResult(true, null, updatedConfig);
         }
         catch (Exception ex)
@@ -86,7 +99,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
     {
         try
         {
-            var config = _repository.Get();
+            var config = GetConfiguration();
 
             if (!config.Enabled)
             {

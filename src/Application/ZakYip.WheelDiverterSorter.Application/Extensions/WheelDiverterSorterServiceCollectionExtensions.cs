@@ -329,14 +329,21 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         var enablePathCaching = configuration.GetValue<bool>("Performance:EnablePathCaching", true);
         if (enablePathCaching)
         {
-            services.AddSingleton<ISwitchingPathGenerator>(serviceProvider =>
+            // 注册带缓存的路径生成器
+            services.AddSingleton<CachedSwitchingPathGenerator>(serviceProvider =>
             {
                 var innerGenerator = serviceProvider.GetRequiredService<DefaultSwitchingPathGenerator>();
-                var cache = serviceProvider.GetRequiredService<IMemoryCache>();
+                var configCache = serviceProvider.GetRequiredService<ISlidingConfigCache>();
                 var clock = serviceProvider.GetRequiredService<ISystemClock>();
                 var logger = serviceProvider.GetRequiredService<ILogger<CachedSwitchingPathGenerator>>();
-                return new CachedSwitchingPathGenerator(innerGenerator, cache, clock, logger);
+                return new CachedSwitchingPathGenerator(innerGenerator, configCache, clock, logger);
             });
+
+            // 将 CachedSwitchingPathGenerator 注册为 ISwitchingPathGenerator
+            services.AddSingleton<ISwitchingPathGenerator>(sp => sp.GetRequiredService<CachedSwitchingPathGenerator>());
+
+            // 将 CachedSwitchingPathGenerator 注册为 IPathCacheManager（用于拓扑变更时清除缓存）
+            services.AddSingleton<IPathCacheManager>(sp => sp.GetRequiredService<CachedSwitchingPathGenerator>());
         }
         else
         {
