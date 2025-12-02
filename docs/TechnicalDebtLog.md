@@ -42,6 +42,7 @@
 - [TD-028] 事件 & DI 扩展影分身清理 (PR-S6)
 - [TD-029] 配置模型瘦身 (PR-SD5)
 - [TD-030] Core 混入 LiteDB 持久化实现 (PR-RS13)
+- [TD-031] Upstream 协议文档收敛 (PR-DOC-UPSTREAM01)
 
 ---
 
@@ -740,6 +741,44 @@
 
 ---
 
-**文档版本**：1.0 (PR-RS13)  
-**最后更新**：2025-12-01  
+## [TD-031] Upstream 协议文档收敛
+
+**状态**：✅ 已解决 (PR-DOC-UPSTREAM01)
+
+**问题描述**：
+- 上游协议字段表、示例 JSON、流程说明同时出现在 README 和 UPSTREAM_CONNECTION_GUIDE.md 中，造成"文档影分身"
+- README 中"格口分配"步骤描述容易被理解为"同步请求/响应"模式，而非实际的"fire-and-forget 通知 + 异步回推"模式
+- 多处维护相同内容增加了文档不一致的风险
+
+**解决方案（PR-DOC-UPSTREAM01）**：
+
+1. **收敛上游协议的"单一权威文档"**：
+   - 将字段表、示例 JSON、超时/丢失规则、时序说明收敛到 `docs/guides/UPSTREAM_CONNECTION_GUIDE.md`
+   - 明确两次 fire-and-forget 通知模型：
+     - 入口检测：发送 `ParcelDetectionNotification`（仅通知），上游稍后推送 `ChuteAssignmentNotification` 回来
+     - 落格完成：发送 `SortingCompletedNotification`（含 FinalStatus=Success/Timeout/Lost）
+   - 解释配置字段与协议字段之间的关系（ChuteAssignmentTimeout.SafetyFactor/FallbackTimeoutSeconds/LostDetectionSafetyFactor）
+
+2. **精简 README 中协议相关内容**：
+   - 保留高层"分拣流程"框架，但调整第 2 步的文案，从"格口分配 – 上游/固定/轮询"改为明确的异步推送说明
+   - 保留"包裹超时与丢失判定"小节，但加入显式链接引导到详细协议文档
+   - 移除 README 中的重复字段表/JSON 示例，避免以后 README 与指南同时需要维护
+
+3. **Copilot 行为约束更新**：
+   - 在 `.github/copilot-instructions.md` 中新增规则：任何修改上游协议相关代码/DTO/文档的 PR，Copilot 必须优先读取：
+     - `docs/guides/UPSTREAM_CONNECTION_GUIDE.md`
+     - `docs/RepositoryStructure.md` 的"单一权威实现表"和"技术债索引"章节
+
+**权威文档位置**：
+- 上游协议详细说明：`docs/guides/UPSTREAM_CONNECTION_GUIDE.md`
+- 时序图参考：`docs/UPSTREAM_SEQUENCE_FIREFORGET.md`
+
+**规则**：
+- 以后所有上游协议字段解释、示例 JSON、时序图只允许在指南中出现一份
+- 其他文档只做高层引用，链接到权威文档
+
+---
+
+**文档版本**：1.1 (PR-DOC-UPSTREAM01)  
+**最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team

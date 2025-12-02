@@ -14,9 +14,19 @@
 2. **`docs/DOCUMENTATION_INDEX.md`** - 完整文档索引
 3. 具体目标 md 文件
 
+**上游协议相关修改的额外读取要求**：
+
+当 PR 涉及上游协议相关代码/DTO/文档修改时（如 `IUpstreamRoutingClient`、`ChuteAssignmentNotification`、`SortingCompletedNotification`、Communication 层客户端等），Copilot 必须优先读取：
+
+1. **`docs/guides/UPSTREAM_CONNECTION_GUIDE.md`** - 上游协议的**唯一权威说明**
+2. **`docs/RepositoryStructure.md`** 的「单一权威实现表」和「技术债索引」章节
+
+> **目的**：防止再次制造"文档影分身"（TD-031），确保协议字段定义、示例 JSON、时序说明只在一处维护。
+
 **禁止行为**：
 - 禁止随意新增散落的 `*.md` 文件
 - 新增文档必须同步更新 `docs/RepositoryStructure.md` 中的文档索引
+- 禁止在 README 或其他文档中重复上游协议字段表/JSON 示例
 
 ---
 
@@ -1809,8 +1819,9 @@ Code Review 时会重点检查：
 13. 是否使用`global using`(代码中禁止使用 `global using`)
 14. 不能包含过时方法、属性、字段、类
 15. 不能抑制错误和警告,有错误和警告都必须处理
+16. **上游协议相关修改是否只引用权威文档**（禁止在 README 等处重复字段表/JSON 示例）
 ---
 
-**文档版本**: 1.2 (PR-RS13)  
-**最后更新**: 2025-12-01  
+**文档版本**: 1.3 (PR-DOC-UPSTREAM01)  
+**最后更新**: 2025-12-02  
 **维护团队**: ZakYip Development Team
