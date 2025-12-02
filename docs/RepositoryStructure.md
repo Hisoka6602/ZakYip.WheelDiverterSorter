@@ -49,6 +49,8 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | ARCHITECTURE_PRINCIPLES.md | `./docs/ARCHITECTURE_PRINCIPLES.md` | 架构原则 | 🟡 中 |
 | CODING_GUIDELINES.md | `./docs/CODING_GUIDELINES.md` | 编码规范 | 🟡 中 |
 | TOPOLOGY_LINEAR_N_DIVERTERS.md | `./docs/TOPOLOGY_LINEAR_N_DIVERTERS.md` | N 摆轮线性拓扑模型（PR-TOPO02） | 🟡 中 |
+| TouchSocket_Migration_Assessment.md | `./docs/TouchSocket_Migration_Assessment.md` | TouchSocket迁移评估报告 | 🟡 中 |
+| S7_Driver_Enhancement.md | `./docs/S7_Driver_Enhancement.md` | S7 IO驱动功能增强文档 | 🟡 中 |
 
 ### docs/guides/ 使用指南
 
