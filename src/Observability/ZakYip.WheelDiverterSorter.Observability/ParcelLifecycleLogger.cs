@@ -89,4 +89,40 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
             context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
             context.IsSimulation);
     }
+
+    /// <summary>
+    /// 记录包裹超时事件
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当包裹在规定时间内未完成某阶段时调用。
+    /// </remarks>
+    public void LogTimeout(ParcelLifecycleContext context, string timeoutType, double elapsedSeconds)
+    {
+        _logger.LogWarning(
+            "ParcelLifecycle | Event=Timeout | ParcelId={ParcelId} | TimeoutType={TimeoutType} | ElapsedSeconds={ElapsedSeconds:F1} | TargetChuteId={TargetChuteId} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            context.ParcelId,
+            timeoutType,
+            elapsedSeconds,
+            context.TargetChuteId ?? 0,
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+            context.IsSimulation);
+    }
+
+    /// <summary>
+    /// 记录包裹丢失事件
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当包裹超过最大存活时间仍未完成落格时调用。
+    /// </remarks>
+    public void LogLost(ParcelLifecycleContext context, double lifetimeSeconds)
+    {
+        _logger.LogError(
+            "ParcelLifecycle | Event=Lost | ParcelId={ParcelId} | LifetimeSeconds={LifetimeSeconds:F1} | TargetChuteId={TargetChuteId} | EntryTime={EntryTime} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            context.ParcelId,
+            lifetimeSeconds,
+            context.TargetChuteId ?? 0,
+            context.EntryTime?.ToString("yyyy-MM-dd HH:mm:ss.fff") ?? "N/A",
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
+            context.IsSimulation);
+    }
 }

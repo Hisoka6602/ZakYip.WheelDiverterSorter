@@ -53,6 +53,88 @@
 
 **异常处理**：任意步骤失败（超时/设备异常/连接失败）→ 路由到异常格口
 
+### 包裹超时与丢失判定
+
+#### 包裹超时如何判断
+
+系统基于输送线长度和速度自动计算超时时间：
+
+1. **分配超时**（AssignmentTimeout）：
+   - 条件：包裹检测后超过动态计算的超时时间未收到格口分配
+   - 计算：`超时时间 = 入口到首个决策点距离 / 线速 × SafetyFactor`
+   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游（Outcome=Timeout）
+
+2. **落格超时**（SortingTimeout）：
+   - 条件：格口分配后超过理论通过时间未完成落格确认
+   - 计算：`超时时间 = 路径总长度 / 线速`（根据生成的路径自动计算）
+   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游（Outcome=Timeout）
+
+```json
+{
+  "ChuteAssignmentTimeout": {
+    "SafetyFactor": 0.9,
+    "FallbackTimeoutSeconds": 5,
+    "LostDetectionSafetyFactor": 1.5
+  }
+}
+```
+
+#### 包裹丢失如何判断
+
+**丢失判定**（由程序根据输送线参数自动计算）：
+- 条件：从首次检测时间起，超过 `理论通过时间 × LostDetectionSafetyFactor` 仍未完成落格，且无法确定位置
+- 计算：`最大存活时间 = 输送线总长度 / 线速 × LostDetectionSafetyFactor`
+- 动作：
+  1. 标记为 `Lost` 状态
+  2. **从缓存中清除包裹记录**（避免队列错分）
+  3. 通知上游（Outcome=Lost, ActualChuteId=0）
+
+> **重要区别**：
+> - **超时**：包裹仍在输送线上，可以导向异常口
+> - **丢失**：包裹已不在输送线上，无法导向异常口，必须从缓存清除
+
+#### 包裹超时处理流程图
+
+```mermaid
+flowchart TD
+    A[入口传感器检测包裹] --> B[创建本地包裹实体]
+    B --> C[发送上游路由请求]
+    C --> D{等待格口分配}
+    D -->|收到分配| E[生成摆轮路径]
+    D -->|超时| F[分配超时]
+    F --> G[标记为 Timeout]
+    G --> H[路由到异常格口]
+    H --> I[通知上游: Outcome=Timeout]
+    E --> J[执行摆轮切换]
+    J --> K{等待落格确认}
+    K -->|确认成功| L[标记为 Success]
+    K -->|超时| M[落格超时]
+    M --> N[标记为 Timeout]
+    N --> O[通知上游: Outcome=Timeout]
+    L --> P[通知上游: Outcome=Success]
+```
+
+#### 包裹丢失处理流程图
+
+```mermaid
+flowchart TD
+    A[入口传感器检测包裹] --> B[创建本地包裹实体]
+    B --> C[记录 EntryTime]
+    C --> D[生命周期监控开始]
+    D --> E{定期检查包裹状态}
+    E -->|未完成落格| F{检查存活时间}
+    F -->|< MaxLifetime| E
+    F -->|>= MaxLifetime| G[超过最大存活时间]
+    G --> H{能否确定包裹位置?}
+    H -->|是| I[继续跟踪]
+    I --> E
+    H -->|否| J[判定为包裹丢失]
+    J --> K[标记为 Lost]
+    K --> L[记录 ParcelLifecycle Lost 日志]
+    L --> M[通知上游: Outcome=Lost]
+    E -->|已完成落格| N[正常结束]
+```
+
 ### 核心特点
 
 - ✅ 方向控制模式（左/右/直行）

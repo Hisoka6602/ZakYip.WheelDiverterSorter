@@ -110,6 +110,52 @@ public class ParcelTimelineCollector : IParcelLifecycleLogger
     }
 
     /// <summary>
+    /// 记录包裹超时事件
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当包裹在规定时间内未完成某阶段时调用。
+    /// </remarks>
+    public void LogTimeout(ParcelLifecycleContext context, string timeoutType, double elapsedSeconds)
+    {
+        var snapshot = _snapshots.GetOrAdd(context.ParcelId, _ => new ParcelTimelineSnapshot
+        {
+            ParcelId = context.ParcelId
+        });
+
+        snapshot.FinalStatus = ParcelFinalStatus.Timeout;
+        snapshot.FailureReason = $"{timeoutType} after {elapsedSeconds:F1}s";
+        snapshot.Events.Add(new TimelineEvent
+        {
+            EventType = "Timeout",
+            EventTime = context.EventTime,
+            Description = $"Timeout: {timeoutType}, elapsed {elapsedSeconds:F1}s"
+        });
+    }
+
+    /// <summary>
+    /// 记录包裹丢失事件
+    /// </summary>
+    /// <remarks>
+    /// PR-NOSHADOW-ALL: 当包裹超过最大存活时间仍未完成落格时调用。
+    /// </remarks>
+    public void LogLost(ParcelLifecycleContext context, double lifetimeSeconds)
+    {
+        var snapshot = _snapshots.GetOrAdd(context.ParcelId, _ => new ParcelTimelineSnapshot
+        {
+            ParcelId = context.ParcelId
+        });
+
+        snapshot.FinalStatus = ParcelFinalStatus.Lost;
+        snapshot.FailureReason = $"Lost after {lifetimeSeconds:F1}s lifetime";
+        snapshot.Events.Add(new TimelineEvent
+        {
+            EventType = "Lost",
+            EventTime = context.EventTime,
+            Description = $"Lost: exceeded max lifetime of {lifetimeSeconds:F1}s"
+        });
+    }
+
+    /// <summary>
     /// 获取所有包裹的时间轴快照
     /// </summary>
     public IReadOnlyCollection<ParcelTimelineSnapshot> GetSnapshots()

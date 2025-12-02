@@ -100,6 +100,7 @@ public class ApplicationLayerDependencyTests
     /// PR-H1: Application 层现在是 DI 聚合层，允许依赖 Simulation 项目以统一注册所有服务。
     /// Application is now the DI aggregation layer and can depend on Simulation to register all services.
     /// PR-RS13: Application 允许依赖 Configuration.Persistence 以注册 LiteDB 仓储实现。
+    /// PR-NOSHADOW-ALL: Application 允许依赖 Simulation.Scenarios 作为 Simulation 的传递依赖。
     /// </remarks>
     [Fact]
     public void Application_ShouldOnlyDependOn_AllowedProjects()
@@ -112,6 +113,7 @@ public class ApplicationLayerDependencyTests
         
         // PR-H1: Application 允许依赖的项目（新增 Simulation，因为 Application 是 DI 聚合层）
         // PR-RS13: 新增 Configuration.Persistence，因为 Application 负责注册 LiteDB 仓储实现
+        // PR-NOSHADOW-ALL: 新增 Simulation.Scenarios，作为 Simulation 的传递依赖
         var allowedProjects = new[]
         {
             "ZakYip.WheelDiverterSorter.Core",
@@ -121,6 +123,7 @@ public class ApplicationLayerDependencyTests
             "ZakYip.WheelDiverterSorter.Communication",
             "ZakYip.WheelDiverterSorter.Observability",
             "ZakYip.WheelDiverterSorter.Simulation",  // PR-H1: 允许 Application 依赖 Simulation
+            "ZakYip.WheelDiverterSorter.Simulation.Scenarios",  // PR-NOSHADOW-ALL: Simulation 传递依赖
             "ZakYip.WheelDiverterSorter.Configuration.Persistence"  // PR-RS13: 允许依赖 Configuration.Persistence（LiteDB 仓储实现）
         };
 
