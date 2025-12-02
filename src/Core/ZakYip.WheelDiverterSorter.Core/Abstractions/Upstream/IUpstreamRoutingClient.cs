@@ -1,5 +1,3 @@
-using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
-
 namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 /// <summary>
@@ -173,7 +171,6 @@ public readonly record struct DwsMeasurement
 /// </summary>
 /// <remarks>
 /// PR-UPSTREAM02: 新增类型，用于通知上游包裹已完成落格。
-/// PR-NOSHADOW-ALL: 新增 Outcome 字段，区分成功/超时/丢失/失败。
 /// </remarks>
 public record SortingCompletedNotification
 {
@@ -196,20 +193,6 @@ public record SortingCompletedNotification
     /// 是否成功（false 表示进入异常口或失败）
     /// </summary>
     public bool IsSuccess { get; init; } = true;
-
-    /// <summary>
-    /// 分拣结果（成功/超时/丢失/失败）
-    /// </summary>
-    /// <remarks>
-    /// PR-NOSHADOW-ALL: 新增字段，用于区分不同的分拣结果类型。
-    /// <list type="bullet">
-    ///   <item>Success - 正常落格</item>
-    ///   <item>Timeout - 超时路由到异常格口</item>
-    ///   <item>Lost - 包裹丢失</item>
-    ///   <item>Failed - 执行失败</item>
-    /// </list>
-    /// </remarks>
-    public SortingOutcome Outcome { get; init; } = SortingOutcome.Success;
 
     /// <summary>
     /// 失败原因（如果失败）
