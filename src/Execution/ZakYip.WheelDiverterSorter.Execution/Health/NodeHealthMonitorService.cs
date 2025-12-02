@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Health;
 
@@ -21,7 +22,7 @@ public class NodeHealthMonitorService : BackgroundService
     
     // 用于跟踪上一次的健康状态，避免重复日志
     private int _lastUnhealthyNodesCount = -1;
-    private Core.Enums.Monitoring.DegradationMode _lastDegradationMode = (Core.Enums.Monitoring.DegradationMode)(-1);
+    private DegradationMode _lastDegradationMode = (DegradationMode)(-1);
 
     public NodeHealthMonitorService(
         INodeHealthRegistry nodeHealthRegistry,
