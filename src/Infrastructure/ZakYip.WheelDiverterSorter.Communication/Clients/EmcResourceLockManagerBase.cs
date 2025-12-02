@@ -45,13 +45,21 @@ public abstract class EmcResourceLockManagerBase : IEmcResourceLockManager
     /// <returns>EMC锁事件参数</returns>
     protected static EmcLockEventArgs CreateEventArgsFromLockEvent(EmcLockEvent lockEvent)
     {
+        // lockEvent.Timestamp 是本地时间，需要正确转换为 DateTimeOffset
+        var timestamp = lockEvent.Timestamp.Kind switch
+        {
+            DateTimeKind.Utc => new DateTimeOffset(lockEvent.Timestamp, TimeSpan.Zero),
+            DateTimeKind.Local => new DateTimeOffset(lockEvent.Timestamp),
+            _ => new DateTimeOffset(DateTime.SpecifyKind(lockEvent.Timestamp, DateTimeKind.Local))
+        };
+        
         return new EmcLockEventArgs
         {
             EventId = lockEvent.EventId,
             InstanceId = lockEvent.InstanceId,
             NotificationType = lockEvent.NotificationType,
             CardNo = lockEvent.CardNo,
-            Timestamp = new DateTimeOffset(lockEvent.Timestamp, TimeSpan.Zero),
+            Timestamp = timestamp,
             Message = lockEvent.Message,
             TimeoutMs = lockEvent.TimeoutMs
         };
