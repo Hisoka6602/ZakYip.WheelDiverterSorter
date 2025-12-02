@@ -45,6 +45,7 @@
 - [TD-031] Upstream 协议文档收敛 (PR-DOC-UPSTREAM01)
 - [TD-032] Tests 与 Tools 结构规范 (PR-RS-TESTS01)
 - [TD-033] 单一权威实现表扩展 & 自动化验证 (PR-RS-SINGLEAUTH01)
+- [TD-034] 配置缓存统一 (PR-CONFIG-HOTRELOAD01)
 
 ---
 
@@ -889,6 +890,152 @@
 
 ---
 
-**文档版本**：1.3 (PR-RS-SINGLEAUTH01)  
+**文档版本**：1.4 (PR-CONFIG-HOTRELOAD01)  
 **最后更新**：2025-12-02  
 **维护团队**：ZakYip Development Team
+
+## [TD-034] 配置缓存统一
+
+**状态**：✅ 已解决 (PR-CONFIG-HOTRELOAD01)
+
+**问题描述**：
+- 历史上配置管理层可能存在分散的缓存实现（如 `Cached*Repository`、`*OptionsProvider` 等自带缓存字段的类型）
+- 缺少统一的配置缓存策略，导致缓存逻辑散落在不同层级
+- 配置热更新语义不明确，可能存在"更新后不立即生效"的问题
+- 缺少架构测试防止未来再次出现配置缓存"影分身"
+
+**验收现状 (PR-CONFIG-HOTRELOAD01 分析)**：
+
+✅ **基础设施已完备**：
+- `ISlidingConfigCache` 及其实现 `SlidingConfigCache` 已存在于 `Application/Services/Caching/`
+- 采用 1 小时滑动过期策略，基于 `IMemoryCache` 实现
+- 支持 `GetOrAddAsync` / `Set` / `Remove` / `TryGetValue` 方法
+
+✅ **所有配置服务已统一使用**：
+- `SystemConfigService`：使用 `ISlidingConfigCache`，更新后通过 `Set()` 立即刷新缓存
+- `CommunicationConfigService`：使用 `ISlidingConfigCache`，更新后立即刷新
+- `IoLinkageConfigService`：使用 `ISlidingConfigCache`，更新后立即刷新
+- `LoggingConfigService`：使用 `ISlidingConfigCache`，更新后立即刷新
+- `VendorConfigService`：使用 `ISlidingConfigCache`，管理 Driver/Sensor/WheelDiverter 三组配置，更新后立即刷新
+
+✅ **无分散缓存实现**：
+- 扫描 `src/` 目录未发现 `Cached*Repository`、`*OptionsProvider`、`*ConfigProvider` 等自带缓存的类型
+- `Configuration.Persistence` 层的 LiteDB 仓储不包含任何 `MemoryCache` 或 `ConcurrentDictionary` 缓存逻辑
+- `ConcurrentDictionary` 仅用于运行时状态跟踪（如 AlarmService、SimulationRunner），非配置缓存
+
+✅ **测试已覆盖热更新**：
+- `ConfigurationHotUpdateTests`：验证配置更新后立即生效
+- 测试覆盖：CommunicationConfig 并发更新、重置、连接模式切换等场景
+
+**解决方案 (PR-CONFIG-HOTRELOAD01)**：
+
+1. **更新 RepositoryStructure.md**：
+   - 在 6.1"单一权威实现表"新增"配置缓存/热更新管道"条目
+   - 明确权威位置：`Application/Services/Caching/`（`ISlidingConfigCache`, `SlidingConfigCache`）
+   - 明确禁止位置：Controller、Drivers、Execution、Ingress、Configuration.Persistence 等其它层
+   - 禁止出现类型模式：`*ConfigCache`, `*OptionsProvider`, `*Cached*Repository`（正则匹配）
+
+2. **更新 TechnicalDebtLog.md**：
+   - 新增 TD-034 条目，状态：✅ 已解决
+   - 说明：分散配置缓存实现已统一为 `ISlidingConfigCache`，无历史遗留债务
+
+3. **更新 SYSTEM_CONFIG_GUIDE.md**：
+   - 新增"配置热更新与缓存语义"章节
+   - 说明 1 小时滑动缓存策略：首次读取访问 LiteDB，后续 1 小时内命中内存缓存
+   - 说明配置更新语义：API PUT 后，先写持久化，再立即调用 `Set()` 刷新缓存，确保下一次读取必定是新值
+
+4. **新增 ArchTests 防线测试**：
+   - `TechnicalDebtComplianceTests.ConfigCacheShadowTests`：
+     - 禁止在非 `Application/Services/Caching/` 位置出现 `*ConfigCache`, `*OptionsProvider`, `*Cached*Repository` 类型
+     - 禁止在 `Configuration.Persistence` 层使用 `IMemoryCache` 或 `ConcurrentDictionary`（仅检测字段声明）
+   - `SingleAuthorityCatalogTests`：
+     - 自动解析 RepositoryStructure.md 6.1 表格中的"配置缓存"行
+     - 验证权威类型存在于指定目录
+     - 验证禁止位置没有匹配模式的类型
+
+5. **文档更新**：
+   - 在 README.md 配置章节增加缓存语义说明
+
+**单一权威实现表条目 (6.1)**：
+
+| 概念 | 权威类型 | 权威位置 | 禁止位置 | 测试防线 |
+|------|---------|---------|---------|----------|
+| 配置缓存/热更新管道 | `ISlidingConfigCache`<br/>`SlidingConfigCache` | `Application/Services/Caching/` | ❌ Configuration.Persistence 中自带缓存<br/>❌ Host/Controllers 中自定义缓存<br/>❌ Core/Execution/Drivers/Ingress 中实现配置缓存<br/>❌ 其他项目中定义 `*ConfigCache`, `*OptionsProvider`, `*Cached*Repository` | `ConfigCacheShadowTests`<br/>`SingleAuthorityCatalogTests` |
+
+**新增防线测试**：
+
+```csharp
+// TechnicalDebtComplianceTests/ConfigCacheShadowTests.cs
+
+[Fact]
+public void ConfigCache_Should_Only_Exist_In_Application_Services_Caching()
+{
+    // 扫描所有项目，禁止在非权威位置出现匹配模式的类型
+    var forbiddenPatterns = new[] { "*ConfigCache", "*OptionsProvider", "*Cached*Repository" };
+    var allowedNamespace = "ZakYip.WheelDiverterSorter.Application.Services.Caching";
+    
+    // 排除允许的类型（ISlidingConfigCache, SlidingConfigCache, CachedSwitchingPathGenerator）
+    var allowedTypes = new[] { "ISlidingConfigCache", "SlidingConfigCache", "CachedSwitchingPathGenerator" };
+    
+    var violations = FindTypesByPattern(forbiddenPatterns)
+        .Where(t => !allowedTypes.Contains(t.Name))
+        .Where(t => !t.Namespace.StartsWith(allowedNamespace))
+        .ToList();
+    
+    Assert.Empty(violations); // 禁止影分身缓存实现
+}
+
+[Fact]
+public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
+{
+    var persistenceAssembly = typeof(LiteDbSystemConfigurationRepository).Assembly;
+    
+    var typesWithCacheFields = persistenceAssembly.GetTypes()
+        .Where(t => t.GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public)
+            .Any(f => f.FieldType.Name.Contains("MemoryCache") || 
+                      f.FieldType.Name.Contains("ConcurrentDictionary")))
+        .ToList();
+    
+    Assert.Empty(typesWithCacheFields); // Persistence 层不应自带缓存
+}
+```
+
+**配置热更新语义 (SYSTEM_CONFIG_GUIDE.md 新增章节)**：
+
+### 配置热更新与缓存语义
+
+系统采用统一的配置缓存机制 (`ISlidingConfigCache`)，确保配置读取高效且更新后立即生效。
+
+#### 缓存策略
+
+- **滑动过期时间**：1 小时
+- **无绝对过期时间**：只要配置在被使用，缓存就会保持有效
+- **缓存优先级**：高优先级 (CacheItemPriority.High)，减少内存压力时被淘汰的概率
+
+#### 读取语义
+
+- **首次读取**：访问 LiteDB 数据库，将配置加载到内存缓存
+- **后续读取（1 小时内）**：直接从内存缓存返回，不访问数据库
+- **性能优化**：命中缓存时返回 `Task.FromResult(cached)`，避免额外 Task 分配
+
+#### 更新语义
+
+- **写入顺序**：先写持久化 (LiteDB)，再刷新缓存 (`Set()`)
+- **生效时间**：立即生效，下一次 `GetSystemConfig()` 等方法调用必定返回新值
+- **无需重启**：配置更新不需要重启 Host 或重建 DI 容器
+
+#### 适用范围
+
+所有业务配置统一采用此缓存机制，包括：
+- 系统配置 (`SystemConfiguration`)
+- 通信配置 (`CommunicationConfiguration`)
+- IO 联动配置 (`IoLinkageConfiguration`)
+- 日志配置 (`LoggingConfiguration`)
+- 厂商配置 (`DriverConfiguration`, `SensorConfiguration`, `WheelDiverterConfiguration`)
+
+**变更影响**：
+- 现有代码无需修改（已全部使用 `ISlidingConfigCache`）
+- 新增架构测试防止未来出现影分身缓存实现
+- 文档明确了配置热更新语义，便于运维和开发理解
+
+---
