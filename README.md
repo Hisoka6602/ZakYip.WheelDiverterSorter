@@ -140,26 +140,103 @@ flowchart TD
 - ✅ 方向控制模式（左/右/直行）
 - ✅ 传感器驱动，实时跟踪包裹位置
 - ✅ LiteDB 动态配置，支持运行时热更新
-- ✅ 多协议通信（TCP/SignalR/MQTT/HTTP）
+- ✅ 多协议通信（TCP/SignalR/MQTT）
 - ✅ 完整异常处理，自动路由到异常格口
 - ✅ 三种分拣模式（正式/指定落格/循环落格）
+- ✅ 多厂商硬件支持（雷赛/西门子/摩迪/书迪鸟/仿真）
+
+### 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Host (ASP.NET Core)                             │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
+│  │ Controllers │  │ StateMachine│  │   Workers   │  │    Swagger/API      │ │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └─────────────────────┘ │
+└─────────┼────────────────┼────────────────┼─────────────────────────────────┘
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Application (DI 聚合层)                              │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐                 │
+│  │ Config Service │  │ Sorting Service│  │ Health Service │                 │
+│  └────────────────┘  └────────────────┘  └────────────────┘                 │
+└───────────────────────────────┬─────────────────────────────────────────────┘
+                                │
+        ┌───────────────────────┼───────────────────────┐
+        │                       │                       │
+        ▼                       ▼                       ▼
+┌───────────────┐      ┌───────────────┐      ┌───────────────────────────────┐
+│   Execution   │      │    Ingress    │      │        Infrastructure         │
+│ ┌───────────┐ │      │ ┌───────────┐ │      │  ┌─────────────────────────┐  │
+│ │Orchestrator│ │      │ │  Sensors  │ │      │  │    Communication        │  │
+│ │  Pipeline │ │      │ │ Detection │ │      │  │  (TCP/SignalR/MQTT)     │  │
+│ └───────────┘ │      │ └───────────┘ │      │  └─────────────────────────┘  │
+└───────┬───────┘      └───────────────┘      │  ┌─────────────────────────┐  │
+        │                                      │  │ Config.Persistence     │  │
+        ▼                                      │  │     (LiteDB)           │  │
+┌───────────────┐      ┌───────────────┐      │  └─────────────────────────┘  │
+│    Drivers    │      │  Simulation   │      └───────────────────────────────┘
+│ ┌───────────┐ │      │ ┌───────────┐ │
+│ │ Leadshine │ │      │ │ Scenarios │ │
+│ │ ShuDiNiao │ │      │ │  Runner   │ │
+│ │ Siemens   │ │      │ └───────────┘ │
+│ │ Simulated │ │      └───────────────┘
+│ └───────────┘ │
+└───────────────┘
+        │
+        ▼
+┌───────────────────────────────────────────────────────────────────────────┐
+│                            Core (领域模型)                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │   Hardware   │  │   LineModel  │  │   Sorting    │  │  Abstractions│   │
+│  │  (HAL 抽象)  │  │ (配置/拓扑)  │  │  (分拣逻辑)  │  │  (上游接口)  │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**依赖方向**：Host → Application → (Execution/Drivers/Ingress/Infrastructure/Simulation) → Core
 
 ## 项目结构
 
 ```
 src/
-├── Host/           # ASP.NET Core 宿主应用（API、后台服务）
-├── Application/    # 应用服务层，DI 聚合入口
-├── Core/           # 核心领域模型、配置仓储、HAL 抽象
-├── Execution/      # 分拣执行管线、路径执行、SortingOrchestrator
-├── Drivers/        # 硬件驱动（雷赛/西门子/摩迪/书迪鸟/仿真）
-├── Ingress/        # 传感器管理、包裹检测
-├── Communication/  # 上游通信（TCP/SignalR/MQTT/HTTP）
-├── Observability/  # 监控指标、日志、告警
-└── Simulation/     # 仿真运行环境
+├── Host/               # ASP.NET Core 宿主应用（API、后台服务、状态机）
+├── Application/        # 应用服务层，DI 聚合入口
+├── Core/               # 核心领域模型、配置仓储接口、HAL 抽象
+├── Execution/          # 分拣执行管线、路径执行、SortingOrchestrator
+├── Drivers/            # 硬件驱动（雷赛/西门子/摩迪/书迪鸟/仿真）
+├── Ingress/            # 传感器管理、包裹检测
+├── Infrastructure/     # 基础设施层
+│   ├── Communication/              # 上游通信（TCP/SignalR/MQTT）
+│   └── Configuration.Persistence/  # LiteDB 配置持久化
+├── Observability/      # 监控指标、日志、告警、安全执行服务
+├── Simulation/         # 仿真服务库
+│   ├── Simulation/     # 仿真服务库（Library）
+│   ├── Simulation.Cli/ # 仿真命令行入口（Exe）
+│   └── Simulation.Scenarios/  # 仿真场景定义
+└── Analyzers/          # Roslyn 代码分析器
 
-tests/              # 测试项目（单元/集成/E2E/架构/性能）
-monitoring/         # Prometheus/Grafana 配置
+tests/                  # 测试项目
+├── Core.Tests/         # 核心层单元测试
+├── Execution.Tests/    # 执行层单元测试
+├── Drivers.Tests/      # 驱动层单元测试
+├── Ingress.Tests/      # 入口层单元测试
+├── Communication.Tests/# 通信层单元测试
+├── Observability.Tests/# 可观测性层单元测试
+├── Host.Application.Tests/  # 应用服务单元测试
+├── Host.IntegrationTests/   # 主机集成测试
+├── E2ETests/           # 端到端测试
+├── ArchTests/          # 架构合规性测试
+├── TechnicalDebtComplianceTests/  # 技术债合规性测试
+└── Benchmarks/         # 性能基准测试
+
+tools/                  # 工具项目
+├── Reporting/          # 仿真报告分析工具
+├── SafeExecutionStats/ # SafeExecution 统计工具
+└── Profiling/          # 性能剖析脚本
+
+monitoring/             # Prometheus/Grafana 配置
 ```
 
 ## 快速开始
@@ -189,13 +266,57 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 ## API 概览
 
-| 端点 | 说明 |
-|------|------|
-| `GET/PUT /api/config/system` | 系统配置（分拣模式、异常格口等） |
-| `GET/PUT /api/config/communication` | 上游通信配置 |
-| `GET/PUT /api/config/chute-path-topology` | 格口路径拓扑 |
-| `GET /healthz` | 进程级健康检查 |
-| `GET /health/line` | 线体级健康检查 |
+### 系统与健康检查
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/system/status` | GET | 系统状态查询（支持高并发） |
+| `/api/system/restart` | POST | 系统重启 |
+| `/health/ready` | GET | 就绪状态检查（Kubernetes readiness probe） |
+| `/health/prerun` | GET | 运行前健康检查 |
+| `/health/drivers` | GET | 驱动健康状态检查 |
+
+### 配置管理
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/config/system` | GET/PUT | 系统配置（分拣模式、异常格口等） |
+| `/api/config/system/sorting-mode` | GET/PUT | 分拣模式配置 |
+| `/api/config/communication` | GET/PUT | 上游通信配置 |
+| `/api/config/chute-path-topology` | GET/PUT | 格口路径拓扑配置 |
+| `/api/config/chute-assignment-timeout` | GET/PUT | 格口分配超时配置 |
+| `/api/config/io-linkage` | GET/PUT | IO 联动配置 |
+| `/api/config/panel` | GET/PUT | 面板配置 |
+| `/api/config/logging` | GET/PUT | 日志配置 |
+| `/api/config/simulation` | GET/PUT | 仿真配置 |
+
+### 硬件配置
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/hardware/leadshine` | GET/PUT | 雷赛 IO 卡配置 |
+| `/api/hardware/leadshine/sensors` | GET/PUT | 雷赛传感器配置 |
+| `/api/hardware/shudiniao` | GET/PUT | 书迪鸟摆轮配置 |
+
+### 业务操作
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/diverts/change-chute` | POST | 改口操作 |
+| `/api/alarms` | GET | 获取告警列表 |
+| `/api/alarms/acknowledge` | POST | 确认告警 |
+| `/api/policy/exception-routing` | GET/PUT | 异常路由策略 |
+| `/api/policy/overload` | GET/PUT | 超载策略 |
+
+### 通信与仿真
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/communication/status` | GET | 通信状态查询 |
+| `/api/communication/test` | POST | 通信测试 |
+| `/api/simulation/run-scenario-e` | POST | 运行仿真场景 |
+| `/api/simulation/status` | GET | 仿真状态查询 |
+| `/api/simulation/panel/*` | POST | 面板仿真操作 |
 
 ## 分拣模式
 
@@ -207,7 +328,9 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 ## 上游通信数据结构
 
-系统支持与上游 RuleEngine 通过多种协议（TCP/SignalR/MQTT/HTTP）进行通信。以下是通信过程中使用的核心数据结构：
+系统支持与上游 RuleEngine 通过多种协议（TCP/SignalR/MQTT）进行通信。以下是通信过程中使用的核心数据结构：
+
+> **注意**：HTTP 协议支持已在 PR-UPSTREAM01 中移除，当前默认使用 TCP 协议。
 
 ### 通信流程
 
@@ -219,13 +342,23 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
          │                                         │
          │  1. ParcelDetectionNotification         │
          │  ─────────────────────────────────────▶ │
-         │  (包裹检测通知)                          │
+         │  (包裹检测通知: ParcelId, DetectionTime) │
          │                                         │
          │  2. ChuteAssignmentResponse             │
          │  ◀───────────────────────────────────── │
-         │  (格口分配响应)                          │
+         │  (格口分配: ParcelId, ChuteId)          │
+         │                                         │
+         │  3. SortingCompletedNotification        │
+         │  ─────────────────────────────────────▶ │
+         │  (分拣完成: ParcelId, ActualChuteId,    │
+         │   Outcome=Success/Timeout/Lost)         │
          │                                         │
 ```
+
+**支持的通信协议**：
+- **TCP**（默认）：高性能、低延迟
+- **SignalR**：支持实时双向通信
+- **MQTT**：适用于物联网场景
 
 ### 数据结构定义
 
@@ -320,19 +453,69 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 ## 文档导航
 
+### 核心文档
+
 | 文档 | 说明 |
 |------|------|
-| [docs/RepositoryStructure.md](docs/RepositoryStructure.md) | 仓库结构、技术债索引 |
+| [docs/RepositoryStructure.md](docs/RepositoryStructure.md) | 仓库结构、技术债索引（**必读**） |
 | [docs/DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) | 完整文档索引 |
 | [.github/copilot-instructions.md](.github/copilot-instructions.md) | Copilot 约束说明 |
 
+### 使用指南
+
+| 文档 | 说明 |
+|------|------|
+| [docs/guides/API_USAGE_GUIDE.md](docs/guides/API_USAGE_GUIDE.md) | API 使用指南 |
+| [docs/guides/SYSTEM_CONFIG_GUIDE.md](docs/guides/SYSTEM_CONFIG_GUIDE.md) | 系统配置指南 |
+| [docs/guides/UPSTREAM_CONNECTION_GUIDE.md](docs/guides/UPSTREAM_CONNECTION_GUIDE.md) | 上游连接配置 |
+| [docs/guides/VENDOR_EXTENSION_GUIDE.md](docs/guides/VENDOR_EXTENSION_GUIDE.md) | 厂商扩展开发 |
+
+### 架构文档
+
+| 文档 | 说明 |
+|------|------|
+| [docs/ARCHITECTURE_PRINCIPLES.md](docs/ARCHITECTURE_PRINCIPLES.md) | 架构原则 |
+| [docs/CODING_GUIDELINES.md](docs/CODING_GUIDELINES.md) | 编码规范 |
+| [docs/TOPOLOGY_LINEAR_N_DIVERTERS.md](docs/TOPOLOGY_LINEAR_N_DIVERTERS.md) | N 摆轮线性拓扑模型 |
+
+## 硬件驱动支持
+
+系统支持多种硬件厂商的设备，所有厂商实现位于 `src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/` 目录：
+
+| 厂商 | 设备类型 | 说明 |
+|------|----------|------|
+| Leadshine（雷赛） | IO 卡 | 支持雷赛 IO 板卡的数字输入输出、传感器读取 |
+| Siemens（西门子） | S7 PLC | 通过 S7 协议连接西门子 PLC |
+| Modi（摩迪） | 摆轮控制器 | 摩迪摆轮协议驱动 |
+| ShuDiNiao（书迪鸟） | 摆轮控制器 | 书迪鸟摆轮协议驱动（支持 TCP 通信） |
+| Simulated（仿真） | 虚拟设备 | 用于测试和开发的仿真驱动 |
+
 ## 技术栈
 
-- .NET 8.0
-- ASP.NET Core
-- LiteDB
-- Prometheus + Grafana
+| 类别 | 技术 | 说明 |
+|------|------|------|
+| 运行时 | .NET 8.0 | 长期支持版本 |
+| Web 框架 | ASP.NET Core | Web API 和后台服务 |
+| 数据库 | LiteDB | 嵌入式 NoSQL 数据库，配置持久化 |
+| 监控 | Prometheus + Grafana | 指标收集与可视化 |
+| 日志 | NLog | 结构化日志 |
+| API 文档 | Swagger/OpenAPI | 自动生成的 API 文档 |
+| 测试 | xUnit + Moq | 单元测试和集成测试 |
+| 代码分析 | Roslyn Analyzers | 编译时代码规范检查 |
+
+## 运行模式
+
+系统支持两种运行环境：
+
+| 环境模式 | 说明 | 使用场景 |
+|----------|------|----------|
+| Production | 使用真实硬件驱动 | 生产环境、与物理设备连接 |
+| Simulation | 使用仿真驱动 | 开发测试、功能验证、性能测试 |
+
+通过 `ASPNETCORE_ENVIRONMENT` 环境变量或 `/api/system/status` 接口可查询当前运行模式。
 
 ---
 
-**维护团队：** ZakYip Development Team
+**文档版本**：2.0  
+**最后更新**：2025-12-02  
+**维护团队**：ZakYip Development Team
