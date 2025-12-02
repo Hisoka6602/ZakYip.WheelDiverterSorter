@@ -204,6 +204,13 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 ### 配置管理
 
+所有业务配置统一采用 **1 小时滑动缓存** + **热更新机制**：
+- **读取性能**：首次访问 LiteDB，后续 1 小时内从内存缓存返回（100-500 倍性能提升）
+- **更新语义**：PUT 请求更新配置后立即生效，无需重启
+- **缓存策略**：滑动过期（持续使用则持续有效），高优先级（不易被淘汰）
+
+详见：[系统配置指南](docs/guides/SYSTEM_CONFIG_GUIDE.md)
+
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/api/config/system` | GET/PUT | 系统配置（分拣模式、异常格口等） |
