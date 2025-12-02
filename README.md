@@ -12,24 +12,16 @@
 ### 系统拓扑
 
 ```
-                    ┌─────────┐
-                    │  格口B   │ (摆轮D1左转)
-                    └────▲────┘
-                         │
+              格口B(右转)  格口D(右转)  格口F(右转)
+                   ↑           ↑           ↑
 入口传感器 ──▶ [摆轮D1] ──▶ [摆轮D2] ──▶ [摆轮D3] ──▶ 末端(异常口999)
-    │              │           │           │
-    ▼              ▼           ▼           ▼
- 创建包裹     ┌─────────┐ ┌─────────┐ ┌─────────┐
-             │  格口A   │ │  格口C   │ │  格口E   │
-             │(D1右转)  │ │(D2右转)  │ │(D3右转)  │
-             └─────────┘ └─────────┘ └─────────┘
-                    ┌─────────┐ ┌─────────┐
-                    │  格口D   │ │  格口F   │
-                    │(D2左转)  │ │(D3左转)  │
-                    └─────────┘ └─────────┘
+    │              ↓           ↓           ↓
+    ▼         格口A(左转)  格口C(左转)  格口E(左转)
+ 创建包裹
 ```
 
 **说明**：
+- 格口分布在摆轮两侧（图中上侧/下侧，对应配置中的 Right/Left）
 - 每个摆轮前有感应传感器（FrontSensor）检测包裹到达
 - 摆轮支持三个方向：左转、右转、直行
 - 包裹沿输送线单向移动，无法后退
@@ -143,7 +135,7 @@ flowchart TD
 - ✅ 多协议通信（TCP/SignalR/MQTT）
 - ✅ 完整异常处理，自动路由到异常格口
 - ✅ 三种分拣模式（正式/指定落格/循环落格）
-- ✅ 多厂商硬件支持（雷赛/西门子/摩迪/书迪鸟/仿真）
+- ✅ 多厂商硬件支持（雷赛/西门子/书迪鸟/仿真）
 
 ### 系统架构
 
@@ -205,7 +197,7 @@ src/
 ├── Application/        # 应用服务层，DI 聚合入口
 ├── Core/               # 核心领域模型、配置仓储接口、HAL 抽象
 ├── Execution/          # 分拣执行管线、路径执行、SortingOrchestrator
-├── Drivers/            # 硬件驱动（雷赛/西门子/摩迪/书迪鸟/仿真）
+├── Drivers/            # 硬件驱动（雷赛/西门子/书迪鸟/仿真）
 ├── Ingress/            # 传感器管理、包裹检测
 ├── Infrastructure/     # 基础设施层
 │   ├── Communication/              # 上游通信（TCP/SignalR/MQTT）
@@ -342,16 +334,16 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
          │                                         │
          │  1. ParcelDetectionNotification         │
          │  ─────────────────────────────────────▶ │
-         │  (包裹检测通知: ParcelId, DetectionTime) │
+         │  (检测通知: ParcelId, DetectionTime)   │
          │                                         │
-         │  2. ChuteAssignmentResponse             │
+         │  2. ChuteAssignmentNotification         │
          │  ◀───────────────────────────────────── │
-         │  (格口分配: ParcelId, ChuteId)          │
+         │  (格口分配: ParcelId, ChuteId, DWS 数据)│
          │                                         │
          │  3. SortingCompletedNotification        │
          │  ─────────────────────────────────────▶ │
-         │  (分拣完成: ParcelId, ActualChuteId,    │
-         │   Outcome=Success/Timeout/Lost)         │
+         │  (落格完成: ParcelId, ActualChuteId,    │
+         │   FinalStatus=Success/Timeout/Lost)     │
          │                                         │
 ```
 
@@ -364,7 +356,7 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 #### ParcelDetectionNotification（包裹检测通知）
 
-当系统检测到包裹时，发送此通知给 RuleEngine。
+当系统检测到包裹时，发送此通知给 RuleEngine（fire-and-forget）。
 
 ```json
 {
@@ -383,33 +375,23 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 | `DetectionTime` | DateTimeOffset | ✅ | 检测时间 |
 | `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
 
-#### ChuteAssignmentRequest（格口分配请求）
+#### ChuteAssignmentNotification（格口分配通知）
 
-分拣系统向上游请求格口分配时使用。
-
-```json
-{
-  "ParcelId": 1701446263000,
-  "RequestTime": "2024-12-01T18:57:43+08:00"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
-| `RequestTime` | DateTimeOffset | ✅ | 请求时间 |
-
-#### ChuteAssignmentResponse（格口分配响应）
-
-上游 RuleEngine 返回的格口分配结果。
+上游 RuleEngine 主动推送的格口分配结果。
 
 ```json
 {
   "ParcelId": 1701446263000,
   "ChuteId": 101,
-  "IsSuccess": true,
-  "ErrorMessage": null,
-  "ResponseTime": "2024-12-01T18:57:43.500+08:00"
+  "AssignedAt": "2024-12-01T18:57:43.500+08:00",
+  "DwsPayload": {
+    "WeightGrams": 500.0,
+    "LengthMm": 300.0,
+    "WidthMm": 200.0,
+    "HeightMm": 100.0,
+    "Barcode": "PKG123456"
+  },
+  "Metadata": null
 }
 ```
 
@@ -417,9 +399,9 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 |------|------|------|------|
 | `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
 | `ChuteId` | long | ✅ | 目标格口ID（数字ID） |
-| `IsSuccess` | bool | ✅ | 是否成功（默认 true） |
-| `ErrorMessage` | string | ❌ | 错误消息（如果失败） |
-| `ResponseTime` | DateTimeOffset | ✅ | 响应时间 |
+| `AssignedAt` | DateTimeOffset | ✅ | 分配时间 |
+| `DwsPayload` | DwsMeasurementDto | ❌ | DWS（尺寸重量扫描）数据（可选） |
+| `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
 
 #### ChuteAssignmentEventArgs（格口分配事件参数）
 
@@ -429,7 +411,8 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 {
   "ParcelId": 1701446263000,
   "ChuteId": 101,
-  "NotificationTime": "2024-12-01T18:57:43.500+08:00",
+  "AssignedAt": "2024-12-01T18:57:43.500+08:00",
+  "DwsPayload": null,
   "Metadata": null
 }
 ```
@@ -438,17 +421,43 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 |------|------|------|------|
 | `ParcelId` | long | ✅ | 包裹ID |
 | `ChuteId` | long | ✅ | 分配的格口ID |
-| `NotificationTime` | DateTimeOffset | ✅ | 通知时间 |
+| `AssignedAt` | DateTimeOffset | ✅ | 分配时间 |
+| `DwsPayload` | DwsMeasurement | ❌ | DWS 数据（可选） |
 | `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
+
+#### SortingCompletedNotification（落格完成通知）
+
+包裹落格后发送给上游的通知（fire-and-forget）。
+
+```json
+{
+  "ParcelId": 1701446263000,
+  "ActualChuteId": 101,
+  "CompletedAt": "2024-12-01T18:57:45.000+08:00",
+  "IsSuccess": true,
+  "FinalStatus": "Success",
+  "FailureReason": null
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `ParcelId` | long | ✅ | 包裹ID |
+| `ActualChuteId` | long | ✅ | 实际落格格口ID（Lost 时为 0） |
+| `CompletedAt` | DateTimeOffset | ✅ | 落格完成时间 |
+| `IsSuccess` | bool | ✅ | 是否成功 |
+| `FinalStatus` | ParcelFinalStatus | ✅ | 最终状态（Success/Timeout/Lost） |
+| `FailureReason` | string | ❌ | 失败原因（如果失败） |
 
 ### 源码位置
 
 | 数据结构 | 位置 |
 |---------|------|
 | `ParcelDetectionNotification` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
-| `ChuteAssignmentRequest` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
-| `ChuteAssignmentResponse` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `ChuteAssignmentNotification` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
+| `SortingCompletedNotificationDto` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
 | `ChuteAssignmentEventArgs` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
+| `SortingCompletedNotification` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
 | `IUpstreamRoutingClient` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
 
 ## 文档导航
@@ -486,7 +495,6 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 |------|----------|------|
 | Leadshine（雷赛） | IO 卡 | 支持雷赛 IO 板卡的数字输入输出、传感器读取 |
 | Siemens（西门子） | S7 PLC | 通过 S7 协议连接西门子 PLC |
-| Modi（摩迪） | 摆轮控制器 | 摩迪摆轮协议驱动 |
 | ShuDiNiao（书迪鸟） | 摆轮控制器 | 书迪鸟摆轮协议驱动（支持 TCP 通信） |
 | Simulated（仿真） | 虚拟设备 | 用于测试和开发的仿真驱动 |
 
