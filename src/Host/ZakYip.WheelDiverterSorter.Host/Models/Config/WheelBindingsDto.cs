@@ -155,6 +155,16 @@ public record WheelBindingsRequest
 public record WheelBindingsResponse
 {
     public required List<WheelHardwareBindingRequest> Bindings { get; init; }
+    
+    /// <summary>
+    /// 创建时间
+    /// </summary>
+    /// <example>2025-12-02T12:00:00</example>
     public DateTime CreatedAt { get; init; }
+    
+    /// <summary>
+    /// 更新时间
+    /// </summary>
+    /// <example>2025-12-02T12:00:00</example>
     public DateTime UpdatedAt { get; init; }
 }

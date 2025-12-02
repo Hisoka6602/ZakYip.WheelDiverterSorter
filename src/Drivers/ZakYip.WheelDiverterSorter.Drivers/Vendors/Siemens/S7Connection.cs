@@ -149,6 +149,121 @@ public class S7Connection : IDisposable
     }
 
     /// <summary>
+    /// 读取单个位
+    /// </summary>
+    /// <param name="dbNumber">DB块号(如"DB1")</param>
+    /// <param name="byteAddress">字节地址</param>
+    /// <param name="bitAddress">位地址(0-7)</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>位值</returns>
+    public async Task<bool> ReadBitAsync(
+        string dbNumber,
+        int byteAddress,
+        int bitAddress,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("PLC未连接");
+        }
+
+        try
+        {
+            var address = $"{dbNumber}.DBX{byteAddress}.{bitAddress}";
+            var result = await Task.Run(() => _plc!.Read(address), cancellationToken);
+            return result != null && (bool)result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取PLC位失败: {DbNumber}.DBX{Byte}.{Bit}",
+                dbNumber, byteAddress, bitAddress);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 写入单个位
+    /// </summary>
+    public async Task WriteBitAsync(
+        string dbNumber,
+        int byteAddress,
+        int bitAddress,
+        bool value,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("PLC未连接");
+        }
+
+        try
+        {
+            var address = $"{dbNumber}.DBX{byteAddress}.{bitAddress}";
+            await Task.Run(() => _plc!.Write(address, value), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "写入PLC位失败: {DbNumber}.DBX{Byte}.{Bit} = {Value}",
+                dbNumber, byteAddress, bitAddress, value);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 读取单个字节
+    /// </summary>
+    public async Task<byte> ReadByteAsync(
+        string dbNumber,
+        int byteAddress,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("PLC未连接");
+        }
+
+        try
+        {
+            var address = $"{dbNumber}.DBB{byteAddress}";
+            var result = await Task.Run(() => _plc!.Read(address), cancellationToken);
+            return result != null ? (byte)result : (byte)0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取PLC字节失败: {DbNumber}.DBB{Byte}",
+                dbNumber, byteAddress);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// 写入单个字节
+    /// </summary>
+    public async Task WriteByteAsync(
+        string dbNumber,
+        int byteAddress,
+        byte value,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("PLC未连接");
+        }
+
+        try
+        {
+            var address = $"{dbNumber}.DBB{byteAddress}";
+            await Task.Run(() => _plc!.Write(address, value), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "写入PLC字节失败: {DbNumber}.DBB{Byte} = {Value}",
+                dbNumber, byteAddress, value);
+            throw;
+        }
+    }
+
+    /// <summary>
     /// 转换CPU类型
     /// </summary>
     private static CpuType ConvertCpuType(S7CpuType cpuType)

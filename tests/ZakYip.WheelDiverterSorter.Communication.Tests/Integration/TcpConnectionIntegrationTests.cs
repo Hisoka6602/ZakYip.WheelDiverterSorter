@@ -241,7 +241,7 @@ public class TcpConnectionIntegrationTests : IDisposable
         await Task.Delay(300);
 
         var testParcelId = 1234567890L;
-        var request = new { ParcelId = testParcelId, RequestTime = _systemClockMock.Object.LocalNowOffset };
+        var request = new { ParcelId = testParcelId, DetectionTime = _systemClockMock.Object.LocalNowOffset };
         var requestJson = System.Text.Json.JsonSerializer.Serialize(request);
         var requestBytes = System.Text.Encoding.UTF8.GetBytes(requestJson + "\n");
 
