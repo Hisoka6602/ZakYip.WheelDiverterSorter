@@ -321,24 +321,64 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
 
 /// <summary>
 /// 重规划成功事件参数
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能（包含 SwitchingPath 引用类型）
 /// </summary>
-public class ReroutingSucceededEventArgs : EventArgs
+public sealed record class ReroutingSucceededEventArgs
 {
+    /// <summary>
+    /// 包裹标识
+    /// </summary>
     public required long ParcelId { get; init; }
+
+    /// <summary>
+    /// 原始路径
+    /// </summary>
     public required SwitchingPath OriginalPath { get; init; }
+
+    /// <summary>
+    /// 新路径
+    /// </summary>
     public required SwitchingPath NewPath { get; init; }
+
+    /// <summary>
+    /// 失败节点ID
+    /// </summary>
     public required long FailedNodeId { get; init; }
+
+    /// <summary>
+    /// 重规划时间
+    /// </summary>
     public required DateTimeOffset ReroutedAt { get; init; }
 }
 
 /// <summary>
 /// 重规划失败事件参数
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能（包含 SwitchingPath 引用类型）
 /// </summary>
-public class ReroutingFailedEventArgs : EventArgs
+public sealed record class ReroutingFailedEventArgs
 {
+    /// <summary>
+    /// 包裹标识
+    /// </summary>
     public required long ParcelId { get; init; }
+
+    /// <summary>
+    /// 原始路径
+    /// </summary>
     public required SwitchingPath OriginalPath { get; init; }
+
+    /// <summary>
+    /// 失败节点ID
+    /// </summary>
     public required long FailedNodeId { get; init; }
+
+    /// <summary>
+    /// 失败原因
+    /// </summary>
     public required string FailureReason { get; init; }
+
+    /// <summary>
+    /// 重规划时间
+    /// </summary>
     public required DateTimeOffset ReroutedAt { get; init; }
 }

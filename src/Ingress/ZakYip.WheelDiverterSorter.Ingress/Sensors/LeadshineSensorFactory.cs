@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
@@ -21,6 +22,7 @@ public class LeadshineSensorFactory : ISensorFactory {
     private readonly ILoggerFactory _loggerFactory;
     private readonly IInputPort _inputPort;
     private readonly ISensorVendorConfigProvider _configProvider;
+    private readonly ISystemClock _systemClock;
 
     /// <summary>
     /// 构造函数
@@ -29,15 +31,18 @@ public class LeadshineSensorFactory : ISensorFactory {
     /// <param name="loggerFactory">日志工厂</param>
     /// <param name="inputPort">输入端口</param>
     /// <param name="configProvider">传感器配置提供者</param>
+    /// <param name="systemClock">系统时钟</param>
     public LeadshineSensorFactory(
         ILogger<LeadshineSensorFactory> logger,
         ILoggerFactory loggerFactory,
         IInputPort inputPort,
-        ISensorVendorConfigProvider configProvider) {
+        ISensorVendorConfigProvider configProvider,
+        ISystemClock systemClock) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _configProvider = configProvider ?? throw new ArgumentNullException(nameof(configProvider));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
@@ -66,7 +71,8 @@ public class LeadshineSensorFactory : ISensorFactory {
                     config.SensorId,
                     sensorType,
                     _inputPort,
-                    config.InputBit);
+                    config.InputBit,
+                    _systemClock);
 
                 sensors.Add(sensor);
                 _logger.LogInformation(

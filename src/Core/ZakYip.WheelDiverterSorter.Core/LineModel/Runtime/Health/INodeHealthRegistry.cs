@@ -63,8 +63,9 @@ public interface INodeHealthRegistry
 /// <summary>
 /// 节点健康状态变更事件参数
 /// Event args for node health status changes
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能（包含 NodeHealthStatus 引用类型）
 /// </summary>
-public class NodeHealthChangedEventArgs : EventArgs
+public sealed record class NodeHealthChangedEventArgs
 {
     /// <summary>
     /// 节点ID

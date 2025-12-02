@@ -125,7 +125,7 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
         var clientInfo = new ClientInfo
         {
             ClientId = connectionId,
-            ConnectedAt = _systemClock.LocalNow
+            ConnectedAt = _systemClock.LocalNowOffset
         };
 
         _clients[connectionId] = clientInfo;
@@ -182,7 +182,7 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
         {
             ParcelId = notification.ParcelId,
             ClientId = connectionId,
-            ReceivedAt = _systemClock.LocalNow
+            ReceivedAt = _systemClock.LocalNowOffset
         });
 
         // 如果有处理器，调用处理器
@@ -220,7 +220,7 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
     private sealed class ClientInfo
     {
         public required string ClientId { get; init; }
-        public required DateTime ConnectedAt { get; init; }
+        public required DateTimeOffset ConnectedAt { get; init; }
     }
 }
 

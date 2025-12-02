@@ -5,8 +5,10 @@ namespace ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 
 /// <summary>
 /// 传感器故障事件参数
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能（包含 string 引用类型）
 /// </summary>
-public record SensorFaultEventArgs {
+public sealed record class SensorFaultEventArgs
+{
     /// <summary>
     /// 传感器ID
     /// </summary>
@@ -30,5 +32,5 @@ public record SensorFaultEventArgs {
     /// <summary>
     /// 故障发生时间
     /// </summary>
-    public DateTimeOffset FaultTime { get; init; } = DateTimeOffset.Now;
+    public required DateTimeOffset FaultTime { get; init; }
 }

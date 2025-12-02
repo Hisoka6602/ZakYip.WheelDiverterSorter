@@ -157,7 +157,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
         var clientInfo = new ClientInfo
         {
             ClientId = clientId,
-            ConnectedAt = _systemClock.LocalNow
+            ConnectedAt = _systemClock.LocalNowOffset
         };
 
         _clients[clientId] = clientInfo;
@@ -228,7 +228,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                 {
                     ParcelId = notification.ParcelId,
                     ClientId = args.ClientId,
-                    ReceivedAt = _systemClock.LocalNow
+                    ReceivedAt = _systemClock.LocalNowOffset
                 });
 
                 // 如果有处理器，调用处理器
@@ -300,6 +300,6 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
     private sealed class ClientInfo
     {
         public required string ClientId { get; init; }
-        public required DateTime ConnectedAt { get; init; }
+        public required DateTimeOffset ConnectedAt { get; init; }
     }
 }

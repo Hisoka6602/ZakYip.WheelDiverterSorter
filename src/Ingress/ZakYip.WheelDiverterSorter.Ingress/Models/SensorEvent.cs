@@ -5,8 +5,10 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
 /// 传感器事件
+/// PR-PERF-EVENTS01: 转换为 sealed record class（包含 string 引用且超过16字节阈值）
 /// </summary>
-public record SensorEvent {
+public sealed record class SensorEvent
+{
     /// <summary>
     /// 传感器ID
     /// </summary>

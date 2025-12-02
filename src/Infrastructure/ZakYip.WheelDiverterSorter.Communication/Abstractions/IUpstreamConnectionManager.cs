@@ -51,20 +51,21 @@ public interface IUpstreamConnectionManager
 /// <summary>
 /// 连接状态变化事件参数
 /// Connection state changed event args
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能
 /// </summary>
-public class ConnectionStateChangedEventArgs : EventArgs
+public sealed record class ConnectionStateChangedEventArgs
 {
     /// <summary>
     /// 是否已连接
     /// Is connected
     /// </summary>
-    public bool IsConnected { get; init; }
+    public required bool IsConnected { get; init; }
 
     /// <summary>
     /// 状态变化时间
     /// State changed time
     /// </summary>
-    public DateTime ChangedAt { get; init; }
+    public required DateTimeOffset ChangedAt { get; init; }
 
     /// <summary>
     /// 错误消息（如果有）

@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
@@ -95,11 +96,13 @@ public static class SensorServiceExtensions {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var inputPort = sp.GetRequiredService<IInputPort>();
             var configProvider = sp.GetRequiredService<ISensorVendorConfigProvider>();
+            var systemClock = sp.GetRequiredService<ISystemClock>();
             return new LeadshineSensorFactory(
                 logger,
                 loggerFactory,
                 inputPort,
-                configProvider);
+                configProvider,
+                systemClock);
         });
 
         // 注册传感器实例
