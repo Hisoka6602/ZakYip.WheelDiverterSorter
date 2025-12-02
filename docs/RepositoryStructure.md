@@ -1316,15 +1316,16 @@ tools/Profiling/
 | TD-028 | ✅ 新增 | 事件 & DI 扩展影分身清理 → SensorEvent/ServiceCollectionExtensions 重命名 (PR-S6) | [详情](./TechnicalDebtLog.md#td-028-事件--di-扩展影分身清理) |
 | TD-029 | ✅ 新增 | 配置模型瘦身 → 删除 4 个仅测试使用的模型 (PR-SD5) | [详情](./TechnicalDebtLog.md#td-029-配置模型瘦身) |
 | TD-030 | ✅ 已解决 | Core 混入 LiteDB 持久化实现 → 拆分到 Configuration.Persistence 项目 (PR-RS13) | [详情](./TechnicalDebtLog.md#td-030-core-混入-litedb-持久化实现) |
+| TD-031 | ✅ 已解决 | Upstream 协议文档收敛 & README 精简 → 收敛到 UPSTREAM_CONNECTION_GUIDE.md (PR-DOC-UPSTREAM01) | [详情](./TechnicalDebtLog.md#td-031-upstream-协议文档收敛) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 30 |
+| ✅ 已解决 | 31 |
 | ⏳ 进行中 | 0 |
 | ❌ 未开始 | 0 |
-| **总计** | **30** |
+| **总计** | **31** |
 
 ---
 
@@ -1340,6 +1341,7 @@ tools/Profiling/
 |------|----------------|--------------------|--------------|---------| 
 | **HAL / 硬件抽象层** | `IWheelDiverterDriver`, `IWheelDiverterDevice`, `IInputPort`, `IOutputPort`, `IIoLinkageDriver`, `IVendorIoMapper`, `ISensorVendorConfigProvider`, `IEmcController` | `Core/Hardware/**` (Ports/, Devices/, IoLinkage/, Mappings/, Providers/) | ❌ `Core/Abstractions/Drivers/`（已删除）<br/>❌ `Drivers/Abstractions/`<br/>❌ `Execution/` 中定义硬件接口<br/>❌ `Host/` 中定义硬件接口 | `ArchTests.HalConsolidationTests`<br/>`DuplicateTypeDetectionTests.Core_ShouldNotHaveParallelHardwareAbstractionLayers` |
 | **上游通信 / RuleEngine 客户端** | `IUpstreamRoutingClient`, `IUpstreamContractMapper` | `Core/Abstractions/Upstream/` | ❌ `Execution/` 中定义 `IRuleEngineClient` 等平行接口<br/>❌ `Communication/` 中定义平行路由接口<br/>❌ `Ingress/Upstream/`（已删除）<br/>❌ `Host/` 中定义上游通信接口 | `ArchTests.RoutingTopologyLayerTests`<br/>`TechnicalDebtComplianceTests.TopologyShadowTests` |
+| **上游协议文档** | `UPSTREAM_CONNECTION_GUIDE.md` (字段表、示例 JSON、时序说明、超时/丢失规则) | `docs/guides/UPSTREAM_CONNECTION_GUIDE.md` | ❌ 在 README 中重复字段表/JSON 示例<br/>❌ 在其他文档中定义完整协议说明<br/>❌ 新建上游协议相关的 md 文件 | TD-031: 文档收敛 |
 | **拓扑 / 路径生成** | `ISwitchingPathGenerator`, `DefaultSwitchingPathGenerator`, `SwitchingPath`, `SwitchingPathSegment` | `Core/LineModel/Topology/` | ❌ `Execution/` 中定义新的 `*PathGenerator` 接口（除装饰器外）<br/>❌ `Drivers/` 中定义路径生成逻辑<br/>❌ `Application/` 中重新实现路径生成 | `ArchTests.RoutingTopologyLayerTests`<br/>`ArchTests.TopologyPathExecutionDefenseTests`<br/>`TechnicalDebtComplianceTests.SwitchingPathGenerationTests` |
 | **路径执行** | `ISwitchingPathExecutor`, `IPathExecutionService` | `Core/Abstractions/Execution/` (接口)<br/>`Execution/PathExecution/` (实现) | ❌ `Drivers/` 中定义路径执行逻辑<br/>❌ `Core/` 中包含执行实现<br/>❌ `Host/` 中直接调用硬件 | `ArchTests.ExecutionPathPipelineTests` |
 | **分拣编排** | `ISortingOrchestrator`, `SortingOrchestrator` | `Core/Sorting/Orchestration/` (接口)<br/>`Execution/Orchestration/` (实现) | ❌ `Host/` 中实现分拣逻辑<br/>❌ `Application/` 中重复实现编排器<br/>❌ `Drivers/` 中包含分拣逻辑 | `TechnicalDebtComplianceTests.SortingOrchestratorComplianceTests` |

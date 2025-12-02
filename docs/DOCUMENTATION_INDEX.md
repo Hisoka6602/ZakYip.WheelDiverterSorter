@@ -25,8 +25,17 @@
 |------|------|
 | [guides/API_USAGE_GUIDE.md](guides/API_USAGE_GUIDE.md) | API 使用指南 |
 | [guides/SYSTEM_CONFIG_GUIDE.md](guides/SYSTEM_CONFIG_GUIDE.md) | 系统配置指南 |
-| [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | 上游连接配置 |
+| [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | **上游连接配置（协议字段/时序/超时规则的唯一权威文档）** |
 | [guides/VENDOR_EXTENSION_GUIDE.md](guides/VENDOR_EXTENSION_GUIDE.md) | 厂商扩展开发 |
+
+## 上游协议相关文档
+
+> **单一权威说明**：所有上游协议字段定义、示例 JSON、时序说明、超时/丢失规则只在 `guides/UPSTREAM_CONNECTION_GUIDE.md` 中维护，其他文档只做高层引用。
+
+| 文档 | 说明 |
+|------|------|
+| [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | **权威文档**：字段表、示例 JSON、超时规则、配置说明 |
+| [UPSTREAM_SEQUENCE_FIREFORGET.md](UPSTREAM_SEQUENCE_FIREFORGET.md) | 时序图详解（引用权威文档） |
 
 ## 项目级文档
 

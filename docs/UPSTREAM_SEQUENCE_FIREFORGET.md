@@ -1,6 +1,8 @@
 # 上游交互时序图 - Fire-and-Forget 模式
 
 > PR-UPSTREAM02: 本文档描述上游交互的三步模式 - 检测通知 + 异步格口推送 + 落格完成通知
+>
+> **权威文档引用**：协议字段定义、示例 JSON、超时/丢失规则请参考 [UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md)
 
 ## 交互概述
 

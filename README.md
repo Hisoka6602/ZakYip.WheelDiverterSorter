@@ -32,8 +32,8 @@
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │ 1. 包裹检测   │────▶│ 2. 格口分配   │────▶│ 3. 路径生成   │
-│ 入口传感器触发 │     │ 上游/固定/轮询 │     │ 查询拓扑配置  │
-│ 创建包裹实体  │     │              │     │              │
+│ 入口传感器触发 │     │ 上游异步推送  │     │ 查询拓扑配置  │
+│ 创建包裹实体  │     │ 或固定/轮询   │     │              │
 └──────────────┘     └──────────────┘     └──────────────┘
                                                 │
                                                 ▼
@@ -43,89 +43,23 @@
 └──────────────┘     └──────────────┘     └──────────────┘
 ```
 
-**异常处理**：任意步骤失败（超时/设备异常/连接失败）→ 路由到异常格口
+**步骤说明**：
+- **步骤 2（格口分配）**：系统发送检测通知后不等待，上游 RuleEngine 异步推送格口分配。详见 [上游通信模型](#上游通信数据结构)。
+- **异常处理**：任意步骤失败（超时/设备异常/连接失败）→ 路由到异常格口
 
 ### 包裹超时与丢失判定
 
-#### 包裹超时如何判断
+> **详细协议字段与时序请参考** [docs/guides/UPSTREAM_CONNECTION_GUIDE.md](docs/guides/UPSTREAM_CONNECTION_GUIDE.md)
 
 系统基于输送线长度和速度自动计算超时时间：
 
-1. **分配超时**（AssignmentTimeout）：
-   - 条件：包裹检测后超过动态计算的超时时间未收到格口分配
-   - 计算：`超时时间 = 入口到首个决策点距离 / 线速 × SafetyFactor`
-   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游（Outcome=Timeout）
+- **分配超时**：包裹检测后超时未收到格口分配 → 标记为 `Timeout`，路由到异常格口
+- **落格超时**：格口分配后超时未确认落格 → 标记为 `Timeout`，路由到异常格口
+- **包裹丢失**：超过最大存活时间且无法定位 → 标记为 `Lost`，从缓存清除
 
-2. **落格超时**（SortingTimeout）：
-   - 条件：格口分配后超过理论通过时间未完成落格确认
-   - 计算：`超时时间 = 路径总长度 / 线速`（根据生成的路径自动计算）
-   - 动作：标记为 `Timeout` 状态，路由到异常格口，通知上游（Outcome=Timeout）
-
-```json
-{
-  "ChuteAssignmentTimeout": {
-    "SafetyFactor": 0.9,
-    "FallbackTimeoutSeconds": 5,
-    "LostDetectionSafetyFactor": 1.5
-  }
-}
-```
-
-#### 包裹丢失如何判断
-
-**丢失判定**（由程序根据输送线参数自动计算）：
-- 条件：从首次检测时间起，超过 `理论通过时间 × LostDetectionSafetyFactor` 仍未完成落格，且无法确定位置
-- 计算：`最大存活时间 = 输送线总长度 / 线速 × LostDetectionSafetyFactor`
-- 动作：
-  1. 标记为 `Lost` 状态
-  2. **从缓存中清除包裹记录**（避免队列错分）
-  3. 通知上游（Outcome=Lost, ActualChuteId=0）
-
-> **重要区别**：
+> **超时 vs 丢失的区别**：
 > - **超时**：包裹仍在输送线上，可以导向异常口
 > - **丢失**：包裹已不在输送线上，无法导向异常口，必须从缓存清除
-
-#### 包裹超时处理流程图
-
-```mermaid
-flowchart TD
-    A[入口传感器检测包裹] --> B[创建本地包裹实体]
-    B --> C[发送上游路由请求]
-    C --> D{等待格口分配}
-    D -->|收到分配| E[生成摆轮路径]
-    D -->|超时| F[分配超时]
-    F --> G[标记为 Timeout]
-    G --> H[路由到异常格口]
-    H --> I[通知上游: Outcome=Timeout]
-    E --> J[执行摆轮切换]
-    J --> K{等待落格确认}
-    K -->|确认成功| L[标记为 Success]
-    K -->|超时| M[落格超时]
-    M --> N[标记为 Timeout]
-    N --> O[通知上游: Outcome=Timeout]
-    L --> P[通知上游: Outcome=Success]
-```
-
-#### 包裹丢失处理流程图
-
-```mermaid
-flowchart TD
-    A[入口传感器检测包裹] --> B[创建本地包裹实体]
-    B --> C[记录 EntryTime]
-    C --> D[生命周期监控开始]
-    D --> E{定期检查包裹状态}
-    E -->|未完成落格| F{检查存活时间}
-    F -->|< MaxLifetime| E
-    F -->|>= MaxLifetime| G[超过最大存活时间]
-    G --> H{能否确定包裹位置?}
-    H -->|是| I[继续跟踪]
-    I --> E
-    H -->|否| J[判定为包裹丢失]
-    J --> K[标记为 Lost]
-    K --> L[记录 ParcelLifecycle Lost 日志]
-    L --> M[通知上游: Outcome=Lost]
-    E -->|已完成落格| N[正常结束]
-```
 
 ### 核心特点
 
@@ -318,11 +252,11 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 | FixedChute | 所有包裹发送到固定格口 | 调试测试 |
 | RoundRobin | 按配置列表循环分配 | 均匀分布测试 |
 
-## 上游通信数据结构
+## 上游通信概述
 
-系统支持与上游 RuleEngine 通过多种协议（TCP/SignalR/MQTT）进行通信。以下是通信过程中使用的核心数据结构：
+系统与上游 RuleEngine 采用 **Fire-and-Forget** 异步通信模式。支持多种协议（TCP/SignalR/MQTT），默认使用 TCP。
 
-> **注意**：HTTP 协议支持已在 PR-UPSTREAM01 中移除，当前默认使用 TCP 协议。
+> **详细协议说明**：字段定义、示例 JSON、时序图、超时/丢失规则请参考 [上游连接配置指南](docs/guides/UPSTREAM_CONNECTION_GUIDE.md)
 
 ### 通信流程
 
@@ -334,131 +268,32 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
          │                                         │
          │  1. ParcelDetectionNotification         │
          │  ─────────────────────────────────────▶ │
-         │  (检测通知: ParcelId, DetectionTime)   │
+         │  (检测通知: 仅通知，不等待)              │
          │                                         │
          │  2. ChuteAssignmentNotification         │
          │  ◀───────────────────────────────────── │
-         │  (格口分配: ParcelId, ChuteId, DWS 数据)│
+         │  (格口分配: 上游异步推送)               │
          │                                         │
          │  3. SortingCompletedNotification        │
          │  ─────────────────────────────────────▶ │
-         │  (落格完成: ParcelId, ActualChuteId,    │
-         │   FinalStatus=Success/Timeout/Lost)     │
+         │  (落格完成: FinalStatus=Success/Timeout/Lost)
          │                                         │
 ```
 
-**支持的通信协议**：
-- **TCP**（默认）：高性能、低延迟
-- **SignalR**：支持实时双向通信
-- **MQTT**：适用于物联网场景
+**关键点**：
+- 系统发送检测通知后**不等待**格口分配，继续执行后续逻辑
+- 格口分配由上游异步推送，通过事件接收
+- 所有通知都是 fire-and-forget 模式
 
-### 数据结构定义
+### 支持的协议
 
-#### ParcelDetectionNotification（包裹检测通知）
+| 协议 | 说明 | 使用场景 |
+|------|------|----------|
+| TCP (默认) | 高性能、低延迟 | 生产环境 |
+| SignalR | 支持实时双向通信 | Web 集成 |
+| MQTT | 轻量级发布/订阅 | 物联网场景 |
 
-当系统检测到包裹时，发送此通知给 RuleEngine（fire-and-forget）。
-
-```json
-{
-  "ParcelId": 1701446263000,
-  "DetectionTime": "2024-12-01T18:57:43+08:00",
-  "Metadata": {
-    "SensorId": "Sensor001",
-    "LineId": "Line01"
-  }
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
-| `DetectionTime` | DateTimeOffset | ✅ | 检测时间 |
-| `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
-
-#### ChuteAssignmentNotification（格口分配通知）
-
-上游 RuleEngine 主动推送的格口分配结果。
-
-```json
-{
-  "ParcelId": 1701446263000,
-  "ChuteId": 101,
-  "AssignedAt": "2024-12-01T18:57:43.500+08:00",
-  "DwsPayload": {
-    "WeightGrams": 500.0,
-    "LengthMm": 300.0,
-    "WidthMm": 200.0,
-    "HeightMm": 100.0,
-    "Barcode": "PKG123456"
-  },
-  "Metadata": null
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `ParcelId` | long | ✅ | 包裹ID（毫秒时间戳） |
-| `ChuteId` | long | ✅ | 目标格口ID（数字ID） |
-| `AssignedAt` | DateTimeOffset | ✅ | 分配时间 |
-| `DwsPayload` | DwsMeasurementDto | ❌ | DWS（尺寸重量扫描）数据（可选） |
-| `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
-
-#### ChuteAssignmentEventArgs（格口分配事件参数）
-
-系统内部事件传递使用的数据结构（定义在 Core 层）。
-
-```json
-{
-  "ParcelId": 1701446263000,
-  "ChuteId": 101,
-  "AssignedAt": "2024-12-01T18:57:43.500+08:00",
-  "DwsPayload": null,
-  "Metadata": null
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `ParcelId` | long | ✅ | 包裹ID |
-| `ChuteId` | long | ✅ | 分配的格口ID |
-| `AssignedAt` | DateTimeOffset | ✅ | 分配时间 |
-| `DwsPayload` | DwsMeasurement | ❌ | DWS 数据（可选） |
-| `Metadata` | Dictionary<string, string> | ❌ | 额外的元数据（可选） |
-
-#### SortingCompletedNotification（落格完成通知）
-
-包裹落格后发送给上游的通知（fire-and-forget）。
-
-```json
-{
-  "ParcelId": 1701446263000,
-  "ActualChuteId": 101,
-  "CompletedAt": "2024-12-01T18:57:45.000+08:00",
-  "IsSuccess": true,
-  "FinalStatus": "Success",
-  "FailureReason": null
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `ParcelId` | long | ✅ | 包裹ID |
-| `ActualChuteId` | long | ✅ | 实际落格格口ID（Lost 时为 0） |
-| `CompletedAt` | DateTimeOffset | ✅ | 落格完成时间 |
-| `IsSuccess` | bool | ✅ | 是否成功 |
-| `FinalStatus` | ParcelFinalStatus | ✅ | 最终状态（Success/Timeout/Lost） |
-| `FailureReason` | string | ❌ | 失败原因（如果失败） |
-
-### 源码位置
-
-| 数据结构 | 位置 |
-|---------|------|
-| `ParcelDetectionNotification` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
-| `ChuteAssignmentNotification` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
-| `SortingCompletedNotificationDto` | `src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Models/` |
-| `ChuteAssignmentEventArgs` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
-| `SortingCompletedNotification` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
-| `IUpstreamRoutingClient` | `src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/` |
+> **注意**：HTTP 协议支持已移除，当前默认使用 TCP 协议。
 
 ## 文档导航
 
@@ -476,7 +311,7 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 |------|------|
 | [docs/guides/API_USAGE_GUIDE.md](docs/guides/API_USAGE_GUIDE.md) | API 使用指南 |
 | [docs/guides/SYSTEM_CONFIG_GUIDE.md](docs/guides/SYSTEM_CONFIG_GUIDE.md) | 系统配置指南 |
-| [docs/guides/UPSTREAM_CONNECTION_GUIDE.md](docs/guides/UPSTREAM_CONNECTION_GUIDE.md) | 上游连接配置 |
+| [docs/guides/UPSTREAM_CONNECTION_GUIDE.md](docs/guides/UPSTREAM_CONNECTION_GUIDE.md) | **上游协议权威文档**（字段表/时序/超时规则） |
 | [docs/guides/VENDOR_EXTENSION_GUIDE.md](docs/guides/VENDOR_EXTENSION_GUIDE.md) | 厂商扩展开发 |
 
 ### 架构文档
