@@ -171,7 +171,7 @@ public class S7Connection : IDisposable
         {
             var address = $"{dbNumber}.DBX{byteAddress}.{bitAddress}";
             var result = await Task.Run(() => _plc!.Read(address), cancellationToken);
-            return (bool)result;
+            return result != null && (bool)result;
         }
         catch (Exception ex)
         {
@@ -226,7 +226,7 @@ public class S7Connection : IDisposable
         {
             var address = $"{dbNumber}.DBB{byteAddress}";
             var result = await Task.Run(() => _plc!.Read(address), cancellationToken);
-            return (byte)result;
+            return result != null ? (byte)result : (byte)0;
         }
         catch (Exception ex)
         {
