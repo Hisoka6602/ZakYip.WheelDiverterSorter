@@ -64,8 +64,8 @@ public class SimulationScenariosTests : IDisposable
                 _ = Task.Run(() =>
                 {
                     _mockRuleEngineClient.Raise(
-                        x => x.ChuteAssignmentReceived += null,
-                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId , NotificationTime = DateTimeOffset.Now }
+                        x => x.ChuteAssigned += null,
+                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId , AssignedAt = DateTimeOffset.Now }
                     );
                 });
                 return true;

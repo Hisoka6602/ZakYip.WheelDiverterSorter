@@ -59,9 +59,9 @@ public class SensorFaultSimulationTests : IDisposable
                 // 立即触发事件（同步），确保事件处理器已订阅
                 // EventHandler<T> requires (sender, eventArgs)
                 _mockRuleEngineClient.Raise(
-                    x => x.ChuteAssignmentReceived += null,
+                    x => x.ChuteAssigned += null,
                     _mockRuleEngineClient.Object,  // sender
-                    new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId , NotificationTime = DateTimeOffset.Now }
+                    new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId , AssignedAt = DateTimeOffset.Now }
                 );
                 return true;
             });

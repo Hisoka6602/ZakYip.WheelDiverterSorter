@@ -157,8 +157,8 @@ public class SortingOrchestratorTests : IDisposable
                 {
                     await Task.Yield(); // Ensure we yield to allow TCS registration
                     await Task.Delay(50);
-                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , AssignedAt = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssigned += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -304,7 +304,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockUpstreamClient
             .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        // 注意：不触发 ChuteAssignmentReceived 事件，模拟超时
+        // 注意：不触发 ChuteAssigned 事件，模拟超时
 
         var exceptionPath = new SwitchingPath
         {
@@ -355,8 +355,8 @@ public class SortingOrchestratorTests : IDisposable
                 {
                     await Task.Delay(50);
                     await Task.Delay(50);
-                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , AssignedAt = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssigned += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -414,8 +414,8 @@ public class SortingOrchestratorTests : IDisposable
                 {
                     // Give enough time for the TCS to be registered after NotifyParcelDetectedAsync returns
                     await Task.Delay(50);
-                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , AssignedAt = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssigned += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -472,8 +472,8 @@ public class SortingOrchestratorTests : IDisposable
                 {
                     await Task.Delay(50);
                     await Task.Delay(50);
-                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , AssignedAt = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssigned += null, _mockUpstreamClient.Object, args);
                 });
             });
 
@@ -646,8 +646,8 @@ public class SortingOrchestratorTests : IDisposable
                 {
                     await Task.Delay(50);
                     await Task.Delay(50);
-                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , NotificationTime = DateTimeOffset.Now };
-                    _mockUpstreamClient.Raise(c => c.ChuteAssignmentReceived += null, _mockUpstreamClient.Object, args);
+                    var args = new ChuteAssignmentEventArgs { ParcelId = parcelId, ChuteId = targetChuteId , AssignedAt = DateTimeOffset.Now };
+                    _mockUpstreamClient.Raise(c => c.ChuteAssigned += null, _mockUpstreamClient.Object, args);
                 });
             });
 

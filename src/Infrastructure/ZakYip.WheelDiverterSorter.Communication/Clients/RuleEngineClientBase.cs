@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
@@ -10,6 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// </summary>
 /// <remarks>
 /// PR-U1: 合并 IRuleEngineClient 到 IUpstreamRoutingClient，删除中间适配层
+/// PR-UPSTREAM02: 添加 NotifySortingCompletedAsync 方法，将事件重命名为 ChuteAssigned
 /// </remarks>
 public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
 {
@@ -24,9 +26,12 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     public abstract bool IsConnected { get; }
 
     /// <summary>
-    /// 格口分配通知事件
+    /// 格口分配事件
     /// </summary>
-    public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssignmentReceived;
+    /// <remarks>
+    /// PR-UPSTREAM02: 从 ChuteAssignmentReceived 重命名为 ChuteAssigned
+    /// </remarks>
+    public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssigned;
 
     /// <summary>
     /// 构造函数
@@ -57,22 +62,65 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     public abstract Task<bool> NotifyParcelDetectedAsync(long parcelId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 触发格口分配接收事件
+    /// 通知RuleEngine包裹已完成落格
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 新增方法
+    /// </remarks>
+    public abstract Task<bool> NotifySortingCompletedAsync(SortingCompletedNotification notification, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 触发格口分配事件
     /// </summary>
     /// <param name="parcelId">包裹ID</param>
     /// <param name="chuteId">格口ID</param>
-    /// <param name="notificationTime">通知时间</param>
+    /// <param name="assignedAt">分配时间</param>
+    /// <param name="dwsPayload">DWS数据（可选）</param>
     /// <param name="metadata">元数据（可选）</param>
-    protected void OnChuteAssignmentReceived(long parcelId, long chuteId, DateTimeOffset notificationTime, Dictionary<string, string>? metadata = null)
+    /// <remarks>
+    /// PR-UPSTREAM02: 更新参数以支持 DWS 数据，将 notificationTime 重命名为 assignedAt
+    /// </remarks>
+    protected void OnChuteAssignmentReceived(
+        long parcelId, 
+        long chuteId, 
+        DateTimeOffset assignedAt, 
+        DwsMeasurement? dwsPayload = null,
+        Dictionary<string, string>? metadata = null)
     {
         var notification = new ChuteAssignmentEventArgs
         {
             ParcelId = parcelId,
             ChuteId = chuteId,
-            NotificationTime = notificationTime,
+            AssignedAt = assignedAt,
+            DwsPayload = dwsPayload,
             Metadata = metadata
         };
-        ChuteAssignmentReceived?.Invoke(this, notification);
+        ChuteAssigned?.Invoke(this, notification);
+    }
+
+    /// <summary>
+    /// 将事件中的 DWS 数据转换为 Core 层的 DwsMeasurement
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 提取为公共方法以减少重复代码
+    /// </remarks>
+    protected static DwsMeasurement? MapDwsPayload(DwsMeasurementEventArgs? eventArgs)
+    {
+        if (eventArgs == null)
+        {
+            return null;
+        }
+
+        return new DwsMeasurement
+        {
+            WeightGrams = eventArgs.WeightGrams,
+            LengthMm = eventArgs.LengthMm,
+            WidthMm = eventArgs.WidthMm,
+            HeightMm = eventArgs.HeightMm,
+            VolumetricWeightGrams = eventArgs.VolumetricWeightGrams,
+            Barcode = eventArgs.Barcode,
+            MeasuredAt = eventArgs.MeasuredAt
+        };
     }
 
     /// <summary>

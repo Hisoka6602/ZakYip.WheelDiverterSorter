@@ -91,7 +91,7 @@ public class SimulationRunner
         }
 
         // 订阅格口分配事件
-        _upstreamClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
+        _upstreamClient.ChuteAssigned += OnChuteAssigned;
     }
 
     /// <summary>
@@ -799,7 +799,7 @@ public class SimulationRunner
     /// <summary>
     /// 处理格口分配事件
     /// </summary>
-    private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
+    private void OnChuteAssigned(object? sender, ChuteAssignmentEventArgs e)
     {
         // TryGetValue is thread-safe on ConcurrentDictionary
         if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))

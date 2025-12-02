@@ -47,9 +47,9 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         {
             var chuteId = (parcelId % 6) + 1; // Distribute across chutes 1-6
             var assignmentArgs = new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = (int)chuteId
-            , NotificationTime = DateTimeOffset.Now };
+            , AssignedAt = DateTimeOffset.Now };
             Factory.MockRuleEngineClient.Raise(
-                x => x.ChuteAssignmentReceived += null,
+                x => x.ChuteAssigned += null,
                 Factory.MockRuleEngineClient.Object,
                 assignmentArgs);
             await Task.Delay(50); // Simulate processing time

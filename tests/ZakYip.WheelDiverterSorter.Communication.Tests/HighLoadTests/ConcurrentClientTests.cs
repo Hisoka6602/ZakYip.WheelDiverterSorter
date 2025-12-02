@@ -130,7 +130,7 @@ public class ConcurrentClientTests
         await client.ConnectAsync(); // 必须先连接
         
         var receivedNotifications = new ConcurrentBag<ChuteAssignmentEventArgs>();
-        client.ChuteAssignmentReceived += (sender, e) => receivedNotifications.Add(e);
+        client.ChuteAssigned += (sender, e) => receivedNotifications.Add(e);
 
         var requestCount = 100;
 

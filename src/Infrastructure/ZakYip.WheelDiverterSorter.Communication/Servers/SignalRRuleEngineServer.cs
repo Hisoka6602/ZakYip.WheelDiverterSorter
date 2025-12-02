@@ -100,17 +100,17 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
             return;
         }
 
-        var response = new ChuteAssignmentResponse
+        // PR-UPSTREAM02: 使用 ChuteAssignmentNotification 代替 ChuteAssignmentResponse
+        var notification = new ChuteAssignmentNotification
         {
             ParcelId = parcelId,
             ChuteId = int.Parse(chuteId),
-            IsSuccess = true,
-            ResponseTime = _systemClock.LocalNowOffset
+            AssignedAt = _systemClock.LocalNowOffset
         };
 
         await _hubContext.Clients.All.SendAsync(
             "ReceiveChuteAssignment",
-            response,
+            notification,
             cancellationToken);
 
         _logger.LogInformation(
@@ -163,18 +163,24 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
         }
     }
 
-    internal async Task HandleParcelNotificationAsync(string connectionId, ChuteAssignmentRequest request)
+    /// <summary>
+    /// 处理包裹检测通知
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 从 ChuteAssignmentRequest 改为 ParcelDetectionNotification
+    /// </remarks>
+    internal async Task HandleParcelNotificationAsync(string connectionId, ParcelDetectionNotification notification)
     {
         _logger.LogInformation(
-            "[{LocalTime}] 收到SignalR客户端 {ClientId} 的包裹通知: ParcelId={ParcelId}",
+            "[{LocalTime}] 收到SignalR客户端 {ClientId} 的包裹检测通知: ParcelId={ParcelId}",
             _systemClock.LocalNow,
             connectionId,
-            request.ParcelId);
+            notification.ParcelId);
 
         // 触发包裹通知接收事件
         ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
         {
-            ParcelId = request.ParcelId,
+            ParcelId = notification.ParcelId,
             ClientId = connectionId,
             ReceivedAt = _systemClock.LocalNow
         });
@@ -182,13 +188,13 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
         // 如果有处理器，调用处理器
         if (_handler != null)
         {
-            var notification = new ChuteAssignmentNotificationEventArgs
+            var eventArgs = new ChuteAssignmentNotificationEventArgs
             {
-                ParcelId = request.ParcelId,
+                ParcelId = notification.ParcelId,
                 ChuteId = 0, // Server模式下由RuleEngine决定
-                NotificationTime = request.RequestTime
+                AssignedAt = notification.DetectionTime
             };
-            await _handler.HandleChuteAssignmentAsync(notification);
+            await _handler.HandleChuteAssignmentAsync(eventArgs);
         }
     }
 
@@ -246,11 +252,17 @@ public class RuleEngineHub : Hub
         await base.OnDisconnectedAsync(exception);
     }
 
-    public async Task NotifyParcelDetected(ChuteAssignmentRequest request)
+    /// <summary>
+    /// 接收客户端的包裹检测通知
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 从 ChuteAssignmentRequest 改为 ParcelDetectionNotification
+    /// </remarks>
+    public async Task NotifyParcelDetected(ParcelDetectionNotification notification)
     {
         if (_server != null)
         {
-            await _server.HandleParcelNotificationAsync(Context.ConnectionId, request);
+            await _server.HandleParcelNotificationAsync(Context.ConnectionId, notification);
         }
     }
 }

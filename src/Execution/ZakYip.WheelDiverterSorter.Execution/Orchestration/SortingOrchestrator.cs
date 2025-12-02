@@ -145,8 +145,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
         _sensorEventProvider.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
         
-        // 订阅格口分配事件
-        _upstreamClient.ChuteAssignmentReceived += OnChuteAssignmentReceived;
+        // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
+        _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
     }
 
     /// <summary>
@@ -1149,7 +1149,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 5.5: 记录分拣结果
     /// </summary>
-    private Task RecordSortingResultAsync(long parcelId, SortingResult result, bool isOverloadException)
+    /// <remarks>
+    /// PR-UPSTREAM02: 添加落格完成通知发送
+    /// </remarks>
+    private async Task RecordSortingResultAsync(long parcelId, SortingResult result, bool isOverloadException)
     {
         // PR-08B: 记录包裹完成
         _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, result.IsSuccess);
@@ -1158,7 +1161,26 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
         _parcelPaths.TryRemove(parcelId, out _);
 
-        return Task.CompletedTask;
+        // PR-UPSTREAM02: 发送落格完成通知给上游系统
+        var notification = new SortingCompletedNotification
+        {
+            ParcelId = parcelId,
+            ActualChuteId = result.ActualChuteId,
+            CompletedAt = new DateTimeOffset(_clock.LocalNow),
+            IsSuccess = result.IsSuccess && !isOverloadException,
+            FailureReason = isOverloadException ? "超载重定向到异常格口" : result.FailureReason
+        };
+
+        var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+        
+        if (!notificationSent)
+        {
+            _logger.LogWarning(
+                "[PR-UPSTREAM02] 落格完成通知发送失败 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess}",
+                parcelId,
+                result.ActualChuteId,
+                result.IsSuccess);
+        }
     }
 
     /// <summary>
@@ -1341,7 +1363,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 取消订阅事件
         _sensorEventProvider.ParcelDetected -= OnParcelDetected;
         _sensorEventProvider.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
-        _upstreamClient.ChuteAssignmentReceived -= OnChuteAssignmentReceived;
+        // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
+        _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
 
         // 断开连接
         StopAsync().GetAwaiter().GetResult();

@@ -1,10 +1,9 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
-using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
@@ -15,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// <remarks>
 /// 推荐生产环境使用，提供实时双向通信和自动重连机制
 /// PR-U1: 直接实现 IUpstreamRoutingClient（通过基类）
+/// PR-UPSTREAM02: 添加落格完成通知，更新消息处理以支持新的格口分配通知格式
 /// </remarks>
 public class SignalRRuleEngineClient : RuleEngineClientBase
 {
@@ -110,20 +110,24 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 处理接收到的格口分配通知
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 更新以使用新的 AssignedAt 字段和 DWS 数据
+    /// </remarks>
     private void HandleChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
     {
         // 记录接收到的完整消息内容
         Logger.LogInformation(
-            "[上游通信-接收] SignalR通道收到格口分配响应 | ParcelId={ParcelId} | ChuteId={ChuteId} | NotificationTime={NotificationTime}",
+            "[上游通信-接收] SignalR通道收到格口分配通知 | ParcelId={ParcelId} | ChuteId={ChuteId} | AssignedAt={AssignedAt}",
             notification.ParcelId,
             notification.ChuteId,
-            notification.NotificationTime);
+            notification.AssignedAt);
 
-        // PR-U1: 使用新的事件触发方法（转换为 Core 的事件参数类型）
+        // PR-UPSTREAM02: 使用共享方法转换 DWS 数据
         OnChuteAssignmentReceived(
             notification.ParcelId,
             notification.ChuteId,
-            notification.NotificationTime,
+            notification.AssignedAt,
+            MapDwsPayload(notification.DwsPayload),
             notification.Metadata);
     }
 
@@ -222,6 +226,64 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
                 ex,
                 "[上游通信-发送] SignalR通道发送包裹检测通知失败 | ParcelId={ParcelId}",
                 parcelId);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 通知RuleEngine包裹已完成落格
+    /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM02: 新增方法，发送落格完成通知（fire-and-forget）
+    /// </remarks>
+    public override async Task<bool> NotifySortingCompletedAsync(
+        SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        // 尝试连接（如果未连接）
+        if (!await EnsureConnectedAsync(cancellationToken))
+        {
+            Logger.LogError(
+                "[上游通信-发送] SignalR通道无法连接 | ParcelId={ParcelId}",
+                notification.ParcelId);
+            return false;
+        }
+
+        try
+        {
+            var dto = new SortingCompletedNotificationDto
+            {
+                ParcelId = notification.ParcelId,
+                ActualChuteId = notification.ActualChuteId,
+                CompletedAt = notification.CompletedAt,
+                IsSuccess = notification.IsSuccess,
+                FailureReason = notification.FailureReason
+            };
+
+            Logger.LogInformation(
+                "[上游通信-发送] SignalR通道发送落格完成通知 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess} | HubMethod=NotifySortingCompleted",
+                dto.ParcelId,
+                dto.ActualChuteId,
+                dto.IsSuccess);
+
+            await _connection!.InvokeAsync(
+                "NotifySortingCompleted",
+                dto,
+                cancellationToken);
+
+            Logger.LogInformation(
+                "[上游通信-发送完成] SignalR通道成功发送落格完成通知 | ParcelId={ParcelId}",
+                notification.ParcelId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(
+                ex,
+                "[上游通信-发送] SignalR通道发送落格完成通知失败 | ParcelId={ParcelId}",
+                notification.ParcelId);
             return false;
         }
     }

@@ -164,7 +164,7 @@ public class TcpRuleEngineClientTests : IDisposable
         var parcelId = 123456789L;
         ChuteAssignmentNotificationEventArgs? receivedNotification = null;
 
-        client.ChuteAssignmentReceived += (sender, args) =>
+        client.ChuteAssigned += (sender, args) =>
         {
             receivedNotification = args;
         };
