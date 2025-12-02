@@ -157,7 +157,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
         var clientInfo = new ClientInfo
         {
             ClientId = clientId,
-            ConnectedAt = _systemClock.LocalNow
+            ConnectedAt = _systemClock.LocalNowOffset
         };
 
         _clients[clientId] = clientInfo;
@@ -168,7 +168,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             clientId);
 
         // 触发客户端连接事件
-        ClientConnected?.Invoke(this, new ClientConnectionEventArgs
+        ClientConnected?.Invoke(this, new Abstractions.ClientConnectionEventArgs
         {
             ClientId = clientId,
             ConnectedAt = clientInfo.ConnectedAt,
@@ -190,7 +190,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                 clientId);
 
             // 触发客户端断开事件
-            ClientDisconnected?.Invoke(this, new ClientConnectionEventArgs
+            ClientDisconnected?.Invoke(this, new Abstractions.ClientConnectionEventArgs
             {
                 ClientId = clientId,
                 ConnectedAt = clientInfo.ConnectedAt,
@@ -224,11 +224,11 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                     notification.ParcelId);
 
                 // 触发包裹通知接收事件
-                ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
+                ParcelNotificationReceived?.Invoke(this, new Abstractions.ParcelNotificationReceivedEventArgs
                 {
                     ParcelId = notification.ParcelId,
                     ClientId = args.ClientId,
-                    ReceivedAt = _systemClock.LocalNow
+                    ReceivedAt = _systemClock.LocalNowOffset
                 });
 
                 // 如果有处理器，调用处理器
@@ -300,6 +300,6 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
     private sealed class ClientInfo
     {
         public required string ClientId { get; init; }
-        public required DateTime ConnectedAt { get; init; }
+        public required DateTimeOffset ConnectedAt { get; init; }
     }
 }

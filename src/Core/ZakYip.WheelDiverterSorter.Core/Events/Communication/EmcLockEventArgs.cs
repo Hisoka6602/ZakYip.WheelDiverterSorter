@@ -4,36 +4,37 @@ namespace ZakYip.WheelDiverterSorter.Core.Events.Communication;
 
 /// <summary>
 /// EMC锁事件参数
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能
 /// </summary>
 /// <remarks>
 /// 包含EMC锁相关事件的完整信息，用于分布式环境中的EMC设备协调。
 /// </remarks>
-public class EmcLockEventArgs : EventArgs
+public sealed record class EmcLockEventArgs
 {
     /// <summary>
     /// 事件ID（唯一标识）
     /// </summary>
-    public string EventId { get; init; } = Guid.NewGuid().ToString();
+    public required string EventId { get; init; }
     
     /// <summary>
     /// 发送者实例ID
     /// </summary>
-    public string InstanceId { get; init; } = string.Empty;
+    public required string InstanceId { get; init; }
     
     /// <summary>
     /// 通知类型
     /// </summary>
-    public EmcLockNotificationType NotificationType { get; init; }
+    public required EmcLockNotificationType NotificationType { get; init; }
     
     /// <summary>
     /// EMC卡号
     /// </summary>
-    public ushort CardNo { get; init; }
+    public required ushort CardNo { get; init; }
     
     /// <summary>
     /// 时间戳（本地时间）
     /// </summary>
-    public DateTime Timestamp { get; init; }
+    public required DateTimeOffset Timestamp { get; init; }
     
     /// <summary>
     /// 额外消息

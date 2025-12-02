@@ -182,7 +182,7 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                     ClientId = clientId,
                     TcpClient = tcpClient,
                     Stream = tcpClient.GetStream(),
-                    ConnectedAt = _systemClock.LocalNow,
+                    ConnectedAt = _systemClock.LocalNowOffset,
                     ClientAddress = tcpClient.Client.RemoteEndPoint?.ToString()
                 };
 
@@ -256,7 +256,7 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                         {
                             ParcelId = notification.ParcelId,
                             ClientId = client.ClientId,
-                            ReceivedAt = _systemClock.LocalNow
+                            ReceivedAt = _systemClock.LocalNowOffset
                         });
 
                         // 如果有处理器，调用处理器
@@ -376,7 +376,7 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
         public required string ClientId { get; init; }
         public required TcpClient TcpClient { get; init; }
         public required NetworkStream Stream { get; init; }
-        public required DateTime ConnectedAt { get; init; }
+        public required DateTimeOffset ConnectedAt { get; init; }
         public required string? ClientAddress { get; init; }
     }
 }

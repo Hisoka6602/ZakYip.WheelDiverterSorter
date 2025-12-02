@@ -5,8 +5,10 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Models;
 
 /// <summary>
 /// 传感器事件
+/// PR-PERF-EVENTS01: 转换为 readonly record struct 以优化性能（高频轻量事件）
 /// </summary>
-public record SensorEvent {
+public readonly record struct SensorEvent
+{
     /// <summary>
     /// 传感器ID
     /// </summary>

@@ -274,7 +274,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs
         {
             IsConnected = isConnected,
-            ChangedAt = _systemClock.LocalNow,
+            ChangedAt = _systemClock.LocalNowOffset,
             ErrorMessage = errorMessage
         });
 

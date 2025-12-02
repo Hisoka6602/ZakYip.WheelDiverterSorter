@@ -70,8 +70,9 @@ public interface IRuleEngineServer : IDisposable
 /// <summary>
 /// 客户端连接事件参数
 /// Client connection event args
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能
 /// </summary>
-public class ClientConnectionEventArgs : EventArgs
+public sealed record class ClientConnectionEventArgs
 {
     /// <summary>
     /// 客户端ID
@@ -83,7 +84,7 @@ public class ClientConnectionEventArgs : EventArgs
     /// 连接时间
     /// Connection time
     /// </summary>
-    public DateTime ConnectedAt { get; init; }
+    public required DateTimeOffset ConnectedAt { get; init; }
 
     /// <summary>
     /// 客户端地址（IP:Port）
@@ -95,14 +96,15 @@ public class ClientConnectionEventArgs : EventArgs
 /// <summary>
 /// 包裹通知接收事件参数
 /// Parcel notification received event args
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能
 /// </summary>
-public class ParcelNotificationReceivedEventArgs : EventArgs
+public sealed record class ParcelNotificationReceivedEventArgs
 {
     /// <summary>
     /// 包裹ID
     /// Parcel ID
     /// </summary>
-    public long ParcelId { get; init; }
+    public required long ParcelId { get; init; }
 
     /// <summary>
     /// 发送客户端ID
@@ -114,5 +116,5 @@ public class ParcelNotificationReceivedEventArgs : EventArgs
     /// 接收时间
     /// Received time
     /// </summary>
-    public DateTime ReceivedAt { get; init; }
+    public required DateTimeOffset ReceivedAt { get; init; }
 }

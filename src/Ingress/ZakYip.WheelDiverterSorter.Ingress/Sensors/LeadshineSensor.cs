@@ -169,7 +169,8 @@ public class LeadshineSensor : ISensor {
                     SensorId = SensorId,
                     Type = Type,
                     ErrorMessage = $"读取输入位失败: {ex.Message}",
-                    Exception = ex
+                    Exception = ex,
+                    ErrorTime = DateTimeOffset.Now
                 });
 
                 // 发生错误时等待一段时间再重试

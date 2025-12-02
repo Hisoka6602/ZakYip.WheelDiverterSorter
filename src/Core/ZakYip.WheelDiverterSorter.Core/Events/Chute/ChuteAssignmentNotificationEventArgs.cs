@@ -2,12 +2,13 @@ namespace ZakYip.WheelDiverterSorter.Core.Events.Chute;
 
 /// <summary>
 /// 格口分配通知事件参数（用于JSON反序列化）
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能
 /// </summary>
 /// <remarks>
 /// 当RuleEngine推送格口分配时触发此事件。
 /// PR-UPSTREAM02: 扩展以支持 DWS 数据和新的分配时间字段。
 /// </remarks>
-public record ChuteAssignmentNotificationEventArgs
+public sealed record class ChuteAssignmentNotificationEventArgs
 {
     /// <summary>
     /// 包裹ID
@@ -40,11 +41,12 @@ public record ChuteAssignmentNotificationEventArgs
 
 /// <summary>
 /// DWS 测量数据事件参数
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能
 /// </summary>
 /// <remarks>
 /// PR-UPSTREAM02: 新增类型，用于事件中传递 DWS 数据。
 /// </remarks>
-public record DwsMeasurementEventArgs
+public sealed record class DwsMeasurementEventArgs
 {
     /// <summary>
     /// 重量（克）

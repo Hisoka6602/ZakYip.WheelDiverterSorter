@@ -51,7 +51,7 @@ public abstract class EmcResourceLockManagerBase : IEmcResourceLockManager
             InstanceId = lockEvent.InstanceId,
             NotificationType = lockEvent.NotificationType,
             CardNo = lockEvent.CardNo,
-            Timestamp = lockEvent.Timestamp,
+            Timestamp = new DateTimeOffset(lockEvent.Timestamp, TimeSpan.Zero),
             Message = lockEvent.Message,
             TimeoutMs = lockEvent.TimeoutMs
         };

@@ -32,23 +32,12 @@ public class EventNamingTests
     /// <summary>
     /// 白名单：允许不使用 record 的事件类型
     /// 这些通常是特殊用途的类型或遗留代码，需要在后续PR中迁移
+    /// PR-PERF-EVENTS01: 所有旧的 class EventArgs 已迁移到 sealed record class
     /// </summary>
     private static readonly HashSet<string> NonRecordEventArgsWhitelist = new(StringComparer.Ordinal)
     {
-        // 遗留代码 - Core.Events.Communication
-        "EmcLockEventArgs",                      // 需要从 class 迁移到 record
-        
-        // 遗留代码 - Core.LineModel.Runtime.Health
-        "NodeHealthChangedEventArgs",            // 定义在接口文件中，需要从 class 迁移到 record
-        
-        // 遗留代码 - Execution.PathExecution
-        "ReroutingSucceededEventArgs",           // 定义在实现类中，需要从 class 迁移到 record
-        "ReroutingFailedEventArgs",              // 定义在实现类中，需要从 class 迁移到 record
-        
-        // 遗留代码 - Communication.Abstractions
-        "ClientConnectionEventArgs",             // 定义在接口文件中，需要从 class 迁移到 record
-        "ParcelNotificationReceivedEventArgs",   // 定义在接口文件中，需要从 class 迁移到 record
-        "ConnectionStateChangedEventArgs",       // 定义在接口文件中，需要从 class 迁移到 record
+        // 所有以前的 class EventArgs 已在 PR-PERF-EVENTS01 中迁移为 sealed record class
+        // 白名单现在为空
     };
 
     /// <summary>

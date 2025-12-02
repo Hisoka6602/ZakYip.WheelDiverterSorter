@@ -5,8 +5,10 @@ namespace ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 
 /// <summary>
 /// 重复触发异常事件参数
+/// PR-PERF-EVENTS01: 转换为 sealed record class 以优化性能（包含 string 引用类型）
 /// </summary>
-public record DuplicateTriggerEventArgs {
+public sealed record class DuplicateTriggerEventArgs
+{
     /// <summary>
     /// 包裹ID
     /// </summary>
