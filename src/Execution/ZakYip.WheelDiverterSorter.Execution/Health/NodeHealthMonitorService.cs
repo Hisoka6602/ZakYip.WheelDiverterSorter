@@ -18,6 +18,10 @@ public class NodeHealthMonitorService : BackgroundService
     private readonly ILogger<NodeHealthMonitorService> _logger;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly TimeSpan _updateInterval = TimeSpan.FromSeconds(10);
+    
+    // 用于跟踪上一次的健康状态，避免重复日志
+    private int _lastUnhealthyNodesCount = -1;
+    private Core.Enums.Monitoring.DegradationMode _lastDegradationMode = (Core.Enums.Monitoring.DegradationMode)(-1);
 
     public NodeHealthMonitorService(
         INodeHealthRegistry nodeHealthRegistry,
@@ -79,9 +83,16 @@ public class NodeHealthMonitorService : BackgroundService
             _metrics.SetDegradedNodesTotal(unhealthyNodes.Count);
             _metrics.SetDegradedMode((int)degradationMode);
 
-            _logger.LogDebug(
-                "更新降级指标: 不健康节点数={Count}, 降级模式={Mode}",
-                unhealthyNodes.Count, degradationMode);
+            // 只有当状态发生变化时才记录日志
+            if (unhealthyNodes.Count != _lastUnhealthyNodesCount || degradationMode != _lastDegradationMode)
+            {
+                _logger.LogDebug(
+                    "更新降级指标: 不健康节点数={Count}, 降级模式={Mode}",
+                    unhealthyNodes.Count, degradationMode);
+                
+                _lastUnhealthyNodesCount = unhealthyNodes.Count;
+                _lastDegradationMode = degradationMode;
+            }
         }
         catch (Exception ex)
         {
