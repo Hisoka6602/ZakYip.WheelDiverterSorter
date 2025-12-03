@@ -244,6 +244,59 @@ public class UpstreamServerBackgroundServiceTests
     }
 
     /// <summary>
+    /// PR-HOTRELOAD: 验证 UpstreamConnectionBackgroundService 可以作为 Singleton 直接注入
+    /// 保持一致性 - Client 模式的后台服务也使用 Singleton + HostedService 模式
+    /// </summary>
+    [Fact]
+    public void AddUpstreamConnectionManagement_RegistersConnectionBackgroundServiceAsSingleton_ForConsistency()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RuleEngineConnection:Mode"] = "Tcp",
+                ["RuleEngineConnection:ConnectionMode"] = "Client",
+                ["RuleEngineConnection:TcpServer"] = "localhost:9000"
+            })
+            .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Client,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
+
+        // Add required dependencies
+        services.AddLogging();
+        services.AddInfrastructureServices();
+        services.AddRuleEngineCommunication(configuration);
+
+        // Act
+        services.AddUpstreamConnectionManagement(configuration);
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Assert - 验证可以直接获取 UpstreamConnectionBackgroundService 实例
+        // Verify that UpstreamConnectionBackgroundService can be directly resolved as singleton
+        var connectionService = serviceProvider.GetService<UpstreamConnectionBackgroundService>();
+        Assert.NotNull(connectionService);
+
+        // 验证它也被注册为 IHostedService
+        // Verify it's also registered as IHostedService
+        var hostedServices = serviceProvider.GetServices<IHostedService>().ToList();
+        Assert.Contains(hostedServices, s => s.GetType() == typeof(UpstreamConnectionBackgroundService));
+
+        // 验证两个实例是同一个（Singleton 保证）
+        // Verify both are the same instance (Singleton guarantee)
+        var hostedInstance = hostedServices.FirstOrDefault(s => s.GetType() == typeof(UpstreamConnectionBackgroundService));
+        Assert.Same(connectionService, hostedInstance);
+    }
+
+    /// <summary>
     /// PR-HOTRELOAD: 验证 UpstreamServerBackgroundService 可以作为 Singleton 直接注入
     /// 这是修复 TCP Server 模式热更新的关键 - CommunicationConfigService 需要注入此服务
     /// </summary>

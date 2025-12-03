@@ -242,7 +242,13 @@ public static class CommunicationServiceExtensions
 
         // 始终注册两个后台服务，但它们会在启动时检查配置决定是否真正启动
         // Always register both background services, but they check configuration at startup
-        services.AddHostedService<UpstreamConnectionBackgroundService>();
+        
+        // PR-HOTRELOAD: 注册 UpstreamConnectionBackgroundService 为 Singleton 并作为 HostedService
+        // 保持一致性：Client模式的后台服务也注册为 Singleton + HostedService
+        // Register UpstreamConnectionBackgroundService as Singleton and HostedService
+        // Consistency: Client mode background service also uses Singleton + HostedService pattern
+        services.AddSingleton<UpstreamConnectionBackgroundService>();
+        services.AddHostedService(sp => sp.GetRequiredService<UpstreamConnectionBackgroundService>());
         
         // PR-HOTRELOAD: 注册 UpstreamServerBackgroundService 为 Singleton 并作为 HostedService
         // 这样可以在 CommunicationConfigService 中注入并调用 UpdateServerConfigurationAsync
