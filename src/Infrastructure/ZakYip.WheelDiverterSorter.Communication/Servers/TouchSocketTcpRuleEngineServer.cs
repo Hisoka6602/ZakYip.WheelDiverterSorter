@@ -77,21 +77,15 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
             {
                 CacheTimeout = TimeSpan.FromMilliseconds(_options.TimeoutMs)
             })
-            .SetBufferLength(_options.Tcp.ReceiveBufferSize)
-            .ConfigureContainer(a =>
-            {
-                a.SetValue(_options);
-                a.SetValue(_systemClock);
-            })
             .ConfigurePlugins(a =>
             {
                 a.Add<TouchSocketServerPlugin>();
             }));
 
         // 注册事件
-        _service.Connected += OnClientConnected;
-        _service.Disconnected += OnClientDisconnected;
-        _service.Received += OnMessageReceived;
+        _service.Connected += (TcpSessionClient client, ConnectedEventArgs e) => OnClientConnected(client);
+        _service.Closed += (TcpSessionClient client, ClosedEventArgs e) => OnClientDisconnected(client);
+        _service.Received += (TcpSessionClient client, ReceivedDataEventArgs e) => OnMessageReceived(client, e);
 
         // 启动服务
         await _service.StartAsync();
@@ -119,7 +113,10 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
             try
             {
                 var socketClient = _service?.GetClient(kvp.Key);
-                socketClient?.Close();
+                if (socketClient != null)
+                {
+                    await socketClient.CloseAsync();
+                }
             }
             catch (Exception ex)
             {
@@ -133,19 +130,22 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         _clients.Clear();
 
         // 停止服务
-        _service?.Stop();
-        _service?.Dispose();
-        _service = null;
+        if (_service != null)
+        {
+            await _service.StopAsync();
+            _service.Dispose();
+            _service = null;
+        }
 
         _logger.LogInformation(
             "[{LocalTime}] [服务端模式] TCP服务器已停止",
             _systemClock.LocalNow);
     }
 
-    private Task OnClientConnected(TcpService service, ConnectedEventArgs e)
+    private Task OnClientConnected(TcpSessionClient client)
     {
-        var clientId = e.ID;
-        var clientAddress = e.RemoteIPHost?.ToString();
+        var clientId = client.Id;
+        var clientAddress = client.IP?.ToString();
         var now = _systemClock.LocalNowOffset;
 
         var clientInfo = new ConnectedClientInfo
@@ -174,9 +174,9 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         return Task.CompletedTask;
     }
 
-    private Task OnClientDisconnected(TcpService service, ClosedEventArgs e)
+    private Task OnClientDisconnected(TcpSessionClient client)
     {
-        var clientId = e.ID;
+        var clientId = client.Id;
         
         if (_clients.TryRemove(clientId, out var clientInfo))
         {
@@ -199,16 +199,16 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         return Task.CompletedTask;
     }
 
-    private Task OnMessageReceived(TcpService service, TcpSessionClient client, ReceivedDataEventArgs e)
+    private Task OnMessageReceived(TcpSessionClient client, ReceivedDataEventArgs e)
     {
         try
         {
-            var json = Encoding.UTF8.GetString(e.ByteBlock.Buffer, 0, e.ByteBlock.Len).Trim();
+            var json = Encoding.UTF8.GetString(e.ByteBlock.Span).Trim();
             
             _logger.LogInformation(
                 "[{LocalTime}] [服务端模式-接收消息] 收到客户端 {ClientId} 的消息 | 消息内容={MessageContent}",
                 _systemClock.LocalNow,
-                client.ID,
+                client.Id,
                 json);
 
             // 尝试解析为包裹检测通知
@@ -218,36 +218,16 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 _logger.LogInformation(
                     "[{LocalTime}] [服务端模式-处理通知] 解析到包裹检测通知 | ClientId={ClientId} | ParcelId={ParcelId}",
                     _systemClock.LocalNow,
-                    client.ID,
+                    client.Id,
                     notification.ParcelId);
 
                 // 触发包裹通知接收事件
                 ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
                 {
                     ParcelId = notification.ParcelId,
-                    DetectionTime = notification.DetectionTime,
-                    ClientId = client.ID
+                    ClientId = client.Id,
+                    ReceivedAt = _systemClock.LocalNowOffset
                 });
-
-                // 如果有处理器，调用处理器
-                if (_handler != null)
-                {
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await _handler.HandleParcelDetectionAsync(notification.ParcelId, notification.DetectionTime);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(
-                                ex,
-                                "[{LocalTime}] [服务端模式-处理错误] 处理包裹 {ParcelId} 时发生错误",
-                                _systemClock.LocalNow,
-                                notification.ParcelId);
-                        }
-                    });
-                }
             }
         }
         catch (Exception ex)
@@ -256,7 +236,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 ex,
                 "[{LocalTime}] [服务端模式-接收错误] 处理客户端 {ClientId} 消息时发生错误",
                 _systemClock.LocalNow,
-                client.ID);
+                client.Id);
         }
 
         return Task.CompletedTask;

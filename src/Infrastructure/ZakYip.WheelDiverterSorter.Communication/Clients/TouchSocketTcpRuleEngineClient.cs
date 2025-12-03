@@ -113,11 +113,6 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                 { 
                     CacheTimeout = TimeSpan.FromMilliseconds(Options.TimeoutMs)
                 })
-                .SetBufferLength(Options.Tcp.ReceiveBufferSize)
-                .ConfigureContainer(a =>
-                {
-                    a.SetValue(Options);
-                })
                 .ConfigurePlugins(a =>
                 {
                     // 接收消息处理插件
@@ -125,9 +120,9 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                 }));
 
             // 注册接收事件
-            _client.Received += OnMessageReceived;
-            _client.Disconnected += OnDisconnected;
-            _client.Connected += OnConnected;
+            _client.Received += (ITcpClient client, ReceivedDataEventArgs e) => { OnMessageReceived((TcpClient)client, e); return Task.CompletedTask; };
+            _client.Closed += (ITcpClient client, ClosedEventArgs e) => { OnDisconnected((TcpClient)client, e); return Task.CompletedTask; };
+            _client.Connected += (ITcpClient client, ConnectedEventArgs e) => { OnConnected((TcpClient)client, e); return Task.CompletedTask; };
 
             // 尝试连接
             await _client.ConnectAsync(Options.TimeoutMs, cancellationToken);
@@ -170,7 +165,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
         Logger.LogInformation(
             "[{LocalTime}] [客户端模式-连接成功] TouchSocket客户端已连接到 {RemoteIPHost}",
             SystemClock.LocalNow,
-            e.RemoteIPHost);
+            client.IP);
     }
 
     private void OnDisconnected(TcpClient client, ClosedEventArgs e)
@@ -189,13 +184,13 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
     {
         try
         {
-            var json = Encoding.UTF8.GetString(e.ByteBlock.Buffer, 0, e.ByteBlock.Len).Trim();
+            var json = Encoding.UTF8.GetString(e.ByteBlock.Span).Trim();
 
             Logger.LogInformation(
                 "[{LocalTime}] [上游通信-接收] TouchSocket TCP通道接收消息 | 消息内容={MessageContent} | 字节数={ByteCount}",
                 SystemClock.LocalNow,
                 json,
-                e.ByteBlock.Len);
+                e.ByteBlock.Length);
 
             // 尝试反序列化为格口分配通知
             var notification = JsonSerializer.Deserialize<ChuteAssignmentNotification>(json);
@@ -208,15 +203,23 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                     notification.ChuteId);
 
                 // 触发格口分配事件
-                var eventArgs = new ChuteAssignmentEventArgs
+                DwsMeasurement? dwsMeasurement = null;
+                if (notification.DwsPayload != null)
                 {
-                    ParcelId = notification.ParcelId,
-                    ChuteId = notification.ChuteId.ToString(),
-                    AssignedAt = notification.AssignedAt,
-                    DwsData = notification.DwsPayload
-                };
-
-                OnChuteAssigned(eventArgs);
+                    dwsMeasurement = new DwsMeasurement
+                    {
+                        WeightGrams = notification.DwsPayload.WeightGrams,
+                        LengthMm = notification.DwsPayload.LengthMm,
+                        WidthMm = notification.DwsPayload.WidthMm,
+                        HeightMm = notification.DwsPayload.HeightMm
+                    };
+                }
+                
+                OnChuteAssignmentReceived(
+                    notification.ParcelId, 
+                    notification.ChuteId, 
+                    notification.AssignedAt,
+                    dwsMeasurement);
             }
         }
         catch (Exception ex)
@@ -296,7 +299,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 断开与RuleEngine的连接
     /// </summary>
-    public override Task DisconnectAsync()
+    public override async Task DisconnectAsync()
     {
         ThrowIfDisposed();
 
@@ -306,7 +309,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
             
             if (_client != null)
             {
-                _client.Close();
+                await _client.CloseAsync();
                 _client.Dispose();
             }
             
@@ -323,8 +326,6 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                 "[{LocalTime}] [客户端模式] 断开连接时发生异常",
                 SystemClock.LocalNow);
         }
-
-        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -408,7 +409,6 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                 ActualChuteId = notification.ActualChuteId,
                 CompletedAt = notification.CompletedAt,
                 IsSuccess = notification.IsSuccess,
-                FinalStatus = notification.FinalStatus,
                 FailureReason = notification.FailureReason
             };
 
@@ -416,10 +416,10 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
             var bytes = Encoding.UTF8.GetBytes(json + "\n");
 
             Logger.LogInformation(
-                "[{LocalTime}] [上游通信-发送] TouchSocket TCP通道发送落格完成通知 | ParcelId={ParcelId} | FinalStatus={FinalStatus}",
+                "[{LocalTime}] [上游通信-发送] TouchSocket TCP通道发送落格完成通知 | ParcelId={ParcelId} | IsSuccess={IsSuccess}",
                 SystemClock.LocalNow,
                 notification.ParcelId,
-                notification.FinalStatus);
+                notification.IsSuccess);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(Options.TimeoutMs);
