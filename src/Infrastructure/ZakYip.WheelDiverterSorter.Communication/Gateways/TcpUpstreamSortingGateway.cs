@@ -6,7 +6,6 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;

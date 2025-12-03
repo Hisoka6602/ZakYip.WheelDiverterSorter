@@ -14,7 +14,6 @@ using MQTTnet;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using MQTTnet.Client;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 

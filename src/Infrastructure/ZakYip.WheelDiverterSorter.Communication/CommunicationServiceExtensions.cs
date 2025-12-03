@@ -18,6 +18,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -78,13 +79,13 @@ public static class CommunicationServiceExtensions
 
         // ⚠️ 注册配置为延迟加载单例 - 从数据库读取而非 appsettings.json
         // Register configuration as lazy-loaded singleton - load from database not appsettings.json
-        services.AddSingleton<RuleEngineConnectionOptions>(sp =>
+        services.AddSingleton<UpstreamConnectionOptions>(sp =>
         {
             if (isTestMode)
             {
                 // 测试环境：使用配置文件中的配置（仅用于自动化测试）
                 // Test environment: use configuration from appsettings.json (for automated tests only)
-                var testOptions = new RuleEngineConnectionOptions();
+                var testOptions = new UpstreamConnectionOptions();
                 configuration.GetSection("RuleEngineConnection").Bind(testOptions);
                 
                 ValidateOptions(testOptions);
@@ -100,7 +101,7 @@ public static class CommunicationServiceExtensions
                 var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ICommunicationConfigurationRepository>();
                 var dbConfig = configRepository.Get();
                 
-                // 将数据库配置映射到 RuleEngineConnectionOptions
+                // 将数据库配置映射到 UpstreamConnectionOptions
                 var options = MapFromDatabaseConfig(dbConfig);
                 
                 ValidateOptions(options);
@@ -125,7 +126,7 @@ public static class CommunicationServiceExtensions
             
             // 提供一个 Func 用于动态获取最新配置
             // Provide a Func to dynamically get the latest configuration
-            Func<RuleEngineConnectionOptions> optionsProvider = () =>
+            Func<UpstreamConnectionOptions> optionsProvider = () =>
             {
                 var dbConfig = configRepository.Get();
                 var options = MapFromDatabaseConfig(dbConfig);
@@ -192,13 +193,13 @@ public static class CommunicationServiceExtensions
     {
         // 从DI容器获取已注册的配置（由AddRuleEngineCommunication注册）
         // 如果还未注册，则读取并注册
-        RuleEngineConnectionOptions? options = null;
+        UpstreamConnectionOptions? options = null;
         
         // 尝试从已构建的服务提供者获取配置
         var serviceProvider = services.BuildServiceProvider();
         try
         {
-            options = serviceProvider.GetService<RuleEngineConnectionOptions>();
+            options = serviceProvider.GetService<UpstreamConnectionOptions>();
         }
         catch
         {
@@ -212,7 +213,7 @@ public static class CommunicationServiceExtensions
         // 如果无法从DI获取，则从配置文件读取
         if (options == null)
         {
-            options = new RuleEngineConnectionOptions();
+            options = new UpstreamConnectionOptions();
             configuration.GetSection("RuleEngineConnection").Bind(options);
         }
 
@@ -226,7 +227,7 @@ public static class CommunicationServiceExtensions
             var safeExecutor = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ISafeExecutionService>();
             var clientFactory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
             // 从DI容器获取已注册的配置，确保使用相同的配置实例
-            var connectionOptions = sp.GetRequiredService<RuleEngineConnectionOptions>();
+            var connectionOptions = sp.GetRequiredService<UpstreamConnectionOptions>();
 
             return new UpstreamConnectionManager(
                 logger,
@@ -268,7 +269,7 @@ public static class CommunicationServiceExtensions
     /// <para>无论任何情况下都不会抛出异常导致程序崩溃，只记录警告信息。</para>
     /// <para>PR-UPSTREAM01: 移除 HTTP 模式验证，不支持的模式降级为 TCP。</para>
     /// </remarks>
-    private static void ValidateOptions(RuleEngineConnectionOptions options)
+    private static void ValidateOptions(UpstreamConnectionOptions options)
     {
         switch (options.Mode)
         {
@@ -310,15 +311,15 @@ public static class CommunicationServiceExtensions
     }
 
     /// <summary>
-    /// 将数据库配置映射到 RuleEngineConnectionOptions
-    /// Map database configuration to RuleEngineConnectionOptions
+    /// 将数据库配置映射到 UpstreamConnectionOptions
+    /// Map database configuration to UpstreamConnectionOptions
     /// </summary>
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 配置映射。
     /// </remarks>
-    private static RuleEngineConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration dbConfig)
+    private static UpstreamConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration dbConfig)
     {
-        return new RuleEngineConnectionOptions
+        return new UpstreamConnectionOptions
         {
             Mode = dbConfig.Mode,
             ConnectionMode = dbConfig.ConnectionMode,
@@ -364,7 +365,7 @@ public static class CommunicationServiceExtensions
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 地址获取。
     /// </remarks>
-    private static string GetServerAddress(RuleEngineConnectionOptions options)
+    private static string GetServerAddress(UpstreamConnectionOptions options)
     {
         return options.Mode switch
         {

@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.SignalR.Client;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 

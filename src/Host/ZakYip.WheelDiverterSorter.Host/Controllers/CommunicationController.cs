@@ -17,8 +17,11 @@ using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
@@ -40,7 +43,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class CommunicationController : ControllerBase {
     private readonly IUpstreamRoutingClient _upstreamClient;
-    private readonly IOptions<RuleEngineConnectionOptions> _connectionOptions;
+    private readonly IOptions<UpstreamConnectionOptions> _connectionOptions;
     private readonly ICommunicationConfigurationRepository _configRepository;
     private readonly ICommunicationStatsService _statsService;
     private readonly ILogger<CommunicationController> _logger;
@@ -51,7 +54,7 @@ public class CommunicationController : ControllerBase {
 
     public CommunicationController(
         IUpstreamRoutingClient upstreamClient,
-        IOptions<RuleEngineConnectionOptions> connectionOptions,
+        IOptions<UpstreamConnectionOptions> connectionOptions,
         ICommunicationConfigurationRepository configRepository,
         ICommunicationStatsService statsService,
         ILogger<CommunicationController> logger,
@@ -496,7 +499,7 @@ public class CommunicationController : ControllerBase {
                 config.Version);
 
             // 根据连接模式触发对应的重新连接/重启
-            var updatedOptions = MapToRuleEngineConnectionOptions(config);
+            var updatedOptions = MapToUpstreamConnectionOptions(config);
             
             // Client模式：通过 UpstreamConnectionManager 触发重新连接
             if (config.ConnectionMode == ConnectionMode.Client && _connectionManager != null)
@@ -558,15 +561,16 @@ public class CommunicationController : ControllerBase {
     }
 
     /// <summary>
-    /// 将 CommunicationConfiguration 映射到 RuleEngineConnectionOptions
-    /// Map CommunicationConfiguration to RuleEngineConnectionOptions
+    /// 将 CommunicationConfiguration 映射到 UpstreamConnectionOptions
+    /// Map CommunicationConfiguration to UpstreamConnectionOptions
     /// </summary>
     /// <remarks>
     /// PR-UPSTREAM01: HTTP 配置已移除。
+    /// PR-CONFIG-HOTRELOAD02: 使用 Core 层的配置类型，移除已废弃的 RetryCount/RetryDelayMs 字段
     /// </remarks>
-    private static RuleEngineConnectionOptions MapToRuleEngineConnectionOptions(CommunicationConfiguration config)
+    private static UpstreamConnectionOptions MapToUpstreamConnectionOptions(CommunicationConfiguration config)
     {
-        return new RuleEngineConnectionOptions
+        return new UpstreamConnectionOptions
         {
             Mode = config.Mode,
             ConnectionMode = config.ConnectionMode,
@@ -575,16 +579,17 @@ public class CommunicationController : ControllerBase {
             MqttBroker = config.MqttBroker,
             MqttTopic = config.MqttTopic,
             TimeoutMs = config.TimeoutMs,
-            RetryCount = config.RetryCount,
-            RetryDelayMs = config.RetryDelayMs,
             EnableAutoReconnect = config.EnableAutoReconnect,
-            Tcp = new Communication.Configuration.TcpOptions
+            InitialBackoffMs = config.InitialBackoffMs,
+            MaxBackoffMs = config.MaxBackoffMs,
+            EnableInfiniteRetry = config.EnableInfiniteRetry,
+            Tcp = new TcpConnectionOptions
             {
                 ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
                 SendBufferSize = config.Tcp.SendBufferSize,
                 NoDelay = config.Tcp.NoDelay
             },
-            Mqtt = new Communication.Configuration.MqttOptions
+            Mqtt = new MqttConnectionOptions
             {
                 QualityOfServiceLevel = config.Mqtt.QualityOfServiceLevel,
                 CleanSession = config.Mqtt.CleanSession,
@@ -592,7 +597,7 @@ public class CommunicationController : ControllerBase {
                 MessageExpiryInterval = config.Mqtt.MessageExpiryInterval,
                 ClientIdPrefix = config.Mqtt.ClientIdPrefix
             },
-            SignalR = new Communication.Configuration.SignalROptions
+            SignalR = new SignalRConnectionOptions
             {
                 HandshakeTimeout = config.SignalR.HandshakeTimeout,
                 KeepAliveInterval = config.SignalR.KeepAliveInterval,

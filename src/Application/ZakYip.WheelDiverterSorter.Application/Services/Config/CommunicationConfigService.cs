@@ -5,12 +5,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -90,7 +90,7 @@ public class CommunicationConfigService : ICommunicationConfigService
                 updatedConfig.Version);
 
             // 根据连接模式触发对应的重新连接/重启
-            var updatedOptions = MapToRuleEngineConnectionOptions(updatedConfig);
+            var updatedOptions = MapToUpstreamConnectionOptions(updatedConfig);
 
             // Client模式：通过 UpstreamConnectionManager 触发重新连接
             if (updatedConfig.ConnectionMode == ConnectionMode.Client && _connectionManager != null)
@@ -357,14 +357,15 @@ public class CommunicationConfigService : ICommunicationConfigService
     }
 
     /// <summary>
-    /// 映射配置对象到 RuleEngineConnectionOptions
+    /// 映射配置对象到 UpstreamConnectionOptions
     /// </summary>
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 配置映射。
+    /// PR-CONFIG-HOTRELOAD02: 使用 Core 层的嵌套配置类型，移除对 Communication.Configuration 独立类型的依赖
     /// </remarks>
-    private static RuleEngineConnectionOptions MapToRuleEngineConnectionOptions(CommunicationConfiguration config)
+    private static UpstreamConnectionOptions MapToUpstreamConnectionOptions(CommunicationConfiguration config)
     {
-        return new RuleEngineConnectionOptions
+        return new UpstreamConnectionOptions
         {
             Mode = config.Mode,
             ConnectionMode = config.ConnectionMode,
@@ -373,16 +374,17 @@ public class CommunicationConfigService : ICommunicationConfigService
             MqttBroker = config.MqttBroker,
             MqttTopic = config.MqttTopic,
             TimeoutMs = config.TimeoutMs,
-            RetryCount = config.RetryCount,
-            RetryDelayMs = config.RetryDelayMs,
             EnableAutoReconnect = config.EnableAutoReconnect,
-            Tcp = new Communication.Configuration.TcpOptions
+            InitialBackoffMs = config.InitialBackoffMs,
+            MaxBackoffMs = config.MaxBackoffMs,
+            EnableInfiniteRetry = config.EnableInfiniteRetry,
+            Tcp = new TcpConnectionOptions
             {
                 ReceiveBufferSize = config.Tcp.ReceiveBufferSize,
                 SendBufferSize = config.Tcp.SendBufferSize,
                 NoDelay = config.Tcp.NoDelay
             },
-            Mqtt = new Communication.Configuration.MqttOptions
+            Mqtt = new MqttConnectionOptions
             {
                 QualityOfServiceLevel = config.Mqtt.QualityOfServiceLevel,
                 CleanSession = config.Mqtt.CleanSession,
@@ -390,7 +392,7 @@ public class CommunicationConfigService : ICommunicationConfigService
                 MessageExpiryInterval = config.Mqtt.MessageExpiryInterval,
                 ClientIdPrefix = config.Mqtt.ClientIdPrefix
             },
-            SignalR = new Communication.Configuration.SignalROptions
+            SignalR = new SignalRConnectionOptions
             {
                 HandshakeTimeout = config.SignalR.HandshakeTimeout,
                 KeepAliveInterval = config.SignalR.KeepAliveInterval,

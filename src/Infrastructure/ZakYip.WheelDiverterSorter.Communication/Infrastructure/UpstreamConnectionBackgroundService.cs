@@ -27,14 +27,14 @@ public sealed class UpstreamConnectionBackgroundService : BackgroundService
     private readonly IUpstreamConnectionManager _connectionManager;
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly Communication.Configuration.UpstreamConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
 
     public UpstreamConnectionBackgroundService(
         ILogger<UpstreamConnectionBackgroundService> logger,
         IUpstreamConnectionManager connectionManager,
         ISystemClock systemClock,
         ISafeExecutionService safeExecutor,
-        Communication.Configuration.UpstreamConnectionOptions options)
+        UpstreamConnectionOptions options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
