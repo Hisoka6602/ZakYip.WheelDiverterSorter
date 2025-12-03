@@ -77,12 +77,6 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
             {
                 CacheTimeout = TimeSpan.FromMilliseconds(_options.TimeoutMs)
             })
-            .SetBufferLength(_options.Tcp.ReceiveBufferSize)
-            .ConfigureContainer(a =>
-            {
-                a.SetValue(_options);
-                a.SetValue(_systemClock);
-            })
             .ConfigurePlugins(a =>
             {
                 a.Add<TouchSocketServerPlugin>();
@@ -90,7 +84,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
 
         // 注册事件
         _service.Connected += OnClientConnected;
-        _service.Disconnected += OnClientDisconnected;
+        _service.Closed += OnClientDisconnected;
         _service.Received += OnMessageReceived;
 
         // 启动服务
@@ -118,8 +112,10 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         {
             try
             {
-                var socketClient = _service?.GetClient(kvp.Key);
-                socketClient?.Close();
+                if (_service?.Clients.TryGetClient(kvp.Key, out var socketClient) == true)
+                {
+                    await socketClient.CloseAsync("Server停止", cancellationToken);
+                }
             }
             catch (Exception ex)
             {
@@ -133,19 +129,22 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         _clients.Clear();
 
         // 停止服务
-        _service?.Stop();
-        _service?.Dispose();
-        _service = null;
+        if (_service != null)
+        {
+            await _service.StopAsync(cancellationToken);
+            _service.Dispose();
+            _service = null;
+        }
 
         _logger.LogInformation(
             "[{LocalTime}] [服务端模式] TCP服务器已停止",
             _systemClock.LocalNow);
     }
 
-    private Task OnClientConnected(TcpService service, ConnectedEventArgs e)
+    private Task OnClientConnected(TcpSessionClient client, ConnectedEventArgs e)
     {
-        var clientId = e.ID;
-        var clientAddress = e.RemoteIPHost?.ToString();
+        var clientId = client.Id;
+        var clientAddress = client.IP + ":" + client.Port;
         var now = _systemClock.LocalNowOffset;
 
         var clientInfo = new ConnectedClientInfo
@@ -174,9 +173,9 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         return Task.CompletedTask;
     }
 
-    private Task OnClientDisconnected(TcpService service, DisconnectEventArgs e)
+    private Task OnClientDisconnected(TcpSessionClient client, ClosedEventArgs e)
     {
-        var clientId = e.ID;
+        var clientId = client.Id;
         
         if (_clients.TryRemove(clientId, out var clientInfo))
         {
@@ -199,16 +198,16 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         return Task.CompletedTask;
     }
 
-    private Task OnMessageReceived(TcpService service, SocketClient client, ReceivedDataEventArgs e)
+    private Task OnMessageReceived(TcpSessionClient client, ReceivedDataEventArgs e)
     {
         try
         {
-            var json = Encoding.UTF8.GetString(e.ByteBlock.Buffer, 0, e.ByteBlock.Len).Trim();
+            var json = Encoding.UTF8.GetString(e.ByteBlock.Span).Trim();
             
             _logger.LogInformation(
                 "[{LocalTime}] [服务端模式-接收消息] 收到客户端 {ClientId} 的消息 | 消息内容={MessageContent}",
                 _systemClock.LocalNow,
-                client.ID,
+                client.Id,
                 json);
 
             // 尝试解析为包裹检测通知
@@ -218,15 +217,15 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 _logger.LogInformation(
                     "[{LocalTime}] [服务端模式-处理通知] 解析到包裹检测通知 | ClientId={ClientId} | ParcelId={ParcelId}",
                     _systemClock.LocalNow,
-                    client.ID,
+                    client.Id,
                     notification.ParcelId);
 
                 // 触发包裹通知接收事件
                 ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
                 {
                     ParcelId = notification.ParcelId,
-                    DetectionTime = notification.DetectionTime,
-                    ClientId = client.ID
+                    ReceivedAt = _systemClock.LocalNowOffset,
+                    ClientId = client.Id
                 });
 
                 // 如果有处理器，调用处理器
@@ -236,7 +235,13 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                     {
                         try
                         {
-                            await _handler.HandleParcelDetectionAsync(notification.ParcelId, notification.DetectionTime);
+                            var eventArgs = new ChuteAssignmentNotificationEventArgs
+                            {
+                                ParcelId = notification.ParcelId,
+                                ChuteId = 0, // 服务器端接收到的是检测通知，没有格口分配信息
+                                AssignedAt = notification.DetectionTime
+                            };
+                            await _handler.HandleChuteAssignmentAsync(eventArgs);
                         }
                         catch (Exception ex)
                         {
@@ -256,7 +261,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 ex,
                 "[{LocalTime}] [服务端模式-接收错误] 处理客户端 {ClientId} 消息时发生错误",
                 _systemClock.LocalNow,
-                client.ID);
+                client.Id);
         }
 
         return Task.CompletedTask;
@@ -351,7 +356,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
 /// </summary>
 file class TouchSocketServerPlugin : PluginBase, ITcpReceivedPlugin
 {
-    public Task OnTcpReceived(ITcpClientBase client, ReceivedDataEventArgs e)
+    public Task OnTcpReceived(ITcpSession client, ReceivedDataEventArgs e)
     {
         // 消息已经由 TerminatorPackageAdapter 处理，这里只需要传递
         return e.InvokeNext();
@@ -361,7 +366,7 @@ file class TouchSocketServerPlugin : PluginBase, ITcpReceivedPlugin
 /// <summary>
 /// 已连接客户端信息
 /// </summary>
-file class ConnectedClientInfo
+internal sealed class ConnectedClientInfo
 {
     public required string ClientId { get; init; }
     public DateTimeOffset ConnectedAt { get; init; }
