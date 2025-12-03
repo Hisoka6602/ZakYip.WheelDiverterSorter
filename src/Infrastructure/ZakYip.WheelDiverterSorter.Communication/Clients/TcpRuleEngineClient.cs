@@ -602,7 +602,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
                 messageJson);
 
             // 尝试解析为格口分配通知（使用内部 DTO 进行 JSON 解析）
-            var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(messageJson);
+            var notification = JsonSerializer.Deserialize<ChuteAssignmentEventArgs>(messageJson);
 
             if (notification != null)
             {
@@ -617,7 +617,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
                     notification.ParcelId,
                     notification.ChuteId,
                     notification.AssignedAt,
-                    MapDwsPayload(notification.DwsPayload),
+                    notification.DwsPayload,
                     notification.Metadata);
             }
             else

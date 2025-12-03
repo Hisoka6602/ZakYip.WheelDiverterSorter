@@ -322,7 +322,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
                 payload);
 
             // 尝试解析为格口分配通知
-            var notification = JsonSerializer.Deserialize<ChuteAssignmentNotificationEventArgs>(payload);
+            var notification = JsonSerializer.Deserialize<ChuteAssignmentEventArgs>(payload);
 
             if (notification != null)
             {
@@ -338,7 +338,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
                     notification.ParcelId,
                     notification.ChuteId,
                     notification.AssignedAt,
-                    MapDwsPayload(notification.DwsPayload),
+                    notification.DwsPayload,
                     notification.Metadata);
             }
             else

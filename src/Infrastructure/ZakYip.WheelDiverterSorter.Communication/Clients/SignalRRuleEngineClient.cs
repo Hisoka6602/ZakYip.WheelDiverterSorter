@@ -80,7 +80,7 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
         _connection.ServerTimeout = TimeSpan.FromSeconds(Options.SignalR.ServerTimeout);
 
         // 注册格口分配推送的处理程序
-        _connection.On<ChuteAssignmentNotificationEventArgs>(
+        _connection.On<ChuteAssignmentEventArgs>(
             "ReceiveChuteAssignment",
             HandleChuteAssignmentReceived);
 
@@ -113,7 +113,7 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
     /// <remarks>
     /// PR-UPSTREAM02: 更新以使用新的 AssignedAt 字段和 DWS 数据
     /// </remarks>
-    private void HandleChuteAssignmentReceived(ChuteAssignmentNotificationEventArgs notification)
+    private void HandleChuteAssignmentReceived(ChuteAssignmentEventArgs notification)
     {
         // 记录接收到的完整消息内容
         Logger.LogInformation(
@@ -127,7 +127,7 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
             notification.ParcelId,
             notification.ChuteId,
             notification.AssignedAt,
-            MapDwsPayload(notification.DwsPayload),
+            notification.DwsPayload,
             notification.Metadata);
     }
 

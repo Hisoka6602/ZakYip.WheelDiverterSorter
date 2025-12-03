@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using System.Collections.Concurrent;
 using System.Text;
@@ -235,7 +236,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                     {
                         try
                         {
-                            var eventArgs = new ChuteAssignmentNotificationEventArgs
+                            var eventArgs = new ChuteAssignmentEventArgs
                             {
                                 ParcelId = notification.ParcelId,
                                 ChuteId = 0, // 服务器端接收到的是检测通知，没有格口分配信息

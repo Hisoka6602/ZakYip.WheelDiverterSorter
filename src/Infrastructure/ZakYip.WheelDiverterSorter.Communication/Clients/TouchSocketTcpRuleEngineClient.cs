@@ -204,7 +204,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                     notification.ParcelId,
                     notification.ChuteId);
 
-                // 转换 DwsPayload
+                // 转换 DwsPayload from DTO to domain model
                 DwsMeasurement? dwsPayload = null;
                 if (notification.DwsPayload != null)
                 {

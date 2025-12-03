@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Events.Chute;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Abstractions;
@@ -17,7 +17,7 @@ public interface IRuleEngineHandler
     /// </summary>
     /// <param name="notification">格口分配通知事件参数</param>
     /// <returns>异步任务</returns>
-    Task HandleChuteAssignmentAsync(ChuteAssignmentNotificationEventArgs notification);
+    Task HandleChuteAssignmentAsync(ChuteAssignmentEventArgs notification);
 
     /// <summary>
     /// 处理连接状态变化
