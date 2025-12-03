@@ -40,7 +40,7 @@ public interface IUpstreamConnectionManager
     /// <remarks>
     /// 立即切换到新的参数，用新参数继续执行同样的无限重试逻辑
     /// Immediately switch to new parameters and continue infinite retry logic with new parameters
-    /// PR-CONFIG-HOTRELOAD02: 使用 Core 层的 UpstreamConnectionOptions 代替 UpstreamConnectionOptions
+    /// PR-CONFIG-HOTRELOAD02: 使用 Core 层的 UpstreamConnectionOptions 代替 RuleEngineConnectionOptions
     /// </remarks>
     Task UpdateConnectionOptionsAsync(UpstreamConnectionOptions options);
 

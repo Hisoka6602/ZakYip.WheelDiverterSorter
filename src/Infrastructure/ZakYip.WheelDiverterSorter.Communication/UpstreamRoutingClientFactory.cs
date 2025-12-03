@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
+using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -114,8 +115,9 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
                 ? DefaultTcpServerFallback 
                 : options.TcpServer,
             TimeoutMs = options.TimeoutMs,
-            RetryCount = options.RetryCount,
-            RetryDelayMs = options.RetryDelayMs,
+            InitialBackoffMs = options.InitialBackoffMs,
+            MaxBackoffMs = options.MaxBackoffMs,
+            EnableInfiniteRetry = options.EnableInfiniteRetry,
             Tcp = options.Tcp
         };
 
