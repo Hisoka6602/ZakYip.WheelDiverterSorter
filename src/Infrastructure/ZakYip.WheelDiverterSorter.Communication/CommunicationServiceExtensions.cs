@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Adapters;
@@ -16,6 +17,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -114,7 +116,25 @@ public static class CommunicationServiceExtensions
         services.AddSingleton<IUpstreamContractMapper, DefaultUpstreamContractMapper>();
 
         // PR-U1: 注册上游路由客户端工厂（替代原 IRuleEngineClientFactory）
-        services.AddSingleton<IUpstreamRoutingClientFactory, UpstreamRoutingClientFactory>();
+        // PR-HOTRELOAD: 工厂使用 Func 获取最新配置，支持热更新
+        services.AddSingleton<IUpstreamRoutingClientFactory>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var systemClock = sp.GetRequiredService<ISystemClock>();
+            var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ICommunicationConfigurationRepository>();
+            
+            // 提供一个 Func 用于动态获取最新配置
+            // Provide a Func to dynamically get the latest configuration
+            Func<RuleEngineConnectionOptions> optionsProvider = () =>
+            {
+                var dbConfig = configRepository.Get();
+                var options = MapFromDatabaseConfig(dbConfig);
+                ValidateOptions(options);
+                return options;
+            };
+            
+            return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock);
+        });
 
         // PR-U1: 直接注册 IUpstreamRoutingClient（使用工厂创建，不再需要 Adapter）
         services.AddSingleton<IUpstreamRoutingClient>(sp =>
@@ -196,14 +216,15 @@ public static class CommunicationServiceExtensions
             configuration.GetSection("RuleEngineConnection").Bind(options);
         }
 
-        // PR-U1: 注册 UpstreamConnectionManager（用于Client模式），使用 IUpstreamRoutingClient
+        // PR-U1: 注册 UpstreamConnectionManager（用于Client模式），使用 IUpstreamRoutingClientFactory
+        // PR-HOTRELOAD: 注入工厂而不是客户端实例，支持配置热更新时重新创建客户端
         services.AddSingleton<IUpstreamConnectionManager>(sp =>
         {
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpstreamConnectionManager>>();
             var systemClock = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.Utilities.ISystemClock>();
             var logDeduplicator = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ILogDeduplicator>();
             var safeExecutor = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ISafeExecutionService>();
-            var client = sp.GetRequiredService<IUpstreamRoutingClient>();
+            var clientFactory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
             // 从DI容器获取已注册的配置，确保使用相同的配置实例
             var connectionOptions = sp.GetRequiredService<RuleEngineConnectionOptions>();
 
@@ -212,7 +233,7 @@ public static class CommunicationServiceExtensions
                 systemClock,
                 logDeduplicator,
                 safeExecutor,
-                client,
+                clientFactory,
                 connectionOptions);
         });
 
@@ -221,8 +242,20 @@ public static class CommunicationServiceExtensions
 
         // 始终注册两个后台服务，但它们会在启动时检查配置决定是否真正启动
         // Always register both background services, but they check configuration at startup
-        services.AddHostedService<UpstreamConnectionBackgroundService>();
-        services.AddHostedService<UpstreamServerBackgroundService>();
+        
+        // PR-HOTRELOAD: 注册 UpstreamConnectionBackgroundService 为 Singleton 并作为 HostedService
+        // 保持一致性：Client模式的后台服务也注册为 Singleton + HostedService
+        // Register UpstreamConnectionBackgroundService as Singleton and HostedService
+        // Consistency: Client mode background service also uses Singleton + HostedService pattern
+        services.AddSingleton<UpstreamConnectionBackgroundService>();
+        services.AddHostedService(sp => sp.GetRequiredService<UpstreamConnectionBackgroundService>());
+        
+        // PR-HOTRELOAD: 注册 UpstreamServerBackgroundService 为 Singleton 并作为 HostedService
+        // 这样可以在 CommunicationConfigService 中注入并调用 UpdateServerConfigurationAsync
+        // Register UpstreamServerBackgroundService as Singleton and HostedService
+        // This allows injection in CommunicationConfigService to call UpdateServerConfigurationAsync
+        services.AddSingleton<UpstreamServerBackgroundService>();
+        services.AddHostedService(sp => sp.GetRequiredService<UpstreamServerBackgroundService>());
 
         return services;
     }

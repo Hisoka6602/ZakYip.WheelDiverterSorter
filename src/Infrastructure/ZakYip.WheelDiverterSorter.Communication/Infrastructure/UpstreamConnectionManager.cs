@@ -17,6 +17,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 /// 实现客户端模式的无限重试逻辑，包括指数退避策略（最大2秒）
 /// Implements client mode infinite retry logic with exponential backoff strategy (max 2 seconds)
 /// PR-U1: 直接使用 IUpstreamRoutingClient 替代 IRuleEngineClient
+/// PR-HOTRELOAD: 使用工厂模式支持配置热更新时重新创建客户端
 /// </remarks>
 public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDisposable
 {
@@ -26,9 +27,10 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
     private readonly ISystemClock _systemClock;
     private readonly ILogDeduplicator _logDeduplicator;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly IUpstreamRoutingClient _client;
+    private readonly IUpstreamRoutingClientFactory _clientFactory;
 
     private RuleEngineConnectionOptions _currentOptions;
+    private IUpstreamRoutingClient? _client;
     private Task? _connectionTask;
     private CancellationTokenSource? _cts;
     private readonly SemaphoreSlim _optionsLock = new(1, 1);
@@ -39,18 +41,18 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         ISystemClock systemClock,
         ILogDeduplicator logDeduplicator,
         ISafeExecutionService safeExecutor,
-        IUpstreamRoutingClient client,
+        IUpstreamRoutingClientFactory clientFactory,
         RuleEngineConnectionOptions initialOptions)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logDeduplicator = logDeduplicator ?? throw new ArgumentNullException(nameof(logDeduplicator));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
-        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
         _currentOptions = initialOptions ?? throw new ArgumentNullException(nameof(initialOptions));
     }
 
-    public bool IsConnected => _client.IsConnected;
+    public bool IsConnected => _client?.IsConnected ?? false;
 
     public event EventHandler<ConnectionStateChangedEventArgs>? ConnectionStateChanged;
 
@@ -120,8 +122,8 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                 options.Mode,
                 GetServerAddress(options));
 
-            // 🔴 关键修复：立即断开当前连接，强制使用新配置重新连接
-            // Critical fix: immediately disconnect current connection, force reconnection with new config
+            // 🔴 关键修复：断开旧客户端，创建新客户端，使用新配置重新连接
+            // Critical fix: disconnect old client, create new client with new configuration
             if (_connectionTask != null && !_connectionTask.IsCompleted)
             {
                 try
@@ -131,27 +133,44 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                         _systemClock.LocalNow);
                     
                     // 断开当前连接
-                    await _client.DisconnectAsync().ConfigureAwait(false);
+                    if (_client != null)
+                    {
+                        await _client.DisconnectAsync().ConfigureAwait(false);
+                        
+                        // 如果客户端实现了 IDisposable，释放资源
+                        if (_client is IDisposable disposableClient)
+                        {
+                            disposableClient.Dispose();
+                        }
+                    }
+                    
+                    // PR-HOTRELOAD: 使用工厂创建新客户端实例，确保使用最新配置
+                    // Create new client instance with updated configuration
+                    _client = _clientFactory.CreateClient();
                     
                     _logger.LogInformation(
-                        "[{LocalTime}] ✅ 连接已断开，将立即使用新配置重新连接 - " +
-                        "Connection disconnected, will reconnect immediately with new configuration",
+                        "[{LocalTime}] ✅ 已创建新客户端实例，将立即使用新配置重新连接 - " +
+                        "New client instance created, will reconnect immediately with new configuration",
                         _systemClock.LocalNow);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(
                         ex,
-                        "[{LocalTime}] ⚠️ 断开连接时发生异常（将继续尝试使用新配置重连） - " +
-                        "Exception while disconnecting (will continue to reconnect with new config)",
+                        "[{LocalTime}] ⚠️ 断开连接或创建新客户端时发生异常（将继续尝试使用新配置重连） - " +
+                        "Exception while disconnecting or creating new client (will continue to reconnect with new config)",
                         _systemClock.LocalNow);
                 }
             }
             else
             {
+                // 如果没有活动连接，直接创建新客户端
+                // If no active connection, create new client directly
+                _client = _clientFactory.CreateClient();
+                
                 _logger.LogInformation(
-                    "[{LocalTime}] ℹ️ 当前无活动连接，新配置将在下次连接时生效 - " +
-                    "No active connection, new configuration will take effect on next connection",
+                    "[{LocalTime}] ℹ️ 当前无活动连接，已创建新客户端实例，新配置将在下次连接时生效 - " +
+                    "No active connection, new client instance created, new configuration will take effect on next connection",
                     _systemClock.LocalNow);
             }
         }
@@ -199,7 +218,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
                     // 保持连接，直到断开或取消
                     // Maintain connection until disconnected or cancelled
-                    while (!cancellationToken.IsCancellationRequested && _client.IsConnected)
+                    while (!cancellationToken.IsCancellationRequested && _client?.IsConnected == true)
                     {
                         await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                     }
@@ -252,6 +271,24 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
     private async Task ConnectAsync(RuleEngineConnectionOptions options, CancellationToken cancellationToken)
     {
+        // PR-HOTRELOAD: 确保客户端实例已创建
+        // Ensure client instance is created
+        if (_client == null)
+        {
+            await _optionsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (_client == null)
+                {
+                    _client = _clientFactory.CreateClient();
+                }
+            }
+            finally
+            {
+                _optionsLock.Release();
+            }
+        }
+        
         // 实际调用客户端的连接方法
         // Actually call the client's connect method
         var connected = await _client.ConnectAsync(cancellationToken).ConfigureAwait(false);
