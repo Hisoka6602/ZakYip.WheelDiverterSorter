@@ -16,6 +16,7 @@ namespace ZakYip.WheelDiverterSorter.Communication;
 /// <para>根据配置的通信模式创建对应的客户端实例。</para>
 /// <para>PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT。</para>
 /// <para>默认使用 TCP 模式作为降级方案。</para>
+/// <para>PR-HOTRELOAD: 工厂从配置仓储动态读取最新配置，支持热更新。</para>
 /// </remarks>
 public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
 {
@@ -28,22 +29,22 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     private const string DefaultTcpServerFallback = "localhost:9000";
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly Func<RuleEngineConnectionOptions> _optionsProvider;
     private readonly ISystemClock _systemClock;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="loggerFactory">日志工厂</param>
-    /// <param name="options">连接配置</param>
+    /// <param name="optionsProvider">配置提供者（支持动态获取最新配置）</param>
     /// <param name="systemClock">系统时钟</param>
     public UpstreamRoutingClientFactory(
         ILoggerFactory loggerFactory,
-        RuleEngineConnectionOptions options,
+        Func<RuleEngineConnectionOptions> optionsProvider,
         ISystemClock systemClock)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _optionsProvider = optionsProvider ?? throw new ArgumentNullException(nameof(optionsProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
@@ -54,38 +55,42 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 模式支持。
     /// PR-TOUCHSOCKET01: 使用 TouchSocket 实现的 TCP 客户端。
+    /// PR-HOTRELOAD: 每次创建时获取最新配置，支持热更新。
     /// 对于不支持的通信模式，会记录警告并使用 TCP 模式作为降级方案，确保程序不会崩溃。
     /// </remarks>
     public IUpstreamRoutingClient CreateClient()
     {
+        // PR-HOTRELOAD: 动态获取最新配置
+        var options = _optionsProvider();
+        
         try
         {
-            return _options.Mode switch
+            return options.Mode switch
             {
                 CommunicationMode.Tcp => new TouchSocketTcpRuleEngineClient(
                     _loggerFactory.CreateLogger<TouchSocketTcpRuleEngineClient>(),
-                    _options,
+                    options,
                     _systemClock),
 
                 CommunicationMode.SignalR => new SignalRRuleEngineClient(
                     _loggerFactory.CreateLogger<SignalRRuleEngineClient>(),
-                    _options,
+                    options,
                     _systemClock),
 
                 CommunicationMode.Mqtt => new MqttRuleEngineClient(
                     _loggerFactory.CreateLogger<MqttRuleEngineClient>(),
-                    _options,
+                    options,
                     _systemClock),
 
-                _ => CreateFallbackTcpClient()
+                _ => CreateFallbackTcpClient(options)
             };
         }
         catch (Exception ex)
         {
             // 如果创建客户端失败，记录错误并使用降级方案
             var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
-            logger.LogError(ex, "创建 {Mode} 模式的上游路由客户端失败，使用 TCP 模式作为降级方案", _options.Mode);
-            return CreateFallbackTcpClient();
+            logger.LogError(ex, "创建 {Mode} 模式的上游路由客户端失败，使用 TCP 模式作为降级方案", options.Mode);
+            return CreateFallbackTcpClient(options);
         }
     }
 
@@ -96,25 +101,25 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// PR-UPSTREAM01: 降级方案从 HTTP 改为 TCP。
     /// PR-TOUCHSOCKET01: 使用 TouchSocket 实现。
     /// </remarks>
-    private IUpstreamRoutingClient CreateFallbackTcpClient()
+    private IUpstreamRoutingClient CreateFallbackTcpClient(RuleEngineConnectionOptions options)
     {
         var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
-        logger.LogWarning("使用 TCP 模式作为降级方案，原通信模式: {Mode}", _options.Mode);
+        logger.LogWarning("使用 TCP 模式作为降级方案，原通信模式: {Mode}", options.Mode);
         
         // 创建新的 options 实例用于降级，避免修改原始共享实例
         var fallbackOptions = new RuleEngineConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
-            TcpServer = string.IsNullOrWhiteSpace(_options.TcpServer) 
+            TcpServer = string.IsNullOrWhiteSpace(options.TcpServer) 
                 ? DefaultTcpServerFallback 
-                : _options.TcpServer,
-            TimeoutMs = _options.TimeoutMs,
-            RetryCount = _options.RetryCount,
-            RetryDelayMs = _options.RetryDelayMs,
-            Tcp = _options.Tcp
+                : options.TcpServer,
+            TimeoutMs = options.TimeoutMs,
+            RetryCount = options.RetryCount,
+            RetryDelayMs = options.RetryDelayMs,
+            Tcp = options.Tcp
         };
 
-        if (string.IsNullOrWhiteSpace(_options.TcpServer))
+        if (string.IsNullOrWhiteSpace(options.TcpServer))
         {
             logger.LogWarning("TcpServer 为空，使用默认值: {TcpServer}", fallbackOptions.TcpServer);
         }

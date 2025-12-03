@@ -114,7 +114,25 @@ public static class CommunicationServiceExtensions
         services.AddSingleton<IUpstreamContractMapper, DefaultUpstreamContractMapper>();
 
         // PR-U1: 注册上游路由客户端工厂（替代原 IRuleEngineClientFactory）
-        services.AddSingleton<IUpstreamRoutingClientFactory, UpstreamRoutingClientFactory>();
+        // PR-HOTRELOAD: 工厂使用 Func 获取最新配置，支持热更新
+        services.AddSingleton<IUpstreamRoutingClientFactory>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var systemClock = sp.GetRequiredService<ISystemClock>();
+            var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ICommunicationConfigurationRepository>();
+            
+            // 提供一个 Func 用于动态获取最新配置
+            // Provide a Func to dynamically get the latest configuration
+            Func<RuleEngineConnectionOptions> optionsProvider = () =>
+            {
+                var dbConfig = configRepository.Get();
+                var options = MapFromDatabaseConfig(dbConfig);
+                ValidateOptions(options);
+                return options;
+            };
+            
+            return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock);
+        });
 
         // PR-U1: 直接注册 IUpstreamRoutingClient（使用工厂创建，不再需要 Adapter）
         services.AddSingleton<IUpstreamRoutingClient>(sp =>
@@ -196,14 +214,15 @@ public static class CommunicationServiceExtensions
             configuration.GetSection("RuleEngineConnection").Bind(options);
         }
 
-        // PR-U1: 注册 UpstreamConnectionManager（用于Client模式），使用 IUpstreamRoutingClient
+        // PR-U1: 注册 UpstreamConnectionManager（用于Client模式），使用 IUpstreamRoutingClientFactory
+        // PR-HOTRELOAD: 注入工厂而不是客户端实例，支持配置热更新时重新创建客户端
         services.AddSingleton<IUpstreamConnectionManager>(sp =>
         {
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<UpstreamConnectionManager>>();
             var systemClock = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.Utilities.ISystemClock>();
             var logDeduplicator = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ILogDeduplicator>();
             var safeExecutor = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Observability.Utilities.ISafeExecutionService>();
-            var client = sp.GetRequiredService<IUpstreamRoutingClient>();
+            var clientFactory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
             // 从DI容器获取已注册的配置，确保使用相同的配置实例
             var connectionOptions = sp.GetRequiredService<RuleEngineConnectionOptions>();
 
@@ -212,7 +231,7 @@ public static class CommunicationServiceExtensions
                 systemClock,
                 logDeduplicator,
                 safeExecutor,
-                client,
+                clientFactory,
                 connectionOptions);
         });
 
