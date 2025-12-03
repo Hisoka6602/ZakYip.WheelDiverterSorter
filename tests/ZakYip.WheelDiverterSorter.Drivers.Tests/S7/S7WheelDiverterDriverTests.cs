@@ -3,6 +3,7 @@ using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
+using S7DiverterConfig = ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration.S7DiverterConfigDto;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.S7;
 

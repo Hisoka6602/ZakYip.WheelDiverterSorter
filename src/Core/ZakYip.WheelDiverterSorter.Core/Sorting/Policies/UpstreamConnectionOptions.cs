@@ -275,8 +275,23 @@ public record SignalRConnectionOptions
 /// <summary>
 /// MQTT协议配置选项
 /// </summary>
+/// <remarks>
+/// PR-CONFIG-HOTRELOAD02: 用于运行时Options模式的不可变配置。
+/// 与 MqttConfig（持久化配置）在结构上相似但用途不同。
+/// </remarks>
 public record MqttConnectionOptions
 {
+    /// <summary>
+    /// 配置类型标识（用于区分结构相似的类型）
+    /// </summary>
+    /// <remarks>
+    /// PR-CONFIG-HOTRELOAD02: 此属性用于区分 MqttConnectionOptions 和 MqttConfig。
+    /// 两者是不同层次的配置模型：
+    /// - MqttConfig: 持久化配置（LiteDB），可变（class with set）
+    /// - MqttConnectionOptions: 运行时Options（内存），不可变（record with init）
+    /// </remarks>
+    public string ConfigTypeMarker { get; init; } = "MqttConnectionOptions";
+    
     /// <summary>
     /// MQTT服务质量等级
     /// </summary>
