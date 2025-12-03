@@ -105,10 +105,6 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new UpstreamConnectionOptions
-        {
-            TcpServer = $"localhost:{_testPort}"
-        };
         await client.ConnectAsync();
 
         // Act
@@ -124,10 +120,6 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new UpstreamConnectionOptions
-        {
-            TcpServer = $"localhost:{_testPort}"
-        };
         await client.ConnectAsync();
 
         // Act
@@ -141,10 +133,7 @@ public class TcpRuleEngineClientTests : IDisposable
     public async Task DisconnectAsync_WhenNotConnected_CompletesSuccessfully()
     {
         // Arrange
-        var options = new UpstreamConnectionOptions
-        {
-            TcpServer = "localhost:19999"
-        };
+        // (client is not connected)
 
         // Act & Assert (should not throw)
         await client.DisconnectAsync();
