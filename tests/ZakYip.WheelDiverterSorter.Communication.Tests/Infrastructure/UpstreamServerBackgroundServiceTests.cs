@@ -2,12 +2,15 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
@@ -26,7 +29,6 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Client",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000",
@@ -34,6 +36,16 @@ public class UpstreamServerBackgroundServiceTests
                 ["RuleEngineConnection:MaxBackoffMs"] = "2000"
             })
             .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Client,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
 
         // Add required dependencies
         services.AddLogging();
@@ -57,12 +69,21 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Server",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
             })
             .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Server,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
 
         // Add required dependencies
         services.AddLogging();
@@ -86,12 +107,21 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Client",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
             })
             .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Client,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
 
         // Add required dependencies
         services.AddLogging();
@@ -116,12 +146,21 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Server",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
             })
             .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Server,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
 
         // Add required dependencies
         services.AddLogging();
@@ -146,12 +185,21 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Client",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
             })
             .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Client,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
 
         // Add required dependencies
         services.AddLogging();
