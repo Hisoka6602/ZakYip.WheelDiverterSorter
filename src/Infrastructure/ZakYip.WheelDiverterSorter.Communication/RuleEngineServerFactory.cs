@@ -65,8 +65,8 @@ public class RuleEngineServerFactory
 
     private IRuleEngineServer CreateTcpServer(RuleEngineConnectionOptions options)
     {
-        var logger = _loggerFactory.CreateLogger<TouchSocketTcpRuleEngineServer>();
-        return new TouchSocketTcpRuleEngineServer(logger, options, _systemClock, _handler);
+        var logger = _loggerFactory.CreateLogger<TcpRuleEngineServer>();
+        return new TcpRuleEngineServer(logger, options, _systemClock, _handler);
     }
 
     private IRuleEngineServer CreateMqttServer(RuleEngineConnectionOptions options)
