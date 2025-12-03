@@ -1,9 +1,15 @@
 using Microsoft.Extensions.Hosting;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -21,14 +27,14 @@ public sealed class UpstreamConnectionBackgroundService : BackgroundService
     private readonly IUpstreamConnectionManager _connectionManager;
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly Communication.Configuration.RuleEngineConnectionOptions _options;
+    private readonly Communication.Configuration.UpstreamConnectionOptions _options;
 
     public UpstreamConnectionBackgroundService(
         ILogger<UpstreamConnectionBackgroundService> logger,
         IUpstreamConnectionManager connectionManager,
         ISystemClock systemClock,
         ISafeExecutionService safeExecutor,
-        Communication.Configuration.RuleEngineConnectionOptions options)
+        Communication.Configuration.UpstreamConnectionOptions options)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));

@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -29,7 +29,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     private const string DefaultTcpServerFallback = "localhost:9000";
 
     private readonly ILoggerFactory _loggerFactory;
-    private readonly Func<RuleEngineConnectionOptions> _optionsProvider;
+    private readonly Func<UpstreamConnectionOptions> _optionsProvider;
     private readonly ISystemClock _systemClock;
 
     /// <summary>
@@ -40,7 +40,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// <param name="systemClock">系统时钟</param>
     public UpstreamRoutingClientFactory(
         ILoggerFactory loggerFactory,
-        Func<RuleEngineConnectionOptions> optionsProvider,
+        Func<UpstreamConnectionOptions> optionsProvider,
         ISystemClock systemClock)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
@@ -101,13 +101,13 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// PR-UPSTREAM01: 降级方案从 HTTP 改为 TCP。
     /// PR-TOUCHSOCKET01: 使用 TouchSocket 实现。
     /// </remarks>
-    private IUpstreamRoutingClient CreateFallbackTcpClient(RuleEngineConnectionOptions options)
+    private IUpstreamRoutingClient CreateFallbackTcpClient(UpstreamConnectionOptions options)
     {
         var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
         logger.LogWarning("使用 TCP 模式作为降级方案，原通信模式: {Mode}", options.Mode);
         
         // 创建新的 options 实例用于降级，避免修改原始共享实例
-        var fallbackOptions = new RuleEngineConnectionOptions
+        var fallbackOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = string.IsNullOrWhiteSpace(options.TcpServer) 

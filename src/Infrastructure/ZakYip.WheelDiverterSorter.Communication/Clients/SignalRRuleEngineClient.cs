@@ -1,10 +1,16 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Microsoft.AspNetCore.SignalR.Client;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -33,7 +39,7 @@ public class SignalRRuleEngineClient : RuleEngineClientBase
     /// <param name="systemClock">系统时钟</param>
     public SignalRRuleEngineClient(
         ILogger<SignalRRuleEngineClient> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock) : base(logger, options, systemClock)
     {
         if (string.IsNullOrWhiteSpace(options.SignalRHub))

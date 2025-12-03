@@ -1,15 +1,26 @@
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using System.Collections.Concurrent;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using System.Text;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using System.Text.Json;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using MQTTnet;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using MQTTnet.Server;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 
@@ -20,7 +31,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 public sealed class MqttRuleEngineServer : IRuleEngineServer
 {
     private readonly ILogger<MqttRuleEngineServer> _logger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
     private readonly ISystemClock _systemClock;
     private readonly IRuleEngineHandler? _handler;
     
@@ -31,7 +42,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
 
     public MqttRuleEngineServer(
         ILogger<MqttRuleEngineServer> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock,
         IRuleEngineHandler? handler = null)
     {
@@ -262,7 +273,7 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
         }
     }
 
-    private static void ValidateMqttServerOptions(RuleEngineConnectionOptions options)
+    private static void ValidateMqttServerOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.MqttBroker))
         {

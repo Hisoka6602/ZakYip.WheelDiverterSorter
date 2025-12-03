@@ -1,13 +1,22 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using System.Text;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using System.Text.Json;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using TouchSocket.Core;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using TouchSocket.Sockets;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -44,13 +53,13 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
     /// </summary>
     public TouchSocketTcpRuleEngineClient(
         ILogger<TouchSocketTcpRuleEngineClient> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock) : base(logger, options, systemClock)
     {
         ValidateTcpOptions(options);
     }
 
-    private static void ValidateTcpOptions(RuleEngineConnectionOptions options)
+    private static void ValidateTcpOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.TcpServer))
         {

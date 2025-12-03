@@ -11,6 +11,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 /// <para>统一管理与上游 RuleEngine 的 TCP/SignalR/MQTT 连接参数。</para>
 /// <para>通过 IValidateOptions 实现启动时校验。</para>
 /// <para>PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT。</para>
+/// <para>PR-CONFIG-HOTRELOAD02: 合并 RuleEngineConnectionOptions，成为唯一权威配置。</para>
 /// </remarks>
 public record UpstreamConnectionOptions
 {
@@ -99,6 +100,22 @@ public record UpstreamConnectionOptions
     public bool EnableInfiniteRetry { get; init; } = true;
 
     /// <summary>
+    /// 客户端模式下的最大退避时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认5秒。用于客户端模式的无限重连机制
+    /// </remarks>
+    public int MaxBackoffSeconds { get; init; } = 5;
+
+    /// <summary>
+    /// 格口分配等待超时时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 等待RuleEngine推送格口分配的最大时间。超时后将使用异常格口
+    /// </remarks>
+    public int ChuteAssignmentTimeoutMs { get; init; } = 10000;
+
+    /// <summary>
     /// 格口分配超时时间（秒）
     /// </summary>
     /// <remarks>
@@ -106,6 +123,186 @@ public record UpstreamConnectionOptions
     /// 默认为 5 秒。
     /// </remarks>
     public decimal FallbackTimeoutSeconds { get; init; } = 5m;
+
+    /// <summary>
+    /// TCP相关配置
+    /// </summary>
+    public TcpConnectionOptions Tcp { get; init; } = new();
+
+    /// <summary>
+    /// MQTT相关配置
+    /// </summary>
+    public MqttConnectionOptions Mqtt { get; init; } = new();
+
+    /// <summary>
+    /// SignalR相关配置
+    /// </summary>
+    public SignalRConnectionOptions SignalR { get; init; } = new();
+}
+
+/// <summary>
+/// TCP协议配置选项
+/// </summary>
+public record TcpConnectionOptions
+{
+    /// <summary>
+    /// TCP接收缓冲区大小（字节）
+    /// </summary>
+    /// <remarks>
+    /// 默认8KB。根据消息大小调整：
+    /// - 小消息（<1KB）：4096
+    /// - 中等消息（1-4KB）：8192
+    /// - 大消息（>4KB）：16384或更大
+    /// </remarks>
+    public int ReceiveBufferSize { get; init; } = 8192;
+
+    /// <summary>
+    /// TCP发送缓冲区大小（字节）
+    /// </summary>
+    /// <remarks>
+    /// 默认8KB
+    /// </remarks>
+    public int SendBufferSize { get; init; } = 8192;
+
+    /// <summary>
+    /// 是否启用Nagle算法
+    /// </summary>
+    /// <remarks>
+    /// 默认false（禁用Nagle）以降低延迟
+    /// 启用Nagle可以提高网络利用率，但增加延迟
+    /// </remarks>
+    public bool NoDelay { get; init; } = true;
+
+    /// <summary>
+    /// 是否启用TCP KeepAlive
+    /// </summary>
+    /// <remarks>
+    /// 默认true。启用后可防止TCP连接空闲超时断线
+    /// </remarks>
+    public bool EnableKeepAlive { get; init; } = true;
+
+    /// <summary>
+    /// TCP KeepAlive时间间隔（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认60秒。在连接空闲多久后开始发送KeepAlive探测包
+    /// 仅在 EnableKeepAlive = true 时有效
+    /// </remarks>
+    public int KeepAliveTime { get; init; } = 60;
+
+    /// <summary>
+    /// TCP KeepAlive探测间隔（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认10秒。每次KeepAlive探测包之间的间隔
+    /// 仅在 EnableKeepAlive = true 时有效
+    /// </remarks>
+    public int KeepAliveInterval { get; init; } = 10;
+
+    /// <summary>
+    /// TCP KeepAlive重试次数
+    /// </summary>
+    /// <remarks>
+    /// 默认3次。连续多少次探测失败后判定连接断开
+    /// 仅在 EnableKeepAlive = true 时有效
+    /// 注意：Windows系统可能不完全支持此参数
+    /// </remarks>
+    public int KeepAliveRetryCount { get; init; } = 3;
+}
+
+/// <summary>
+/// SignalR协议配置选项
+/// </summary>
+public record SignalRConnectionOptions
+{
+    /// <summary>
+    /// 握手超时时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认15秒
+    /// </remarks>
+    public int HandshakeTimeout { get; init; } = 15;
+
+    /// <summary>
+    /// 保持连接超时时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认30秒。服务端发送心跳包的间隔
+    /// </remarks>
+    public int KeepAliveInterval { get; init; } = 30;
+
+    /// <summary>
+    /// 服务端超时时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认60秒。未收到服务端心跳的最大等待时间
+    /// </remarks>
+    public int ServerTimeout { get; init; } = 60;
+
+    /// <summary>
+    /// 重连间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认null（使用默认策略）。可设置固定重连间隔，如 [0, 2000, 5000, 10000]
+    /// </remarks>
+    public int[]? ReconnectIntervals { get; init; }
+
+    /// <summary>
+    /// 是否跳过协商（直接使用WebSocket）
+    /// </summary>
+    /// <remarks>
+    /// 默认false。设为true可减少连接延迟，但需要服务端支持
+    /// </remarks>
+    public bool SkipNegotiation { get; init; } = false;
+}
+
+/// <summary>
+/// MQTT协议配置选项
+/// </summary>
+public record MqttConnectionOptions
+{
+    /// <summary>
+    /// MQTT服务质量等级
+    /// </summary>
+    /// <remarks>
+    /// 0 = At most once (最多一次，可能丢失)
+    /// 1 = At least once (至少一次，可能重复) - 默认
+    /// 2 = Exactly once (恰好一次，最可靠但最慢)
+    /// </remarks>
+    public int QualityOfServiceLevel { get; init; } = 1;
+
+    /// <summary>
+    /// 是否使用Clean Session
+    /// </summary>
+    /// <remarks>
+    /// true = 不保留会话状态（默认）
+    /// false = 保留会话状态和订阅
+    /// </remarks>
+    public bool CleanSession { get; init; } = true;
+
+    /// <summary>
+    /// 会话保持时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认3600秒（1小时）。0表示连接断开后立即清理会话
+    /// </remarks>
+    public int SessionExpiryInterval { get; init; } = 3600;
+
+    /// <summary>
+    /// 消息保留时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认0（不保留）。用于保留最后一条消息给新订阅者
+    /// </remarks>
+    public int MessageExpiryInterval { get; init; } = 0;
+
+    /// <summary>
+    /// MQTT客户端ID前缀
+    /// </summary>
+    /// <remarks>
+    /// 默认"WheelDiverter"。完整ID为：前缀_GUID
+    /// </remarks>
+    public string ClientIdPrefix { get; init; } = "WheelDiverter";
 }
 
 /// <summary>
