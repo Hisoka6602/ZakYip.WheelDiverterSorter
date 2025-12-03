@@ -840,11 +840,9 @@ public class CommunicationController : ControllerBase {
                     sw.Stop();
                     
                     _logger.LogInformation(
-                        "Server 模式：已向 {ClientCount} 个客户端广播测试包裹 {ParcelId} - Server mode: broadcasted test parcel {ParcelId} to {ClientCount} clients",
+                        "Server 模式：已向 {ClientCount} 个客户端广播测试包裹 {ParcelId}",
                         clientCount,
-                        parcelIdLong,
-                        parcelIdLong,
-                        clientCount);
+                        parcelIdLong);
                     
                     return Ok(new TestParcelResponse {
                         Success = true,

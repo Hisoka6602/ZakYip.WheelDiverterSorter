@@ -91,14 +91,18 @@ public class CommunicationControllerTests : IClassFixture<CustomWebApplicationFa
         var result = await response.Content.ReadFromJsonAsync<CommunicationStatusResponse>();
         Assert.NotNull(result);
         
-        // ConnectedClients should be null in Client mode, or a list (possibly empty) in Server mode
+        // Verify that ConnectionMode field is present and valid
+        Assert.NotNull(result.ConnectionMode);
+        Assert.Contains(result.ConnectionMode, new[] { "Client", "Server" });
+        
+        // In Server mode, ConnectedClients should be present (either as a list or null)
+        // In Client mode, ConnectedClients should be null
         if (result.ConnectionMode == "Server")
         {
-            // In Server mode, ConnectedClients should be a list (may be empty)
-            // We're just checking the field exists, not that it has clients
-            // because that depends on actual upstream connections
-            Assert.True(result.ConnectedClients != null || result.ConnectedClients == null, 
-                "ConnectedClients field should be present (even if empty list or null)");
+            // Server mode: the field should be present in the JSON response
+            // (it may be an empty list or have actual clients depending on connections)
+            // We cannot assert NotNull here because it depends on actual upstream connections
+            // The field existing in the response is validated by successful deserialization
         }
         else
         {
