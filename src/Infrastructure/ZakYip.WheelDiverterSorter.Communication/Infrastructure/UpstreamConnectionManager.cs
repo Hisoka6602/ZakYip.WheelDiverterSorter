@@ -218,7 +218,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
                     // 保持连接，直到断开或取消
                     // Maintain connection until disconnected or cancelled
-                    while (!cancellationToken.IsCancellationRequested && _client.IsConnected)
+                    while (!cancellationToken.IsCancellationRequested && _client?.IsConnected == true)
                     {
                         await Task.Delay(1000, cancellationToken).ConfigureAwait(false);
                     }
