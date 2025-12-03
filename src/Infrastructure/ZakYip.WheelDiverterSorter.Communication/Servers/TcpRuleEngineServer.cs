@@ -53,6 +53,19 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
     public event EventHandler<ClientConnectionEventArgs>? ClientDisconnected;
     public event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
 
+    public IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients()
+    {
+        return _clients.Values
+            .Select(c => new ClientConnectionEventArgs
+            {
+                ClientId = c.ClientId,
+                ConnectedAt = c.ConnectedAt,
+                ClientAddress = c.ClientAddress
+            })
+            .ToList()
+            .AsReadOnly();
+    }
+
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_isRunning)

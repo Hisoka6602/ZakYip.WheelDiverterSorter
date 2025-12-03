@@ -56,6 +56,22 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
     public event EventHandler<ClientConnectionEventArgs>? ClientDisconnected;
     public event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
 
+    /// <summary>
+    /// 获取所有已连接的客户端信息
+    /// </summary>
+    public IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients()
+    {
+        return _clients.Values
+            .Select(c => new ClientConnectionEventArgs
+            {
+                ClientId = c.ClientId,
+                ConnectedAt = c.ConnectedAt,
+                ClientAddress = c.ClientAddress
+            })
+            .ToList()
+            .AsReadOnly();
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_isRunning)

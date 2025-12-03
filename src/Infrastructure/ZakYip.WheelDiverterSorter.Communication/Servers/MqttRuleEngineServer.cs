@@ -51,6 +51,19 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
     public event EventHandler<ClientConnectionEventArgs>? ClientDisconnected;
     public event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
 
+    public IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients()
+    {
+        return _clients.Values
+            .Select(c => new ClientConnectionEventArgs
+            {
+                ClientId = c.ClientId,
+                ConnectedAt = c.ConnectedAt,
+                ClientAddress = c.ClientAddress
+            })
+            .ToList()
+            .AsReadOnly();
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         if (_isRunning)
@@ -303,5 +316,6 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
     {
         public required string ClientId { get; init; }
         public required DateTimeOffset ConnectedAt { get; init; }
+        public string? ClientAddress { get; init; }
     }
 }

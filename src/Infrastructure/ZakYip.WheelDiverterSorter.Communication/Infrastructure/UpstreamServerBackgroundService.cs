@@ -35,6 +35,12 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
     private UpstreamConnectionOptions _currentOptions;
     private readonly SemaphoreSlim _serverLock = new(1, 1);
 
+    /// <summary>
+    /// 当前运行的服务器实例（仅Server模式下有效）
+    /// Current running server instance (valid only in Server mode)
+    /// </summary>
+    public IRuleEngineServer? CurrentServer => _currentServer;
+
     public UpstreamServerBackgroundService(
         ILogger<UpstreamServerBackgroundService> logger,
         ISystemClock systemClock,

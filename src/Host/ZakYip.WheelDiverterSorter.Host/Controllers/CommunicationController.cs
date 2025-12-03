@@ -91,7 +91,7 @@ public class CommunicationController : ControllerBase {
     [HttpPost("test")]
     [SwaggerOperation(
         Summary = "测试RuleEngine连接",
-        Description = "测试与配置的RuleEngine服务器的连接，返回连接结果和响应时间",
+        Description = "测试与配置的RuleEngine服务器的连接，返回连接结果和响应时间。支持Client和Server模式。",
         OperationId = "TestConnection",
         Tags = new[] { "通信管理" }
     )]
@@ -109,23 +109,44 @@ public class CommunicationController : ControllerBase {
             // 检查配置的连接模式
             var persistedConfig = _configRepository.Get();
             
-            // 如果是 Server 模式，提供明确说明
+            // 如果是 Server 模式，检查服务器状态
             if (persistedConfig.ConnectionMode == ConnectionMode.Server)
             {
                 sw.Stop();
-                _logger.LogWarning(
-                    "尝试测试 Server 模式连接。Server 模式需要上游主动连接，无法从本端测试 - " +
-                    "Attempted to test Server mode connection. Server mode requires upstream to connect, cannot test from this side.");
                 
-                return Ok(new ConnectionTestResponse {
-                    Success = false,
-                    ResponseTimeMs = sw.ElapsedMilliseconds,
-                    Message = "Server 模式无法测试连接 - Cannot test connection in Server mode",
-                    ErrorDetails = "系统配置为 Server 模式，需要上游主动连接到本端。" +
-                                   "请确认已启动监听服务，并从上游发起连接。" +
-                                   "当前版本仅完全支持 Client 模式的连接测试。",
-                    TestedAt = testedAt
-                });
+                if (_serverBackgroundService?.CurrentServer != null)
+                {
+                    var server = _serverBackgroundService.CurrentServer;
+                    var isRunning = server.IsRunning;
+                    var clientCount = server.ConnectedClientsCount;
+                    
+                    _logger.LogInformation(
+                        "Server 模式连接检测 - Server mode connection check: IsRunning={IsRunning}, ConnectedClients={ClientCount}",
+                        isRunning,
+                        clientCount);
+                    
+                    return Ok(new ConnectionTestResponse {
+                        Success = isRunning,
+                        ResponseTimeMs = sw.ElapsedMilliseconds,
+                        Message = isRunning 
+                            ? $"Server 模式运行正常，当前有 {clientCount} 个客户端连接 - Server mode running normally with {clientCount} connected clients"
+                            : "Server 模式服务器未运行 - Server mode server not running",
+                        ErrorDetails = isRunning ? null : "服务器未启动，请检查配置或重启服务",
+                        TestedAt = testedAt
+                    });
+                }
+                else
+                {
+                    _logger.LogWarning("Server 模式下服务器未初始化 - Server not initialized in Server mode");
+                    
+                    return Ok(new ConnectionTestResponse {
+                        Success = false,
+                        ResponseTimeMs = sw.ElapsedMilliseconds,
+                        Message = "Server 模式服务器未初始化 - Server not initialized in Server mode",
+                        ErrorDetails = "服务器实例不存在，可能是配置问题或服务启动失败",
+                        TestedAt = testedAt
+                    });
+                }
             }
 
             // Client 模式：尝试实际连接
@@ -209,13 +230,50 @@ public class CommunicationController : ControllerBase {
             
             // 根据连接模式生成适当的消息
             string? errorMessage = null;
-            if (!isConnected)
+            List<ConnectedClientDto>? connectedClients = null;
+            
+            // Server模式：获取已连接客户端信息
+            if (persistedConfig.ConnectionMode == ConnectionMode.Server)
             {
-                if (persistedConfig.ConnectionMode == ConnectionMode.Server)
+                if (_serverBackgroundService?.CurrentServer != null)
                 {
-                    errorMessage = "Server 模式下尚无上游客户端连接。等待上游系统连接。";
+                    var server = _serverBackgroundService.CurrentServer;
+                    isConnected = server.IsRunning;
+                    
+                    if (isConnected)
+                    {
+                        // 获取所有已连接的客户端
+                        var clients = server.GetConnectedClients();
+                        if (clients.Any())
+                        {
+                            connectedClients = clients.Select(c => new ConnectedClientDto
+                            {
+                                ClientId = c.ClientId,
+                                ClientAddress = c.ClientAddress,
+                                ConnectedAt = c.ConnectedAt,
+                                ConnectionDurationSeconds = (long)(_systemClock.LocalNowOffset - c.ConnectedAt).TotalSeconds
+                            }).ToList();
+                            errorMessage = null;
+                        }
+                        else
+                        {
+                            errorMessage = "Server 模式下尚无上游客户端连接。等待上游系统连接。";
+                        }
+                    }
+                    else
+                    {
+                        errorMessage = "Server 模式下服务器未运行。";
+                    }
                 }
                 else
+                {
+                    errorMessage = "Server 模式下服务器未初始化。";
+                    isConnected = false;
+                }
+            }
+            else // Client模式
+            {
+                if (!isConnected)
                 {
                     errorMessage = "当前未连接到上游。Client 模式下会自动重试连接。";
                 }
@@ -223,6 +281,7 @@ public class CommunicationController : ControllerBase {
 
             var response = new CommunicationStatusResponse {
                 Mode = persistedConfig.Mode.ToString(),
+                ConnectionMode = persistedConfig.ConnectionMode.ToString(),
                 IsConnected = isConnected,
                 MessagesSent = _statsService.MessagesSent,
                 MessagesReceived = _statsService.MessagesReceived,
@@ -230,7 +289,8 @@ public class CommunicationController : ControllerBase {
                 LastConnectedAt = _statsService.LastConnectedAt,
                 LastDisconnectedAt = _statsService.LastDisconnectedAt,
                 ServerAddress = GetServerAddress(persistedConfig),
-                ErrorMessage = errorMessage
+                ErrorMessage = errorMessage,
+                ConnectedClients = connectedClients
             };
 
             return Ok(response);
@@ -718,7 +778,6 @@ public class CommunicationController : ControllerBase {
             var sw = Stopwatch.StartNew();
             var sentAt = _systemClock.LocalNowOffset;
 
-            // 发送测试包裹请求到上游
             // Parse the parcelId to long if it's a timestamp format, otherwise use a generated timestamp
             long parcelIdLong;
             if (!long.TryParse(request.ParcelId, out parcelIdLong))
@@ -731,36 +790,120 @@ public class CommunicationController : ControllerBase {
                     parcelIdLong);
             }
 
-            var success = await _upstreamClient.NotifyParcelDetectedAsync(parcelIdLong, cancellationToken);
-            sw.Stop();
-
-            if (success) {
-                _logger.LogInformation(
-                    "测试包裹请求发送成功 - Test parcel request sent successfully: ParcelId={ParcelId}, ResponseTime={ResponseTimeMs}ms",
-                    request.ParcelId,
-                    sw.ElapsedMilliseconds);
-
-                return Ok(new TestParcelResponse {
-                    Success = true,
-                    ParcelId = request.ParcelId,
-                    Message = "测试包裹请求已发送 - Test parcel request sent successfully",
-                    SentAt = sentAt,
-                    ResponseTimeMs = sw.ElapsedMilliseconds
-                });
+            // 检查配置的连接模式
+            var persistedConfig = _configRepository.Get();
+            bool success;
+            
+            if (persistedConfig.ConnectionMode == ConnectionMode.Server)
+            {
+                // Server模式：向所有已连接的客户端广播
+                if (_serverBackgroundService?.CurrentServer != null)
+                {
+                    var server = _serverBackgroundService.CurrentServer;
+                    if (!server.IsRunning)
+                    {
+                        sw.Stop();
+                        _logger.LogWarning(
+                            "Server 模式下服务器未运行，无法发送测试包裹 - Server not running in Server mode, cannot send test parcel");
+                        
+                        return Ok(new TestParcelResponse {
+                            Success = false,
+                            ParcelId = request.ParcelId,
+                            Message = "测试包裹发送失败 - Test parcel sending failed",
+                            ErrorDetails = "Server 模式下服务器未运行。请检查服务器配置并确保服务器已启动。",
+                            SentAt = sentAt,
+                            ResponseTimeMs = sw.ElapsedMilliseconds
+                        });
+                    }
+                    
+                    var clientCount = server.ConnectedClientsCount;
+                    if (clientCount == 0)
+                    {
+                        sw.Stop();
+                        _logger.LogWarning(
+                            "Server 模式下无已连接客户端，无法发送测试包裹 - No connected clients in Server mode, cannot send test parcel");
+                        
+                        return Ok(new TestParcelResponse {
+                            Success = false,
+                            ParcelId = request.ParcelId,
+                            Message = "测试包裹发送失败 - Test parcel sending failed",
+                            ErrorDetails = "Server 模式下无已连接客户端。请确保上游系统已连接到本服务器。",
+                            SentAt = sentAt,
+                            ResponseTimeMs = sw.ElapsedMilliseconds
+                        });
+                    }
+                    
+                    // 广播格口分配通知到所有已连接的客户端
+                    // 使用一个固定的测试格口ID（如999表示测试格口）
+                    await server.BroadcastChuteAssignmentAsync(parcelIdLong, "999", cancellationToken);
+                    success = true;
+                    sw.Stop();
+                    
+                    _logger.LogInformation(
+                        "Server 模式：已向 {ClientCount} 个客户端广播测试包裹 {ParcelId} - Server mode: broadcasted test parcel {ParcelId} to {ClientCount} clients",
+                        clientCount,
+                        parcelIdLong,
+                        parcelIdLong,
+                        clientCount);
+                    
+                    return Ok(new TestParcelResponse {
+                        Success = true,
+                        ParcelId = request.ParcelId,
+                        Message = $"测试包裹已广播到 {clientCount} 个客户端 - Test parcel broadcasted to {clientCount} clients",
+                        SentAt = sentAt,
+                        ResponseTimeMs = sw.ElapsedMilliseconds
+                    });
+                }
+                else
+                {
+                    sw.Stop();
+                    _logger.LogError(
+                        "Server 模式下服务器未初始化 - Server not initialized in Server mode");
+                    
+                    return Ok(new TestParcelResponse {
+                        Success = false,
+                        ParcelId = request.ParcelId,
+                        Message = "测试包裹发送失败 - Test parcel sending failed",
+                        ErrorDetails = "Server 模式下服务器未初始化。请检查服务器配置。",
+                        SentAt = sentAt,
+                        ResponseTimeMs = sw.ElapsedMilliseconds
+                    });
+                }
             }
-            else {
-                _logger.LogWarning(
-                    "测试包裹请求发送失败 - Test parcel request failed: ParcelId={ParcelId}",
-                    request.ParcelId);
+            else
+            {
+                // Client模式：发送测试包裹请求到上游
+                success = await _upstreamClient.NotifyParcelDetectedAsync(parcelIdLong, cancellationToken);
+                sw.Stop();
 
-                return Ok(new TestParcelResponse {
-                    Success = false,
-                    ParcelId = request.ParcelId,
-                    Message = "测试包裹请求发送失败 - Test parcel request failed",
-                    ErrorDetails = "无法发送请求到上游 - Unable to send request to upstream",
-                    SentAt = sentAt,
-                    ResponseTimeMs = sw.ElapsedMilliseconds
-                });
+                if (success) {
+                    _logger.LogInformation(
+                        "测试包裹请求发送成功 - Test parcel request sent successfully: ParcelId={ParcelId}, ResponseTime={ResponseTimeMs}ms",
+                        request.ParcelId,
+                        sw.ElapsedMilliseconds);
+
+                    return Ok(new TestParcelResponse {
+                        Success = true,
+                        ParcelId = request.ParcelId,
+                        Message = "测试包裹请求已发送 - Test parcel request sent successfully",
+                        SentAt = sentAt,
+                        ResponseTimeMs = sw.ElapsedMilliseconds
+                    });
+                }
+                else {
+                    _logger.LogWarning(
+                        "测试包裹请求发送失败 - Test parcel request failed: ParcelId={ParcelId}",
+                        request.ParcelId);
+
+                    return Ok(new TestParcelResponse {
+                        Success = false,
+                        ParcelId = request.ParcelId,
+                        Message = "测试包裹请求发送失败 - Test parcel request failed",
+                        ErrorDetails = "无法发送请求到上游 - Unable to send request to upstream",
+                        SentAt = sentAt,
+                        ResponseTimeMs = sw.ElapsedMilliseconds
+                    });
+                }
             }
         }
         catch (Exception ex) {

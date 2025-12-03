@@ -23,6 +23,13 @@ public interface IRuleEngineServer : IDisposable
     int ConnectedClientsCount { get; }
 
     /// <summary>
+    /// 获取所有已连接的客户端信息
+    /// Get all connected clients information
+    /// </summary>
+    /// <returns>已连接客户端的信息列表 / List of connected client information</returns>
+    IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients();
+
+    /// <summary>
     /// 启动服务器
     /// Start the server
     /// </summary>
