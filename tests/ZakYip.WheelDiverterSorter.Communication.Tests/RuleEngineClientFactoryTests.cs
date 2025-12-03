@@ -66,7 +66,7 @@ public class UpstreamRoutingClientFactoryTests
 
         // Assert
         Assert.NotNull(client);
-        Assert.IsType<TcpRuleEngineClient>(client);
+        Assert.IsType<TouchSocketTcpRuleEngineClient>(client);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public class UpstreamRoutingClientFactoryTests
 
         // Assert - should fallback to TcpRuleEngineClient instead of throwing
         Assert.NotNull(client);
-        Assert.IsType<TcpRuleEngineClient>(client);
+        Assert.IsType<TouchSocketTcpRuleEngineClient>(client);
     }
 
     [Fact]
@@ -277,7 +277,7 @@ public class UpstreamRoutingClientFactoryTests
 
         // Assert - should fallback to Tcp client with defaults
         Assert.NotNull(client);
-        Assert.IsType<TcpRuleEngineClient>(client);
+        Assert.IsType<TouchSocketTcpRuleEngineClient>(client);
     }
 
     /// <summary>
@@ -300,7 +300,7 @@ public class UpstreamRoutingClientFactoryTests
 
         // Assert - should fallback to Tcp client
         Assert.NotNull(client);
-        Assert.IsType<TcpRuleEngineClient>(client);
+        Assert.IsType<TouchSocketTcpRuleEngineClient>(client);
     }
 
     /// <summary>
@@ -323,6 +323,6 @@ public class UpstreamRoutingClientFactoryTests
 
         // Assert - should fallback to Tcp client
         Assert.NotNull(client);
-        Assert.IsType<TcpRuleEngineClient>(client);
+        Assert.IsType<TouchSocketTcpRuleEngineClient>(client);
     }
 }

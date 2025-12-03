@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
@@ -188,7 +189,7 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
         // 如果有处理器，调用处理器
         if (_handler != null)
         {
-            var eventArgs = new ChuteAssignmentNotificationEventArgs
+            var eventArgs = new ChuteAssignmentEventArgs
             {
                 ParcelId = notification.ParcelId,
                 ChuteId = 0, // Server模式下由RuleEngine决定

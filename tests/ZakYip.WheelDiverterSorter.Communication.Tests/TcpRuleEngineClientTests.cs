@@ -162,7 +162,7 @@ public class TcpRuleEngineClientTests : IDisposable
             TimeoutMs = 5000
         };
         var parcelId = 123456789L;
-        ChuteAssignmentNotificationEventArgs? receivedNotification = null;
+        ChuteAssignmentEventArgs? receivedNotification = null;
 
         client.ChuteAssigned += (sender, args) =>
         {

@@ -72,7 +72,7 @@ public class TcpUpstreamSortingGatewayTests
             .Callback<long, CancellationToken>((parcelId, ct) =>
             {
                 // Simulate the event being raised
-                var eventArgs = new ChuteAssignmentNotificationEventArgs
+                var eventArgs = new ChuteAssignmentEventArgs
                 {
                     ParcelId = parcelId,
                     ChuteId = 5,
@@ -116,7 +116,7 @@ public class TcpUpstreamSortingGatewayTests
             .Callback<long, CancellationToken>((parcelId, ct) =>
             {
                 // Simulate the event being raised
-                var eventArgs = new ChuteAssignmentNotificationEventArgs
+                var eventArgs = new ChuteAssignmentEventArgs
                 {
                     ParcelId = parcelId,
                     ChuteId = 1,
