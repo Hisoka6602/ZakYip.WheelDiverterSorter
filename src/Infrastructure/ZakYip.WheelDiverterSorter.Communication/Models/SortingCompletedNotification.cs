@@ -33,4 +33,12 @@ public sealed record SortingCompletedNotificationDto
     /// 失败原因（如果失败）
     /// </summary>
     public string? FailureReason { get; init; }
+
+    /// <summary>
+    /// 包裹最终状态
+    /// </summary>
+    /// <remarks>
+    /// 使用 ParcelFinalStatus 枚举区分结果类型：Success/Timeout/Lost/ExecutionError
+    /// </remarks>
+    public ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus FinalStatus { get; init; } = ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus.Success;
 }

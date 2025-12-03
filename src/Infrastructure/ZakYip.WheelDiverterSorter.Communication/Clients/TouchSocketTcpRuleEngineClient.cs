@@ -417,6 +417,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                 ActualChuteId = notification.ActualChuteId,
                 CompletedAt = notification.CompletedAt,
                 IsSuccess = notification.IsSuccess,
+                FinalStatus = notification.FinalStatus,
                 FailureReason = notification.FailureReason
             };
 
@@ -424,10 +425,10 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
             var bytes = Encoding.UTF8.GetBytes(json + "\n");
 
             Logger.LogInformation(
-                "[{LocalTime}] [上游通信-发送] TouchSocket TCP通道发送落格完成通知 | ParcelId={ParcelId} | IsSuccess={IsSuccess}",
+                "[{LocalTime}] [上游通信-发送] TouchSocket TCP通道发送落格完成通知 | ParcelId={ParcelId} | FinalStatus={FinalStatus}",
                 SystemClock.LocalNow,
                 notification.ParcelId,
-                notification.IsSuccess);
+                notification.FinalStatus);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             cts.CancelAfter(Options.TimeoutMs);
