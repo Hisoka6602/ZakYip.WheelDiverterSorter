@@ -12,6 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Gateways;
 
@@ -30,7 +31,7 @@ public class SignalRUpstreamSortingGateway : IUpstreamSortingGateway
     private readonly IUpstreamRoutingClient _client;
     private readonly IUpstreamContractMapper _mapper;
     private readonly ILogger<SignalRUpstreamSortingGateway> _logger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
 
     /// <summary>
     /// 构造函数
@@ -43,7 +44,7 @@ public class SignalRUpstreamSortingGateway : IUpstreamSortingGateway
         IUpstreamRoutingClient client,
         IUpstreamContractMapper mapper,
         ILogger<SignalRUpstreamSortingGateway> logger,
-        RuleEngineConnectionOptions options)
+        UpstreamConnectionOptions options)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));

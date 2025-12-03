@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -20,7 +21,7 @@ public class SimpleCircuitBreaker : ICircuitBreaker
     private CircuitState _state;
     private readonly object _lock = new();
 
-    public SimpleCircuitBreaker(RuleEngineConnectionOptions options, ILogger logger, ISystemClock systemClock)
+    public SimpleCircuitBreaker(UpstreamConnectionOptions options, ILogger logger, ISystemClock systemClock)
     {
         if (options == null)
         {

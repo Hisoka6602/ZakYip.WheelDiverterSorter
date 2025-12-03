@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -29,7 +30,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
     private readonly ISafeExecutionService _safeExecutor;
     private readonly IUpstreamRoutingClientFactory _clientFactory;
 
-    private RuleEngineConnectionOptions _currentOptions;
+    private UpstreamConnectionOptions _currentOptions;
     private IUpstreamRoutingClient? _client;
     private Task? _connectionTask;
     private CancellationTokenSource? _cts;
@@ -42,7 +43,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         ILogDeduplicator logDeduplicator,
         ISafeExecutionService safeExecutor,
         IUpstreamRoutingClientFactory clientFactory,
-        RuleEngineConnectionOptions initialOptions)
+        UpstreamConnectionOptions initialOptions)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
@@ -99,7 +100,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
             _systemClock.LocalNow);
     }
 
-    public async Task UpdateConnectionOptionsAsync(RuleEngineConnectionOptions options)
+    public async Task UpdateConnectionOptionsAsync(UpstreamConnectionOptions options)
     {
         if (options == null)
         {
@@ -188,7 +189,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         {
             await _safeExecutor.ExecuteAsync(async () =>
             {
-                RuleEngineConnectionOptions options;
+                UpstreamConnectionOptions options;
                 await _optionsLock.WaitAsync(cancellationToken).ConfigureAwait(false);
                 try
                 {
@@ -269,7 +270,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
         }
     }
 
-    private async Task ConnectAsync(RuleEngineConnectionOptions options, CancellationToken cancellationToken)
+    private async Task ConnectAsync(UpstreamConnectionOptions options, CancellationToken cancellationToken)
     {
         // PR-HOTRELOAD: 确保客户端实例已创建
         // Ensure client instance is created
@@ -328,7 +329,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 地址获取。
     /// </remarks>
-    private static string GetServerAddress(RuleEngineConnectionOptions options)
+    private static string GetServerAddress(UpstreamConnectionOptions options)
     {
         return options.Mode switch
         {

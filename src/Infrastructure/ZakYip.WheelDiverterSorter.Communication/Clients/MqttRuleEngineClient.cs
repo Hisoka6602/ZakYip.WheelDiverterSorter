@@ -8,6 +8,7 @@ using MQTTnet;
 using MQTTnet.Client;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -44,7 +45,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// <param name="systemClock">系统时钟</param>
     public MqttRuleEngineClient(
         ILogger<MqttRuleEngineClient> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock) : base(logger, options, systemClock)
     {
         if (string.IsNullOrWhiteSpace(options.MqttBroker))

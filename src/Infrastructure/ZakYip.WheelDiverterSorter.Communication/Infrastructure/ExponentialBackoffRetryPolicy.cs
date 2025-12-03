@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -13,7 +14,7 @@ public class ExponentialBackoffRetryPolicy : IRetryPolicy
     private readonly int _initialDelayMs;
     private readonly ILogger _logger;
 
-    public ExponentialBackoffRetryPolicy(RuleEngineConnectionOptions options, ILogger logger)
+    public ExponentialBackoffRetryPolicy(UpstreamConnectionOptions options, ILogger logger)
     {
         if (options == null)
         {

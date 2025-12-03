@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -11,7 +12,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 public class DefaultCommunicationInfrastructure : ICommunicationInfrastructure
 {
     public DefaultCommunicationInfrastructure(
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ILogger logger,
         ISystemClock systemClock)
     {

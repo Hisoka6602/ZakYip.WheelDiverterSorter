@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 
@@ -17,7 +18,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 public sealed class SignalRRuleEngineServer : IRuleEngineServer
 {
     private readonly ILogger<SignalRRuleEngineServer> _logger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
     private readonly ISystemClock _systemClock;
     private readonly IRuleEngineHandler? _handler;
     private readonly IHubContext<RuleEngineHub>? _hubContext;
@@ -28,7 +29,7 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
 
     public SignalRRuleEngineServer(
         ILogger<SignalRRuleEngineServer> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock,
         IHubContext<RuleEngineHub>? hubContext = null,
         IRuleEngineHandler? handler = null)
@@ -199,7 +200,7 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
         }
     }
 
-    private static void ValidateSignalRServerOptions(RuleEngineConnectionOptions options)
+    private static void ValidateSignalRServerOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.SignalRHub))
         {

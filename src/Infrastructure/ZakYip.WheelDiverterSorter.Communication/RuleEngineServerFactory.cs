@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Servers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -38,7 +39,7 @@ public class RuleEngineServerFactory
     /// <param name="options">连接配置选项 / Connection options</param>
     /// <returns>服务器实例 / Server instance</returns>
     /// <exception cref="ArgumentException">当配置无效时抛出 / Thrown when configuration is invalid</exception>
-    public IRuleEngineServer CreateServer(RuleEngineConnectionOptions options)
+    public IRuleEngineServer CreateServer(UpstreamConnectionOptions options)
     {
         if (options == null)
         {
@@ -63,19 +64,19 @@ public class RuleEngineServerFactory
         };
     }
 
-    private IRuleEngineServer CreateTcpServer(RuleEngineConnectionOptions options)
+    private IRuleEngineServer CreateTcpServer(UpstreamConnectionOptions options)
     {
         var logger = _loggerFactory.CreateLogger<TouchSocketTcpRuleEngineServer>();
         return new TouchSocketTcpRuleEngineServer(logger, options, _systemClock, _handler);
     }
 
-    private IRuleEngineServer CreateMqttServer(RuleEngineConnectionOptions options)
+    private IRuleEngineServer CreateMqttServer(UpstreamConnectionOptions options)
     {
         var logger = _loggerFactory.CreateLogger<MqttRuleEngineServer>();
         return new MqttRuleEngineServer(logger, options, _systemClock, _handler);
     }
 
-    private IRuleEngineServer CreateSignalRServer(RuleEngineConnectionOptions options)
+    private IRuleEngineServer CreateSignalRServer(UpstreamConnectionOptions options)
     {
         var logger = _loggerFactory.CreateLogger<SignalRRuleEngineServer>();
         return new SignalRRuleEngineServer(logger, options, _systemClock, _hubContext, _handler);

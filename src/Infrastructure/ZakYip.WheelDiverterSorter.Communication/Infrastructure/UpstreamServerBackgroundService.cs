@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 
@@ -27,18 +28,18 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
     private readonly ILogger<UpstreamServerBackgroundService> _logger;
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly RuleEngineConnectionOptions _initialOptions;
+    private readonly UpstreamConnectionOptions _initialOptions;
     private readonly RuleEngineServerFactory _serverFactory;
 
     private IRuleEngineServer? _currentServer;
-    private RuleEngineConnectionOptions _currentOptions;
+    private UpstreamConnectionOptions _currentOptions;
     private readonly SemaphoreSlim _serverLock = new(1, 1);
 
     public UpstreamServerBackgroundService(
         ILogger<UpstreamServerBackgroundService> logger,
         ISystemClock systemClock,
         ISafeExecutionService safeExecutor,
-        RuleEngineConnectionOptions initialOptions,
+        UpstreamConnectionOptions initialOptions,
         RuleEngineServerFactory serverFactory)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -133,7 +134,7 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
     /// Update server configuration and perform hot restart
     /// </summary>
     /// <param name="newOptions">新的连接配置 / New connection options</param>
-    public async Task UpdateServerConfigurationAsync(RuleEngineConnectionOptions newOptions)
+    public async Task UpdateServerConfigurationAsync(UpstreamConnectionOptions newOptions)
     {
         if (newOptions == null)
         {

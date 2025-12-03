@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using TouchSocket.Core;
 using TouchSocket.Sockets;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 
@@ -25,7 +26,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
 {
     private readonly ILogger<TouchSocketTcpRuleEngineServer> _logger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
     private readonly ISystemClock _systemClock;
     private readonly IRuleEngineHandler? _handler;
     
@@ -36,7 +37,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
 
     public TouchSocketTcpRuleEngineServer(
         ILogger<TouchSocketTcpRuleEngineServer> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock,
         IRuleEngineHandler? handler = null)
     {
@@ -321,7 +322,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         }
     }
 
-    private static void ValidateTcpServerOptions(RuleEngineConnectionOptions options)
+    private static void ValidateTcpServerOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.TcpServer))
         {

@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -16,7 +17,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
 {
     protected readonly ILogger Logger;
-    protected readonly RuleEngineConnectionOptions Options;
+    protected readonly UpstreamConnectionOptions Options;
     protected readonly ISystemClock SystemClock;
     private bool _disposed;
 
@@ -39,7 +40,7 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接配置</param>
     /// <param name="systemClock">系统时钟</param>
-    protected RuleEngineClientBase(ILogger logger, RuleEngineConnectionOptions options, ISystemClock systemClock)
+    protected RuleEngineClientBase(ILogger logger, UpstreamConnectionOptions options, ISystemClock systemClock)
     {
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         Options = options ?? throw new ArgumentNullException(nameof(options));

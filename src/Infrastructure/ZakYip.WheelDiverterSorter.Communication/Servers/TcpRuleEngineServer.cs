@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 
@@ -20,7 +21,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 public sealed class TcpRuleEngineServer : IRuleEngineServer
 {
     private readonly ILogger<TcpRuleEngineServer> _logger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
     private readonly ISystemClock _systemClock;
     private readonly IRuleEngineHandler? _handler;
     
@@ -33,7 +34,7 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
 
     public TcpRuleEngineServer(
         ILogger<TcpRuleEngineServer> logger,
-        RuleEngineConnectionOptions options,
+        UpstreamConnectionOptions options,
         ISystemClock systemClock,
         IRuleEngineHandler? handler = null)
     {
@@ -343,7 +344,7 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
         await Task.CompletedTask;
     }
 
-    private static void ValidateTcpServerOptions(RuleEngineConnectionOptions options)
+    private static void ValidateTcpServerOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.TcpServer))
         {
