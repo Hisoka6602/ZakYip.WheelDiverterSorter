@@ -69,9 +69,10 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
     {
         // PR-UPSTREAM01: HttpConfig 和 HttpOptions 已删除，不再是技术债务
         
-        // 现有技术债务 - MqttConfig vs MqttOptions
-        // 待清理: Communication.Configuration.MqttOptions 和 Core.LineModel.Configuration.Models.MqttConfig 结构相同
-        "MqttConfig,MqttOptions",
+        // 现有技术债务 - MqttConfig vs MqttConnectionOptions
+        // 待清理: Core.Sorting.Policies.MqttConnectionOptions 和 Core.LineModel.Configuration.Models.MqttConfig 结构相同
+        // PR-CONFIG-HOTRELOAD02: 已更名为 MqttConnectionOptions，保留白名单直到结构合并完成
+        "MqttConfig,MqttConnectionOptions",
         
         // 现有技术债务 - S7DiverterConfig vs S7DiverterConfigDto
         // 待清理: Drivers.Vendors.Siemens.S7DiverterConfig 和 Drivers.Vendors.Siemens.Configuration.S7DiverterConfigDto 结构相同

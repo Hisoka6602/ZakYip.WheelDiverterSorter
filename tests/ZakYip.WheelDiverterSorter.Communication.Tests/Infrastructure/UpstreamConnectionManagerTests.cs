@@ -24,6 +24,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     private readonly Mock<ILogDeduplicator> _logDeduplicatorMock;
     private readonly Mock<ISafeExecutionService> _safeExecutorMock;
     private readonly Mock<IUpstreamRoutingClient> _clientMock;
+    private readonly Mock<IUpstreamRoutingClientFactory> _factoryMock;
     private readonly DateTime _testTime = new(2025, 11, 20, 12, 0, 0);
 
     public UpstreamConnectionManagerTests()
@@ -47,6 +48,8 @@ public class UpstreamConnectionManagerTests : IDisposable
             });
         
         _clientMock = new Mock<IUpstreamRoutingClient>();
+        _factoryMock = new Mock<IUpstreamRoutingClientFactory>();
+        _factoryMock.Setup(x => x.CreateClient()).Returns(_clientMock.Object);
     }
 
     [Fact]
@@ -61,7 +64,7 @@ public class UpstreamConnectionManagerTests : IDisposable
             _systemClockMock.Object,
             _logDeduplicatorMock.Object,
             _safeExecutorMock.Object,
-            _clientMock.Object,
+            _factoryMock.Object,
             options));
     }
 
@@ -77,7 +80,7 @@ public class UpstreamConnectionManagerTests : IDisposable
             null!,
             _logDeduplicatorMock.Object,
             _safeExecutorMock.Object,
-            _clientMock.Object,
+            _factoryMock.Object,
             options));
     }
 
@@ -93,7 +96,7 @@ public class UpstreamConnectionManagerTests : IDisposable
             _systemClockMock.Object,
             null!,
             _safeExecutorMock.Object,
-            _clientMock.Object,
+            _factoryMock.Object,
             options));
     }
 
@@ -109,7 +112,7 @@ public class UpstreamConnectionManagerTests : IDisposable
             _systemClockMock.Object,
             _logDeduplicatorMock.Object,
             null!,
-            _clientMock.Object,
+            _factoryMock.Object,
             options));
     }
 
@@ -138,7 +141,7 @@ public class UpstreamConnectionManagerTests : IDisposable
             _systemClockMock.Object,
             _logDeduplicatorMock.Object,
             _safeExecutorMock.Object,
-            _clientMock.Object,
+            _factoryMock.Object,
             null!));
     }
 
@@ -337,7 +340,7 @@ public class UpstreamConnectionManagerTests : IDisposable
             _systemClockMock.Object,
             _logDeduplicatorMock.Object,
             _safeExecutorMock.Object,
-            _clientMock.Object,
+            _factoryMock.Object,
             options);
     }
 
