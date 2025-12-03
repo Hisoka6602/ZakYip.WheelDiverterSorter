@@ -148,7 +148,7 @@ public class SingleAuthorityCatalogTests
             "TcpOptions",
             "SignalROptions",
             "MqttOptions",
-            "RuleEngineConnectionOptions"
+            "UpstreamConnectionOptions"
         },
         AllowedPathPatterns: new[]
         {

@@ -9,6 +9,8 @@ using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -39,7 +41,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public void Constructor_WithWhitespaceServer_ThrowsArgumentException(string server)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = server
         };
@@ -57,7 +59,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public void Constructor_WithInvalidServerFormat_ThrowsArgumentException(string server)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = server
         };
@@ -73,7 +75,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public void Constructor_WithInvalidTimeout_ThrowsArgumentException(int timeoutMs)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:9999",
             TimeoutMs = timeoutMs
@@ -89,7 +91,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public void Constructor_WithInvalidRetryCount_ShouldNotThrow_BecauseRetryCountIsDeprecated(int retryCount)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:9999",
             RetryCount = retryCount
@@ -105,7 +107,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public async Task ConnectAsync_WithMaximumRetries_EventuallyFails()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:19999", // Non-existent server
             TimeoutMs = 100,
@@ -127,7 +129,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     {
         // Arrange
         StartTestServerThatClosesImmediately();
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 1000
@@ -148,7 +150,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     {
         // Arrange
         StartTestServerThatAcceptsAnyData();
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000
@@ -169,7 +171,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}"
         };
@@ -192,7 +194,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}"
         };
@@ -214,7 +216,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public async Task ConnectAsync_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:19999"
         };
@@ -229,7 +231,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public async Task DisconnectAsync_AfterDispose_ThrowsObjectDisposedException()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:19999"
         };
@@ -246,7 +248,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public async Task ConnectAsync_WithBoundaryPorts_HandlesCorrectly(int port)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{port}",
             TimeoutMs = 500
@@ -268,7 +270,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
     public void Constructor_WithInvalidPort_ThrowsArgumentException(int port)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{port}",
             TimeoutMs = 500

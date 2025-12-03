@@ -19,7 +19,7 @@ public class MqttRuleEngineClientTests
     [Fact]
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             MqttBroker = "mqtt://localhost:1883"
         };

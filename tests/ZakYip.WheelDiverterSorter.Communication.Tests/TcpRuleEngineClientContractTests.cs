@@ -6,6 +6,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
@@ -30,7 +31,7 @@ public class TcpRuleEngineClientContractTests : RuleEngineClientContractTestsBas
 
     protected override IUpstreamRoutingClient CreateClient()
     {
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000,

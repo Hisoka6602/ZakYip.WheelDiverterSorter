@@ -88,7 +88,7 @@ public static class CommunicationServiceExtensions
                 var testOptions = new UpstreamConnectionOptions();
                 configuration.GetSection("RuleEngineConnection").Bind(testOptions);
                 
-                ValidateOptions(testOptions);
+                testOptions = ValidateOptions(testOptions);
                 
                 Console.WriteLine($"🧪 [测试配置] Mode={testOptions.Mode}, Server={GetServerAddress(testOptions)}");
                 
@@ -104,7 +104,7 @@ public static class CommunicationServiceExtensions
                 // 将数据库配置映射到 UpstreamConnectionOptions
                 var options = MapFromDatabaseConfig(dbConfig);
                 
-                ValidateOptions(options);
+                options = ValidateOptions(options);
                 
                 Console.WriteLine($"✅ [数据库配置] 已加载 RuleEngine 连接配置: Mode={options.Mode}, ConnectionMode={options.ConnectionMode}, Server={GetServerAddress(options)}");
                 
@@ -130,8 +130,7 @@ public static class CommunicationServiceExtensions
             {
                 var dbConfig = configRepository.Get();
                 var options = MapFromDatabaseConfig(dbConfig);
-                ValidateOptions(options);
-                return options;
+                return ValidateOptions(options);
             };
             
             return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock);
@@ -265,49 +264,75 @@ public static class CommunicationServiceExtensions
     /// 验证配置有效性，如果配置为空则提供默认值
     /// </summary>
     /// <param name="options">连接配置</param>
+    /// <returns>验证并填充默认值后的配置</returns>
     /// <remarks>
     /// <para>无论任何情况下都不会抛出异常导致程序崩溃，只记录警告信息。</para>
     /// <para>PR-UPSTREAM01: 移除 HTTP 模式验证，不支持的模式降级为 TCP。</para>
+    /// <para>PR-CONFIG-HOTRELOAD02: 改为返回新实例，因为 UpstreamConnectionOptions 是 record 类型with init-only properties.</para>
     /// </remarks>
-    private static void ValidateOptions(UpstreamConnectionOptions options)
+    private static UpstreamConnectionOptions ValidateOptions(UpstreamConnectionOptions options)
     {
+        var mode = options.Mode;
+        var tcpServer = options.TcpServer;
+        var signalRHub = options.SignalRHub;
+        var mqttBroker = options.MqttBroker;
+        var needsUpdate = false;
+
         switch (options.Mode)
         {
             case CommunicationMode.Tcp:
                 if (string.IsNullOrWhiteSpace(options.TcpServer))
                 {
-                    options.TcpServer = DefaultConfiguration.TcpServer;
-                    Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {options.TcpServer}");
+                    tcpServer = DefaultConfiguration.TcpServer;
+                    Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {tcpServer}");
+                    needsUpdate = true;
                 }
                 break;
 
             case CommunicationMode.SignalR:
                 if (string.IsNullOrWhiteSpace(options.SignalRHub))
                 {
-                    options.SignalRHub = DefaultConfiguration.SignalRHub;
-                    Console.WriteLine($"⚠️ [配置警告] SignalR模式下，SignalRHub配置为空，已使用默认值: {options.SignalRHub}");
+                    signalRHub = DefaultConfiguration.SignalRHub;
+                    Console.WriteLine($"⚠️ [配置警告] SignalR模式下，SignalRHub配置为空，已使用默认值: {signalRHub}");
+                    needsUpdate = true;
                 }
                 break;
 
             case CommunicationMode.Mqtt:
                 if (string.IsNullOrWhiteSpace(options.MqttBroker))
                 {
-                    options.MqttBroker = DefaultConfiguration.MqttBroker;
-                    Console.WriteLine($"⚠️ [配置警告] MQTT模式下，MqttBroker配置为空，已使用默认值: {options.MqttBroker}");
+                    mqttBroker = DefaultConfiguration.MqttBroker;
+                    Console.WriteLine($"⚠️ [配置警告] MQTT模式下，MqttBroker配置为空，已使用默认值: {mqttBroker}");
+                    needsUpdate = true;
                 }
                 break;
 
             default:
                 // PR-UPSTREAM01: 不支持的通信模式，使用默认的 TCP 模式
                 Console.WriteLine($"⚠️ [配置警告] 不支持的通信模式: {options.Mode}，已切换为 TCP 模式");
-                options.Mode = CommunicationMode.Tcp;
+                mode = CommunicationMode.Tcp;
                 if (string.IsNullOrWhiteSpace(options.TcpServer))
                 {
-                    options.TcpServer = DefaultConfiguration.TcpServer;
-                    Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {options.TcpServer}");
+                    tcpServer = DefaultConfiguration.TcpServer;
+                    Console.WriteLine($"⚠️ [配置警告] TCP模式下，TcpServer配置为空，已使用默认值: {tcpServer}");
                 }
+                needsUpdate = true;
                 break;
         }
+
+        if (!needsUpdate)
+        {
+            return options;
+        }
+
+        // Return a new instance with updated values using record 'with' expression
+        return options with
+        {
+            Mode = mode,
+            TcpServer = tcpServer,
+            SignalRHub = signalRHub,
+            MqttBroker = mqttBroker
+        };
     }
 
     /// <summary>
@@ -316,6 +341,7 @@ public static class CommunicationServiceExtensions
     /// </summary>
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 配置映射。
+    /// PR-CONFIG-HOTRELOAD02: 添加 RetryCount 和 RetryDelayMs 属性映射。
     /// </remarks>
     private static UpstreamConnectionOptions MapFromDatabaseConfig(ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.CommunicationConfiguration dbConfig)
     {
@@ -334,13 +360,13 @@ public static class CommunicationServiceExtensions
             InitialBackoffMs = dbConfig.InitialBackoffMs,
             MaxBackoffMs = dbConfig.MaxBackoffMs,
             EnableInfiniteRetry = dbConfig.EnableInfiniteRetry,
-            Tcp = new TcpOptions
+            Tcp = new TcpConnectionOptions
             {
                 ReceiveBufferSize = dbConfig.Tcp.ReceiveBufferSize,
                 SendBufferSize = dbConfig.Tcp.SendBufferSize,
                 NoDelay = dbConfig.Tcp.NoDelay
             },
-            Mqtt = new MqttOptions
+            Mqtt = new MqttConnectionOptions
             {
                 QualityOfServiceLevel = dbConfig.Mqtt.QualityOfServiceLevel,
                 CleanSession = dbConfig.Mqtt.CleanSession,
@@ -348,7 +374,7 @@ public static class CommunicationServiceExtensions
                 MessageExpiryInterval = dbConfig.Mqtt.MessageExpiryInterval,
                 ClientIdPrefix = dbConfig.Mqtt.ClientIdPrefix
             },
-            SignalR = new SignalROptions
+            SignalR = new SignalRConnectionOptions
             {
                 HandshakeTimeout = dbConfig.SignalR.HandshakeTimeout,
                 KeepAliveInterval = dbConfig.SignalR.KeepAliveInterval,

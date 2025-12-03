@@ -67,27 +67,7 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
     /// </summary>
     private static readonly HashSet<string> AllowedStructuralDuplicates = new(StringComparer.Ordinal)
     {
-        // PR-UPSTREAM01: HttpConfig 和 HttpOptions 已删除，不再是技术债务
-        
-        // 现有技术债务 - MqttConfig vs MqttOptions
-        // 待清理: Communication.Configuration.MqttOptions 和 Core.LineModel.Configuration.Models.MqttConfig 结构相同
-        "MqttConfig,MqttOptions",
-        
-        // 现有技术债务 - S7DiverterConfig vs S7DiverterConfigDto
-        // 待清理: Drivers.Vendors.Siemens.S7DiverterConfig 和 Drivers.Vendors.Siemens.Configuration.S7DiverterConfigDto 结构相同
-        "S7DiverterConfig,S7DiverterConfigDto",
-        
-        // 现有技术债务 - ModiOptions vs ShuDiNiaoOptions
-        // 这两个厂商配置类结构相同，但语义不同（不同厂商），是否合并需要评审
-        "ModiOptions,ShuDiNiaoOptions",
-        
-        // 现有技术债务 - OverloadPolicyConfiguration vs OverloadPolicyDto
-        // Core配置模型和Host DTO，结构相同但用途不同（内部配置 vs API传输）
-        "OverloadPolicyConfiguration,OverloadPolicyDto",
-        
-        // 现有技术债务 - StartButtonConfigDto vs StopButtonConfigDto
-        // 这两个按钮配置DTO结构相同，但语义不同（启动按钮 vs 停止按钮）
-        "StartButtonConfigDto,StopButtonConfigDto",
+        // PR-CONFIG-HOTRELOAD02: 所有影分身技术债已解决，白名单已清空
     };
 
     /// <summary>

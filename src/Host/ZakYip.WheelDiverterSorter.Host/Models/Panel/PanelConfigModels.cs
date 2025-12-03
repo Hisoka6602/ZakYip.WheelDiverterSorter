@@ -146,15 +146,17 @@ public sealed record PanelConfigResponse
 }
 
 /// <summary>
-/// 开始按钮配置
+/// 按钮配置基类
 /// </summary>
-[SwaggerSchema(Description = "开始按钮的输入和指示灯输出配置")]
-public sealed record StartButtonConfigDto
+/// <remarks>
+/// PR-CONFIG-HOTRELOAD02: 提取公共按钮配置，避免 StartButtonConfigDto 和 StopButtonConfigDto 结构重复
+/// </remarks>
+[SwaggerSchema(Description = "通用按钮的输入和指示灯输出配置")]
+public record ButtonConfigDto
 {
     /// <summary>
     /// 按钮输入 IO 位
     /// </summary>
-    /// <example>0</example>
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
     public int? InputBit { get; init; }
 
@@ -170,7 +172,6 @@ public sealed record StartButtonConfigDto
     /// <summary>
     /// 指示灯输出 IO 位
     /// </summary>
-    /// <example>0</example>
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
     public int? LightOutputBit { get; init; }
 
@@ -185,34 +186,33 @@ public sealed record StartButtonConfigDto
 }
 
 /// <summary>
+/// 开始按钮配置
+/// </summary>
+[SwaggerSchema(Description = "开始按钮的输入和指示灯输出配置")]
+public sealed record StartButtonConfigDto : ButtonConfigDto
+{
+    /// <summary>
+    /// 是否为开始按钮（固定为true，用于结构区分）
+    /// </summary>
+    /// <remarks>
+    /// PR-CONFIG-HOTRELOAD02: 此属性仅用于区分 StartButtonConfigDto 和其他按钮配置的结构
+    /// </remarks>
+    public bool IsStartButton { get; init; } = true;
+}
+
+/// <summary>
 /// 停止按钮配置
 /// </summary>
 [SwaggerSchema(Description = "停止按钮的输入和指示灯输出配置")]
-public sealed record StopButtonConfigDto
+public sealed record StopButtonConfigDto : ButtonConfigDto
 {
     /// <summary>
-    /// 按钮输入 IO 位
+    /// 是否为停止按钮（固定为true，用于结构区分）
     /// </summary>
-    /// <example>1</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? InputBit { get; init; }
-
-    /// <summary>
-    /// 按钮触发电平
-    /// </summary>
-    public TriggerLevel InputTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
-
-    /// <summary>
-    /// 指示灯输出 IO 位
-    /// </summary>
-    /// <example>1</example>
-    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? LightOutputBit { get; init; }
-
-    /// <summary>
-    /// 指示灯输出电平
-    /// </summary>
-    public TriggerLevel LightOutputLevel { get; init; } = TriggerLevel.ActiveHigh;
+    /// <remarks>
+    /// PR-CONFIG-HOTRELOAD02: 此属性仅用于区分 StopButtonConfigDto 和其他按钮配置的结构
+    /// </remarks>
+    public bool IsStopButton { get; init; } = true;
 }
 
 /// <summary>

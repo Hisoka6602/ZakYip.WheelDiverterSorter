@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 
@@ -33,33 +34,33 @@ public class UpstreamRoutingClientFactoryTests
     public void Constructor_WithNullLoggerFactory_ThrowsArgumentNullException()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9000"
         };
 
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(null!, options, _clockMock));
+        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(null!, () => options, _clockMock));
     }
 
     [Fact]
     public void Constructor_WithNullOptions_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, null!, _clockMock));
+        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => null!, _clockMock));
     }
 
     [Fact]
     public void CreateClient_WithTcpMode_ReturnsTcpRuleEngineClient()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9999"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -73,12 +74,12 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithSignalRMode_ReturnsSignalRRuleEngineClient()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             SignalRHub = "http://localhost:5000/sorterhub"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -92,12 +93,12 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithMqttMode_ReturnsMqttRuleEngineClient()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             MqttBroker = "mqtt://localhost:1883"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -114,12 +115,12 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithInvalidMode_UsesTcpFallback()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = (CommunicationMode)999, // Invalid mode
             TcpServer = "localhost:9000"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -133,12 +134,12 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_MultipleCalls_ReturnsNewInstancesEachTime()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9000"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client1 = factory.CreateClient();
@@ -160,14 +161,14 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithAllSupportedModes_SuccessfullyCreatesClient(CommunicationMode mode)
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = mode,
             TcpServer = "localhost:9999",
             SignalRHub = "http://localhost:5000/sorterhub",
             MqttBroker = "mqtt://localhost:1883"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -183,13 +184,13 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithTimeoutConfiguration_ClientHasCorrectTimeout()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9000",
             TimeoutMs = 10000
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -202,13 +203,13 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithAutoReconnectEnabled_ClientSupportsReconnection()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             SignalRHub = "http://localhost:5000/sorterhub",
             EnableAutoReconnect = true
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -222,14 +223,14 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithRetryConfiguration_ClientHasCorrectRetrySettings()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:9999",
             RetryCount = 5,
             RetryDelayMs = 2000
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         using var client = factory.CreateClient();
@@ -242,13 +243,13 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithChuteAssignmentTimeout_ClientHasPushModelTimeoutProtection()
     {
         // Arrange - testing push model timeout protection
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             SignalRHub = "http://localhost:5000/sorterhub",
             ChuteAssignmentTimeoutMs = 15000 // Timeout protection for push model
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act
         var client = factory.CreateClient();
@@ -265,12 +266,12 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithEmptyTcpServer_FallsBackToTcpWithDefaults()
     {
         // Arrange - empty TcpServer should be handled by fallback
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "" // Empty configuration
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act - should catch exception and fallback to Tcp with defaults
         using var client = factory.CreateClient();
@@ -287,13 +288,13 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithEmptySignalRHub_FallsBackToTcp()
     {
         // Arrange - empty SignalRHub should trigger fallback
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             SignalRHub = "", // Empty configuration
             TcpServer = "localhost:9000"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act - should catch exception and fallback to Tcp
         using var client = factory.CreateClient();
@@ -310,13 +311,13 @@ public class UpstreamRoutingClientFactoryTests
     public void CreateClient_WithEmptyMqttBroker_FallsBackToTcp()
     {
         // Arrange - empty MqttBroker should trigger fallback
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             MqttBroker = "", // Empty configuration
             TcpServer = "localhost:9000"
         };
-        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, options, _clockMock);
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => options, _clockMock);
 
         // Act - should catch exception and fallback to Tcp
         using var client = factory.CreateClient();

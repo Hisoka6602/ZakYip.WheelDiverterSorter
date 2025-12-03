@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using S7DiverterConfig = ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration.S7DiverterConfigDto;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 

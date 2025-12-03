@@ -34,7 +34,7 @@ public class TcpRuleEngineClientTests : IDisposable
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:9999"
         };
@@ -54,7 +54,7 @@ public class TcpRuleEngineClientTests : IDisposable
     public void Constructor_WithEmptyTcpServer_ThrowsArgumentException()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = ""
         };
@@ -68,7 +68,7 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}"
         };
@@ -86,7 +86,7 @@ public class TcpRuleEngineClientTests : IDisposable
     public async Task ConnectAsync_WithInvalidServer_ReturnsFalse()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = "localhost:19999",
             TimeoutMs = 1000
@@ -105,10 +105,6 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new RuleEngineConnectionOptions
-        {
-            TcpServer = $"localhost:{_testPort}"
-        };
         await client.ConnectAsync();
 
         // Act
@@ -124,10 +120,6 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        var options = new RuleEngineConnectionOptions
-        {
-            TcpServer = $"localhost:{_testPort}"
-        };
         await client.ConnectAsync();
 
         // Act
@@ -141,10 +133,7 @@ public class TcpRuleEngineClientTests : IDisposable
     public async Task DisconnectAsync_WhenNotConnected_CompletesSuccessfully()
     {
         // Arrange
-        var options = new RuleEngineConnectionOptions
-        {
-            TcpServer = "localhost:19999"
-        };
+        // (client is not connected)
 
         // Act & Assert (should not throw)
         await client.DisconnectAsync();
@@ -156,7 +145,7 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServerWithResponse();
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000

@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
+using S7DiverterConfig = ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration.S7DiverterConfigDto;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
@@ -50,22 +51,12 @@ public static class SiemensS7ServiceCollectionExtensions
                     connection,
                     diverterConfig.OutputDbNumber);
                 
-                var config = new S7DiverterConfig
-                {
-                    DiverterId = diverterConfig.DiverterId,
-                    OutputDbNumber = diverterConfig.OutputDbNumber,
-                    OutputStartByte = diverterConfig.OutputStartByte,
-                    OutputStartBit = diverterConfig.OutputStartBit,
-                    FeedbackInputDbNumber = diverterConfig.FeedbackInputDbNumber,
-                    FeedbackInputByte = diverterConfig.FeedbackInputByte,
-                    FeedbackInputBit = diverterConfig.FeedbackInputBit
-                };
-                
                 // 直接创建 S7 摆轮驱动器（已移除 IDiverterController 中间层）
+                // PR-CONFIG-HOTRELOAD02: S7DiverterConfig 现在是 S7DiverterConfigDto 的别名，直接使用
                 var driver = new S7WheelDiverterDriver(
                     loggerFactory.CreateLogger<S7WheelDiverterDriver>(),
                     outputPort,
-                    config);
+                    diverterConfig);
                     
                 drivers.Add(driver);
             }
