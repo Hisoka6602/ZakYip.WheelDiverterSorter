@@ -224,7 +224,7 @@ internal class TcpMockServer : IDisposable
         {
             case MockServerBehavior.PushNormally:
                 // 立即推送格口分配
-                var response = new ChuteAssignmentNotificationEventArgs
+                var response = new ChuteAssignmentEventArgs
                 {
                     ParcelId = notification.ParcelId,
                     ChuteId = 1,
@@ -240,7 +240,7 @@ internal class TcpMockServer : IDisposable
             case MockServerBehavior.DelayedPush:
                 // 延迟后推送
                 await Task.Delay(3000, cancellationToken);
-                var delayedResponse = new ChuteAssignmentNotificationEventArgs
+                var delayedResponse = new ChuteAssignmentEventArgs
                 {
                     ParcelId = notification.ParcelId,
                     ChuteId = 2,
