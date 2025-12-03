@@ -9,15 +9,14 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
-    /// <summary>
-    /// 上游路由客户端工厂实现
-    /// </summary>
-    /// <remarks>
-    /// <para>根据配置的通信模式创建对应的客户端实例。</para>
-    /// <para>PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT。</para>
-    /// <para>默认使用 TCP 模式作为降级方案。</para>
-    /// <para>使用原生 .NET TCP 实现，已移除 TouchSocket 依赖。</para>
-    /// </remarks>
+/// <summary>
+/// 上游路由客户端工厂实现
+/// </summary>
+/// <remarks>
+/// <para>根据配置的通信模式创建对应的客户端实例。</para>
+/// <para>PR-UPSTREAM01: 移除 HTTP 协议支持，只支持 TCP/SignalR/MQTT。</para>
+/// <para>默认使用 TCP 模式作为降级方案。</para>
+/// </remarks>
 public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
 {
     /// <summary>
@@ -54,7 +53,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// <returns>客户端实例</returns>
     /// <remarks>
     /// PR-UPSTREAM01: 移除 HTTP 模式支持。
-    /// 使用原生 .NET TCP 实现，已移除 TouchSocket 依赖。
+    /// PR-TOUCHSOCKET01: 使用 TouchSocket 实现的 TCP 客户端。
     /// 对于不支持的通信模式，会记录警告并使用 TCP 模式作为降级方案，确保程序不会崩溃。
     /// </remarks>
     public IUpstreamRoutingClient CreateClient()
@@ -63,8 +62,8 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
         {
             return _options.Mode switch
             {
-                CommunicationMode.Tcp => new TcpRuleEngineClient(
-                    _loggerFactory.CreateLogger<TcpRuleEngineClient>(),
+                CommunicationMode.Tcp => new TouchSocketTcpRuleEngineClient(
+                    _loggerFactory.CreateLogger<TouchSocketTcpRuleEngineClient>(),
                     _options,
                     _systemClock),
 
@@ -95,7 +94,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// </summary>
     /// <remarks>
     /// PR-UPSTREAM01: 降级方案从 HTTP 改为 TCP。
-    /// 使用原生 .NET TCP 实现，已移除 TouchSocket 依赖。
+    /// PR-TOUCHSOCKET01: 使用 TouchSocket 实现。
     /// </remarks>
     private IUpstreamRoutingClient CreateFallbackTcpClient()
     {
@@ -120,8 +119,8 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
             logger.LogWarning("TcpServer 为空，使用默认值: {TcpServer}", fallbackOptions.TcpServer);
         }
 
-        return new TcpRuleEngineClient(
-            _loggerFactory.CreateLogger<TcpRuleEngineClient>(),
+        return new TouchSocketTcpRuleEngineClient(
+            _loggerFactory.CreateLogger<TouchSocketTcpRuleEngineClient>(),
             fallbackOptions,
             _systemClock);
     }
