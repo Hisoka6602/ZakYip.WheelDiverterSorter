@@ -26,6 +26,7 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Client",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000",
@@ -56,6 +57,7 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Server",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
@@ -84,6 +86,7 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Client",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
@@ -113,6 +116,7 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Server",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
@@ -142,6 +146,7 @@ public class UpstreamServerBackgroundServiceTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["IsTestEnvironment"] = "true",  // Enable test mode to use configuration instead of database
                 ["RuleEngineConnection:Mode"] = "Tcp",
                 ["RuleEngineConnection:ConnectionMode"] = "Client",
                 ["RuleEngineConnection:TcpServer"] = "localhost:9000"
