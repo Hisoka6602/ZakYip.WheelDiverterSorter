@@ -242,4 +242,57 @@ public class UpstreamServerBackgroundServiceTests
         var serverFactory = serviceProvider.GetService<RuleEngineServerFactory>();
         Assert.NotNull(serverFactory);
     }
+
+    /// <summary>
+    /// PR-HOTRELOAD: 验证 UpstreamServerBackgroundService 可以作为 Singleton 直接注入
+    /// 这是修复 TCP Server 模式热更新的关键 - CommunicationConfigService 需要注入此服务
+    /// </summary>
+    [Fact]
+    public void AddUpstreamConnectionManagement_RegistersServerBackgroundServiceAsSingleton_ForHotReload()
+    {
+        // Arrange
+        var services = new ServiceCollection();
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RuleEngineConnection:Mode"] = "Tcp",
+                ["RuleEngineConnection:ConnectionMode"] = "Server",
+                ["RuleEngineConnection:TcpServer"] = "localhost:9000"
+            })
+            .Build();
+
+        // Mock the repository to simulate production environment
+        var mockRepository = new Mock<ICommunicationConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(new CommunicationConfiguration
+        {
+            Mode = CommunicationMode.Tcp,
+            ConnectionMode = ConnectionMode.Server,
+            TcpServer = "localhost:9000"
+        });
+        services.AddSingleton(mockRepository.Object);
+
+        // Add required dependencies
+        services.AddLogging();
+        services.AddInfrastructureServices();
+        services.AddRuleEngineCommunication(configuration);
+
+        // Act
+        services.AddUpstreamConnectionManagement(configuration);
+        var serviceProvider = services.BuildServiceProvider();
+
+        // Assert - 验证可以直接获取 UpstreamServerBackgroundService 实例
+        // Verify that UpstreamServerBackgroundService can be directly resolved as singleton
+        var serverService = serviceProvider.GetService<UpstreamServerBackgroundService>();
+        Assert.NotNull(serverService);
+
+        // 验证它也被注册为 IHostedService
+        // Verify it's also registered as IHostedService
+        var hostedServices = serviceProvider.GetServices<IHostedService>().ToList();
+        Assert.Contains(hostedServices, s => s.GetType() == typeof(UpstreamServerBackgroundService));
+
+        // 验证两个实例是同一个（Singleton 保证）
+        // Verify both are the same instance (Singleton guarantee)
+        var hostedInstance = hostedServices.FirstOrDefault(s => s.GetType() == typeof(UpstreamServerBackgroundService));
+        Assert.Same(serverService, hostedInstance);
+    }
 }
