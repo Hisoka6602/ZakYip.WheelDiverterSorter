@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Communication.Servers;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Integration;
 
@@ -37,7 +38,7 @@ public class SignalRConnectionIntegrationTests : IDisposable
     public async Task SignalRServer_ShouldStartSuccessfully()
     {
         // Arrange
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -68,14 +69,14 @@ public class SignalRConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
             SignalRHub = $"http://localhost:{port}/ruleengine",
             TimeoutMs = 2000,
             EnableAutoReconnect = false, // Disable auto-reconnect for faster test
-            SignalR = new SignalROptions
+            SignalR = new SignalRConnectionOptions
             {
                 HandshakeTimeout = 2,
                 ServerTimeout = 2,
@@ -101,7 +102,7 @@ public class SignalRConnectionIntegrationTests : IDisposable
     public async Task SignalRServer_ShouldStopGracefully()
     {
         // Arrange
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -131,7 +132,7 @@ public class SignalRConnectionIntegrationTests : IDisposable
     public async Task SignalRServer_ShouldBroadcastChuteAssignment()
     {
         // Arrange
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -189,14 +190,14 @@ public class SignalRConnectionIntegrationTests : IDisposable
     public async Task SignalRClient_ShouldInitializeConnectionBuilder()
     {
         // Arrange
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.SignalR,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
             SignalRHub = "http://localhost:5997/ruleengine",
             TimeoutMs = 2000,
             EnableAutoReconnect = true,
-            SignalR = new SignalROptions
+            SignalR = new SignalRConnectionOptions
             {
                 HandshakeTimeout = 10,
                 ServerTimeout = 30,

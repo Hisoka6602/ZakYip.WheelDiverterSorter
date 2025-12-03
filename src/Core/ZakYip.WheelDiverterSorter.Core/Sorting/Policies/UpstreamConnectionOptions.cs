@@ -108,6 +108,22 @@ public record UpstreamConnectionOptions
     public int MaxBackoffSeconds { get; init; } = 5;
 
     /// <summary>
+    /// 重试次数
+    /// </summary>
+    /// <remarks>
+    /// 用于非无限重试模式下的最大重试次数。默认为 3 次。
+    /// </remarks>
+    public int RetryCount { get; init; } = 3;
+
+    /// <summary>
+    /// 重试延迟（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于重试之间的基础延迟时间。默认为 1000ms (1秒)。
+    /// </remarks>
+    public int RetryDelayMs { get; init; } = 1000;
+
+    /// <summary>
     /// 格口分配等待超时时间（毫秒）
     /// </summary>
     /// <remarks>

@@ -19,7 +19,7 @@ public class SignalRRuleEngineClientTests
     [Fact]
     public void Constructor_WithNullLogger_ThrowsArgumentNullException()
         // Arrange
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             SignalRHub = "http://localhost:5000/sorterhub"
         };

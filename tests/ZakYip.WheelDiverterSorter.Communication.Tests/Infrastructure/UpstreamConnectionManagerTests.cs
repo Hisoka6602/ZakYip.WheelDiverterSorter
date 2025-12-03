@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
@@ -156,8 +157,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     public async Task StartAsync_WithServerMode_DoesNotStartReconnectionLoop()
     {
         // Arrange
-        var options = CreateDefaultOptions();
-        options.ConnectionMode = ConnectionMode.Server;
+        var options = CreateDefaultOptions() with { ConnectionMode = ConnectionMode.Server };
         using var manager = CreateManager(options);
 
         // Act
@@ -180,8 +180,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     public async Task StartAsync_WithClientMode_StartsReconnectionLoop()
     {
         // Arrange
-        var options = CreateDefaultOptions();
-        options.ConnectionMode = ConnectionMode.Client;
+        var options = CreateDefaultOptions() with { ConnectionMode = ConnectionMode.Client };
         using var manager = CreateManager(options);
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
@@ -219,9 +218,11 @@ public class UpstreamConnectionManagerTests : IDisposable
         var initialOptions = CreateDefaultOptions();
         using var manager = CreateManager(initialOptions);
         
-        var newOptions = CreateDefaultOptions();
-        newOptions.TcpServer = "192.168.1.200:9000";
-        newOptions.InitialBackoffMs = 300;
+        var newOptions = CreateDefaultOptions() with 
+        { 
+            TcpServer = "192.168.1.200:9000",
+            InitialBackoffMs = 300
+        };
 
         // Act
         await manager.UpdateConnectionOptionsAsync(newOptions);
@@ -241,8 +242,7 @@ public class UpstreamConnectionManagerTests : IDisposable
     public async Task StopAsync_StopsConnectionLoop()
     {
         // Arrange
-        var options = CreateDefaultOptions();
-        options.ConnectionMode = ConnectionMode.Client;
+        var options = CreateDefaultOptions() with { ConnectionMode = ConnectionMode.Client };
         using var manager = CreateManager(options);
         
         await manager.StartAsync();
@@ -315,9 +315,9 @@ public class UpstreamConnectionManagerTests : IDisposable
         manager.Dispose();
     }
 
-    private RuleEngineConnectionOptions CreateDefaultOptions()
+    private UpstreamConnectionOptions CreateDefaultOptions()
     {
-        return new RuleEngineConnectionOptions
+        return new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = ConnectionMode.Client,
@@ -330,7 +330,7 @@ public class UpstreamConnectionManagerTests : IDisposable
         };
     }
 
-    private UpstreamConnectionManager CreateManager(RuleEngineConnectionOptions options)
+    private UpstreamConnectionManager CreateManager(UpstreamConnectionOptions options)
     {
         return new UpstreamConnectionManager(
             _loggerMock.Object,

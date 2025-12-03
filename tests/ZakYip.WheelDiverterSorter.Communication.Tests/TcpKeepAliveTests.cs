@@ -5,6 +5,7 @@ using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Servers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests;
@@ -36,7 +37,7 @@ public class TcpKeepAliveTests : IDisposable
     public void TcpOptions_DefaultValues_ShouldEnableKeepAlive()
     {
         // Arrange & Act
-        var options = new TcpOptions();
+        var options = new TcpConnectionOptions();
 
         // Assert
         Assert.True(options.EnableKeepAlive, "KeepAlive should be enabled by default");
@@ -49,7 +50,7 @@ public class TcpKeepAliveTests : IDisposable
     public void TcpOptions_CanDisableKeepAlive()
     {
         // Arrange & Act
-        var options = new TcpOptions
+        var options = new TcpConnectionOptions
         {
             EnableKeepAlive = false
         };
@@ -62,7 +63,7 @@ public class TcpKeepAliveTests : IDisposable
     public void TcpOptions_CanCustomizeKeepAliveParameters()
     {
         // Arrange & Act
-        var options = new TcpOptions
+        var options = new TcpConnectionOptions
         {
             EnableKeepAlive = true,
             KeepAliveTime = 120,
@@ -82,13 +83,13 @@ public class TcpKeepAliveTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = ConnectionMode.Server,
             TcpServer = $"127.0.0.1:{port}",
             TimeoutMs = 5000,
-            Tcp = new TcpOptions
+            Tcp = new TcpConnectionOptions
             {
                 EnableKeepAlive = true,
                 KeepAliveTime = 60,
@@ -102,13 +103,13 @@ public class TcpKeepAliveTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(server);
 
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = ConnectionMode.Client,
             TcpServer = $"127.0.0.1:{port}",
             TimeoutMs = 5000,
-            Tcp = new TcpOptions
+            Tcp = new TcpConnectionOptions
             {
                 EnableKeepAlive = true,
                 KeepAliveTime = 60,
@@ -141,13 +142,13 @@ public class TcpKeepAliveTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = ConnectionMode.Server,
             TcpServer = $"127.0.0.1:{port}",
             TimeoutMs = 5000,
-            Tcp = new TcpOptions
+            Tcp = new TcpConnectionOptions
             {
                 EnableKeepAlive = false
             }
@@ -159,13 +160,13 @@ public class TcpKeepAliveTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(server);
 
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = ConnectionMode.Client,
             TcpServer = $"127.0.0.1:{port}",
             TimeoutMs = 5000,
-            Tcp = new TcpOptions
+            Tcp = new TcpConnectionOptions
             {
                 EnableKeepAlive = false
             }
@@ -201,7 +202,7 @@ public class TcpKeepAliveTests : IDisposable
         int keepAliveRetryCount)
     {
         // Arrange & Act
-        var options = new TcpOptions
+        var options = new TcpConnectionOptions
         {
             EnableKeepAlive = true,
             KeepAliveTime = keepAliveTime,

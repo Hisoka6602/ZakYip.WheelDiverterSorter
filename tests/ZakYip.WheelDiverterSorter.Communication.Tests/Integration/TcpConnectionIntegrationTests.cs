@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Communication.Servers;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Integration;
 
@@ -35,7 +36,7 @@ public class TcpConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -49,7 +50,7 @@ public class TcpConnectionIntegrationTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(server);
 
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
@@ -88,7 +89,7 @@ public class TcpConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
@@ -115,7 +116,7 @@ public class TcpConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -129,7 +130,7 @@ public class TcpConnectionIntegrationTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(server);
 
-        var client1Options = new RuleEngineConnectionOptions
+        var client1Options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
@@ -176,7 +177,7 @@ public class TcpConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -208,7 +209,7 @@ public class TcpConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,

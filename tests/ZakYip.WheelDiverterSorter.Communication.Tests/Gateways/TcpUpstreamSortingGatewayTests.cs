@@ -4,6 +4,7 @@ using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Contracts;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Exceptions;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Communication.Adapters;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
@@ -32,7 +33,7 @@ public class TcpUpstreamSortingGatewayTests
     private readonly Mock<IUpstreamRoutingClient> _mockClient;
     private readonly IUpstreamContractMapper _mapper;
     private readonly Mock<ILogger<TcpUpstreamSortingGateway>> _mockLogger;
-    private readonly RuleEngineConnectionOptions _options;
+    private readonly UpstreamConnectionOptions _options;
     private readonly TcpUpstreamSortingGateway _gateway;
 
     public TcpUpstreamSortingGatewayTests()
@@ -40,7 +41,7 @@ public class TcpUpstreamSortingGatewayTests
         _mockClient = new Mock<IUpstreamRoutingClient>();
         _mapper = new DefaultUpstreamContractMapper();
         _mockLogger = new Mock<ILogger<TcpUpstreamSortingGateway>>();
-        _options = new RuleEngineConnectionOptions
+        _options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
             TcpServer = "localhost:5000",

@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Communication.Servers;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Tests.Integration;
 
@@ -35,7 +36,7 @@ public class MqttConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -50,14 +51,14 @@ public class MqttConnectionIntegrationTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(server);
 
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
             MqttBroker = $"mqtt://localhost:{port}",
             MqttTopic = "test/sorting",
             TimeoutMs = 5000,
-            Mqtt = new MqttOptions
+            Mqtt = new MqttConnectionOptions
             {
                 ClientIdPrefix = "test-client",
                 CleanSession = true
@@ -95,14 +96,14 @@ public class MqttConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
             MqttBroker = $"mqtt://localhost:{port}",
             MqttTopic = "test/sorting",
             TimeoutMs = 2000,
-            Mqtt = new MqttOptions
+            Mqtt = new MqttConnectionOptions
             {
                 ClientIdPrefix = "test-client",
                 CleanSession = true
@@ -128,7 +129,7 @@ public class MqttConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -160,7 +161,7 @@ public class MqttConnectionIntegrationTests : IDisposable
     {
         // Arrange
         var port = GetAvailablePort();
-        var serverOptions = new RuleEngineConnectionOptions
+        var serverOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Server,
@@ -175,14 +176,14 @@ public class MqttConnectionIntegrationTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(server);
 
-        var clientOptions = new RuleEngineConnectionOptions
+        var clientOptions = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Mqtt,
             ConnectionMode = Core.Enums.Communication.ConnectionMode.Client,
             MqttBroker = $"mqtt://localhost:{port}",
             MqttTopic = "test/sorting",
             TimeoutMs = 5000,
-            Mqtt = new MqttOptions
+            Mqtt = new MqttConnectionOptions
             {
                 ClientIdPrefix = "test-receiver",
                 CleanSession = true

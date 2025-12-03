@@ -3,6 +3,7 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 
@@ -14,7 +15,7 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// <list type="number">
 ///   <item>Communication/Clients 目录下不存在 Http 相关类型</item>
 ///   <item>CommunicationMode 枚举不包含 Http 值</item>
-///   <item>RuleEngineConnectionOptions 不包含 HttpApi 属性</item>
+///   <item>UpstreamConnectionOptions 不包含 HttpApi 属性</item>
 /// </list>
 /// </remarks>
 public class UpstreamProtocolTests
@@ -22,7 +23,7 @@ public class UpstreamProtocolTests
     /// <summary>
     /// 获取 Communication 程序集
     /// </summary>
-    private static readonly Assembly CommunicationAssembly = typeof(RuleEngineConnectionOptions).Assembly;
+    private static readonly Assembly CommunicationAssembly = typeof(UpstreamConnectionOptions).Assembly;
 
     /// <summary>
     /// 获取 Core 程序集
@@ -108,17 +109,17 @@ public class UpstreamProtocolTests
     }
 
     [Fact]
-    public void RuleEngineConnectionOptions_ShouldNotHaveHttpApiProperty()
+    public void UpstreamConnectionOptions_ShouldNotHaveHttpApiProperty()
     {
         // Assert - 使用 typeof() 确保编译时类型安全
-        AssertTypeDoesNotHaveProperty(typeof(RuleEngineConnectionOptions), "HttpApi");
+        AssertTypeDoesNotHaveProperty(typeof(UpstreamConnectionOptions), "HttpApi");
     }
 
     [Fact]
-    public void RuleEngineConnectionOptions_ShouldNotHaveHttpProperty()
+    public void UpstreamConnectionOptions_ShouldNotHaveHttpProperty()
     {
         // Assert - 使用 typeof() 确保编译时类型安全
-        AssertTypeDoesNotHaveProperty(typeof(RuleEngineConnectionOptions), "Http");
+        AssertTypeDoesNotHaveProperty(typeof(UpstreamConnectionOptions), "Http");
     }
 
     [Fact]

@@ -30,7 +30,7 @@ public class TcpRuleEngineClientContractTests : RuleEngineClientContractTestsBas
 
     protected override IUpstreamRoutingClient CreateClient()
     {
-        var options = new RuleEngineConnectionOptions
+        var options = new UpstreamConnectionOptions
         {
             TcpServer = $"localhost:{_testPort}",
             TimeoutMs = 5000,
