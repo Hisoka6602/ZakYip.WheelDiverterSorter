@@ -163,12 +163,82 @@ public class HealthController : ControllerBase
             return lastFailedTransition.FailureReason;
         }
 
-        // 如果没有具体的失败原因，返回默认描述
+        // 如果没有具体的失败原因，尝试从健康快照获取更详细的信息
+        string? detailedReason = null;
+        try
+        {
+            var snapshot = _healthStatusProvider.GetHealthSnapshotAsync().GetAwaiter().GetResult();
+            
+            // 检查驱动器故障
+            var unhealthyDrivers = snapshot.Drivers?.Where(d => !d.IsHealthy).ToList();
+            if (unhealthyDrivers != null && unhealthyDrivers.Count > 0)
+            {
+                var driverErrors = string.Join("; ", unhealthyDrivers.Select(d => 
+                    $"{d.DriverName}: {d.ErrorMessage ?? d.ErrorCode ?? "未知错误"}"));
+                detailedReason = $"硬件驱动故障 - {driverErrors}";
+            }
+            
+            // 检查上游连接故障
+            var unhealthyUpstreams = snapshot.Upstreams?.Where(u => !u.IsHealthy).ToList();
+            if (unhealthyUpstreams != null && unhealthyUpstreams.Count > 0)
+            {
+                var upstreamErrors = string.Join("; ", unhealthyUpstreams.Select(u => 
+                    $"{u.EndpointName}: {u.ErrorMessage ?? u.ErrorCode ?? "连接失败"}"));
+                if (!string.IsNullOrEmpty(detailedReason))
+                {
+                    detailedReason += $"; 上游通信故障 - {upstreamErrors}";
+                }
+                else
+                {
+                    detailedReason = $"上游通信故障 - {upstreamErrors}";
+                }
+            }
+            
+            // 检查配置故障
+            if (snapshot.Config != null && !snapshot.Config.IsValid)
+            {
+                var configError = snapshot.Config.ErrorMessage ?? "配置验证失败";
+                if (!string.IsNullOrEmpty(detailedReason))
+                {
+                    detailedReason += $"; 配置错误 - {configError}";
+                }
+                else
+                {
+                    detailedReason = $"配置错误 - {configError}";
+                }
+            }
+            
+            // 检查降级节点
+            if (snapshot.DegradedNodesCount > 0)
+            {
+                var degradedInfo = $"有 {snapshot.DegradedNodesCount} 个节点处于降级状态";
+                if (!string.IsNullOrEmpty(detailedReason))
+                {
+                    detailedReason += $"; {degradedInfo}";
+                }
+                else
+                {
+                    detailedReason = degradedInfo;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "获取详细故障信息时发生异常");
+        }
+
+        // 如果有详细原因，返回详细原因
+        if (!string.IsNullOrEmpty(detailedReason))
+        {
+            return detailedReason;
+        }
+
+        // 如果没有详细原因，返回默认描述（但比原来更具体）
         return state switch
         {
-            SystemState.Faulted => "系统发生故障，请检查系统日志或联系管理员",
-            SystemState.EmergencyStop => "系统处于急停状态，请检查急停按钮是否被按下，确认安全后解除急停",
-            _ => "系统处于异常状态"
+            SystemState.Faulted => "系统发生故障，请检查硬件驱动连接状态、上游通信连接和系统配置",
+            SystemState.EmergencyStop => "系统处于急停状态，请检查急停按钮是否被按下，确认安全后通过面板或API解除急停",
+            _ => "系统处于异常状态，请检查系统日志获取详细信息"
         };
     }
 
