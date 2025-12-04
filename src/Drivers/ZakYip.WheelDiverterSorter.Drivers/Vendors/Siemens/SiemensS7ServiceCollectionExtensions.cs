@@ -46,7 +46,8 @@ public static class SiemensS7ServiceCollectionExtensions
         {
             var connection = sp.GetRequiredService<S7Connection>();
             var logger = sp.GetRequiredService<ILogger<S7IoLinkageDriver>>();
-            return new S7IoLinkageDriver(connection, logger);
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            return new S7IoLinkageDriver(connection, logger, loggerFactory);
         });
 
         // 注册传送带驱动控制器
@@ -55,13 +56,15 @@ public static class SiemensS7ServiceCollectionExtensions
         {
             var connection = sp.GetRequiredService<S7Connection>();
             var logger = sp.GetRequiredService<ILogger<S7ConveyorDriveController>>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             return new S7ConveyorDriveController(
                 connection,
                 segmentId: "MainConveyor",
                 startControlBit: 0,  // 启动控制位
                 stopControlBit: 1,   // 停止控制位
                 speedRegister: 100,  // 速度寄存器地址
-                logger);
+                logger,
+                loggerFactory);
         });
 
         return services;

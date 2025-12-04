@@ -34,13 +34,15 @@ public class S7ConveyorDriveController : IConveyorDriveController
     /// <param name="stopControlBit">停止控制位编号</param>
     /// <param name="speedRegister">速度寄存器地址</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="loggerFactory">日志工厂</param>
     public S7ConveyorDriveController(
         S7Connection connection,
         string segmentId,
         int startControlBit,
         int stopControlBit,
         int speedRegister,
-        ILogger<S7ConveyorDriveController> logger)
+        ILogger<S7ConveyorDriveController> logger,
+        ILoggerFactory loggerFactory)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _segmentId = segmentId ?? throw new ArgumentNullException(nameof(segmentId));
@@ -51,7 +53,7 @@ public class S7ConveyorDriveController : IConveyorDriveController
         
         // 创建输出端口（DB1）
         _outputPort = new S7OutputPort(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<S7OutputPort>.Instance,
+            loggerFactory.CreateLogger<S7OutputPort>(),
             _connection,
             dbNumber: 1);
         

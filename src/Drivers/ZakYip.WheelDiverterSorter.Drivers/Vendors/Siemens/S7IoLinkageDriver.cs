@@ -23,21 +23,23 @@ public class S7IoLinkageDriver : IIoLinkageDriver
     /// </summary>
     /// <param name="connection">S7 连接</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="loggerFactory">日志工厂</param>
     public S7IoLinkageDriver(
         S7Connection connection,
-        ILogger<S7IoLinkageDriver> logger)
+        ILogger<S7IoLinkageDriver> logger,
+        ILoggerFactory loggerFactory)
     {
         _connection = connection ?? throw new ArgumentNullException(nameof(connection));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
         // 创建输出端口（DB1）和输入端口（DB2）
         _outputPort = new S7OutputPort(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<S7OutputPort>.Instance,
+            loggerFactory.CreateLogger<S7OutputPort>(),
             _connection,
             dbNumber: 1);
         
         _inputPort = new S7InputPort(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<S7InputPort>.Instance,
+            loggerFactory.CreateLogger<S7InputPort>(),
             _connection,
             dbNumber: 2);
     }
