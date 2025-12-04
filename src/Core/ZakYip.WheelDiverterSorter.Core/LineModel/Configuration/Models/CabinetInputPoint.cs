@@ -9,9 +9,14 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// </summary>
 public sealed record class CabinetInputPoint
 {
-    /// <summary>急停按键输入位编号，-1 表示禁用。</summary>
-    [Range(-1, 1000, ErrorMessage = "输入位编号必须在 -1 到 1000 之间")]
-    public int EmergencyStop { get; init; } = -1;
+    /// <summary>
+    /// 急停按键输入位编号列表。
+    /// </summary>
+    /// <remarks>
+    /// 系统可能有多个急停按钮，任意一个处于按下状态时，系统状态都为急停。
+    /// 使用 -1 表示该位置禁用。空列表表示不启用急停功能。
+    /// </remarks>
+    public List<int> EmergencyStopButtons { get; init; } = new();
 
     /// <summary>停止按键输入位编号，-1 表示禁用。</summary>
     [Range(-1, 1000, ErrorMessage = "输入位编号必须在 -1 到 1000 之间")]

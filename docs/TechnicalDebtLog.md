@@ -1074,19 +1074,20 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 | 厂商 | 实现状态 | 核心驱动类 | 配置类 | 可用性 |
 |------|---------|-----------|--------|--------|
 | Leadshine（雷赛） | ✅ 完整 | `LeadshineWheelDiverterDriver`<br/>`LeadshineEmcController`<br/>`LeadshineConveyorSegmentDriver`<br/>`LeadshineIoLinkageDriver` | `LeadshineOptions`<br/>`LeadshineSensorOptions` | ✅ 生产可用 |
-| Siemens（西门子） | ⚠️ 部分实现 | `S7WheelDiverterDriver` | `S7Options` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
+| Siemens（西门子） | ⚠️ 部分实现 | `S7IoDriver`<br/>`S7IoLinkageDriver`<br/>`S7ConveyorSegmentDriver` | `S7Options` | ⚠️ 支持IO驱动、IO联动、传送带，不支持摆轮 |
 | ShuDiNiao（数递鸟） | ⚠️ 部分实现 | `ShuDiNiaoWheelDiverterDriver`<br/>`ShuDiNiaoWheelDiverterDriverManager` | `ShuDiNiaoOptions` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
 | Simulated（仿真） | ✅ 完整 | `SimulatedWheelDiverterDevice`<br/>`SimulatedConveyorSegmentDriver`<br/>`SimulatedIoLinkageDriver` | `SimulatedOptions` | ✅ 测试/开发可用 |
 | Modi（摩迪） | ❌ 缺失 | - | - | ❌ 文档中提及但未实现 |
 
 **发现的问题**：
 1. **Modi 厂商缺失**：`RepositoryStructure.md` 和 `README.md` 中提到 Modi 摆轮协议，但 `src/Drivers/Vendors/` 目录下不存在 Modi 实现
-2. **Siemens/ShuDiNiao 实现不完整**：只有摆轮驱动，缺少：
+2. **Siemens 实现范围**：Siemens（西门子）支持IO驱动、IO联动、传送带，不支持摆轮驱动
+3. **ShuDiNiao 实现不完整**：只有摆轮驱动，缺少：
    - EMC 控制器实现（`IEmcController`）
    - 传送带驱动（`IConveyorDriveController`）
    - IO 联动驱动（`IIoLinkageDriver`）
    - IO 端口实现（`IInputPort`/`IOutputPort`）
-3. **配置选项未使用**：`ShuDiNiaoOptions` 和 `SimulatedOptions` 被标记为"可能未使用"（通过 `IOptions<T>` 绑定使用，但代码中无直接引用）
+4. **配置选项未使用**：`ShuDiNiaoOptions` 和 `SimulatedOptions` 被标记为"可能未使用"（通过 `IOptions<T>` 绑定使用，但代码中无直接引用）
 
 ### 解决方案
 

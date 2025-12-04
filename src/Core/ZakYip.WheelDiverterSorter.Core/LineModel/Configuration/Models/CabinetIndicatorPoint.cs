@@ -54,4 +54,19 @@ public sealed record class CabinetIndicatorPoint
     /// <summary>运行预警秒数：用于在本地模式下按下启动按钮时三色灯亮红灯的持续秒数，默认0秒。例如设置成5秒时，按下启动按钮后三色灯亮红灯持续5秒再执行开启逻辑。</summary>
     [Range(0, 60, ErrorMessage = "运行预警秒数必须在 0 到 60 秒之间")]
     public int RunningWarningSeconds { get; init; } = 0;
+
+    /// <summary>急停蜂鸣器输出位编号，-1 表示禁用。</summary>
+    [Range(-1, 1000, ErrorMessage = "输出位编号必须在 -1 到 1000 之间")]
+    public int EmergencyStopBuzzer { get; init; } = -1;
+
+    /// <summary>急停蜂鸣器有效电平配置：ActiveHigh=高电平鸣叫，ActiveLow=低电平鸣叫。</summary>
+    public TriggerLevel EmergencyStopBuzzerTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
+
+    /// <summary>急停蜂鸣器鸣叫时长（秒），默认5秒。设置为0表示持续鸣叫直到急停解除。</summary>
+    /// <remarks>
+    /// 急停状态下蜂鸣器鸣叫的持续时长。默认5秒后自动停止，避免长时间噪音。
+    /// 设置为0时将持续鸣叫直到急停解除，但不推荐。
+    /// </remarks>
+    [Range(0, 300, ErrorMessage = "蜂鸣器鸣叫时长必须在 0 到 300 秒之间")]
+    public int EmergencyStopBuzzerDurationSeconds { get; init; } = 5;
 }
