@@ -30,6 +30,7 @@ public class ShadowDetectionCoverageTests
             ["DuplicateTypeDetectionTests_PublicTypes"] = "检测公共类型重复",
             ["DuplicateDtoAndOptionsShapeDetectionTests"] = "检测DTO/Options结构重复",
             ["EventAndExtensionDuplicateDetectionTests"] = "检测事件和扩展方法重复",
+            ["DuplicateConstantDetectionTests"] = "检测常量重复（影分身）",
             
             // 纯转发类型检测
             ["PureForwardingTypeDetectionTests"] = "检测纯转发Facade/Adapter/Wrapper/Proxy",
@@ -229,8 +230,8 @@ public class ShadowDetectionCoverageTests
         report.AppendLine("- ✅ 新增类型必须检查是否与现有类型重复");
         
         report.AppendLine("\n## 统计数据");
-        report.AppendLine($"- **影分身检测测试类**: 17个");
-        report.AppendLine($"- **影分身检测测试方法**: 63个");
+        report.AppendLine($"- **影分身检测测试类**: 18个");
+        report.AppendLine($"- **影分身检测测试方法**: 71个");
         report.AppendLine($"- **当前状态**: ✅ 全部通过，无影分身代码");
         
         report.AppendLine("\n## 防御效果");
