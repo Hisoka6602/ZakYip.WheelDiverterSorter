@@ -34,8 +34,8 @@ try
     // （健康检查、系统状态管理、健康状态提供器、命令处理器、后台工作服务）
     builder.Services.AddWheelDiverterSorterHost(builder.Configuration);
 
-    // 添加ASP.NET Core标准健康检查服务（Kubernetes liveness/readiness探针）
-    builder.Services.AddHealthChecks();
+    // 注意：健康检查端点通过 HealthController 中的自定义 Action 方法实现，
+    // 无需注册 ASP.NET Core 标准健康检查服务
 
     // 配置Swagger/OpenAPI
     builder.Services.AddEndpointsApiExplorer();
