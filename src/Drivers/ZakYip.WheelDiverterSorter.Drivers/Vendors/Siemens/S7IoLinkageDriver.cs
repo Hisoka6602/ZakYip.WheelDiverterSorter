@@ -19,6 +19,11 @@ public class S7IoLinkageDriver : IIoLinkageDriver
     private readonly S7InputPort _inputPort;
 
     /// <summary>
+    /// S7 PLC 输出点范围上限
+    /// </summary>
+    private const int MaxIoPoints = 256;
+
+    /// <summary>
     /// 初始化 S7 IO 联动驱动
     /// </summary>
     /// <param name="connection">S7 连接</param>
@@ -128,8 +133,8 @@ public class S7IoLinkageDriver : IIoLinkageDriver
         try
         {
             // 将所有输出点复位为低电平（false）
-            // 假设输出点范围是 0-255（可根据实际情况调整）
-            for (int bitNumber = 0; bitNumber < 256; bitNumber++)
+            // 输出点范围：0 到 MaxIoPoints-1
+            for (int bitNumber = 0; bitNumber < MaxIoPoints; bitNumber++)
             {
                 await _outputPort.WriteAsync(bitNumber, false);
             }

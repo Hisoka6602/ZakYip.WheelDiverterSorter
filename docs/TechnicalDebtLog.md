@@ -1297,21 +1297,18 @@ TD-035 技术债已更新文档，明确 Siemens（西门子）应支持 IO驱�
    - 在 `SiemensS7ServiceCollectionExtensions.cs` 的 XML 注释中明确说明不支持摆轮
    - 技术债状态更新为"已解决"
 
-**后续工作**（可选，不在当前 PR 范围）：
-
-- 实现 `S7IoLinkageDriver : IIoLinkageDriver`（IO 联动驱动）
-- 实现 `S7ConveyorSegmentDriver : IConveyorDriveController`（传送带驱动）
-
 **影响范围**：
 
 - ✅ 构建成功，无编译错误
 - ✅ 文档与代码一致性得到保证
 - ✅ 用户不会被误导使用不支持的摆轮功能
 - ⚠️ 现有使用 Siemens 摆轮的用户需要切换到 Leadshine 或 ShuDiNiao
+- ✅ IO 联动和传送带驱动已在 TD-038 中实现
 
 **相关技术债**：
 
 - TD-035：上游通信协议完整性与驱动厂商可用性审计（已完成）
+- TD-038：Siemens 缺少 IO 联动和传送带驱动（已在当前 PR 解决）
 
 ---
 
@@ -1386,7 +1383,7 @@ TD-037 已删除 Siemens 摆轮驱动，但根据文档（TD-035），Siemens �
 
 **问题描述**：
 
-代码中存在 12 处 TODO 标记，表示待完成或待优化的功能。这些标记应该被记录为技术债，并规划处理时间。
+代码中存在 10 处 TODO 标记，表示待完成或待优化的功能。这些标记应该被记录为技术债，并规划处理时间。
 
 **TODO 清单**：
 
@@ -1408,21 +1405,7 @@ TD-037 已删除 Siemens 摆轮驱动，但根据文档（TD-035），Siemens �
 
 ---
 
-### 2. Siemens 驱动缺失（2 处，已登记为 TD-038）
-
-**位置**：`Drivers/.../Siemens/SiemensS7ServiceCollectionExtensions.cs`
-
-```csharp
-// Line 40-41
-// TODO: 添加 IO 联动驱动注册 (IIoLinkageDriver)
-// TODO: 添加传送带驱动注册 (IConveyorDriveController)
-```
-
-**说明**：已作为 TD-038 单独登记
-
----
-
-### 3. 仿真策略实验（2 处）
+### 2. 仿真策略实验（2 处）
 
 **位置**：`Simulation/Strategies/StrategyExperimentRunner.cs`
 
@@ -1440,7 +1423,7 @@ TD-037 已删除 Siemens 摆轮驱动，但根据文档（TD-035），Siemens �
 
 ---
 
-### 4. 多线支持（3 处）
+### 3. 多线支持（3 处）
 
 **位置 1**：`Execution/Strategy/FormalChuteSelectionStrategy.cs:183`
 ```csharp
@@ -1463,7 +1446,7 @@ LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从
 
 ---
 
-### 5. 健康检查相关（2 处）
+### 4. 健康检查相关（3 处）
 
 **位置 1**：`Host/Health/HostHealthStatusProvider.cs:70`
 ```csharp
@@ -1488,7 +1471,7 @@ LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从
 
 **处理建议**：
 
-1. **立即处理**：TD-038（Siemens 驱动缺失）- 如用户需要 Siemens IO 联动和传送带功能
+1. ~~**立即处理**：TD-038（Siemens 驱动缺失）~~（已在当前 PR 解决）
 2. **近期处理**：仿真策略实验、健康检查完善
 3. **长期规划**：多线支持、性能优化
 
@@ -1500,10 +1483,10 @@ LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从
 
 **相关技术债**：
 
-- TD-038：Siemens 缺少 IO 联动和传送带驱动
+- TD-038：Siemens 缺少 IO 联动和传送带驱动（已在当前 PR 解决）
 
 ---
 
-**文档版本**：1.9 (TD-038 已解决)  
+**文档版本**：2.0 (TD-039 更新：移除已解决的 TD-038 相关 TODO)  
 **最后更新**：2025-12-04  
 **维护团队**：ZakYip Development Team

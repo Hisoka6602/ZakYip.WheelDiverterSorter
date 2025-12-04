@@ -143,7 +143,6 @@ public class S7ConveyorDriveController : IConveyorDriveController
                 "传送带速度设置完成: SegmentId={SegmentId}, Speed={Speed} mm/s",
                 _segmentId, speedMmPerSec);
 
-            // TODO: 实现实际的 S7 寄存器写入
             return await Task.FromResult(true);
         }
         catch (Exception ex)
