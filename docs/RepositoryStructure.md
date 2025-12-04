@@ -1412,15 +1412,16 @@ tools/Profiling/
 | TD-032 | ✅ 已解决 | Tests & Tools 结构规范 → 新增测试项目/工具项目结构约束和防线测试 (PR-RS-TESTS01) | [详情](./TechnicalDebtLog.md#td-032-tests-与-tools-结构规范) |
 | TD-033 | ✅ 已解决 | 单一权威实现表扩展 & 自动化验证 → 扩展权威表并让测试读表执行 (PR-RS-SINGLEAUTH01) | [详情](./TechnicalDebtLog.md#td-033-单一权威实现表扩展--自动化验证) |
 | TD-034 | ✅ 已解决 | 配置缓存统一 → 所有配置服务统一使用 ISlidingConfigCache，消灭分散缓存实现 (PR-CONFIG-HOTRELOAD01) | [详情](./TechnicalDebtLog.md#td-034-配置缓存统一) |
+| TD-035 | ✅ 已解决 | 上游通信协议完整性与驱动厂商可用性审计 → 完成审计并更新文档 (当前 PR) | [详情](./TechnicalDebtLog.md#td-035-上游通信协议完整性与驱动厂商可用性审计) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 34 |
+| ✅ 已解决 | 35 |
 | ⏳ 进行中 | 0 |
 | ❌ 未开始 | 0 |
-| **总计** | **34** |
+| **总计** | **35** |
 
 ---
 
