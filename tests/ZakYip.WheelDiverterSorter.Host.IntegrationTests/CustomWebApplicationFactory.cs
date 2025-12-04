@@ -118,6 +118,28 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                     .ReturnsAsync(new Dictionary<PanelButtonType, PanelButtonState>());
                 services.AddSingleton(mockPanelInputReader.Object);
             }
+            
+            // Add mock ISignalTowerOutput if not registered (for simulation tests)
+            var signalTowerOutputDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(ISignalTowerOutput));
+            if (signalTowerOutputDescriptor == null)
+            {
+                var mockSignalTowerOutput = new Mock<ISignalTowerOutput>(MockBehavior.Loose);
+                // Default: all methods return completed tasks
+                mockSignalTowerOutput
+                    .Setup(x => x.SetChannelStateAsync(It.IsAny<SignalTowerState>(), It.IsAny<CancellationToken>()))
+                    .Returns(Task.CompletedTask);
+                mockSignalTowerOutput
+                    .Setup(x => x.SetChannelStatesAsync(It.IsAny<IEnumerable<SignalTowerState>>(), It.IsAny<CancellationToken>()))
+                    .Returns(Task.CompletedTask);
+                mockSignalTowerOutput
+                    .Setup(x => x.TurnOffAllAsync(It.IsAny<CancellationToken>()))
+                    .Returns(Task.CompletedTask);
+                mockSignalTowerOutput
+                    .Setup(x => x.GetAllChannelStatesAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new Dictionary<SignalTowerChannel, SignalTowerState>());
+                services.AddSingleton(mockSignalTowerOutput.Object);
+            }
         });
     }
 }
