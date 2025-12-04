@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Validation;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 
@@ -14,8 +15,16 @@ public sealed record class CabinetInputPoint
     /// </summary>
     /// <remarks>
     /// 系统可能有多个急停按钮，任意一个处于按下状态时，系统状态都为急停。
-    /// 使用 -1 表示该位置禁用。空列表表示不启用急停功能。
+    /// 每个位编号必须在 -1 到 1000 之间。使用 -1 表示该位置禁用。空列表表示不启用急停功能。
+    /// <para>
+    /// <b>迁移说明：</b> 原有 EmergencyStop (int) 字段已废弃，请使用 EmergencyStopButtons 列表。
+    /// 对于仅有一个急停按钮的系统，可将原 EmergencyStop 值放入列表中。
+    /// 可使用 <see cref="FromLegacyEmergencyStop"/> 方法进行迁移。
+    /// </para>
     /// </remarks>
+    [ValidateCollectionItems(ConfigurationDefaults.CabinetInput.MinIoBitNumber, 
+        ConfigurationDefaults.CabinetInput.MaxIoBitNumber, 
+        ErrorMessage = "急停按钮位编号必须在 -1 到 1000 之间")]
     public List<int> EmergencyStopButtons { get; init; } = new();
 
     /// <summary>停止按键输入位编号，-1 表示禁用。</summary>
@@ -51,4 +60,31 @@ public sealed record class CabinetInputPoint
 
     /// <summary>远程/本地模式高电平对应的模式：true=高电平为远程模式，false=高电平为本地模式。</summary>
     public bool RemoteLocalActiveHigh { get; init; } = true;
+    
+    /// <summary>
+    /// 从旧 EmergencyStop 字段迁移到 EmergencyStopButtons 列表。
+    /// Migrates from the legacy EmergencyStop field to the EmergencyStopButtons list.
+    /// </summary>
+    /// <param name="emergencyStopBit">原 EmergencyStop 按键输入位编号。-1 表示禁用。</param>
+    /// <returns>包含迁移后急停按钮列表的 CabinetInputPoint 实例。</returns>
+    /// <example>
+    /// <code>
+    /// // 迁移单个急停按钮
+    /// var config = CabinetInputPoint.FromLegacyEmergencyStop(5);
+    /// // config.EmergencyStopButtons 将包含 [5]
+    /// 
+    /// // 迁移禁用状态
+    /// var configDisabled = CabinetInputPoint.FromLegacyEmergencyStop(-1);
+    /// // configDisabled.EmergencyStopButtons 将是空列表 []
+    /// </code>
+    /// </example>
+    public static CabinetInputPoint FromLegacyEmergencyStop(int emergencyStopBit)
+    {
+        return new CabinetInputPoint
+        {
+            EmergencyStopButtons = emergencyStopBit >= 0 
+                ? new List<int> { emergencyStopBit } 
+                : new List<int>()
+        };
+    }
 }

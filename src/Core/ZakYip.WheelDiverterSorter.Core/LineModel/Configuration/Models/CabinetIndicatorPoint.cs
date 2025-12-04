@@ -67,6 +67,8 @@ public sealed record class CabinetIndicatorPoint
     /// 急停状态下蜂鸣器鸣叫的持续时长。默认5秒后自动停止，避免长时间噪音。
     /// 设置为0时将持续鸣叫直到急停解除，但不推荐。
     /// </remarks>
-    [Range(0, 300, ErrorMessage = "蜂鸣器鸣叫时长必须在 0 到 300 秒之间")]
-    public int EmergencyStopBuzzerDurationSeconds { get; init; } = 5;
+    [Range(0, ConfigurationDefaults.CabinetIndicator.MaxEmergencyStopBuzzerDurationSeconds, 
+        ErrorMessage = "蜂鸣器鸣叫时长必须在 0 到 300 秒之间")]
+    public int EmergencyStopBuzzerDurationSeconds { get; init; } = 
+        ConfigurationDefaults.CabinetIndicator.DefaultEmergencyStopBuzzerDurationSeconds;
 }
