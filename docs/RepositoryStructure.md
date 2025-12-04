@@ -1414,6 +1414,7 @@ tools/Profiling/
 | TD-034 | ✅ 已解决 | 配置缓存统一 → 所有配置服务统一使用 ISlidingConfigCache，消灭分散缓存实现 (PR-CONFIG-HOTRELOAD01) | [详情](./TechnicalDebtLog.md#td-034-配置缓存统一) |
 | TD-035 | ✅ 已解决 | 上游通信协议完整性与驱动厂商可用性审计 → 完成审计并更新文档 (当前 PR) | [详情](./TechnicalDebtLog.md#td-035-上游通信协议完整性与驱动厂商可用性审计) |
 | TD-036 | ✅ 已解决 | API 端点响应模型不一致 → 已修复（SystemConfig/CommunicationConfig 端点） | [详情](./TechnicalDebtLog.md#td-036-api-端点响应模型不一致) |
+| TD-037 | ❌ 未开始 | Siemens 驱动实现与文档不匹配 → 需移除摆轮驱动，新增 IO联动和传送带驱动 | [详情](./TechnicalDebtLog.md#td-037-siemens-驱动实现与文档不匹配) |
 
 ### 技术债统计
 
@@ -1421,8 +1422,8 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 36 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 0 |
-| **总计** | **36** |
+| ❌ 未开始 | 1 |
+| **总计** | **37** |
 
 ---
 

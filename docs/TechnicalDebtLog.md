@@ -46,6 +46,9 @@
 - [TD-032] Tests 与 Tools 结构规范 (PR-RS-TESTS01)
 - [TD-033] 单一权威实现表扩展 & 自动化验证 (PR-RS-SINGLEAUTH01)
 - [TD-034] 配置缓存统一 (PR-CONFIG-HOTRELOAD01)
+- [TD-035] 上游通信协议完整性与驱动厂商可用性审计
+- [TD-036] API 端点响应模型不一致
+- [TD-037] Siemens 驱动实现与文档不匹配
 
 ---
 
@@ -1251,3 +1254,128 @@ public async Task<ActionResult<SystemConfigResponse>> ResetSystemConfig()
 - **技术债数量**: 减少 1 项（总数 36 → 0 未解决）
 
 ---
+
+## [TD-037] Siemens 驱动实现与文档不匹配
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+TD-035 技术债已更新文档，明确 Siemens（西门子）应支持 IO驱动、IO联动、传送带，**不支持摆轮**。但当前代码实现与文档描述不匹配：
+
+**当前实现情况**：
+
+| 组件 | 实现状态 | 文件位置 |
+|------|---------|---------|
+| ✅ IO 输入端口 | 已实现 | `src/Drivers/.../Siemens/S7InputPort.cs` |
+| ✅ IO 输出端口 | 已实现 | `src/Drivers/.../Siemens/S7OutputPort.cs` |
+| ❌ IO 联动驱动 | **缺失** | 应实现 `S7IoLinkageDriver` |
+| ❌ 传送带驱动 | **缺失** | 应实现 `S7ConveyorSegmentDriver` |
+| ❌ 摆轮驱动 | **不应存在** | `src/Drivers/.../Siemens/S7WheelDiverterDriver.cs` |
+
+**文档与代码不一致的问题**：
+
+1. **S7WheelDiverterDriver 不应存在**：
+   - 文件：`src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/S7WheelDiverterDriver.cs`
+   - 实现了 `IWheelDiverterDriver` 接口
+   - 根据 TD-035 文档更新，Siemens 不应支持摆轮驱动
+
+2. **缺少 IO 联动驱动**：
+   - 应实现 `S7IoLinkageDriver : IIoLinkageDriver`
+   - 用于 IO 联动控制（如急停状态联动、运行状态联动等）
+
+3. **缺少传送带驱动**：
+   - 应实现 `S7ConveyorSegmentDriver : IConveyorDriveController`
+   - 用于传送带段的速度控制和状态管理
+
+**技术影响**：
+
+- **文档误导性**：用户阅读文档后期望 Siemens 支持 IO联动和传送带，但实际无法使用
+- **架构不一致**：文档描述与代码实现不匹配，降低系统可维护性
+- **功能缺失**：Siemens 用户无法使用 IO联动和传送带功能
+
+**建议解决方案**：
+
+### 方案 1: 移除摆轮驱动，新增联动和传送带驱动（推荐）
+
+1. **移除/弃用 S7WheelDiverterDriver**：
+   ```csharp
+   // 标记为 [Obsolete] 并在下个大版本移除
+   [Obsolete("Siemens S7 不支持摆轮驱动，请使用 Leadshine 或 ShuDiNiao 厂商", error: true)]
+   public class S7WheelDiverterDriver : IWheelDiverterDriver
+   {
+       // ...
+   }
+   ```
+
+2. **新增 S7IoLinkageDriver**：
+   ```csharp
+   public class S7IoLinkageDriver : IIoLinkageDriver
+   {
+       private readonly IS7Connection _connection;
+       private readonly ILogger<S7IoLinkageDriver> _logger;
+       
+       // 实现 IO 联动逻辑
+       public async Task<bool> SetLinkageStateAsync(/* ... */)
+       {
+           // 使用 S7 协议设置 IO 联动
+       }
+   }
+   ```
+
+3. **新增 S7ConveyorSegmentDriver**：
+   ```csharp
+   public class S7ConveyorSegmentDriver : IConveyorDriveController
+   {
+       private readonly IS7Connection _connection;
+       private readonly ILogger<S7ConveyorSegmentDriver> _logger;
+       
+       // 实现传送带控制逻辑
+       public async Task<bool> SetSpeedAsync(double speed)
+       {
+           // 使用 S7 协议控制传送带速度
+       }
+   }
+   ```
+
+4. **更新 DI 注册**：
+   - 在 `SiemensS7ServiceCollectionExtensions.cs` 中移除摆轮驱动注册
+   - 添加 IO联动和传送带驱动注册
+
+### 方案 2: 修正文档描述（不推荐）
+
+如果确认 Siemens 实际应支持摆轮驱动，则需要：
+- 回退 TD-035 中的文档更新
+- 更新文档说明 Siemens 同时支持摆轮、IO联动、传送带
+
+**工作量估算**：
+
+- **方案 1（推荐）**：
+  - 移除/弃用摆轮驱动：1-2 小时
+  - 实现 IO联动驱动：4-6 小时
+  - 实现传送带驱动：4-6 小时
+  - 单元测试和集成测试：4-6 小时
+  - **总计**：13-20 小时
+
+- **方案 2**：
+  - 回退文档：1 小时
+  - 补充 IO联动和传送带驱动：8-12 小时（保留摆轮驱动）
+  - **总计**：9-13 小时
+
+**相关技术债**：
+
+- TD-035：上游通信协议完整性与驱动厂商可用性审计（已完成文档更新）
+- TD-036：API 端点响应模型不一致（已解决，本 PR）
+
+**后续行动**：
+
+1. 与产品/架构负责人确认 Siemens 的正确能力范围
+2. 根据确认结果选择方案 1 或方案 2
+3. 创建专门的功能 PR 实现 Siemens 完整驱动支持
+4. 更新相关测试和文档
+
+---
+
+**文档版本**：1.6 (TD-037)  
+**最后更新**：2025-12-04  
+**维护团队**：ZakYip Development Team
