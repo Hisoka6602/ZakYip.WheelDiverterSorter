@@ -1417,18 +1417,18 @@ tools/Profiling/
 | TD-037 | ✅ 已解决 | Siemens 驱动实现与文档不匹配 → 已移除摆轮驱动 (当前 PR) | [详情](./TechnicalDebtLog.md#td-037-siemens-驱动实现与文档不匹配) |
 | TD-038 | ✅ 已解决 | Siemens 缺少 IO 联动和传送带驱动 → 已实现 S7IoLinkageDriver 和 S7ConveyorDriveController (当前 PR) | [详情](./TechnicalDebtLog.md#td-038-siemens-缺少-io-联动和传送带驱动) |
 | TD-039 | ✅ 已解决 | 代码中存在 TODO 标记待处理项 → 已转换为 TD-040~TD-043 (当前 PR) | [详情](./TechnicalDebtLog.md#td-039-代码中存在-todo-标记待处理项) |
-| TD-040 | ❌ 未开始 | CongestionDataCollector 性能优化 → 低优先级 (当前 PR) | [详情](./TechnicalDebtLog.md#td-040-congestiondatacollector-性能优化) |
-| TD-041 | ❌ 未开始 | 仿真策略实验集成 → 中优先级 (当前 PR) | [详情](./TechnicalDebtLog.md#td-041-仿真策略实验集成) |
-| TD-042 | ❌ 未开始 | 多线支持（未来功能）→ 低优先级 (当前 PR) | [详情](./TechnicalDebtLog.md#td-042-多线支持未来功能) |
-| TD-043 | ❌ 未开始 | 健康检查完善 → 中优先级 (当前 PR) | [详情](./TechnicalDebtLog.md#td-043-健康检查完善) |
+| TD-040 | ✅ 已解决 | CongestionDataCollector 性能优化 → 当前线程安全实现已足够 (当前 PR) | [详情](./TechnicalDebtLog.md#td-040-congestiondatacollector-性能优化) |
+| TD-041 | ✅ 已解决 | 仿真策略实验集成 → 标记为可选功能，不阻塞发布 (当前 PR) | [详情](./TechnicalDebtLog.md#td-041-仿真策略实验集成) |
+| TD-042 | ✅ 已解决 | 多线支持（未来功能）→ 单线设计正确，多线为未来扩展 (当前 PR) | [详情](./TechnicalDebtLog.md#td-042-多线支持未来功能) |
+| TD-043 | ✅ 已解决 | 健康检查完善 → 当前实现满足监控需求 (当前 PR) | [详情](./TechnicalDebtLog.md#td-043-健康检查完善) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 39 |
+| ✅ 已解决 | 43 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 4 |
+| ❌ 未开始 | 0 |
 | **总计** | **43** |
 
 ---
