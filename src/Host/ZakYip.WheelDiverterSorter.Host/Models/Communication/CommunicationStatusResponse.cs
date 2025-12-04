@@ -70,4 +70,53 @@ public class CommunicationStatusResponse
     /// <example>null</example>
     [SwaggerSchema(Description = "如果连接失败，此字段包含错误信息")]
     public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// 连接模式 - Connection mode
+    /// </summary>
+    /// <example>Client</example>
+    [SwaggerSchema(Description = "连接模式，可能值：Client（客户端模式）、Server（服务端模式）")]
+    public string? ConnectionMode { get; init; }
+
+    /// <summary>
+    /// 已连接的客户端列表（仅Server模式有效） - Connected clients list (Server mode only)
+    /// </summary>
+    /// <example>null</example>
+    [SwaggerSchema(Description = "Server模式下，当前连接的所有客户端信息；Client模式下为null")]
+    public List<ConnectedClientDto>? ConnectedClients { get; init; }
+}
+
+/// <summary>
+/// 已连接客户端信息 - Connected Client Information
+/// </summary>
+[SwaggerSchema(Description = "Server模式下已连接客户端的详细信息")]
+public record ConnectedClientDto
+{
+    /// <summary>
+    /// 客户端ID - Client ID
+    /// </summary>
+    /// <example>client-001</example>
+    [SwaggerSchema(Description = "客户端的唯一标识符")]
+    public required string ClientId { get; init; }
+
+    /// <summary>
+    /// 客户端地址 - Client Address
+    /// </summary>
+    /// <example>192.168.1.50:54321</example>
+    [SwaggerSchema(Description = "客户端的IP地址和端口")]
+    public string? ClientAddress { get; init; }
+
+    /// <summary>
+    /// 连接时间 - Connected At
+    /// </summary>
+    /// <example>2025-11-17T09:00:00Z</example>
+    [SwaggerSchema(Description = "客户端连接的时间")]
+    public required DateTimeOffset ConnectedAt { get; init; }
+
+    /// <summary>
+    /// 连接时长（秒） - Connection Duration in Seconds
+    /// </summary>
+    /// <example>3600</example>
+    [SwaggerSchema(Description = "客户端已连接的时长，单位：秒")]
+    public long ConnectionDurationSeconds { get; init; }
 }
