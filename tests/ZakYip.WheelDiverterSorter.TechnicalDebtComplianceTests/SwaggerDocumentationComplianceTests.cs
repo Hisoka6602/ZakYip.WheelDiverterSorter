@@ -123,16 +123,14 @@ public class SwaggerDocumentationComplianceTests
             foreach (var method in methods)
             {
                 var swaggerOp = method.GetCustomAttribute<SwaggerOperationAttribute>();
-                if (swaggerOp != null)
+                if (swaggerOp != null &&
+                    (string.IsNullOrWhiteSpace(swaggerOp.Summary) ||
+                     string.IsNullOrWhiteSpace(swaggerOp.Description)))
                 {
-                    if (string.IsNullOrWhiteSpace(swaggerOp.Summary) || 
-                        string.IsNullOrWhiteSpace(swaggerOp.Description))
-                    {
-                        endpointsWithIncompleteSwagger.Add(
-                            $"{controller.Name}.{method.Name}: " +
-                            $"Summary={(string.IsNullOrWhiteSpace(swaggerOp.Summary) ? "missing" : "ok")}, " +
-                            $"Description={(string.IsNullOrWhiteSpace(swaggerOp.Description) ? "missing" : "ok")}");
-                    }
+                    endpointsWithIncompleteSwagger.Add(
+                        $"{controller.Name}.{method.Name}: " +
+                        $"Summary={(string.IsNullOrWhiteSpace(swaggerOp.Summary) ? "missing" : "ok")}, " +
+                        $"Description={(string.IsNullOrWhiteSpace(swaggerOp.Description) ? "missing" : "ok")}");
                 }
             }
         }
@@ -163,13 +161,9 @@ public class SwaggerDocumentationComplianceTests
             foreach (var method in methods)
             {
                 var swaggerOp = method.GetCustomAttribute<SwaggerOperationAttribute>();
-                if (swaggerOp != null && !string.IsNullOrWhiteSpace(swaggerOp.Summary))
+                if (swaggerOp != null && !string.IsNullOrWhiteSpace(swaggerOp.Summary) && !ContainsChinese(swaggerOp.Summary))
                 {
-                    // Check if Summary contains at least one Chinese character
-                    if (!ContainsChinese(swaggerOp.Summary))
-                    {
-                        endpointsWithoutChineseSummary.Add($"{controller.Name}.{method.Name}: {swaggerOp.Summary}");
-                    }
+                    endpointsWithoutChineseSummary.Add($"{controller.Name}.{method.Name}: {swaggerOp.Summary}");
                 }
             }
         }

@@ -834,9 +834,9 @@ public class CommunicationController : ControllerBase {
                     }
                     
                     // 广播格口分配通知到所有已连接的客户端
-                    // 使用一个固定的测试格口ID（如999表示测试格口）
-                    await server.BroadcastChuteAssignmentAsync(parcelIdLong, "999", cancellationToken);
-                    success = true;
+                    // 使用测试格口ID进行广播
+                    const string TestChuteId = "999"; // Test chute ID for broadcast testing
+                    await server.BroadcastChuteAssignmentAsync(parcelIdLong, TestChuteId, cancellationToken);
                     sw.Stop();
                     
                     _logger.LogInformation(
