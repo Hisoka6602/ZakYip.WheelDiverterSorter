@@ -37,7 +37,7 @@ public class HostApiErrorScenarioTests : IClassFixture<WebApplicationFactory<Pro
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -46,17 +46,17 @@ public class HostApiErrorScenarioTests : IClassFixture<WebApplicationFactory<Pro
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
-    public async Task DebugSort_WithEmptyParcelId_ReturnsBadRequest(string parcelId)
+    public async Task DebugSort_WithEmptyParcelId_ReturnsBadRequest(string ParcelId)
     {
         // Arrange
         var request = new DebugSortRequest
         {
-            ParcelId = parcelId,
+            ParcelId = ParcelId,
             TargetChuteId = 1
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -106,7 +106,7 @@ public class HostApiErrorScenarioTests : IClassFixture<WebApplicationFactory<Pro
                 ParcelId = $"PKG{i:000}",
                 TargetChuteId = (i % 5) + 1
             };
-            tasks.Add(_client.PostAsJsonAsync("/api/debug/sort", request));
+            tasks.Add(_client.PostAsJsonAsync("/api/diverts/change-chute", request));
         }
 
         var responses = await Task.WhenAll(tasks);
@@ -128,7 +128,7 @@ public class HostApiErrorScenarioTests : IClassFixture<WebApplicationFactory<Pro
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert - Should either accept or reject gracefully
         Assert.True(
@@ -157,7 +157,7 @@ public class HostApiErrorScenarioTests : IClassFixture<WebApplicationFactory<Pro
         var content = new StringContent("{invalid json", System.Text.Encoding.UTF8, "application/json");
 
         // Act
-        var response = await _client.PostAsync("/api/debug/sort", content);
+        var response = await _client.PostAsync("/api/diverts/change-chute", content);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -178,7 +178,7 @@ public class HostApiErrorScenarioTests : IClassFixture<WebApplicationFactory<Pro
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.True(

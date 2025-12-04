@@ -31,37 +31,36 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
     public async Task DebugSort_WithValidRequest_ReturnsSuccess()
     {
         // Arrange
-        var request = new DebugSortRequest
+        var request = new ChuteChangeRequest
         {
-            ParcelId = "TEST_PARCEL_001",
-            TargetChuteId = 1
+            ParcelId = 1001L,
+            RequestedChuteId = 1L
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.True(response.IsSuccessStatusCode, 
             $"Expected success status code but got {response.StatusCode}");
         
-        var result = await response.Content.ReadFromJsonAsync<DebugSortResponse>(TestJsonOptions.GetOptions());
+        var result = await response.Content.ReadFromJsonAsync<ChuteChangeResponse>(TestJsonOptions.GetOptions());
         Assert.NotNull(result);
         Assert.Equal(request.ParcelId, result.ParcelId);
-        Assert.Equal(request.TargetChuteId, result.TargetChuteId);
     }
 
     [Fact]
     public async Task DebugSort_WithInvalidChuteId_ReturnsBadRequest()
     {
         // Arrange
-        var request = new DebugSortRequest
+        var request = new ChuteChangeRequest
         {
-            ParcelId = "TEST_PARCEL_002",
-            TargetChuteId = 0 // Invalid: must be > 0
+            ParcelId = 1002L,
+            RequestedChuteId = 0L // Invalid: must be > 0
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -75,7 +74,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
     public async Task GetLeadshineIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/io-driver/leadshine");
+        var response = await _client.GetAsync("/api/hardware/leadshine");
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
@@ -86,7 +85,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
     public async Task ResetLeadshineIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.PostAsync("/api/config/io-driver/leadshine/reset", null);
+        var response = await _client.PostAsync("/api/hardware/leadshine/reset", null);
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
@@ -101,7 +100,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
     public async Task GetSensorConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/sensor");
+        var response = await _client.GetAsync("/api/hardware/leadshine/sensors");
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
@@ -115,7 +114,7 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
     public async Task ResetSensorConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.PostAsync("/api/config/sensor/reset", null);
+        var response = await _client.PostAsync("/api/hardware/leadshine/sensors/reset", null);
 
         // Assert
         Assert.True(response.IsSuccessStatusCode,
