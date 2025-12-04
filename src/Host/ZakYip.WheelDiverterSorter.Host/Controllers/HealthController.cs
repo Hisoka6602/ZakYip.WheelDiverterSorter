@@ -131,6 +131,95 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
+    /// 进程存活检查端点（Kubernetes liveness probe）
+    /// </summary>
+    /// <returns>进程健康状态</returns>
+    /// <response code="200">进程存活</response>
+    /// <remarks>
+    /// 用于容器编排平台的存活检查（liveness probe）。
+    /// 只要进程能够响应请求，就返回200，表示进程存活。
+    /// 这是一个轻量级端点，不执行任何实际的健康检查。
+    /// </remarks>
+    [HttpGet("health/live")]
+    [SwaggerOperation(
+        Summary = "进程存活检查（Liveness）",
+        Description = "返回进程存活状态，用于Kubernetes liveness probe",
+        OperationId = "GetLiveness",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "进程存活", typeof(ProcessHealthResponse))]
+    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
+    public IActionResult GetLiveness()
+    {
+        return Ok(new ProcessHealthResponse
+        {
+            Status = HealthStatus.Healthy,
+            Reason = null,
+            Timestamp = new DateTimeOffset(_systemClock.LocalNow)
+        });
+    }
+
+    /// <summary>
+    /// 启动状态检查端点（Kubernetes startup probe）
+    /// </summary>
+    /// <returns>启动状态</returns>
+    /// <response code="200">启动完成</response>
+    /// <response code="503">仍在启动中</response>
+    /// <remarks>
+    /// 用于容器编排平台的启动检查（startup probe）。
+    /// 检查系统是否已完成启动初始化。
+    /// 如果系统仍处于Booting状态，返回503；否则返回200。
+    /// </remarks>
+    [HttpGet("health/startup")]
+    [SwaggerOperation(
+        Summary = "启动状态检查（Startup）",
+        Description = "返回系统启动状态，用于Kubernetes startup probe",
+        OperationId = "GetStartup",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(200, "启动完成", typeof(ProcessHealthResponse))]
+    [SwaggerResponse(503, "仍在启动中", typeof(ProcessHealthResponse))]
+    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProcessHealthResponse), StatusCodes.Status503ServiceUnavailable)]
+    public IActionResult GetStartup()
+    {
+        var currentState = _stateManager.CurrentState;
+        var isBooting = currentState == SystemState.Booting;
+
+        var response = new ProcessHealthResponse
+        {
+            Status = isBooting ? HealthStatus.Unhealthy : HealthStatus.Healthy,
+            Reason = isBooting ? "System is still booting" : null,
+            Timestamp = new DateTimeOffset(_systemClock.LocalNow)
+        };
+
+        return isBooting 
+            ? StatusCode(StatusCodes.Status503ServiceUnavailable, response)
+            : Ok(response);
+    }
+
+    /// <summary>
+    /// 线体健康检查端点（重定向到 /health/ready）
+    /// </summary>
+    /// <returns>重定向到就绪状态检查</returns>
+    /// <response code="307">重定向到 /health/ready</response>
+    /// <remarks>
+    /// 此端点为向后兼容性保留，重定向到 /health/ready
+    /// </remarks>
+    [HttpGet("health/line")]
+    [SwaggerOperation(
+        Summary = "线体健康检查（重定向）",
+        Description = "重定向到 /health/ready 端点",
+        OperationId = "GetLineHealth",
+        Tags = new[] { "健康检查" }
+    )]
+    [SwaggerResponse(307, "重定向到 /health/ready")]
+    public IActionResult GetLineHealth()
+    {
+        return RedirectPreserveMethod("/health/ready");
+    }
+
+    /// <summary>
     /// 获取系统状态的中文显示名称
     /// </summary>
     private static string GetSystemStateDisplayName(SystemState state)

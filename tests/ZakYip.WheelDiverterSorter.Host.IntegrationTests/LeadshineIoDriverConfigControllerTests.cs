@@ -24,7 +24,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task GetLeadshineIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/io-driver/leadshine");
+        var response = await _client.GetAsync("/api/hardware/leadshine");
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -35,7 +35,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task GetLeadshineIoDriverConfig_ReturnsJsonContent()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/io-driver/leadshine");
+        var response = await _client.GetAsync("/api/hardware/leadshine");
 
         // Assert
         Assert.Contains("application/json", response.Content.Headers.ContentType?.ToString() ?? "");
@@ -45,7 +45,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task GetLeadshineIoDriverConfig_EnumsSerializedAsStrings()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/io-driver/leadshine");
+        var response = await _client.GetAsync("/api/hardware/leadshine");
         var json = await response.Content.ReadAsStringAsync();
 
         // Assert
@@ -87,7 +87,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
         var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         // Act
-        var response = await _client.PutAsync("/api/config/io-driver/leadshine", content);
+        var response = await _client.PutAsync("/api/hardware/leadshine", content);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -126,7 +126,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
         var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         // Act
-        var response = await _client.PutAsync("/api/config/io-driver/leadshine", content);
+        var response = await _client.PutAsync("/api/hardware/leadshine", content);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -142,7 +142,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task RestartLeadshineIoDriver_ReturnsSuccessOrBadRequest()
     {
         // Act - This tests the restart endpoint, which may return BadRequest if EMC controller is not available
-        var response = await _client.PostAsync("/api/config/io-driver/leadshine/restart", null);
+        var response = await _client.PostAsync("/api/hardware/leadshine/restart", null);
 
         // Assert - Should either succeed or return BadRequest (EMC not available in test environment)
         Assert.True(
@@ -154,7 +154,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task ResetLeadshineIoDriverConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.PostAsync("/api/config/io-driver/leadshine/reset", null);
+        var response = await _client.PostAsync("/api/hardware/leadshine/reset", null);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -165,7 +165,7 @@ public class LeadshineIoDriverConfigControllerTests : IClassFixture<CustomWebApp
     public async Task GetSensorIoConfig_ReturnsSuccess()
     {
         // Act
-        var response = await _client.GetAsync("/api/config/io-driver/leadshine/sensors");
+        var response = await _client.GetAsync("/api/hardware/leadshine/sensors");
 
         // Assert
         response.EnsureSuccessStatusCode();

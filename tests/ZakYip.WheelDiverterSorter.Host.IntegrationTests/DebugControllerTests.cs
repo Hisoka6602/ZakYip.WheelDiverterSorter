@@ -21,12 +21,12 @@ public class DebugControllerTests : IClassFixture<CustomWebApplicationFactory>
         // Arrange
         var request = new
         {
-            parcelId = "TEST-PARCEL-001",
-            targetChuteId = 1
+            ParcelId = 1001L,
+            RequestedChuteId = 1L
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         // Accept OK status - the endpoint returns 200 for both success and failure
@@ -39,12 +39,12 @@ public class DebugControllerTests : IClassFixture<CustomWebApplicationFactory>
         // Arrange
         var request = new
         {
-            parcelId = "",
-            targetChuteId = 1
+            ParcelId = 0L, // Invalid - must be > 0
+            RequestedChuteId = 1L
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -56,12 +56,12 @@ public class DebugControllerTests : IClassFixture<CustomWebApplicationFactory>
         // Arrange
         var request = new
         {
-            parcelId = "TEST-PARCEL-002",
-            targetChuteId = 0 // Invalid - must be > 0
+            ParcelId = 1002L,
+            RequestedChuteId = 0L // Invalid - must be > 0
         };
 
         // Act
-        var response = await _client.PostAsJsonAsync("/api/debug/sort", request);
+        var response = await _client.PostAsJsonAsync("/api/diverts/change-chute", request);
 
         // Assert
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

@@ -717,7 +717,7 @@ ZakYip.WheelDiverterSorter.Execution/
 
 ### 3.5 ZakYip.WheelDiverterSorter.Drivers
 
-**项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/书迪鸟摆轮协议等）的通信细节。所有厂商相关实现和配置类都集中在 `Vendors/<VendorName>/` 目录下。
+**项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/数递鸟摆轮协议等）的通信细节。所有厂商相关实现和配置类都集中在 `Vendors/<VendorName>/` 目录下。
 
 ```
 ZakYip.WheelDiverterSorter.Drivers/
@@ -762,9 +762,9 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── ModiWheelDiverterDriver.cs
 │   │   ├── ModiSimulatedDevice.cs
 │   │   └── ModiWheelServiceCollectionExtensions.cs    # DI 扩展
-│   ├── ShuDiNiao/                   # 书迪鸟摆轮协议驱动
-│   │   ├── Configuration/           # PR-TD7: 书迪鸟配置类
-│   │   │   └── ShuDiNiaoOptions.cs          # 书迪鸟通信配置选项
+│   ├── ShuDiNiao/                   # 数递鸟摆轮协议驱动
+│   │   ├── Configuration/           # PR-TD7: 数递鸟配置类
+│   │   │   └── ShuDiNiaoOptions.cs          # 数递鸟通信配置选项
 │   │   ├── ShuDiNiaoProtocol.cs
 │   │   ├── ShuDiNiaoProtocolEnums.cs
 │   │   ├── ShuDiNiaoWheelDiverterDriver.cs
@@ -802,7 +802,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 - `FactoryBasedDriverManager`：基于工厂模式的驱动管理器，支持多厂商设备
 - `LeadshineDiverterController`（位于 Vendors/Leadshine/）：雷赛摆轮控制器实现
 - `S7DiverterController`（位于 Vendors/Siemens/）：西门子 S7 PLC 摆轮控制器
-- `ShuDiNiaoWheelDiverterDriver`（位于 Vendors/ShuDiNiao/）：书迪鸟摆轮驱动实现
+- `ShuDiNiaoWheelDiverterDriver`（位于 Vendors/ShuDiNiao/）：数递鸟摆轮驱动实现
 - `SimulatedWheelDiverterDevice`（位于 Vendors/Simulated/）：仿真摆轮设备，用于测试
 - `IoLinkageExecutor`：IO 联动执行器，处理传感器与摆轮的联动逻辑
 
@@ -1413,6 +1413,7 @@ tools/Profiling/
 | TD-033 | ✅ 已解决 | 单一权威实现表扩展 & 自动化验证 → 扩展权威表并让测试读表执行 (PR-RS-SINGLEAUTH01) | [详情](./TechnicalDebtLog.md#td-033-单一权威实现表扩展--自动化验证) |
 | TD-034 | ✅ 已解决 | 配置缓存统一 → 所有配置服务统一使用 ISlidingConfigCache，消灭分散缓存实现 (PR-CONFIG-HOTRELOAD01) | [详情](./TechnicalDebtLog.md#td-034-配置缓存统一) |
 | TD-035 | ✅ 已解决 | 上游通信协议完整性与驱动厂商可用性审计 → 完成审计并更新文档 (当前 PR) | [详情](./TechnicalDebtLog.md#td-035-上游通信协议完整性与驱动厂商可用性审计) |
+| TD-036 | ❌ 未开始 | API 端点响应模型不一致 → 3个端点测试失败（SystemConfig/CommunicationConfig 序列化问题） | [详情](./TechnicalDebtLog.md#td-036-api-端点响应模型不一致) |
 
 ### 技术债统计
 
@@ -1420,8 +1421,8 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 35 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 0 |
-| **总计** | **35** |
+| ❌ 未开始 | 1 |
+| **总计** | **36** |
 
 ---
 
