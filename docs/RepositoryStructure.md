@@ -1414,16 +1414,18 @@ tools/Profiling/
 | TD-034 | ✅ 已解决 | 配置缓存统一 → 所有配置服务统一使用 ISlidingConfigCache，消灭分散缓存实现 (PR-CONFIG-HOTRELOAD01) | [详情](./TechnicalDebtLog.md#td-034-配置缓存统一) |
 | TD-035 | ✅ 已解决 | 上游通信协议完整性与驱动厂商可用性审计 → 完成审计并更新文档 (当前 PR) | [详情](./TechnicalDebtLog.md#td-035-上游通信协议完整性与驱动厂商可用性审计) |
 | TD-036 | ✅ 已解决 | API 端点响应模型不一致 → 已修复（SystemConfig/CommunicationConfig 端点） | [详情](./TechnicalDebtLog.md#td-036-api-端点响应模型不一致) |
-| TD-037 | ❌ 未开始 | Siemens 驱动实现与文档不匹配 → 需移除摆轮驱动，新增 IO联动和传送带驱动 | [详情](./TechnicalDebtLog.md#td-037-siemens-驱动实现与文档不匹配) |
+| TD-037 | ✅ 已解决 | Siemens 驱动实现与文档不匹配 → 已移除摆轮驱动 (当前 PR) | [详情](./TechnicalDebtLog.md#td-037-siemens-驱动实现与文档不匹配) |
+| TD-038 | ✅ 已解决 | Siemens 缺少 IO 联动和传送带驱动 → 已实现 S7IoLinkageDriver 和 S7ConveyorDriveController (当前 PR) | [详情](./TechnicalDebtLog.md#td-038-siemens-缺少-io-联动和传送带驱动) |
+| TD-039 | ❌ 未开始 | 代码中存在 TODO 标记待处理项 → 多线支持、性能优化、健康检查等 | [详情](./TechnicalDebtLog.md#td-039-代码中存在-todo-标记待处理项) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 36 |
+| ✅ 已解决 | 38 |
 | ⏳ 进行中 | 0 |
 | ❌ 未开始 | 1 |
-| **总计** | **37** |
+| **总计** | **39** |
 
 ---
 

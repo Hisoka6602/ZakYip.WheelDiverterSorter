@@ -46,9 +46,4 @@ public class S7Options
     /// 重连延迟时间（毫秒）
     /// </summary>
     public int ReconnectDelay { get; set; } = 1000;
-
-    /// <summary>
-    /// 摆轮配置列表
-    /// </summary>
-    public List<S7DiverterConfigDto> Diverters { get; set; } = new();
 }
