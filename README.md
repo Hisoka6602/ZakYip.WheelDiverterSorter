@@ -294,13 +294,123 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 ### 支持的协议
 
-| 协议 | 说明 | 使用场景 |
-|------|------|----------|
-| TCP (默认) | 高性能、低延迟 | 生产环境 |
-| SignalR | 支持实时双向通信 | Web 集成 |
-| MQTT | 轻量级发布/订阅 | 物联网场景 |
+| 协议 | 实现类 | 状态 | 使用场景 |
+|------|--------|------|----------|
+| TCP (默认) | `TouchSocketTcpRuleEngineClient` | ✅ 推荐 | 生产环境、高性能、低延迟 |
+| SignalR | `SignalRRuleEngineClient` | ✅ 可用 | Web 集成、实时双向通信 |
+| MQTT | `MqttRuleEngineClient` | ✅ 可用 | 物联网场景、轻量级发布/订阅 |
+| InMemory | `InMemoryRuleEngineClient` | ✅ 测试用 | 单元测试、集成测试 |
 
-> **注意**：HTTP 协议支持已移除，当前默认使用 TCP 协议。
+> **注意**：HTTP 协议支持已移除 (PR-UPSTREAM01)。系统使用 TouchSocket 实现的 TCP 客户端作为默认通信方式。
+
+### 协议切换方法
+
+通过配置文件或 API 动态切换通信协议，支持热更新（无需重启）：
+
+#### 方法1：修改 appsettings.json
+
+```json
+{
+  "RuleEngineConnection": {
+    "Mode": "Tcp",           // 协议类型: Tcp, SignalR, Mqtt
+    "ConnectionMode": "Client",  // Client 或 Server 模式
+    "TcpServer": "192.168.1.100:9000",  // TCP 服务器地址
+    "EnableAutoReconnect": true,
+    "TimeoutMs": 5000
+  }
+}
+```
+
+**协议配置说明**：
+- **Tcp**: `"Mode": "Tcp"`, 需配置 `TcpServer` (地址:端口)
+- **SignalR**: `"Mode": "SignalR"`, 需配置 `SignalRHub` (URL)
+- **MQTT**: `"Mode": "Mqtt"`, 需配置 `MqttBroker` (地址)
+
+#### 方法2：通过 API 动态切换
+
+```http
+PUT /api/config/communication
+Content-Type: application/json
+
+{
+  "mode": "SignalR",
+  "connectionMode": "Client",
+  "signalRHub": "https://ruleengine.example.com/sortingHub"
+}
+```
+
+**生效时间**：配置更新后立即生效，系统会自动断开旧连接并使用新配置重新连接。
+
+详细配置说明请参考：[上游连接配置指南](docs/guides/UPSTREAM_CONNECTION_GUIDE.md)
+
+## 硬件驱动支持
+
+系统支持多种硬件厂商的设备，所有厂商实现位于 `src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/` 目录。
+
+### 厂商驱动完整性
+
+| 厂商 | 摆轮驱动 | EMC控制 | 传送带 | IO联动 | 传感器 | 整体状态 |
+|------|---------|---------|--------|--------|--------|---------|
+| Leadshine（雷赛） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ **生产可用** |
+| Siemens（西门子） | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ **部分可用** |
+| ShuDiNiao（书迪鸟） | ✅ | ❌ | ❌ | ❌ | ❌ | ⚠️ **部分可用** |
+| Simulated（仿真） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ **测试可用** |
+
+**说明**：
+- ✅ **Leadshine（雷赛）**：功能完整，适合生产环境使用
+- ⚠️ **Siemens/ShuDiNiao**：仅实现摆轮驱动，其他功能需要使用 Leadshine 或 Simulated 补充
+- ✅ **Simulated（仿真）**：完整实现所有功能，适合开发测试
+
+### 驱动切换方法
+
+通过配置文件指定使用的硬件厂商：
+
+#### 方法1：修改 appsettings.json
+
+```json
+{
+  "Leadshine": {
+    "CardIndex": 0,
+    "IpAddress": "192.168.1.10",
+    "Port": 502
+  },
+  "VendorProfile": "Leadshine"  // 指定使用的厂商
+}
+```
+
+#### 方法2：通过 API 动态切换
+
+```http
+PUT /api/hardware/leadshine
+Content-Type: application/json
+
+{
+  "cardIndex": 0,
+  "ipAddress": "192.168.1.10",
+  "port": 502
+}
+```
+
+**支持的厂商配置**：
+- `Leadshine`: 雷赛 IO 卡 (生产环境推荐)
+- `ShuDiNiao`: 书迪鸟摆轮控制器 (仅摆轮)
+- `Simulated`: 仿真模式 (测试开发)
+
+> **混合使用**：可以配置多个厂商的驱动，系统会根据设备类型选择对应的实现。例如：摆轮使用 ShuDiNiao，传感器和 IO 使用 Leadshine。
+
+## 已知限制
+
+### 上游通信
+- ❌ HTTP 协议已移除，不再支持 (PR-UPSTREAM01)
+- ⚠️ 原生 `TcpRuleEngineClient` 已被 `TouchSocketTcpRuleEngineClient` 替代
+- ⚠️ 18个 Communication API 验证测试失败（待修复）
+
+### 硬件驱动
+- ❌ Modi 摆轮驱动未实现（文档中曾提及但代码中不存在）
+- ⚠️ Siemens S7 PLC：仅实现摆轮驱动，缺少 EMC/传送带/IO联动
+- ⚠️ ShuDiNiao：仅实现摆轮驱动，缺少 EMC/传送带/IO联动
+- ℹ️ 生产环境建议使用 Leadshine 或根据需要混合配置多个厂商
+
 
 ## 文档导航
 
@@ -329,17 +439,6 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 | [docs/CODING_GUIDELINES.md](docs/CODING_GUIDELINES.md) | 编码规范 |
 | [docs/TOPOLOGY_LINEAR_N_DIVERTERS.md](docs/TOPOLOGY_LINEAR_N_DIVERTERS.md) | N 摆轮线性拓扑模型 |
 
-## 硬件驱动支持
-
-系统支持多种硬件厂商的设备，所有厂商实现位于 `src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/` 目录：
-
-| 厂商 | 设备类型 | 说明 |
-|------|----------|------|
-| Leadshine（雷赛） | IO 卡 | 支持雷赛 IO 板卡的数字输入输出、传感器读取 |
-| Siemens（西门子） | S7 PLC | 通过 S7 协议连接西门子 PLC |
-| ShuDiNiao（书迪鸟） | 摆轮控制器 | 书迪鸟摆轮协议驱动（支持 TCP 通信） |
-| Simulated（仿真） | 虚拟设备 | 用于测试和开发的仿真驱动 |
-
 ## 技术栈
 
 | 类别 | 技术 | 说明 |
@@ -366,6 +465,6 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 
 ---
 
-**文档版本**：2.0  
-**最后更新**：2025-12-02  
+**文档版本**：2.1 (TD-035)  
+**最后更新**：2025-12-04  
 **维护团队**：ZakYip Development Team
