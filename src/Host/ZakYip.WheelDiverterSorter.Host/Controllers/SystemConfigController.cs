@@ -50,22 +50,22 @@ public class SystemConfigController : ApiControllerBase
         OperationId = "GetSystemConfig",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<SystemConfigResponse>))]
+    [SwaggerResponse(200, "成功返回配置", typeof(SystemConfigResponse))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ApiResponse<SystemConfigResponse>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
-    public ActionResult<ApiResponse<SystemConfigResponse>> GetSystemConfig()
+    [ProducesResponseType(typeof(SystemConfigResponse), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<SystemConfigResponse> GetSystemConfig()
     {
         try
         {
             var config = _configService.GetSystemConfig();
             var response = MapToResponse(config);
-            return Success(response, "获取系统配置成功");
+            return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "获取系统配置失败: {ErrorMessage}", ex.Message);
-            return ServerError<SystemConfigResponse>($"获取系统配置失败: {ex.Message}");
+            return StatusCode(500, new { message = $"获取系统配置失败: {ex.Message}" });
         }
     }
 
@@ -176,22 +176,22 @@ public class SystemConfigController : ApiControllerBase
         OperationId = "ResetSystemConfig",
         Tags = new[] { "系统配置" }
     )]
-    [SwaggerResponse(200, "重置成功", typeof(ApiResponse<SystemConfigResponse>))]
+    [SwaggerResponse(200, "重置成功", typeof(SystemConfigResponse))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ApiResponse<SystemConfigResponse>), 200)]
-    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
-    public async Task<ActionResult<ApiResponse<SystemConfigResponse>>> ResetSystemConfig()
+    [ProducesResponseType(typeof(SystemConfigResponse), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public async Task<ActionResult<SystemConfigResponse>> ResetSystemConfig()
     {
         try
         {
             var config = await _configService.ResetSystemConfigAsync();
             var response = MapToResponse(config);
-            return Success(response, "系统配置已重置为默认值");
+            return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "重置系统配置失败");
-            return ServerError<SystemConfigResponse>("重置系统配置失败");
+            return StatusCode(500, new { message = "重置系统配置失败" });
         }
     }
 

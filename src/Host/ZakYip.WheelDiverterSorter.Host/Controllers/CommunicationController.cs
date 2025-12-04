@@ -352,6 +352,33 @@ public class CommunicationController : ControllerBase {
     }
 
     /// <summary>
+    /// 获取通信配置（别名端点，指向持久化配置）
+    /// </summary>
+    /// <returns>通信配置响应</returns>
+    /// <response code="200">成功返回配置</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 此端点是 /api/communication/config/persisted 的别名，用于向后兼容。
+    /// 推荐使用 /api/communication/config/persisted 端点。
+    /// </remarks>
+    [HttpGet("config")]
+    [SwaggerOperation(
+        Summary = "获取通信配置（别名）",
+        Description = "返回持久化的通信配置，此端点是config/persisted的别名",
+        OperationId = "GetConfiguration",
+        Tags = new[] { "通信管理" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(CommunicationConfigurationResponse))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(CommunicationConfigurationResponse), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<CommunicationConfigurationResponse> GetConfiguration()
+    {
+        // 直接调用持久化配置端点
+        return GetPersistedConfiguration();
+    }
+
+    /// <summary>
     /// 获取持久化通信配置
     /// </summary>
     /// <returns>持久化的通信配置信息</returns>
