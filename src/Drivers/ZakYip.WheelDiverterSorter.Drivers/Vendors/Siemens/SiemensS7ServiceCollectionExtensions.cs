@@ -1,8 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
-using S7DiverterConfig = ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration.S7DiverterConfigDto;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
@@ -25,7 +23,10 @@ public static class SiemensS7ServiceCollectionExtensions
     /// <remarks>
     /// 注册以下服务：
     /// - <see cref="S7Connection"/> (用于 PLC 连接管理)
-    /// - <see cref="IWheelDiverterDriverManager"/> -> S7 驱动管理器
+    /// - <see cref="S7InputPort"/> / <see cref="S7OutputPort"/> (用于 IO 端口操作)
+    /// 
+    /// 注意：根据 TD-037 解决方案，Siemens S7 **不支持摆轮驱动**。
+    /// 摆轮功能请使用 Leadshine 或 ShuDiNiao 厂商驱动。
     /// </remarks>
     public static IServiceCollection AddSiemensS7(this IServiceCollection services, S7Options options)
     {
@@ -36,33 +37,8 @@ public static class SiemensS7ServiceCollectionExtensions
             return new S7Connection(logger, options);
         });
 
-        // 注册西门子摆轮驱动管理器
-        services.AddSingleton<IWheelDiverterDriverManager>(sp =>
-        {
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var connection = sp.GetRequiredService<S7Connection>();
-            
-            // 从配置创建驱动器
-            var drivers = new List<IWheelDiverterDriver>();
-            foreach (var diverterConfig in options.Diverters)
-            {
-                var outputPort = new S7OutputPort(
-                    loggerFactory.CreateLogger<S7OutputPort>(),
-                    connection,
-                    diverterConfig.OutputDbNumber);
-                
-                // 直接创建 S7 摆轮驱动器（已移除 IDiverterController 中间层）
-                // PR-CONFIG-HOTRELOAD02: S7DiverterConfig 现在是 S7DiverterConfigDto 的别名，直接使用
-                var driver = new S7WheelDiverterDriver(
-                    loggerFactory.CreateLogger<S7WheelDiverterDriver>(),
-                    outputPort,
-                    diverterConfig);
-                    
-                drivers.Add(driver);
-            }
-            
-            return new FactoryBasedDriverManager(drivers, loggerFactory);
-        });
+        // TODO: 添加 IO 联动驱动注册 (IIoLinkageDriver)
+        // TODO: 添加传送带驱动注册 (IConveyorDriveController)
 
         return services;
     }
