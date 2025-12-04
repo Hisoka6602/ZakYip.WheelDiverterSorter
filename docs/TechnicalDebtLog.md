@@ -890,93 +890,6 @@
 
 ---
 
-## [TD-035] 上游通信协议完整性与驱动厂商可用性审计
-
-**状态**：✅ 已解决 (当前 PR)
-
-**问题描述**：
-需要系统性审计所有上游通信协议和驱动厂商的实现完整性与可用性，并在文档中明确说明如何切换。
-
-### 上游通信协议审计结果
-
-**已实现的协议（6种客户端实现）**：
-
-| 协议类型 | 实现类 | 状态 | 说明 |
-|---------|-------|------|------|
-| TCP (原生) | `TcpRuleEngineClient` | ⚠️ 已弃用 | 使用 .NET Socket 原生实现，已被 TouchSocket 替代 |
-| TCP (TouchSocket) | `TouchSocketTcpRuleEngineClient` | ✅ 可用（默认） | 使用 TouchSocket 库，支持更好的性能和稳定性 |
-| SignalR | `SignalRRuleEngineClient` | ✅ 可用 | 支持实时双向通信，适合 Web 集成场景 |
-| MQTT | `MqttRuleEngineClient` | ✅ 可用 | 轻量级发布/订阅模式，适合物联网场景 |
-| InMemory | `InMemoryRuleEngineClient` | ✅ 可用 | 内存模拟客户端，用于测试 |
-| HTTP | - | ❌ 已移除 (PR-UPSTREAM01) | 不再支持 HTTP 协议 |
-
-**工厂默认行为**（`UpstreamRoutingClientFactory`）：
-- 配置 `Mode=Tcp` → 创建 `TouchSocketTcpRuleEngineClient`（默认）
-- 配置 `Mode=SignalR` → 创建 `SignalRRuleEngineClient`
-- 配置 `Mode=Mqtt` → 创建 `MqttRuleEngineClient`
-- 无效配置 → 降级到 TCP (TouchSocket) 模式
-
-**发现的问题**：
-1. 存在两个 TCP 客户端实现（`TcpRuleEngineClient` 和 `TouchSocketTcpRuleEngineClient`），但工厂只使用 TouchSocket 版本
-2. 原生 `TcpRuleEngineClient` 已事实上被弃用但未标记 `[Obsolete]`
-3. 测试失败表明 Communication API 验证存在问题（18个测试失败）
-
-### 驱动厂商审计结果
-
-**已实现的厂商驱动（4种）**：
-
-| 厂商 | 实现状态 | 核心驱动类 | 配置类 | 可用性 |
-|------|---------|-----------|--------|--------|
-| Leadshine（雷赛） | ✅ 完整 | `LeadshineWheelDiverterDriver`<br/>`LeadshineEmcController`<br/>`LeadshineConveyorSegmentDriver`<br/>`LeadshineIoLinkageDriver` | `LeadshineOptions`<br/>`LeadshineSensorOptions` | ✅ 生产可用 |
-| Siemens（西门子） | ⚠️ 部分实现 | `S7WheelDiverterDriver` | `S7Options` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
-| ShuDiNiao（书迪鸟） | ⚠️ 部分实现 | `ShuDiNiaoWheelDiverterDriver`<br/>`ShuDiNiaoWheelDiverterDriverManager` | `ShuDiNiaoOptions` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
-| Simulated（仿真） | ✅ 完整 | `SimulatedWheelDiverterDevice`<br/>`SimulatedConveyorSegmentDriver`<br/>`SimulatedIoLinkageDriver` | `SimulatedOptions` | ✅ 测试/开发可用 |
-| Modi（摩迪） | ❌ 缺失 | - | - | ❌ 文档中提及但未实现 |
-
-**发现的问题**：
-1. **Modi 厂商缺失**：`RepositoryStructure.md` 和 `README.md` 中提到 Modi 摆轮协议，但 `src/Drivers/Vendors/` 目录下不存在 Modi 实现
-2. **Siemens/ShuDiNiao 实现不完整**：只有摆轮驱动，缺少：
-   - EMC 控制器实现（`IEmcController`）
-   - 传送带驱动（`IConveyorDriveController`）
-   - IO 联动驱动（`IIoLinkageDriver`）
-   - IO 端口实现（`IInputPort`/`IOutputPort`）
-3. **配置选项未使用**：`ShuDiNiaoOptions` 和 `SimulatedOptions` 被标记为"可能未使用"（通过 `IOptions<T>` 绑定使用，但代码中无直接引用）
-
-### 解决方案
-
-#### 1. 上游通信协议清理与文档
-- ✅ 确认 TouchSocket TCP 为默认实现
-- ✅ 在 README.md 中添加协议切换方法说明
-- ⚠️ 建议标记 `TcpRuleEngineClient` 为 `[Obsolete]` 或删除（后续 PR）
-- ⚠️ 修复 Communication API 验证测试失败（后续 PR）
-
-#### 2. 驱动厂商文档更新
-- ✅ 更新 README.md 移除 Modi 引用
-- ✅ 在文档中明确标注各厂商的实现完整性
-- ✅ 添加驱动切换配置说明
-- ⚠️ 建议完善 Siemens/ShuDiNiao 的其他驱动（后续 PR 或标记为待实现）
-
-#### 3. 技术债文档更新
-- ✅ 在 TechnicalDebtLog.md 中新增 TD-035 条目
-- ✅ 在 RepositoryStructure.md 技术债索引中添加 TD-035 引用
-
-### 文档变更列表
-
-**README.md 新增章节**：
-- "上游通信协议切换"：详细说明如何在 TCP/SignalR/MQTT 之间切换
-- "驱动厂商切换"：详细说明如何配置和切换不同厂商的驱动
-- "已知限制"：明确标注各厂商驱动的实现范围
-
-**移除的误导信息**：
-- ❌ Modi 摆轮协议引用（不存在的实现）
-- ❌ 所有厂商都"完整可用"的误导性表述
-
----
-
-**文档版本**：1.5 (TD-035)  
-**最后更新**：2025-12-04  
-**维护团队**：ZakYip Development Team
-
 ## [TD-034] 配置缓存统一
 
 **状态**：✅ 已解决 (PR-CONFIG-HOTRELOAD01)
@@ -1122,3 +1035,90 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 - 文档明确了配置热更新语义，便于运维和开发理解
 
 ---
+
+## [TD-035] 上游通信协议完整性与驱动厂商可用性审计
+
+**状态**：✅ 已解决 (当前 PR)
+
+**问题描述**：
+需要系统性审计所有上游通信协议和驱动厂商的实现完整性与可用性，并在文档中明确说明如何切换。
+
+### 上游通信协议审计结果
+
+**已实现的协议（6种客户端实现）**：
+
+| 协议类型 | 实现类 | 状态 | 说明 |
+|---------|-------|------|------|
+| TCP (原生) | `TcpRuleEngineClient` | ⚠️ 已弃用 | 使用 .NET Socket 原生实现，已被 TouchSocket 替代 |
+| TCP (TouchSocket) | `TouchSocketTcpRuleEngineClient` | ✅ 可用（默认） | 使用 TouchSocket 库，支持更好的性能和稳定性 |
+| SignalR | `SignalRRuleEngineClient` | ✅ 可用 | 支持实时双向通信，适合 Web 集成场景 |
+| MQTT | `MqttRuleEngineClient` | ✅ 可用 | 轻量级发布/订阅模式，适合物联网场景 |
+| InMemory | `InMemoryRuleEngineClient` | ✅ 可用 | 内存模拟客户端，用于测试 |
+| HTTP | - | ❌ 已移除 (PR-UPSTREAM01) | 不再支持 HTTP 协议 |
+
+**工厂默认行为**（`UpstreamRoutingClientFactory`）：
+- 配置 `Mode=Tcp` → 创建 `TouchSocketTcpRuleEngineClient`（默认）
+- 配置 `Mode=SignalR` → 创建 `SignalRRuleEngineClient`
+- 配置 `Mode=Mqtt` → 创建 `MqttRuleEngineClient`
+- 无效配置 → 降级到 TCP (TouchSocket) 模式
+
+**发现的问题**：
+1. 存在两个 TCP 客户端实现（`TcpRuleEngineClient` 和 `TouchSocketTcpRuleEngineClient`），但工厂只使用 TouchSocket 版本
+2. 原生 `TcpRuleEngineClient` 已事实上被弃用但未标记 `[Obsolete]`
+3. 测试失败表明 Communication API 验证存在问题（18个测试失败）
+
+### 驱动厂商审计结果
+
+**已实现的厂商驱动（4种）**：
+
+| 厂商 | 实现状态 | 核心驱动类 | 配置类 | 可用性 |
+|------|---------|-----------|--------|--------|
+| Leadshine（雷赛） | ✅ 完整 | `LeadshineWheelDiverterDriver`<br/>`LeadshineEmcController`<br/>`LeadshineConveyorSegmentDriver`<br/>`LeadshineIoLinkageDriver` | `LeadshineOptions`<br/>`LeadshineSensorOptions` | ✅ 生产可用 |
+| Siemens（西门子） | ⚠️ 部分实现 | `S7WheelDiverterDriver` | `S7Options` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
+| ShuDiNiao（书迪鸟） | ⚠️ 部分实现 | `ShuDiNiaoWheelDiverterDriver`<br/>`ShuDiNiaoWheelDiverterDriverManager` | `ShuDiNiaoOptions` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
+| Simulated（仿真） | ✅ 完整 | `SimulatedWheelDiverterDevice`<br/>`SimulatedConveyorSegmentDriver`<br/>`SimulatedIoLinkageDriver` | `SimulatedOptions` | ✅ 测试/开发可用 |
+| Modi（摩迪） | ❌ 缺失 | - | - | ❌ 文档中提及但未实现 |
+
+**发现的问题**：
+1. **Modi 厂商缺失**：`RepositoryStructure.md` 和 `README.md` 中提到 Modi 摆轮协议，但 `src/Drivers/Vendors/` 目录下不存在 Modi 实现
+2. **Siemens/ShuDiNiao 实现不完整**：只有摆轮驱动，缺少：
+   - EMC 控制器实现（`IEmcController`）
+   - 传送带驱动（`IConveyorDriveController`）
+   - IO 联动驱动（`IIoLinkageDriver`）
+   - IO 端口实现（`IInputPort`/`IOutputPort`）
+3. **配置选项未使用**：`ShuDiNiaoOptions` 和 `SimulatedOptions` 被标记为"可能未使用"（通过 `IOptions<T>` 绑定使用，但代码中无直接引用）
+
+### 解决方案
+
+#### 1. 上游通信协议清理与文档
+- ✅ 确认 TouchSocket TCP 为默认实现
+- ✅ 在 README.md 中添加协议切换方法说明
+- ⚠️ 建议标记 `TcpRuleEngineClient` 为 `[Obsolete]` 或删除（后续 PR）
+- ⚠️ 修复 Communication API 验证测试失败（后续 PR）
+
+#### 2. 驱动厂商文档更新
+- ✅ 更新 README.md 移除 Modi 引用
+- ✅ 在文档中明确标注各厂商的实现完整性
+- ✅ 添加驱动切换配置说明
+- ⚠️ 建议完善 Siemens/ShuDiNiao 的其他驱动（后续 PR 或标记为待实现）
+
+#### 3. 技术债文档更新
+- ✅ 在 TechnicalDebtLog.md 中新增 TD-035 条目
+- ✅ 在 RepositoryStructure.md 技术债索引中添加 TD-035 引用
+
+### 文档变更列表
+
+**README.md 新增章节**：
+- "上游通信协议切换"：详细说明如何在 TCP/SignalR/MQTT 之间切换
+- "驱动厂商切换"：详细说明如何配置和切换不同厂商的驱动
+- "已知限制"：明确标注各厂商驱动的实现范围
+
+**移除的误导信息**：
+- ❌ Modi 摆轮协议引用（不存在的实现）
+- ❌ 所有厂商都"完整可用"的误导性表述
+
+---
+
+**文档版本**：1.5 (TD-035)  
+**最后更新**：2025-12-04  
+**维护团队**：ZakYip Development Team
