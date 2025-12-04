@@ -40,7 +40,7 @@ public class CongestionDataCollector : ICongestionDataCollector
     {
         // PR-44: ConcurrentBag 不支持查找和修改，保持原始设计
         // 这里的实现有局限性，但为了向后兼容暂时保留
-        // TODO: 未来考虑使用 ConcurrentDictionary<long, ParcelRecord> 优化查找性能
+        // TD-040: 未来考虑使用 ConcurrentDictionary<long, ParcelRecord> 优化查找性能
         
         // 使用 Interlocked 原子递减
         Interlocked.Decrement(ref _inFlightParcels);
@@ -103,7 +103,7 @@ public class CongestionDataCollector : ICongestionDataCollector
     {
         // PR-44: ConcurrentBag 不支持 RemoveAll，需要重建
         // 由于清理操作不频繁，且数据量不大，暂时保持简单实现
-        // TODO: 如果性能成为问题，考虑使用定时后台任务清理
+        // TD-040: 如果性能成为问题，考虑使用定时后台任务清理
         var cutoff = _clock.LocalNow - _historyWindow - TimeSpan.FromMinutes(5); // 额外保留5分钟
         
         // 简化实现：不主动清理，依赖 CollectSnapshot 时的过滤

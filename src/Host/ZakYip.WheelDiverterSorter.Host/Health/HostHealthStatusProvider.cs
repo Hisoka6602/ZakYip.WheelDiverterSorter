@@ -67,7 +67,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
 
             // 计算异常口比例 (如果有相关数据)
             double? exceptionChuteRatio = null;
-            // TODO: 可从metrics或其他服务获取异常口数据
+            // TD-043: 可从metrics或其他服务获取异常口数据
             // exceptionChuteRatio = CalculateExceptionChuteRatio();
 
             var snapshot = new LineHealthSnapshot
@@ -167,7 +167,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 }
             }
 
-            // TODO PR-34: 更新 TTL 调度器健康状态
+            // TD-043: 更新 TTL 调度器健康状态
             // 当前暂时设置为健康，待实现 TTL 调度器健康检查
             _prometheusMetrics.SetTtlSchedulerHealth(true);
         }

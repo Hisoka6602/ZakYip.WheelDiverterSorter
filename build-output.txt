@@ -1,0 +1,63 @@
+  Determining projects to restore...
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Scenarios/ZakYip.WheelDiverterSorter.Simulation.Scenarios.csproj (in 2.01 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Simulation/ZakYip.WheelDiverterSorter.Simulation/ZakYip.WheelDiverterSorter.Simulation.csproj (in 2.91 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/ZakYip.WheelDiverterSorter.Configuration.Persistence.csproj (in 3.11 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj (in 195 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Ingress/ZakYip.WheelDiverterSorter.Ingress/ZakYip.WheelDiverterSorter.Ingress.csproj (in 221 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/ZakYip.WheelDiverterSorter.Communication.csproj (in 339 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Application/ZakYip.WheelDiverterSorter.Application/ZakYip.WheelDiverterSorter.Application.csproj (in 3.45 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Execution/ZakYip.WheelDiverterSorter.Execution/ZakYip.WheelDiverterSorter.Execution.csproj (in 6 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Drivers/ZakYip.WheelDiverterSorter.Drivers/ZakYip.WheelDiverterSorter.Drivers.csproj (in 4 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj (in 1 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tools/ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats/ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats.csproj (in 1 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tools/ZakYip.WheelDiverterSorter.Tools.Reporting/ZakYip.WheelDiverterSorter.Tools.Reporting.csproj (in 2 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli/ZakYip.WheelDiverterSorter.Simulation.Cli.csproj (in 1.94 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSorter.Host.csproj (in 875 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Host.IntegrationTests/ZakYip.WheelDiverterSorter.Host.IntegrationTests.csproj (in 1.38 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Ingress.Tests/ZakYip.WheelDiverterSorter.Ingress.Tests.csproj (in 1.59 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Observability.Tests/ZakYip.WheelDiverterSorter.Observability.Tests.csproj (in 2.15 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Host.Application.Tests/ZakYip.WheelDiverterSorter.Host.Application.Tests.csproj (in 31 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Drivers.Tests/ZakYip.WheelDiverterSorter.Drivers.Tests.csproj (in 103 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Core.Tests/ZakYip.WheelDiverterSorter.Core.Tests.csproj (in 19 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Communication.Tests/ZakYip.WheelDiverterSorter.Communication.Tests.csproj (in 21 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests/ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.csproj (in 3.54 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.E2ETests/ZakYip.WheelDiverterSorter.E2ETests.csproj (in 1.39 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.ArchTests/ZakYip.WheelDiverterSorter.ArchTests.csproj (in 69 ms).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Execution.Tests/ZakYip.WheelDiverterSorter.Execution.Tests.csproj (in 1.58 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Benchmarks/ZakYip.WheelDiverterSorter.Benchmarks.csproj (in 2.59 sec).
+  Restored /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/ZakYip.WheelDiverterSorter.Analyzers/ZakYip.WheelDiverterSorter.Analyzers.csproj (in 1.45 sec).
+  ZakYip.WheelDiverterSorter.Analyzers -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/ZakYip.WheelDiverterSorter.Analyzers/bin/Debug/netstandard2.0/ZakYip.WheelDiverterSorter.Analyzers.dll
+  The package ZakYip.WheelDiverterSorter.Analyzers.1.0.0 is missing a readme. Go to https://aka.ms/nuget/authoring-best-practices/readme to learn why package readmes are important.
+  Successfully created package '/home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/ZakYip.WheelDiverterSorter.Analyzers/bin/Debug/ZakYip.WheelDiverterSorter.Analyzers.1.0.0.nupkg'.
+  ZakYip.WheelDiverterSorter.Core -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Core/ZakYip.WheelDiverterSorter.Core/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Core.dll
+  ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tools/ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Tools.SafeExecutionStats.dll
+  ZakYip.WheelDiverterSorter.Simulation.Scenarios -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Scenarios/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Simulation.Scenarios.dll
+  ZakYip.WheelDiverterSorter.Tools.Reporting -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tools/ZakYip.WheelDiverterSorter.Tools.Reporting/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Tools.Reporting.dll
+  ZakYip.WheelDiverterSorter.Observability -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Observability/ZakYip.WheelDiverterSorter.Observability/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Observability.dll
+  ZakYip.WheelDiverterSorter.ArchTests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.ArchTests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.ArchTests.dll
+  ZakYip.WheelDiverterSorter.Ingress -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Ingress/ZakYip.WheelDiverterSorter.Ingress/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Ingress.dll
+  ZakYip.WheelDiverterSorter.Configuration.Persistence -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Infrastructure/ZakYip.WheelDiverterSorter.Configuration.Persistence/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Configuration.Persistence.dll
+  ZakYip.WheelDiverterSorter.Drivers -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Drivers/ZakYip.WheelDiverterSorter.Drivers/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Drivers.dll
+  ZakYip.WheelDiverterSorter.Communication -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Communication.dll
+  ZakYip.WheelDiverterSorter.Execution -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Execution/ZakYip.WheelDiverterSorter.Execution/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Execution.dll
+  ZakYip.WheelDiverterSorter.Benchmarks -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Benchmarks/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Benchmarks.dll
+  ZakYip.WheelDiverterSorter.Drivers.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Drivers.Tests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.Drivers.Tests.dll
+  ZakYip.WheelDiverterSorter.Communication.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Communication.Tests/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Communication.Tests.dll
+  ZakYip.WheelDiverterSorter.Simulation -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Simulation/ZakYip.WheelDiverterSorter.Simulation/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Simulation.dll
+  ZakYip.WheelDiverterSorter.Application -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Application/ZakYip.WheelDiverterSorter.Application/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Application.dll
+  ZakYip.WheelDiverterSorter.Execution.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Execution.Tests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.Execution.Tests.dll
+  ZakYip.WheelDiverterSorter.Simulation.Cli -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Simulation/ZakYip.WheelDiverterSorter.Simulation.Cli/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Simulation.Cli.dll
+  ZakYip.WheelDiverterSorter.Core.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Core.Tests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.Core.Tests.dll
+  ZakYip.WheelDiverterSorter.Ingress.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Ingress.Tests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.Ingress.Tests.dll
+  ZakYip.WheelDiverterSorter.Host -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/src/Host/ZakYip.WheelDiverterSorter.Host/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Host.dll
+  ZakYip.WheelDiverterSorter.Observability.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Observability.Tests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.Observability.Tests.dll
+  ZakYip.WheelDiverterSorter.Host.IntegrationTests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Host.IntegrationTests/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.Host.IntegrationTests.dll
+  ZakYip.WheelDiverterSorter.Host.Application.Tests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.Host.Application.Tests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.Host.Application.Tests.dll
+  ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests/bin/Debug/net9.0/ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.dll
+  ZakYip.WheelDiverterSorter.E2ETests -> /home/runner/work/ZakYip.WheelDiverterSorter/ZakYip.WheelDiverterSorter/tests/ZakYip.WheelDiverterSorter.E2ETests/bin/Debug/net8.0/ZakYip.WheelDiverterSorter.E2ETests.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:53.71

@@ -343,7 +343,7 @@ public class HealthController : ControllerBase
     /// 
     /// 关键模块健康状态：
     /// - RuleEngine 连接状态（push模型）
-    /// - TTL 调度线程状态（TODO: 待实现）
+    /// - TTL 调度线程状态（TD-043: 待实现）
     /// - 驱动器健康状态
     /// - 传感器健康状态
     /// - 系统状态（Ready/Running/Faulted等）

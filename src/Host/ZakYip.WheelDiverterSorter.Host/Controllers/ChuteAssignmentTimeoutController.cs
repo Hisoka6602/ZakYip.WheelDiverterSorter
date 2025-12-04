@@ -17,7 +17,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 [Produces("application/json")]
 public class ChuteAssignmentTimeoutController : ApiControllerBase
 {
-    // TODO: 当前假设只有一条线，未来支持多线时需要动态获取LineId
+    // TD-042: 当前假设只有一条线，未来支持多线时需要动态获取LineId
     private const long DefaultLineId = 1;
     
     private readonly ISystemConfigurationRepository _configRepository;

@@ -670,7 +670,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (_timeoutCalculator != null)
         {
             var context = new ChuteAssignmentTimeoutContext(
-                LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
+                LineId: 1, // TD-042: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
                 SafetyFactor: systemConfig.ChuteAssignmentTimeout?.SafetyFactor ?? 0.9m
             );
             

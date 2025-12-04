@@ -136,9 +136,9 @@ public class StrategyExperimentRunner
         // 3. Run simulation with parcelCount parcels at releaseInterval
         // 4. Collect statistics
 
-        // TODO: 集成实际的仿真运行逻辑
+        // TD-041: 集成实际的仿真运行逻辑
         // 这里使用模拟数据作为占位符
-        // TODO: Integrate actual simulation run logic
+        // TD-041: Integrate actual simulation run logic
         // Using simulated data as placeholder here
 
         await Task.Delay(100, cancellationToken); // 模拟运行时间 / Simulate run time
