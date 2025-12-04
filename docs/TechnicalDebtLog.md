@@ -49,6 +49,8 @@
 - [TD-035] 上游通信协议完整性与驱动厂商可用性审计
 - [TD-036] API 端点响应模型不一致
 - [TD-037] Siemens 驱动实现与文档不匹配
+- [TD-038] Siemens 缺少 IO 联动和传送带驱动
+- [TD-039] 代码中存在 TODO 标记待处理项
 
 ---
 
@@ -1313,6 +1315,202 @@ TD-035 技术债已更新文档，明确 Siemens（西门子）应支持 IO驱�
 
 ---
 
-**文档版本**：1.7 (TD-037 已解决)  
+## [TD-038] Siemens 缺少 IO 联动和传送带驱动
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+TD-037 已删除 Siemens 摆轮驱动，但根据文档（TD-035），Siemens 应支持 IO 联动和传送带功能。当前这两个驱动缺失。
+
+**缺失组件**：
+
+| 组件 | 实现状态 | 应实现的接口 | 用途 |
+|------|---------|--------------|------|
+| IO 联动驱动 | ❌ 未实现 | `IIoLinkageDriver` | IO 联动控制（急停状态联动、运行状态联动等） |
+| 传送带驱动 | ❌ 未实现 | `IConveyorDriveController` | 传送带段的速度控制和状态管理 |
+
+**代码位置**：
+
+- TODO 标记位置：`src/Drivers/.../Siemens/SiemensS7ServiceCollectionExtensions.cs:40-41`
+  ```csharp
+  // TODO: 添加 IO 联动驱动注册 (IIoLinkageDriver)
+  // TODO: 添加传送带驱动注册 (IConveyorDriveController)
+  ```
+
+**实现建议**：
+
+1. **S7IoLinkageDriver**：
+   ```csharp
+   public class S7IoLinkageDriver : IIoLinkageDriver
+   {
+       private readonly S7Connection _connection;
+       private readonly ILogger<S7IoLinkageDriver> _logger;
+       
+       public async Task<bool> SetLinkageStateAsync(IoLinkageState state, CancellationToken ct)
+       {
+           // 使用 S7 协议设置 IO 联动
+       }
+   }
+   ```
+
+2. **S7ConveyorSegmentDriver**：
+   ```csharp
+   public class S7ConveyorSegmentDriver : IConveyorDriveController
+   {
+       private readonly S7Connection _connection;
+       private readonly ILogger<S7ConveyorSegmentDriver> _logger;
+       
+       public async Task<bool> SetSpeedAsync(double speed, CancellationToken ct)
+       {
+           // 使用 S7 协议控制传送带速度
+       }
+   }
+   ```
+
+**技术影响**：
+
+- Siemens 用户无法使用 IO 联动功能
+- Siemens 用户无法使用传送带速度控制功能
+- 功能不完整，与文档描述不一致
+
+**工作量估算**：
+
+- 实现 IO 联动驱动：4-6 小时
+- 实现传送带驱动：4-6 小时
+- 单元测试和集成测试：4-6 小时
+- **总计**：12-18 小时
+
+**相关技术债**：
+
+- TD-037：Siemens 驱动实现与文档不匹配（已解决，删除了摆轮驱动）
+
+---
+
+## [TD-039] 代码中存在 TODO 标记待处理项
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+代码中存在 12 处 TODO 标记，表示待完成或待优化的功能。这些标记应该被记录为技术债，并规划处理时间。
+
+**TODO 清单**：
+
+### 1. 性能优化相关（2 处）
+
+**位置**：`Application/Services/Metrics/CongestionDataCollector.cs`
+
+```csharp
+// Line 43
+// TODO: 未来考虑使用 ConcurrentDictionary<long, ParcelRecord> 优化查找性能
+
+// Line 106
+// TODO: 如果性能成为问题，考虑使用定时后台任务清理
+```
+
+**说明**：当前使用 List 存储包裹记录，查找性能为 O(n)。如果包裹数量增长，可能成为性能瓶颈。
+
+**优先级**：低（当前性能足够）
+
+---
+
+### 2. Siemens 驱动缺失（2 处，已登记为 TD-038）
+
+**位置**：`Drivers/.../Siemens/SiemensS7ServiceCollectionExtensions.cs`
+
+```csharp
+// Line 40-41
+// TODO: 添加 IO 联动驱动注册 (IIoLinkageDriver)
+// TODO: 添加传送带驱动注册 (IConveyorDriveController)
+```
+
+**说明**：已作为 TD-038 单独登记
+
+---
+
+### 3. 仿真策略实验（2 处）
+
+**位置**：`Simulation/Strategies/StrategyExperimentRunner.cs`
+
+```csharp
+// Line 139
+// TODO: 集成实际的仿真运行逻辑
+
+// Line 141
+// TODO: Integrate actual simulation run logic
+```
+
+**说明**：策略实验功能尚未完全实现，需要集成实际的仿真运行逻辑。
+
+**优先级**：中（仿真功能不完整）
+
+---
+
+### 4. 多线支持（3 处）
+
+**位置 1**：`Execution/Strategy/FormalChuteSelectionStrategy.cs:183`
+```csharp
+LineId: 1, // TODO: 支持多线时从上下文获取
+```
+
+**位置 2**：`Execution/Orchestration/SortingOrchestrator.cs:673`
+```csharp
+LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
+```
+
+**位置 3**：`Host/Controllers/ChuteAssignmentTimeoutController.cs:20`
+```csharp
+// TODO: 当前假设只有一条线，未来支持多线时需要动态获取LineId
+```
+
+**说明**：当前系统假设只有一条分拣线（LineId = 1），未来如果需要支持多条线，需要从包裹上下文动态获取 LineId。
+
+**优先级**：低（当前单线场景满足需求）
+
+---
+
+### 5. 健康检查相关（2 处）
+
+**位置 1**：`Host/Health/HostHealthStatusProvider.cs:70`
+```csharp
+// TODO: 可从metrics或其他服务获取异常口数据
+```
+
+**位置 2**：`Host/Health/HostHealthStatusProvider.cs:170`
+```csharp
+// TODO PR-34: 更新 TTL 调度器健康状态
+```
+
+**位置 3**：`Host/Controllers/HealthController.cs:346`
+```csharp
+/// - TTL 调度线程状态（TODO: 待实现）
+```
+
+**说明**：健康检查功能不完整，缺少异常口数据获取和 TTL 调度器状态检查。
+
+**优先级**：中（影响监控完整性）
+
+---
+
+**处理建议**：
+
+1. **立即处理**：TD-038（Siemens 驱动缺失）- 如用户需要 Siemens IO 联动和传送带功能
+2. **近期处理**：仿真策略实验、健康检查完善
+3. **长期规划**：多线支持、性能优化
+
+**技术影响**：
+
+- 功能不完整（仿真、健康检查）
+- 扩展性受限（多线支持）
+- 潜在性能瓶颈（性能优化）
+
+**相关技术债**：
+
+- TD-038：Siemens 缺少 IO 联动和传送带驱动
+
+---
+
+**文档版本**：1.8 (TD-038, TD-039 新增)  
 **最后更新**：2025-12-04  
 **维护团队**：ZakYip Development Team
