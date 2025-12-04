@@ -1075,7 +1075,7 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 |------|---------|-----------|--------|--------|
 | Leadshine（雷赛） | ✅ 完整 | `LeadshineWheelDiverterDriver`<br/>`LeadshineEmcController`<br/>`LeadshineConveyorSegmentDriver`<br/>`LeadshineIoLinkageDriver` | `LeadshineOptions`<br/>`LeadshineSensorOptions` | ✅ 生产可用 |
 | Siemens（西门子） | ⚠️ 部分实现 | `S7WheelDiverterDriver` | `S7Options` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
-| ShuDiNiao（书迪鸟） | ⚠️ 部分实现 | `ShuDiNiaoWheelDiverterDriver`<br/>`ShuDiNiaoWheelDiverterDriverManager` | `ShuDiNiaoOptions` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
+| ShuDiNiao（数递鸟） | ⚠️ 部分实现 | `ShuDiNiaoWheelDiverterDriver`<br/>`ShuDiNiaoWheelDiverterDriverManager` | `ShuDiNiaoOptions` | ⚠️ 仅摆轮驱动，缺少 EMC/传送带/联动 |
 | Simulated（仿真） | ✅ 完整 | `SimulatedWheelDiverterDevice`<br/>`SimulatedConveyorSegmentDriver`<br/>`SimulatedIoLinkageDriver` | `SimulatedOptions` | ✅ 测试/开发可用 |
 | Modi（摩迪） | ❌ 缺失 | - | - | ❌ 文档中提及但未实现 |
 

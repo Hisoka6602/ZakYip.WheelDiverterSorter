@@ -717,7 +717,7 @@ ZakYip.WheelDiverterSorter.Execution/
 
 ### 3.5 ZakYip.WheelDiverterSorter.Drivers
 
-**项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/书迪鸟摆轮协议等）的通信细节。所有厂商相关实现和配置类都集中在 `Vendors/<VendorName>/` 目录下。
+**项目职责**：硬件驱动实现层，封装与具体硬件设备（雷赛 IO 卡、西门子 PLC、摩迪/数递鸟摆轮协议等）的通信细节。所有厂商相关实现和配置类都集中在 `Vendors/<VendorName>/` 目录下。
 
 ```
 ZakYip.WheelDiverterSorter.Drivers/
@@ -762,9 +762,9 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── ModiWheelDiverterDriver.cs
 │   │   ├── ModiSimulatedDevice.cs
 │   │   └── ModiWheelServiceCollectionExtensions.cs    # DI 扩展
-│   ├── ShuDiNiao/                   # 书迪鸟摆轮协议驱动
-│   │   ├── Configuration/           # PR-TD7: 书迪鸟配置类
-│   │   │   └── ShuDiNiaoOptions.cs          # 书迪鸟通信配置选项
+│   ├── ShuDiNiao/                   # 数递鸟摆轮协议驱动
+│   │   ├── Configuration/           # PR-TD7: 数递鸟配置类
+│   │   │   └── ShuDiNiaoOptions.cs          # 数递鸟通信配置选项
 │   │   ├── ShuDiNiaoProtocol.cs
 │   │   ├── ShuDiNiaoProtocolEnums.cs
 │   │   ├── ShuDiNiaoWheelDiverterDriver.cs
@@ -802,7 +802,7 @@ ZakYip.WheelDiverterSorter.Drivers/
 - `FactoryBasedDriverManager`：基于工厂模式的驱动管理器，支持多厂商设备
 - `LeadshineDiverterController`（位于 Vendors/Leadshine/）：雷赛摆轮控制器实现
 - `S7DiverterController`（位于 Vendors/Siemens/）：西门子 S7 PLC 摆轮控制器
-- `ShuDiNiaoWheelDiverterDriver`（位于 Vendors/ShuDiNiao/）：书迪鸟摆轮驱动实现
+- `ShuDiNiaoWheelDiverterDriver`（位于 Vendors/ShuDiNiao/）：数递鸟摆轮驱动实现
 - `SimulatedWheelDiverterDevice`（位于 Vendors/Simulated/）：仿真摆轮设备，用于测试
 - `IoLinkageExecutor`：IO 联动执行器，处理传感器与摆轮的联动逻辑
 
