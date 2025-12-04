@@ -1122,3 +1122,93 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 **文档版本**：1.5 (TD-035)  
 **最后更新**：2025-12-04  
 **维护团队**：ZakYip Development Team
+
+
+---
+
+## [TD-036] API 端点响应模型不一致
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+在集成测试中发现 3 个 API 端点的响应模型与测试期望不一致，导致 JSON 反序列化失败：
+
+1. `GET /api/config/communication` - 返回 404 NotFound
+2. `GET /api/config/system` - 响应 JSON 缺少必需字段（id, exceptionChuteId, sortingMode, version, createdAt）
+3. `POST /api/config/system/reset` - 响应 JSON 缺少必需字段
+
+**失败测试列表**：
+
+| 测试名称 | 失败原因 | HTTP 状态码 | 错误详情 |
+|---------|---------|------------|----------|
+| `AllApiEndpointsTests.GetCommunicationConfig_ReturnsSuccess` | 端点返回 404 | 404 NotFound | 期望成功响应但收到 NotFound |
+| `AllApiEndpointsTests.GetSystemConfig_ReturnsSuccess` | JSON 反序列化失败 | 200 OK | `SystemConfigResponse` 缺少必需字段：id, exceptionChuteId, sortingMode, version, createdAt |
+| `AllApiEndpointsTests.ResetSystemConfig_ReturnsSuccess` | JSON 反序列化失败 | 200 OK | `SystemConfigResponse` 缺少必需字段：id, exceptionChuteId, sortingMode, version, createdAt |
+
+**根本原因分析**：
+
+1. **CommunicationConfig 端点问题**：
+   - 可能路由配置不正确，或控制器方法未正确映射
+   - 需要检查 `CommunicationController` 的路由配置
+
+2. **SystemConfig 响应模型问题**：
+   - API 返回的 JSON 结构与 `SystemConfigResponse` DTO 定义不匹配
+   - 可能是控制器返回了不完整的数据模型，或使用了错误的 DTO 类型
+   - `SystemConfigResponse` 要求以下字段为 `required`：
+     - `Id` (int)
+     - `ExceptionChuteId` (int)
+     - `SortingMode` (enum)
+     - `Version` (int)
+     - `CreatedAt` (DateTime)
+
+**技术债务影响**：
+
+- **测试通过率**: 当前 API 端点测试通过率为 93% (42/45)，这 3 个失败测试降低了整体质量指标
+- **API 契约一致性**: 响应模型不一致可能导致前端或其他客户端集成问题
+- **可维护性**: 模型不一致增加了维护成本，容易引入 bug
+
+**修复方案**：
+
+### 短期方案（临时措施）
+
+1. **修复 CommunicationConfig 端点**：
+   - 检查路由映射：`[HttpGet("communication")]` 或 `[Route("api/config/communication")]`
+   - 确认控制器方法存在且可访问
+   - 如果端点确实应该存在，修复路由配置
+
+2. **修复 SystemConfig 响应模型**：
+   - 方案A：修改控制器，确保返回完整的 `SystemConfigResponse` 对象，包含所有必需字段
+   - 方案B：修改 `SystemConfigResponse` DTO，将缺失字段标记为可选（`int?` 或移除 `required`）
+   - **推荐方案A**：保持 DTO 的严格性，修复数据源以提供完整信息
+
+### 长期方案（根治）
+
+1. **建立 API 契约测试框架**：
+   - 使用 OpenAPI/Swagger 规范作为契约
+   - 自动化测试验证所有端点的请求/响应模型是否符合规范
+   - 在 CI 中强制执行契约测试
+
+2. **统一响应模型规范**：
+   - 制定明确的 DTO 设计规范（所有时间字段必须有值、ID 字段必须存在等）
+   - 使用代码生成器或模板确保一致性
+   - 添加架构测试验证所有 API 响应 DTO 符合规范
+
+3. **加强集成测试覆盖**：
+   - 所有 API 端点必须有对应的集成测试
+   - 测试必须验证完整的请求/响应模型，而不仅仅是状态码
+   - 失败测试必须阻止 PR 合并
+
+**相关文档**：
+- API 端点规范：`copilot-instructions.md` 第 5 节
+- 测试要求：`copilot-instructions.md` 第 11 节（测试失败必须在当前 PR 修复）
+
+**修复时间估算**：
+- 短期修复：2-4 小时（修复 3 个端点）
+- 长期方案：8-16 小时（建立契约测试框架）
+
+**优先级**：🔴 高优先级
+
+虽然这些失败测试不影响核心分拣功能，但 API 契约不一致可能导致前端集成问题。建议在下一个 PR 中优先修复。
+
+---
