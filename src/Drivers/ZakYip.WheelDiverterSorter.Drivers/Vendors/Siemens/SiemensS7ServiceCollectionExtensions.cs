@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
@@ -24,6 +26,8 @@ public static class SiemensS7ServiceCollectionExtensions
     /// 注册以下服务：
     /// - <see cref="S7Connection"/> (用于 PLC 连接管理)
     /// - <see cref="S7InputPort"/> / <see cref="S7OutputPort"/> (用于 IO 端口操作)
+    /// - <see cref="S7IoLinkageDriver"/> (用于 IO 联动控制)
+    /// - <see cref="S7ConveyorDriveController"/> (用于传送带驱动控制)
     /// 
     /// 注意：根据 TD-037 解决方案，Siemens S7 **不支持摆轮驱动**。
     /// 摆轮功能请使用 Leadshine 或 ShuDiNiao 厂商驱动。
@@ -37,8 +41,28 @@ public static class SiemensS7ServiceCollectionExtensions
             return new S7Connection(logger, options);
         });
 
-        // TODO: 添加 IO 联动驱动注册 (IIoLinkageDriver)
-        // TODO: 添加传送带驱动注册 (IConveyorDriveController)
+        // 注册 IO 联动驱动
+        services.AddSingleton<IIoLinkageDriver>(sp =>
+        {
+            var connection = sp.GetRequiredService<S7Connection>();
+            var logger = sp.GetRequiredService<ILogger<S7IoLinkageDriver>>();
+            return new S7IoLinkageDriver(connection, logger);
+        });
+
+        // 注册传送带驱动控制器
+        // 注意：这里使用默认配置，实际使用时应从配置文件读取参数
+        services.AddSingleton<IConveyorDriveController>(sp =>
+        {
+            var connection = sp.GetRequiredService<S7Connection>();
+            var logger = sp.GetRequiredService<ILogger<S7ConveyorDriveController>>();
+            return new S7ConveyorDriveController(
+                connection,
+                segmentId: "MainConveyor",
+                startControlBit: 0,  // 启动控制位
+                stopControlBit: 1,   // 停止控制位
+                speedRegister: 100,  // 速度寄存器地址
+                logger);
+        });
 
         return services;
     }
