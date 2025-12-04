@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;
 
@@ -95,6 +96,28 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 .Returns(true);
             
             services.AddSingleton(MockRuleEngineClient.Object);
+            
+            // Add mock IPanelInputReader if not registered (for simulation tests)
+            var panelInputReaderDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IPanelInputReader));
+            if (panelInputReaderDescriptor == null)
+            {
+                var mockPanelInputReader = new Mock<IPanelInputReader>(MockBehavior.Loose);
+                // Default: all buttons are not pressed
+                mockPanelInputReader
+                    .Setup(x => x.ReadButtonStateAsync(It.IsAny<PanelButtonType>(), It.IsAny<CancellationToken>()))
+                    .ReturnsAsync((PanelButtonType buttonType, CancellationToken _) => new PanelButtonState
+                    {
+                        ButtonType = buttonType,
+                        IsPressed = false,
+                        LastChangedAt = DateTimeOffset.Now,
+                        PressedDurationMs = 0
+                    });
+                mockPanelInputReader
+                    .Setup(x => x.ReadAllButtonStatesAsync(It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new Dictionary<PanelButtonType, PanelButtonState>());
+                services.AddSingleton(mockPanelInputReader.Object);
+            }
         });
     }
 }
