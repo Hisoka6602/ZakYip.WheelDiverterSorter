@@ -180,7 +180,7 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
         if (_timeoutCalculator != null)
         {
             var timeoutContext = new ChuteAssignmentTimeoutContext(
-                LineId: 1, // TODO: 支持多线时从上下文获取
+                LineId: 1, // TD-042: 支持多线时从上下文获取
                 SafetyFactor: context.ExceptionRoutingPolicy?.UpstreamTimeoutMs > 0
                     ? 0.9m
                     : 0.9m

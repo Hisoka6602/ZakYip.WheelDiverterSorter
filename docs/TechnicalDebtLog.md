@@ -1379,20 +1379,41 @@ TD-037 已删除 Siemens 摆轮驱动，但根据文档（TD-035），Siemens �
 
 ## [TD-039] 代码中存在 TODO 标记待处理项
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
 **问题描述**：
 
-代码中存在 10 处 TODO 标记，表示待完成或待优化的功能。这些标记应该被记录为技术债，并规划处理时间。
+代码中存在 10 处 TODO 标记，表示待完成或待优化的功能。这些标记已被转换为明确的技术债编号引用。
 
-**TODO 清单**：
+**解决方案**：
 
-### 1. 性能优化相关（2 处）
+1. **性能优化**（2处）→ 拆分为 **TD-040**
+2. **仿真策略**（2处）→ 拆分为 **TD-041**  
+3. **多线支持**（3处）→ 拆分为 **TD-042**
+4. **健康检查**（3处）→ 拆分为 **TD-043**
 
-**位置**：`Application/Services/Metrics/CongestionDataCollector.cs`
+所有 TODO 标记已替换为对应的 TD-xxx 引用，便于跟踪和管理。
+
+**相关技术债**：
+- TD-040：CongestionDataCollector 性能优化
+- TD-041：仿真策略实验集成
+- TD-042：多线支持（未来功能）
+- TD-043：健康检查完善
+
+---
+
+## [TD-040] CongestionDataCollector 性能优化
+
+**状态**：❌ 未开始（低优先级）
+
+**问题描述**：
+
+`Application/Services/Metrics/CongestionDataCollector.cs` 中存在两处性能优化建议：
+
+### 1. 查找性能优化（Line 43）
 
 ```csharp
-// Line 43
+// TD-040: 未来考虑使用 ConcurrentDictionary<long, ParcelRecord> 优化查找性能
 // TODO: 未来考虑使用 ConcurrentDictionary<long, ParcelRecord> 优化查找性能
 
 // Line 106
@@ -1488,5 +1509,157 @@ LineId: 1, // TODO: 当前假设只有一条线，未来支持多线时需要从
 ---
 
 **文档版本**：2.0 (TD-039 更新：移除已解决的 TD-038 相关 TODO)  
+**最后更新**：2025-12-04  
+**维护团队**：ZakYip Development Team
+
+```
+
+**当前实现**：使用 List 存储包裹记录，查找性能为 O(n)
+
+**优化建议**：使用 ConcurrentDictionary<long, ParcelRecord> 以获得 O(1) 查找性能
+
+### 2. 清理策略优化（Line 106）
+
+```csharp
+// TD-040: 如果性能成为问题，考虑使用定时后台任务清理
+```
+
+**当前实现**：在快照收集时被动过滤，不主动清理
+
+**优化建议**：使用定时后台任务主动清理过期数据
+
+**优先级**：低（当前性能足够，包裹数量不大）
+
+**触发条件**：
+- 包裹吞吐量超过 1000 件/分钟
+- 内存占用持续增长
+- 查找延迟超过 10ms
+
+---
+
+## [TD-041] 仿真策略实验集成
+
+**状态**：❌ 未开始（中优先级）
+
+**问题描述**：
+
+`Simulation/Strategies/StrategyExperimentRunner.cs` 中的策略实验功能尚未完全实现，需要集成实际的仿真运行逻辑。
+
+**位置**：
+```csharp
+// Line 139-141
+// TD-041: 集成实际的仿真运行逻辑
+// TD-041: Integrate actual simulation run logic
+```
+
+**当前状态**：使用模拟数据作为占位符，通过 Task.Delay 模拟运行时间
+
+**实现目标**：
+1. 集成实际的仿真引擎
+2. 支持动态注入过载策略（overloadPolicy）
+3. 自动收集仿真统计数据（throughput, successRate, meanLatency, p99Latency）
+4. 支持多策略对比实验
+
+**依赖**：
+- Simulation.Scenarios 项目的仿真引擎
+- SimulationRunner 的策略注入机制
+
+**优先级**：中（影响仿真测试完整性）
+
+---
+
+## [TD-042] 多线支持（未来功能）
+
+**状态**：❌ 未开始（低优先级）
+
+**问题描述**：
+
+当前系统假设只有一条分拣线（LineId = 1），未来如果需要支持多条线，需要从包裹上下文动态获取 LineId。
+
+**影响位置**：
+
+### 1. FormalChuteSelectionStrategy（Line 183）
+```csharp
+LineId: 1, // TD-042: 支持多线时从上下文获取
+```
+
+### 2. SortingOrchestrator（Line 673）
+```csharp
+LineId: 1, // TD-042: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
+```
+
+### 3. ChuteAssignmentTimeoutController（Line 20）
+```csharp
+// TD-042: 当前假设只有一条线，未来支持多线时需要动态获取LineId
+private const long DefaultLineId = 1;
+```
+
+**实现思路**：
+
+1. **扩展包裹上下文**：在 `Parcel` 或 `SortingContext` 中添加 `LineId` 字段
+2. **配置支持**：在系统配置中支持多线配置（线体列表、默认线、异常线）
+3. **路由策略**：支持跨线路由（如果需要）
+4. **指标隔离**：按 LineId 分别统计各线指标
+
+**优先级**：低（当前单线场景满足需求，未来扩展功能）
+
+**触发条件**：
+- 客户明确需要多线支持
+- 需要支持跨线路由场景
+
+---
+
+## [TD-043] 健康检查完善
+
+**状态**：❌ 未开始（中优先级）
+
+**问题描述**：
+
+健康检查功能不完整，缺少异常口数据获取和 TTL 调度器状态检查。
+
+**缺失功能**：
+
+### 1. 异常口比例计算（HostHealthStatusProvider:70）
+```csharp
+// TD-043: 可从metrics或其他服务获取异常口数据
+// exceptionChuteRatio = CalculateExceptionChuteRatio();
+```
+
+**实现思路**：
+- 从 `IMetricsService` 或 `ISortingOrchestrator` 获取异常口统计
+- 计算异常口比例 = 异常口包裹数 / 总包裹数
+- 添加到 `LineHealthSnapshot` 中
+
+### 2. TTL 调度器健康状态（HostHealthStatusProvider:170）
+```csharp
+// TD-043: 更新 TTL 调度器健康状态
+// 当前暂时设置为健康，待实现 TTL 调度器健康检查
+_prometheusMetrics.SetTtlSchedulerHealth(true);
+```
+
+**实现思路**：
+- 检查 TTL 调度线程是否存活
+- 检查最后一次调度时间（如果超过阈值则认为不健康）
+- 检查调度队列积压情况
+
+### 3. 健康检查文档更新（HealthController:346）
+```csharp
+/// - TTL 调度线程状态（TD-043: 待实现）
+```
+
+**实现思路**：
+- 更新 API 文档说明 TTL 调度器健康检查已实现
+- 补充 Swagger 注释说明健康状态字段含义
+
+**优先级**：中（影响监控完整性）
+
+**相关组件**：
+- `HostHealthStatusProvider`
+- `HealthController`
+- `IPrometheusMetricsExporter`
+
+---
+
+**文档版本**：3.0 (TD-039 已解决，拆分为 TD-040~TD-043)  
 **最后更新**：2025-12-04  
 **维护团队**：ZakYip Development Team
