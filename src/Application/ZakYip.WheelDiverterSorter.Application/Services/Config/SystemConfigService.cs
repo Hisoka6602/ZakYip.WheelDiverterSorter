@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -22,17 +23,20 @@ public class SystemConfigService : ISystemConfigService
     private readonly IRouteConfigurationRepository _routeRepository;
     private readonly ISlidingConfigCache _configCache;
     private readonly ILogger<SystemConfigService> _logger;
+    private readonly ISystemClock _systemClock;
 
     public SystemConfigService(
         ISystemConfigurationRepository repository,
         IRouteConfigurationRepository routeRepository,
         ISlidingConfigCache configCache,
-        ILogger<SystemConfigService> logger)
+        ILogger<SystemConfigService> logger,
+        ISystemClock systemClock)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     public SystemConfiguration GetSystemConfig()
@@ -76,6 +80,9 @@ public class SystemConfigService : ISystemConfigService
                 return new SystemConfigUpdateResult(false, error, null);
             }
 
+            // 设置更新时间（通过 ISystemClock.LocalNow）
+            config.UpdatedAt = _systemClock.LocalNow;
+
             // 更新配置到持久化
             _repository.Update(config);
 
@@ -106,6 +113,10 @@ public class SystemConfigService : ISystemConfigService
     {
         await Task.Yield();
         var defaultConfig = SystemConfiguration.GetDefault();
+        
+        // 设置更新时间（通过 ISystemClock.LocalNow）
+        defaultConfig.UpdatedAt = _systemClock.LocalNow;
+        
         _repository.Update(defaultConfig);
 
         // 热更新：立即刷新缓存
@@ -153,6 +164,9 @@ public class SystemConfigService : ISystemConfigService
                 _logger.LogWarning("分拣模式配置验证失败: {ErrorMessage}", errorMessage);
                 return new SortingModeUpdateResult(false, errorMessage, null);
             }
+
+            // 设置更新时间（通过 ISystemClock.LocalNow）
+            config.UpdatedAt = _systemClock.LocalNow;
 
             // 更新配置到持久化
             _repository.Update(config);
