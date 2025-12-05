@@ -46,4 +46,34 @@ public class S7Options
     /// 重连延迟时间（毫秒）
     /// </summary>
     public int ReconnectDelay { get; set; } = 1000;
+
+    /// <summary>
+    /// 是否启用连接健康监控
+    /// </summary>
+    public bool EnableHealthCheck { get; set; } = true;
+
+    /// <summary>
+    /// 健康检查间隔（秒）
+    /// </summary>
+    public int HealthCheckIntervalSeconds { get; set; } = 30;
+
+    /// <summary>
+    /// 连接失败阈值（连续失败多少次触发重连）
+    /// </summary>
+    public int FailureThreshold { get; set; } = 3;
+
+    /// <summary>
+    /// 是否启用性能统计
+    /// </summary>
+    public bool EnablePerformanceMetrics { get; set; } = true;
+
+    /// <summary>
+    /// 是否使用指数退避重连
+    /// </summary>
+    public bool UseExponentialBackoff { get; set; } = true;
+
+    /// <summary>
+    /// 最大退避延迟（毫秒）
+    /// </summary>
+    public int MaxBackoffDelay { get; set; } = 30000;
 }

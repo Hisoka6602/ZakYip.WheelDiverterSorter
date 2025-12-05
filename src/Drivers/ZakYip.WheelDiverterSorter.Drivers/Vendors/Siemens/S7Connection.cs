@@ -1,9 +1,13 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using S7.Net;
+using System.Diagnostics;
 using System.Net.Sockets;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
@@ -13,10 +17,18 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 public class S7Connection : IDisposable
 {
     private readonly ILogger<S7Connection> _logger;
-    private readonly S7Options _options;
+    private readonly IOptionsMonitor<S7Options> _optionsMonitor;
+    private readonly ISystemClock _clock;
+    private readonly ISafeExecutionService _safeExecutor;
+    private S7Options _options;
     private Plc? _plc;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private bool _disposed;
+    private Timer? _healthCheckTimer;
+    private readonly S7ConnectionHealth _health = new();
+    private readonly S7PerformanceMetrics _metrics = new();
+    private readonly object _healthLock = new();
+    private readonly object _metricsLock = new();
 
     /// <summary>
     /// 连接是否已建立
@@ -27,11 +39,117 @@ public class S7Connection : IDisposable
     /// 初始化S7连接管理器
     /// </summary>
     /// <param name="logger">日志记录器</param>
-    /// <param name="options">S7配置选项</param>
-    public S7Connection(ILogger<S7Connection> logger, S7Options options)
+    /// <param name="optionsMonitor">S7配置选项监视器（支持热更新）</param>
+    /// <param name="clock">系统时钟</param>
+    /// <param name="safeExecutor">安全执行服务</param>
+    public S7Connection(
+        ILogger<S7Connection> logger, 
+        IOptionsMonitor<S7Options> optionsMonitor,
+        ISystemClock clock,
+        ISafeExecutionService safeExecutor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _optionsMonitor = optionsMonitor ?? throw new ArgumentNullException(nameof(optionsMonitor));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
+        _options = _optionsMonitor.CurrentValue;
+
+        // 监听配置变更
+        _optionsMonitor.OnChange(OnOptionsChanged);
+
+        // 初始化健康检查定时器
+        if (_options.EnableHealthCheck)
+        {
+            _healthCheckTimer = new Timer(
+                PerformHealthCheckAsync,
+                null,
+                TimeSpan.FromSeconds(_options.HealthCheckIntervalSeconds),
+                TimeSpan.FromSeconds(_options.HealthCheckIntervalSeconds));
+        }
+    }
+
+    /// <summary>
+    /// 配置变更时的回调
+    /// </summary>
+    private void OnOptionsChanged(S7Options newOptions)
+    {
+        _logger.LogInformation("检测到S7配置变更，将重新连接PLC");
+        _options = newOptions;
+
+        // 断开当前连接
+        Disconnect();
+
+        // 使用 SafeExecutionService 包裹重连任务
+        _ = _safeExecutor.ExecuteAsync(
+            async () => await EnsureConnectedAsync(),
+            operationName: "S7ConfigReload",
+            cancellationToken: CancellationToken.None
+        );
+
+        // 更新健康检查定时器
+        if (_options.EnableHealthCheck && _healthCheckTimer == null)
+        {
+            _healthCheckTimer = new Timer(
+                PerformHealthCheckAsync,
+                null,
+                TimeSpan.FromSeconds(_options.HealthCheckIntervalSeconds),
+                TimeSpan.FromSeconds(_options.HealthCheckIntervalSeconds));
+        }
+        else if (!_options.EnableHealthCheck && _healthCheckTimer != null)
+        {
+            _healthCheckTimer.Dispose();
+            _healthCheckTimer = null;
+        }
+    }
+
+    /// <summary>
+    /// 执行健康检查
+    /// </summary>
+    private void PerformHealthCheckAsync(object? state)
+    {
+        _ = _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                if (!IsConnected)
+                {
+                    lock (_healthLock)
+                    {
+                        _health.IsConnected = false;
+                        _health.ConsecutiveFailures++;
+                    }
+                    
+                    int failures;
+                    lock (_healthLock)
+                    {
+                        failures = _health.ConsecutiveFailures;
+                    }
+                    
+                    if (failures >= _options.FailureThreshold)
+                    {
+                        _logger.LogWarning("连接健康检查失败次数达到阈值，尝试重连");
+                        await EnsureConnectedAsync();
+                    }
+                    return;
+                }
+
+                // 尝试读取一个测试位（DB1.DBX0.0）
+                var stopwatch = Stopwatch.StartNew();
+                await ReadBitAsync("DB1", 0, 0);
+                stopwatch.Stop();
+
+                lock (_healthLock)
+                {
+                    _health.LastSuccessfulRead = _clock.LocalNow;
+                    _health.ConsecutiveFailures = 0;
+                    _health.IsConnected = true;
+                    _health.AverageReadTime = stopwatch.Elapsed;
+                }
+
+                _logger.LogTrace("健康检查成功，读取时间: {ReadTime}ms", stopwatch.Elapsed.TotalMilliseconds);
+            },
+            operationName: "S7HealthCheck",
+            cancellationToken: CancellationToken.None
+        );
     }
 
     /// <summary>
@@ -167,14 +285,44 @@ public class S7Connection : IDisposable
             throw new InvalidOperationException("PLC未连接");
         }
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             var address = $"{dbNumber}.DBX{byteAddress}.{bitAddress}";
             var result = await Task.Run(() => _plc!.Read(address), cancellationToken);
+            
+            stopwatch.Stop();
+            
+            // 记录性能指标（线程安全）
+            if (_options.EnablePerformanceMetrics)
+            {
+                lock (_metricsLock)
+                {
+                    _metrics.TotalReads++;
+                    _metrics.TotalReadTime += stopwatch.Elapsed;
+                }
+                
+                lock (_healthLock)
+                {
+                    _health.LastSuccessfulRead = _clock.LocalNow;
+                }
+            }
+            
             return result != null && (bool)result;
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
+            
+            // 记录失败指标（线程安全）
+            if (_options.EnablePerformanceMetrics)
+            {
+                lock (_metricsLock)
+                {
+                    _metrics.FailedReads++;
+                }
+            }
+            
             _logger.LogError(ex, "读取PLC位失败: {DbNumber}.DBX{Byte}.{Bit}",
                 dbNumber, byteAddress, bitAddress);
             throw;
@@ -196,13 +344,42 @@ public class S7Connection : IDisposable
             throw new InvalidOperationException("PLC未连接");
         }
 
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             var address = $"{dbNumber}.DBX{byteAddress}.{bitAddress}";
             await Task.Run(() => _plc!.Write(address, value), cancellationToken);
+            
+            stopwatch.Stop();
+            
+            // 记录性能指标（线程安全）
+            if (_options.EnablePerformanceMetrics)
+            {
+                lock (_metricsLock)
+                {
+                    _metrics.TotalWrites++;
+                    _metrics.TotalWriteTime += stopwatch.Elapsed;
+                }
+                
+                lock (_healthLock)
+                {
+                    _health.LastSuccessfulWrite = _clock.LocalNow;
+                }
+            }
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
+            
+            // 记录失败指标（线程安全）
+            if (_options.EnablePerformanceMetrics)
+            {
+                lock (_metricsLock)
+                {
+                    _metrics.FailedWrites++;
+                }
+            }
+            
             _logger.LogError(ex, "写入PLC位失败: {DbNumber}.DBX{Byte}.{Bit} = {Value}",
                 dbNumber, byteAddress, bitAddress, value);
             throw;
@@ -279,6 +456,45 @@ public class S7Connection : IDisposable
     }
 
     /// <summary>
+    /// 获取连接健康状态
+    /// </summary>
+    /// <returns>连接健康状态</returns>
+    public S7ConnectionHealth GetHealth()
+    {
+        lock (_healthLock)
+        {
+            return new S7ConnectionHealth
+            {
+                IsConnected = _health.IsConnected,
+                LastSuccessfulRead = _health.LastSuccessfulRead,
+                LastSuccessfulWrite = _health.LastSuccessfulWrite,
+                ConsecutiveFailures = _health.ConsecutiveFailures,
+                AverageReadTime = _health.AverageReadTime
+            };
+        }
+    }
+
+    /// <summary>
+    /// 获取性能指标
+    /// </summary>
+    /// <returns>性能指标</returns>
+    public S7PerformanceMetrics GetMetrics()
+    {
+        lock (_metricsLock)
+        {
+            return new S7PerformanceMetrics
+            {
+                TotalReads = _metrics.TotalReads,
+                TotalWrites = _metrics.TotalWrites,
+                FailedReads = _metrics.FailedReads,
+                FailedWrites = _metrics.FailedWrites,
+                TotalReadTime = _metrics.TotalReadTime,
+                TotalWriteTime = _metrics.TotalWriteTime
+            };
+        }
+    }
+
+    /// <summary>
     /// 释放资源
     /// </summary>
     public void Dispose()
@@ -288,9 +504,101 @@ public class S7Connection : IDisposable
             return;
         }
 
+        _healthCheckTimer?.Dispose();
         Disconnect();
         _connectionLock.Dispose();
         _disposed = true;
         GC.SuppressFinalize(this);
     }
+}
+
+/// <summary>
+/// S7连接健康状态
+/// </summary>
+public class S7ConnectionHealth
+{
+    /// <summary>
+    /// 是否已连接
+    /// </summary>
+    public bool IsConnected { get; set; }
+
+    /// <summary>
+    /// 最后一次成功读取时间
+    /// </summary>
+    public DateTime LastSuccessfulRead { get; set; }
+
+    /// <summary>
+    /// 最后一次成功写入时间
+    /// </summary>
+    public DateTime LastSuccessfulWrite { get; set; }
+
+    /// <summary>
+    /// 连续失败次数
+    /// </summary>
+    public int ConsecutiveFailures { get; set; }
+
+    /// <summary>
+    /// 平均读取时间
+    /// </summary>
+    public TimeSpan AverageReadTime { get; set; }
+}
+
+/// <summary>
+/// S7性能指标
+/// </summary>
+public class S7PerformanceMetrics
+{
+    /// <summary>
+    /// 总读取次数
+    /// </summary>
+    public long TotalReads { get; set; }
+
+    /// <summary>
+    /// 总写入次数
+    /// </summary>
+    public long TotalWrites { get; set; }
+
+    /// <summary>
+    /// 失败读取次数
+    /// </summary>
+    public long FailedReads { get; set; }
+
+    /// <summary>
+    /// 失败写入次数
+    /// </summary>
+    public long FailedWrites { get; set; }
+
+    /// <summary>
+    /// 总读取时间
+    /// </summary>
+    public TimeSpan TotalReadTime { get; set; }
+
+    /// <summary>
+    /// 总写入时间
+    /// </summary>
+    public TimeSpan TotalWriteTime { get; set; }
+
+    /// <summary>
+    /// 平均读取时间（毫秒）
+    /// </summary>
+    public double AverageReadTimeMs =>
+        TotalReads > 0 ? TotalReadTime.TotalMilliseconds / TotalReads : 0;
+
+    /// <summary>
+    /// 平均写入时间（毫秒）
+    /// </summary>
+    public double AverageWriteTimeMs =>
+        TotalWrites > 0 ? TotalWriteTime.TotalMilliseconds / TotalWrites : 0;
+
+    /// <summary>
+    /// 读取成功率（百分比）
+    /// </summary>
+    public double ReadSuccessRate =>
+        TotalReads > 0 ? (TotalReads - FailedReads) * 100.0 / TotalReads : 100;
+
+    /// <summary>
+    /// 写入成功率（百分比）
+    /// </summary>
+    public double WriteSuccessRate =>
+        TotalWrites > 0 ? (TotalWrites - FailedWrites) * 100.0 / TotalWrites : 100;
 }
