@@ -136,13 +136,16 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             configuration.GetSection(Observability.Tracing.LogCleanupOptions.SectionName));
         services.AddLogCleanup();
 
-        // 7. 注册所有配置仓储
+        // 7. 添加配置审计日志服务
+        services.AddConfigurationAuditLogger();
+
+        // 8. 注册所有配置仓储
         services.AddConfigurationRepositories(configuration);
 
-        // 8. 注册应用层服务（调用 ApplicationServiceExtensions）
+        // 9. 注册应用层服务（调用 ApplicationServiceExtensions）
         services.AddWheelDiverterApplication();
 
-        // 9. 注册分拣服务
+        // 10. 注册分拣服务
         services.AddSortingServices(configuration);
 
         // 10. 根据运行模式注册驱动器服务

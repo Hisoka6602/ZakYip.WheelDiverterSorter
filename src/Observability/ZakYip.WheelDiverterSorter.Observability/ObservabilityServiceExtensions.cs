@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -89,6 +90,18 @@ public static class ObservabilityServiceExtensions
     {
         services.AddSingleton<ILogCleanupPolicy, DefaultLogCleanupPolicy>();
         services.AddHostedService<LogCleanupHostedService>();
+        return services;
+    }
+
+    /// <summary>
+    /// 添加配置审计日志服务
+    /// Add configuration audit logger to the service collection
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddConfigurationAuditLogger(this IServiceCollection services)
+    {
+        services.AddSingleton<IConfigurationAuditLogger, ConfigurationAuditLogger>();
         return services;
     }
 }

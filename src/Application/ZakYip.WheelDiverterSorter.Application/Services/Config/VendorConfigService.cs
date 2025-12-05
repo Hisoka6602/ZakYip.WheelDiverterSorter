@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -26,6 +27,7 @@ public sealed class VendorConfigService : IVendorConfigService
     private readonly IWheelDiverterConfigurationRepository _wheelRepository;
     private readonly ISlidingConfigCache _configCache;
     private readonly ILogger<VendorConfigService> _logger;
+    private readonly IConfigurationAuditLogger _auditLogger;
 
     /// <summary>
     /// 构造函数
@@ -35,13 +37,15 @@ public sealed class VendorConfigService : IVendorConfigService
         ISensorConfigurationRepository sensorRepository,
         IWheelDiverterConfigurationRepository wheelRepository,
         ISlidingConfigCache configCache,
-        ILogger<VendorConfigService> logger)
+        ILogger<VendorConfigService> logger,
+        IConfigurationAuditLogger auditLogger)
     {
         _driverRepository = driverRepository ?? throw new ArgumentNullException(nameof(driverRepository));
         _sensorRepository = sensorRepository ?? throw new ArgumentNullException(nameof(sensorRepository));
         _wheelRepository = wheelRepository ?? throw new ArgumentNullException(nameof(wheelRepository));
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
     }
 
     #region IO驱动器配置
@@ -57,6 +61,9 @@ public sealed class VendorConfigService : IVendorConfigService
     {
         ArgumentNullException.ThrowIfNull(config);
 
+        // 获取修改前的配置
+        var beforeConfig = _driverRepository.Get();
+
         var (isValid, errorMessage) = config.Validate();
         if (!isValid)
         {
@@ -70,6 +77,13 @@ public sealed class VendorConfigService : IVendorConfigService
         var updatedConfig = _driverRepository.Get();
         _configCache.Set(DriverConfigCacheKey, updatedConfig);
 
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "DriverConfiguration",
+            operationType: "Update",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
+
         _logger.LogInformation(
             "IO驱动器配置已更新（热更新生效）: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
             updatedConfig.VendorType,
@@ -80,12 +94,22 @@ public sealed class VendorConfigService : IVendorConfigService
     /// <inheritdoc/>
     public DriverConfiguration ResetDriverConfiguration()
     {
+        // 获取重置前的配置
+        var beforeConfig = _driverRepository.Get();
+
         var defaultConfig = DriverConfiguration.GetDefault();
         _driverRepository.Update(defaultConfig);
 
         // 热更新：立即刷新缓存
         var updatedConfig = _driverRepository.Get();
         _configCache.Set(DriverConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "DriverConfiguration",
+            operationType: "Reset",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation("IO驱动器配置已重置为默认值（热更新生效）");
 
@@ -107,6 +131,9 @@ public sealed class VendorConfigService : IVendorConfigService
     {
         ArgumentNullException.ThrowIfNull(config);
 
+        // 获取修改前的配置
+        var beforeConfig = _sensorRepository.Get();
+
         var (isValid, errorMessage) = config.Validate();
         if (!isValid)
         {
@@ -120,6 +147,13 @@ public sealed class VendorConfigService : IVendorConfigService
         var updatedConfig = _sensorRepository.Get();
         _configCache.Set(SensorConfigCacheKey, updatedConfig);
 
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "SensorConfiguration",
+            operationType: "Update",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
+
         _logger.LogInformation(
             "感应IO配置已更新（热更新生效）: SensorCount={SensorCount}, Version={Version}",
             updatedConfig.Sensors?.Count ?? 0,
@@ -129,12 +163,22 @@ public sealed class VendorConfigService : IVendorConfigService
     /// <inheritdoc/>
     public SensorConfiguration ResetSensorConfiguration()
     {
+        // 获取重置前的配置
+        var beforeConfig = _sensorRepository.Get();
+
         var defaultConfig = SensorConfiguration.GetDefault();
         _sensorRepository.Update(defaultConfig);
 
         // 热更新：立即刷新缓存
         var updatedConfig = _sensorRepository.Get();
         _configCache.Set(SensorConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "SensorConfiguration",
+            operationType: "Reset",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation("感应IO配置已重置为默认值（热更新生效）");
 
@@ -156,6 +200,9 @@ public sealed class VendorConfigService : IVendorConfigService
     {
         ArgumentNullException.ThrowIfNull(config);
 
+        // 获取修改前的配置
+        var beforeConfig = _wheelRepository.Get();
+
         var (isValid, errorMessage) = config.Validate();
         if (!isValid)
         {
@@ -168,6 +215,13 @@ public sealed class VendorConfigService : IVendorConfigService
         // 热更新：立即刷新缓存
         var updatedConfig = _wheelRepository.Get();
         _configCache.Set(WheelDiverterConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "WheelDiverterConfiguration",
+            operationType: "Update",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation(
             "摆轮配置已更新（热更新生效）: VendorType={VendorType}, Version={Version}",
@@ -185,6 +239,9 @@ public sealed class VendorConfigService : IVendorConfigService
     public void UpdateShuDiNiaoConfiguration(ShuDiNiaoWheelDiverterConfig shuDiNiaoConfig)
     {
         ArgumentNullException.ThrowIfNull(shuDiNiaoConfig);
+
+        // 获取修改前的配置
+        var beforeConfig = _wheelRepository.Get();
 
         var config = _wheelRepository.Get();
         config.ShuDiNiao = shuDiNiaoConfig;
@@ -205,6 +262,13 @@ public sealed class VendorConfigService : IVendorConfigService
         // 热更新：立即刷新缓存
         var updatedConfig = _wheelRepository.Get();
         _configCache.Set(WheelDiverterConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "WheelDiverterConfiguration.ShuDiNiao",
+            operationType: "Update",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation(
             "数递鸟摆轮配置已更新（热更新生效）: 设备数量={DeviceCount}",

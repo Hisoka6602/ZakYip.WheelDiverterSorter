@@ -13,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Validation;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -34,6 +35,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
     private readonly ISlidingConfigCache _configCache;
     private readonly ISystemClock _systemClock;
     private readonly ILogger<IoLinkageConfigService> _logger;
+    private readonly IConfigurationAuditLogger _auditLogger;
 
     public IoLinkageConfigService(
         IIoLinkageConfigurationRepository repository,
@@ -41,7 +43,8 @@ public class IoLinkageConfigService : IIoLinkageConfigService
         IIoLinkageCoordinator ioLinkageCoordinator,
         ISlidingConfigCache configCache,
         ISystemClock systemClock,
-        ILogger<IoLinkageConfigService> logger)
+        ILogger<IoLinkageConfigService> logger,
+        IConfigurationAuditLogger auditLogger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _ioLinkageDriver = ioLinkageDriver ?? throw new ArgumentNullException(nameof(ioLinkageDriver));
@@ -49,6 +52,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
     }
 
     /// <inheritdoc />
@@ -62,6 +66,9 @@ public class IoLinkageConfigService : IIoLinkageConfigService
     {
         try
         {
+            // 获取修改前的配置
+            var beforeConfig = _repository.Get();
+
             // 将命令映射到域配置模型
             var config = MapToConfiguration(command);
 
@@ -71,6 +78,13 @@ public class IoLinkageConfigService : IIoLinkageConfigService
             // 热更新：立即刷新缓存
             var updatedConfig = _repository.Get();
             _configCache.Set(IoLinkageConfigCacheKey, updatedConfig);
+
+            // 记录配置审计日志
+            _auditLogger.LogConfigurationChange(
+                configName: "IoLinkageConfiguration",
+                operationType: "Update",
+                beforeConfig: beforeConfig,
+                afterConfig: updatedConfig);
 
             _logger.LogInformation(
                 "IO 联动配置已更新（热更新生效）: Enabled={Enabled}, RunningIos={RunningCount}, StoppedIos={StoppedCount}, " +

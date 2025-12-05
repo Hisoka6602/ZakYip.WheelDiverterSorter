@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -24,19 +25,22 @@ public class SystemConfigService : ISystemConfigService
     private readonly ISlidingConfigCache _configCache;
     private readonly ILogger<SystemConfigService> _logger;
     private readonly ISystemClock _systemClock;
+    private readonly IConfigurationAuditLogger _auditLogger;
 
     public SystemConfigService(
         ISystemConfigurationRepository repository,
         IRouteConfigurationRepository routeRepository,
         ISlidingConfigCache configCache,
         ILogger<SystemConfigService> logger,
-        ISystemClock systemClock)
+        ISystemClock systemClock,
+        IConfigurationAuditLogger auditLogger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _routeRepository = routeRepository ?? throw new ArgumentNullException(nameof(routeRepository));
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
     }
 
     public SystemConfiguration GetSystemConfig()
@@ -54,6 +58,9 @@ public class SystemConfigService : ISystemConfigService
         await Task.Yield();
         try
         {
+            // 获取修改前的配置
+            var beforeConfig = _repository.Get();
+
             var config = MapToConfiguration(request);
 
             // 验证配置
@@ -90,6 +97,13 @@ public class SystemConfigService : ISystemConfigService
             var updatedConfig = _repository.Get();
             _configCache.Set(SystemConfigCacheKey, updatedConfig);
 
+            // 记录配置审计日志
+            _auditLogger.LogConfigurationChange(
+                configName: "SystemConfiguration",
+                operationType: "Update",
+                beforeConfig: beforeConfig,
+                afterConfig: updatedConfig);
+
             _logger.LogInformation(
                 "系统配置已更新（热更新生效）: ExceptionChuteId={ExceptionChuteId}, Version={Version}",
                 updatedConfig.ExceptionChuteId,
@@ -112,6 +126,10 @@ public class SystemConfigService : ISystemConfigService
     public async Task<SystemConfiguration> ResetSystemConfigAsync()
     {
         await Task.Yield();
+        
+        // 获取重置前的配置
+        var beforeConfig = _repository.Get();
+        
         var defaultConfig = SystemConfiguration.GetDefault();
         
         // 设置更新时间（通过 ISystemClock.LocalNow）
@@ -122,6 +140,13 @@ public class SystemConfigService : ISystemConfigService
         // 热更新：立即刷新缓存
         var updatedConfig = _repository.Get();
         _configCache.Set(SystemConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "SystemConfiguration",
+            operationType: "Reset",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation("系统配置已重置为默认值（热更新生效）");
 
@@ -149,6 +174,9 @@ public class SystemConfigService : ISystemConfigService
                 return new SortingModeUpdateResult(false, error, null);
             }
 
+            // 获取修改前的配置
+            var beforeConfig = _repository.Get();
+
             // 获取当前配置
             var config = _repository.Get();
 
@@ -174,6 +202,13 @@ public class SystemConfigService : ISystemConfigService
             // 热更新：立即刷新缓存
             var updatedConfig = _repository.Get();
             _configCache.Set(SystemConfigCacheKey, updatedConfig);
+
+            // 记录配置审计日志
+            _auditLogger.LogConfigurationChange(
+                configName: "SystemConfiguration.SortingMode",
+                operationType: "Update",
+                beforeConfig: beforeConfig,
+                afterConfig: updatedConfig);
 
             _logger.LogInformation(
                 "分拣模式已更新（热更新生效）: SortingMode={SortingMode}, FixedChuteId={FixedChuteId}, AvailableChuteIds={AvailableChuteIds}",
