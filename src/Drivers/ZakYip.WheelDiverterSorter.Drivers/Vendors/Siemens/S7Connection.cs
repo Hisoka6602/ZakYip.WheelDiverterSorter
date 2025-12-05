@@ -5,7 +5,9 @@ using System.Diagnostics;
 using System.Net.Sockets;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 
@@ -16,6 +18,8 @@ public class S7Connection : IDisposable
 {
     private readonly ILogger<S7Connection> _logger;
     private readonly IOptionsMonitor<S7Options> _optionsMonitor;
+    private readonly ISystemClock _clock;
+    private readonly ISafeExecutionService _safeExecutor;
     private S7Options _options;
     private Plc? _plc;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
@@ -23,6 +27,8 @@ public class S7Connection : IDisposable
     private Timer? _healthCheckTimer;
     private readonly S7ConnectionHealth _health = new();
     private readonly S7PerformanceMetrics _metrics = new();
+    private readonly object _healthLock = new();
+    private readonly object _metricsLock = new();
 
     /// <summary>
     /// 连接是否已建立
@@ -34,10 +40,18 @@ public class S7Connection : IDisposable
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="optionsMonitor">S7配置选项监视器（支持热更新）</param>
-    public S7Connection(ILogger<S7Connection> logger, IOptionsMonitor<S7Options> optionsMonitor)
+    /// <param name="clock">系统时钟</param>
+    /// <param name="safeExecutor">安全执行服务</param>
+    public S7Connection(
+        ILogger<S7Connection> logger, 
+        IOptionsMonitor<S7Options> optionsMonitor,
+        ISystemClock clock,
+        ISafeExecutionService safeExecutor)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _optionsMonitor = optionsMonitor ?? throw new ArgumentNullException(nameof(optionsMonitor));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _options = _optionsMonitor.CurrentValue;
 
         // 监听配置变更
@@ -65,18 +79,12 @@ public class S7Connection : IDisposable
         // 断开当前连接
         Disconnect();
 
-        // 尝试使用新配置重新连接
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await EnsureConnectedAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "配置变更后重新连接失败");
-            }
-        });
+        // 使用 SafeExecutionService 包裹重连任务
+        _ = _safeExecutor.ExecuteAsync(
+            async () => await EnsureConnectedAsync(),
+            operationName: "S7ConfigReload",
+            cancellationToken: CancellationToken.None
+        );
 
         // 更新健康检查定时器
         if (_options.EnableHealthCheck && _healthCheckTimer == null)
@@ -97,47 +105,51 @@ public class S7Connection : IDisposable
     /// <summary>
     /// 执行健康检查
     /// </summary>
-    private async void PerformHealthCheckAsync(object? state)
+    private void PerformHealthCheckAsync(object? state)
     {
-        try
-        {
-            if (!IsConnected)
+        _ = _safeExecutor.ExecuteAsync(
+            async () =>
             {
-                _health.IsConnected = false;
-                _health.ConsecutiveFailures++;
-                
-                if (_health.ConsecutiveFailures >= _options.FailureThreshold)
+                if (!IsConnected)
                 {
-                    _logger.LogWarning("连接健康检查失败次数达到阈值，尝试重连");
-                    await EnsureConnectedAsync();
+                    lock (_healthLock)
+                    {
+                        _health.IsConnected = false;
+                        _health.ConsecutiveFailures++;
+                    }
+                    
+                    int failures;
+                    lock (_healthLock)
+                    {
+                        failures = _health.ConsecutiveFailures;
+                    }
+                    
+                    if (failures >= _options.FailureThreshold)
+                    {
+                        _logger.LogWarning("连接健康检查失败次数达到阈值，尝试重连");
+                        await EnsureConnectedAsync();
+                    }
+                    return;
                 }
-                return;
-            }
 
-            // 尝试读取一个测试位（DB1.DBX0.0）
-            var stopwatch = Stopwatch.StartNew();
-            await ReadBitAsync("DB1", 0, 0);
-            stopwatch.Stop();
+                // 尝试读取一个测试位（DB1.DBX0.0）
+                var stopwatch = Stopwatch.StartNew();
+                await ReadBitAsync("DB1", 0, 0);
+                stopwatch.Stop();
 
-            _health.LastSuccessfulRead = DateTime.UtcNow;
-            _health.ConsecutiveFailures = 0;
-            _health.IsConnected = true;
-            _health.AverageReadTime = stopwatch.Elapsed;
+                lock (_healthLock)
+                {
+                    _health.LastSuccessfulRead = _clock.LocalNow;
+                    _health.ConsecutiveFailures = 0;
+                    _health.IsConnected = true;
+                    _health.AverageReadTime = stopwatch.Elapsed;
+                }
 
-            _logger.LogTrace("健康检查成功，读取时间: {ReadTime}ms", stopwatch.Elapsed.TotalMilliseconds);
-        }
-        catch (Exception ex)
-        {
-            _health.ConsecutiveFailures++;
-            _health.IsConnected = false;
-            _logger.LogWarning(ex, "健康检查失败 (连续失败次数: {FailureCount})", _health.ConsecutiveFailures);
-
-            if (_health.ConsecutiveFailures >= _options.FailureThreshold)
-            {
-                _logger.LogError("连接健康检查失败次数达到阈值，尝试重连");
-                await EnsureConnectedAsync();
-            }
-        }
+                _logger.LogTrace("健康检查成功，读取时间: {ReadTime}ms", stopwatch.Elapsed.TotalMilliseconds);
+            },
+            operationName: "S7HealthCheck",
+            cancellationToken: CancellationToken.None
+        );
     }
 
     /// <summary>
@@ -281,12 +293,19 @@ public class S7Connection : IDisposable
             
             stopwatch.Stop();
             
-            // 记录性能指标
+            // 记录性能指标（线程安全）
             if (_options.EnablePerformanceMetrics)
             {
-                _metrics.TotalReads++;
-                _metrics.TotalReadTime += stopwatch.Elapsed;
-                _health.LastSuccessfulRead = DateTime.UtcNow;
+                lock (_metricsLock)
+                {
+                    _metrics.TotalReads++;
+                    _metrics.TotalReadTime += stopwatch.Elapsed;
+                }
+                
+                lock (_healthLock)
+                {
+                    _health.LastSuccessfulRead = _clock.LocalNow;
+                }
             }
             
             return result != null && (bool)result;
@@ -295,10 +314,13 @@ public class S7Connection : IDisposable
         {
             stopwatch.Stop();
             
-            // 记录失败指标
+            // 记录失败指标（线程安全）
             if (_options.EnablePerformanceMetrics)
             {
-                _metrics.FailedReads++;
+                lock (_metricsLock)
+                {
+                    _metrics.FailedReads++;
+                }
             }
             
             _logger.LogError(ex, "读取PLC位失败: {DbNumber}.DBX{Byte}.{Bit}",
@@ -330,22 +352,32 @@ public class S7Connection : IDisposable
             
             stopwatch.Stop();
             
-            // 记录性能指标
+            // 记录性能指标（线程安全）
             if (_options.EnablePerformanceMetrics)
             {
-                _metrics.TotalWrites++;
-                _metrics.TotalWriteTime += stopwatch.Elapsed;
-                _health.LastSuccessfulWrite = DateTime.UtcNow;
+                lock (_metricsLock)
+                {
+                    _metrics.TotalWrites++;
+                    _metrics.TotalWriteTime += stopwatch.Elapsed;
+                }
+                
+                lock (_healthLock)
+                {
+                    _health.LastSuccessfulWrite = _clock.LocalNow;
+                }
             }
         }
         catch (Exception ex)
         {
             stopwatch.Stop();
             
-            // 记录失败指标
+            // 记录失败指标（线程安全）
             if (_options.EnablePerformanceMetrics)
             {
-                _metrics.FailedWrites++;
+                lock (_metricsLock)
+                {
+                    _metrics.FailedWrites++;
+                }
             }
             
             _logger.LogError(ex, "写入PLC位失败: {DbNumber}.DBX{Byte}.{Bit} = {Value}",
@@ -429,14 +461,17 @@ public class S7Connection : IDisposable
     /// <returns>连接健康状态</returns>
     public S7ConnectionHealth GetHealth()
     {
-        return new S7ConnectionHealth
+        lock (_healthLock)
         {
-            IsConnected = _health.IsConnected,
-            LastSuccessfulRead = _health.LastSuccessfulRead,
-            LastSuccessfulWrite = _health.LastSuccessfulWrite,
-            ConsecutiveFailures = _health.ConsecutiveFailures,
-            AverageReadTime = _health.AverageReadTime
-        };
+            return new S7ConnectionHealth
+            {
+                IsConnected = _health.IsConnected,
+                LastSuccessfulRead = _health.LastSuccessfulRead,
+                LastSuccessfulWrite = _health.LastSuccessfulWrite,
+                ConsecutiveFailures = _health.ConsecutiveFailures,
+                AverageReadTime = _health.AverageReadTime
+            };
+        }
     }
 
     /// <summary>
@@ -445,15 +480,18 @@ public class S7Connection : IDisposable
     /// <returns>性能指标</returns>
     public S7PerformanceMetrics GetMetrics()
     {
-        return new S7PerformanceMetrics
+        lock (_metricsLock)
         {
-            TotalReads = _metrics.TotalReads,
-            TotalWrites = _metrics.TotalWrites,
-            FailedReads = _metrics.FailedReads,
-            FailedWrites = _metrics.FailedWrites,
-            TotalReadTime = _metrics.TotalReadTime,
-            TotalWriteTime = _metrics.TotalWriteTime
-        };
+            return new S7PerformanceMetrics
+            {
+                TotalReads = _metrics.TotalReads,
+                TotalWrites = _metrics.TotalWrites,
+                FailedReads = _metrics.FailedReads,
+                FailedWrites = _metrics.FailedWrites,
+                TotalReadTime = _metrics.TotalReadTime,
+                TotalWriteTime = _metrics.TotalWriteTime
+            };
+        }
     }
 
     /// <summary>

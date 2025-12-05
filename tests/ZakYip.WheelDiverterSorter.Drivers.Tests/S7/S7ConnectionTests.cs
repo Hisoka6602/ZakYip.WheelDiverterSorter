@@ -2,10 +2,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.S7;
 
@@ -13,12 +15,17 @@ public class S7ConnectionTests
 {
     private readonly Mock<ILogger<S7Connection>> _mockLogger;
     private readonly Mock<IOptionsMonitor<S7Options>> _mockOptionsMonitor;
+    private readonly Mock<ISystemClock> _mockClock;
+    private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
     private readonly S7Options _options;
 
     public S7ConnectionTests()
     {
         _mockLogger = new Mock<ILogger<S7Connection>>();
         _mockOptionsMonitor = new Mock<IOptionsMonitor<S7Options>>();
+        _mockClock = new Mock<ISystemClock>();
+        _mockSafeExecutor = new Mock<ISafeExecutionService>();
+        
         _options = new S7Options
         {
             IpAddress = "192.168.0.100",
@@ -33,13 +40,37 @@ public class S7ConnectionTests
             EnablePerformanceMetrics = true
         };
         _mockOptionsMonitor.Setup(x => x.CurrentValue).Returns(_options);
+        _mockClock.Setup(x => x.LocalNow).Returns(DateTime.Now);
+        
+        // Setup SafeExecutionService to execute the action immediately
+        _mockSafeExecutor
+            .Setup(x => x.ExecuteAsync(
+                It.IsAny<Func<Task>>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<Task>, string, CancellationToken>(async (action, _, __) =>
+            {
+                try
+                {
+                    await action();
+                    return true;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
     }
 
     [Fact]
     public void Constructor_WithValidParameters_CreatesInstance()
     {
         // Act
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Assert
         Assert.NotNull(connection);
@@ -51,7 +82,11 @@ public class S7ConnectionTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new S7Connection(null!, _mockOptionsMonitor.Object));
+            new S7Connection(
+                null!, 
+                _mockOptionsMonitor.Object,
+                _mockClock.Object,
+                _mockSafeExecutor.Object));
     }
 
     [Fact]
@@ -59,14 +94,22 @@ public class S7ConnectionTests
     {
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => 
-            new S7Connection(_mockLogger.Object, null!));
+            new S7Connection(
+                _mockLogger.Object, 
+                null!,
+                _mockClock.Object,
+                _mockSafeExecutor.Object));
     }
 
     [Fact]
     public async Task ConnectAsync_WithInvalidIpAddress_ReturnsFalse()
     {
         // Arrange
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Act
         var result = await connection.ConnectAsync();
@@ -80,7 +123,11 @@ public class S7ConnectionTests
     public void Disconnect_WhenNotConnected_DoesNotThrow()
     {
         // Arrange
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Act & Assert
         connection.Disconnect(); // Should not throw
@@ -90,7 +137,11 @@ public class S7ConnectionTests
     public async Task ReadBitAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Arrange
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -101,7 +152,11 @@ public class S7ConnectionTests
     public async Task WriteBitAsync_WhenNotConnected_ThrowsInvalidOperationException()
     {
         // Arrange
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Act & Assert
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
@@ -112,7 +167,11 @@ public class S7ConnectionTests
     public void GetHealth_ReturnsHealthInfo()
     {
         // Arrange
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Act
         var health = connection.GetHealth();
@@ -127,7 +186,11 @@ public class S7ConnectionTests
     public void GetMetrics_ReturnsMetricsInfo()
     {
         // Arrange
-        var connection = new S7Connection(_mockLogger.Object, _mockOptionsMonitor.Object);
+        var connection = new S7Connection(
+            _mockLogger.Object, 
+            _mockOptionsMonitor.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object);
 
         // Act
         var metrics = connection.GetMetrics();
