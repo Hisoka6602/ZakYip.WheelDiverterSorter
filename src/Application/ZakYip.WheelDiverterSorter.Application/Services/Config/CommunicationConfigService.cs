@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -35,6 +36,7 @@ public class CommunicationConfigService : ICommunicationConfigService
     private readonly IUpstreamConnectionManager? _connectionManager;
     private readonly UpstreamServerBackgroundService? _serverBackgroundService;
     private readonly ILogger<CommunicationConfigService> _logger;
+    private readonly IConfigurationAuditLogger _auditLogger;
 
     public CommunicationConfigService(
         IUpstreamRoutingClient upstreamClient,
@@ -43,6 +45,7 @@ public class CommunicationConfigService : ICommunicationConfigService
         ISlidingConfigCache configCache,
         ISystemClock systemClock,
         ILogger<CommunicationConfigService> logger,
+        IConfigurationAuditLogger auditLogger,
         IUpstreamConnectionManager? connectionManager = null,
         UpstreamServerBackgroundService? serverBackgroundService = null)
     {
@@ -52,6 +55,7 @@ public class CommunicationConfigService : ICommunicationConfigService
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
         _connectionManager = connectionManager;
         _serverBackgroundService = serverBackgroundService;
     }
@@ -67,6 +71,9 @@ public class CommunicationConfigService : ICommunicationConfigService
     {
         try
         {
+            // 获取修改前的配置
+            var beforeConfig = _configRepository.Get();
+
             // 将命令转换为 CommunicationConfiguration
             var config = MapToConfiguration(command);
 
@@ -82,6 +89,13 @@ public class CommunicationConfigService : ICommunicationConfigService
             // 热更新：立即刷新缓存
             var updatedConfig = _configRepository.Get();
             _configCache.Set(CommunicationConfigCacheKey, updatedConfig);
+
+            // 记录配置审计日志
+            _auditLogger.LogConfigurationChange(
+                configName: "CommunicationConfiguration",
+                operationType: "Update",
+                beforeConfig: beforeConfig,
+                afterConfig: updatedConfig);
 
             _logger.LogInformation(
                 "通信配置已更新（热更新生效） - Communication configuration updated: Mode={Mode}, ConnectionMode={ConnectionMode}, Version={Version}",
@@ -155,12 +169,22 @@ public class CommunicationConfigService : ICommunicationConfigService
     /// <inheritdoc />
     public CommunicationConfiguration ResetConfiguration()
     {
+        // 获取重置前的配置
+        var beforeConfig = _configRepository.Get();
+
         var defaultConfig = CommunicationConfiguration.GetDefault();
         _configRepository.Update(defaultConfig);
 
         // 热更新：立即刷新缓存
         var updatedConfig = _configRepository.Get();
         _configCache.Set(CommunicationConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "CommunicationConfiguration",
+            operationType: "Reset",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation("通信配置已重置为默认值（热更新生效） - Communication configuration reset to defaults");
 

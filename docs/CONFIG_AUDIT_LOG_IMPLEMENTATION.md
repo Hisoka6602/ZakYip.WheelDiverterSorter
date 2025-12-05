@@ -56,6 +56,13 @@
 - **UpdateLoggingConfigAsync**: 记录日志配置更新
 - **ResetLoggingConfigAsync**: 记录日志配置重置
 
+### 4. CommunicationConfigService
+- **UpdateConfigurationAsync**: 记录通信配置更新
+- **ResetConfiguration**: 记录通信配置重置
+
+### 5. IoLinkageConfigService
+- **UpdateConfiguration**: 记录 IO 联动配置更新
+
 ## 日志格式示例
 
 ```
@@ -116,6 +123,8 @@
 - `SystemConfigService.cs` (集成审计日志)
 - `VendorConfigService.cs` (集成审计日志)
 - `LoggingConfigService.cs` (集成审计日志)
+- `CommunicationConfigService.cs` (集成审计日志)
+- `IoLinkageConfigService.cs` (集成审计日志)
 - `LoggingConfigServiceTests.cs` (更新测试)
 
 ### 测试结果
@@ -126,10 +135,9 @@
 
 ## 待完善内容（可选后续 PR）
 
-1. **CommunicationConfigService** - 添加审计日志（遵循相同模式）
-2. **IoLinkageConfigService** - 添加审计日志（遵循相同模式）
-3. **文档更新** - 更新 RepositoryStructure.md 记录新增组件
-4. **集成测试** - 验证实际日志文件生成
+1. **文档更新** - 更新 RepositoryStructure.md 记录新增组件
+2. **集成测试** - 验证实际日志文件生成
+3. **敏感信息脱敏** - 如配置包含密码等敏感信息
 
 ## 使用示例
 
