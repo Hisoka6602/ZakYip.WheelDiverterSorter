@@ -204,7 +204,7 @@ public class LoggingConfigServiceTests
         Assert.True(result.EnableAlarmLog);
         Assert.False(result.EnableDebugLog);
         _mockRepository.Verify(r => r.Update(It.IsAny<LoggingConfiguration>()), Times.Once);
-        _mockRepository.Verify(r => r.Get(), Times.Once);
+        _mockRepository.Verify(r => r.Get(), Times.Exactly(2)); // Called once for before config, once for after
     }
 
     #endregion
