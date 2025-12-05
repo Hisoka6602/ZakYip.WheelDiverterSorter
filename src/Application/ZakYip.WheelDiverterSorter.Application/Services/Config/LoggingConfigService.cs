@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
@@ -20,15 +21,18 @@ public class LoggingConfigService : ILoggingConfigService
     private readonly ILoggingConfigurationRepository _repository;
     private readonly ISlidingConfigCache _configCache;
     private readonly ILogger<LoggingConfigService> _logger;
+    private readonly IConfigurationAuditLogger _auditLogger;
 
     public LoggingConfigService(
         ILoggingConfigurationRepository repository,
         ISlidingConfigCache configCache,
-        ILogger<LoggingConfigService> logger)
+        ILogger<LoggingConfigService> logger,
+        IConfigurationAuditLogger auditLogger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _auditLogger = auditLogger ?? throw new ArgumentNullException(nameof(auditLogger));
     }
 
     public LoggingConfiguration GetLoggingConfig()
@@ -46,6 +50,9 @@ public class LoggingConfigService : ILoggingConfigService
         await Task.Yield();
         try
         {
+            // 获取修改前的配置
+            var beforeConfig = _repository.Get();
+
             var config = MapToConfiguration(request);
 
             // 验证配置
@@ -62,6 +69,13 @@ public class LoggingConfigService : ILoggingConfigService
             // 热更新：立即刷新缓存
             var updatedConfig = _repository.Get();
             _configCache.Set(LoggingConfigCacheKey, updatedConfig);
+
+            // 记录配置审计日志
+            _auditLogger.LogConfigurationChange(
+                configName: "LoggingConfiguration",
+                operationType: "Update",
+                beforeConfig: beforeConfig,
+                afterConfig: updatedConfig);
 
             _logger.LogInformation(
                 "日志配置已更新（热更新生效）: ParcelLifecycle={ParcelLifecycle}, ParcelTrace={ParcelTrace}, PathExecution={PathExecution}, Communication={Communication}, Driver={Driver}, Performance={Performance}, Alarm={Alarm}, Debug={Debug}, Version={Version}",
@@ -92,12 +106,23 @@ public class LoggingConfigService : ILoggingConfigService
     public async Task<LoggingConfiguration> ResetLoggingConfigAsync()
     {
         await Task.Yield();
+        
+        // 获取重置前的配置
+        var beforeConfig = _repository.Get();
+        
         var defaultConfig = LoggingConfiguration.GetDefault();
         _repository.Update(defaultConfig);
 
         // 热更新：立即刷新缓存
         var updatedConfig = _repository.Get();
         _configCache.Set(LoggingConfigCacheKey, updatedConfig);
+
+        // 记录配置审计日志
+        _auditLogger.LogConfigurationChange(
+            configName: "LoggingConfiguration",
+            operationType: "Reset",
+            beforeConfig: beforeConfig,
+            afterConfig: updatedConfig);
 
         _logger.LogInformation("日志配置已重置为默认值（热更新生效）");
 

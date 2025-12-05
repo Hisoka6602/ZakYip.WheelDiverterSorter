@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
 
 namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 
@@ -22,6 +23,7 @@ public class LoggingConfigServiceTests
     private readonly Mock<ILoggingConfigurationRepository> _mockRepository;
     private readonly Mock<ISlidingConfigCache> _mockConfigCache;
     private readonly Mock<ILogger<LoggingConfigService>> _mockLogger;
+    private readonly Mock<IConfigurationAuditLogger> _mockAuditLogger;
     private readonly LoggingConfigService _service;
     private readonly LoggingConfiguration _defaultConfig;
 
@@ -30,6 +32,7 @@ public class LoggingConfigServiceTests
         _mockRepository = new Mock<ILoggingConfigurationRepository>();
         _mockConfigCache = new Mock<ISlidingConfigCache>();
         _mockLogger = new Mock<ILogger<LoggingConfigService>>();
+        _mockAuditLogger = new Mock<IConfigurationAuditLogger>();
 
         _defaultConfig = LoggingConfiguration.GetDefault();
         _mockRepository.Setup(r => r.Get()).Returns(_defaultConfig);
@@ -41,7 +44,8 @@ public class LoggingConfigServiceTests
         _service = new LoggingConfigService(
             _mockRepository.Object,
             _mockConfigCache.Object,
-            _mockLogger.Object);
+            _mockLogger.Object,
+            _mockAuditLogger.Object);
     }
 
     #region 获取配置测试
