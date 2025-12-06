@@ -8,22 +8,20 @@ This document explains how to build and deploy a self-contained application that
 
 ## 概述 | Overview
 
-自包含部署（Self-Contained Deployment）将 .NET Runtime 和所有依赖项打包到单个可执行文件中，使应用程序可以在没有安装 .NET SDK 或 Runtime 的机器上运行。
+自包含部署（Self-Contained Deployment）将 .NET Runtime 和所有依赖项打包到发布目录中，使应用程序可以在没有安装 .NET SDK 或 Runtime 的机器上运行。
 
-Self-contained deployment packages the .NET Runtime and all dependencies into a single executable, allowing the application to run on machines without .NET SDK or Runtime installed.
+Self-contained deployment packages the .NET Runtime and all dependencies into the publish directory, allowing the application to run on machines without .NET SDK or Runtime installed.
 
 ### 特性 | Features
 
 - ✅ **无需安装 .NET Runtime** - 应用程序自带运行环境
   - No .NET Runtime installation required - Application includes its own runtime
-- ✅ **单文件部署** - 所有文件打包到一个可执行文件
-  - Single-file deployment - All files packaged into one executable
 - ✅ **跨平台支持** - 支持 Windows 和 Linux
   - Cross-platform support - Supports Windows and Linux
 - ✅ **ReadyToRun 优化** - 提升启动性能
   - ReadyToRun optimization - Improved startup performance
-- ✅ **包含原生库** - 自动解压原生依赖
-  - Includes native libraries - Automatically extracts native dependencies
+- ✅ **原生库支持** - 包含所有必需的原生依赖
+  - Native library support - Includes all required native dependencies
 
 ---
 
@@ -65,8 +63,6 @@ dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSort
   --runtime win-x64 \
   --self-contained true \
   --output ./publish/win-x64 \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
   -p:PublishReadyToRun=true
 ```
 
@@ -78,8 +74,6 @@ dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSort
   --runtime linux-x64 \
   --self-contained true \
   --output ./publish/linux-x64 \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
   -p:PublishReadyToRun=true
 ```
 
@@ -111,16 +105,6 @@ Full list: https://learn.microsoft.com/en-us/dotnet/core/rid-catalog
 
 Packages the .NET Runtime with the application, no Runtime installation required on target machine.
 
-### `-p:PublishSingleFile=true`
-将所有文件打包到单个可执行文件中，简化部署。
-
-Packages all files into a single executable, simplifying deployment.
-
-### `-p:IncludeNativeLibrariesForSelfExtract=true`
-自动解压原生库（如雷赛 LTDMC.dll）到临时目录，确保正常运行。
-
-Automatically extracts native libraries (e.g., Leadshine LTDMC.dll) to temp directory for proper execution.
-
 ### `-p:PublishReadyToRun=true`
 启用 ReadyToRun (R2R) 预编译，减少启动时间和初次执行的 JIT 编译开销。
 
@@ -134,8 +118,8 @@ Enables ReadyToRun (R2R) pre-compilation, reducing startup time and initial JIT 
 
 Self-contained deployment increases output size because it includes the complete .NET Runtime:
 
-- **Windows x64**: ~120-140 MB
-- **Linux x64**: ~120-140 MB
+- **Windows x64**: ~120 MB（多文件目录）
+- **Linux x64**: ~120 MB（多文件目录）
 
 可以通过以下方式减小文件大小：
 
@@ -271,20 +255,26 @@ Self-contained deployment configuration is in `Host.csproj`:
 ```xml
 <PropertyGroup Condition="'$(Configuration)' == 'Release'">
   <SelfContained>true</SelfContained>
-  <PublishSingleFile>true</PublishSingleFile>
-  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   <PublishReadyToRun>true</PublishReadyToRun>
 </PropertyGroup>
 ```
 
-### 临时文件位置 | Temp Files Location
+### 部署文件结构 | Deployment File Structure
 
-单文件应用在首次运行时会解压到临时目录：
+发布后的目录包含应用程序及其所有依赖：
 
-Single-file apps extract to temp directory on first run:
+The published directory contains the application and all its dependencies:
 
-- **Windows**: `%TEMP%\.net\ZakYip.WheelDiverterSorter.Host\`
-- **Linux**: `/tmp/.net/ZakYip.WheelDiverterSorter.Host/`
+```
+publish/
+├── ZakYip.WheelDiverterSorter.Host      # 主可执行文件 / Main executable
+├── ZakYip.WheelDiverterSorter.*.dll     # 应用程序集 / Application assemblies
+├── *.dll                                # .NET Runtime 和依赖库 / Runtime and dependencies
+├── appsettings.json                     # 配置文件 / Configuration files
+└── Vendors/                             # 厂商原生库 / Vendor native libraries
+    └── Leadshine/
+        └── LTDMC.dll
+```
 
 ---
 

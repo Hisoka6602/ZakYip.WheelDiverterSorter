@@ -20,8 +20,6 @@ dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSort
     --runtime linux-x64 \
     --self-contained true \
     --output "$OUTPUT_PATH" \
-    -p:PublishSingleFile=true \
-    -p:IncludeNativeLibrariesForSelfExtract=true \
     -p:PublishReadyToRun=true
 
 if [ $? -eq 0 ]; then

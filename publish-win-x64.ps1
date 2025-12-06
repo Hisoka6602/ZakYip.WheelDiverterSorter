@@ -22,8 +22,6 @@ dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSort
     --runtime win-x64 `
     --self-contained true `
     --output $OutputPath `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:PublishReadyToRun=true
 
 if ($LASTEXITCODE -eq 0) {

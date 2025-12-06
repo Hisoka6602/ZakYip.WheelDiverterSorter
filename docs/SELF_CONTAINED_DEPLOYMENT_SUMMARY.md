@@ -20,10 +20,6 @@ This change enables Self-Contained Deployment for the ZakYip.WheelDiverterSorter
 <PropertyGroup Condition="'$(Configuration)' == 'Release'">
   <!-- 启用自包含部署，包含 .NET Runtime -->
   <SelfContained>true</SelfContained>
-  <!-- 发布为单个可执行文件 -->
-  <PublishSingleFile>true</PublishSingleFile>
-  <!-- 包含原生库自动解压 -->
-  <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   <!-- 启用 ReadyToRun 编译优化 -->
   <PublishReadyToRun>true</PublishReadyToRun>
 </PropertyGroup>
@@ -64,16 +60,6 @@ This change enables Self-Contained Deployment for the ZakYip.WheelDiverterSorter
 
 ### 2. 发布优化 | Publishing Optimizations
 
-#### PublishSingleFile
-- 将所有程序集打包到单个可执行文件
-- 简化部署，减少文件管理复杂度
-- 支持自动解压到临时目录
-
-#### IncludeNativeLibrariesForSelfExtract
-- 包含原生库（如雷赛 LTDMC.dll）
-- 自动解压到运行时临时目录
-- 确保原生互操作正常工作
-
 #### PublishReadyToRun
 - AOT（Ahead-of-Time）预编译优化
 - 减少启动时的 JIT 编译开销
@@ -111,7 +97,8 @@ Time Elapsed 00:00:29.82
 $ ./publish-linux-x64.sh
 发布成功！输出位置: ./publish/linux-x64
 可执行文件: ./publish/linux-x64/ZakYip.WheelDiverterSorter.Host
-可执行文件大小: 132M
+可执行文件大小: 72K
+发布目录总大小: 120M
 ```
 
 ### 运行测试 | Runtime Test
@@ -209,8 +196,6 @@ dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host \
   --runtime linux-x64 \
   --self-contained true \
   --output ./publish/linux-x64 \
-  -p:PublishSingleFile=true \
-  -p:IncludeNativeLibrariesForSelfExtract=true \
   -p:PublishReadyToRun=true
 ```
 
