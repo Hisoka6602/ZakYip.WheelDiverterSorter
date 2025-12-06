@@ -27,6 +27,8 @@
 | [guides/SYSTEM_CONFIG_GUIDE.md](guides/SYSTEM_CONFIG_GUIDE.md) | 系统配置指南 |
 | [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | **上游连接配置（协议字段/时序/超时规则的唯一权威文档）** |
 | [guides/VENDOR_EXTENSION_GUIDE.md](guides/VENDOR_EXTENSION_GUIDE.md) | 厂商扩展开发 |
+| [../SELF_CONTAINED_DEPLOYMENT.md](../SELF_CONTAINED_DEPLOYMENT.md) | **自包含部署指南（无需安装 .NET Runtime）** |
+| [SELF_CONTAINED_DEPLOYMENT_SUMMARY.md](SELF_CONTAINED_DEPLOYMENT_SUMMARY.md) | 自包含部署实施总结 |
 
 ## 上游协议相关文档
 
