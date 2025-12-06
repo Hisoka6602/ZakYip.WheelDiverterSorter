@@ -29,7 +29,10 @@ if [ $? -eq 0 ]; then
     echo -e "\033[36mExecutable: $OUTPUT_PATH/ZakYip.WheelDiverterSorter.Host\033[0m"
     
     # 设置可执行权限
-    chmod +x "$OUTPUT_PATH/ZakYip.WheelDiverterSorter.Host"
+    if ! chmod +x "$OUTPUT_PATH/ZakYip.WheelDiverterSorter.Host"; then
+        echo -e "\n\033[33m警告：无法设置可执行权限，请手动执行: chmod +x $OUTPUT_PATH/ZakYip.WheelDiverterSorter.Host\033[0m"
+        echo -e "\033[33mWarning: Failed to set executable permission, please run manually: chmod +x $OUTPUT_PATH/ZakYip.WheelDiverterSorter.Host\033[0m"
+    fi
     
     # 显示文件大小
     if [ -f "$OUTPUT_PATH/ZakYip.WheelDiverterSorter.Host" ]; then
