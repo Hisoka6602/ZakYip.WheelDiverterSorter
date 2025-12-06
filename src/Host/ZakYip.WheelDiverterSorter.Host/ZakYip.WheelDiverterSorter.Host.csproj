@@ -9,6 +9,18 @@
     <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
+  <!-- 自包含部署配置 (Self-Contained Deployment Configuration) -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <!-- 启用自包含部署，包含 .NET Runtime -->
+    <SelfContained>true</SelfContained>
+    <!-- 发布为单个可执行文件（可选，提升部署体验） -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- 包含调试符号用于生产环境故障诊断 -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- 启用 ReadyToRun 编译，提升启动性能 -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="nlog.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

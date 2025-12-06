@@ -477,6 +477,26 @@ dotnet test
 
 ### 生产环境部署
 
+#### 方式一：自包含部署（推荐）
+
+**无需安装 .NET Runtime**，应用程序自带运行环境：
+
+```bash
+# Windows x64
+.\publish-win-x64.ps1
+.\publish\win-x64\ZakYip.WheelDiverterSorter.Host.exe
+
+# Linux x64
+./publish-linux-x64.sh
+./publish/linux-x64/ZakYip.WheelDiverterSorter.Host
+```
+
+详细说明请参考：[**自包含部署指南 (SELF_CONTAINED_DEPLOYMENT.md)**](SELF_CONTAINED_DEPLOYMENT.md)
+
+#### 方式二：框架依赖部署
+
+**需要预先安装 .NET 8.0 Runtime**：
+
 ```bash
 dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host -c Release -o out/host
 cd out/host
