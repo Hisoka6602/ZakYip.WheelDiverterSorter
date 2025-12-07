@@ -138,6 +138,16 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
+    public Task<bool> RunAsync(CancellationToken cancellationToken = default)
+    {
+        // Leadshine driver doesn't support Run command - this is specific to ShuDiNiao
+        _logger.LogWarning(
+            "摆轮 {DiverterId} (Leadshine) 不支持 Run 命令",
+            DiverterId);
+        throw new NotSupportedException("Leadshine 摆轮驱动器不支持 Run 命令");
+    }
+
+    /// <inheritdoc/>
     public Task<string> GetStatusAsync()
     {
         return Task.FromResult(_currentStatus);

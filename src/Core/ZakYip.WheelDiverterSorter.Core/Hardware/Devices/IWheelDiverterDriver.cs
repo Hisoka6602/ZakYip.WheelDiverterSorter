@@ -56,6 +56,17 @@ public interface IWheelDiverterDriver
     Task<bool> StopAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 启动摆轮运行
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>操作是否成功</returns>
+    /// <remarks>
+    /// 启动摆轮设备运行，具体行为由驱动实现决定。
+    /// 对于不支持此命令的驱动器，应抛出 <see cref="NotSupportedException"/>。
+    /// </remarks>
+    Task<bool> RunAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 获取摆轮当前状态
     /// </summary>
     /// <returns>摆轮状态描述</returns>
