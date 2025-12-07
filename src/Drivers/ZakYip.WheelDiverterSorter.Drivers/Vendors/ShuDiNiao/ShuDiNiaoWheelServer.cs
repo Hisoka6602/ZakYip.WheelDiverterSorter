@@ -23,6 +23,15 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 {
     private const int StopTimeoutSeconds = 5;
     
+    /// <summary>
+    /// 数递鸟摆轮指令写入最小间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 数递鸟摆轮设备要求指令写入间隔不得小于90ms，否则设备可能无法正确处理指令。
+    /// 每个设备独立计算时间间隔。
+    /// </remarks>
+    private const int MinCommandIntervalMs = 90;
+    
     private readonly ILogger<ShuDiNiaoWheelServer> _logger;
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
@@ -229,6 +238,21 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 
         try
         {
+            // 检查命令发送间隔（数递鸟摆轮要求最小90ms间隔）
+            var now = Environment.TickCount64;
+            var elapsedMs = now - device.LastCommandTicks;
+            
+            if (device.LastCommandTicks != 0 && elapsedMs < MinCommandIntervalMs)
+            {
+                _logger.LogWarning(
+                    "[数递鸟服务端-限流] 设备 0x{DeviceAddress:X2} 指令间隔过短，拒绝发送 | 命令={Command} | 距上次指令={ElapsedMs}ms | 最小间隔={MinIntervalMs}ms",
+                    deviceAddress,
+                    command,
+                    elapsedMs,
+                    MinCommandIntervalMs);
+                return false;
+            }
+            
             var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceAddress, command);
             
             _logger.LogInformation(
@@ -239,6 +263,9 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 
             await device.Stream.WriteAsync(frame, cancellationToken);
             await device.Stream.FlushAsync(cancellationToken);
+
+            // 更新最后命令时间
+            device.LastCommandTicks = now;
 
             return true;
         }
@@ -537,5 +564,11 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
         public required NetworkStream Stream { get; init; }
         public required string ClientAddress { get; init; }
         public required DateTime ConnectedAt { get; init; }
+        
+        /// <summary>
+        /// 最后一次发送命令的时间（用于限流控制）
+        /// 使用 Environment.TickCount64 记录，单位为毫秒
+        /// </summary>
+        public long LastCommandTicks { get; set; } = 0;
     }
 }
