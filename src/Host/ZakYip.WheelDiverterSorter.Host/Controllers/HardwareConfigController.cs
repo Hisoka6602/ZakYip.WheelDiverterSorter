@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -559,15 +560,48 @@ public class HardwareConfigController : ControllerBase
     /// </summary>
     /// <param name="request">测试请求</param>
     /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>测试执行结果</returns>
+    /// <returns>测试执行结果，包含每个摆轮的执行状态、连接信息和发送的指令</returns>
     /// <response code="200">测试执行成功</response>
     /// <response code="400">请求参数无效或驱动管理器未注册</response>
     /// <response code="409">系统正在运行中或处于急停状态</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 测试指定摆轮的转向功能，系统运行中或急停状态下禁止使用。
+    /// 
+    /// **响应内容说明**：
+    /// - **connectionInfo**: 摆轮的TCP连接地址（IP:端口格式），例如 "192.168.0.200:200"
+    /// - **commandSent**: 发送到摆轮的实际指令（十六进制格式），例如 "51 52 57 51 52 51 FE"
+    ///   - 指令格式：起始字节(2) + 长度(1) + 设备地址(1) + 消息类型(1) + 命令码(1) + 结束字节(1)
+    ///   - 左转命令码：0x51，右转命令码：0x52，回中命令码：0x53
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "totalCount": 1,
+    ///   "successCount": 1,
+    ///   "failedCount": 0,
+    ///   "results": [
+    ///     {
+    ///       "diverterId": 1,
+    ///       "direction": "Left",
+    ///       "isSuccess": true,
+    ///       "message": "摆轮 1 已执行 Left 操作",
+    ///       "connectionInfo": "192.168.0.200:200",
+    ///       "commandSent": "51 52 57 51 52 51 FE"
+    ///     }
+    ///   ]
+    /// }
+    /// ```
+    /// 
+    /// **注意事项**：
+    /// - 此端点仅用于调试和测试，生产环境使用需谨慎
+    /// - 系统处于运行或急停状态时无法使用
+    /// - 命令会立即发送到物理设备，请确保设备连接正常
+    /// </remarks>
     [HttpPost("shudiniao/test")]
     [SwaggerOperation(
         Summary = "测试数递鸟摆轮转向",
-        Description = "测试指定摆轮的转向功能，系统运行中或急停状态下禁止使用。",
+        Description = "测试指定摆轮的转向功能，返回执行结果及连接信息、发送的指令（十六进制格式）",
         OperationId = "TestShuDiNiaoDiverters",
         Tags = new[] { "硬件配置" }
     )]
@@ -656,6 +690,11 @@ public class HardwareConfigController : ControllerBase
                 return BadRequest(new { message = "摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段" });
             }
 
+            // Get wheel diverter configuration to retrieve connection info
+            var wheelConfig = _wheelRepository.Get();
+            var deviceConfigMap = wheelConfig.ShuDiNiao?.Devices?
+                .ToDictionary(d => d.DiverterId, d => d) ?? new Dictionary<long, ShuDiNiaoDeviceEntry>();
+
             var results = new List<WheelDiverterTestResult>();
             var activeDrivers = _driverManager.GetActiveDrivers();
 
@@ -665,6 +704,27 @@ public class HardwareConfigController : ControllerBase
 
                 try
                 {
+                    // Get device configuration
+                    string? connectionInfo = null;
+                    string? commandSent = null;
+                    
+                    if (deviceConfigMap.TryGetValue(diverterId, out var deviceConfig))
+                    {
+                        connectionInfo = $"{deviceConfig.Host}:{deviceConfig.Port}";
+                        
+                        // Build the protocol command frame to show what would be sent
+                        var command = request.Direction switch
+                        {
+                            DiverterDirection.Left => ShuDiNiaoControlCommand.TurnLeft,
+                            DiverterDirection.Right => ShuDiNiaoControlCommand.TurnRight,
+                            DiverterDirection.Straight => ShuDiNiaoControlCommand.ReturnCenter,
+                            _ => ShuDiNiaoControlCommand.Stop
+                        };
+                        
+                        var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceConfig.DeviceAddress, command);
+                        commandSent = ShuDiNiaoProtocol.FormatBytes(frame);
+                    }
+
                     if (!activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
                     {
                         result = new WheelDiverterTestResult
@@ -672,7 +732,9 @@ public class HardwareConfigController : ControllerBase
                             DiverterId = diverterId,
                             Direction = request.Direction,
                             IsSuccess = false,
-                            Message = $"未找到摆轮 {diverterId} 的驱动器"
+                            Message = $"未找到摆轮 {diverterId} 的驱动器",
+                            ConnectionInfo = connectionInfo,
+                            CommandSent = commandSent
                         };
                         results.Add(result);
                         continue;
@@ -693,21 +755,43 @@ public class HardwareConfigController : ControllerBase
                         IsSuccess = operationSuccess,
                         Message = operationSuccess
                             ? $"摆轮 {diverterId} 已执行 {request.Direction} 操作"
-                            : $"摆轮 {diverterId} 执行 {request.Direction} 操作失败"
+                            : $"摆轮 {diverterId} 执行 {request.Direction} 操作失败",
+                        ConnectionInfo = connectionInfo,
+                        CommandSent = commandSent
                     };
 
                     _logger.LogInformation(
-                        "测试{VendorName}摆轮转向: DiverterId={DiverterId}, Direction={Direction}, Success={Success}",
-                        vendorName, diverterId, request.Direction, operationSuccess);
+                        "测试{VendorName}摆轮转向: DiverterId={DiverterId}, Direction={Direction}, Success={Success}, Connection={Connection}, Command={Command}",
+                        vendorName, diverterId, request.Direction, operationSuccess, connectionInfo, commandSent);
                 }
                 catch (Exception ex)
                 {
+                    // Try to get connection info even on error
+                    string? connectionInfo = null;
+                    string? commandSent = null;
+                    
+                    if (deviceConfigMap.TryGetValue(diverterId, out var deviceConfig))
+                    {
+                        connectionInfo = $"{deviceConfig.Host}:{deviceConfig.Port}";
+                        var command = request.Direction switch
+                        {
+                            DiverterDirection.Left => ShuDiNiaoControlCommand.TurnLeft,
+                            DiverterDirection.Right => ShuDiNiaoControlCommand.TurnRight,
+                            DiverterDirection.Straight => ShuDiNiaoControlCommand.ReturnCenter,
+                            _ => ShuDiNiaoControlCommand.Stop
+                        };
+                        var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceConfig.DeviceAddress, command);
+                        commandSent = ShuDiNiaoProtocol.FormatBytes(frame);
+                    }
+                    
                     result = new WheelDiverterTestResult
                     {
                         DiverterId = diverterId,
                         Direction = request.Direction,
                         IsSuccess = false,
-                        Message = $"摆轮 {diverterId} 执行异常: {ex.Message}"
+                        Message = $"摆轮 {diverterId} 执行异常: {ex.Message}",
+                        ConnectionInfo = connectionInfo,
+                        CommandSent = commandSent
                     };
                     _logger.LogError(ex, "测试{VendorName}摆轮转向异常: DiverterId={DiverterId}", vendorName, diverterId);
                 }
@@ -957,6 +1041,18 @@ public record class WheelDiverterTestResult
     /// 结果消息
     /// </summary>
     public string? Message { get; init; }
+    
+    /// <summary>
+    /// 连接信息（IP:端口）
+    /// </summary>
+    /// <example>192.168.0.200:200</example>
+    public string? ConnectionInfo { get; init; }
+    
+    /// <summary>
+    /// 发送的指令（十六进制格式）
+    /// </summary>
+    /// <example>51 52 57 51 52 51 FE</example>
+    public string? CommandSent { get; init; }
 }
 
 #endregion
