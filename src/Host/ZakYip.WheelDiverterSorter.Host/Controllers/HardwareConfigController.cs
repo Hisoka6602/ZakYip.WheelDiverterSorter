@@ -1020,7 +1020,7 @@ public class HardwareConfigController : ControllerBase
         }
 
         var activeDrivers = _driverManager.GetActiveDrivers();
-        if (activeDrivers.Any())
+        if (activeDrivers != null && activeDrivers.Any())
         {
             // 已经有活动驱动器，无需重新加载
             return;
