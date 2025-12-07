@@ -16,6 +16,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     private readonly ILogger<LeadshineWheelDiverterDriver> _logger;
     private readonly ushort _cardNo;
     private readonly LeadshineDiverterConfig _config;
+    private readonly IEmcController _emcController;
     private string _currentStatus = "未知";
     
     /// <summary>
@@ -35,14 +36,17 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     /// <param name="logger">日志记录器</param>
     /// <param name="cardNo">控制器卡号</param>
     /// <param name="config">摆轮配置</param>
+    /// <param name="emcController">EMC 控制器实例</param>
     public LeadshineWheelDiverterDriver(
         ILogger<LeadshineWheelDiverterDriver> logger,
         ushort cardNo,
-        LeadshineDiverterConfig config)
+        LeadshineDiverterConfig config,
+        IEmcController emcController)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cardNo = cardNo;
         _config = config ?? throw new ArgumentNullException(nameof(config));
+        _emcController = emcController ?? throw new ArgumentNullException(nameof(emcController));
         
         _logger.LogInformation(
             "已初始化雷赛摆轮驱动器 {DiverterId}，卡号={CardNo}，左转={LeftAngle}°，右转={RightAngle}°，直通={PassAngle}°",
@@ -160,6 +164,15 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     {
         try
         {
+            // 检查 EMC 控制器是否已初始化
+            if (!_emcController.IsAvailable())
+            {
+                _logger.LogError(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 无法设置角度：EMC 控制器未初始化或不可用 | 目标角度={Angle}度 | 卡号={CardNo}",
+                    DiverterId, angle, _cardNo);
+                return false;
+            }
+
             _logger.LogInformation(
                 "[摆轮通信-发送] 摆轮 {DiverterId} 开始设置角度 | 目标角度={Angle}度 | 卡号={CardNo}",
                 DiverterId, angle, _cardNo);
@@ -177,7 +190,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
                 if (result != 0)
                 {
                     _logger.LogError(
-                        "[摆轮通信-IO写入] 摆轮 {DiverterId} 写入输出位失败 | 位索引={BitIndex} | 错误码={ErrorCode}",
+                        "[摆轮通信-IO写入] 摆轮 {DiverterId} 写入输出位失败 | 位索引={BitIndex} | 错误码={ErrorCode} | 提示：ErrorCode=9 表示控制卡未初始化",
                         DiverterId, bitIndex, result);
                     return false;
                 }

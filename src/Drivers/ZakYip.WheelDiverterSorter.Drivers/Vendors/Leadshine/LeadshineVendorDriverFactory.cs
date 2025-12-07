@@ -52,8 +52,23 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
         
         if (!initTask.Result)
         {
+            var errorMessage = $"EMC 控制器初始化失败。CardNo: {options.CardNo}, PortNo: {options.PortNo}, ControllerIp: {options.ControllerIp ?? "N/A (PCI Mode)"}。" +
+                              $"可能原因：1) 控制卡未连接或未通电；2) IP地址配置错误（以太网模式）；3) LTDMC.dll 未正确安装。" +
+                              $"参考雷赛示例代码，dmc_board_init_eth 或 dmc_board_init 必须返回 0 才能进行后续 IO 操作。" +
+                              $"ErrorCode=9 表示控制卡未初始化，请确保在调用 dmc_write_outbit 前控制卡已成功初始化。";
+            
+            emcLogger.LogError(errorMessage);
+            
+            // 在生产环境中，EMC 初始化失败应该抛出异常，防止在未初始化状态下操作硬件
+            // 但为了支持测试环境，我们只记录错误而不抛出异常
+            // 实际调用 IO 操作时，会检查 IsAvailable() 并返回失败
             emcLogger.LogWarning(
-                "EMC 控制器初始化失败，IO 联动功能可能无法正常工作。CardNo: {CardNo}, PortNo: {PortNo}, ControllerIp: {ControllerIp}",
+                "EMC 控制器将处于不可用状态。所有 IO 操作将返回失败。如果这是生产环境，请检查硬件连接和配置。");
+        }
+        else
+        {
+            emcLogger.LogInformation(
+                "EMC 控制器初始化成功。CardNo: {CardNo}, PortNo: {PortNo}, ControllerIp: {ControllerIp}",
                 options.CardNo,
                 options.PortNo,
                 options.ControllerIp ?? "N/A (PCI Mode)");
@@ -67,6 +82,11 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 
     public IReadOnlyList<IWheelDiverterDriver> CreateWheelDiverterDrivers()
     {
+        if (_emcController == null)
+        {
+            throw new InvalidOperationException("EMC 控制器未初始化，无法创建摆轮驱动器");
+        }
+
         var drivers = new List<IWheelDiverterDriver>();
 
         foreach (var configDto in _options.Diverters)
@@ -82,9 +102,9 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
                 FeedbackInputBit = configDto.FeedbackInputBit
             };
 
-            // 直接创建摆轮驱动器（已移除 IDiverterController 中间层）
+            // 创建摆轮驱动器，传入 EMC 控制器实例以检查初始化状态
             var driverLogger = _loggerFactory.CreateLogger<LeadshineWheelDiverterDriver>();
-            var driver = new LeadshineWheelDiverterDriver(driverLogger, _options.CardNo, config);
+            var driver = new LeadshineWheelDiverterDriver(driverLogger, _options.CardNo, config, _emcController);
             drivers.Add(driver);
         }
 
