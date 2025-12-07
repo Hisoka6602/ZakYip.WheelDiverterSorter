@@ -107,53 +107,60 @@ public sealed class NetworkConnectivityChecker : INetworkConnectivityChecker
         }
 
         TcpClient? tcpClient = null;
+        CancellationTokenSource? timeoutCts = null;
         try
         {
             tcpClient = new TcpClient();
             var stopwatch = Stopwatch.StartNew();
 
-            // 使用Task.WhenAny实现超时控制
-            var connectTask = tcpClient.ConnectAsync(hostOrIp, port);
-            var timeoutTask = Task.Delay(timeoutMs, cancellationToken);
-            var completedTask = await Task.WhenAny(connectTask, timeoutTask);
+            // 创建组合取消令牌以支持超时和外部取消
+            timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(timeoutMs);
 
+            // 使用取消令牌进行连接，确保超时时能够取消连接操作
+            var connectTask = tcpClient.ConnectAsync(hostOrIp, port, timeoutCts.Token);
+            
+            await connectTask;
+            
             stopwatch.Stop();
 
-            if (completedTask == connectTask)
+            if (tcpClient.Connected)
             {
-                // 连接任务先完成
-                await connectTask; // 重新等待以捕获可能的异常
+                _logger.LogDebug(
+                    "TCP端口连接成功: {Host}:{Port}, 耗时={ElapsedMs}ms", 
+                    hostOrIp, port, stopwatch.ElapsedMilliseconds);
                 
-                if (tcpClient.Connected)
-                {
-                    _logger.LogDebug(
-                        "TCP端口连接成功: {Host}:{Port}, 耗时={ElapsedMs}ms", 
-                        hostOrIp, port, stopwatch.ElapsedMilliseconds);
-                    
-                    return ConnectivityCheckResult.Success(stopwatch.ElapsedMilliseconds);
-                }
-                else
-                {
-                    _logger.LogWarning(
-                        "TCP端口连接失败: {Host}:{Port}", 
-                        hostOrIp, port);
-                    
-                    return ConnectivityCheckResult.Failure(
-                        $"TCP端口连接失败: {hostOrIp}:{port}", 
-                        "TCP_CONNECT_FAILED");
-                }
+                return ConnectivityCheckResult.Success(stopwatch.ElapsedMilliseconds);
             }
             else
             {
-                // 超时
                 _logger.LogWarning(
-                    "TCP端口连接超时: {Host}:{Port}, 超时={TimeoutMs}ms", 
-                    hostOrIp, port, timeoutMs);
+                    "TCP端口连接失败: {Host}:{Port}", 
+                    hostOrIp, port);
                 
                 return ConnectivityCheckResult.Failure(
-                    $"连接超时（{timeoutMs}ms）", 
-                    "TCP_TIMEOUT");
+                    $"TCP端口连接失败: {hostOrIp}:{port}", 
+                    "TCP_CONNECT_FAILED");
             }
+        }
+        catch (OperationCanceledException) when (timeoutCts?.IsCancellationRequested == true && !cancellationToken.IsCancellationRequested)
+        {
+            // 超时取消（不是外部取消令牌触发的）
+            _logger.LogWarning(
+                "TCP端口连接超时: {Host}:{Port}, 超时={TimeoutMs}ms", 
+                hostOrIp, port, timeoutMs);
+            
+            return ConnectivityCheckResult.Failure(
+                $"连接超时（{timeoutMs}ms）", 
+                "TCP_TIMEOUT");
+        }
+        catch (OperationCanceledException)
+        {
+            // 外部取消令牌触发的取消
+            _logger.LogDebug("TCP连接操作被取消: {Host}:{Port}", hostOrIp, port);
+            return ConnectivityCheckResult.Failure(
+                "操作已取消", 
+                "CANCELLED");
         }
         catch (SocketException ex)
         {
@@ -164,13 +171,6 @@ public sealed class NetworkConnectivityChecker : INetworkConnectivityChecker
             return ConnectivityCheckResult.Failure(
                 $"TCP连接失败: {ex.SocketErrorCode} - {ex.Message}", 
                 $"TCP_{ex.SocketErrorCode}");
-        }
-        catch (OperationCanceledException)
-        {
-            _logger.LogDebug("TCP连接操作被取消: {Host}:{Port}", hostOrIp, port);
-            return ConnectivityCheckResult.Failure(
-                "操作已取消", 
-                "CANCELLED");
         }
         catch (Exception ex)
         {
@@ -184,6 +184,7 @@ public sealed class NetworkConnectivityChecker : INetworkConnectivityChecker
         }
         finally
         {
+            timeoutCts?.Dispose();
             tcpClient?.Dispose();
         }
     }
