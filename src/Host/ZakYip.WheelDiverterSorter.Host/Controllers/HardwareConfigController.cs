@@ -602,7 +602,7 @@ public class HardwareConfigController : ControllerBase
     [HttpPost("shudiniao/test")]
     [SwaggerOperation(
         Summary = "测试数递鸟摆轮转向",
-        Description = "测试指定摆轮的转向功能，返回执行结果及连接信息、发送的指令（十六进制格式）",
+        Description = "测试指定摆轮的转向功能，返回执行结果及连接信息、发送的指令（十六进制格式）。会自动从配置加载摆轮驱动器（如果尚未加载）。",
         OperationId = "TestShuDiNiaoDiverters",
         Tags = new[] { "硬件配置" }
     )]
@@ -618,6 +618,9 @@ public class HardwareConfigController : ControllerBase
         [FromBody] WheelDiverterTestRequest request,
         CancellationToken cancellationToken = default)
     {
+        // 确保配置已加载到驱动管理器
+        await EnsureDriversLoadedAsync(cancellationToken);
+        
         return await TestDivertersInternal(request, "数递鸟", cancellationToken);
     }
 
@@ -674,7 +677,7 @@ public class HardwareConfigController : ControllerBase
     [HttpPost("shudiniao/control")]
     [SwaggerOperation(
         Summary = "控制数递鸟摆轮运行/停止",
-        Description = "发送运行或停止命令到指定的数递鸟摆轮，返回执行结果及连接信息、发送的指令（十六进制格式）",
+        Description = "发送运行或停止命令到指定的数递鸟摆轮，返回执行结果及连接信息、发送的指令（十六进制格式）。会自动从配置加载摆轮驱动器（如果尚未加载）。",
         OperationId = "ControlShuDiNiaoDiverters",
         Tags = new[] { "硬件配置" }
     )]
@@ -707,6 +710,9 @@ public class HardwareConfigController : ControllerBase
             {
                 return BadRequest(new { message = "摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段" });
             }
+
+            // 确保配置已加载到驱动管理器
+            await EnsureDriversLoadedAsync(cancellationToken);
 
             var results = new List<WheelDiverterControlResult>();
             var activeDrivers = _driverManager.GetActiveDrivers();
@@ -993,6 +999,46 @@ public class HardwareConfigController : ControllerBase
         {
             _logger.LogError(ex, "测试{VendorName}摆轮转向失败", vendorName);
             return StatusCode(500, new { message = $"测试{vendorName}摆轮转向失败" });
+        }
+    }
+
+    /// <summary>
+    /// 确保摆轮驱动器已从配置加载
+    /// </summary>
+    /// <remarks>
+    /// 如果驱动管理器未初始化或没有活动驱动器，则从配置仓库读取配置并应用到驱动管理器。
+    /// 这样POST /api/hardware/shudiniao/test 和 POST /api/hardware/shudiniao/control 
+    /// 就不需要每次都先调用 PUT /api/hardware/shudiniao 来加载配置。
+    /// </remarks>
+    /// <param name="cancellationToken">取消令牌</param>
+    private async Task EnsureDriversLoadedAsync(CancellationToken cancellationToken)
+    {
+        if (_driverManager == null)
+        {
+            // 仿真模式或系统启动阶段，驱动管理器未注册
+            return;
+        }
+
+        var activeDrivers = _driverManager.GetActiveDrivers();
+        if (activeDrivers.Any())
+        {
+            // 已经有活动驱动器，无需重新加载
+            return;
+        }
+
+        // 从配置仓库读取摆轮配置
+        var config = _wheelRepository.Get();
+        
+        // 只有当配置是数递鸟并且有设备时才加载
+        if (config.VendorType == Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao && 
+            config.ShuDiNiao != null &&
+            config.ShuDiNiao.Devices.Any())
+        {
+            _logger.LogInformation(
+                "自动从配置加载数递鸟摆轮驱动器，设备数量={DeviceCount}",
+                config.ShuDiNiao.Devices.Count);
+            
+            await _driverManager.ApplyConfigurationAsync(config, cancellationToken);
         }
     }
 
