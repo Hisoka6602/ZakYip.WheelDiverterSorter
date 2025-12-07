@@ -18,6 +18,14 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 /// </remarks>
 public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDisposable
 {
+    /// <summary>
+    /// 数递鸟摆轮指令写入最小间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 数递鸟摆轮设备要求指令写入间隔不得小于90ms，否则设备可能无法正确处理指令。
+    /// </remarks>
+    private const int MinCommandIntervalMs = 90;
+    
     private readonly ILogger<ShuDiNiaoWheelDiverterDriver> _logger;
     private readonly ShuDiNiaoDeviceEntry _config;
     private TcpClient? _tcpClient;
@@ -25,6 +33,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private bool _disposed;
     private string _currentStatus = "未连接";
+    private long _lastCommandTicks = 0;
 
     /// <inheritdoc/>
     public string DiverterId => _config.DiverterId.ToString();
@@ -173,6 +182,21 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     {
         try
         {
+            // 检查命令发送间隔（数递鸟摆轮要求最小90ms间隔）
+            var now = Environment.TickCount64;
+            var elapsedMs = now - _lastCommandTicks;
+            
+            if (_lastCommandTicks != 0 && elapsedMs < MinCommandIntervalMs)
+            {
+                _logger.LogWarning(
+                    "[摆轮通信-限流] 摆轮 {DiverterId} 指令间隔过短，拒绝发送 | 命令={Command} | 距上次指令={ElapsedMs}ms | 最小间隔={MinIntervalMs}ms",
+                    DiverterId,
+                    command,
+                    elapsedMs,
+                    MinCommandIntervalMs);
+                return false;
+            }
+            
             // 确保连接建立
             if (!await EnsureConnectedAsync(cancellationToken))
             {
@@ -199,6 +223,9 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
             {
                 await _stream.WriteAsync(frame, cancellationToken);
                 await _stream.FlushAsync(cancellationToken);
+                
+                // 更新最后命令时间
+                _lastCommandTicks = now;
                 
                 _logger.LogInformation(
                     "[摆轮通信-发送完成] 摆轮 {DiverterId} 命令发送成功 | 命令={Command} | 字节数={ByteCount}",

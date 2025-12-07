@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 
@@ -104,6 +105,15 @@ public class WheelDiverterConfiguration
 /// </summary>
 public record class ShuDiNiaoWheelDiverterConfig
 {
+    /// <summary>
+    /// 通信模式（Client=客户端模式，Server=服务端模式）
+    /// </summary>
+    /// <remarks>
+    /// - Client（默认）: 系统作为客户端，主动连接到摆轮设备
+    /// - Server: 系统作为服务端，监听设备连接
+    /// </remarks>
+    public ShuDiNiaoMode Mode { get; init; } = ShuDiNiaoMode.Client;
+    
     /// <summary>
     /// 数递鸟摆轮设备列表
     /// </summary>
