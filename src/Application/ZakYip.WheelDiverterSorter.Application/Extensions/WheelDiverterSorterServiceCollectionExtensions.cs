@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication;
@@ -640,8 +641,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// - Siemens: 西门子 S7 IO 驱动器 + 数递鸟摆轮驱动器
     /// - Mock: 模拟驱动器
     /// 
-    /// 注意：这里我们先注册所有可能的服务，然后在 IO linkage driver 解析时根据配置选择合适的实现。
-    /// 这样可以避免复杂的条件注册逻辑，同时保持灵活性。
+    /// 注意：IO 驱动器会在应用启动时立即初始化，确保连接问题能够及早发现。
     /// </remarks>
     private static IServiceCollection AddProductionModeDrivers(
         this IServiceCollection services,
@@ -665,9 +665,16 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             services.Remove(existingDescriptor);
         }
         
-        // 重新注册为动态版本
+        // 重新注册为动态版本（使用急切初始化）
+        IIoLinkageDriver? eagerDriver = null;
         services.AddSingleton<IIoLinkageDriver>(sp =>
         {
+            // 如果已经初始化过，直接返回
+            if (eagerDriver != null)
+            {
+                return eagerDriver;
+            }
+            
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("DynamicIoLinkageDriver");
             
@@ -678,8 +685,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 if (isTestEnv)
                 {
                     logger.LogInformation("检测到测试环境，使用模拟 IO 联动驱动器");
-                    return new SimulatedIoLinkageDriver(
+                    eagerDriver = new SimulatedIoLinkageDriver(
                         loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                    return eagerDriver;
                 }
                 
                 var driverRepo = sp.GetRequiredService<IDriverConfigurationRepository>();
@@ -698,8 +706,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 if (!useHardware || vendorType == DriverVendorType.Mock)
                 {
                     logger.LogInformation("使用模拟 IO 联动驱动器");
-                    return new SimulatedIoLinkageDriver(
+                    eagerDriver = new SimulatedIoLinkageDriver(
                         loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                    return eagerDriver;
                 }
                 
                 // 根据厂商类型选择驱动器
@@ -708,13 +717,15 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                     case DriverVendorType.Leadshine:
                         logger.LogInformation("使用雷赛 IO 联动驱动器");
                         var emcController = sp.GetRequiredService<IEmcController>();
-                        return new LeadshineIoLinkageDriver(
+                        eagerDriver = new LeadshineIoLinkageDriver(
                             loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
                             emcController);
+                        break;
                     
                     case DriverVendorType.Siemens:
                         logger.LogInformation("使用西门子 S7 IO 联动驱动器");
-                        return CreateS7IoLinkageDriver(sp, configuration, loggerFactory);
+                        eagerDriver = CreateS7IoLinkageDriver(sp, configuration, loggerFactory);
+                        break;
                     
                     default:
                         // 未知厂商类型，回退到雷赛
@@ -722,20 +733,28 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                             "未知的IO驱动器厂商类型: {VendorType}，回退到雷赛驱动器",
                             vendorType);
                         var defaultEmcController = sp.GetRequiredService<IEmcController>();
-                        return new LeadshineIoLinkageDriver(
+                        eagerDriver = new LeadshineIoLinkageDriver(
                             loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
                             defaultEmcController);
+                        break;
                 }
+                
+                logger.LogInformation("IO 联动驱动器初始化完成: {DriverType}", eagerDriver.GetType().Name);
+                return eagerDriver;
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "读取驱动器配置失败，回退到雷赛 IO 联动驱动器");
                 var fallbackEmcController = sp.GetRequiredService<IEmcController>();
-                return new LeadshineIoLinkageDriver(
+                eagerDriver = new LeadshineIoLinkageDriver(
                     loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
                     fallbackEmcController);
+                return eagerDriver;
             }
         });
+        
+        // 注册一个初始化服务，在启动时强制解析 IIoLinkageDriver
+        services.AddHostedService<IoDriverInitializationService>();
         
         return services;
     }
@@ -824,6 +843,52 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         public T Get(string? name) => _currentValue;
         
         public IDisposable? OnChange(Action<T, string?> listener) => null;
+    }
+    
+    /// <summary>
+    /// IO 驱动器初始化服务 - 在应用启动时强制解析和初始化 IO 驱动器
+    /// </summary>
+    private sealed class IoDriverInitializationService : IHostedService
+    {
+        private readonly IServiceProvider _serviceProvider;
+        private readonly ILogger<IoDriverInitializationService> _logger;
+        
+        public IoDriverInitializationService(
+            IServiceProvider serviceProvider,
+            ILogger<IoDriverInitializationService> logger)
+        {
+            _serviceProvider = serviceProvider;
+            _logger = logger;
+        }
+        
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                _logger.LogInformation("正在初始化 IO 联动驱动器...");
+                
+                // 强制解析 IIoLinkageDriver 服务，触发初始化
+                var driver = _serviceProvider.GetRequiredService<IIoLinkageDriver>();
+                
+                _logger.LogInformation(
+                    "IO 联动驱动器初始化成功: {DriverType}",
+                    driver.GetType().Name);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "IO 联动驱动器初始化失败");
+                // 不抛出异常，让应用继续启动，但记录错误
+                // 这样管理员可以看到问题并采取行动
+            }
+            
+            return Task.CompletedTask;
+        }
+        
+        public Task StopAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("IO 驱动器初始化服务停止");
+            return Task.CompletedTask;
+        }
     }
 
     #endregion
