@@ -558,7 +558,60 @@ public async Task<SortingResult> ProcessParcelAsync(string parcelId)
 }
 ```
 
-### 6. 禁止创建"纯转发"Facade/Adapter/Wrapper/Proxy 类型（PR-S2 新增）
+### 6. async 方法必须包含 await 操作符（硬性要求）
+
+**规则**: 
+- 所有 `async` 方法必须在方法体内使用至少一个 `await` 操作符
+- 缺少 `await` 的 `async` 方法会导致编译警告 CS1998，并可能引发运行时问题
+- 如果方法不需要异步操作，应移除 `async` 修饰符并返回 `Task.CompletedTask` 或 `Task.FromResult<T>()`
+
+**禁止行为**:
+- 定义 `async` 方法但方法体内没有任何 `await` 调用
+- 通过 `#pragma warning disable CS1998` 抑制警告而不修复根本问题
+
+**实施要求**:
+```csharp
+// ✅ 正确：async 方法包含 await
+public async Task<bool> ValidateDeviceAsync(string deviceId)
+{
+    var device = await _repository.GetDeviceAsync(deviceId);
+    return device != null && device.IsEnabled;
+}
+
+// ✅ 正确：不需要异步时移除 async 修饰符
+public Task<bool> ValidateDeviceAsync(string deviceId)
+{
+    var device = _repository.GetDevice(deviceId);  // 同步方法
+    return Task.FromResult(device != null && device.IsEnabled);
+}
+
+// ❌ 错误：async 方法缺少 await（CS1998 警告）
+public async Task<bool> ValidateDeviceAsync(string deviceId)
+{
+    var device = _repository.GetDevice(deviceId);  // ❌ 没有 await
+    return device != null && device.IsEnabled;
+}
+
+// ❌ 错误：通过抑制警告绕过问题
+#pragma warning disable CS1998  // ❌ 禁止
+public async Task ProcessAsync()
+{
+    // 没有 await 的逻辑
+}
+#pragma warning restore CS1998
+```
+
+**例外情况**:
+- 接口定义本身不包含实现，因此接口中的 `async Task` 方法签名是允许的
+- 抽象方法或虚方法的基类定义中可能没有 `await`，但派生类实现必须遵守此规则
+
+**检测方法**:
+```bash
+# 检测所有 CS1998 警告
+dotnet build | grep "CS1998"
+```
+
+### 7. 禁止创建"纯转发"Facade/Adapter/Wrapper/Proxy 类型（PR-S2 新增）
 
 **规则**: 禁止创建"只为转发调用而存在"的 Facade/Adapter/Wrapper/Proxy 类型。
 
@@ -657,7 +710,7 @@ public class ShuDiNiaoWheelDiverterDeviceAdapter : IWheelDiverterDevice
 3. 如果有简单日志逻辑，移动到被调用服务内部
 4. 如果确实需要装饰器模式，确保有明确的横切职责并在注释中说明
 
-### 7 禁止魔法数字（Magic Numbers）
+### 8. 禁止魔法数字（Magic Numbers）
 
 **规则：**
 
@@ -717,7 +770,7 @@ if (elapsedMs > UpstreamRoutingConstants.MaxRoutingTimeoutMilliseconds)
 var hasCommunicationError = (status & (int)ShuDiNiaoStatusFlags.CommunicationError) != 0;
 ```
 
-### 8. 命名空间必须与文件夹结构匹配（PR-SD8 新增）
+### 9. 命名空间必须与文件夹结构匹配（PR-SD8 新增）
 
 **规则：**
 
