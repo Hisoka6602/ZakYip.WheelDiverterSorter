@@ -3,8 +3,10 @@ using Microsoft.Extensions.Hosting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Connectivity;
 using ZakYip.WheelDiverterSorter.Observability.Tracing;
 using ZakYip.WheelDiverterSorter.Observability.ConfigurationAudit;
+using ZakYip.WheelDiverterSorter.Observability.Infrastructure;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 
@@ -102,6 +104,18 @@ public static class ObservabilityServiceExtensions
     public static IServiceCollection AddConfigurationAuditLogger(this IServiceCollection services)
     {
         services.AddSingleton<IConfigurationAuditLogger, ConfigurationAuditLogger>();
+        return services;
+    }
+
+    /// <summary>
+    /// 添加网络连通性检查器
+    /// Add network connectivity checker to the service collection
+    /// </summary>
+    /// <param name="services">服务集合</param>
+    /// <returns>服务集合</returns>
+    public static IServiceCollection AddNetworkConnectivityChecker(this IServiceCollection services)
+    {
+        services.AddSingleton<INetworkConnectivityChecker, NetworkConnectivityChecker>();
         return services;
     }
 }

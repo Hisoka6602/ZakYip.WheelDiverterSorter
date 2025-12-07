@@ -126,6 +126,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddPrometheusMetrics();
         services.AddAlarmService();
         services.AddAlertSinks();
+        services.AddNetworkConnectivityChecker();  // 添加网络连通性检查器
 
         // 6. 添加包裹生命周期日志和追踪服务
         services.AddParcelLifecycleLogger();
