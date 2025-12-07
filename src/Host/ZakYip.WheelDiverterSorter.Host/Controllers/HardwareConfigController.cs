@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
@@ -448,7 +449,7 @@ public class HardwareConfigController : ControllerBase
     /// <summary>
     /// 更新数递鸟摆轮配置
     /// </summary>
-    /// <param name="request">数递鸟摆轮配置请求</param>
+    /// <param name="request">数递鸟摆轮配置请求（包含通信模式和设备列表）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>更新后的完整摆轮配置</returns>
     /// <response code="200">更新成功</response>
@@ -457,7 +458,7 @@ public class HardwareConfigController : ControllerBase
     [HttpPut("shudiniao")]
     [SwaggerOperation(
         Summary = "更新数递鸟摆轮配置",
-        Description = "更新数递鸟摆轮设备配置，配置更新后会自动执行热更新。",
+        Description = "更新数递鸟摆轮设备配置，支持配置通信模式（Client/Server）和设备列表。配置更新后会自动执行热更新。",
         OperationId = "UpdateShuDiNiaoWheelConfig",
         Tags = new[] { "硬件配置" }
     )]
@@ -485,6 +486,7 @@ public class HardwareConfigController : ControllerBase
 
             config.ShuDiNiao = new ShuDiNiaoWheelDiverterConfig
             {
+                Mode = request.Mode,
                 Devices = request.Devices.Select(d => new ShuDiNiaoDeviceEntry
                 {
                     DiverterId = d.DiverterId,
@@ -833,6 +835,16 @@ public record LeadshineRestartResult
 /// </summary>
 public record class UpdateShuDiNiaoConfigRequest
 {
+    /// <summary>
+    /// 通信模式（Client=客户端模式，Server=服务端模式）
+    /// </summary>
+    /// <remarks>
+    /// - Client（默认）: 系统作为客户端，主动连接到摆轮设备
+    /// - Server: 系统作为服务端，监听设备连接
+    /// 注意：此配置为全局配置，所有数递鸟设备使用同一种模式
+    /// </remarks>
+    public ShuDiNiaoMode Mode { get; init; } = ShuDiNiaoMode.Client;
+    
     /// <summary>
     /// 数递鸟摆轮设备列表
     /// </summary>
