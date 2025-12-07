@@ -16,7 +16,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 /// - 状态/命令码：根据消息类型不同
 /// - 结束字符：0xFE
 /// </remarks>
-public static class ShuDiNiaoProtocol
+internal static class ShuDiNiaoProtocol
 {
     // 协议常量
     private const byte StartByte1 = 0x51;
@@ -27,7 +27,7 @@ public static class ShuDiNiaoProtocol
     /// <summary>
     /// 协议帧固定长度（字节）
     /// </summary>
-    public const int FrameLength = 7;
+    internal const int FrameLength = 7;
 
     // 字节位置索引
     private const int StartByte1Index = 0;

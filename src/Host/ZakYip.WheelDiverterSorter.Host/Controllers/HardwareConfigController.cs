@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
@@ -707,11 +708,6 @@ public class HardwareConfigController : ControllerBase
                 return BadRequest(new { message = "摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段" });
             }
 
-            // Get wheel diverter configuration to retrieve connection info
-            var wheelConfig = _wheelRepository.Get();
-            var deviceConfigMap = wheelConfig.ShuDiNiao?.Devices?
-                .ToDictionary(d => d.DiverterId, d => d) ?? new Dictionary<long, ShuDiNiaoDeviceEntry>();
-
             var results = new List<WheelDiverterControlResult>();
             var activeDrivers = _driverManager.GetActiveDrivers();
 
@@ -721,26 +717,7 @@ public class HardwareConfigController : ControllerBase
 
                 try
                 {
-                    // Get device configuration
-                    string? connectionInfo = null;
-                    string? commandSent = null;
-                    
-                    if (deviceConfigMap.TryGetValue(diverterId, out var deviceConfig))
-                    {
-                        connectionInfo = $"{deviceConfig.Host}:{deviceConfig.Port}";
-                        
-                        // Build the protocol command frame to show what would be sent
-                        var protocolCommand = request.Command switch
-                        {
-                            WheelDiverterCommand.Run => ShuDiNiaoControlCommand.Run,
-                            WheelDiverterCommand.Stop => ShuDiNiaoControlCommand.Stop,
-                            _ => ShuDiNiaoControlCommand.Stop
-                        };
-                        
-                        var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceConfig.DeviceAddress, protocolCommand);
-                        commandSent = ShuDiNiaoProtocol.FormatBytes(frame);
-                    }
-
+                    // Get driver first
                     if (!activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
                     {
                         result = new WheelDiverterControlResult
@@ -749,20 +726,35 @@ public class HardwareConfigController : ControllerBase
                             Command = request.Command,
                             IsSuccess = false,
                             Message = $"未找到摆轮 {diverterId} 的驱动器",
-                            ConnectionInfo = connectionInfo,
-                            CommandSent = commandSent
+                            ConnectionInfo = null,
+                            CommandSent = null
                         };
                         results.Add(result);
                         continue;
                     }
 
+                    // Get connection info and command from driver if it's ShuDiNiao
+                    string? connectionInfo = null;
+                    string? commandSent = null;
+                    
+                    if (driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
+                    {
+                        connectionInfo = shuDiNiaoDriver.ConnectionInfo;
+                    }
+
                     // Execute the command
                     bool operationSuccess = request.Command switch
                     {
-                        WheelDiverterCommand.Run => await ExecuteRunCommandAsync(driver, cancellationToken),
+                        WheelDiverterCommand.Run => await driver.RunAsync(cancellationToken),
                         WheelDiverterCommand.Stop => await driver.StopAsync(cancellationToken),
                         _ => false
                     };
+                    
+                    // Get last command sent from driver (after execution)
+                    if (driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver2)
+                    {
+                        commandSent = shuDiNiaoDriver2.LastCommandSent;
+                    }
 
                     result = new WheelDiverterControlResult
                     {
@@ -777,26 +769,20 @@ public class HardwareConfigController : ControllerBase
                     };
 
                     _logger.LogInformation(
-                        "控制数递鸟摆轮: DiverterId={DiverterId}, Command={Command}, Success={Success}, Connection={Connection}, CommandHex={Command}",
+                        "控制数递鸟摆轮: DiverterId={DiverterId}, Command={Command}, Success={Success}, Connection={Connection}, CommandHex={CommandHex}",
                         diverterId, request.Command, operationSuccess, connectionInfo, commandSent);
                 }
                 catch (Exception ex)
                 {
-                    // Try to get connection info even on error
+                    // Try to get connection info from driver even on error
                     string? connectionInfo = null;
                     string? commandSent = null;
                     
-                    if (deviceConfigMap.TryGetValue(diverterId, out var deviceConfig))
+                    if (activeDrivers.TryGetValue(diverterId.ToString(), out var driver) &&
+                        driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
                     {
-                        connectionInfo = $"{deviceConfig.Host}:{deviceConfig.Port}";
-                        var protocolCommand = request.Command switch
-                        {
-                            WheelDiverterCommand.Run => ShuDiNiaoControlCommand.Run,
-                            WheelDiverterCommand.Stop => ShuDiNiaoControlCommand.Stop,
-                            _ => ShuDiNiaoControlCommand.Stop
-                        };
-                        var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceConfig.DeviceAddress, protocolCommand);
-                        commandSent = ShuDiNiaoProtocol.FormatBytes(frame);
+                        connectionInfo = shuDiNiaoDriver.ConnectionInfo;
+                        commandSent = shuDiNiaoDriver.LastCommandSent;
                     }
                     
                     result = new WheelDiverterControlResult
@@ -829,34 +815,6 @@ public class HardwareConfigController : ControllerBase
             _logger.LogError(ex, "控制数递鸟摆轮失败");
             return StatusCode(500, new { message = "控制数递鸟摆轮失败" });
         }
-    }
-
-    /// <summary>
-    /// 执行运行命令（通过反射访问底层驱动的SendCommandAsync方法）
-    /// </summary>
-    private async Task<bool> ExecuteRunCommandAsync(IWheelDiverterDriver driver, CancellationToken cancellationToken)
-    {
-        // Since IWheelDiverterDriver doesn't have a RunAsync method, 
-        // we need to access the underlying ShuDiNiao driver implementation
-        if (driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
-        {
-            // Use reflection to call the private SendCommandAsync method
-            var method = driver.GetType().GetMethod("SendCommandAsync", 
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            
-            if (method != null)
-            {
-                var task = method.Invoke(driver, new object[] { ShuDiNiaoControlCommand.Run, cancellationToken }) as Task<bool>;
-                if (task != null)
-                {
-                    return await task;
-                }
-            }
-        }
-        
-        // Fallback: log warning and return false
-        _logger.LogWarning("无法执行 Run 命令，驱动器不支持或类型不匹配: {DriverType}", driver.GetType().Name);
-        return false;
     }
 
     #endregion
@@ -929,11 +887,6 @@ public class HardwareConfigController : ControllerBase
                 return BadRequest(new { message = "摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段" });
             }
 
-            // Get wheel diverter configuration to retrieve connection info
-            var wheelConfig = _wheelRepository.Get();
-            var deviceConfigMap = wheelConfig.ShuDiNiao?.Devices?
-                .ToDictionary(d => d.DiverterId, d => d) ?? new Dictionary<long, ShuDiNiaoDeviceEntry>();
-
             var results = new List<WheelDiverterTestResult>();
             var activeDrivers = _driverManager.GetActiveDrivers();
 
@@ -943,27 +896,7 @@ public class HardwareConfigController : ControllerBase
 
                 try
                 {
-                    // Get device configuration
-                    string? connectionInfo = null;
-                    string? commandSent = null;
-                    
-                    if (deviceConfigMap.TryGetValue(diverterId, out var deviceConfig))
-                    {
-                        connectionInfo = $"{deviceConfig.Host}:{deviceConfig.Port}";
-                        
-                        // Build the protocol command frame to show what would be sent
-                        var command = request.Direction switch
-                        {
-                            DiverterDirection.Left => ShuDiNiaoControlCommand.TurnLeft,
-                            DiverterDirection.Right => ShuDiNiaoControlCommand.TurnRight,
-                            DiverterDirection.Straight => ShuDiNiaoControlCommand.ReturnCenter,
-                            _ => ShuDiNiaoControlCommand.Stop
-                        };
-                        
-                        var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceConfig.DeviceAddress, command);
-                        commandSent = ShuDiNiaoProtocol.FormatBytes(frame);
-                    }
-
+                    // Get driver first
                     if (!activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
                     {
                         result = new WheelDiverterTestResult
@@ -972,11 +905,19 @@ public class HardwareConfigController : ControllerBase
                             Direction = request.Direction,
                             IsSuccess = false,
                             Message = $"未找到摆轮 {diverterId} 的驱动器",
-                            ConnectionInfo = connectionInfo,
-                            CommandSent = commandSent
+                            ConnectionInfo = null,
+                            CommandSent = null
                         };
                         results.Add(result);
                         continue;
+                    }
+
+                    // Get connection info from driver if it's ShuDiNiao
+                    string? connectionInfo = null;
+                    
+                    if (driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
+                    {
+                        connectionInfo = shuDiNiaoDriver.ConnectionInfo;
                     }
 
                     bool operationSuccess = request.Direction switch
@@ -986,6 +927,13 @@ public class HardwareConfigController : ControllerBase
                         DiverterDirection.Straight => await driver.PassThroughAsync(cancellationToken),
                         _ => false
                     };
+                    
+                    // Get last command sent from driver (after execution)
+                    string? commandSent = null;
+                    if (driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver2)
+                    {
+                        commandSent = shuDiNiaoDriver2.LastCommandSent;
+                    }
 
                     result = new WheelDiverterTestResult
                     {
@@ -1000,27 +948,20 @@ public class HardwareConfigController : ControllerBase
                     };
 
                     _logger.LogInformation(
-                        "测试{VendorName}摆轮转向: DiverterId={DiverterId}, Direction={Direction}, Success={Success}, Connection={Connection}, Command={Command}",
+                        "测试{VendorName}摆轮转向: DiverterId={DiverterId}, Direction={Direction}, Success={Success}, Connection={Connection}, CommandHex={CommandHex}",
                         vendorName, diverterId, request.Direction, operationSuccess, connectionInfo, commandSent);
                 }
                 catch (Exception ex)
                 {
-                    // Try to get connection info even on error
+                    // Try to get connection info from driver even on error
                     string? connectionInfo = null;
                     string? commandSent = null;
                     
-                    if (deviceConfigMap.TryGetValue(diverterId, out var deviceConfig))
+                    if (activeDrivers.TryGetValue(diverterId.ToString(), out var driver) &&
+                        driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
                     {
-                        connectionInfo = $"{deviceConfig.Host}:{deviceConfig.Port}";
-                        var command = request.Direction switch
-                        {
-                            DiverterDirection.Left => ShuDiNiaoControlCommand.TurnLeft,
-                            DiverterDirection.Right => ShuDiNiaoControlCommand.TurnRight,
-                            DiverterDirection.Straight => ShuDiNiaoControlCommand.ReturnCenter,
-                            _ => ShuDiNiaoControlCommand.Stop
-                        };
-                        var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceConfig.DeviceAddress, command);
-                        commandSent = ShuDiNiaoProtocol.FormatBytes(frame);
+                        connectionInfo = shuDiNiaoDriver.ConnectionInfo;
+                        commandSent = shuDiNiaoDriver.LastCommandSent;
                     }
                     
                     result = new WheelDiverterTestResult
@@ -1302,11 +1243,13 @@ public enum WheelDiverterCommand
     /// <summary>
     /// 运行
     /// </summary>
+    [Description("运行")]
     Run = 0,
 
     /// <summary>
     /// 停止
     /// </summary>
+    [Description("停止")]
     Stop = 1
 }
 

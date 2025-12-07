@@ -34,9 +34,20 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     private bool _disposed;
     private string _currentStatus = "未连接";
     private long _lastCommandTicks = 0;
+    private string? _lastCommandSent = null;
 
     /// <inheritdoc/>
     public string DiverterId => _config.DiverterId.ToString();
+
+    /// <summary>
+    /// 获取连接信息（IP:端口）
+    /// </summary>
+    public string ConnectionInfo => $"{_config.Host}:{_config.Port}";
+
+    /// <summary>
+    /// 获取最后发送的命令（十六进制格式）
+    /// </summary>
+    public string? LastCommandSent => _lastCommandSent;
 
     /// <summary>
     /// 初始化数递鸟摆轮驱动器
@@ -168,6 +179,34 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
+    public async Task<bool> RunAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("摆轮 {DiverterId} 执行运行", DiverterId);
+            
+            var result = await SendCommandAsync(ShuDiNiaoControlCommand.Run, cancellationToken);
+            
+            if (result)
+            {
+                _currentStatus = "运行中";
+                _logger.LogInformation("摆轮 {DiverterId} 运行命令发送成功", DiverterId);
+            }
+            else
+            {
+                _logger.LogWarning("摆轮 {DiverterId} 运行命令发送失败", DiverterId);
+            }
+            
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "摆轮 {DiverterId} 运行异常", DiverterId);
+            return false;
+        }
+    }
+
+    /// <inheritdoc/>
     public Task<string> GetStatusAsync()
     {
         return Task.FromResult(_currentStatus);
@@ -210,13 +249,16 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
             // 构造命令帧
             var frame = ShuDiNiaoProtocol.BuildCommandFrame(_config.DeviceAddress, command);
             
+            // 保存最后发送的命令（用于诊断）
+            _lastCommandSent = ShuDiNiaoProtocol.FormatBytes(frame);
+            
             // 记录发送的完整命令帧内容
             _logger.LogInformation(
                 "[摆轮通信-发送] 摆轮 {DiverterId} 发送命令 | 命令={Command} | 设备地址=0x{DeviceAddress:X2} | 命令帧={Frame}",
                 DiverterId,
                 command,
                 _config.DeviceAddress,
-                ShuDiNiaoProtocol.FormatBytes(frame));
+                _lastCommandSent);
 
             // 发送命令
             if (_stream != null)

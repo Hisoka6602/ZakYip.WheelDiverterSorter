@@ -665,16 +665,10 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             services.Remove(existingDescriptor);
         }
         
-        // 重新注册为动态版本（使用急切初始化）
-        IIoLinkageDriver? eagerDriver = null;
+        // 重新注册为动态版本
+        // DI容器的Singleton注册已经确保工厂只会被调用一次
         services.AddSingleton<IIoLinkageDriver>(sp =>
         {
-            // 如果已经初始化过，直接返回
-            if (eagerDriver != null)
-            {
-                return eagerDriver;
-            }
-            
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("DynamicIoLinkageDriver");
             
@@ -685,9 +679,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 if (isTestEnv)
                 {
                     logger.LogInformation("检测到测试环境，使用模拟 IO 联动驱动器");
-                    eagerDriver = new SimulatedIoLinkageDriver(
+                    return new SimulatedIoLinkageDriver(
                         loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
-                    return eagerDriver;
                 }
                 
                 var driverRepo = sp.GetRequiredService<IDriverConfigurationRepository>();
@@ -706,195 +699,181 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 if (!useHardware || vendorType == DriverVendorType.Mock)
                 {
                     logger.LogInformation("使用模拟 IO 联动驱动器");
-                    eagerDriver = new SimulatedIoLinkageDriver(
+                    return new SimulatedIoLinkageDriver(
                         loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
-                    return eagerDriver;
                 }
                 
                 // 根据厂商类型选择驱动器
-                switch (vendorType)
+                return vendorType switch
                 {
-                    case DriverVendorType.Leadshine:
-                        logger.LogInformation("使用雷赛 IO 联动驱动器");
-                        // 从工厂获取已初始化的 IO 联动驱动器
-                        // AddLeadshineIo() 已经创建并初始化了 EMC 控制器
-                        var factory = sp.GetRequiredService<IVendorDriverFactory>();
-                        eagerDriver = factory.CreateIoLinkageDriver();
-                        break;
-                    
-                    case DriverVendorType.Siemens:
-                        logger.LogInformation("使用西门子 S7 IO 联动驱动器");
-                        eagerDriver = CreateS7IoLinkageDriver(sp, configuration, loggerFactory);
-                        break;
-                    
-                    default:
-                        // 未知厂商类型，回退到雷赛
-                        logger.LogWarning(
-                            "未知的IO驱动器厂商类型: {VendorType}，回退到雷赛驱动器",
-                            vendorType);
-                        var defaultFactory = sp.GetRequiredService<IVendorDriverFactory>();
-                        eagerDriver = defaultFactory.CreateIoLinkageDriver();
-                        break;
-                }
-                
-                logger.LogInformation("IO 联动驱动器初始化完成: {DriverType}", eagerDriver.GetType().Name);
-                return eagerDriver;
+                    DriverVendorType.Leadshine => CreateLeadshineDriver(sp, logger),
+                    DriverVendorType.Siemens => CreateS7IoLinkageDriver(sp, configuration, loggerFactory),
+                    _ => CreateDefaultDriver(logger, vendorType)
+                };
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "读取驱动器配置失败，回退到雷赛 IO 联动驱动器");
-                try
-                {
-                    var fallbackFactory = sp.GetRequiredService<IVendorDriverFactory>();
-                    eagerDriver = fallbackFactory.CreateIoLinkageDriver();
-                }
-                catch (Exception innerEx)
-                {
-                    logger.LogError(innerEx, "创建回退驱动器失败，使用模拟驱动器");
-                    eagerDriver = new SimulatedIoLinkageDriver(
-                        loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
-                }
-                return eagerDriver;
+                logger.LogError(ex, "创建 IO 联动驱动器失败，回退到模拟驱动器");
+                return new SimulatedIoLinkageDriver(
+                    loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
             }
         });
         
-        // 注册一个初始化服务，在启动时强制解析 IIoLinkageDriver
+        // 注册驱动器初始化服务，在启动时强制解析驱动器
         services.AddHostedService<IoDriverInitializationService>();
         
         return services;
     }
     
     /// <summary>
-    /// 创建西门子 S7 IO 联动驱动器实例
+    /// 创建雷赛IO联动驱动器
+    /// </summary>
+    private static IIoLinkageDriver CreateLeadshineDriver(IServiceProvider sp, ILogger logger)
+    {
+        logger.LogInformation("使用雷赛 IO 联动驱动器");
+        // 从工厂获取已初始化的 IO 联动驱动器
+        // AddLeadshineIo() 已经创建并初始化了 EMC 控制器
+        var factory = sp.GetRequiredService<IVendorDriverFactory>();
+        return factory.CreateIoLinkageDriver();
+    }
+    
+    /// <summary>
+    /// 创建默认驱动器（当厂商类型未知时）
+    /// </summary>
+    private static IIoLinkageDriver CreateDefaultDriver(ILogger logger, DriverVendorType vendorType)
+    {
+        logger.LogWarning(
+            "未知的驱动器厂商类型: {VendorType}，回退到雷赛驱动器",
+            vendorType);
+        throw new NotSupportedException($"不支持的驱动器厂商类型: {vendorType}");
+    }
+    
+    /// <summary>
+    /// 创建西门子S7 IO联动驱动器
     /// </summary>
     private static IIoLinkageDriver CreateS7IoLinkageDriver(
         IServiceProvider sp,
         IConfiguration configuration,
         ILoggerFactory loggerFactory)
     {
-        var logger = loggerFactory.CreateLogger("S7IoLinkageDriverFactory");
+        var s7Config = configuration.GetSection("S7").Get<S7Options>();
         
+        if (s7Config == null)
+        {
+            throw new InvalidOperationException("S7 配置未找到，请在 appsettings.json 中配置 S7 节点");
+        }
+        
+        // 获取必需的依赖服务
+        var clock = sp.GetRequiredService<ISystemClock>();
+        var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
+        
+        // 创建 S7 连接
+        var s7Connection = new S7Connection(
+            loggerFactory.CreateLogger<S7Connection>(),
+            new SimpleOptionsMonitor<S7Options>(s7Config),
+            clock,
+            safeExecutor);
+        
+        // 创建 S7 IO 联动驱动器
+        return new S7IoLinkageDriver(
+            s7Connection,
+            loggerFactory.CreateLogger<S7IoLinkageDriver>(),
+            loggerFactory);
+    }
+    
+    /// <summary>
+    /// S7默认配置常量
+    /// </summary>
+    private static class S7DefaultConfiguration
+    {
+        public const string DefaultIpAddress = "192.168.0.1";
+        public const int DefaultRack = 0;
+        public const int DefaultSlot = 1;
+    }
+    
+    #endregion
+    
+    #region S7 Connection Options Creation (Helper Methods)
+    
+    /// <summary>
+    /// 从配置创建S7连接选项（已废弃，不再需要）
+    /// </summary>
+    [Obsolete("This method is no longer needed as S7 configuration is read directly from IConfiguration")]
+    private static S7Options CreateS7ConnectionOptions(IConfiguration configuration)
+    {
+        var s7Config = configuration.GetSection("S7").Get<S7Options>();
+        return s7Config ?? new S7Options
+        {
+            IpAddress = S7DefaultConfiguration.DefaultIpAddress,
+            Rack = S7DefaultConfiguration.DefaultRack,
+            Slot = S7DefaultConfiguration.DefaultSlot
+        };
+    }
+    
+    #endregion
+}
+
+/// <summary>
+/// 简单的 IOptionsMonitor 实现，用于不需要热更新的场景
+/// </summary>
+file sealed class SimpleOptionsMonitor<T> : IOptionsMonitor<T>
+{
+    private readonly T _currentValue;
+    
+    public SimpleOptionsMonitor(T currentValue)
+    {
+        _currentValue = currentValue;
+    }
+    
+    public T CurrentValue => _currentValue;
+    
+    public T Get(string? name) => _currentValue;
+    
+    public IDisposable? OnChange(Action<T, string?> listener) => null;
+}
+
+/// <summary>
+/// IO 驱动器初始化服务 - 在应用启动时强制解析和初始化 IO 驱动器
+/// </summary>
+file sealed class IoDriverInitializationService : IHostedService
+{
+    private readonly IServiceProvider _serviceProvider;
+    private readonly ILogger<IoDriverInitializationService> _logger;
+    
+    public IoDriverInitializationService(
+        IServiceProvider serviceProvider,
+        ILogger<IoDriverInitializationService> logger)
+    {
+        _serviceProvider = serviceProvider;
+        _logger = logger;
+    }
+    
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
         try
         {
-            // 尝试获取已注册的 S7 连接
-            var s7Connection = sp.GetService<S7Connection>();
+            _logger.LogInformation("正在初始化 IO 联动驱动器...");
             
-            if (s7Connection == null)
-            {
-                // S7 连接未注册，从配置创建
-                logger.LogInformation("S7 连接未注册，正在从配置创建");
-                
-                // 读取 S7 配置
-                var s7Options = new S7Options();
-                configuration.GetSection("Driver:S7").Bind(s7Options);
-                
-                // 验证配置
-                if (string.IsNullOrEmpty(s7Options.IpAddress))
-                {
-                    logger.LogWarning("S7 配置未找到或无效，使用默认配置 (192.168.0.1)");
-                    s7Options.IpAddress = "192.168.0.1";
-                    s7Options.Rack = 0;
-                    s7Options.Slot = 1;
-                }
-                
-                // 获取必需的依赖服务
-                var clock = sp.GetRequiredService<ISystemClock>();
-                var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
-                
-                // 创建 IOptionsMonitor 的简单实现
-                var optionsMonitor = new SimpleOptionsMonitor<S7Options>(s7Options);
-                
-                // 创建 S7 连接
-                s7Connection = new S7Connection(
-                    loggerFactory.CreateLogger<S7Connection>(),
-                    optionsMonitor,
-                    clock,
-                    safeExecutor);
-                
-                logger.LogInformation(
-                    "已创建 S7 连接: IP={IpAddress}, Rack={Rack}, Slot={Slot}",
-                    s7Options.IpAddress,
-                    s7Options.Rack,
-                    s7Options.Slot);
-            }
+            // 强制解析 IIoLinkageDriver 服务，触发初始化
+            var driver = _serviceProvider.GetRequiredService<IIoLinkageDriver>();
             
-            // 创建 S7 IO 联动驱动器
-            return new S7IoLinkageDriver(
-                s7Connection,
-                loggerFactory.CreateLogger<S7IoLinkageDriver>(),
-                loggerFactory);
+            _logger.LogInformation(
+                "IO 联动驱动器初始化成功: {DriverType}",
+                driver.GetType().Name);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "创建 S7 IO 联动驱动器失败");
-            throw;
+            _logger.LogError(ex, "IO 联动驱动器初始化失败");
+            // 不抛出异常，让应用继续启动，但记录错误
+            // 这样管理员可以看到问题并采取行动
         }
+        
+        return Task.CompletedTask;
     }
     
-    /// <summary>
-    /// 简单的 IOptionsMonitor 实现，用于不需要热更新的场景
-    /// </summary>
-    private sealed class SimpleOptionsMonitor<T> : IOptionsMonitor<T>
+    public Task StopAsync(CancellationToken cancellationToken)
     {
-        private readonly T _currentValue;
-        
-        public SimpleOptionsMonitor(T currentValue)
-        {
-            _currentValue = currentValue;
-        }
-        
-        public T CurrentValue => _currentValue;
-        
-        public T Get(string? name) => _currentValue;
-        
-        public IDisposable? OnChange(Action<T, string?> listener) => null;
+        _logger.LogInformation("IO 驱动器初始化服务停止");
+        return Task.CompletedTask;
     }
-    
-    /// <summary>
-    /// IO 驱动器初始化服务 - 在应用启动时强制解析和初始化 IO 驱动器
-    /// </summary>
-    private sealed class IoDriverInitializationService : IHostedService
-    {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly ILogger<IoDriverInitializationService> _logger;
-        
-        public IoDriverInitializationService(
-            IServiceProvider serviceProvider,
-            ILogger<IoDriverInitializationService> logger)
-        {
-            _serviceProvider = serviceProvider;
-            _logger = logger;
-        }
-        
-        public Task StartAsync(CancellationToken cancellationToken)
-        {
-            try
-            {
-                _logger.LogInformation("正在初始化 IO 联动驱动器...");
-                
-                // 强制解析 IIoLinkageDriver 服务，触发初始化
-                var driver = _serviceProvider.GetRequiredService<IIoLinkageDriver>();
-                
-                _logger.LogInformation(
-                    "IO 联动驱动器初始化成功: {DriverType}",
-                    driver.GetType().Name);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "IO 联动驱动器初始化失败");
-                // 不抛出异常，让应用继续启动，但记录错误
-                // 这样管理员可以看到问题并采取行动
-            }
-            
-            return Task.CompletedTask;
-        }
-        
-        public Task StopAsync(CancellationToken cancellationToken)
-        {
-            _logger.LogInformation("IO 驱动器初始化服务停止");
-            return Task.CompletedTask;
-        }
-    }
-
-    #endregion
 }
