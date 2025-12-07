@@ -1009,6 +1009,12 @@ public class HardwareConfigController : ControllerBase
     /// 如果驱动管理器未初始化或没有活动驱动器，则从配置仓库读取配置并应用到驱动管理器。
     /// 这样POST /api/hardware/shudiniao/test 和 POST /api/hardware/shudiniao/control 
     /// 就不需要每次都先调用 PUT /api/hardware/shudiniao 来加载配置。
+    /// 
+    /// <b>行为说明：</b>
+    /// - 仿真模式（驱动管理器为 null）：静默返回，不执行任何操作
+    /// - 已有活动驱动器：跳过加载，保持现有驱动器
+    /// - 配置加载失败：记录错误日志但不抛出异常，让调用方继续执行
+    /// - 幂等性：多次调用安全，不会重复加载
     /// </remarks>
     /// <param name="cancellationToken">取消令牌</param>
     private async Task EnsureDriversLoadedAsync(CancellationToken cancellationToken)
@@ -1026,19 +1032,27 @@ public class HardwareConfigController : ControllerBase
             return;
         }
 
-        // 从配置仓库读取摆轮配置
-        var config = _wheelRepository.Get();
-        
-        // 只有当配置是数递鸟并且有设备时才加载
-        if (config.VendorType == Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao && 
-            config.ShuDiNiao != null &&
-            config.ShuDiNiao.Devices.Any())
+        try
         {
-            _logger.LogInformation(
-                "自动从配置加载数递鸟摆轮驱动器，设备数量={DeviceCount}",
-                config.ShuDiNiao.Devices.Count);
+            // 从配置仓库读取摆轮配置
+            var config = _wheelRepository.Get();
             
-            await _driverManager.ApplyConfigurationAsync(config, cancellationToken);
+            // 只有当配置是数递鸟并且有设备时才加载
+            if (config.VendorType == Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao && 
+                config.ShuDiNiao != null &&
+                config.ShuDiNiao.Devices.Any())
+            {
+                _logger.LogInformation(
+                    "自动从配置加载数递鸟摆轮驱动器，设备数量={DeviceCount}",
+                    config.ShuDiNiao.Devices.Count);
+                
+                await _driverManager.ApplyConfigurationAsync(config, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "自动加载摆轮驱动器配置失败");
+            // 不抛出异常，让调用方继续执行，后续会因为没有活动驱动器而返回友好错误
         }
     }
 
