@@ -716,10 +716,10 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 {
                     case DriverVendorType.Leadshine:
                         logger.LogInformation("使用雷赛 IO 联动驱动器");
-                        var emcController = sp.GetRequiredService<IEmcController>();
-                        eagerDriver = new LeadshineIoLinkageDriver(
-                            loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
-                            emcController);
+                        // 从工厂获取已初始化的 IO 联动驱动器
+                        // AddLeadshineIo() 已经创建并初始化了 EMC 控制器
+                        var factory = sp.GetRequiredService<IVendorDriverFactory>();
+                        eagerDriver = factory.CreateIoLinkageDriver();
                         break;
                     
                     case DriverVendorType.Siemens:
@@ -732,10 +732,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                         logger.LogWarning(
                             "未知的IO驱动器厂商类型: {VendorType}，回退到雷赛驱动器",
                             vendorType);
-                        var defaultEmcController = sp.GetRequiredService<IEmcController>();
-                        eagerDriver = new LeadshineIoLinkageDriver(
-                            loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
-                            defaultEmcController);
+                        var defaultFactory = sp.GetRequiredService<IVendorDriverFactory>();
+                        eagerDriver = defaultFactory.CreateIoLinkageDriver();
                         break;
                 }
                 
@@ -745,10 +743,17 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             catch (Exception ex)
             {
                 logger.LogError(ex, "读取驱动器配置失败，回退到雷赛 IO 联动驱动器");
-                var fallbackEmcController = sp.GetRequiredService<IEmcController>();
-                eagerDriver = new LeadshineIoLinkageDriver(
-                    loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
-                    fallbackEmcController);
+                try
+                {
+                    var fallbackFactory = sp.GetRequiredService<IVendorDriverFactory>();
+                    eagerDriver = fallbackFactory.CreateIoLinkageDriver();
+                }
+                catch (Exception innerEx)
+                {
+                    logger.LogError(innerEx, "创建回退驱动器失败，使用模拟驱动器");
+                    eagerDriver = new SimulatedIoLinkageDriver(
+                        loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                }
                 return eagerDriver;
             }
         });
