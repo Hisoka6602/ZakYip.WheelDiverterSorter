@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Core.Events.Device;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Events;
 
 /// <summary>
 /// 设备连接事件参数

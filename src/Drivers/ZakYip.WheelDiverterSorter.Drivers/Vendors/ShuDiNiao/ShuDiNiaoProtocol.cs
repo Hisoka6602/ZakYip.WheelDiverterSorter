@@ -23,7 +23,11 @@ internal static class ShuDiNiaoProtocol
     private const byte StartByte2 = 0x52;
     private const byte LengthByte = 0x57;
     private const byte EndByte = 0xFE;
-    private const int FrameLength = 7;
+    
+    /// <summary>
+    /// 协议帧固定长度（字节）
+    /// </summary>
+    internal const int FrameLength = 7;
 
     // 字节位置索引
     private const int StartByte1Index = 0;

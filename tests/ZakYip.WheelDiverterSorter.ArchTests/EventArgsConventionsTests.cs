@@ -52,6 +52,10 @@ public class EventArgsConventionsTests
         
         // 上游路由客户端接口中的事件参数
         "ChuteAssignmentEventArgs",
+        
+        // 数递鸟厂商特定事件参数（Drivers层，vendor-specific concerns）
+        "DeviceStatusEventArgs",
+        "DeviceConnectionEventArgs",
     };
 
     /// <summary>
@@ -65,6 +69,7 @@ public class EventArgsConventionsTests
         "Core/ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health",
         "Execution/ZakYip.WheelDiverterSorter.Execution/PathExecution",
         "Simulation/ZakYip.WheelDiverterSorter.Simulation/Results",
+        "Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/Events", // 厂商特定事件
     ];
 
     /// <summary>

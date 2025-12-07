@@ -3,8 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
-using ZakYip.WheelDiverterSorter.Core.Events.Device;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Events;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
@@ -20,11 +21,15 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 /// </remarks>
 public sealed class ShuDiNiaoWheelServer : IDisposable
 {
+    private const int StopTimeoutSeconds = 5;
+    
     private readonly ILogger<ShuDiNiaoWheelServer> _logger;
     private readonly ISystemClock _systemClock;
+    private readonly ISafeExecutionService _safeExecutor;
     private readonly string _listenAddress;
     private readonly int _listenPort;
     private readonly ConcurrentDictionary<byte, ConnectedDevice> _connectedDevices = new();
+    private readonly ConcurrentBag<Task> _deviceTasks = new();
     
     private TcpListener? _listener;
     private CancellationTokenSource? _serverCts;
@@ -35,16 +40,31 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
     /// <summary>
     /// 设备状态上报事件
     /// </summary>
+    /// <remarks>
+    /// 当服务器从已连接设备接收到状态上报消息（信息一）时触发。
+    /// 事件参数包含设备地址、状态码和接收时间。
+    /// 此事件在设备处理线程中触发，订阅者应避免长时间阻塞操作。
+    /// </remarks>
     public event EventHandler<DeviceStatusEventArgs>? DeviceStatusReceived;
 
     /// <summary>
     /// 设备连接事件
     /// </summary>
+    /// <remarks>
+    /// 当有新的摆轮设备成功建立 TCP 连接并完成握手时触发。
+    /// 事件参数包含设备地址和连接时间。
+    /// 此事件在设备处理线程中触发，订阅者应避免长时间阻塞操作。
+    /// </remarks>
     public event EventHandler<DeviceConnectionEventArgs>? DeviceConnected;
 
     /// <summary>
     /// 设备断开事件
     /// </summary>
+    /// <remarks>
+    /// 当已连接的摆轮设备主动断开或因异常断开 TCP 连接时触发。
+    /// 事件参数包含设备地址和断开时间。
+    /// 此事件在设备处理线程中触发，订阅者应避免长时间阻塞操作。
+    /// </remarks>
     public event EventHandler<DeviceConnectionEventArgs>? DeviceDisconnected;
 
     /// <summary>
@@ -53,17 +73,20 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
     /// <param name="listenAddress">监听地址（如 "0.0.0.0" 表示监听所有网卡）</param>
     /// <param name="listenPort">监听端口</param>
     /// <param name="logger">日志记录器</param>
-    /// <param name="systemClock">系统时钟（可选）</param>
+    /// <param name="systemClock">系统时钟</param>
+    /// <param name="safeExecutor">安全执行服务</param>
     public ShuDiNiaoWheelServer(
         string listenAddress,
         int listenPort,
         ILogger<ShuDiNiaoWheelServer> logger,
-        ISystemClock? systemClock = null)
+        ISystemClock systemClock,
+        ISafeExecutionService safeExecutor)
     {
         _listenAddress = listenAddress ?? throw new ArgumentNullException(nameof(listenAddress));
         _listenPort = listenPort;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _systemClock = systemClock ?? new LocalSystemClock();
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
 
         if (_listenPort <= 0 || _listenPort > 65535)
         {
@@ -107,7 +130,11 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
                 _serverCts.Token, 
                 cancellationToken);
 
-            _acceptTask = AcceptClientsAsync(linkedCts.Token);
+            // 使用 SafeExecutionService 包裹接受循环
+            _acceptTask = _safeExecutor.ExecuteAsync(
+                async () => await AcceptClientsAsync(linkedCts.Token),
+                operationName: "ShuDiNiaoServerAcceptLoop",
+                cancellationToken: linkedCts.Token);
 
             _logger.LogInformation(
                 "[数递鸟服务端] TCP服务器已启动，监听 {Address}:{Port}",
@@ -152,11 +179,25 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
         {
             try
             {
-                await _acceptTask.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+                await _acceptTask.WaitAsync(TimeSpan.FromSeconds(StopTimeoutSeconds), cancellationToken);
             }
             catch (TimeoutException)
             {
                 _logger.LogWarning("[数递鸟服务端] Accept任务停止超时");
+            }
+        }
+
+        // 等待所有设备处理任务完成
+        var activeTasks = _deviceTasks.Where(t => !t.IsCompleted).ToArray();
+        if (activeTasks.Length > 0)
+        {
+            try
+            {
+                await Task.WhenAll(activeTasks).WaitAsync(TimeSpan.FromSeconds(StopTimeoutSeconds), cancellationToken);
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("[数递鸟服务端] {Count} 个设备任务停止超时", activeTasks.Length);
             }
         }
 
@@ -239,8 +280,13 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
                     "[数递鸟服务端] 接收到设备连接 | 地址={RemoteAddress}",
                     remoteEndPoint?.ToString() ?? "Unknown");
 
-                // 为每个连接启动独立的处理任务
-                _ = Task.Run(() => HandleDeviceAsync(client, cancellationToken), cancellationToken);
+                // 为每个连接启动独立的处理任务并跟踪
+                var task = _safeExecutor.ExecuteAsync(
+                    async () => await HandleDeviceAsync(client, cancellationToken),
+                    operationName: $"ShuDiNiaoDeviceHandler-{remoteEndPoint}",
+                    cancellationToken: cancellationToken);
+                
+                _deviceTasks.Add(task);
             }
             catch (OperationCanceledException)
             {
@@ -270,34 +316,37 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 
         try
         {
-            var stream = client.GetStream();
-            var buffer = new byte[7]; // 数递鸟协议固定7字节帧
-
-            while (!cancellationToken.IsCancellationRequested && client.Connected)
+            using (client) // 使用 using 语句自动释放资源
             {
-                // 读取完整的7字节帧
-                var bytesRead = 0;
-                while (bytesRead < 7 && !cancellationToken.IsCancellationRequested)
-                {
-                    var count = await stream.ReadAsync(
-                        buffer.AsMemory(bytesRead, 7 - bytesRead), 
-                        cancellationToken);
+                var stream = client.GetStream();
+                var buffer = new byte[ShuDiNiaoProtocol.FrameLength];
 
-                    if (count == 0)
+                while (!cancellationToken.IsCancellationRequested && client.Connected)
+                {
+                    // 读取完整的7字节帧
+                    var bytesRead = 0;
+                    while (bytesRead < ShuDiNiaoProtocol.FrameLength && !cancellationToken.IsCancellationRequested)
                     {
-                        // 连接已关闭
-                        _logger.LogInformation(
-                            "[数递鸟服务端] 设备 {ClientAddress} 连接已关闭",
-                            clientAddress);
-                        return;
+                        var count = await stream.ReadAsync(
+                            buffer.AsMemory(bytesRead, ShuDiNiaoProtocol.FrameLength - bytesRead), 
+                            cancellationToken);
+
+                        if (count == 0)
+                        {
+                            // 连接已关闭
+                            _logger.LogInformation(
+                                "[数递鸟服务端] 设备 {ClientAddress} 连接已关闭",
+                                clientAddress);
+                            return;
+                        }
+
+                        bytesRead += count;
                     }
 
-                    bytesRead += count;
-                }
-
-                if (bytesRead == 7)
-                {
-                    deviceAddress = ProcessFrame(buffer, stream, deviceAddress, clientAddress);
+                    if (bytesRead == ShuDiNiaoProtocol.FrameLength)
+                    {
+                        deviceAddress = ProcessFrame(buffer, stream, deviceAddress, clientAddress);
+                    }
                 }
             }
         }
@@ -318,9 +367,6 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
             {
                 await DisconnectDeviceAsync(deviceAddress.Value);
             }
-
-            client.Close();
-            client.Dispose();
         }
     }
 

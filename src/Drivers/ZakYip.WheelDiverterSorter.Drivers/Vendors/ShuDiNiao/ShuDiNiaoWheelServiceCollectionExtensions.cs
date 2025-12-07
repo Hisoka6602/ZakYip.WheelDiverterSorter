@@ -14,6 +14,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Configuration;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
@@ -41,7 +42,7 @@ public static class ShuDiNiaoWheelServiceCollectionExtensions
     /// <remarks>
     /// 注册以下服务：
     /// - <see cref="IWheelDiverterDriverManager"/> -> <see cref="ShuDiNiaoWheelDiverterDriverManager"/>（客户端模式）
-    /// - <see cref="ShuDiNiaoWheelServer"/>（服务端模式，需手动启动）
+    /// - <see cref="ShuDiNiaoWheelServer"/>（仅在服务端模式时注册）
     /// - 单个摆轮设备的 <see cref="IWheelDiverterDevice"/> 实现（通过 <see cref="ShuDiNiaoWheelDiverterDeviceAdapter"/>）
     /// 
     /// 模式选择通过配置项 "WheelDiverter:ShuDiNiao:Mode" 控制：
@@ -75,18 +76,29 @@ public static class ShuDiNiaoWheelServiceCollectionExtensions
                 logger);
         });
 
-        // 注册数递鸟摆轮服务器（服务端模式）
+        // 注册数递鸟摆轮服务器（仅在服务端模式时注册）
         services.AddSingleton<ShuDiNiaoWheelServer>(sp =>
         {
             var options = sp.GetRequiredService<IOptions<ShuDiNiaoOptions>>().Value;
+            
+            // 仅在服务端模式时创建实例
+            if (options.Mode != ShuDiNiaoMode.Server)
+            {
+                throw new InvalidOperationException(
+                    "ShuDiNiaoWheelServer 仅在服务端模式 (Mode=Server) 下可用。" +
+                    "当前模式为客户端模式，请使用 IWheelDiverterDriverManager。");
+            }
+            
             var logger = sp.GetRequiredService<ILogger<ShuDiNiaoWheelServer>>();
             var systemClock = sp.GetRequiredService<ISystemClock>();
+            var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
 
             return new ShuDiNiaoWheelServer(
                 options.ServerListenAddress,
                 options.ServerListenPort,
                 logger,
-                systemClock);
+                systemClock,
+                safeExecutor);
         });
 
         return services;

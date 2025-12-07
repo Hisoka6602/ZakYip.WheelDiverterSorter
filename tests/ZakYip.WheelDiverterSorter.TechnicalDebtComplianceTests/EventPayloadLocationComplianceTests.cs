@@ -56,6 +56,10 @@ public class EventPayloadLocationComplianceTests
         
         // 仿真项目特有的事件参数
         "SimulatedParcelResultEventArgs",      // ParcelSimulationResult.cs
+        
+        // 数递鸟厂商特定事件参数（Drivers层，符合架构原则：vendor-specific concerns in Drivers）
+        "DeviceStatusEventArgs",               // ShuDiNiao/Events/DeviceStatusEventArgs.cs
+        "DeviceConnectionEventArgs",           // ShuDiNiao/Events/DeviceConnectionEventArgs.cs
     };
 
     /// <summary>

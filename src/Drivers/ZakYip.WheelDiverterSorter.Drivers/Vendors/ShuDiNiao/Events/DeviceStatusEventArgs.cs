@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 
-namespace ZakYip.WheelDiverterSorter.Core.Events.Device;
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Events;
 
 /// <summary>
 /// 设备状态事件参数

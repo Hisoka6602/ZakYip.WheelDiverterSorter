@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Configuration;
@@ -32,6 +33,8 @@ public class ShuDiNiaoOptions
     /// <remarks>
     /// 仅在 Mode=Server 时生效
     /// </remarks>
+    [Required]
+    [RegularExpression(@"^(\d{1,3}\.){3}\d{1,3}$|^0\.0\.0\.0$|^localhost$", ErrorMessage = "无效的IP地址格式")]
     public string ServerListenAddress { get; set; } = "0.0.0.0";
 
     /// <summary>
@@ -40,6 +43,7 @@ public class ShuDiNiaoOptions
     /// <remarks>
     /// 仅在 Mode=Server 时生效
     /// </remarks>
+    [Range(1, 65535, ErrorMessage = "端口必须在 1-65535 范围内")]
     public int ServerListenPort { get; set; } = 8888;
 
     /// <summary>
@@ -48,11 +52,13 @@ public class ShuDiNiaoOptions
     /// <remarks>
     /// 仅在 Mode=Client 时生效
     /// </remarks>
+    [Range(100, 60000, ErrorMessage = "连接超时必须在 100-60000 毫秒范围内")]
     public int ConnectionTimeoutMs { get; set; } = 5000;
 
     /// <summary>
     /// 默认命令发送超时（毫秒）
     /// </summary>
+    [Range(100, 60000, ErrorMessage = "命令超时必须在 100-60000 毫秒范围内")]
     public int CommandTimeoutMs { get; set; } = 3000;
 
     /// <summary>
@@ -61,6 +67,7 @@ public class ShuDiNiaoOptions
     /// <remarks>
     /// 仅在 Mode=Client 时生效
     /// </remarks>
+    [Range(100, 60000, ErrorMessage = "重连间隔必须在 100-60000 毫秒范围内")]
     public int ReconnectIntervalMs { get; set; } = 2000;
 }
 
