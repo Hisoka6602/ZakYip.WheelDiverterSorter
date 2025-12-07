@@ -1,5 +1,3 @@
-using ZakYip.WheelDiverterSorter.Core.Results;
-
 namespace ZakYip.WheelDiverterSorter.Core.Hardware.Connectivity;
 
 /// <summary>

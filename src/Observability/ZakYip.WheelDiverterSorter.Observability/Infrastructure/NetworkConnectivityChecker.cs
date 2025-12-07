@@ -184,7 +184,6 @@ public sealed class NetworkConnectivityChecker : INetworkConnectivityChecker
         }
         finally
         {
-            tcpClient?.Close();
             tcpClient?.Dispose();
         }
     }
