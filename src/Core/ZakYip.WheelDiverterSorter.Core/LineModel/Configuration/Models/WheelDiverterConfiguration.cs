@@ -84,7 +84,7 @@ public class WheelDiverterConfiguration
             }
 
             // 检查DeviceAddress不能重复
-            var duplicateAddresses = ShuDiNiao.Devices
+            /*var duplicateAddresses = ShuDiNiao.Devices
                 .GroupBy(d => d.DeviceAddress)
                 .Where(g => g.Count() > 1)
                 .Select(g => g.Key)
@@ -93,7 +93,7 @@ public class WheelDiverterConfiguration
             if (duplicateAddresses.Any())
             {
                 return (false, $"数递鸟设备地址重复: {string.Join(", ", duplicateAddresses.Select(a => $"0x{a:X2}"))}");
-            }
+            }*/
         }
 
         return (true, null);
@@ -113,7 +113,7 @@ public record class ShuDiNiaoWheelDiverterConfig
     /// - Server: 系统作为服务端，监听设备连接
     /// </remarks>
     public ShuDiNiaoMode Mode { get; init; } = ShuDiNiaoMode.Client;
-    
+
     /// <summary>
     /// 数递鸟摆轮设备列表
     /// </summary>

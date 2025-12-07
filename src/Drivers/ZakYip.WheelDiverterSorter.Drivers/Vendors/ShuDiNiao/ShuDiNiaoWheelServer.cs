@@ -1,11 +1,11 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
+using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Events;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Events;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
@@ -22,7 +22,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 public sealed class ShuDiNiaoWheelServer : IDisposable
 {
     private const int StopTimeoutSeconds = 5;
-    
+
     /// <summary>
     /// 数递鸟摆轮指令写入最小间隔（毫秒）
     /// </summary>
@@ -31,7 +31,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
     /// 每个设备独立计算时间间隔。
     /// </remarks>
     private const int MinCommandIntervalMs = 90;
-    
+
     private readonly ILogger<ShuDiNiaoWheelServer> _logger;
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
@@ -39,7 +39,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
     private readonly int _listenPort;
     private readonly ConcurrentDictionary<byte, ConnectedDevice> _connectedDevices = new();
     private readonly ConcurrentBag<Task> _deviceTasks = new();
-    
+
     private TcpListener? _listener;
     private CancellationTokenSource? _serverCts;
     private Task? _acceptTask;
@@ -118,6 +118,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+        await Task.Yield();
         if (_isRunning)
         {
             _logger.LogWarning("数递鸟摆轮服务器已在运行，无需重复启动");
@@ -126,8 +127,8 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 
         try
         {
-            var ipAddress = _listenAddress == "0.0.0.0" 
-                ? IPAddress.Any 
+            var ipAddress = _listenAddress == "0.0.0.0"
+                ? IPAddress.Any
                 : IPAddress.Parse(_listenAddress);
 
             _listener = new TcpListener(ipAddress, _listenPort);
@@ -136,7 +137,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 
             _serverCts = new CancellationTokenSource();
             var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                _serverCts.Token, 
+                _serverCts.Token,
                 cancellationToken);
 
             // 使用 SafeExecutionService 包裹接受循环
@@ -241,7 +242,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
             // 检查命令发送间隔（数递鸟摆轮要求最小90ms间隔）
             var now = Environment.TickCount64;
             var elapsedMs = now - device.LastCommandTicks;
-            
+
             if (device.LastCommandTicks != 0 && elapsedMs < MinCommandIntervalMs)
             {
                 _logger.LogWarning(
@@ -252,9 +253,9 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
                     MinCommandIntervalMs);
                 return false;
             }
-            
+
             var frame = ShuDiNiaoProtocol.BuildCommandFrame(deviceAddress, command);
-            
+
             _logger.LogInformation(
                 "[数递鸟服务端-发送] 向设备 0x{DeviceAddress:X2} 发送命令 | 命令={Command} | 命令帧={Frame}",
                 deviceAddress,
@@ -312,7 +313,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
                     async () => await HandleDeviceAsync(client, cancellationToken),
                     operationName: $"ShuDiNiaoDeviceHandler-{remoteEndPoint}",
                     cancellationToken: cancellationToken);
-                
+
                 _deviceTasks.Add(task);
             }
             catch (OperationCanceledException)
@@ -355,7 +356,7 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
                     while (bytesRead < ShuDiNiaoProtocol.FrameLength && !cancellationToken.IsCancellationRequested)
                     {
                         var count = await stream.ReadAsync(
-                            buffer.AsMemory(bytesRead, ShuDiNiaoProtocol.FrameLength - bytesRead), 
+                            buffer.AsMemory(bytesRead, ShuDiNiaoProtocol.FrameLength - bytesRead),
                             cancellationToken);
 
                         if (count == 0)
@@ -411,8 +412,8 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
 
         // 尝试解析设备状态上报（信息一）
         if (ShuDiNiaoProtocol.TryParseDeviceStatus(
-            buffer, 
-            out var devAddr, 
+            buffer,
+            out var devAddr,
             out var deviceState))
         {
             _logger.LogInformation(
@@ -558,13 +559,13 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
     /// <summary>
     /// 已连接设备信息
     /// </summary>
-    private sealed class ConnectedDevice
+    private class ConnectedDevice
     {
-        public required byte DeviceAddress { get; init; }
+        public byte DeviceAddress { get; init; }
         public required NetworkStream Stream { get; init; }
         public required string ClientAddress { get; init; }
-        public required DateTime ConnectedAt { get; init; }
-        
+        public DateTime ConnectedAt { get; init; }
+
         /// <summary>
         /// 最后一次发送命令的时间（用于限流控制）
         /// 使用 Environment.TickCount64 记录，单位为毫秒
