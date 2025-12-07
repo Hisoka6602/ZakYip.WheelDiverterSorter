@@ -2,6 +2,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Communication;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
@@ -29,6 +30,7 @@ using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
@@ -51,6 +53,8 @@ using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Application.Extensions;
 
@@ -164,10 +168,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         }
         else
         {
-            // 生产模式
-            services.AddLeadshineIo()
-                    .AddShuDiNiaoWheelDiverter()
-                    .AddSimulatedConveyorLine();
+            // 生产模式：根据数据库配置动态注册驱动器
+            // 注意：由于需要访问数据库才能确定厂商类型，这里使用工厂模式延迟解析
+            services.AddProductionModeDrivers(configuration);
         }
 
         // 11. 注册并发控制服务
@@ -622,6 +625,205 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         public bool EnableHealthCheckTasks => false;
         public bool EnablePerformanceMonitoring => true;
         public string GetModeDescription() => "性能测试模式 - 跳过实际 IO，专注于路径/算法性能测试";
+    }
+
+    #endregion
+
+    #region Private Helper Methods - Production Mode Drivers
+
+    /// <summary>
+    /// 注册生产模式的驱动器服务
+    /// </summary>
+    /// <remarks>
+    /// 根据数据库配置的 DriverVendorType 决定注册哪种 IO 驱动器：
+    /// - Leadshine（默认）: 雷赛 IO 驱动器 + 数递鸟摆轮驱动器
+    /// - Siemens: 西门子 S7 IO 驱动器 + 数递鸟摆轮驱动器
+    /// - Mock: 模拟驱动器
+    /// 
+    /// 注意：这里我们先注册所有可能的服务，然后在 IO linkage driver 解析时根据配置选择合适的实现。
+    /// 这样可以避免复杂的条件注册逻辑，同时保持灵活性。
+    /// </remarks>
+    private static IServiceCollection AddProductionModeDrivers(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // 先注册雷赛服务（包含 EMC 控制器等基础设施）
+        // 这些服务即使不使用雷赛 IO 驱动器也可能被其他组件需要
+        services.AddLeadshineIo();
+        
+        // 注册数递鸟摆轮驱动器
+        services.AddShuDiNiaoWheelDiverter();
+        
+        // 注册模拟传送带
+        services.AddSimulatedConveyorLine();
+        
+        // 替换 IIoLinkageDriver 注册为动态选择版本
+        // 移除已有的 IIoLinkageDriver 注册（由 AddLeadshineIo 注册的）
+        var existingDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IIoLinkageDriver));
+        if (existingDescriptor != null)
+        {
+            services.Remove(existingDescriptor);
+        }
+        
+        // 重新注册为动态版本
+        services.AddSingleton<IIoLinkageDriver>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("DynamicIoLinkageDriver");
+            
+            try
+            {
+                // 检查是否为测试环境
+                var isTestEnv = configuration.GetValue<bool>("IsTestEnvironment", false);
+                if (isTestEnv)
+                {
+                    logger.LogInformation("检测到测试环境，使用模拟 IO 联动驱动器");
+                    return new SimulatedIoLinkageDriver(
+                        loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                }
+                
+                var driverRepo = sp.GetRequiredService<IDriverConfigurationRepository>();
+                
+                // 从数据库读取驱动器配置
+                var driverConfig = driverRepo.Get();
+                var vendorType = driverConfig.VendorType;
+                var useHardware = driverConfig.UseHardwareDriver;
+                
+                logger.LogInformation(
+                    "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}, UseHardware={UseHardware}",
+                    vendorType,
+                    useHardware);
+                
+                // 如果不使用硬件驱动器或使用 Mock，返回模拟驱动器
+                if (!useHardware || vendorType == DriverVendorType.Mock)
+                {
+                    logger.LogInformation("使用模拟 IO 联动驱动器");
+                    return new SimulatedIoLinkageDriver(
+                        loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                }
+                
+                // 根据厂商类型选择驱动器
+                switch (vendorType)
+                {
+                    case DriverVendorType.Leadshine:
+                        logger.LogInformation("使用雷赛 IO 联动驱动器");
+                        var emcController = sp.GetRequiredService<IEmcController>();
+                        return new LeadshineIoLinkageDriver(
+                            loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
+                            emcController);
+                    
+                    case DriverVendorType.Siemens:
+                        logger.LogInformation("使用西门子 S7 IO 联动驱动器");
+                        return CreateS7IoLinkageDriver(sp, configuration, loggerFactory);
+                    
+                    default:
+                        // 未知厂商类型，回退到雷赛
+                        logger.LogWarning(
+                            "未知的IO驱动器厂商类型: {VendorType}，回退到雷赛驱动器",
+                            vendorType);
+                        var defaultEmcController = sp.GetRequiredService<IEmcController>();
+                        return new LeadshineIoLinkageDriver(
+                            loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
+                            defaultEmcController);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "读取驱动器配置失败，回退到雷赛 IO 联动驱动器");
+                var fallbackEmcController = sp.GetRequiredService<IEmcController>();
+                return new LeadshineIoLinkageDriver(
+                    loggerFactory.CreateLogger<LeadshineIoLinkageDriver>(),
+                    fallbackEmcController);
+            }
+        });
+        
+        return services;
+    }
+    
+    /// <summary>
+    /// 创建西门子 S7 IO 联动驱动器实例
+    /// </summary>
+    private static IIoLinkageDriver CreateS7IoLinkageDriver(
+        IServiceProvider sp,
+        IConfiguration configuration,
+        ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger("S7IoLinkageDriverFactory");
+        
+        try
+        {
+            // 尝试获取已注册的 S7 连接
+            var s7Connection = sp.GetService<S7Connection>();
+            
+            if (s7Connection == null)
+            {
+                // S7 连接未注册，从配置创建
+                logger.LogInformation("S7 连接未注册，正在从配置创建");
+                
+                // 读取 S7 配置
+                var s7Options = new S7Options();
+                configuration.GetSection("Driver:S7").Bind(s7Options);
+                
+                // 验证配置
+                if (string.IsNullOrEmpty(s7Options.IpAddress))
+                {
+                    logger.LogWarning("S7 配置未找到或无效，使用默认配置 (192.168.0.1)");
+                    s7Options.IpAddress = "192.168.0.1";
+                    s7Options.Rack = 0;
+                    s7Options.Slot = 1;
+                }
+                
+                // 获取必需的依赖服务
+                var clock = sp.GetRequiredService<ISystemClock>();
+                var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
+                
+                // 创建 IOptionsMonitor 的简单实现
+                var optionsMonitor = new SimpleOptionsMonitor<S7Options>(s7Options);
+                
+                // 创建 S7 连接
+                s7Connection = new S7Connection(
+                    loggerFactory.CreateLogger<S7Connection>(),
+                    optionsMonitor,
+                    clock,
+                    safeExecutor);
+                
+                logger.LogInformation(
+                    "已创建 S7 连接: IP={IpAddress}, Rack={Rack}, Slot={Slot}",
+                    s7Options.IpAddress,
+                    s7Options.Rack,
+                    s7Options.Slot);
+            }
+            
+            // 创建 S7 IO 联动驱动器
+            return new S7IoLinkageDriver(
+                s7Connection,
+                loggerFactory.CreateLogger<S7IoLinkageDriver>(),
+                loggerFactory);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "创建 S7 IO 联动驱动器失败");
+            throw;
+        }
+    }
+    
+    /// <summary>
+    /// 简单的 IOptionsMonitor 实现，用于不需要热更新的场景
+    /// </summary>
+    private sealed class SimpleOptionsMonitor<T> : IOptionsMonitor<T>
+    {
+        private readonly T _currentValue;
+        
+        public SimpleOptionsMonitor(T currentValue)
+        {
+            _currentValue = currentValue;
+        }
+        
+        public T CurrentValue => _currentValue;
+        
+        public T Get(string? name) => _currentValue;
+        
+        public IDisposable? OnChange(Action<T, string?> listener) => null;
     }
 
     #endregion
