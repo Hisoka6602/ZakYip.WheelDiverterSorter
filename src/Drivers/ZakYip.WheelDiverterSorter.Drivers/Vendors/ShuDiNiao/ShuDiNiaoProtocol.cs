@@ -81,15 +81,15 @@ internal static class ShuDiNiaoProtocol
     /// <param name="speedAfterSwing">摆动后速度（m/min），范围 0-255</param>
     /// <returns>12字节速度设置帧</returns>
     /// <remarks>
-    /// 示例报文：51 52 5C 51 54 5A 5A 5A 5A 5A 5A FE
+    /// 示例报文：51 52 5C XX 54 5A 5A 5A 5A 5A 5A FE
     /// 详解：
     ///   51 -> 起始字节
     ///   52 -> 起始字节
     ///   5C -> 整串长度（12字节）
-    ///   51 -> 设备号
+    ///   XX -> 设备号（根据实际配置，如 0x51/0x52/...）
     ///   54 -> 消息类型（速度设置）
-    ///   5A -> 速度设置（如果设置90m/min，则设置0x5A）
-    ///   5A -> 摆动后速度（如果设置90m/min，则设置0x5A）
+    ///   5A -> 速度设置（示例：90m/min 对应 0x5A）
+    ///   5A -> 摆动后速度（示例：90m/min 对应 0x5A）
     ///   5A -> 备用
     ///   5A -> 备用
     ///   5A -> 备用

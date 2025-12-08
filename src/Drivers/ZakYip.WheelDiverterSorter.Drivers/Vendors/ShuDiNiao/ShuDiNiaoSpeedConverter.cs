@@ -15,7 +15,7 @@ internal static class ShuDiNiaoSpeedConverter
     /// <param name="speedMmPerSecond">速度（毫米/秒）</param>
     /// <returns>速度（米/分钟），限制在 0-255 范围内</returns>
     /// <remarks>
-    /// 转换公式：m/min = (mm/s) * 60 / 1000 = (mm/s) * 0.06
+    /// 转换公式：m/min = (mm/s) / 1000 * 60 = (mm/s) * 0.06
     /// 
     /// 示例：
     /// - 1500 mm/s = 90 m/min
@@ -47,7 +47,7 @@ internal static class ShuDiNiaoSpeedConverter
     /// <param name="speedMPerMin">速度（米/分钟）</param>
     /// <returns>速度（毫米/秒）</returns>
     /// <remarks>
-    /// 转换公式：mm/s = (m/min) * 1000 / 60 ≈ (m/min) * 16.6667
+    /// 转换公式：mm/s = (m/min) / 0.06 = (m/min) * 1000 / 60 ≈ (m/min) * 16.6667
     /// 
     /// 示例：
     /// - 90 m/min = 1500 mm/s
