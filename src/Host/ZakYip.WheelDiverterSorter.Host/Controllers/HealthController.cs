@@ -21,6 +21,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
@@ -645,33 +646,38 @@ public class HealthController : ControllerBase
                                     foreach (var device in enabledDevices)
                                     {
                                         var driverIdStr = device.DiverterId.ToString();
-                                        var driverExists = activeDrivers.TryGetValue(driverIdStr, out var driver);
+                                        var driverExists = activeDrivers.ContainsKey(driverIdStr);
                                         
-                                        // 实际检查连接状态和心跳
+                                        // 从 NodeHealthRegistry 读取缓存的健康状态，避免每次 API 调用都执行网络 I/O
                                         bool isConnected = false;
                                         bool isHealthy = false;
                                         
-                                        if (driverExists && driver != null)
+                                        if (driverExists && long.TryParse(driverIdStr, out var nodeId))
                                         {
-                                            // 如果驱动支持心跳检测，使用心跳检测结果
-                                            if (driver is IHeartbeatCapable heartbeatDriver)
+                                            // 从 INodeHealthRegistry 获取缓存的健康状态
+                                            // WheelDiverterHeartbeatMonitor 后台服务定期更新此状态
+                                            var healthRegistry = HttpContext.RequestServices.GetService<INodeHealthRegistry>();
+                                            if (healthRegistry != null)
                                             {
-                                                try
+                                                var nodeHealth = healthRegistry.GetNodeHealth(nodeId);
+                                                if (nodeHealth.HasValue)
                                                 {
-                                                    isHealthy = await heartbeatDriver.CheckHeartbeatAsync(HttpContext.RequestAborted);
-                                                    isConnected = isHealthy; // 心跳正常表示连接正常
+                                                    isHealthy = nodeHealth.Value.IsHealthy;
+                                                    isConnected = nodeHealth.Value.IsHealthy; // 心跳正常表示连接正常
                                                 }
-                                                catch
+                                                else
                                                 {
-                                                    isHealthy = false;
-                                                    isConnected = false;
+                                                    // 节点未在注册表中，可能尚未进行过健康检查
+                                                    // 假设存在于活动驱动器列表的设备是连接的
+                                                    isConnected = true;
+                                                    isHealthy = true;
                                                 }
                                             }
                                             else
                                             {
-                                                // 不支持心跳检测，只能判断驱动是否存在
-                                                isConnected = true;
-                                                isHealthy = true;
+                                                // 健康注册表未注入，回退到简单检查
+                                                isConnected = driverExists;
+                                                isHealthy = driverExists;
                                             }
                                         }
                                         

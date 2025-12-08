@@ -27,7 +27,7 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 {
     private readonly ILoggerFactory _loggerFactory;
     private readonly LeadshineOptions _options;
-    private readonly IEmcController? _emcController;
+    private readonly IEmcController _emcController;
 
     public VendorId VendorId => VendorId.Leadshine;
 
@@ -69,11 +69,6 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 
     public IReadOnlyList<IWheelDiverterDriver> CreateWheelDiverterDrivers()
     {
-        if (_emcController == null)
-        {
-            throw new InvalidOperationException("EMC 控制器未初始化，无法创建摆轮驱动器");
-        }
-
         var drivers = new List<IWheelDiverterDriver>();
 
         foreach (var configDto in _options.Diverters)
@@ -100,22 +95,12 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 
     public IIoLinkageDriver CreateIoLinkageDriver()
     {
-        if (_emcController == null)
-        {
-            throw new InvalidOperationException("EMC 控制器未初始化");
-        }
-
         var logger = _loggerFactory.CreateLogger<LeadshineIoLinkageDriver>();
         return new LeadshineIoLinkageDriver(logger, _emcController);
     }
 
     public IConveyorSegmentDriver? CreateConveyorSegmentDriver(string segmentId)
     {
-        if (_emcController == null)
-        {
-            throw new InvalidOperationException("EMC 控制器未初始化");
-        }
-
         // 从配置中查找对应的传送带段映射
         var mapping = _options.ConveyorSegmentMappings
             .FirstOrDefault(m => m.SegmentKey == segmentId);
@@ -137,11 +122,6 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
 
     public ISensorInputReader? CreateSensorInputReader()
     {
-        if (_emcController == null)
-        {
-            return null;
-        }
-
         var logger = _loggerFactory.CreateLogger<LeadshineSensorInputReader>();
         return new LeadshineSensorInputReader(_emcController, logger);
     }

@@ -55,10 +55,9 @@ public static class LeadshineIoServiceCollectionExtensions
                 options.Leadshine.ControllerIp);
             
             // 同步初始化
-            var initTask = emcController.InitializeAsync();
-            initTask.Wait();
+            var initResult = emcController.InitializeAsync().GetAwaiter().GetResult();
             
-            if (!initTask.Result)
+            if (!initResult)
             {
                 var errorMessage =
                     $"EMC 控制器初始化失败。CardNo: {options.Leadshine.CardNo}, PortNo: {options.Leadshine.PortNo}, " +

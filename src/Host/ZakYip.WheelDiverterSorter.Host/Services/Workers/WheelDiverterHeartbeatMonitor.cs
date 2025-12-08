@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Net.NetworkInformation;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -45,7 +46,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
     
     private readonly Dictionary<string, DateTimeOffset> _lastSuccessfulCheck = new();
     private readonly Dictionary<string, bool> _lastHealthStatus = new();
-    private readonly Dictionary<string, DateTimeOffset> _lastLogTime = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastLogTime = new();
     private bool _isAlarming = false;
     private DateTimeOffset? _alarmStartTime = null;
     
@@ -230,13 +231,10 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                     // 从健康变为不健康，必须记录
                     shouldLogWarning = true;
                 }
-                else if (_lastLogTime.TryGetValue(diverterId, out var lastLog))
+                else if (_lastLogTime.TryGetValue(diverterId, out var lastLog) && (now - lastLog) >= MinLogInterval)
                 {
                     // 持续不健康，检查是否达到最小日志间隔
-                    if ((now - lastLog) >= MinLogInterval)
-                    {
-                        shouldLogWarning = true;
-                    }
+                    shouldLogWarning = true;
                 }
                 
                 if (shouldLogWarning)
@@ -252,7 +250,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                     if (elapsed > HeartbeatTimeout)
                     {
                         // 心跳超时，标记为不健康
-                        if (_lastHealthStatus.TryGetValue(diverterId, out var wasHealthy2) && wasHealthy2)
+                        if (_lastHealthStatus.TryGetValue(diverterId, out var wasPreviouslyHealthy) && wasPreviouslyHealthy)
                         {
                             _logger.LogError(
                                 "摆轮 {DiverterId} 心跳超时！最后成功时间: {LastSuccess}, 已超时: {Elapsed}",
