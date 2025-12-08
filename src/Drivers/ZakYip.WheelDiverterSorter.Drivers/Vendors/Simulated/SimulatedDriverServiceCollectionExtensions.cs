@@ -35,6 +35,8 @@ public static class SimulatedDriverServiceCollectionExtensions
     /// - <see cref="ISwitchingPathExecutor"/> -> <see cref="MockSwitchingPathExecutor"/>
     /// - <see cref="IIoLinkageDriver"/> (通过工厂创建)
     /// - <see cref="IIoLinkageCoordinator"/> -> <see cref="DefaultIoLinkageCoordinator"/>
+    /// - <see cref="IPanelInputReader"/> -> <see cref="SimulatedPanelInputReader"/>
+    /// - <see cref="IPanelIoCoordinator"/> -> <see cref="DefaultPanelIoCoordinator"/>
     /// </remarks>
     public static IServiceCollection AddSimulatedIo(this IServiceCollection services)
     {
@@ -77,6 +79,12 @@ public static class SimulatedDriverServiceCollectionExtensions
 
         // 注册 IO 联动协调器
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
+
+        // 注册面板输入读取器
+        services.AddSingleton<IPanelInputReader, SimulatedPanelInputReader>();
+
+        // 注册面板 IO 协调器
+        services.AddSingleton<IPanelIoCoordinator, DefaultPanelIoCoordinator>();
 
         return services;
     }
