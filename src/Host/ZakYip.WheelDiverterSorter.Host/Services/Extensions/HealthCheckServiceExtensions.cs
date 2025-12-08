@@ -71,6 +71,9 @@ public static class HealthCheckServiceExtensions
         
         // 注册摆轮初始化服务
         services.AddHostedService<WheelDiverterInitHostedService>();
+        
+        // 注册摆轮心跳监控服务
+        services.AddHostedService<WheelDiverterHeartbeatMonitor>();
 
         // 注册运行前健康检查服务
         services.AddSingleton<IPreRunHealthCheckService, PreRunHealthCheckService>();
