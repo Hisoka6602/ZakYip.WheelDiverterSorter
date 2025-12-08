@@ -157,7 +157,8 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                             // 只记录心跳异常，心跳正常不记录日志
                             _logger.LogWarning("摆轮 {DiverterId} 使用协议心跳检查，结果=离线", diverterId);
                         }
-                        // 更新时间戳以避免频繁触发 shouldLog 条件（无论是否实际记录日志）
+                        // 即使心跳正常未记录日志，也要更新时间戳，以避免后续频繁触发 shouldLog 条件。
+                        // 这样可确保首次检查和日志间隔逻辑一致，防止误判为需要记录日志。
                         _lastLogTime[diverterId] = now;
                     }
                 }
