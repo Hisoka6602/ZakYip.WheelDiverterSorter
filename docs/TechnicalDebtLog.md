@@ -53,6 +53,7 @@
 - [TD-039] 代码中存在 TODO 标记待处理项
 - [TD-044] LeadshineIoLinkageDriver 缺少 EMC 初始化检查
 - [TD-045] IO 驱动需要全局单例实现（Leadshine/S7）
+- [TD-046] 所有DI注册统一使用单例模式
 
 ---
 
@@ -1811,5 +1812,88 @@ _prometheusMetrics.SetTtlSchedulerHealth(true);
 ---
 
 **文档版本**：4.2 (TD-045 新增)  
+**最后更新**：2025-12-08  
+**维护团队**：ZakYip Development Team
+
+## [TD-046] 所有DI注册统一使用单例模式
+
+**状态**：✅ 已解决 (当前 PR)
+
+**问题描述**：
+
+在代码审计中发现部分服务使用 `AddScoped` 注册，而非 `AddSingleton`。为确保性能一致性和架构统一性，所有DI注册应统一使用单例模式。
+
+**问题范围**：
+
+在 `ApplicationServiceExtensions.cs` 中发现7个 `AddScoped` 注册：
+1. `ISystemConfigService` → `SystemConfigService`
+2. `ILoggingConfigService` → `LoggingConfigService`
+3. `ICommunicationConfigService` → `CommunicationConfigService`
+4. `IIoLinkageConfigService` → `IoLinkageConfigService`
+5. `IVendorConfigService` → `VendorConfigService`
+6. `ISimulationModeProvider` → `SimulationModeProvider`
+7. `IChutePathTopologyService` → `ChutePathTopologyService`
+
+**为何需要单例**：
+
+1. **配置服务**：这些服务都是配置服务，配置数据在应用生命周期内保持稳定，使用单例可以：
+   - 提高性能（避免重复创建实例）
+   - 确保配置缓存的一致性（与 `ISlidingConfigCache` 配合）
+   - 减少内存开销
+
+2. **拓扑服务**：拓扑信息在运行时相对稳定，单例模式可以：
+   - 避免重复加载拓扑数据
+   - 提供一致的拓扑视图
+   - 提高查询性能
+
+3. **仿真模式提供者**：仿真模式是全局状态，必须使用单例确保所有组件看到相同的模式
+
+**解决方案**：
+
+将所有 `AddScoped` 注册改为 `AddSingleton`：
+
+```csharp
+// 修改前
+services.AddScoped<ISystemConfigService, SystemConfigService>();
+services.AddScoped<ILoggingConfigService, LoggingConfigService>();
+// ...
+
+// 修改后
+services.AddSingleton<ISystemConfigService, SystemConfigService>();
+services.AddSingleton<ILoggingConfigService, LoggingConfigService>();
+// ...
+```
+
+**影响分析**：
+
+✅ **正面影响**：
+- 提高性能：减少实例创建和垃圾回收开销
+- 增强一致性：所有请求共享同一实例，确保状态一致
+- 简化架构：统一生命周期管理策略
+
+✅ **无负面影响**：
+- 这些服务都是无状态或状态安全的
+- 已通过 `ISlidingConfigCache` 管理配置更新
+- 构建和测试全部通过
+
+**验证结果**：
+
+```bash
+# 构建验证
+dotnet build
+Build succeeded. 0 Warning(s), 0 Error(s)
+
+# 确认无AddScoped残留
+grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
+# (仅注释中有提及，无实际使用)
+```
+
+**相关技术债**：
+- TD-045: IO驱动单例模式（已通过审计确认满足要求）
+- 本技术债进一步强化了单例模式作为DI注册的统一标准
+
+---
+
+**文档版本**：4.3 (TD-046 新增)  
 **最后更新**：2025-12-08  
 **维护团队**：ZakYip Development Team

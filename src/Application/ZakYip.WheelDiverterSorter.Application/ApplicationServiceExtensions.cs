@@ -45,15 +45,15 @@ public static class ApplicationServiceExtensions
         // 注册统一滑动配置缓存（1小时滑动过期，支持热更新）
         services.AddSingleton<ISlidingConfigCache, SlidingConfigCache>();
         
-        // 注册配置服务
-        services.AddScoped<ISystemConfigService, SystemConfigService>();
-        services.AddScoped<ILoggingConfigService, LoggingConfigService>();
-        services.AddScoped<ICommunicationConfigService, CommunicationConfigService>();
-        services.AddScoped<IIoLinkageConfigService, IoLinkageConfigService>();
-        services.AddScoped<IVendorConfigService, VendorConfigService>();
+        // 注册配置服务（单例模式，提高性能并确保状态一致性）
+        services.AddSingleton<ISystemConfigService, SystemConfigService>();
+        services.AddSingleton<ILoggingConfigService, LoggingConfigService>();
+        services.AddSingleton<ICommunicationConfigService, CommunicationConfigService>();
+        services.AddSingleton<IIoLinkageConfigService, IoLinkageConfigService>();
+        services.AddSingleton<IVendorConfigService, VendorConfigService>();
         
-        // 注册仿真模式提供者
-        services.AddScoped<ISimulationModeProvider, SimulationModeProvider>();
+        // 注册仿真模式提供者（单例模式）
+        services.AddSingleton<ISimulationModeProvider, SimulationModeProvider>();
         
         // 注册调试分拣服务
         services.AddSingleton<IDebugSortService, DebugSortService>();
@@ -67,8 +67,8 @@ public static class ApplicationServiceExtensions
         // 注册通信统计服务
         services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
         
-        // 注册拓扑相关服务
-        services.AddScoped<IChutePathTopologyService, ChutePathTopologyService>();
+        // 注册拓扑相关服务（单例模式）
+        services.AddSingleton<IChutePathTopologyService, ChutePathTopologyService>();
         
         // 注册摆轮连接管理服务
         services.AddSingleton<IWheelDiverterConnectionService, WheelDiverterConnectionService>();
