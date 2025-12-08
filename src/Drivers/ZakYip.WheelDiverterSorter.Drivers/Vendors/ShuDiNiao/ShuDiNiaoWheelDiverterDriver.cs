@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
@@ -35,8 +36,14 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
     /// </remarks>
     private const int HeartbeatTimeoutMs = 5000;
     
+    /// <summary>
+    /// 接收任务停止等待超时时间（秒）
+    /// </summary>
+    private static readonly TimeSpan ReceiveTaskStopTimeout = TimeSpan.FromSeconds(2);
+    
     private readonly ILogger<ShuDiNiaoWheelDiverterDriver> _logger;
     private readonly ShuDiNiaoDeviceEntry _config;
+    private readonly ISystemClock _clock;
     private TcpClient? _tcpClient;
     private NetworkStream? _stream;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
@@ -46,7 +53,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
     private string? _lastCommandSent = null;
     
     // 心跳相关字段
-    private DateTime _lastStatusReportTime = DateTime.MinValue;
+    private DateTimeOffset _lastStatusReportTime = DateTimeOffset.MinValue;
     private Task? _receiveTask;
     private CancellationTokenSource? _receiveCts;
 
@@ -68,12 +75,15 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
     /// </summary>
     /// <param name="config">设备配置</param>
     /// <param name="logger">日志记录器</param>
+    /// <param name="clock">系统时钟</param>
     public ShuDiNiaoWheelDiverterDriver(
         ShuDiNiaoDeviceEntry config,
-        ILogger<ShuDiNiaoWheelDiverterDriver> logger)
+        ILogger<ShuDiNiaoWheelDiverterDriver> logger,
+        ISystemClock clock)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
 
         _logger.LogInformation(
             "已初始化数递鸟摆轮驱动器 {DiverterId}，主机={Host}，端口={Port}，设备地址=0x{DeviceAddress:X2}",
@@ -242,11 +252,13 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
         }
         
         // 检查心跳超时
-        var now = DateTime.Now;
+        var now = _clock.LocalNow;
+#pragma warning disable MA0132 // Both now and _lastStatusReportTime are DateTimeOffset
         var timeSinceLastReport = now - _lastStatusReportTime;
+#pragma warning restore MA0132
         
         // 如果从未收到状态上报，则使用TCP连接状态（可能是设备刚连接）
-        if (_lastStatusReportTime == DateTime.MinValue)
+        if (_lastStatusReportTime == DateTimeOffset.MinValue)
         {
             _logger.LogDebug("摆轮 {DiverterId} 心跳检查: 尚未收到状态上报，TCP连接正常", DiverterId);
             return Task.FromResult(true);
@@ -448,7 +460,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             _tcpClient = null;
 
             _currentStatus = "未连接";
-            _lastStatusReportTime = DateTime.MinValue; // 重置心跳时间
+            _lastStatusReportTime = DateTimeOffset.MinValue; // 重置心跳时间
         }
         catch (Exception ex)
         {
@@ -488,7 +500,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             try
             {
                 // 等待任务完成，但不阻塞太久
-                _receiveTask.Wait(TimeSpan.FromSeconds(2));
+                _receiveTask.Wait(ReceiveTaskStopTimeout);
             }
             catch (Exception ex)
             {
@@ -514,15 +526,23 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
         
         try
         {
-            while (!cancellationToken.IsCancellationRequested && _stream != null)
+            while (!cancellationToken.IsCancellationRequested)
             {
+                // 先获取stream的局部引用，避免竞态条件（TOCTOU问题）
+                var localStream = _stream;
+                if (localStream == null)
+                {
+                    _logger.LogDebug("摆轮 {DiverterId} 接收循环：流已关闭", DiverterId);
+                    break;
+                }
+                
                 try
                 {
                     // 读取一个完整的协议帧（7字节）
                     var bytesRead = 0;
                     while (bytesRead < ShuDiNiaoProtocol.FrameLength && !cancellationToken.IsCancellationRequested)
                     {
-                        var read = await _stream.ReadAsync(
+                        var read = await localStream.ReadAsync(
                             buffer.AsMemory(bytesRead, ShuDiNiaoProtocol.FrameLength - bytesRead),
                             cancellationToken);
                         
@@ -583,7 +603,9 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
                 if (deviceAddress == _config.DeviceAddress)
                 {
                     // 更新心跳时间
-                    _lastStatusReportTime = DateTime.Now;
+#pragma warning disable MA0132 // Both sides are DateTimeOffset
+                    _lastStatusReportTime = _clock.LocalNow;
+#pragma warning restore MA0132
                     
                     _logger.LogDebug(
                         "[摆轮通信-接收] 摆轮 {DiverterId} 收到状态上报 | 设备地址=0x{DeviceAddress:X2} | 状态={State} | 帧={Frame}",

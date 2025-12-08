@@ -33,6 +33,16 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
     private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan AlarmDuration = TimeSpan.FromSeconds(3);
     
+    /// <summary>
+    /// Ping 超时时间（毫秒）
+    /// </summary>
+    private const int PingTimeoutMs = 2000;
+    
+    /// <summary>
+    /// 初始化延迟时间（等待系统初始化）
+    /// </summary>
+    private static readonly TimeSpan InitializationDelay = TimeSpan.FromSeconds(10);
+    
     private readonly Dictionary<string, DateTimeOffset> _lastSuccessfulCheck = new();
     private readonly Dictionary<string, bool> _lastHealthStatus = new();
     private bool _isAlarming = false;
@@ -61,7 +71,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         _logger.LogInformation("========== 摆轮心跳监控服务已启动 ==========");
         
         // 等待一小段时间让系统初始化完成
-        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
+        await Task.Delay(InitializationDelay, stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -304,7 +314,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         try
         {
             using var ping = new Ping();
-            var reply = await ping.SendPingAsync(host, 2000); // 2秒超时
+            var reply = await ping.SendPingAsync(host, PingTimeoutMs);
             var isReachable = reply.Status == IPStatus.Success;
             
             if (!isReachable)

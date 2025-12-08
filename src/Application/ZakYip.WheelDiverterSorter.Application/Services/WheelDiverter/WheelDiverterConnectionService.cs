@@ -18,6 +18,11 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 /// </remarks>
 public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionService
 {
+    /// <summary>
+    /// Ping 超时时间（毫秒）
+    /// </summary>
+    private const int PingTimeoutMs = 2000;
+    
     private readonly IWheelDiverterConfigurationRepository _configRepository;
     private readonly IWheelDiverterDriverManager _driverManager;
     private readonly INodeHealthRegistry _healthRegistry;
@@ -149,13 +154,14 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
 
                 // 更新所有设备的健康状态
                 var activeDrivers = _driverManager.GetActiveDrivers();
-                foreach (var device in reachableDevices)
+                reachableDevices.Select(device =>
                 {
                     var diverterId = device.DiverterId.ToString();
                     var isConnected = activeDrivers.ContainsKey(diverterId);
                     UpdateHealthStatus(diverterId, isConnected, isConnected, 
                         isConnected ? "已连接" : "连接失败");
-                }
+                    return device;
+                }).ToList();
 
                 var allFailedDriverIds = unreachableDevices.Concat(applyResult.FailedDriverIds).ToList();
                 var isSuccess = allFailedDriverIds.Count == 0;
@@ -390,7 +396,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
         try
         {
             using var ping = new Ping();
-            var reply = await ping.SendPingAsync(host, 2000); // 2秒超时
+            var reply = await ping.SendPingAsync(host, PingTimeoutMs);
             var isReachable = reply.Status == IPStatus.Success;
             
             if (isReachable)
