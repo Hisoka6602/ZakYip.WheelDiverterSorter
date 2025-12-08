@@ -156,8 +156,9 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                         {
                             // 只记录心跳异常，心跳正常不记录日志
                             _logger.LogWarning("摆轮 {DiverterId} 使用协议心跳检查，结果=离线", diverterId);
+                            _lastLogTime[diverterId] = now;
                         }
-                        _lastLogTime[diverterId] = now;
+                        // 心跳正常时不记录日志，也不更新时间戳
                     }
                 }
                 else
