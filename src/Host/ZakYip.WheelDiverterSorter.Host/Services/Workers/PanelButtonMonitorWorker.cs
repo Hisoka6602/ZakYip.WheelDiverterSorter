@@ -193,16 +193,22 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// </summary>
     /// <remarks>
     /// 修复Issue 2: 面板按钮按下时应该触发相应的系统状态转换
+    /// 新需求: 启动按钮按下时先触发预警，等待预警时间后再进入Running状态
     /// </remarks>
     private async Task HandleButtonActionAsync(PanelButtonType buttonType, SystemState currentState, CancellationToken cancellationToken)
     {
         try
         {
+            // 特殊处理启动按钮：需要预警逻辑
+            if (buttonType == PanelButtonType.Start && currentState is SystemState.Ready or SystemState.Paused)
+            {
+                await HandleStartButtonWithPreWarningAsync(currentState, cancellationToken);
+                return;
+            }
+
+            // 其他按钮的正常处理
             SystemState? targetState = buttonType switch
             {
-                PanelButtonType.Start when currentState is SystemState.Ready or SystemState.Paused =>
-                    SystemState.Running,
-                
                 PanelButtonType.Stop when currentState is SystemState.Running or SystemState.Paused =>
                     SystemState.Ready,
                 
@@ -247,6 +253,63 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 ex,
                 "处理按钮 {ButtonType} 动作异常",
                 buttonType);
+        }
+    }
+
+    /// <summary>
+    /// 处理启动按钮的预警逻辑
+    /// </summary>
+    /// <remarks>
+    /// 启动按钮按下时：
+    /// 1. 保持在Ready状态
+    /// 2. 如果配置了预警时间，触发预警输出并等待
+    /// 3. 预警时间结束后转换到Running状态
+    /// </remarks>
+    private async Task HandleStartButtonWithPreWarningAsync(SystemState currentState, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var panelConfig = _panelConfigRepository.Get();
+            var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
+
+            if (preWarningDuration.HasValue && preWarningDuration.Value > 0)
+            {
+                _logger.LogInformation(
+                    "启动按钮按下，开始预警 {Duration} 秒，当前状态保持为 {CurrentState}",
+                    preWarningDuration.Value,
+                    currentState);
+
+                // TODO: 触发预警输出（PreStartWarningOutputBit）
+                // 这需要通过输出端口服务来实现
+
+                // 等待预警时间
+                await Task.Delay(TimeSpan.FromSeconds(preWarningDuration.Value), cancellationToken);
+
+                _logger.LogInformation("预警时间结束，准备转换到 Running 状态");
+            }
+            else
+            {
+                _logger.LogInformation("未配置预警时间，直接转换到 Running 状态");
+            }
+
+            // 预警结束后，转换到Running状态
+            var result = await _stateManager.ChangeStateAsync(SystemState.Running, cancellationToken);
+            
+            if (!result.Success)
+            {
+                _logger.LogWarning(
+                    "启动按钮状态转换失败: {ErrorMessage}",
+                    result.ErrorMessage);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("预警过程被取消");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理启动按钮预警逻辑异常");
         }
     }
 
