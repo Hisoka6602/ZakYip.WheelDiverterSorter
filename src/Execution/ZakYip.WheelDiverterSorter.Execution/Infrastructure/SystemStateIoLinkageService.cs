@@ -77,51 +77,7 @@ public class SystemStateIoLinkageService
         }
 
         // 3. 启动所有已连接的摆轮
-        if (_wheelDiverterDriverManager != null)
-        {
-            var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
-            if (activeDrivers.Count > 0)
-            {
-                _logger.LogInformation("系统启动，准备启动 {Count} 个摆轮", activeDrivers.Count);
-                
-                var successCount = 0;
-                var failedDriverIds = new List<string>();
-                
-                foreach (var kvp in activeDrivers)
-                {
-                    try
-                    {
-                        var success = await kvp.Value.RunAsync(cancellationToken);
-                        if (success)
-                        {
-                            successCount++;
-                            _logger.LogInformation("摆轮 {DiverterId} 启动成功", kvp.Key);
-                        }
-                        else
-                        {
-                            failedDriverIds.Add(kvp.Key);
-                            _logger.LogWarning("摆轮 {DiverterId} 启动失败", kvp.Key);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failedDriverIds.Add(kvp.Key);
-                        _logger.LogError(ex, "摆轮 {DiverterId} 启动异常", kvp.Key);
-                    }
-                }
-                
-                if (failedDriverIds.Count > 0)
-                {
-                    _logger.LogWarning(
-                        "部分摆轮启动失败: 成功={SuccessCount}/{TotalCount}, 失败摆轮={FailedIds}",
-                        successCount, activeDrivers.Count, string.Join(", ", failedDriverIds));
-                }
-                else
-                {
-                    _logger.LogInformation("所有摆轮启动成功: {Count} 个", successCount);
-                }
-            }
-        }
+        await RunAllWheelDivertersAsync(cancellationToken);
 
         return OperationResult.Success();
     }
@@ -140,51 +96,7 @@ public class SystemStateIoLinkageService
         }
 
         // 2. 停止所有摆轮
-        if (_wheelDiverterDriverManager != null)
-        {
-            var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
-            if (activeDrivers.Count > 0)
-            {
-                _logger.LogInformation("系统停止，准备停止 {Count} 个摆轮", activeDrivers.Count);
-                
-                var successCount = 0;
-                var failedDriverIds = new List<string>();
-                
-                foreach (var kvp in activeDrivers)
-                {
-                    try
-                    {
-                        var success = await kvp.Value.StopAsync(cancellationToken);
-                        if (success)
-                        {
-                            successCount++;
-                            _logger.LogInformation("摆轮 {DiverterId} 停止成功", kvp.Key);
-                        }
-                        else
-                        {
-                            failedDriverIds.Add(kvp.Key);
-                            _logger.LogWarning("摆轮 {DiverterId} 停止失败", kvp.Key);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failedDriverIds.Add(kvp.Key);
-                        _logger.LogError(ex, "摆轮 {DiverterId} 停止异常", kvp.Key);
-                    }
-                }
-                
-                if (failedDriverIds.Count > 0)
-                {
-                    _logger.LogWarning(
-                        "部分摆轮停止失败: 成功={SuccessCount}/{TotalCount}, 失败摆轮={FailedIds}",
-                        successCount, activeDrivers.Count, string.Join(", ", failedDriverIds));
-                }
-                else
-                {
-                    _logger.LogInformation("所有摆轮停止成功: {Count} 个", successCount);
-                }
-            }
-        }
+        await StopAllWheelDivertersAsync(cancellationToken);
 
         // 3. 执行 IO 联动
         var currentState = _stateService.Current;
@@ -218,51 +130,8 @@ public class SystemStateIoLinkageService
         }
 
         // 2. 停止所有摆轮（急停）
-        if (_wheelDiverterDriverManager != null)
-        {
-            var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
-            if (activeDrivers.Count > 0)
-            {
-                _logger.LogWarning("急停触发！准备停止 {Count} 个摆轮", activeDrivers.Count);
-                
-                var successCount = 0;
-                var failedDriverIds = new List<string>();
-                
-                foreach (var kvp in activeDrivers)
-                {
-                    try
-                    {
-                        var success = await kvp.Value.StopAsync(cancellationToken);
-                        if (success)
-                        {
-                            successCount++;
-                            _logger.LogInformation("摆轮 {DiverterId} 急停成功", kvp.Key);
-                        }
-                        else
-                        {
-                            failedDriverIds.Add(kvp.Key);
-                            _logger.LogWarning("摆轮 {DiverterId} 急停失败", kvp.Key);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failedDriverIds.Add(kvp.Key);
-                        _logger.LogError(ex, "摆轮 {DiverterId} 急停异常", kvp.Key);
-                    }
-                }
-                
-                if (failedDriverIds.Count > 0)
-                {
-                    _logger.LogWarning(
-                        "部分摆轮急停失败: 成功={SuccessCount}/{TotalCount}, 失败摆轮={FailedIds}",
-                        successCount, activeDrivers.Count, string.Join(", ", failedDriverIds));
-                }
-                else
-                {
-                    _logger.LogInformation("所有摆轮急停成功: {Count} 个", successCount);
-                }
-            }
-        }
+        _logger.LogWarning("急停触发！");
+        await StopAllWheelDivertersAsync(cancellationToken);
 
         // 3. 状态切换成功，执行停止联动 IO（急停时使用停止联动 IO）
         var currentState = _stateService.Current;
@@ -309,5 +178,96 @@ public class SystemStateIoLinkageService
     public OperationResult ValidateParcelCreation()
     {
         return _stateService.ValidateParcelCreation();
+    }
+
+    /// <summary>
+    /// 启动所有已连接的摆轮
+    /// </summary>
+    private async Task RunAllWheelDivertersAsync(CancellationToken cancellationToken)
+    {
+        if (_wheelDiverterDriverManager == null)
+        {
+            return;
+        }
+
+        var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
+        if (activeDrivers.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation("系统启动，准备启动 {Count} 个摆轮", activeDrivers.Count);
+        await ExecuteWheelDiverterOperationAsync(activeDrivers, 
+            (driver, ct) => driver.RunAsync(ct), 
+            "启动", cancellationToken);
+    }
+
+    /// <summary>
+    /// 停止所有摆轮
+    /// </summary>
+    private async Task StopAllWheelDivertersAsync(CancellationToken cancellationToken)
+    {
+        if (_wheelDiverterDriverManager == null)
+        {
+            return;
+        }
+
+        var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
+        if (activeDrivers.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation("准备停止 {Count} 个摆轮", activeDrivers.Count);
+        await ExecuteWheelDiverterOperationAsync(activeDrivers, 
+            (driver, ct) => driver.StopAsync(ct), 
+            "停止", cancellationToken);
+    }
+
+    /// <summary>
+    /// 执行摆轮操作（避免代码重复）
+    /// </summary>
+    private async Task ExecuteWheelDiverterOperationAsync(
+        IReadOnlyDictionary<string, IWheelDiverterDriver> drivers,
+        Func<IWheelDiverterDriver, CancellationToken, Task<bool>> operation,
+        string operationName,
+        CancellationToken cancellationToken)
+    {
+        var successCount = 0;
+        var failedDriverIds = new List<string>();
+
+        foreach (var kvp in drivers)
+        {
+            try
+            {
+                var success = await operation(kvp.Value, cancellationToken);
+                if (success)
+                {
+                    successCount++;
+                    _logger.LogDebug("摆轮 {DiverterId} {Operation}成功", kvp.Key, operationName);
+                }
+                else
+                {
+                    failedDriverIds.Add(kvp.Key);
+                    _logger.LogWarning("摆轮 {DiverterId} {Operation}失败", kvp.Key, operationName);
+                }
+            }
+            catch (Exception ex)
+            {
+                failedDriverIds.Add(kvp.Key);
+                _logger.LogError(ex, "摆轮 {DiverterId} {Operation}异常", kvp.Key, operationName);
+            }
+        }
+
+        if (failedDriverIds.Count > 0)
+        {
+            _logger.LogWarning(
+                "部分摆轮{Operation}失败: 成功={SuccessCount}/{TotalCount}, 失败摆轮={FailedIds}",
+                operationName, successCount, drivers.Count, string.Join(", ", failedDriverIds));
+        }
+        else
+        {
+            _logger.LogInformation("所有摆轮{Operation}成功: {Count} 个", operationName, successCount);
+        }
     }
 }
