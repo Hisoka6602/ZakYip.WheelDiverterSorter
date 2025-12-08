@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
@@ -27,6 +28,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private readonly ISystemStateManager _stateManager;
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly ISafeExecutionService _safeExecutor;
+    private readonly ISystemClock _systemClock;
     
     /// <summary>
     /// 默认按钮轮询间隔（毫秒）
@@ -49,7 +51,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         IIoLinkageConfigService ioLinkageConfigService,
         ISystemStateManager stateManager,
         IPanelConfigurationRepository panelConfigRepository,
-        ISafeExecutionService safeExecutor)
+        ISafeExecutionService safeExecutor,
+        ISystemClock systemClock)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _panelInputReader = panelInputReader ?? throw new ArgumentNullException(nameof(panelInputReader));
@@ -57,6 +60,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -285,7 +289,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                     currentState);
 
                 // 记录预警开始时间用于验证
-                var warningStartTime = DateTime.Now;
+                var warningStartTime = _systemClock.LocalNow;
 
                 // TODO: 触发预警输出（PreStartWarningOutputBit）
                 // 这需要通过输出端口服务来实现
@@ -302,7 +306,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 _logger.LogInformation("开始等待预警时间: {Duration} 秒...", preWarningDuration.Value);
                 await Task.Delay(TimeSpan.FromSeconds(preWarningDuration.Value), cancellationToken);
 
-                var actualWaitTime = (DateTime.Now - warningStartTime).TotalSeconds;
+                var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
                 _logger.LogWarning(
                     "✅ 预警时间结束，实际等待: {ActualWait:F2} 秒，准备转换到 Running 状态并启动摆轮",
                     actualWaitTime);
