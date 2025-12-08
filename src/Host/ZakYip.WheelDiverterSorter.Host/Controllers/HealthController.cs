@@ -21,6 +21,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
@@ -544,8 +545,31 @@ public class HealthController : ControllerBase
                         }
                     }
                     
-                    // 非仿真模式下，未配置或未连接都是不健康的
-                    var isHealthy = isSimulationMode || (isConfigured);
+                    // 非仿真模式下，需要检查实际的硬件初始化状态
+                    var isConnected = false;
+                    var isHealthy = isSimulationMode;
+                    
+                    if (!isSimulationMode && isConfigured)
+                    {
+                        // 尝试获取 IEmcController 来检查实际初始化状态
+                        var emcController = HttpContext.RequestServices.GetService<IEmcController>();
+                        if (emcController != null)
+                        {
+                            isConnected = emcController.IsAvailable();
+                            isHealthy = isConnected;
+                            
+                            if (!isConnected)
+                            {
+                                configError = "EMC控制器未初始化或不可用";
+                            }
+                        }
+                        else
+                        {
+                            // EMC控制器未注册到DI容器
+                            isHealthy = false;
+                            configError = "EMC控制器未注册到依赖注入容器";
+                        }
+                    }
                     
                     var ioDriverStatus = new DriverHealthInfo
                     {
@@ -553,13 +577,13 @@ public class HealthController : ControllerBase
                         DriverType = DriverCategory.IoDriver,
                         VendorType = ioConfig.VendorType.ToString(),
                         VendorDisplayName = ioVendorDisplayName,
-                        IsConnected = !isSimulationMode && isConfigured,
+                        IsConnected = isConnected,
                         IsSimulationMode = isSimulationMode,
                         IsHealthy = isHealthy,
-                        ErrorCode = !isHealthy ? "NOT_CONFIGURED" : null,
+                        ErrorCode = !isHealthy ? (string.IsNullOrEmpty(configError) ? "NOT_CONNECTED" : "NOT_CONFIGURED") : null,
                         ErrorMessage = isSimulationMode 
                             ? "仿真模式运行中" 
-                            : (isConfigured 
+                            : (isHealthy 
                                 ? $"硬件模式已启用，厂商: {ioVendorDisplayName}" 
                                 : configError),
                         CheckedAt = now
@@ -621,7 +645,42 @@ public class HealthController : ControllerBase
                                     wheelDriversAdded = true;
                                     foreach (var device in enabledDevices)
                                     {
-                                        var isConnected = activeDrivers.ContainsKey(device.DiverterId.ToString());
+                                        var driverIdStr = device.DiverterId.ToString();
+                                        var driverExists = activeDrivers.ContainsKey(driverIdStr);
+                                        
+                                        // 从 NodeHealthRegistry 读取缓存的健康状态，避免每次 API 调用都执行网络 I/O
+                                        bool isConnected = false;
+                                        bool isHealthy = false;
+                                        
+                                        if (driverExists && long.TryParse(driverIdStr, out var nodeId))
+                                        {
+                                            // 从 INodeHealthRegistry 获取缓存的健康状态
+                                            // WheelDiverterHeartbeatMonitor 后台服务定期更新此状态
+                                            var healthRegistry = HttpContext.RequestServices.GetService<INodeHealthRegistry>();
+                                            if (healthRegistry != null)
+                                            {
+                                                var nodeHealth = healthRegistry.GetNodeHealth(nodeId);
+                                                if (nodeHealth.HasValue)
+                                                {
+                                                    isHealthy = nodeHealth.Value.IsHealthy;
+                                                    isConnected = nodeHealth.Value.IsHealthy; // 心跳正常表示连接正常
+                                                }
+                                                else
+                                                {
+                                                    // 节点未在注册表中，可能尚未进行过健康检查
+                                                    // 假设存在于活动驱动器列表的设备是连接的
+                                                    isConnected = true;
+                                                    isHealthy = true;
+                                                }
+                                            }
+                                            else
+                                            {
+                                                // 健康注册表未注入，回退到简单检查
+                                                isConnected = driverExists;
+                                                isHealthy = driverExists;
+                                            }
+                                        }
+                                        
                                         drivers.Add(new DriverHealthInfo
                                         {
                                             DriverName = $"摆轮驱动器 {device.DiverterId} (数递鸟)",
@@ -630,11 +689,11 @@ public class HealthController : ControllerBase
                                             VendorDisplayName = "数递鸟",
                                             IsConnected = isConnected,
                                             IsSimulationMode = false,
-                                            IsHealthy = isConnected,
-                                            ErrorCode = !isConnected ? "DISCONNECTED" : null,
-                                            ErrorMessage = isConnected 
+                                            IsHealthy = isHealthy,
+                                            ErrorCode = !isHealthy ? "DISCONNECTED" : null,
+                                            ErrorMessage = isHealthy 
                                                 ? $"已连接 ({device.Host}:{device.Port})" 
-                                                : $"未连接 ({device.Host}:{device.Port})",
+                                                : $"未连接或心跳超时 ({device.Host}:{device.Port})",
                                             CheckedAt = now
                                         });
                                     }

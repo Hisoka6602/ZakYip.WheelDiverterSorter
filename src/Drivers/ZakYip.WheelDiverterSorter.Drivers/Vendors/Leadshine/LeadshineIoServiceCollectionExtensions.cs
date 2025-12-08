@@ -30,22 +30,72 @@ public static class LeadshineIoServiceCollectionExtensions
     /// <returns>服务集合</returns>
     /// <remarks>
     /// 注册以下服务：
+    /// - <see cref="IEmcController"/> -> <see cref="LeadshineEmcController"/> (Singleton)
     /// - <see cref="IVendorDriverFactory"/> -> <see cref="LeadshineVendorDriverFactory"/>
     /// - <see cref="IWheelDiverterDriverManager"/> -> <see cref="FactoryBasedDriverManager"/>
     /// - <see cref="IWheelCommandExecutor"/> -> <see cref="WheelCommandExecutor"/>
     /// - <see cref="ISwitchingPathExecutor"/> -> <see cref="HardwareSwitchingPathExecutor"/>
-    /// - <see cref="IIoLinkageDriver"/> (通过工厂创建)
+    /// - <see cref="IIoLinkageDriver"/> (通过工厂创建，与摆轮驱动器共享EMC控制器)
     /// - <see cref="IIoLinkageCoordinator"/> -> <see cref="DefaultIoLinkageCoordinator"/>
     /// - <see cref="ISensorVendorConfigProvider"/> -> <see cref="LeadshineSensorVendorConfigProvider"/>
     /// </remarks>
     public static IServiceCollection AddLeadshineIo(this IServiceCollection services)
     {
-        // 注册雷赛厂商驱动工厂
+        // 注册 EMC 控制器为 Singleton（雷赛 IO 驱动和摆轮驱动共享同一个EMC控制器实例）
+        services.AddSingleton<IEmcController>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var options = sp.GetRequiredService<DriverOptions>();
+            var emcLogger = loggerFactory.CreateLogger<LeadshineEmcController>();
+            
+            var emcController = new LeadshineEmcController(
+                emcLogger,
+                options.Leadshine.CardNo,
+                options.Leadshine.PortNo,
+                options.Leadshine.ControllerIp);
+            
+            // 同步初始化
+            var initResult = emcController.InitializeAsync().GetAwaiter().GetResult();
+            
+            if (!initResult)
+            {
+                var errorMessage =
+                    $"EMC 控制器初始化失败。CardNo: {options.Leadshine.CardNo}, PortNo: {options.Leadshine.PortNo}, " +
+                    $"ControllerIp: {options.Leadshine.ControllerIp ?? "N/A (PCI Mode)"}。\n" +
+                    $"可能原因：\n" +
+                    $"1) 控制卡未连接或未通电\n" +
+                    $"2) IP地址配置错误（以太网模式）\n" +
+                    $"3) LTDMC.dll 未正确安装\n" +
+                    $"参考雷赛示例代码，dmc_board_init_eth 或 dmc_board_init 必须返回 0 才能进行后续 IO 操作。\n" +
+                    $"ErrorCode=9 表示控制卡未初始化，请确保在调用 dmc_write_outbit 前控制卡已成功初始化。";
+                
+                emcLogger.LogError(errorMessage);
+                
+                // EMC 初始化失败时，驱动器将处于不可用状态
+                // 实际调用 IO 操作时，会检查 IsAvailable() 并返回失败
+                // 这种设计允许在测试环境中容错，同时在生产环境中通过日志监控发现问题
+                emcLogger.LogWarning(
+                    "EMC 控制器将处于不可用状态。所有 IO 操作将返回失败。如果这是生产环境，请立即检查硬件连接和配置。");
+            }
+            else
+            {
+                emcLogger.LogInformation(
+                    "EMC 控制器初始化成功。CardNo: {CardNo}, PortNo: {PortNo}, ControllerIp: {ControllerIp}",
+                    options.Leadshine.CardNo,
+                    options.Leadshine.PortNo,
+                    options.Leadshine.ControllerIp ?? "N/A (PCI Mode)");
+            }
+            
+            return emcController;
+        });
+        
+        // 注册雷赛厂商驱动工厂（使用已注册的 EMC 控制器）
         services.AddSingleton<IVendorDriverFactory>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var options = sp.GetRequiredService<DriverOptions>();
-            return new LeadshineVendorDriverFactory(loggerFactory, options.Leadshine);
+            var emcController = sp.GetRequiredService<IEmcController>();
+            return new LeadshineVendorDriverFactory(loggerFactory, options.Leadshine, emcController);
         });
 
         // 注册 IWheelDiverterDriverManager（基于工厂驱动器列表的适配器）
@@ -73,7 +123,7 @@ public static class LeadshineIoServiceCollectionExtensions
             return new HardwareSwitchingPathExecutor(logger, commandExecutor);
         });
 
-        // 注册 IO 联动驱动（通过工厂创建）
+        // 注册 IO 联动驱动（通过工厂创建，共享EMC控制器）
         services.AddSingleton<IIoLinkageDriver>(sp =>
         {
             var factory = sp.GetRequiredService<IVendorDriverFactory>();
