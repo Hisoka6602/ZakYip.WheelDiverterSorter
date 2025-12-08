@@ -66,8 +66,8 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
             var configResult = await configValidationTask;
 
             // 判断自检是否成功
+            // 上游连接不作为必需项 - 系统可用于演示模式（循环落格）而不依赖上游
             var isSuccess = driverResults.All(d => d.IsHealthy) &&
-                           upstreamResults.All(u => u.IsHealthy) &&
                            configResult.IsValid;
 
             // PR-14: Convert driver health to node health and update registry
@@ -102,6 +102,14 @@ public class SystemSelfTestCoordinator : ISelfTestCoordinator
             if (isSuccess)
             {
                 _logger.LogInformation("系统自检成功完成");
+                
+                // 检查上游连接状态（非必需，仅警告）
+                if (upstreamResults.Any(u => !u.IsHealthy))
+                {
+                    var unhealthyUpstreams = upstreamResults.Where(u => !u.IsHealthy).Select(u => u.EndpointName);
+                    _logger.LogWarning("上游连接未就绪（非必需）：{Upstreams}。系统可用于演示模式（循环落格）", 
+                        string.Join(", ", unhealthyUpstreams));
+                }
             }
             else
             {

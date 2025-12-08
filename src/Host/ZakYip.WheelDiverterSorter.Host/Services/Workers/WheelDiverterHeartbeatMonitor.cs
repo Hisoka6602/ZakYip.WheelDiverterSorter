@@ -152,12 +152,9 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                     
                     if (shouldLog)
                     {
-                        if (isAlive)
+                        if (!isAlive)
                         {
-                            _logger.LogDebug("摆轮 {DiverterId} 使用协议心跳检查，结果=在线", diverterId);
-                        }
-                        else
-                        {
+                            // 只记录心跳异常，心跳正常不记录日志
                             _logger.LogWarning("摆轮 {DiverterId} 使用协议心跳检查，结果=离线", diverterId);
                         }
                         _lastLogTime[diverterId] = now;
@@ -193,7 +190,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                         // 无法获取主机信息，尝试使用GetStatusAsync作为后备
                         await driver.GetStatusAsync();
                         isAlive = true;
-                        _logger.LogDebug("摆轮 {DiverterId} 使用状态查询作为心跳检查", diverterId);
+                        // 心跳正常不记录日志
                     }
                 }
                 
