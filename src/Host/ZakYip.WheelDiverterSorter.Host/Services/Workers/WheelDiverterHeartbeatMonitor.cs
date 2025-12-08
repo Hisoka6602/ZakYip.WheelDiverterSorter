@@ -45,8 +45,14 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
     
     private readonly Dictionary<string, DateTimeOffset> _lastSuccessfulCheck = new();
     private readonly Dictionary<string, bool> _lastHealthStatus = new();
+    private readonly Dictionary<string, DateTimeOffset> _lastLogTime = new();
     private bool _isAlarming = false;
     private DateTimeOffset? _alarmStartTime = null;
+    
+    /// <summary>
+    /// 日志输出最小间隔（秒）- 防止日志洪水
+    /// </summary>
+    private static readonly TimeSpan MinLogInterval = TimeSpan.FromSeconds(30);
 
     public WheelDiverterHeartbeatMonitor(
         IWheelDiverterDriverManager driverManager,
@@ -119,8 +125,42 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                 {
                     // 使用驱动提供的心跳机制（如TCP连接状态检查）
                     isAlive = await heartbeatDriver.CheckHeartbeatAsync(cancellationToken);
-                    _logger.LogDebug("摆轮 {DiverterId} 使用协议心跳检查，结果={Result}", 
-                        diverterId, isAlive ? "在线" : "离线");
+                    
+                    // 只在状态转换或达到最小日志间隔时才记录日志
+                    var shouldLog = false;
+                    var wasHealthy = _lastHealthStatus.GetValueOrDefault(diverterId, true);
+                    
+                    if (wasHealthy != isAlive)
+                    {
+                        // 状态转换，必须记录
+                        shouldLog = true;
+                    }
+                    else if (_lastLogTime.TryGetValue(diverterId, out var lastLog))
+                    {
+                        // 检查是否达到最小日志间隔
+                        if ((now - lastLog) >= MinLogInterval)
+                        {
+                            shouldLog = true;
+                        }
+                    }
+                    else
+                    {
+                        // 首次检查
+                        shouldLog = true;
+                    }
+                    
+                    if (shouldLog)
+                    {
+                        if (isAlive)
+                        {
+                            _logger.LogDebug("摆轮 {DiverterId} 使用协议心跳检查，结果=在线", diverterId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("摆轮 {DiverterId} 使用协议心跳检查，结果=离线", diverterId);
+                        }
+                        _lastLogTime[diverterId] = now;
+                    }
                 }
                 else
                 {
@@ -129,8 +169,23 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                     if (!string.IsNullOrEmpty(host))
                     {
                         isAlive = await PingHostAsync(host, cancellationToken);
-                        _logger.LogDebug("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果={Result}", 
-                            diverterId, host, isAlive ? "可达" : "不可达");
+                        
+                        // 只在状态转换时记录日志
+                        var wasHealthy = _lastHealthStatus.GetValueOrDefault(diverterId, true);
+                        if (wasHealthy != isAlive)
+                        {
+                            if (isAlive)
+                            {
+                                _logger.LogInformation("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果=可达", 
+                                    diverterId, host);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果=不可达", 
+                                    diverterId, host);
+                            }
+                            _lastLogTime[diverterId] = now;
+                        }
                     }
                     else
                     {
@@ -166,7 +221,29 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "摆轮 {DiverterId} 心跳检查失败", diverterId);
+                // 只在状态转换或达到最小日志间隔时记录警告日志
+                var shouldLogWarning = false;
+                var wasHealthy = _lastHealthStatus.GetValueOrDefault(diverterId, true);
+                
+                if (wasHealthy)
+                {
+                    // 从健康变为不健康，必须记录
+                    shouldLogWarning = true;
+                }
+                else if (_lastLogTime.TryGetValue(diverterId, out var lastLog))
+                {
+                    // 持续不健康，检查是否达到最小日志间隔
+                    if ((now - lastLog) >= MinLogInterval)
+                    {
+                        shouldLogWarning = true;
+                    }
+                }
+                
+                if (shouldLogWarning)
+                {
+                    _logger.LogWarning(ex, "摆轮 {DiverterId} 心跳检查失败", diverterId);
+                    _lastLogTime[diverterId] = now;
+                }
                 
                 // 检查是否超时
                 if (_lastSuccessfulCheck.TryGetValue(diverterId, out var lastSuccess))
@@ -175,7 +252,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                     if (elapsed > HeartbeatTimeout)
                     {
                         // 心跳超时，标记为不健康
-                        if (_lastHealthStatus.TryGetValue(diverterId, out var wasHealthy) && wasHealthy)
+                        if (_lastHealthStatus.TryGetValue(diverterId, out var wasHealthy2) && wasHealthy2)
                         {
                             _logger.LogError(
                                 "摆轮 {DiverterId} 心跳超时！最后成功时间: {LastSuccess}, 已超时: {Elapsed}",
@@ -376,6 +453,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         // 清理资源
         _lastSuccessfulCheck.Clear();
         _lastHealthStatus.Clear();
+        _lastLogTime.Clear();
         base.Dispose();
     }
 }
