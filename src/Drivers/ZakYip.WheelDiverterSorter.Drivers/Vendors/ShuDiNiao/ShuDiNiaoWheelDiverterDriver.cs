@@ -311,13 +311,10 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
         // 根据 README.md，数递鸟设备每 1 秒主动发送状态上报（信息一，消息类型 0x51）
         // 检查距离最后接收状态上报时间是否超过 5 秒
         
-        var isConnected = _tcpClient?.Connected == true && _stream != null;
-        
-        if (!isConnected)
-        {
-            _logger.LogDebug("摆轮 {DiverterId} 心跳检查: TCP连接断开", DiverterId);
-            return Task.FromResult(false);
-        }
+        // 注意：TcpClient.Connected 属性只反映上一次同步操作的状态，不能实时反映TCP连接状态
+        // 因此我们优先通过接收任务状态和心跳时间来判断连接是否正常
+        var hasReceiveTask = _receiveTask != null && !_receiveTask.IsCompleted;
+        var hasStream = _stream != null;
         
         // 检查心跳超时
         var now = _clock.LocalNow;
@@ -325,21 +322,37 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
         var timeSinceLastReport = now - _lastStatusReportTime;
 #pragma warning restore MA0132
         
-        // 如果从未收到状态上报，则使用TCP连接状态（可能是设备刚连接）
+        // 如果从未收到状态上报，检查接收任务和流是否正常（可能是设备刚连接）
         if (_lastStatusReportTime == DateTimeOffset.MinValue)
         {
-            _logger.LogDebug("摆轮 {DiverterId} 心跳检查: 尚未收到状态上报，TCP连接正常", DiverterId);
-            return Task.FromResult(true);
+            if (hasReceiveTask && hasStream)
+            {
+                _logger.LogDebug(
+                    "摆轮 {DiverterId} 心跳检查: 尚未收到状态上报，但接收任务运行中且流正常，判定为连接正常",
+                    DiverterId);
+                return Task.FromResult(true);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "摆轮 {DiverterId} 心跳检查: 尚未收到状态上报，且接收任务或流异常（ReceiveTask={HasReceiveTask}, Stream={HasStream}）",
+                    DiverterId,
+                    hasReceiveTask,
+                    hasStream);
+                return Task.FromResult(false);
+            }
         }
         
         // 检查是否超时
         if (timeSinceLastReport.TotalMilliseconds > HeartbeatTimeoutMs)
         {
             _logger.LogWarning(
-                "摆轮 {DiverterId} 心跳超时: 距离最后状态上报已 {Elapsed:F1} 秒（超时阈值 {Timeout} 秒）",
+                "摆轮 {DiverterId} 心跳超时: 距离最后状态上报已 {Elapsed:F1} 秒（超时阈值 {Timeout} 秒），ReceiveTask={HasReceiveTask}, Stream={HasStream}",
                 DiverterId,
                 timeSinceLastReport.TotalSeconds,
-                HeartbeatTimeoutMs / 1000.0);
+                HeartbeatTimeoutMs / 1000.0,
+                hasReceiveTask,
+                hasStream);
             return Task.FromResult(false);
         }
         

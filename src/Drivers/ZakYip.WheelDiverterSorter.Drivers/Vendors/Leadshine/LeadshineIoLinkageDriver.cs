@@ -51,6 +51,13 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
             // ActiveLow = 低电平 = 0
             ushort outputValue = ioPoint.Level == TriggerLevel.ActiveHigh ? (ushort)1 : (ushort)0;
 
+            // 记录详细的调用信息以便诊断
+            _logger.LogDebug(
+                "准备调用 dmc_write_outbit: CardNo={CardNo}, BitNumber={BitNumber}, OutputValue={OutputValue}",
+                _emcController.CardNo,
+                ioPoint.BitNumber,
+                outputValue);
+
             // 调用雷赛 API 设置输出端口
             short result = LTDMC.dmc_write_outbit(
                 _emcController.CardNo,
@@ -59,19 +66,40 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
 
             if (result != 0)
             {
-                _logger.LogError(
-                    "设置 IO 点失败: BitNumber={BitNumber}, Level={Level}, ErrorCode={ErrorCode} | 提示：ErrorCode=9 表示控制卡未初始化",
-                    ioPoint.BitNumber,
-                    ioPoint.Level,
-                    result);
+                // 特殊处理错误码9：控制卡未初始化
+                if (result == 9)
+                {
+                    _logger.LogError(
+                        "【严重】设置 IO 点失败：控制卡未初始化 | CardNo={CardNo}, BitNumber={BitNumber}, Level={Level}, OutputValue={OutputValue}, ErrorCode={ErrorCode} | " +
+                        "可能原因：1) dmc_board_close() 被意外调用导致控制卡关闭；2) 控制卡硬件断开连接；3) 多进程/线程竞争导致初始化状态不一致。" +
+                        "建议：检查是否有其他代码调用了 dmc_board_close()，或者控制卡是否被其他程序占用",
+                        _emcController.CardNo,
+                        ioPoint.BitNumber,
+                        ioPoint.Level,
+                        outputValue,
+                        result);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "设置 IO 点失败: CardNo={CardNo}, BitNumber={BitNumber}, Level={Level}, OutputValue={OutputValue}, ErrorCode={ErrorCode}",
+                        _emcController.CardNo,
+                        ioPoint.BitNumber,
+                        ioPoint.Level,
+                        outputValue,
+                        result);
+                }
+                
                 throw new InvalidOperationException(
-                    $"设置 IO 点 {ioPoint.BitNumber} 失败，错误码: {result}");
+                    $"设置 IO 点 {ioPoint.BitNumber} 失败，错误码: {result}。CardNo={_emcController.CardNo}");
             }
 
             _logger.LogDebug(
-                "成功设置 IO 点: BitNumber={BitNumber}, Level={Level}",
+                "成功设置 IO 点: CardNo={CardNo}, BitNumber={BitNumber}, Level={Level}, OutputValue={OutputValue}",
+                _emcController.CardNo,
                 ioPoint.BitNumber,
-                ioPoint.Level);
+                ioPoint.Level,
+                outputValue);
 
             await Task.CompletedTask;
         }
@@ -114,6 +142,12 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
                 throw new InvalidOperationException(errorMessage);
             }
 
+            // 记录详细的调用信息以便诊断
+            _logger.LogDebug(
+                "准备调用 dmc_read_inbit: CardNo={CardNo}, BitNumber={BitNumber}",
+                _emcController.CardNo,
+                bitNumber);
+
             // 调用雷赛 API 读取输入端口
             short result = LTDMC.dmc_read_inbit(
                 _emcController.CardNo,
@@ -122,15 +156,22 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
             if (result < 0)
             {
                 _logger.LogError(
-                    "读取 IO 点失败: BitNumber={BitNumber}, ErrorCode={ErrorCode}",
+                    "读取 IO 点失败: CardNo={CardNo}, BitNumber={BitNumber}, ErrorCode={ErrorCode} | " +
+                    "提示：负数错误码表示读取失败。请检查：1) CardNo 是否正确；2) BitNumber 是否在有效范围内；3) 控制卡是否已正确初始化",
+                    _emcController.CardNo,
                     bitNumber,
                     result);
                 throw new InvalidOperationException(
-                    $"读取 IO 点 {bitNumber} 失败，错误码: {result}");
+                    $"读取 IO 点 {bitNumber} 失败，错误码: {result}。CardNo={_emcController.CardNo}");
             }
 
             var state = result == 1;
-            _logger.LogDebug("读取 IO 点: BitNumber={BitNumber}, State={State}", bitNumber, state);
+            _logger.LogDebug(
+                "读取 IO 点成功: CardNo={CardNo}, BitNumber={BitNumber}, State={State}, RawResult={RawResult}",
+                _emcController.CardNo,
+                bitNumber,
+                state,
+                result);
             return Task.FromResult(state);
         }
         catch (Exception ex) when (ex is not InvalidOperationException)

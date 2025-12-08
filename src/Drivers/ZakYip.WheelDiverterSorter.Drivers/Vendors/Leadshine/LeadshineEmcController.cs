@@ -127,14 +127,47 @@ public class LeadshineEmcController : IEmcController
                 if (errcode != 0)
                 {
                     _logger.LogWarning(
-                        "【EMC总线异常检测】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}，尝试软复位",
+                        "【EMC总线异常检测】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}，尝试软复位并重新连接",
                         errcode, _cardNo, _portNo);
 
-                    // 尝试软复位
+                    // 执行软复位
                     LTDMC.dmc_soft_reset(_cardNo);
+                    
+                    // 关闭连接
+                    LTDMC.dmc_board_close();
+                    
+                    // 等待复位完成
                     await Task.Delay(500, cancellationToken);
 
-                    // 再次检查
+                    // 重新初始化连接（软复位后必须重新调用 dmc_board_init_eth/dmc_board_init）
+                    if (isEthernet)
+                    {
+                        result = LTDMC.dmc_board_init_eth(_cardNo, _controllerIp!);
+                        if (result != 0)
+                        {
+                            _logger.LogError(
+                                "【EMC软复位后重新初始化失败】方法: dmc_board_init_eth, 返回值: {ErrorCode}（预期: 0），卡号: {CardNo}, IP: {IP}",
+                                result, _cardNo, _controllerIp);
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        result = LTDMC.dmc_board_init();
+                        if (result != 0)
+                        {
+                            _logger.LogError(
+                                "【EMC软复位后重新初始化失败】方法: dmc_board_init, 返回值: {ErrorCode}（预期: 0），卡号: {CardNo}",
+                                result, _cardNo);
+                            return false;
+                        }
+                    }
+                    
+                    _logger.LogInformation(
+                        "【EMC软复位后重新初始化成功】方法: {Method}, 卡号: {CardNo}",
+                        methodName, _cardNo);
+
+                    // 再次检查总线状态
                     LTDMC.nmc_get_errcode(_cardNo, _portNo, ref errcode);
                     if (errcode != 0)
                     {
