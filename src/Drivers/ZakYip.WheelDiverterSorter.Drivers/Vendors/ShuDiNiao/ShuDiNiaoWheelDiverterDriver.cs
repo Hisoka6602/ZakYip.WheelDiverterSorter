@@ -230,6 +230,74 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
         }
     }
 
+    /// <summary>
+    /// 设置摆轮速度
+    /// </summary>
+    /// <param name="speedMmPerSecond">速度（毫米/秒）</param>
+    /// <param name="speedAfterSwingMmPerSecond">摆动后速度（毫米/秒）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否设置成功</returns>
+    /// <remarks>
+    /// 将输入的 mm/s 单位转换为设备协议要求的 m/min 单位并发送速度设置命令。
+    /// 速度范围：0-4250 mm/s（对应设备的 0-255 m/min）
+    /// </remarks>
+    public async Task<bool> SetSpeedAsync(
+        double speedMmPerSecond,
+        double speedAfterSwingMmPerSecond,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug(
+                "摆轮 {DiverterId} 设置速度：摆动速度={Speed}mm/s，摆动后速度={SpeedAfterSwing}mm/s",
+                DiverterId, speedMmPerSecond, speedAfterSwingMmPerSecond);
+
+            // 验证速度范围
+            if (!ShuDiNiaoSpeedConverter.IsValidSpeed(speedMmPerSecond))
+            {
+                _logger.LogWarning(
+                    "摆轮 {DiverterId} 速度超出范围：{Speed}mm/s（有效范围：0-4250mm/s）",
+                    DiverterId, speedMmPerSecond);
+                return false;
+            }
+
+            if (!ShuDiNiaoSpeedConverter.IsValidSpeed(speedAfterSwingMmPerSecond))
+            {
+                _logger.LogWarning(
+                    "摆轮 {DiverterId} 摆动后速度超出范围：{Speed}mm/s（有效范围：0-4250mm/s）",
+                    DiverterId, speedAfterSwingMmPerSecond);
+                return false;
+            }
+
+            // 转换单位：mm/s → m/min
+            byte speedMPerMin = ShuDiNiaoSpeedConverter.ConvertMmPerSecondToMPerMin(speedMmPerSecond);
+            byte speedAfterSwingMPerMin = ShuDiNiaoSpeedConverter.ConvertMmPerSecondToMPerMin(speedAfterSwingMmPerSecond);
+
+            // 发送速度设置命令
+            var result = await SendSpeedSettingAsync(speedMPerMin, speedAfterSwingMPerMin, cancellationToken);
+
+            if (result)
+            {
+                _logger.LogInformation(
+                    "摆轮 {DiverterId} 速度设置成功：摆动速度={Speed}mm/s（{SpeedMPerMin}m/min），摆动后速度={SpeedAfterSwing}mm/s（{SpeedAfterSwingMPerMin}m/min）",
+                    DiverterId, speedMmPerSecond, speedMPerMin, speedAfterSwingMmPerSecond, speedAfterSwingMPerMin);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "摆轮 {DiverterId} 速度设置失败：摆动速度={Speed}mm/s，摆动后速度={SpeedAfterSwing}mm/s",
+                    DiverterId, speedMmPerSecond, speedAfterSwingMmPerSecond);
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "摆轮 {DiverterId} 速度设置异常", DiverterId);
+            return false;
+        }
+    }
+
     /// <inheritdoc/>
     public Task<string> GetStatusAsync()
     {
@@ -377,6 +445,107 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
                 "[摆轮通信-发送] 摆轮 {DiverterId} 发送命令失败（未知异常） | 命令={Command}",
                 DiverterId,
                 command);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 发送速度设置命令到摆轮设备
+    /// </summary>
+    /// <param name="speedMPerMin">摆动速度（m/min）</param>
+    /// <param name="speedAfterSwingMPerMin">摆动后速度（m/min）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否发送成功</returns>
+    private async Task<bool> SendSpeedSettingAsync(
+        byte speedMPerMin,
+        byte speedAfterSwingMPerMin,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // 检查命令发送间隔（数递鸟摆轮要求最小90ms间隔）
+            var now = Environment.TickCount64;
+            var elapsedMs = now - _lastCommandTicks;
+            
+            if (_lastCommandTicks != 0 && elapsedMs < MinCommandIntervalMs)
+            {
+                _logger.LogWarning(
+                    "[摆轮通信-限流] 摆轮 {DiverterId} 指令间隔过短，拒绝发送速度设置 | 距上次指令={ElapsedMs}ms | 最小间隔={MinIntervalMs}ms",
+                    DiverterId,
+                    elapsedMs,
+                    MinCommandIntervalMs);
+                return false;
+            }
+            
+            // 确保连接建立
+            if (!await EnsureConnectedAsync(cancellationToken))
+            {
+                _logger.LogWarning(
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 未连接，无法发送速度设置",
+                    DiverterId);
+                return false;
+            }
+
+            // 构造速度设置帧
+            var frame = ShuDiNiaoProtocol.BuildSpeedSettingFrame(_config.DeviceAddress, speedMPerMin, speedAfterSwingMPerMin);
+            
+            // 保存最后发送的命令（用于诊断）
+            _lastCommandSent = ShuDiNiaoProtocol.FormatBytes(frame);
+            
+            // 记录发送的完整速度设置帧内容
+            _logger.LogInformation(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送速度设置 | 设备地址=0x{DeviceAddress:X2} | 速度={Speed}m/min | 摆动后速度={SpeedAfterSwing}m/min | 速度帧={Frame}",
+                DiverterId,
+                _config.DeviceAddress,
+                speedMPerMin,
+                speedAfterSwingMPerMin,
+                _lastCommandSent);
+
+            // 发送速度设置帧
+            await _stream!.WriteAsync(frame, cancellationToken);
+            await _stream.FlushAsync(cancellationToken);
+            
+            // 更新最后发送时间
+            _lastCommandTicks = Environment.TickCount64;
+            
+            _logger.LogDebug(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 速度设置帧发送完成 | 帧长度={FrameLength}字节",
+                DiverterId,
+                frame.Length);
+
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning(
+                "[摆轮通信-发送] 摆轮 {DiverterId} 速度设置操作被取消",
+                DiverterId);
+            return false;
+        }
+        catch (SocketException ex)
+        {
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送速度设置失败（网络异常）",
+                DiverterId);
+            await CloseConnectionAsync();
+            return false;
+        }
+        catch (IOException ex)
+        {
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送速度设置失败（IO异常）",
+                DiverterId);
+            await CloseConnectionAsync();
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[摆轮通信-发送] 摆轮 {DiverterId} 发送速度设置失败（未知异常）",
+                DiverterId);
             return false;
         }
     }

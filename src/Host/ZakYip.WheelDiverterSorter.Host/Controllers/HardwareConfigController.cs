@@ -823,6 +823,194 @@ public class HardwareConfigController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 设置数递鸟摆轮速度
+    /// </summary>
+    /// <param name="request">速度设置请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>速度设置结果</returns>
+    /// <response code="200">速度设置成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 设置数递鸟摆轮的运行速度。速度单位为 mm/s（毫米/秒），设备内部使用 m/min（米/分钟）。
+    /// 
+    /// **速度范围**：
+    /// - 最小值：0 mm/s（对应设备 0 m/min）
+    /// - 最大值：4250 mm/s（对应设备 255 m/min）
+    /// 
+    /// **转换公式**：
+    /// - mm/s → m/min: (mm/s) * 0.06 = m/min
+    /// - m/min → mm/s: (m/min) / 0.06 = mm/s
+    /// 
+    /// **示例**：
+    /// - 1500 mm/s = 90 m/min
+    /// - 1000 mm/s = 60 m/min
+    /// - 500 mm/s = 30 m/min
+    /// 
+    /// **协议帧格式（12字节）**：
+    /// ```
+    /// 51 52 5C 51 54 5A 5A 5A 5A 5A 5A FE
+    /// │  │  │  │  │  │  │  └─ 备用字节×4
+    /// │  │  │  │  │  │  └──── 摆动后速度（m/min）
+    /// │  │  │  │  │  └─────── 摆动速度（m/min）
+    /// │  │  │  │  └────────── 消息类型（0x54=速度设置）
+    /// │  │  │  └───────────── 设备地址
+    /// │  │  └──────────────── 长度字节（0x5C=12）
+    /// │  └─────────────────── 起始字节2
+    /// └────────────────────── 起始字节1
+    /// ```
+    /// </remarks>
+    [HttpPost("shudiniao/speed")]
+    [SwaggerOperation(
+        Summary = "设置数递鸟摆轮速度",
+        Description = "设置数递鸟摆轮的运行速度，速度单位为 mm/s，支持范围 0-4250 mm/s（对应设备 0-255 m/min）",
+        OperationId = "SetShuDiNiaoSpeed",
+        Tags = new[] { "硬件配置" }
+    )]
+    [SwaggerResponse(200, "速度设置成功", typeof(ApiResponse<ShuDiNiaoSpeedSettingResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<ShuDiNiaoSpeedSettingResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<ShuDiNiaoSpeedSettingResponse>>> SetShuDiNiaoSpeed(
+        [FromBody] ShuDiNiaoSpeedSettingRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(ApiResponse<object>.BadRequest("请求参数无效", new { errors }));
+            }
+
+            if (request.DiverterIds == null || !request.DiverterIds.Any())
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("摆轮ID列表不能为空"));
+            }
+
+            if (_driverManager == null)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段"));
+            }
+
+            // 确保配置已加载到驱动管理器
+            await EnsureDriversLoadedAsync(cancellationToken);
+
+            var results = new List<ShuDiNiaoSpeedSettingResult>();
+            var activeDrivers = _driverManager.GetActiveDrivers();
+
+            foreach (var diverterId in request.DiverterIds)
+            {
+                ShuDiNiaoSpeedSettingResult result;
+
+                try
+                {
+                    // Get driver first
+                    if (!activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
+                    {
+                        result = new ShuDiNiaoSpeedSettingResult
+                        {
+                            DiverterId = diverterId,
+                            IsSuccess = false,
+                            Message = $"未找到摆轮 {diverterId} 的驱动器",
+                            ConnectionInfo = null,
+                            SpeedFrameSent = null
+                        };
+                        results.Add(result);
+                        continue;
+                    }
+
+                    // Check if it's a ShuDiNiao driver
+                    if (driver is not ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
+                    {
+                        result = new ShuDiNiaoSpeedSettingResult
+                        {
+                            DiverterId = diverterId,
+                            IsSuccess = false,
+                            Message = $"摆轮 {diverterId} 不是数递鸟驱动器",
+                            ConnectionInfo = null,
+                            SpeedFrameSent = null
+                        };
+                        results.Add(result);
+                        continue;
+                    }
+
+                    // Get connection info before execution
+                    string connectionInfo = shuDiNiaoDriver.ConnectionInfo;
+
+                    // Execute speed setting
+                    bool operationSuccess = await shuDiNiaoDriver.SetSpeedAsync(
+                        request.SpeedMmPerSecond,
+                        request.SpeedAfterSwingMmPerSecond,
+                        cancellationToken);
+
+                    // Get last command sent from driver (after execution)
+                    string? speedFrameSent = shuDiNiaoDriver.LastCommandSent;
+
+                    result = new ShuDiNiaoSpeedSettingResult
+                    {
+                        DiverterId = diverterId,
+                        IsSuccess = operationSuccess,
+                        Message = operationSuccess
+                            ? $"摆轮 {diverterId} 速度设置成功: {request.SpeedMmPerSecond} mm/s, {request.SpeedAfterSwingMmPerSecond} mm/s"
+                            : $"摆轮 {diverterId} 速度设置失败",
+                        ConnectionInfo = connectionInfo,
+                        SpeedFrameSent = speedFrameSent
+                    };
+
+                    _logger.LogInformation(
+                        "设置数递鸟摆轮速度: DiverterId={DiverterId}, Speed={Speed}mm/s, SpeedAfterSwing={SpeedAfterSwing}mm/s, Success={Success}, SpeedFrameHex={SpeedFrameHex}",
+                        diverterId, request.SpeedMmPerSecond, request.SpeedAfterSwingMmPerSecond, operationSuccess, speedFrameSent);
+                }
+                catch (Exception ex)
+                {
+                    // Try to get connection info from driver even on error
+                    string? connectionInfo = null;
+                    string? speedFrameSent = null;
+
+                    if (activeDrivers.TryGetValue(diverterId.ToString(), out var driver) &&
+                        driver is ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
+                    {
+                        connectionInfo = shuDiNiaoDriver.ConnectionInfo;
+                        speedFrameSent = shuDiNiaoDriver.LastCommandSent;
+                    }
+
+                    result = new ShuDiNiaoSpeedSettingResult
+                    {
+                        DiverterId = diverterId,
+                        IsSuccess = false,
+                        Message = $"摆轮 {diverterId} 速度设置异常: {ex.Message}",
+                        ConnectionInfo = connectionInfo,
+                        SpeedFrameSent = speedFrameSent
+                    };
+                    _logger.LogError(ex, "设置数递鸟摆轮速度异常: DiverterId={DiverterId}", diverterId);
+                }
+
+                results.Add(result);
+            }
+
+            var response = new ShuDiNiaoSpeedSettingResponse
+            {
+                TotalCount = results.Count,
+                SuccessCount = results.Count(r => r.IsSuccess),
+                FailedCount = results.Count(r => !r.IsSuccess),
+                Results = results
+            };
+
+            return Ok(ApiResponse<ShuDiNiaoSpeedSettingResponse>.Ok(response, "速度设置完成"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "设置数递鸟摆轮速度失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("设置数递鸟摆轮速度失败"));
+        }
+    }
+
     #endregion
 
     #region 私有方法
@@ -1393,6 +1581,102 @@ public record class WheelDiverterControlResult
     /// </summary>
     /// <example>51 52 57 51 51 51 FE</example>
     public string? CommandSent { get; init; }
+}
+
+/// <summary>
+/// 数递鸟摆轮速度设置请求
+/// </summary>
+public record class ShuDiNiaoSpeedSettingRequest
+{
+    /// <summary>
+    /// 摆轮ID列表
+    /// </summary>
+    /// <example>[1, 2, 3]</example>
+    [Required(ErrorMessage = "摆轮ID列表不能为空")]
+    public required List<long> DiverterIds { get; init; }
+
+    /// <summary>
+    /// 摆动速度（mm/s），范围 0-4250
+    /// </summary>
+    /// <remarks>
+    /// 对应设备协议的 0-255 m/min。
+    /// 示例：1500 mm/s = 90 m/min
+    /// </remarks>
+    /// <example>1500</example>
+    [Required(ErrorMessage = "摆动速度不能为空")]
+    [Range(0, 4250, ErrorMessage = "摆动速度必须在 0-4250 mm/s 范围内")]
+    public required double SpeedMmPerSecond { get; init; }
+
+    /// <summary>
+    /// 摆动后速度（mm/s），范围 0-4250
+    /// </summary>
+    /// <remarks>
+    /// 对应设备协议的 0-255 m/min。
+    /// 示例：1500 mm/s = 90 m/min
+    /// </remarks>
+    /// <example>1500</example>
+    [Required(ErrorMessage = "摆动后速度不能为空")]
+    [Range(0, 4250, ErrorMessage = "摆动后速度必须在 0-4250 mm/s 范围内")]
+    public required double SpeedAfterSwingMmPerSecond { get; init; }
+}
+
+/// <summary>
+/// 数递鸟摆轮速度设置响应
+/// </summary>
+public record class ShuDiNiaoSpeedSettingResponse
+{
+    /// <summary>
+    /// 设置摆轮总数
+    /// </summary>
+    public int TotalCount { get; init; }
+
+    /// <summary>
+    /// 成功数量
+    /// </summary>
+    public int SuccessCount { get; init; }
+
+    /// <summary>
+    /// 失败数量
+    /// </summary>
+    public int FailedCount { get; init; }
+
+    /// <summary>
+    /// 各摆轮速度设置结果详情
+    /// </summary>
+    public required List<ShuDiNiaoSpeedSettingResult> Results { get; init; }
+}
+
+/// <summary>
+/// 单个数递鸟摆轮速度设置结果
+/// </summary>
+public record class ShuDiNiaoSpeedSettingResult
+{
+    /// <summary>
+    /// 摆轮ID
+    /// </summary>
+    public required long DiverterId { get; init; }
+
+    /// <summary>
+    /// 是否成功
+    /// </summary>
+    public bool IsSuccess { get; init; }
+
+    /// <summary>
+    /// 结果消息
+    /// </summary>
+    public string? Message { get; init; }
+
+    /// <summary>
+    /// 连接信息（IP:端口）
+    /// </summary>
+    /// <example>192.168.0.200:200</example>
+    public string? ConnectionInfo { get; init; }
+
+    /// <summary>
+    /// 发送的速度设置帧（十六进制格式）
+    /// </summary>
+    /// <example>51 52 5C 51 54 5A 5A 5A 5A 5A 5A FE</example>
+    public string? SpeedFrameSent { get; init; }
 }
 
 #endregion

@@ -8,12 +8,21 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 /// </summary>
 /// <remarks>
 /// 负责数递鸟TCP协议的打包和解析：
-/// - 报文固定7字节
+/// 
+/// **标准帧（7字节）**：
 /// - 起始字节：0x51 0x52
 /// - 长度字节：0x57（固定）
 /// - 设备地址：0x51/0x52/...
 /// - 消息类型：0x51/0x52/0x53
 /// - 状态/命令码：根据消息类型不同
+/// - 结束字符：0xFE
+/// 
+/// **速度设置帧（12字节）**：
+/// - 起始字节：0x51 0x52
+/// - 长度字节：0x5C（12字节长度标记）
+/// - 设备地址：0x51/0x52/...
+/// - 消息类型：0x54（速度设置）
+/// - 速度数据：6字节（摆动速度+摆动后速度+4字节备用）
 /// - 结束字符：0xFE
 /// </remarks>
 internal static class ShuDiNiaoProtocol
@@ -21,13 +30,24 @@ internal static class ShuDiNiaoProtocol
     // 协议常量
     private const byte StartByte1 = 0x51;
     private const byte StartByte2 = 0x52;
-    private const byte LengthByte = 0x57;
+    private const byte StandardLengthByte = 0x57;
+    private const byte SpeedSettingLengthByte = 0x5C;
     private const byte EndByte = 0xFE;
     
     /// <summary>
-    /// 协议帧固定长度（字节）
+    /// 速度设置帧备用字节填充值（数递鸟协议规范要求备用字节必须为 0x5A）
+    /// </summary>
+    private const byte ReservedByteFillValue = 0x5A;
+    
+    /// <summary>
+    /// 标准协议帧长度（字节）
     /// </summary>
     internal const int FrameLength = 7;
+    
+    /// <summary>
+    /// 速度设置帧长度（字节）
+    /// </summary>
+    internal const int SpeedSettingFrameLength = 12;
 
     // 字节位置索引
     private const int StartByte1Index = 0;
@@ -50,11 +70,53 @@ internal static class ShuDiNiaoProtocol
         {
             StartByte1,                                 // [0] 起始字节1
             StartByte2,                                 // [1] 起始字节2
-            LengthByte,                                 // [2] 长度字节
+            StandardLengthByte,                         // [2] 长度字节
             deviceAddress,                              // [3] 设备地址
             (byte)ShuDiNiaoMessageType.ControlCommand, // [4] 消息类型：控制命令
             (byte)command,                              // [5] 命令码
             EndByte                                     // [6] 结束字符
+        };
+    }
+
+    /// <summary>
+    /// 构造速度设置帧（信息四）
+    /// </summary>
+    /// <param name="deviceAddress">设备地址（0x51, 0x52, ...）</param>
+    /// <param name="speed">摆动速度（m/min），范围 0-255</param>
+    /// <param name="speedAfterSwing">摆动后速度（m/min），范围 0-255</param>
+    /// <returns>12字节速度设置帧</returns>
+    /// <remarks>
+    /// 示例报文：51 52 5C XX 54 5A 5A 5A 5A 5A 5A FE
+    /// 详解：
+    ///   51 -> 起始字节
+    ///   52 -> 起始字节
+    ///   5C -> 整串长度（12字节）
+    ///   XX -> 设备号（根据实际配置，如 0x51/0x52/...）
+    ///   54 -> 消息类型（速度设置）
+    ///   5A -> 速度设置（示例：90m/min 对应 0x5A）
+    ///   5A -> 摆动后速度（示例：90m/min 对应 0x5A）
+    ///   5A -> 备用
+    ///   5A -> 备用
+    ///   5A -> 备用
+    ///   5A -> 备用
+    ///   FE -> 结束字符
+    /// </remarks>
+    public static byte[] BuildSpeedSettingFrame(byte deviceAddress, byte speed, byte speedAfterSwing)
+    {
+        return new byte[]
+        {
+            StartByte1,                                  // [0] 起始字节1
+            StartByte2,                                  // [1] 起始字节2
+            SpeedSettingLengthByte,                      // [2] 长度字节（0x5C=12字节）
+            deviceAddress,                               // [3] 设备地址
+            (byte)ShuDiNiaoMessageType.SpeedSetting,    // [4] 消息类型：速度设置
+            speed,                                       // [5] 摆动速度（m/min）
+            speedAfterSwing,                             // [6] 摆动后速度（m/min）
+            ReservedByteFillValue,                       // [7] 备用（协议规定必须为0x5A）
+            ReservedByteFillValue,                       // [8] 备用（协议规定必须为0x5A）
+            ReservedByteFillValue,                       // [9] 备用（协议规定必须为0x5A）
+            ReservedByteFillValue,                       // [10] 备用（协议规定必须为0x5A）
+            EndByte                                      // [11] 结束字符
         };
     }
 
@@ -155,10 +217,24 @@ internal static class ShuDiNiaoProtocol
     /// </summary>
     private static bool ValidateFixedBytes(ReadOnlySpan<byte> frame)
     {
-        return frame[StartByte1Index] == StartByte1 &&
-               frame[StartByte2Index] == StartByte2 &&
-               frame[LengthByteIndex] == LengthByte &&
-               frame[EndByteIndex] == EndByte;
+        if (frame.Length == FrameLength)
+        {
+            // 标准7字节帧
+            return frame[StartByte1Index] == StartByte1 &&
+                   frame[StartByte2Index] == StartByte2 &&
+                   frame[LengthByteIndex] == StandardLengthByte &&
+                   frame[EndByteIndex] == EndByte;
+        }
+        else if (frame.Length == SpeedSettingFrameLength)
+        {
+            // 速度设置12字节帧
+            return frame[StartByte1Index] == StartByte1 &&
+                   frame[StartByte2Index] == StartByte2 &&
+                   frame[LengthByteIndex] == SpeedSettingLengthByte &&
+                   frame[11] == EndByte;
+        }
+        
+        return false;
     }
 
     /// <summary>

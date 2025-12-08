@@ -543,6 +543,66 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 | `/api/hardware/leadshine` | GET/PUT | 雷赛 IO 卡配置 |
 | `/api/hardware/leadshine/sensors` | GET/PUT | 雷赛传感器配置 |
 | `/api/hardware/shudiniao` | GET/PUT | 数递鸟摆轮配置 |
+| `/api/hardware/shudiniao/control` | POST | 数递鸟摆轮控制（运行/停止） |
+| `/api/hardware/shudiniao/speed` | POST | **数递鸟摆轮速度设置** |
+
+#### 数递鸟摆轮速度设置
+
+设置数递鸟摆轮的运行速度，支持独立设置摆动速度和摆动后速度。
+
+**请求示例**:
+```json
+POST /api/hardware/shudiniao/speed
+{
+  "diverterIds": [1, 2, 3],
+  "speedMmPerSecond": 1500,
+  "speedAfterSwingMmPerSecond": 1500
+}
+```
+
+**参数说明**:
+- `diverterIds`: 摆轮ID列表（支持批量设置）
+- `speedMmPerSecond`: 摆动速度（mm/s），范围 0-4250（对应设备 0-255 m/min）
+- `speedAfterSwingMmPerSecond`: 摆动后速度（mm/s），范围 0-4250
+
+**速度转换**:
+| mm/s | m/min | 说明 |
+|------|-------|------|
+| 1500 | 90 | 高速运行 |
+| 1000 | 60 | 中速运行 |
+| 500 | 30 | 低速运行 |
+
+**响应示例**:
+```json
+{
+  "totalCount": 3,
+  "successCount": 3,
+  "failedCount": 0,
+  "results": [
+    {
+      "diverterId": 1,
+      "isSuccess": true,
+      "message": "摆轮 1 速度设置成功: 1500 mm/s, 1500 mm/s",
+      "connectionInfo": "192.168.0.200:200",
+      "speedFrameSent": "51 52 5C 51 54 5A 5A 5A 5A 5A 5A FE"
+    }
+  ]
+}
+```
+
+**协议详解**:
+数递鸟摆轮使用12字节速度设置帧：
+```
+51 52 5C 51 54 5A 5A 5A 5A 5A 5A FE
+│  │  │  │  │  │  │  └─ 备用字节×4
+│  │  │  │  │  │  └──── 摆动后速度（m/min）
+│  │  │  │  │  └─────── 摆动速度（m/min）
+│  │  │  │  └────────── 消息类型（0x54=速度设置）
+│  │  │  └───────────── 设备地址
+│  │  └──────────────── 长度字节（0x5C=12）
+│  └─────────────────── 起始字节2
+└────────────────────── 起始字节1
+```
 
 ### 业务操作
 

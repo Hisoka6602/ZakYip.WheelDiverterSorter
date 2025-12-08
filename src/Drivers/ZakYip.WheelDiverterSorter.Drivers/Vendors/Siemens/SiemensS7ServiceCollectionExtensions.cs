@@ -75,27 +75,4 @@ public static class SiemensS7ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 注册西门子 S7 PLC 实现（已过时，请使用 AddSiemensS7(Action&lt;S7Options&gt;) 重载）
-    /// </summary>
-    [Obsolete("此方法不支持配置热更新，请使用 AddSiemensS7(Action<S7Options>) 重载")]
-    public static IServiceCollection AddSiemensS7(this IServiceCollection services, S7Options options)
-    {
-        return services.AddSiemensS7(opts =>
-        {
-            opts.IpAddress = options.IpAddress;
-            opts.Rack = options.Rack;
-            opts.Slot = options.Slot;
-            opts.CpuType = options.CpuType;
-            opts.ConnectionTimeout = options.ConnectionTimeout;
-            opts.ReadWriteTimeout = options.ReadWriteTimeout;
-            opts.MaxReconnectAttempts = options.MaxReconnectAttempts;
-            opts.ReconnectDelay = options.ReconnectDelay;
-            opts.EnableHealthCheck = options.EnableHealthCheck;
-            opts.HealthCheckIntervalSeconds = options.HealthCheckIntervalSeconds;
-            opts.FailureThreshold = options.FailureThreshold;
-            opts.EnablePerformanceMetrics = options.EnablePerformanceMetrics;
-            opts.UseExponentialBackoff = options.UseExponentialBackoff;
-            opts.MaxBackoffDelay = options.MaxBackoffDelay;
-        });
-    }
 }

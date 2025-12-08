@@ -23,5 +23,11 @@ public enum ShuDiNiaoMessageType : byte
     /// 信息三：应答与完成（设备端 → 服务端）
     /// </summary>
     [Description("应答与完成")]
-    ResponseAndCompletion = 0x53
+    ResponseAndCompletion = 0x53,
+
+    /// <summary>
+    /// 信息四：速度设置（服务端 → 设备端）
+    /// </summary>
+    [Description("速度设置")]
+    SpeedSetting = 0x54
 }
