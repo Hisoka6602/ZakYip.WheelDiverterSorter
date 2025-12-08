@@ -1461,7 +1461,7 @@ tools/Profiling/
 | **日志 / 指标** | `IParcelLifecycleLogger`, `PrometheusMetrics`, `AlarmService`, `ISafeExecutionService` | `Observability/` | ❌ `Host/` 中重新定义日志服务<br/>❌ `Execution/` 中定义指标收集<br/>❌ `Core/` 中实现日志服务 | `TechnicalDebtComplianceTests.LoggingConfigShadowTests` |
 | **系统时钟** | `ISystemClock`, `LocalSystemClock` | `Core/Utilities/` | ❌ 其他项目中定义时钟接口<br/>❌ 直接使用 `DateTime.Now` 或 `DateTime.UtcNow` | `Analyzers.DateTimeNowUsageAnalyzer`<br/>`TechnicalDebtComplianceTests.DateTimeUsageComplianceTests`<br/>`TechnicalDebtComplianceTests.SystemClockShadowTests`<br/>`TechnicalDebtComplianceTests.AnalyzersComplianceTests` |
 | **仿真** | `ISimulationScenarioRunner`, `SimulationRunner`, `SimulationOptions`, `SimulationSummary` | `Simulation/` (库项目)<br/>`Simulation.Cli/` (入口项目) | ❌ `Execution/` 中包含仿真专用逻辑<br/>❌ `Host/` 中实现仿真逻辑（只通过 API 调用）<br/>❌ `Drivers/` 中的仿真驱动之外定义仿真逻辑 | `TechnicalDebtComplianceTests.SimulationShadowTests` |
-| **面板 / IO 联动** | `IoLinkageConfiguration`, `CabinetIoOptions`, `IIoLinkageDriver` | `Core/LineModel/Configuration/Models/` (配置)<br/>`Core/Hardware/IoLinkage/` (接口) | ❌ `Drivers/` 中硬编码面板逻辑（应通过配置）<br/>❌ `Host/` 中直接操作 IO<br/>❌ `Execution/` 中定义 IO 配置模型 | `TechnicalDebtComplianceTests.PanelConfigShadowTests`<br/>`TechnicalDebtComplianceTests.IoShadowTests` |
+| **面板 / IO 联动** | `IoLinkageConfiguration`, `CabinetIoOptions`, `IIoLinkageDriver`, `IPanelInputReader`, `IPanelIoCoordinator` | `Core/LineModel/Configuration/Models/` (配置)<br/>`Core/Hardware/IoLinkage/` (IO联动接口)<br/>`Core/LineModel/Bindings/` (面板接口) | ❌ `Drivers/` 中硬编码面板逻辑（应通过配置）<br/>❌ `Host/` 中直接操作 IO<br/>❌ `Execution/` 中定义 IO 配置模型<br/>❌ 其他项目中定义 `IPanelInputReader` 或 `IPanelIoCoordinator` 接口 | `TechnicalDebtComplianceTests.PanelConfigShadowTests`<br/>`TechnicalDebtComplianceTests.IoShadowTests`<br/>`TechnicalDebtComplianceTests.PanelIoShadowTests` |
 | **传感器事件** | `SensorEvent`, `ParcelDetectedEventArgs`, `IParcelDetectionService` | `Ingress/Models/` (事件模型)<br/>`Ingress/` (服务接口) | ❌ `Simulation/` 中定义同名 `SensorEvent`（已重命名为 `SimulatedSensorEvent`）<br/>❌ `Execution/` 中定义传感器事件 | `TechnicalDebtComplianceTests.SimulationEventTests`<br/>`EventAndExtensionDuplicateDetectionTests` |
 | **DI 聚合入口** | `AddWheelDiverterSorter()`, `WheelDiverterSorterServiceCollectionExtensions` | `Application/Extensions/` | ❌ `Host/` 中重复定义同名扩展类（已重命名为 `WheelDiverterSorterHostServiceCollectionExtensions`）<br/>❌ 其他项目中定义全局 DI 聚合 | `EventAndExtensionDuplicateDetectionTests.ServiceCollectionExtensionsShouldBeUniquePerProject` |
 | **摆轮控制** | `IWheelDiverterDriver` (方向接口)<br/>`IWheelDiverterDevice` (命令接口) | `Core/Hardware/Devices/`<br/>`Core/Hardware/` | ❌ 定义 `IDiverterController`（已删除）<br/>❌ 定义 `IWheelDiverterActuator`（已删除）<br/>❌ 其他语义重叠的摆轮控制接口 | `TechnicalDebtComplianceTests.WheelDiverterShadowTests`<br/>`ArchTests.HalConsolidationTests` |
@@ -1575,6 +1575,6 @@ grep -r "ProjectReference" src/**/*.csproj
 
 ---
 
-**文档版本**：3.7 (PR-CONFIG-HOTRELOAD01)  
-**最后更新**：2025-12-02  
+**文档版本**：3.8 (PR-PANEL-IO01)  
+**最后更新**：2025-12-08  
 **维护团队**：ZakYip Development Team
