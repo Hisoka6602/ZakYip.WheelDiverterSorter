@@ -68,6 +68,9 @@ public static class HealthCheckServiceExtensions
 
         // 注册启动自检服务
         services.AddHostedService<BootHostedService>();
+        
+        // 注册摆轮初始化服务
+        services.AddHostedService<WheelDiverterInitHostedService>();
 
         // 注册运行前健康检查服务
         services.AddSingleton<IPreRunHealthCheckService, PreRunHealthCheckService>();

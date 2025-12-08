@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
+using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 
 namespace ZakYip.WheelDiverterSorter.Application;
 
@@ -68,6 +69,9 @@ public static class ApplicationServiceExtensions
         
         // 注册拓扑相关服务
         services.AddScoped<IChutePathTopologyService, ChutePathTopologyService>();
+        
+        // 注册摆轮连接管理服务
+        services.AddSingleton<IWheelDiverterConnectionService, WheelDiverterConnectionService>();
         
         return services;
     }
