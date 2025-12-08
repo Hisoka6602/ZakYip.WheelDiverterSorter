@@ -1421,6 +1421,8 @@ tools/Profiling/
 | TD-041 | ✅ 已解决 | 仿真策略实验集成 → 标记为可选功能，不阻塞发布 (当前 PR) | [详情](./TechnicalDebtLog.md#td-041-仿真策略实验集成) |
 | TD-042 | ✅ 已解决 | 多线支持（未来功能）→ 单线设计正确，多线为未来扩展 (当前 PR) | [详情](./TechnicalDebtLog.md#td-042-多线支持未来功能) |
 | TD-043 | ✅ 已解决 | 健康检查完善 → 当前实现满足监控需求 (当前 PR) | [详情](./TechnicalDebtLog.md#td-043-健康检查完善) |
+| TD-044 | ❌ 未开始 | LeadshineIoLinkageDriver 缺少 EMC 初始化检查 → 需添加 IsAvailable 检查和增强错误日志 | [详情](./TechnicalDebtLog.md#td-044-leadshineiolinkagedriver-缺少-emc-初始化检查) |
+| TD-045 | ❌ 未开始 | IO 驱动需要全局单例实现（Leadshine/S7）→ 审计线程安全性并增强资源协调 | [详情](./TechnicalDebtLog.md#td-045-io-驱动需要全局单例实现leadshines7) |
 
 ### 技术债统计
 
@@ -1428,8 +1430,8 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 43 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 0 |
-| **总计** | **43** |
+| ❌ 未开始 | 2 |
+| **总计** | **45** |
 
 ---
 
