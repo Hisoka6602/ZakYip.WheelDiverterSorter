@@ -1,8 +1,10 @@
+using System.Net.NetworkInformation;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
@@ -20,6 +22,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
 {
     private readonly IWheelDiverterDriverManager _driverManager;
+    private readonly IWheelDiverterConfigurationRepository _configRepository;
     private readonly INodeHealthRegistry _healthRegistry;
     private readonly IAlarmOutputController? _alarmController;
     private readonly ISystemClock _clock;
@@ -37,6 +40,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
 
     public WheelDiverterHeartbeatMonitor(
         IWheelDiverterDriverManager driverManager,
+        IWheelDiverterConfigurationRepository configRepository,
         INodeHealthRegistry healthRegistry,
         ISystemClock clock,
         ISafeExecutionService safeExecutor,
@@ -44,6 +48,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         IAlarmOutputController? alarmController = null)
     {
         _driverManager = driverManager ?? throw new ArgumentNullException(nameof(driverManager));
+        _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _healthRegistry = healthRegistry ?? throw new ArgumentNullException(nameof(healthRegistry));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
@@ -97,22 +102,57 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
 
             try
             {
-                // 尝试获取摆轮状态（这是一个简单的"心跳"检查）
-                var status = await driver.GetStatusAsync();
+                bool isAlive;
                 
-                // 成功获取状态，记录最后成功时间
-                _lastSuccessfulCheck[diverterId] = now;
-                
-                // 检查之前是否不健康，如果是则记录恢复日志
-                if (_lastHealthStatus.TryGetValue(diverterId, out var wasHealthy) && !wasHealthy)
+                // 检查驱动是否支持心跳协议
+                if (driver is IHeartbeatCapable heartbeatDriver)
                 {
-                    _logger.LogInformation("摆轮 {DiverterId} 心跳恢复正常", diverterId);
+                    // 使用驱动提供的心跳机制（如TCP连接状态检查）
+                    isAlive = await heartbeatDriver.CheckHeartbeatAsync(cancellationToken);
+                    _logger.LogDebug("摆轮 {DiverterId} 使用协议心跳检查，结果={Result}", 
+                        diverterId, isAlive ? "在线" : "离线");
+                }
+                else
+                {
+                    // 驱动不支持心跳协议，使用Ping作为后备
+                    var host = GetHostForDiverter(diverterId);
+                    if (!string.IsNullOrEmpty(host))
+                    {
+                        isAlive = await PingHostAsync(host, cancellationToken);
+                        _logger.LogDebug("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果={Result}", 
+                            diverterId, host, isAlive ? "可达" : "不可达");
+                    }
+                    else
+                    {
+                        // 无法获取主机信息，尝试使用GetStatusAsync作为后备
+                        await driver.GetStatusAsync();
+                        isAlive = true;
+                        _logger.LogDebug("摆轮 {DiverterId} 使用状态查询作为心跳检查", diverterId);
+                    }
                 }
                 
-                _lastHealthStatus[diverterId] = true;
-                
-                // 更新健康状态为健康
-                UpdateWheelDiverterHealth(diverterId, true, "心跳正常", status);
+                if (isAlive)
+                {
+                    // 成功获取状态，记录最后成功时间
+                    _lastSuccessfulCheck[diverterId] = now;
+                    
+                    // 检查之前是否不健康，如果是则记录恢复日志
+                    if (_lastHealthStatus.TryGetValue(diverterId, out var wasHealthy) && !wasHealthy)
+                    {
+                        _logger.LogInformation("摆轮 {DiverterId} 心跳恢复正常", diverterId);
+                    }
+                    
+                    _lastHealthStatus[diverterId] = true;
+                    
+                    // 更新健康状态为健康
+                    var status = await driver.GetStatusAsync();
+                    UpdateWheelDiverterHealth(diverterId, true, "心跳正常", status);
+                }
+                else
+                {
+                    // 心跳检查失败，触发超时检查逻辑
+                    throw new Exception("心跳检查失败");
+                }
             }
             catch (Exception ex)
             {
@@ -253,6 +293,71 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
             
             _isAlarming = false;
             _alarmStartTime = null;
+        }
+    }
+
+    /// <summary>
+    /// Ping主机检查是否可达
+    /// </summary>
+    private async Task<bool> PingHostAsync(string host, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var ping = new Ping();
+            var reply = await ping.SendPingAsync(host, 2000); // 2秒超时
+            var isReachable = reply.Status == IPStatus.Success;
+            
+            if (!isReachable)
+            {
+                _logger.LogDebug("Ping主机 {Host} 失败，状态={Status}", host, reply.Status);
+            }
+            
+            return isReachable;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ping主机 {Host} 异常", host);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 从配置中获取摆轮的主机地址
+    /// </summary>
+    private string? GetHostForDiverter(string diverterId)
+    {
+        try
+        {
+            var config = _configRepository.Get();
+            if (config == null)
+            {
+                return null;
+            }
+
+            if (!long.TryParse(diverterId, out var diverterIdNum))
+            {
+                return null;
+            }
+
+            // 检查数递鸟配置
+            if (config.ShuDiNiao != null)
+            {
+                var device = config.ShuDiNiao.Devices.FirstOrDefault(d => d.DiverterId == diverterIdNum);
+                if (device != null)
+                {
+                    return device.Host;
+                }
+            }
+
+            // 未来可以在这里添加其他厂商的配置检查
+            // 例如：if (config.Modi != null) { ... }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "获取摆轮 {DiverterId} 主机地址失败", diverterId);
+            return null;
         }
     }
 
