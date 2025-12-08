@@ -193,8 +193,8 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                     missingConfigs.Add("开始按钮 IO");
                 if (!panelConfig.StopButtonInputBit.HasValue)
                     missingConfigs.Add("停止按钮 IO");
-                if (!panelConfig.EmergencyStopButtonInputBit.HasValue)
-                    missingConfigs.Add("急停按钮 IO");
+                if (panelConfig.EmergencyStopButtons.Count == 0)
+                    missingConfigs.Add("急停按钮 IO（至少需要一个急停按钮）");
 
                 // 检查指示灯输出配置
                 if (!panelConfig.StartLightOutputBit.HasValue)

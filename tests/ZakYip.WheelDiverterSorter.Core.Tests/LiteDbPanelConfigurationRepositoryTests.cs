@@ -196,8 +196,10 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
             StartButtonTriggerLevel = TriggerLevel.ActiveHigh,
             StopButtonInputBit = 1,
             StopButtonTriggerLevel = TriggerLevel.ActiveLow,
-            EmergencyStopButtonInputBit = 2,
-            EmergencyStopButtonTriggerLevel = TriggerLevel.ActiveLow,
+            EmergencyStopButtons = new List<EmergencyStopButtonConfig>
+            {
+                new EmergencyStopButtonConfig { InputBit = 2, InputTriggerLevel = TriggerLevel.ActiveLow }
+            },
             
             // Light outputs
             StartLightOutputBit = 10,
@@ -231,8 +233,9 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         Assert.Equal(TriggerLevel.ActiveHigh, updated.StartButtonTriggerLevel);
         Assert.Equal(1, updated.StopButtonInputBit);
         Assert.Equal(TriggerLevel.ActiveLow, updated.StopButtonTriggerLevel);
-        Assert.Equal(2, updated.EmergencyStopButtonInputBit);
-        Assert.Equal(TriggerLevel.ActiveLow, updated.EmergencyStopButtonTriggerLevel);
+        Assert.Single(updated.EmergencyStopButtons);
+        Assert.Equal(2, updated.EmergencyStopButtons[0].InputBit);
+        Assert.Equal(TriggerLevel.ActiveLow, updated.EmergencyStopButtons[0].InputTriggerLevel);
         
         // Light outputs
         Assert.Equal(10, updated.StartLightOutputBit);
@@ -261,8 +264,10 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
             StartButtonTriggerLevel = TriggerLevel.ActiveHigh,
             StopButtonInputBit = 1,
             StopButtonTriggerLevel = TriggerLevel.ActiveLow,
-            EmergencyStopButtonInputBit = 2,
-            EmergencyStopButtonTriggerLevel = TriggerLevel.ActiveLow,
+            EmergencyStopButtons = new List<EmergencyStopButtonConfig>
+            {
+                new EmergencyStopButtonConfig { InputBit = 2, InputTriggerLevel = TriggerLevel.ActiveLow }
+            },
             
             StartLightOutputBit = 10,
             StartLightOutputLevel = TriggerLevel.ActiveLow,
@@ -277,7 +282,8 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         // Assert - verify trigger levels are preserved
         Assert.Equal(TriggerLevel.ActiveHigh, updated.StartButtonTriggerLevel);
         Assert.Equal(TriggerLevel.ActiveLow, updated.StopButtonTriggerLevel);
-        Assert.Equal(TriggerLevel.ActiveLow, updated.EmergencyStopButtonTriggerLevel);
+        Assert.Single(updated.EmergencyStopButtons);
+        Assert.Equal(TriggerLevel.ActiveLow, updated.EmergencyStopButtons[0].InputTriggerLevel);
         Assert.Equal(TriggerLevel.ActiveLow, updated.StartLightOutputLevel);
         Assert.Equal(TriggerLevel.ActiveHigh, updated.StopLightOutputLevel);
     }
@@ -290,7 +296,10 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         {
             StartButtonInputBit = 0,
             StopButtonInputBit = null, // Not configured
-            EmergencyStopButtonInputBit = 2
+            EmergencyStopButtons = new List<EmergencyStopButtonConfig>
+            {
+                new EmergencyStopButtonConfig { InputBit = 2, InputTriggerLevel = TriggerLevel.ActiveHigh }
+            }
         };
 
         // Act
@@ -300,7 +309,8 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         // Assert
         Assert.Equal(0, updated.StartButtonInputBit);
         Assert.Null(updated.StopButtonInputBit);
-        Assert.Equal(2, updated.EmergencyStopButtonInputBit);
+        Assert.Single(updated.EmergencyStopButtons);
+        Assert.Equal(2, updated.EmergencyStopButtons[0].InputBit);
     }
 
     [Fact]

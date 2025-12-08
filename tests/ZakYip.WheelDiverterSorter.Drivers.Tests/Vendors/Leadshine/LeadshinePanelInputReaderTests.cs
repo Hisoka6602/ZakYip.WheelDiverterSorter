@@ -50,14 +50,23 @@ public class LeadshinePanelInputReaderTests
         int? emergencyStopBit = 3,
         TriggerLevel emergencyStopLevel = TriggerLevel.ActiveHigh)
     {
+        var emergencyStopButtons = new List<EmergencyStopButtonConfig>();
+        if (emergencyStopBit.HasValue)
+        {
+            emergencyStopButtons.Add(new EmergencyStopButtonConfig 
+            { 
+                InputBit = emergencyStopBit.Value, 
+                InputTriggerLevel = emergencyStopLevel 
+            });
+        }
+
         return new PanelConfiguration
         {
             StartButtonInputBit = startBit,
             StartButtonTriggerLevel = startLevel,
             StopButtonInputBit = stopBit,
             StopButtonTriggerLevel = stopLevel,
-            EmergencyStopButtonInputBit = emergencyStopBit,
-            EmergencyStopButtonTriggerLevel = emergencyStopLevel
+            EmergencyStopButtons = emergencyStopButtons
         };
     }
 
