@@ -44,7 +44,7 @@ public sealed record class PanelConfiguration
     /// <summary>
     /// 面板按钮轮询间隔（毫秒）
     /// </summary>
-    /// <remarks>有效范围：50-1000 毫秒</remarks>
+    /// <remarks>有效范围：10-5000 毫秒</remarks>
     public int PollingIntervalMs { get; init; } = 100;
 
     /// <summary>
@@ -52,7 +52,7 @@ public sealed record class PanelConfiguration
     /// </summary>
     /// <remarks>
     /// 在此时间内的重复触发将被忽略
-    /// 有效范围：10-500 毫秒
+    /// 有效范围：10-5000 毫秒，可以等于 PollingIntervalMs
     /// </remarks>
     public int DebounceMs { get; init; } = 50;
 
@@ -240,19 +240,19 @@ public sealed record class PanelConfiguration
     /// <returns>验证结果元组 (IsValid, ErrorMessage)</returns>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
-        if (PollingIntervalMs < 50 || PollingIntervalMs > 1000)
+        if (PollingIntervalMs < 10 || PollingIntervalMs > 5000)
         {
-            return (false, "轮询间隔必须在 50-1000 毫秒之间");
+            return (false, "轮询间隔必须在 10-5000 毫秒之间");
         }
 
-        if (DebounceMs < 10 || DebounceMs > 500)
+        if (DebounceMs < 10 || DebounceMs > 5000)
         {
-            return (false, "防抖时间必须在 10-500 毫秒之间");
+            return (false, "防抖时间必须在 10-5000 毫秒之间");
         }
 
-        if (DebounceMs >= PollingIntervalMs)
+        if (DebounceMs > PollingIntervalMs)
         {
-            return (false, "防抖时间必须小于轮询间隔");
+            return (false, "防抖时间不能大于轮询间隔");
         }
 
         // 验证 IO 位范围 (0-1023)

@@ -81,6 +81,7 @@ public static class WheelDiverterSorterHostServiceCollectionExtensions
         // 4. 注册后台工作服务（Host 特定）
         services.AddHostedService<AlarmMonitoringWorker>();
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
+        services.AddHostedService<PanelButtonMonitorWorker>();
 
         return services;
     }
