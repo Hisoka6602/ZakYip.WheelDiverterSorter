@@ -573,7 +573,6 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             return true;
         }
 
-        bool connectionEstablished = false;
         await _connectionLock.WaitAsync(cancellationToken);
         try
         {
@@ -602,7 +601,6 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             
             _logger.LogInformation("摆轮 {DiverterId} 连接成功，接收任务已启动", DiverterId);
             
-            connectionEstablished = true;
             return true;
         }
         catch (SocketException ex)
