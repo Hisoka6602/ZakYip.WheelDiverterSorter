@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
@@ -27,6 +28,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private readonly ISystemStateManager _stateManager;
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly ISafeExecutionService _safeExecutor;
+    private readonly ISystemClock _systemClock;
     
     /// <summary>
     /// 默认按钮轮询间隔（毫秒）
@@ -49,7 +51,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         IIoLinkageConfigService ioLinkageConfigService,
         ISystemStateManager stateManager,
         IPanelConfigurationRepository panelConfigRepository,
-        ISafeExecutionService safeExecutor)
+        ISafeExecutionService safeExecutor,
+        ISystemClock systemClock)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _panelInputReader = panelInputReader ?? throw new ArgumentNullException(nameof(panelInputReader));
@@ -57,6 +60,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -142,19 +146,26 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             // 获取当前系统状态
             var currentState = _stateManager.CurrentState;
             
-            // 将 SystemState 映射到 SystemOperatingState
-            var operatingState = MapToOperatingState(currentState);
-            
             _logger.LogInformation(
-                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState} -> {OperatingState}",
+                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState}",
                 buttonType,
-                currentState,
-                operatingState);
+                currentState);
 
             // 首先处理按钮的主要功能（状态转换）
             await HandleButtonActionAsync(buttonType, currentState, cancellationToken);
 
-            // 根据当前系统状态触发IO联动
+            // 状态转换后，获取新的系统状态用于IO联动
+            var newState = _stateManager.CurrentState;
+            var operatingState = MapToOperatingState(newState);
+            
+            _logger.LogInformation(
+                "按钮 {ButtonType} 状态已转换: {OldState} -> {NewState}，准备触发 {OperatingState} 状态的IO联动",
+                buttonType,
+                currentState,
+                newState,
+                operatingState);
+
+            // 根据新的系统状态触发IO联动
             var result = await _ioLinkageConfigService.TriggerIoLinkageAsync(operatingState);
             
             if (result.Success)
@@ -186,16 +197,22 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// </summary>
     /// <remarks>
     /// 修复Issue 2: 面板按钮按下时应该触发相应的系统状态转换
+    /// 新需求: 启动按钮按下时先触发预警，等待预警时间后再进入Running状态
     /// </remarks>
     private async Task HandleButtonActionAsync(PanelButtonType buttonType, SystemState currentState, CancellationToken cancellationToken)
     {
         try
         {
+            // 特殊处理启动按钮：需要预警逻辑
+            if (buttonType == PanelButtonType.Start && currentState is SystemState.Ready or SystemState.Paused)
+            {
+                await HandleStartButtonWithPreWarningAsync(currentState, cancellationToken);
+                return;
+            }
+
+            // 其他按钮的正常处理
             SystemState? targetState = buttonType switch
             {
-                PanelButtonType.Start when currentState is SystemState.Ready or SystemState.Paused =>
-                    SystemState.Running,
-                
                 PanelButtonType.Stop when currentState is SystemState.Running or SystemState.Paused =>
                     SystemState.Ready,
                 
@@ -240,6 +257,89 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 ex,
                 "处理按钮 {ButtonType} 动作异常",
                 buttonType);
+        }
+    }
+
+    /// <summary>
+    /// 处理启动按钮的预警逻辑
+    /// </summary>
+    /// <remarks>
+    /// 启动按钮按下时：
+    /// 1. 保持在Ready状态
+    /// 2. 如果配置了预警时间，触发预警输出并等待
+    /// 3. 预警时间结束后转换到Running状态
+    /// </remarks>
+    private async Task HandleStartButtonWithPreWarningAsync(SystemState currentState, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var panelConfig = _panelConfigRepository.Get();
+            var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
+
+            _logger.LogInformation(
+                "启动按钮处理开始 - 当前状态: {CurrentState}, 配置的预警时间: {PreWarningDuration} 秒",
+                currentState,
+                preWarningDuration?.ToString() ?? "未配置");
+
+            if (preWarningDuration.HasValue && preWarningDuration.Value > 0)
+            {
+                _logger.LogWarning(
+                    "⚠️ 启动按钮按下，开始预警 {Duration} 秒，当前状态保持为 {CurrentState}，摆轮将在预警结束后启动",
+                    preWarningDuration.Value,
+                    currentState);
+
+                // 记录预警开始时间用于验证
+                var warningStartTime = _systemClock.LocalNow;
+
+                // TODO: 触发预警输出（PreStartWarningOutputBit）
+                // 这需要通过输出端口服务来实现
+                // 如果配置了预警输出位，应该在这里设置输出为高/低电平
+                if (panelConfig?.PreStartWarningOutputBit.HasValue == true)
+                {
+                    _logger.LogInformation(
+                        "预警输出位已配置: Bit={OutputBit}, Level={OutputLevel}（注：当前版本暂未实现物理输出控制）",
+                        panelConfig.PreStartWarningOutputBit.Value,
+                        panelConfig.PreStartWarningOutputLevel);
+                }
+
+                // 等待预警时间
+                _logger.LogInformation("开始等待预警时间: {Duration} 秒...", preWarningDuration.Value);
+                await Task.Delay(TimeSpan.FromSeconds(preWarningDuration.Value), cancellationToken);
+
+                var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
+                _logger.LogWarning(
+                    "✅ 预警时间结束，实际等待: {ActualWait:F2} 秒，准备转换到 Running 状态并启动摆轮",
+                    actualWaitTime);
+            }
+            else
+            {
+                _logger.LogInformation("未配置预警时间或预警时间为0，直接转换到 Running 状态");
+            }
+
+            // 预警结束后，转换到Running状态
+            _logger.LogInformation("正在将系统状态从 {CurrentState} 转换到 Running...", currentState);
+            var result = await _stateManager.ChangeStateAsync(SystemState.Running, cancellationToken);
+            
+            if (!result.Success)
+            {
+                _logger.LogError(
+                    "❌ 启动按钮状态转换失败: {ErrorMessage}",
+                    result.ErrorMessage);
+            }
+            else
+            {
+                _logger.LogInformation("✅ 系统状态已成功转换到 Running，摆轮应该开始启动");
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("⚠️ 预警过程被取消（可能是系统停止或急停）");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ 处理启动按钮预警逻辑异常");
+            throw;
         }
     }
 

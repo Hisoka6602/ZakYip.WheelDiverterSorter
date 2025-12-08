@@ -43,14 +43,8 @@ public class SystemConfiguration
     /// </remarks>
     public ChuteAssignmentTimeoutOptions ChuteAssignmentTimeout { get; set; } = new();
 
-    /// <summary>
-    /// 控制面板 IO 模块配置
-    /// </summary>
-    /// <remarks>
-    /// 用于配置电柜面板上的物理按键和指示灯，包括急停、启动、停止、复位按钮以及三色灯等。
-    /// 此配置是厂商无关的，通过 VendorProfileKey 关联具体厂商实现。
-    /// </remarks>
-    public CabinetIoOptions CabinetIo { get; set; } = new();
+    // 注意：控制面板配置已迁移到独立的 PanelConfiguration 模型
+    // 通过 IPanelConfigurationRepository 访问面板配置
 
     /// <summary>
     /// IO 联动配置
@@ -224,7 +218,7 @@ public class SystemConfiguration
             ConfigName = "system",
             ExceptionChuteId = 999,
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions(),
-            CabinetIo = new CabinetIoOptions(),
+            // 注意：面板配置已迁移到 PanelConfiguration，通过 IPanelConfigurationRepository 访问
             IoLinkage = new IoLinkageOptions(),
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,

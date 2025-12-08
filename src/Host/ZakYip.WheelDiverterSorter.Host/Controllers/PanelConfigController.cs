@@ -55,7 +55,7 @@ public class PanelConfigController : ControllerBase
     /// - 基础配置：enabled, useSimulation, pollingIntervalMs, debounceMs
     /// - 开始按钮：startButton (inputBit, inputTriggerLevel, lightOutputBit, lightOutputLevel)
     /// - 停止按钮：stopButton (inputBit, inputTriggerLevel, lightOutputBit, lightOutputLevel)
-    /// - 急停按钮：emergencyStopButton (inputBit, inputTriggerLevel)
+    /// - 急停按钮：emergencyStopButtons (数组，每项包含 inputBit, inputTriggerLevel)
     /// - 连接指示灯：connectionIndicator (outputBit, outputLevel)
     /// - 三色信号塔：signalTower (redOutputBit, redOutputLevel, yellowOutputBit, yellowOutputLevel, greenOutputBit, greenOutputLevel)
     /// - 运行前预警：preStartWarning (durationSeconds, outputBit, outputLevel)
@@ -79,10 +79,16 @@ public class PanelConfigController : ControllerBase
     ///     "lightOutputBit": 1,
     ///     "lightOutputLevel": "ActiveHigh"
     ///   },
-    ///   "emergencyStopButton": {
-    ///     "inputBit": 2,
-    ///     "inputTriggerLevel": "ActiveHigh"
-    ///   },
+    ///   "emergencyStopButtons": [
+    ///     {
+    ///       "inputBit": 2,
+    ///       "inputTriggerLevel": "ActiveHigh"
+    ///     },
+    ///     {
+    ///       "inputBit": 3,
+    ///       "inputTriggerLevel": "ActiveLow"
+    ///     }
+    ///   ],
     ///   "connectionIndicator": {
     ///     "outputBit": 2,
     ///     "outputLevel": "ActiveHigh"
@@ -174,7 +180,7 @@ public class PanelConfigController : ControllerBase
     /// - **基础配置**: enabled, useSimulation, pollingIntervalMs, debounceMs
     /// - **startButton**: 开始按钮的输入和指示灯配置
     /// - **stopButton**: 停止按钮的输入和指示灯配置
-    /// - **emergencyStopButton**: 急停按钮的输入配置
+    /// - **emergencyStopButtons**: 急停按钮数组的输入配置（系统只有在所有急停按钮都解除时才视为解除急停状态）
     /// - **connectionIndicator**: 连接状态指示灯配置
     /// - **signalTower**: 三色信号塔配置
     /// - **preStartWarning**: 运行前预警配置
@@ -325,8 +331,11 @@ public class PanelConfigController : ControllerBase
             StartButtonTriggerLevel = request.StartButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
             StopButtonInputBit = request.StopButton?.InputBit,
             StopButtonTriggerLevel = request.StopButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
-            EmergencyStopButtonInputBit = request.EmergencyStopButton?.InputBit,
-            EmergencyStopButtonTriggerLevel = request.EmergencyStopButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            EmergencyStopButtons = request.EmergencyStopButtons?.Select(esb => new EmergencyStopButtonConfig
+            {
+                InputBit = esb.InputBit,
+                InputTriggerLevel = esb.InputTriggerLevel
+            }).ToList() ?? new List<EmergencyStopButtonConfig>(),
             StartLightOutputBit = request.StartButton?.LightOutputBit,
             StartLightOutputLevel = request.StartButton?.LightOutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
             StopLightOutputBit = request.StopButton?.LightOutputBit,
@@ -372,11 +381,11 @@ public class PanelConfigController : ControllerBase
                 LightOutputBit = config.StopLightOutputBit,
                 LightOutputLevel = config.StopLightOutputLevel
             },
-            EmergencyStopButton = new EmergencyStopButtonConfigDto
+            EmergencyStopButtons = config.EmergencyStopButtons.Select(esb => new EmergencyStopButtonConfigDto
             {
-                InputBit = config.EmergencyStopButtonInputBit,
-                InputTriggerLevel = config.EmergencyStopButtonTriggerLevel
-            },
+                InputBit = esb.InputBit,
+                InputTriggerLevel = esb.InputTriggerLevel
+            }).ToList(),
             ConnectionIndicator = new ConnectionIndicatorConfigDto
             {
                 OutputBit = config.ConnectionLightOutputBit,
