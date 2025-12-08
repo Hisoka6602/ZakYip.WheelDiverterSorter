@@ -151,6 +151,9 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 currentState,
                 operatingState);
 
+            // 首先处理按钮的主要功能（状态转换）
+            await HandleButtonActionAsync(buttonType, currentState, cancellationToken);
+
             // 根据当前系统状态触发IO联动
             var result = await _ioLinkageConfigService.TriggerIoLinkageAsync(operatingState);
             
@@ -174,6 +177,68 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             _logger.LogError(
                 ex,
                 "触发按钮 {ButtonType} 的IO联动异常",
+                buttonType);
+        }
+    }
+
+    /// <summary>
+    /// 处理按钮动作（状态转换）
+    /// </summary>
+    /// <remarks>
+    /// 修复Issue 2: 面板按钮按下时应该触发相应的系统状态转换
+    /// </remarks>
+    private async Task HandleButtonActionAsync(PanelButtonType buttonType, SystemState currentState, CancellationToken cancellationToken)
+    {
+        try
+        {
+            SystemState? targetState = buttonType switch
+            {
+                PanelButtonType.Start when currentState is SystemState.Ready or SystemState.Paused =>
+                    SystemState.Running,
+                
+                PanelButtonType.Stop when currentState is SystemState.Running or SystemState.Paused =>
+                    SystemState.Ready,
+                
+                PanelButtonType.Reset when currentState is SystemState.Faulted or SystemState.EmergencyStop =>
+                    SystemState.Ready,
+                
+                PanelButtonType.EmergencyStop when currentState != SystemState.EmergencyStop =>
+                    SystemState.EmergencyStop,
+                
+                _ => null
+            };
+
+            if (targetState.HasValue)
+            {
+                _logger.LogInformation(
+                    "按钮 {ButtonType} 触发状态转换: {FromState} -> {ToState}",
+                    buttonType,
+                    currentState,
+                    targetState.Value);
+
+                var result = await _stateManager.ChangeStateAsync(targetState.Value, cancellationToken);
+                
+                if (!result.Success)
+                {
+                    _logger.LogWarning(
+                        "按钮 {ButtonType} 状态转换失败: {ErrorMessage}",
+                        buttonType,
+                        result.ErrorMessage);
+                }
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "按钮 {ButtonType} 在当前状态 {CurrentState} 下无需状态转换",
+                    buttonType,
+                    currentState);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "处理按钮 {ButtonType} 动作异常",
                 buttonType);
         }
     }

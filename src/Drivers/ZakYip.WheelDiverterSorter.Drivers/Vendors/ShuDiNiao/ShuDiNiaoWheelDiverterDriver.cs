@@ -573,7 +573,6 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             return true;
         }
 
-        bool connectionEstablished = false;
         await _connectionLock.WaitAsync(cancellationToken);
         try
         {
@@ -595,9 +594,13 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             _stream = _tcpClient.GetStream();
             
             _currentStatus = "已连接";
-            _logger.LogInformation("摆轮 {DiverterId} 连接成功", DiverterId);
             
-            connectionEstablished = true;
+            // 立即启动接收任务以监听设备状态上报
+            // 修复Issue 1: 摆轮需要在连接成功时就监控接收数据,而不是发送指令后
+            StartReceiveTask();
+            
+            _logger.LogInformation("摆轮 {DiverterId} 连接成功，接收任务已启动", DiverterId);
+            
             return true;
         }
         catch (SocketException ex)
@@ -617,12 +620,6 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
         finally
         {
             _connectionLock.Release();
-            
-            // 启动接收任务以监听设备状态上报（在锁外部启动，避免潜在的死锁或竞态条件）
-            if (connectionEstablished)
-            {
-                StartReceiveTask();
-            }
         }
     }
 
