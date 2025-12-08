@@ -1,6 +1,6 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
@@ -34,9 +34,14 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private const int DefaultPollingIntervalMs = 100;
     
     /// <summary>
+    /// 异常恢复延迟（毫秒）
+    /// </summary>
+    private const int ErrorRecoveryDelayMs = 1000;
+    
+    /// <summary>
     /// 上次按钮状态缓存，用于检测状态变化
     /// </summary>
-    private readonly Dictionary<PanelButtonType, bool> _lastButtonStates = new();
+    private readonly ConcurrentDictionary<PanelButtonType, bool> _lastButtonStates = new();
 
     public PanelButtonMonitorWorker(
         ILogger<PanelButtonMonitorWorker> logger,
@@ -117,7 +122,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                         _logger.LogError(ex, "面板按钮监控异常");
                         
                         // 发生异常后稍作延迟再继续
-                        await Task.Delay(1000, stoppingToken);
+                        await Task.Delay(ErrorRecoveryDelayMs, stoppingToken);
                     }
                 }
 
