@@ -228,8 +228,9 @@ public sealed record EmergencyStopButtonConfigDto
     /// 按钮输入 IO 位
     /// </summary>
     /// <example>2</example>
+    [Required]
     [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
-    public int? InputBit { get; init; }
+    public required int InputBit { get; init; }
 
     /// <summary>
     /// 按钮触发电平

@@ -333,7 +333,7 @@ public class PanelConfigController : ControllerBase
             StopButtonTriggerLevel = request.StopButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
             EmergencyStopButtons = request.EmergencyStopButtons?.Select(esb => new EmergencyStopButtonConfig
             {
-                InputBit = esb.InputBit ?? 0,
+                InputBit = esb.InputBit,
                 InputTriggerLevel = esb.InputTriggerLevel
             }).ToList() ?? new List<EmergencyStopButtonConfig>(),
             StartLightOutputBit = request.StartButton?.LightOutputBit,

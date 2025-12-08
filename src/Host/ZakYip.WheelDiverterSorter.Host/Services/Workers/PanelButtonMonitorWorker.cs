@@ -142,19 +142,26 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             // 获取当前系统状态
             var currentState = _stateManager.CurrentState;
             
-            // 将 SystemState 映射到 SystemOperatingState
-            var operatingState = MapToOperatingState(currentState);
-            
             _logger.LogInformation(
-                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState} -> {OperatingState}",
+                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState}",
                 buttonType,
-                currentState,
-                operatingState);
+                currentState);
 
             // 首先处理按钮的主要功能（状态转换）
             await HandleButtonActionAsync(buttonType, currentState, cancellationToken);
 
-            // 根据当前系统状态触发IO联动
+            // 状态转换后，获取新的系统状态用于IO联动
+            var newState = _stateManager.CurrentState;
+            var operatingState = MapToOperatingState(newState);
+            
+            _logger.LogInformation(
+                "按钮 {ButtonType} 状态已转换: {OldState} -> {NewState}，准备触发 {OperatingState} 状态的IO联动",
+                buttonType,
+                currentState,
+                newState,
+                operatingState);
+
+            // 根据新的系统状态触发IO联动
             var result = await _ioLinkageConfigService.TriggerIoLinkageAsync(operatingState);
             
             if (result.Success)
