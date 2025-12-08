@@ -4,12 +4,11 @@ using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-
-
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 
@@ -22,6 +21,7 @@ public class SystemStateIoLinkageService
     private readonly ISystemRunStateService _stateService;
     private readonly IIoLinkageCoordinator _linkageCoordinator;
     private readonly IIoLinkageExecutor _linkageExecutor;
+    private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
     private readonly IoLinkageOptions _linkageOptions;
     private readonly ILogger<SystemStateIoLinkageService> _logger;
 
@@ -30,12 +30,14 @@ public class SystemStateIoLinkageService
         IIoLinkageCoordinator linkageCoordinator,
         IIoLinkageExecutor linkageExecutor,
         IOptions<SystemConfiguration> systemConfig,
-        ILogger<SystemStateIoLinkageService> logger)
+        ILogger<SystemStateIoLinkageService> logger,
+        IWheelDiverterDriverManager? wheelDiverterDriverManager = null)
     {
         _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService));
         _linkageCoordinator = linkageCoordinator ?? throw new ArgumentNullException(nameof(linkageCoordinator));
         _linkageExecutor = linkageExecutor ?? throw new ArgumentNullException(nameof(linkageExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _wheelDiverterDriverManager = wheelDiverterDriverManager;
 
         if (systemConfig?.Value == null)
         {
@@ -74,6 +76,9 @@ public class SystemStateIoLinkageService
             }
         }
 
+        // 3. 启动所有已连接的摆轮
+        await RunAllWheelDivertersAsync(cancellationToken);
+
         return OperationResult.Success();
     }
 
@@ -90,7 +95,10 @@ public class SystemStateIoLinkageService
             return stateResult;
         }
 
-        // 2. 状态切换成功，执行 IO 联动
+        // 2. 停止所有摆轮
+        await StopAllWheelDivertersAsync(cancellationToken);
+
+        // 3. 执行 IO 联动
         var currentState = _stateService.Current;
         var linkagePoints = _linkageCoordinator.DetermineIoLinkagePoints(currentState, _linkageOptions);
 
@@ -121,7 +129,11 @@ public class SystemStateIoLinkageService
             return stateResult;
         }
 
-        // 2. 状态切换成功，执行停止联动 IO（急停时使用停止联动 IO）
+        // 2. 停止所有摆轮（急停）
+        _logger.LogWarning("急停触发！");
+        await StopAllWheelDivertersAsync(cancellationToken);
+
+        // 3. 状态切换成功，执行停止联动 IO（急停时使用停止联动 IO）
         var currentState = _stateService.Current;
         
         // 急停时直接使用 StoppedStateIos
@@ -166,5 +178,96 @@ public class SystemStateIoLinkageService
     public OperationResult ValidateParcelCreation()
     {
         return _stateService.ValidateParcelCreation();
+    }
+
+    /// <summary>
+    /// 启动所有已连接的摆轮
+    /// </summary>
+    private async Task RunAllWheelDivertersAsync(CancellationToken cancellationToken)
+    {
+        if (_wheelDiverterDriverManager == null)
+        {
+            return;
+        }
+
+        var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
+        if (activeDrivers.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation("系统启动，准备启动 {Count} 个摆轮", activeDrivers.Count);
+        await ExecuteWheelDiverterOperationAsync(activeDrivers, 
+            (driver, ct) => driver.RunAsync(ct), 
+            "启动", cancellationToken);
+    }
+
+    /// <summary>
+    /// 停止所有摆轮
+    /// </summary>
+    private async Task StopAllWheelDivertersAsync(CancellationToken cancellationToken)
+    {
+        if (_wheelDiverterDriverManager == null)
+        {
+            return;
+        }
+
+        var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
+        if (activeDrivers.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation("准备停止 {Count} 个摆轮", activeDrivers.Count);
+        await ExecuteWheelDiverterOperationAsync(activeDrivers, 
+            (driver, ct) => driver.StopAsync(ct), 
+            "停止", cancellationToken);
+    }
+
+    /// <summary>
+    /// 执行摆轮操作（避免代码重复）
+    /// </summary>
+    private async Task ExecuteWheelDiverterOperationAsync(
+        IReadOnlyDictionary<string, IWheelDiverterDriver> drivers,
+        Func<IWheelDiverterDriver, CancellationToken, Task<bool>> operation,
+        string operationName,
+        CancellationToken cancellationToken)
+    {
+        var successCount = 0;
+        var failedDriverIds = new List<string>();
+
+        foreach (var kvp in drivers)
+        {
+            try
+            {
+                var success = await operation(kvp.Value, cancellationToken);
+                if (success)
+                {
+                    successCount++;
+                    _logger.LogDebug("摆轮 {DiverterId} {Operation}成功", kvp.Key, operationName);
+                }
+                else
+                {
+                    failedDriverIds.Add(kvp.Key);
+                    _logger.LogWarning("摆轮 {DiverterId} {Operation}失败", kvp.Key, operationName);
+                }
+            }
+            catch (Exception ex)
+            {
+                failedDriverIds.Add(kvp.Key);
+                _logger.LogError(ex, "摆轮 {DiverterId} {Operation}异常", kvp.Key, operationName);
+            }
+        }
+
+        if (failedDriverIds.Count > 0)
+        {
+            _logger.LogWarning(
+                "部分摆轮{Operation}失败: 成功={SuccessCount}/{TotalCount}, 失败摆轮={FailedIds}",
+                operationName, successCount, drivers.Count, string.Join(", ", failedDriverIds));
+        }
+        else
+        {
+            _logger.LogInformation("所有摆轮{Operation}成功: {Count} 个", operationName, successCount);
+        }
     }
 }

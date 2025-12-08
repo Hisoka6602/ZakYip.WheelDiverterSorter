@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
@@ -21,16 +22,19 @@ public sealed class ShuDiNiaoWheelDiverterDriverManager : IWheelDiverterDriverMa
 {
     private readonly ILogger<ShuDiNiaoWheelDiverterDriverManager> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ISystemClock _clock;
     private readonly object _lock = new();
     private Dictionary<string, ShuDiNiaoWheelDiverterDriver> _drivers = new();
     private bool _disposed;
 
     public ShuDiNiaoWheelDiverterDriverManager(
         ILoggerFactory loggerFactory,
-        ILogger<ShuDiNiaoWheelDiverterDriverManager> logger)
+        ILogger<ShuDiNiaoWheelDiverterDriverManager> logger,
+        ISystemClock clock)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     /// <inheritdoc/>
@@ -104,7 +108,7 @@ public sealed class ShuDiNiaoWheelDiverterDriverManager : IWheelDiverterDriverMa
                 try
                 {
                     var driverLogger = _loggerFactory.CreateLogger<ShuDiNiaoWheelDiverterDriver>();
-                    var driver = new ShuDiNiaoWheelDiverterDriver(device, driverLogger);
+                    var driver = new ShuDiNiaoWheelDiverterDriver(device, driverLogger, _clock);
                     newDrivers[device.DiverterId.ToString()] = driver;
 
                     _logger.LogInformation(

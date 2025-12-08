@@ -73,7 +73,8 @@ public static class ShuDiNiaoWheelServiceCollectionExtensions
             
             return new ShuDiNiaoWheelDiverterDriverManager(
                 loggerFactory,
-                logger);
+                logger,
+                sp.GetRequiredService<ISystemClock>());
         });
 
         // 注册数递鸟摆轮服务器（仅在服务端模式时注册）
@@ -131,7 +132,8 @@ public static class ShuDiNiaoWheelServiceCollectionExtensions
             
             return new ShuDiNiaoWheelDiverterDriverManager(
                 loggerFactory,
-                logger);
+                logger,
+                sp.GetRequiredService<ISystemClock>());
         });
 
         return services;
