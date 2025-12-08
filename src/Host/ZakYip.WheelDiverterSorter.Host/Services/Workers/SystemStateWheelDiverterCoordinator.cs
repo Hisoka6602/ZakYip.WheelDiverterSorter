@@ -69,6 +69,14 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
 
                 // 等待一小段时间，确保系统初始化完成
                 await Task.Delay(1000, stoppingToken);
+                
+                // 初始化：获取当前状态并立即同步摆轮状态
+                var initialState = _stateManager.CurrentState;
+                _logger.LogInformation("初始系统状态: {State}，正在同步摆轮状态...", initialState);
+                _lastKnownState = initialState;
+                
+                // 根据初始状态同步摆轮（确保摆轮状态与系统状态一致）
+                await HandleStateTransitionAsync(initialState, stoppingToken);
 
                 while (!stoppingToken.IsCancellationRequested)
                 {

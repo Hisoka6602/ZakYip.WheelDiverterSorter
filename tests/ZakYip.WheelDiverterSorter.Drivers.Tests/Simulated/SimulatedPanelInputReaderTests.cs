@@ -1,5 +1,7 @@
+using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
@@ -7,11 +9,21 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Simulated;
 
 public class SimulatedPanelInputReaderTests
 {
+    private readonly Mock<ISystemClock> _systemClockMock;
+    private readonly DateTimeOffset _testTime;
+
+    public SimulatedPanelInputReaderTests()
+    {
+        _systemClockMock = new Mock<ISystemClock>();
+        _testTime = new DateTimeOffset(2025, 12, 8, 12, 0, 0, TimeSpan.Zero);
+        _systemClockMock.Setup(x => x.LocalNowOffset).Returns(_testTime);
+    }
+
     [Fact]
     public async Task ReadButtonStateAsync_InitiallyNotPressed()
     {
         // Arrange
-        var reader = new SimulatedPanelInputReader();
+        var reader = new SimulatedPanelInputReader(_systemClockMock.Object);
 
         // Act
         var state = await reader.ReadButtonStateAsync(PanelButtonType.Start);
@@ -26,7 +38,7 @@ public class SimulatedPanelInputReaderTests
     public async Task SimulatePressButton_ShouldUpdateState()
     {
         // Arrange
-        var reader = new SimulatedPanelInputReader();
+        var reader = new SimulatedPanelInputReader(_systemClockMock.Object);
 
         // Act
         reader.SimulatePressButton(PanelButtonType.Start);
@@ -41,24 +53,27 @@ public class SimulatedPanelInputReaderTests
     public async Task SimulateReleaseButton_ShouldUpdateStateAndRecordDuration()
     {
         // Arrange
-        var reader = new SimulatedPanelInputReader();
+        var reader = new SimulatedPanelInputReader(_systemClockMock.Object);
         reader.SimulatePressButton(PanelButtonType.Start);
 
-        // Act - Wait a bit then release
-        await Task.Delay(50);
+        // Act - 模拟时间推进
+        var pressTime = _testTime;
+        var releaseTime = _testTime.AddMilliseconds(50);
+        _systemClockMock.Setup(x => x.LocalNowOffset).Returns(releaseTime);
+        
         reader.SimulateReleaseButton(PanelButtonType.Start);
         var state = await reader.ReadButtonStateAsync(PanelButtonType.Start);
 
         // Assert
         Assert.False(state.IsPressed);
-        Assert.True(state.PressedDurationMs > 0); // Should have some duration
+        Assert.Equal(50, state.PressedDurationMs); // 应该记录 50ms 的按压时长
     }
 
     [Fact]
     public async Task ReadAllButtonStatesAsync_ShouldReturnAllButtons()
     {
         // Arrange
-        var reader = new SimulatedPanelInputReader();
+        var reader = new SimulatedPanelInputReader(_systemClockMock.Object);
         reader.SimulatePressButton(PanelButtonType.Start);
         reader.SimulatePressButton(PanelButtonType.Stop);
 
@@ -76,7 +91,7 @@ public class SimulatedPanelInputReaderTests
     public async Task ResetAllButtons_ShouldClearAllPressedStates()
     {
         // Arrange
-        var reader = new SimulatedPanelInputReader();
+        var reader = new SimulatedPanelInputReader(_systemClockMock.Object);
         reader.SimulatePressButton(PanelButtonType.Start);
         reader.SimulatePressButton(PanelButtonType.Stop);
         reader.SimulatePressButton(PanelButtonType.Reset);

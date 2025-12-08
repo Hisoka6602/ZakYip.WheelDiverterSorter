@@ -1,10 +1,11 @@
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-
-
-using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
+
+namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
 /// <summary>
 /// 仿真面板输入读取器。
@@ -13,9 +14,12 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 public class SimulatedPanelInputReader : IPanelInputReader
 {
     private readonly ConcurrentDictionary<PanelButtonType, PanelButtonState> _buttonStates = new();
+    private readonly ISystemClock _systemClock;
 
-    public SimulatedPanelInputReader()
+    public SimulatedPanelInputReader(ISystemClock systemClock)
     {
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        
         // 初始化所有按钮为未按下状态
         foreach (PanelButtonType buttonType in Enum.GetValues<PanelButtonType>())
         {
@@ -23,7 +27,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
             {
                 ButtonType = buttonType,
                 IsPressed = false,
-                LastChangedAt = DateTimeOffset.Now,
+                LastChangedAt = _systemClock.LocalNowOffset,
                 PressedDurationMs = 0
             };
         }
@@ -38,7 +42,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
         {
             ButtonType = buttonType,
             IsPressed = false,
-            LastChangedAt = DateTimeOffset.Now,
+            LastChangedAt = _systemClock.LocalNowOffset,
             PressedDurationMs = 0
         }));
     }
@@ -61,7 +65,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
         {
             ButtonType = buttonType,
             IsPressed = true,
-            LastChangedAt = DateTimeOffset.Now,
+            LastChangedAt = _systemClock.LocalNowOffset,
             PressedDurationMs = 0
         };
     }
@@ -73,14 +77,14 @@ public class SimulatedPanelInputReader : IPanelInputReader
     {
         var currentState = _buttonStates.GetValueOrDefault(buttonType);
         var pressedDuration = currentState.IsPressed
-            ? (int)(DateTimeOffset.Now - currentState.LastChangedAt).TotalMilliseconds
+            ? (int)(_systemClock.LocalNowOffset - currentState.LastChangedAt).TotalMilliseconds
             : 0;
 
         _buttonStates[buttonType] = new PanelButtonState
         {
             ButtonType = buttonType,
             IsPressed = false,
-            LastChangedAt = DateTimeOffset.Now,
+            LastChangedAt = _systemClock.LocalNowOffset,
             PressedDurationMs = pressedDuration
         };
     }
@@ -96,7 +100,7 @@ public class SimulatedPanelInputReader : IPanelInputReader
             {
                 ButtonType = buttonType,
                 IsPressed = false,
-                LastChangedAt = DateTimeOffset.Now,
+                LastChangedAt = _systemClock.LocalNowOffset,
                 PressedDurationMs = 0
             };
         }
