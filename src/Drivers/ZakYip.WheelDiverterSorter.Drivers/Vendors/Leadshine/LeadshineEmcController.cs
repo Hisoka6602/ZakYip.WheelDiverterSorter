@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Logging;
-using csLTDMC;
 using Polly;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
-using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
+using csLTDMC;
+using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
+using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
@@ -23,7 +23,7 @@ public class LeadshineEmcController : IEmcController
     /// 软复位后重新初始化前的等待时间（毫秒）
     /// </summary>
     private const int SoftResetDelayMs = 500;
-    
+
     private readonly ILogger<LeadshineEmcController> _logger;
     private readonly ushort _cardNo;
     private readonly ushort _portNo;
@@ -87,7 +87,7 @@ public class LeadshineEmcController : IEmcController
             {
                 var isEthernet = _controllerIp != null;
                 var methodName = isEthernet ? "dmc_board_init_eth" : "dmc_board_init";
-                
+
                 _logger.LogInformation(
                     "正在初始化EMC，卡号: {CardNo}, 端口: {PortNo}, 模式: {Mode}, IP: {IP}",
                     _cardNo,
@@ -129,7 +129,7 @@ public class LeadshineEmcController : IEmcController
                 // 检查总线状态
                 ushort errcode = 0;
                 LTDMC.nmc_get_errcode(_cardNo, _portNo, ref errcode);
-                if (errcode != 0)
+                if (errcode != 0 && errcode != 45)
                 {
                     _logger.LogWarning(
                         "【EMC总线异常检测】方法: nmc_get_errcode, 错误码: {ErrorCode}（预期: 0），卡号: {CardNo}, 端口: {PortNo}，尝试软复位并重新连接",
@@ -137,10 +137,10 @@ public class LeadshineEmcController : IEmcController
 
                     // 执行软复位
                     LTDMC.dmc_soft_reset(_cardNo);
-                    
+
                     // 关闭连接
                     LTDMC.dmc_board_close();
-                    
+
                     // 等待复位完成
                     await Task.Delay(SoftResetDelayMs, cancellationToken);
 
@@ -167,7 +167,7 @@ public class LeadshineEmcController : IEmcController
                             return false;
                         }
                     }
-                    
+
                     _logger.LogInformation(
                         "【EMC软复位后重新初始化成功】方法: {Method}, 卡号: {CardNo}",
                         methodName, _cardNo);
