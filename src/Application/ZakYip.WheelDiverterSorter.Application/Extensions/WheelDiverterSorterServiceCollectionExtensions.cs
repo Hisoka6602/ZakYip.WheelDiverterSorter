@@ -657,8 +657,46 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册模拟传送带
         services.AddSimulatedConveyorLine();
         
-        // 注册面板输入读取器（生产模式使用仿真实现）
-        services.AddSingleton<IPanelInputReader, SimulatedPanelInputReader>();
+        // 注册面板输入读取器（根据配置动态选择）
+        services.AddSingleton<IPanelInputReader>(sp =>
+        {
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var panelConfigRepo = sp.GetRequiredService<IPanelConfigurationRepository>();
+            var systemClock = sp.GetRequiredService<ISystemClock>();
+            
+            try
+            {
+                // 从数据库读取面板配置
+                var panelConfig = panelConfigRepo.Get();
+                
+                // 根据 UseSimulation 标志选择实现
+                if (panelConfig.UseSimulation)
+                {
+                    var logger = loggerFactory.CreateLogger<SimulatedPanelInputReader>();
+                    logger.LogInformation("使用仿真面板输入读取器");
+                    return new SimulatedPanelInputReader();
+                }
+                else
+                {
+                    // 使用雷赛 IO 读取器
+                    var logger = loggerFactory.CreateLogger<LeadshinePanelInputReader>();
+                    var inputPort = sp.GetRequiredService<IInputPort>();
+                    
+                    logger.LogInformation("使用雷赛硬件面板输入读取器");
+                    return new LeadshinePanelInputReader(
+                        logger,
+                        inputPort,
+                        panelConfigRepo,
+                        systemClock);
+                }
+            }
+            catch (Exception ex)
+            {
+                var fallbackLogger = loggerFactory.CreateLogger("PanelInputReader");
+                fallbackLogger.LogError(ex, "创建面板输入读取器失败，回退到仿真实现");
+                return new SimulatedPanelInputReader();
+            }
+        });
         
         // 注册面板 IO 协调器
         services.AddSingleton<IPanelIoCoordinator, DefaultPanelIoCoordinator>();
