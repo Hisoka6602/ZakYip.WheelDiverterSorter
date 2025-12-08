@@ -272,44 +272,70 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             var panelConfig = _panelConfigRepository.Get();
             var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
 
+            _logger.LogInformation(
+                "启动按钮处理开始 - 当前状态: {CurrentState}, 配置的预警时间: {PreWarningDuration} 秒",
+                currentState,
+                preWarningDuration?.ToString() ?? "未配置");
+
             if (preWarningDuration.HasValue && preWarningDuration.Value > 0)
             {
-                _logger.LogInformation(
-                    "启动按钮按下，开始预警 {Duration} 秒，当前状态保持为 {CurrentState}",
+                _logger.LogWarning(
+                    "⚠️ 启动按钮按下，开始预警 {Duration} 秒，当前状态保持为 {CurrentState}，摆轮将在预警结束后启动",
                     preWarningDuration.Value,
                     currentState);
 
+                // 记录预警开始时间用于验证
+                var warningStartTime = DateTime.Now;
+
                 // TODO: 触发预警输出（PreStartWarningOutputBit）
                 // 这需要通过输出端口服务来实现
+                // 如果配置了预警输出位，应该在这里设置输出为高/低电平
+                if (panelConfig?.PreStartWarningOutputBit.HasValue == true)
+                {
+                    _logger.LogInformation(
+                        "预警输出位已配置: Bit={OutputBit}, Level={OutputLevel}（注：当前版本暂未实现物理输出控制）",
+                        panelConfig.PreStartWarningOutputBit.Value,
+                        panelConfig.PreStartWarningOutputLevel);
+                }
 
                 // 等待预警时间
+                _logger.LogInformation("开始等待预警时间: {Duration} 秒...", preWarningDuration.Value);
                 await Task.Delay(TimeSpan.FromSeconds(preWarningDuration.Value), cancellationToken);
 
-                _logger.LogInformation("预警时间结束，准备转换到 Running 状态");
+                var actualWaitTime = (DateTime.Now - warningStartTime).TotalSeconds;
+                _logger.LogWarning(
+                    "✅ 预警时间结束，实际等待: {ActualWait:F2} 秒，准备转换到 Running 状态并启动摆轮",
+                    actualWaitTime);
             }
             else
             {
-                _logger.LogInformation("未配置预警时间，直接转换到 Running 状态");
+                _logger.LogInformation("未配置预警时间或预警时间为0，直接转换到 Running 状态");
             }
 
             // 预警结束后，转换到Running状态
+            _logger.LogInformation("正在将系统状态从 {CurrentState} 转换到 Running...", currentState);
             var result = await _stateManager.ChangeStateAsync(SystemState.Running, cancellationToken);
             
             if (!result.Success)
             {
-                _logger.LogWarning(
-                    "启动按钮状态转换失败: {ErrorMessage}",
+                _logger.LogError(
+                    "❌ 启动按钮状态转换失败: {ErrorMessage}",
                     result.ErrorMessage);
+            }
+            else
+            {
+                _logger.LogInformation("✅ 系统状态已成功转换到 Running，摆轮应该开始启动");
             }
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("预警过程被取消");
+            _logger.LogWarning("⚠️ 预警过程被取消（可能是系统停止或急停）");
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理启动按钮预警逻辑异常");
+            _logger.LogError(ex, "❌ 处理启动按钮预警逻辑异常");
+            throw;
         }
     }
 
