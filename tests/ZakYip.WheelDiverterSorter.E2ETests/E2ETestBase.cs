@@ -47,31 +47,31 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
     /// 为测试设置默认路由配置的辅助方法
     /// </summary>
     /// <remarks>
-    /// 同时初始化 RouteConfiguration 和 TopologyConfiguration，
-    /// 确保 DefaultSwitchingPathGenerator 可以正常工作。
+    /// 同时初始化 RouteConfiguration 和 TopologyConfiguration。
+    /// 虽然 LiteDbChutePathTopologyRepository.Get() 会自动调用 InitializeDefault()，
+    /// 但在测试环境中显式调用可以确保数据在测试开始前就已存在。
     /// </remarks>
     protected void SetupDefaultRouteConfiguration()
     {
         try
         {
-            // 清除现有路由配置
+            // 清除现有配置
             var allConfigs = RouteRepository.GetAllEnabled();
             foreach (var config in allConfigs)
             {
                 RouteRepository.Delete(config.ChuteId);
             }
 
-            // 初始化路由配置
+            // 添加测试配置
             RouteRepository.InitializeDefaultData();
             
-            // 初始化拓扑配置（如果topology repository可用）
-            // DefaultSwitchingPathGenerator 优先使用 topology repository
+            // 初始化拓扑配置（确保 DefaultSwitchingPathGenerator 可以使用）
             var topologyRepo = Scope.ServiceProvider
                 .GetService<IChutePathTopologyRepository>();
             
             if (topologyRepo != null)
             {
-                // 使用仓储的 InitializeDefault 方法，确保默认配置被正确创建
+                // 显式初始化，确保测试环境有默认拓扑配置
                 topologyRepo.InitializeDefault();
             }
         }

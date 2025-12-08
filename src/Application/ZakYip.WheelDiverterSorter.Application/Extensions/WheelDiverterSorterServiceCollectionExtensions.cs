@@ -331,7 +331,15 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     {
         // 注册摆轮分拣相关服务
         // 首先注册基础路径生成器
-        services.AddSingleton<DefaultSwitchingPathGenerator>();
+        // 显式指定构造函数，确保同时注入 RouteRepository 和 TopologyRepository
+        // TopologyRepository 有更高优先级（支持 N 摆轮模型）
+        services.AddSingleton<DefaultSwitchingPathGenerator>(sp =>
+        {
+            var routeRepo = sp.GetRequiredService<IRouteConfigurationRepository>();
+            var topologyRepo = sp.GetRequiredService<IChutePathTopologyRepository>();
+            var clock = sp.GetRequiredService<ISystemClock>();
+            return new DefaultSwitchingPathGenerator(routeRepo, topologyRepo, clock);
+        });
 
         // 使用装饰器模式添加缓存功能（可选，通过配置启用）
         var enablePathCaching = configuration.GetValue<bool>("Performance:EnablePathCaching", true);
