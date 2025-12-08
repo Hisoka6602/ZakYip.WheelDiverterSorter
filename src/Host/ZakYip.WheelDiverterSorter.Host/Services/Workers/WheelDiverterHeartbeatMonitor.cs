@@ -29,7 +29,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<WheelDiverterHeartbeatMonitor> _logger;
     
-    private static readonly TimeSpan HeartbeatCheckInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan HeartbeatCheckInterval = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan AlarmDuration = TimeSpan.FromSeconds(3);
     

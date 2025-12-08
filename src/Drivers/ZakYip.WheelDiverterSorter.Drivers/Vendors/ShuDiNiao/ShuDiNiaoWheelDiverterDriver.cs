@@ -215,8 +215,15 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
     /// <inheritdoc/>
     public Task<bool> CheckHeartbeatAsync(CancellationToken cancellationToken = default)
     {
-        // 数递鸟摆轮使用TCP连接，检查TCP连接状态作为心跳
-        // 如果连接已建立且未关闭，认为设备在线
+        // TODO: 实现数递鸟协议心跳检测
+        // 根据 README.md，数递鸟设备每 1 秒主动发送状态上报（信息一，消息类型 0x51）
+        // 应该：
+        // 1. 启动后台线程监听并解析设备状态上报帧
+        // 2. 记录最后接收到状态上报的时间戳
+        // 3. 在此方法中检查距离最后接收时间是否超过 5 秒
+        // 
+        // 当前临时实现：检查 TCP 连接状态
+        // 注意：TCP连接状态检查无法检测到设备假死（连接未断但设备不响应）的情况
         var isConnected = _tcpClient?.Connected == true && _stream != null;
         
         if (isConnected)
