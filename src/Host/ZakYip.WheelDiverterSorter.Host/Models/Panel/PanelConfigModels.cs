@@ -66,9 +66,12 @@ public sealed record PanelConfigRequest
     public StopButtonConfigDto? StopButton { get; init; }
 
     /// <summary>
-    /// 急停按钮配置
+    /// 急停按钮配置列表
     /// </summary>
-    public EmergencyStopButtonConfigDto? EmergencyStopButton { get; init; }
+    /// <remarks>
+    /// 支持多个急停按钮配置。系统只有在所有急停按钮都解除时才视为解除急停状态。
+    /// </remarks>
+    public List<EmergencyStopButtonConfigDto>? EmergencyStopButtons { get; init; }
 
     /// <summary>
     /// 连接状态指示灯配置
@@ -125,9 +128,9 @@ public sealed record PanelConfigResponse
     public required StopButtonConfigDto StopButton { get; init; }
 
     /// <summary>
-    /// 急停按钮配置
+    /// 急停按钮配置列表
     /// </summary>
-    public required EmergencyStopButtonConfigDto EmergencyStopButton { get; init; }
+    public required List<EmergencyStopButtonConfigDto> EmergencyStopButtons { get; init; }
 
     /// <summary>
     /// 连接状态指示灯配置
@@ -218,7 +221,7 @@ public sealed record StopButtonConfigDto : ButtonConfigDto
 /// <summary>
 /// 急停按钮配置
 /// </summary>
-[SwaggerSchema(Description = "急停按钮的输入配置")]
+[SwaggerSchema(Description = "急停按钮的输入配置。当 InputTriggerLevel 为 ActiveHigh 时，高电平表示按下急停；当 InputTriggerLevel 为 ActiveLow 时，低电平表示按下急停。系统只有在所有急停按钮都解除时才视为解除急停状态。")]
 public sealed record EmergencyStopButtonConfigDto
 {
     /// <summary>
@@ -231,6 +234,10 @@ public sealed record EmergencyStopButtonConfigDto
     /// <summary>
     /// 按钮触发电平
     /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平表示按下急停，低电平表示解除急停
+    /// - ActiveLow: 低电平表示按下急停，高电平表示解除急停
+    /// </remarks>
     public TriggerLevel InputTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
 }
 

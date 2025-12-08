@@ -5,6 +5,29 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 
 /// <summary>
+/// 急停按钮配置
+/// </summary>
+/// <remarks>
+/// 包含单个急停按钮的IO绑定和触发电平配置
+/// </remarks>
+public sealed record class EmergencyStopButtonConfig
+{
+    /// <summary>
+    /// 急停按钮输入 IO 位
+    /// </summary>
+    public int InputBit { get; init; }
+
+    /// <summary>
+    /// 急停按钮触发电平
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平表示按下急停，低电平表示解除急停
+    /// - ActiveLow: 低电平表示按下急停，高电平表示解除急停
+    /// </remarks>
+    public TriggerLevel InputTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
+}
+
+/// <summary>
 /// 电柜操作面板完整配置模型
 /// </summary>
 /// <remarks>
@@ -79,14 +102,15 @@ public sealed record class PanelConfiguration
     public TriggerLevel StopButtonTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
 
     /// <summary>
-    /// 急停按钮 IO 绑定（输入位）
+    /// 急停按钮配置列表
     /// </summary>
-    public int? EmergencyStopButtonInputBit { get; init; }
-
-    /// <summary>
-    /// 急停按钮 IO 触发电平配置
-    /// </summary>
-    public TriggerLevel EmergencyStopButtonTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
+    /// <remarks>
+    /// 支持多个急停按钮配置。系统只有在所有急停按钮都解除时才视为解除急停状态。
+    /// 每个按钮的 InputTriggerLevel 决定了什么信号表示按下/解除：
+    /// - ActiveHigh: 高电平=按下急停，低电平=解除急停
+    /// - ActiveLow: 低电平=按下急停，高电平=解除急停
+    /// </remarks>
+    public List<EmergencyStopButtonConfig> EmergencyStopButtons { get; init; } = new();
 
     // ========== 指示灯输出配置 ==========
 
@@ -212,8 +236,7 @@ public sealed record class PanelConfiguration
             StartButtonTriggerLevel = TriggerLevel.ActiveHigh,
             StopButtonInputBit = null,
             StopButtonTriggerLevel = TriggerLevel.ActiveHigh,
-            EmergencyStopButtonInputBit = null,
-            EmergencyStopButtonTriggerLevel = TriggerLevel.ActiveHigh,
+            EmergencyStopButtons = new List<EmergencyStopButtonConfig>(),
             StartLightOutputBit = null,
             StartLightOutputLevel = TriggerLevel.ActiveHigh,
             StopLightOutputBit = null,
@@ -256,13 +279,19 @@ public sealed record class PanelConfiguration
         }
 
         // 验证 IO 位范围 (0-1023)
-        var ioBits = new[] 
+        var ioBits = new List<int?> 
         {
-            StartButtonInputBit, StopButtonInputBit, EmergencyStopButtonInputBit,
+            StartButtonInputBit, StopButtonInputBit,
             StartLightOutputBit, StopLightOutputBit, ConnectionLightOutputBit,
             SignalTowerRedOutputBit, SignalTowerYellowOutputBit, SignalTowerGreenOutputBit,
             PreStartWarningOutputBit
         };
+
+        // 添加急停按钮的输入位到验证列表
+        foreach (var emergencyButton in EmergencyStopButtons)
+        {
+            ioBits.Add(emergencyButton.InputBit);
+        }
 
         foreach (var bit in ioBits)
         {
