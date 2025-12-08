@@ -137,13 +137,17 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             // 获取当前系统状态
             var currentState = _stateManager.CurrentState;
             
+            // 将 SystemState 映射到 SystemOperatingState
+            var operatingState = MapToOperatingState(currentState);
+            
             _logger.LogInformation(
-                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState}",
+                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState} -> {OperatingState}",
                 buttonType,
-                currentState);
+                currentState,
+                operatingState);
 
             // 根据当前系统状态触发IO联动
-            var result = await _ioLinkageConfigService.TriggerIoLinkageAsync(currentState);
+            var result = await _ioLinkageConfigService.TriggerIoLinkageAsync(operatingState);
             
             if (result.Success)
             {
@@ -167,5 +171,22 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 "触发按钮 {ButtonType} 的IO联动异常",
                 buttonType);
         }
+    }
+
+    /// <summary>
+    /// 将 SystemState 映射到 SystemOperatingState
+    /// </summary>
+    private static SystemOperatingState MapToOperatingState(SystemState state)
+    {
+        return state switch
+        {
+            SystemState.Booting => SystemOperatingState.Initializing,
+            SystemState.Ready => SystemOperatingState.Standby,
+            SystemState.Running => SystemOperatingState.Running,
+            SystemState.Paused => SystemOperatingState.Paused,
+            SystemState.Faulted => SystemOperatingState.Faulted,
+            SystemState.EmergencyStop => SystemOperatingState.EmergencyStopped,
+            _ => SystemOperatingState.Standby
+        };
     }
 }
