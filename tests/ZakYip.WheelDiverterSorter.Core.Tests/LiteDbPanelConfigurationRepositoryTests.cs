@@ -109,12 +109,12 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         // Arrange - polling interval too small
         var invalidConfig = PanelConfiguration.GetDefault() with
         {
-            PollingIntervalMs = 10 // Invalid: must be >= 50
+            PollingIntervalMs = 5 // Invalid: must be >= 10
         };
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(() => _repository.Update(invalidConfig));
-        Assert.Contains("轮询间隔必须在 50-1000 毫秒之间", ex.Message);
+        Assert.Contains("轮询间隔必须在 10-5000 毫秒之间", ex.Message);
     }
 
     [Fact]
@@ -123,27 +123,46 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         // Arrange - debounce time too large
         var invalidConfig = PanelConfiguration.GetDefault() with
         {
-            DebounceMs = 600 // Invalid: must be <= 500
+            DebounceMs = 6000 // Invalid: must be <= 5000
         };
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(() => _repository.Update(invalidConfig));
-        Assert.Contains("防抖时间必须在 10-500 毫秒之间", ex.Message);
+        Assert.Contains("防抖时间必须在 10-5000 毫秒之间", ex.Message);
     }
 
     [Fact]
     public void Update_WithDebounceGreaterThanPolling_ThrowsArgumentException()
     {
-        // Arrange - debounce >= polling
+        // Arrange - debounce > polling (now allowed to be equal)
         var invalidConfig = PanelConfiguration.GetDefault() with
         {
             PollingIntervalMs = 100,
-            DebounceMs = 100 // Invalid: debounce must be < polling
+            DebounceMs = 150 // Invalid: debounce must be <= polling
         };
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentException>(() => _repository.Update(invalidConfig));
-        Assert.Contains("防抖时间必须小于轮询间隔", ex.Message);
+        Assert.Contains("防抖时间不能大于轮询间隔", ex.Message);
+    }
+
+    [Fact]
+    public void Update_WithDebounceEqualToPolling_UpdatesSuccessfully()
+    {
+        // Arrange - debounce can now equal polling (new requirement)
+        var validConfig = PanelConfiguration.GetDefault() with
+        {
+            PollingIntervalMs = 100,
+            DebounceMs = 100 // Valid: debounce can be equal to polling
+        };
+
+        // Act
+        _repository.Update(validConfig);
+        var updated = _repository.Get();
+
+        // Assert
+        Assert.Equal(100, updated.PollingIntervalMs);
+        Assert.Equal(100, updated.DebounceMs);
     }
 
     [Fact]
@@ -308,7 +327,7 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         // Arrange
         var invalidConfig = PanelConfiguration.GetDefault() with
         {
-            PollingIntervalMs = 2000 // Too large
+            PollingIntervalMs = 6000 // Too large (must be <= 5000)
         };
 
         // Act
