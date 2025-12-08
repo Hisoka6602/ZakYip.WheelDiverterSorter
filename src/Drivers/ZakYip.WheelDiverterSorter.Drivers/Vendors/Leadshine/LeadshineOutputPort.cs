@@ -15,16 +15,19 @@ public class LeadshineOutputPort : OutputPortBase
 {
     private readonly ILogger<LeadshineOutputPort> _logger;
     private readonly ushort _cardNo;
+    private readonly IEmcController _emcController;
 
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="cardNo">控制器卡号</param>
-    public LeadshineOutputPort(ILogger<LeadshineOutputPort> logger, ushort cardNo)
+    /// <param name="emcController">EMC 控制器实例</param>
+    public LeadshineOutputPort(ILogger<LeadshineOutputPort> logger, ushort cardNo, IEmcController emcController)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cardNo = cardNo;
+        _emcController = emcController ?? throw new ArgumentNullException(nameof(emcController));
     }
 
     /// <summary>
@@ -37,11 +40,22 @@ public class LeadshineOutputPort : OutputPortBase
     {
         try
         {
+            // 检查 EMC 控制器是否已初始化
+            if (!_emcController.IsAvailable())
+            {
+                _logger.LogError(
+                    "无法写入输出位 {BitIndex}：EMC 控制器未初始化或不可用",
+                    bitIndex);
+                return Task.FromResult(false);
+            }
+
             var result = LTDMC.dmc_write_outbit(_cardNo, (ushort)bitIndex, (ushort)(value ? 1 : 0));
             
             if (result != 0)
             {
-                _logger.LogWarning("写入输出位 {BitIndex} 失败，错误码: {ErrorCode}", bitIndex, result);
+                _logger.LogWarning(
+                    "写入输出位 {BitIndex} 失败，错误码: {ErrorCode} | 提示：ErrorCode=9 表示控制卡未初始化", 
+                    bitIndex, result);
                 return Task.FromResult(false);
             }
 
