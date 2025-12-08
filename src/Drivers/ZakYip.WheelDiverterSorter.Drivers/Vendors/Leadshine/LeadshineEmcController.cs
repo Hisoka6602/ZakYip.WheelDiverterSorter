@@ -19,6 +19,11 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// </remarks>
 public class LeadshineEmcController : IEmcController
 {
+    /// <summary>
+    /// 软复位后重新初始化前的等待时间（毫秒）
+    /// </summary>
+    private const int SoftResetDelayMs = 500;
+    
     private readonly ILogger<LeadshineEmcController> _logger;
     private readonly ushort _cardNo;
     private readonly ushort _portNo;
@@ -137,7 +142,7 @@ public class LeadshineEmcController : IEmcController
                     LTDMC.dmc_board_close();
                     
                     // 等待复位完成
-                    await Task.Delay(500, cancellationToken);
+                    await Task.Delay(SoftResetDelayMs, cancellationToken);
 
                     // 重新初始化连接（软复位后必须重新调用 dmc_board_init_eth/dmc_board_init）
                     if (isEthernet)

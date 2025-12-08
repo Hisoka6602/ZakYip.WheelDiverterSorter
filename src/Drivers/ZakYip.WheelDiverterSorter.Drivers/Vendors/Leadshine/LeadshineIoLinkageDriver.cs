@@ -18,6 +18,11 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// </summary>
 public class LeadshineIoLinkageDriver : IIoLinkageDriver
 {
+    /// <summary>
+    /// 雷赛控制卡错误码：控制卡未初始化
+    /// </summary>
+    private const short ErrorCodeCardNotInitialized = 9;
+    
     private readonly ILogger<LeadshineIoLinkageDriver> _logger;
     private readonly IEmcController _emcController;
 
@@ -30,7 +35,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     }
 
     /// <inheritdoc/>
-    public async Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken = default)
+    public Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -67,7 +72,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
             if (result != 0)
             {
                 // 特殊处理错误码9：控制卡未初始化
-                if (result == 9)
+                if (result == ErrorCodeCardNotInitialized)
                 {
                     _logger.LogError(
                         "【严重】设置 IO 点失败：控制卡未初始化 | CardNo={CardNo}, BitNumber={BitNumber}, Level={Level}, OutputValue={OutputValue}, ErrorCode={ErrorCode} | " +
@@ -101,7 +106,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
                 ioPoint.Level,
                 outputValue);
 
-            await Task.CompletedTask;
+            return Task.CompletedTask;
         }
         catch (Exception ex) when (ex is not InvalidOperationException)
         {
