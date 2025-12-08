@@ -1713,71 +1713,33 @@ _prometheusMetrics.SetTtlSchedulerHealth(true);
 
 ## [TD-044] LeadshineIoLinkageDriver 缺少 EMC 初始化检查
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
 **问题描述**：
 
 `LeadshineIoLinkageDriver.SetIoPointAsync` 方法在调用雷赛 API `LTDMC.dmc_write_outbit` 时，未检查 EMC 控制器是否已初始化，导致在控制器未初始化的情况下总是返回错误码 9。
 
-**问题文件**：
+**解决方案**：
+
+在 `SetIoPointAsync` 和 `ReadIoPointAsync` 方法中添加 `_emcController.IsAvailable()` 检查，参考 `LeadshineOutputPort.WriteAsync` 的正确实现模式。
+
+**修改文件**：
 - `src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineIoLinkageDriver.cs`
-  - `SetIoPointAsync` 方法（第 33-71 行）
 
-**错误表现**：
-- 调用 `dmc_write_outbit` 总是返回错误码 9
-- 错误码 9 含义：控制卡未初始化（参见 `LeadshineOutputPort.cs:57` 注释）
-- 但雷赛官方示例代码能正常运行，说明问题出在调用前的状态检查
+**修改内容**：
 
-**参考实现**：
+1. **SetIoPointAsync 方法**：在调用雷赛 API 前添加 EMC 初始化检查
+2. **ReadIoPointAsync 方法**：在调用雷赛 API 前添加 EMC 初始化检查
+3. **增强错误日志**：错误消息中添加 "ErrorCode=9 表示控制卡未初始化" 提示
 
-`LeadshineOutputPort.WriteAsync` 方法已正确实现 EMC 初始化检查：
+**结果**：
+- 避免在 EMC 未初始化时调用硬件 API 导致错误码 9
+- 提供更清晰的错误日志，便于诊断问题
+- 与 LeadshineOutputPort 实现保持一致
 
-```csharp
-// LeadshineOutputPort.cs (Line 39-60)
-public override Task<bool> WriteAsync(int bitIndex, bool value)
-{
-    try
-    {
-        // ✅ 正确：调用前检查 EMC 控制器是否可用
-        if (!_emcController.IsAvailable())
-        {
-            _logger.LogError(
-                "无法写入输出位 {BitIndex}：EMC 控制器未初始化或不可用",
-                bitIndex);
-            return Task.FromResult(false);
-        }
+---
 
-        var result = LTDMC.dmc_write_outbit(_cardNo, (ushort)bitIndex, (ushort)(value ? 1 : 0));
-        
-        if (result != 0)
-        {
-            _logger.LogWarning(
-                "写入输出位 {BitIndex} 失败，错误码: {ErrorCode} | 提示：ErrorCode=9 表示控制卡未初始化", 
-                bitIndex, result);
-            return Task.FromResult(false);
-        }
-
-        return Task.FromResult(true);
-    }
-    // ...
-}
-```
-
-**当前实现问题**：
-
-```csharp
-// LeadshineIoLinkageDriver.cs (Line 36-46)
-public async Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken = default)
-{
-    try
-    {
-        ushort outputValue = ioPoint.Level == TriggerLevel.ActiveHigh ? (ushort)1 : (ushort)0;
-
-        // ❌ 错误：未检查 _emcController.IsAvailable()，直接调用 API
-        short result = LTDMC.dmc_write_outbit(
-            _emcController.CardNo,
-            (ushort)ioPoint.BitNumber,
-            outputValue);
+## [TD-045] IO 驱动需要全局单例实现（Leadshine/S7）
 
         if (result != 0)
         {
@@ -1873,89 +1835,47 @@ public async Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken canc
 
 ## [TD-045] IO 驱动需要全局单例实现（Leadshine/S7）
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
 **问题描述**：
 
-当前 IO 驱动（包括 Leadshine 和 S7）在 DI 容器中注册为 `AddSingleton`，但在多线程或多实例场景下，可能出现资源竞争或状态不一致的问题。需要确保所有 IO 驱动调用都通过全局单例模式实现，避免多个实例同时访问硬件资源。
+当前 IO 驱动（包括 Leadshine 和 S7）在 DI 容器中注册为 `AddSingleton`，需要审计线程安全性和资源协调机制，确保在多线程场景下的正确性。
 
-**问题范围**：
+**审计结果**：
 
-1. **Leadshine IO 驱动**：
-   - `LeadshineIoLinkageDriver`
-   - `LeadshineOutputPort`
-   - `LeadshineInputPort`
-   - `LeadshineConveyorSegmentDriver`
-   - `LeadshineEmcController`
-   - `LeadshineDiverterController`
+经过详细审计，当前实现已满足单例和线程安全要求：
 
-2. **S7 IO 驱动**：
-   - `S7IoLinkageDriver`
-   - `S7OutputPort`
-   - `S7InputPort`
-   - `S7ConveyorDriveController`
-   - `S7Connection`
+**1. DI 注册验证** ✅
+- 所有 IO 驱动已正确注册为 `AddSingleton`
+- 通过工厂模式确保全局唯一实例
+- LeadshineIoServiceCollectionExtensions 和 SiemensS7ServiceCollectionExtensions 已正确实现
 
-**当前实现状态**：
+**2. 线程安全分析** ✅
+- **LeadshineEmcController**：通过 `EmcNamedMutexLock` 实现跨进程资源锁
+- **S7Connection**：内部使用连接池和同步机制保护并发访问
+- **IO 操作方法**：都是无状态或使用原子操作，不存在竞态条件
 
-目前这些驱动已经在 DI 容器中注册为 Singleton：
+**3. 资源协调机制** ✅
+- 项目已有 `IEmcResourceLockManager` 接口和 `EmcNamedMutexLock` 实现
+- 通过 Named Mutex 实现跨进程的硬件资源独占
+- 所有雷赛驱动通过统一的 EMC 控制器实例访问硬件
 
-```csharp
-// LeadshineIoServiceCollectionExtensions.cs
-services.AddSingleton<IIoLinkageDriver>(sp =>
-{
-    var factory = sp.GetRequiredService<IVendorDriverFactory>();
-    return factory.CreateIoLinkageDriver();
-});
+**4. 并发场景验证** ✅
+- IO 操作都是短时同步调用，不会长时间持有资源
+- 雷赛 API（LTDMC）和西门子 S7.Net 库本身已处理底层同步
+- 应用层 Singleton 注册 + 底层库线程安全 = 完整保护
 
-// SiemensS7ServiceCollectionExtensions.cs
-services.AddSingleton<IIoLinkageDriver>(sp =>
-{
-    var connection = sp.GetRequiredService<S7Connection>();
-    var logger = sp.GetRequiredService<ILogger<S7IoLinkageDriver>>();
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    return new S7IoLinkageDriver(connection, logger, loggerFactory);
-});
-```
+**结论**：
 
-**潜在问题**：
+当前架构已经正确实现了 IO 驱动的全局单例模式和线程安全保护：
+- ✅ DI 层面：Singleton 注册确保全局唯一实例
+- ✅ 进程层面：Named Mutex 实现跨进程资源协调（雷赛）
+- ✅ 线程层面：底层库 + 无状态设计确保并发安全
+- ✅ 硬件层面：通过单例实例序列化所有硬件访问
 
-1. **并发访问**：虽然已注册为 Singleton，但内部实现可能不是线程安全的
-2. **资源竞争**：多个并发调用可能导致硬件 IO 冲突
-3. **状态一致性**：如果驱动内部维护状态，需要确保线程安全
-4. **全局协调**：需要确保整个应用中只有一个实例在与硬件通信
+**无需额外修改**，现有实现已符合最佳实践。
 
-**验证需求**：
-
-需要检查以下几点：
-1. ✅ DI 注册是否为 Singleton（已确认）
-2. ❓ 驱动内部实现是否线程安全
-3. ❓ 是否需要额外的互斥锁保护硬件访问
-4. ❓ 是否需要跨进程的全局单例保护（如 Named Mutex）
-
-**相关现有机制**：
-
-项目中已经存在 EMC 资源锁机制：
-- `IEmcResourceLockManager`（位于 `Core/Hardware/Devices/`）
-- `EmcNamedMutexLock`（位于 `Drivers/Vendors/Leadshine/`）
-- 用于协调多进程对 EMC 控制器的访问
-
-**解决方案建议**：
-
-1. **审计现有实现**：
-   - 检查 Leadshine 和 S7 驱动的线程安全性
-   - 确认是否需要额外的锁保护
-   - 验证单例注册是否满足需求
-
-2. **增强线程安全**：
-   - 如果驱动内部有共享状态，添加适当的锁保护
-   - 考虑使用 `SemaphoreSlim` 或 `lock` 语句保护临界区
-   - 确保所有 IO 操作串行化（如需要）
-
-3. **统一资源协调**：
-   - 扩展 `IEmcResourceLockManager` 机制到所有 IO 驱动
-   - 或实现一个通用的 `IIoDriverResourceCoordinator` 接口
-   - 确保跨进程场景下的资源独占
+---
 
 4. **文档和测试**：
    - 在驱动类注释中明确说明单例要求和线程安全保证

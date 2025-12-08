@@ -793,24 +793,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     
     #endregion
     
-    #region S7 Connection Options Creation (Helper Methods)
-    
-    /// <summary>
-    /// 从配置创建S7连接选项（已废弃，不再需要）
-    /// </summary>
-    [Obsolete("This method is no longer needed as S7 configuration is read directly from IConfiguration")]
-    private static S7Options CreateS7ConnectionOptions(IConfiguration configuration)
-    {
-        var s7Config = configuration.GetSection("S7").Get<S7Options>();
-        return s7Config ?? new S7Options
-        {
-            IpAddress = S7DefaultConfiguration.DefaultIpAddress,
-            Rack = S7DefaultConfiguration.DefaultRack,
-            Slot = S7DefaultConfiguration.DefaultSlot
-        };
-    }
-    
-    #endregion
 }
 
 /// <summary>

@@ -34,6 +34,18 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     {
         try
         {
+            // TD-044: 检查 EMC 控制器是否已初始化
+            if (!_emcController.IsAvailable())
+            {
+                var errorMessage = $"无法设置 IO 点 {ioPoint.BitNumber}：EMC 控制器未初始化或不可用";
+                _logger.LogError(
+                    "设置 IO 点失败: BitNumber={BitNumber}, Level={Level}, Reason={Reason}",
+                    ioPoint.BitNumber,
+                    ioPoint.Level,
+                    "EMC控制器未初始化");
+                throw new InvalidOperationException(errorMessage);
+            }
+
             // 根据 TriggerLevel 确定输出电平
             // ActiveHigh = 高电平 = 1
             // ActiveLow = 低电平 = 0
@@ -48,7 +60,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
             if (result != 0)
             {
                 _logger.LogError(
-                    "设置 IO 点失败: BitNumber={BitNumber}, Level={Level}, ErrorCode={ErrorCode}",
+                    "设置 IO 点失败: BitNumber={BitNumber}, Level={Level}, ErrorCode={ErrorCode} | 提示：ErrorCode=9 表示控制卡未初始化",
                     ioPoint.BitNumber,
                     ioPoint.Level,
                     result);
@@ -91,6 +103,17 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     {
         try
         {
+            // TD-044: 检查 EMC 控制器是否已初始化
+            if (!_emcController.IsAvailable())
+            {
+                var errorMessage = $"无法读取 IO 点 {bitNumber}：EMC 控制器未初始化或不可用";
+                _logger.LogError(
+                    "读取 IO 点失败: BitNumber={BitNumber}, Reason={Reason}",
+                    bitNumber,
+                    "EMC控制器未初始化");
+                throw new InvalidOperationException(errorMessage);
+            }
+
             // 调用雷赛 API 读取输入端口
             short result = LTDMC.dmc_read_inbit(
                 _emcController.CardNo,

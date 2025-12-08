@@ -199,27 +199,6 @@ public class HealthController : ControllerBase
     }
 
     /// <summary>
-    /// 线体健康检查端点（重定向到 /health/ready）
-    /// </summary>
-    /// <returns>重定向到就绪状态检查</returns>
-    /// <response code="307">重定向到 /health/ready</response>
-    /// <remarks>
-    /// 此端点为向后兼容性保留，重定向到 /health/ready
-    /// </remarks>
-    [HttpGet("health/line")]
-    [SwaggerOperation(
-        Summary = "线体健康检查（重定向）",
-        Description = "重定向到 /health/ready 端点",
-        OperationId = "GetLineHealth",
-        Tags = new[] { "健康检查" }
-    )]
-    [SwaggerResponse(307, "重定向到 /health/ready")]
-    public IActionResult GetLineHealth()
-    {
-        return RedirectPreserveMethod("/health/ready");
-    }
-
-    /// <summary>
     /// 获取系统状态的中文显示名称
     /// </summary>
     private static string GetSystemStateDisplayName(SystemState state)

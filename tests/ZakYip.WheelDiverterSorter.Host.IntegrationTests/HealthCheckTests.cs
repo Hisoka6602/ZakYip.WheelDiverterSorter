@@ -149,21 +149,18 @@ public class HealthCheckTests : IClassFixture<WebApplicationFactory<Program>>
     #region Legacy Endpoint Tests
 
     [Fact]
-    public async Task HealthLine_RedirectsToReadyEndpoint()
+    public async Task HealthReady_ReturnsDetailedLineHealthInformation()
     {
         // Act
-        var readyResponse = await _client.GetAsync("/health/ready");
-        var lineResponse = await _client.GetAsync("/health/line");
+        var response = await _client.GetAsync("/health/ready");
 
-        // Assert - both should return same status code
-        Assert.Equal(readyResponse.StatusCode, lineResponse.StatusCode);
+        // Assert - should return 200 or 503 depending on system state
+        Assert.True(response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable);
         
-        var readyHealth = await readyResponse.Content.ReadFromJsonAsync<LineHealthResponse>(TestJsonOptions.GetOptions());
-        var lineHealth = await lineResponse.Content.ReadFromJsonAsync<LineHealthResponse>(TestJsonOptions.GetOptions());
+        var health = await response.Content.ReadFromJsonAsync<LineHealthResponse>(TestJsonOptions.GetOptions());
         
-        Assert.NotNull(readyHealth);
-        Assert.NotNull(lineHealth);
-        Assert.Equal(readyHealth.SystemState, lineHealth.SystemState);
+        Assert.NotNull(health);
+        Assert.True(Enum.IsDefined(health.SystemState));
     }
 
     #endregion

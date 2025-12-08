@@ -133,7 +133,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         await Task.Delay(ColdStartDelayMs); // 给系统足够时间完成启动
 
         // 检查健康状态（允许503因为测试环境可能未完全配置）
-        var healthResponse = await _client.GetAsync("/health/line");
+        var healthResponse = await _client.GetAsync("/health/ready");
         if (!healthResponse.IsSuccessStatusCode)
         {
             _output.WriteLine($"⚠ 健康检查返回{healthResponse.StatusCode}，继续测试（测试环境可接受）");
@@ -360,7 +360,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
 
         // 等待冷启动完成（增加等待时间）
         await Task.Delay(ColdStartDelayMs / 2); // 减半以节省测试时间
-        var healthResponse = await _client.GetAsync("/health/line");
+        var healthResponse = await _client.GetAsync("/health/ready");
         if (!healthResponse.IsSuccessStatusCode)
         {
             _output.WriteLine($"⚠ 健康检查返回{healthResponse.StatusCode}，继续测试（测试环境可接受）");
