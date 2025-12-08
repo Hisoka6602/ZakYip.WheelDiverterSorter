@@ -2,6 +2,7 @@ using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
@@ -20,7 +21,8 @@ public class PanelOperationsE2ETests
     public async Task E2E_BasicOperationFlow_StartStopReset()
     {
         // Arrange - 创建完整的面板 IO 系统
-        var panelReader = new SimulatedPanelInputReader();
+        var systemClock = new LocalSystemClock();
+        var panelReader = new SimulatedPanelInputReader(systemClock);
         var signalTower = new SimulatedSignalTowerOutput();
         var coordinator = new DefaultPanelIoCoordinator();
 
@@ -88,7 +90,8 @@ public class PanelOperationsE2ETests
     public async Task E2E_FaultScenario_RedLightAndBuzzer()
     {
         // Arrange
-        var panelReader = new SimulatedPanelInputReader();
+        var systemClock = new LocalSystemClock();
+        var panelReader = new SimulatedPanelInputReader(systemClock);
         var signalTower = new SimulatedSignalTowerOutput();
         var coordinator = new DefaultPanelIoCoordinator();
 
@@ -132,7 +135,8 @@ public class PanelOperationsE2ETests
     public async Task E2E_EmergencyStopScenario()
     {
         // Arrange
-        var panelReader = new SimulatedPanelInputReader();
+        var systemClock = new LocalSystemClock();
+        var panelReader = new SimulatedPanelInputReader(systemClock);
         var signalTower = new SimulatedSignalTowerOutput();
         var coordinator = new DefaultPanelIoCoordinator();
 
@@ -192,7 +196,8 @@ public class PanelOperationsE2ETests
     public async Task E2E_CompleteWorkflowWithStateHistory()
     {
         // Arrange
-        var panelReader = new SimulatedPanelInputReader();
+        var systemClock = new LocalSystemClock();
+        var panelReader = new SimulatedPanelInputReader(systemClock);
         var signalTower = new SimulatedSignalTowerOutput();
         var coordinator = new DefaultPanelIoCoordinator();
 

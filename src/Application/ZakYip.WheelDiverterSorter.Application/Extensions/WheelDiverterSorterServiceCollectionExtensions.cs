@@ -658,43 +658,55 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddSimulatedConveyorLine();
         
         // 注册面板输入读取器（根据配置动态选择）
+        // 注意：面板配置在应用启动时读取一次，配置变更需要重启应用才能生效
+        // 这包括 UseSimulation 标志和 IO 位映射配置
         services.AddSingleton<IPanelInputReader>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var panelConfigRepo = sp.GetRequiredService<IPanelConfigurationRepository>();
             var systemClock = sp.GetRequiredService<ISystemClock>();
+            var fallbackLogger = loggerFactory.CreateLogger("PanelInputReader");
             
+            PanelConfiguration? panelConfig = null;
             try
             {
                 // 从数据库读取面板配置
-                var panelConfig = panelConfigRepo.Get();
-                
-                // 根据 UseSimulation 标志选择实现
-                if (panelConfig.UseSimulation)
-                {
-                    var logger = loggerFactory.CreateLogger<SimulatedPanelInputReader>();
-                    logger.LogInformation("使用仿真面板输入读取器");
-                    return new SimulatedPanelInputReader();
-                }
-                else
-                {
-                    // 使用雷赛 IO 读取器
-                    var logger = loggerFactory.CreateLogger<LeadshinePanelInputReader>();
-                    var inputPort = sp.GetRequiredService<IInputPort>();
-                    
-                    logger.LogInformation("使用雷赛硬件面板输入读取器");
-                    return new LeadshinePanelInputReader(
-                        logger,
-                        inputPort,
-                        panelConfigRepo,
-                        systemClock);
-                }
+                panelConfig = panelConfigRepo.Get();
             }
             catch (Exception ex)
             {
-                var fallbackLogger = loggerFactory.CreateLogger("PanelInputReader");
-                fallbackLogger.LogError(ex, "创建面板输入读取器失败，回退到仿真实现");
-                return new SimulatedPanelInputReader();
+                fallbackLogger.LogError(ex, "读取面板配置时发生异常");
+                // 如果无法读取配置，无法判断是否应使用仿真模式，视为严重配置错误
+                throw new InvalidOperationException(
+                    "无法从数据库读取面板配置，系统无法确定是否应使用仿真或硬件模式。请检查数据库初始化和配置。", ex);
+            }
+
+            // 配置缺失时，抛出异常
+            if (panelConfig == null)
+            {
+                throw new InvalidOperationException(
+                    "未找到面板配置，无法初始化面板输入读取器。请先完成面板配置初始化。");
+            }
+                
+            // 根据 UseSimulation 标志选择实现
+            if (panelConfig.UseSimulation)
+            {
+                var logger = loggerFactory.CreateLogger<SimulatedPanelInputReader>();
+                logger.LogInformation("使用仿真面板输入读取器");
+                return new SimulatedPanelInputReader(systemClock);
+            }
+            else
+            {
+                // 使用雷赛 IO 读取器
+                var logger = loggerFactory.CreateLogger<LeadshinePanelInputReader>();
+                var inputPort = sp.GetRequiredService<IInputPort>();
+                
+                logger.LogInformation("使用雷赛硬件面板输入读取器");
+                return new LeadshinePanelInputReader(
+                    logger,
+                    inputPort,
+                    panelConfigRepo,
+                    systemClock);
             }
         });
         
