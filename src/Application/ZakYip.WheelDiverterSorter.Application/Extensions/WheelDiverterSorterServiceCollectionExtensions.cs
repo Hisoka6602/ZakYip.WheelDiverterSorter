@@ -657,6 +657,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册模拟传送带
         services.AddSimulatedConveyorLine();
         
+        // 注册面板输入读取器（生产模式使用仿真实现）
+        services.AddSingleton<IPanelInputReader, SimulatedPanelInputReader>();
+        
+        // 注册面板 IO 协调器
+        services.AddSingleton<IPanelIoCoordinator, DefaultPanelIoCoordinator>();
+        
         // 替换 IIoLinkageDriver 注册为动态选择版本
         // 移除已有的 IIoLinkageDriver 注册（由 AddLeadshineIo 注册的）
         var existingDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IIoLinkageDriver));

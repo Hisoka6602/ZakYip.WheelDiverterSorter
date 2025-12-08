@@ -46,6 +46,7 @@ public class ShadowDetectionCoverageTests
             ["ConfigCacheShadowTests"] = "检测配置缓存影分身",
             ["LoggingConfigShadowTests"] = "检测日志配置影分身",
             ["PanelConfigShadowTests"] = "检测面板配置影分身",
+            ["PanelIoShadowTests"] = "检测面板IO影分身",
             
             // 单一权威检测
             ["SingleAuthorityCatalogTests"] = "检测单一权威实现表"
@@ -204,6 +205,7 @@ public class ShadowDetectionCoverageTests
         report.AppendLine("- **ConfigCacheShadowTests**: 防止配置缓存的重复实现");
         report.AppendLine("- **LoggingConfigShadowTests**: 防止日志配置的重复定义");
         report.AppendLine("- **PanelConfigShadowTests**: 防止面板配置的重复定义");
+        report.AppendLine("- **PanelIoShadowTests**: 防止面板IO接口的重复定义");
         
         report.AppendLine("\n### 第五层：单一权威实现验证");
         report.AppendLine("- **SingleAuthorityCatalogTests**: 验证关键抽象只有一个权威实现");
@@ -230,8 +232,8 @@ public class ShadowDetectionCoverageTests
         report.AppendLine("- ✅ 新增类型必须检查是否与现有类型重复");
         
         report.AppendLine("\n## 统计数据");
-        report.AppendLine($"- **影分身检测测试类**: 18个");
-        report.AppendLine($"- **影分身检测测试方法**: 71个");
+        report.AppendLine($"- **影分身检测测试类**: 19个");
+        report.AppendLine($"- **影分身检测测试方法**: 76个（估计）");
         report.AppendLine($"- **当前状态**: ✅ 全部通过，无影分身代码");
         
         report.AppendLine("\n## 防御效果");
