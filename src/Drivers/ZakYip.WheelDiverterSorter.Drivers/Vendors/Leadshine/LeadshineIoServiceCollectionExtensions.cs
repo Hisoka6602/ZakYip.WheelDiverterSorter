@@ -38,6 +38,8 @@ public static class LeadshineIoServiceCollectionExtensions
     /// - <see cref="IIoLinkageDriver"/> (通过工厂创建，与摆轮驱动器共享EMC控制器)
     /// - <see cref="IIoLinkageCoordinator"/> -> <see cref="DefaultIoLinkageCoordinator"/>
     /// - <see cref="ISensorVendorConfigProvider"/> -> <see cref="LeadshineSensorVendorConfigProvider"/>
+    /// - <see cref="IInputPort"/> -> <see cref="LeadshineInputPort"/> (用于面板输入读取、IO状态查询等)
+    /// - <see cref="IOutputPort"/> -> <see cref="LeadshineOutputPort"/> (用于IO输出控制)
     /// </remarks>
     public static IServiceCollection AddLeadshineIo(this IServiceCollection services)
     {
@@ -148,6 +150,24 @@ public static class LeadshineIoServiceCollectionExtensions
                 return new LeadshineSensorVendorConfigProvider(new LeadshineSensorOptions());
             }
             return new LeadshineSensorVendorConfigProvider(options.Sensor);
+        });
+
+        // 注册 IInputPort 和 IOutputPort（用于面板输入读取等功能）
+        services.AddSingleton<IInputPort>(sp =>
+        {
+            var options = sp.GetRequiredService<DriverOptions>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger<LeadshineInputPort>();
+            return new LeadshineInputPort(logger, options.Leadshine.CardNo);
+        });
+
+        services.AddSingleton<IOutputPort>(sp =>
+        {
+            var options = sp.GetRequiredService<DriverOptions>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var emcController = sp.GetRequiredService<IEmcController>();
+            var logger = loggerFactory.CreateLogger<LeadshineOutputPort>();
+            return new LeadshineOutputPort(logger, options.Leadshine.CardNo, emcController);
         });
 
         return services;
