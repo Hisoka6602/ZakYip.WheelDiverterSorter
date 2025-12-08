@@ -247,20 +247,14 @@ public class HealthController : ControllerBase
                 detailedReason = $"硬件驱动故障 - {driverErrors}";
             }
             
-            // 检查上游连接故障
+            // 上游连接不作为故障原因 - 仅作为警告信息
+            // 检查上游状态并记录警告日志（不影响系统故障诊断）
             var unhealthyUpstreams = snapshot.Upstreams?.Where(u => !u.IsHealthy).ToList();
             if (unhealthyUpstreams != null && unhealthyUpstreams.Count > 0)
             {
                 var upstreamErrors = string.Join("; ", unhealthyUpstreams.Select(u => 
                     $"{u.EndpointName}: {u.ErrorMessage ?? u.ErrorCode ?? "连接失败"}"));
-                if (!string.IsNullOrEmpty(detailedReason))
-                {
-                    detailedReason += $"; 上游通信故障 - {upstreamErrors}";
-                }
-                else
-                {
-                    detailedReason = $"上游通信故障 - {upstreamErrors}";
-                }
+                _logger.LogWarning("上游连接未就绪（非必需）：{UpstreamErrors}。系统可用于演示模式", upstreamErrors);
             }
             
             // 检查配置故障
@@ -302,10 +296,10 @@ public class HealthController : ControllerBase
             return detailedReason;
         }
 
-        // 如果没有详细原因，返回默认描述（但比原来更具体）
+        // 如果没有详细原因，返回默认描述（不再提及上游通信，因为上游是可选的）
         return state switch
         {
-            SystemState.Faulted => "系统发生故障，请检查硬件驱动连接状态、上游通信连接和系统配置",
+            SystemState.Faulted => "系统发生故障，请检查硬件驱动连接状态和系统配置",
             SystemState.EmergencyStop => "系统处于急停状态，请检查急停按钮是否被按下，确认安全后通过面板或API解除急停",
             _ => "系统处于异常状态，请检查系统日志获取详细信息"
         };
