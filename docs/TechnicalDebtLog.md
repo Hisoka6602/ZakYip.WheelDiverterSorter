@@ -52,6 +52,7 @@
 - [TD-038] Siemens 缺少 IO 联动和传送带驱动
 - [TD-039] 代码中存在 TODO 标记待处理项
 - [TD-044] LeadshineIoLinkageDriver 缺少 EMC 初始化检查
+- [TD-045] IO 驱动需要全局单例实现（Leadshine/S7）
 
 ---
 
@@ -1870,6 +1871,117 @@ public async Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken canc
 
 ---
 
-**文档版本**：4.1 (TD-044 新增)  
+## [TD-045] IO 驱动需要全局单例实现（Leadshine/S7）
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+当前 IO 驱动（包括 Leadshine 和 S7）在 DI 容器中注册为 `AddSingleton`，但在多线程或多实例场景下，可能出现资源竞争或状态不一致的问题。需要确保所有 IO 驱动调用都通过全局单例模式实现，避免多个实例同时访问硬件资源。
+
+**问题范围**：
+
+1. **Leadshine IO 驱动**：
+   - `LeadshineIoLinkageDriver`
+   - `LeadshineOutputPort`
+   - `LeadshineInputPort`
+   - `LeadshineConveyorSegmentDriver`
+   - `LeadshineEmcController`
+   - `LeadshineDiverterController`
+
+2. **S7 IO 驱动**：
+   - `S7IoLinkageDriver`
+   - `S7OutputPort`
+   - `S7InputPort`
+   - `S7ConveyorDriveController`
+   - `S7Connection`
+
+**当前实现状态**：
+
+目前这些驱动已经在 DI 容器中注册为 Singleton：
+
+```csharp
+// LeadshineIoServiceCollectionExtensions.cs
+services.AddSingleton<IIoLinkageDriver>(sp =>
+{
+    var factory = sp.GetRequiredService<IVendorDriverFactory>();
+    return factory.CreateIoLinkageDriver();
+});
+
+// SiemensS7ServiceCollectionExtensions.cs
+services.AddSingleton<IIoLinkageDriver>(sp =>
+{
+    var connection = sp.GetRequiredService<S7Connection>();
+    var logger = sp.GetRequiredService<ILogger<S7IoLinkageDriver>>();
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    return new S7IoLinkageDriver(connection, logger, loggerFactory);
+});
+```
+
+**潜在问题**：
+
+1. **并发访问**：虽然已注册为 Singleton，但内部实现可能不是线程安全的
+2. **资源竞争**：多个并发调用可能导致硬件 IO 冲突
+3. **状态一致性**：如果驱动内部维护状态，需要确保线程安全
+4. **全局协调**：需要确保整个应用中只有一个实例在与硬件通信
+
+**验证需求**：
+
+需要检查以下几点：
+1. ✅ DI 注册是否为 Singleton（已确认）
+2. ❓ 驱动内部实现是否线程安全
+3. ❓ 是否需要额外的互斥锁保护硬件访问
+4. ❓ 是否需要跨进程的全局单例保护（如 Named Mutex）
+
+**相关现有机制**：
+
+项目中已经存在 EMC 资源锁机制：
+- `IEmcResourceLockManager`（位于 `Core/Hardware/Devices/`）
+- `EmcNamedMutexLock`（位于 `Drivers/Vendors/Leadshine/`）
+- 用于协调多进程对 EMC 控制器的访问
+
+**解决方案建议**：
+
+1. **审计现有实现**：
+   - 检查 Leadshine 和 S7 驱动的线程安全性
+   - 确认是否需要额外的锁保护
+   - 验证单例注册是否满足需求
+
+2. **增强线程安全**：
+   - 如果驱动内部有共享状态，添加适当的锁保护
+   - 考虑使用 `SemaphoreSlim` 或 `lock` 语句保护临界区
+   - 确保所有 IO 操作串行化（如需要）
+
+3. **统一资源协调**：
+   - 扩展 `IEmcResourceLockManager` 机制到所有 IO 驱动
+   - 或实现一个通用的 `IIoDriverResourceCoordinator` 接口
+   - 确保跨进程场景下的资源独占
+
+4. **文档和测试**：
+   - 在驱动类注释中明确说明单例要求和线程安全保证
+   - 添加并发访问的集成测试
+   - 记录 DI 注册模式的最佳实践
+
+**优先级**：中（影响多线程场景的可靠性，但当前单例注册已提供基本保护）
+
+**影响范围**：
+- 所有使用 Leadshine 或 S7 IO 驱动的场景
+- 多线程并发分拣场景
+- 跨进程场景（如多个应用实例）
+
+**实施建议**：
+1. 先进行现状审计，确认哪些驱动需要增强线程安全
+2. 对于确认需要保护的部分，逐步添加锁机制
+3. 更新驱动类的 XML 注释，明确线程安全保证
+4. 添加并发测试用例验证改进
+
+**备注**：
+- 用户要求：记录到技术债务中即可（不在当前 PR 修复）
+- 当前 Singleton 注册已提供基本保护，但需要验证内部实现的线程安全性
+- 建议结合 TD-044 的修复一起处理，统一审计 Leadshine 驱动的实现
+
+---
+
+**文档版本**：4.2 (TD-045 新增)  
 **最后更新**：2025-12-08  
 **维护团队**：ZakYip Development Team
