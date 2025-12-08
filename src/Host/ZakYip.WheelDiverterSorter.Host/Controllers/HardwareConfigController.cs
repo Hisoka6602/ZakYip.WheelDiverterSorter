@@ -868,13 +868,13 @@ public class HardwareConfigController : ControllerBase
         OperationId = "SetShuDiNiaoSpeed",
         Tags = new[] { "硬件配置" }
     )]
-    [SwaggerResponse(200, "速度设置成功", typeof(ShuDiNiaoSpeedSettingResponse))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ShuDiNiaoSpeedSettingResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<ActionResult<ShuDiNiaoSpeedSettingResponse>> SetShuDiNiaoSpeed(
+    [SwaggerResponse(200, "速度设置成功", typeof(ApiResponse<ShuDiNiaoSpeedSettingResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<ShuDiNiaoSpeedSettingResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<ShuDiNiaoSpeedSettingResponse>>> SetShuDiNiaoSpeed(
         [FromBody] ShuDiNiaoSpeedSettingRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -885,17 +885,17 @@ public class HardwareConfigController : ControllerBase
                 var errors = ModelState.Values
                     .SelectMany(v => v.Errors)
                     .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效", errors });
+                return BadRequest(ApiResponse<object>.BadRequest("请求参数无效", new { errors }));
             }
 
             if (request.DiverterIds == null || !request.DiverterIds.Any())
             {
-                return BadRequest(new { message = "摆轮ID列表不能为空" });
+                return BadRequest(ApiResponse<object>.BadRequest("摆轮ID列表不能为空"));
             }
 
             if (_driverManager == null)
             {
-                return BadRequest(new { message = "摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段" });
+                return BadRequest(ApiResponse<object>.BadRequest("摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段"));
             }
 
             // 确保配置已加载到驱动管理器
@@ -1002,12 +1002,12 @@ public class HardwareConfigController : ControllerBase
                 Results = results
             };
 
-            return Ok(response);
+            return Ok(ApiResponse<ShuDiNiaoSpeedSettingResponse>.Ok(response, "速度设置完成"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "设置数递鸟摆轮速度失败");
-            return StatusCode(500, new { message = "设置数递鸟摆轮速度失败" });
+            return StatusCode(500, ApiResponse<object>.ServerError("设置数递鸟摆轮速度失败"));
         }
     }
 

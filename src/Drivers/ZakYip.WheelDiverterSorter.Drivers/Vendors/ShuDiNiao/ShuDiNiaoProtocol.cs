@@ -35,6 +35,11 @@ internal static class ShuDiNiaoProtocol
     private const byte EndByte = 0xFE;
     
     /// <summary>
+    /// 速度设置帧备用字节填充值（数递鸟协议规范要求备用字节必须为 0x5A）
+    /// </summary>
+    private const byte ReservedByteFillValue = 0x5A;
+    
+    /// <summary>
     /// 标准协议帧长度（字节）
     /// </summary>
     internal const int FrameLength = 7;
@@ -107,10 +112,10 @@ internal static class ShuDiNiaoProtocol
             (byte)ShuDiNiaoMessageType.SpeedSetting,    // [4] 消息类型：速度设置
             speed,                                       // [5] 摆动速度（m/min）
             speedAfterSwing,                             // [6] 摆动后速度（m/min）
-            0x5A,                                        // [7] 备用
-            0x5A,                                        // [8] 备用
-            0x5A,                                        // [9] 备用
-            0x5A,                                        // [10] 备用
+            ReservedByteFillValue,                       // [7] 备用（协议规定必须为0x5A）
+            ReservedByteFillValue,                       // [8] 备用（协议规定必须为0x5A）
+            ReservedByteFillValue,                       // [9] 备用（协议规定必须为0x5A）
+            ReservedByteFillValue,                       // [10] 备用（协议规定必须为0x5A）
             EndByte                                      // [11] 结束字符
         };
     }
