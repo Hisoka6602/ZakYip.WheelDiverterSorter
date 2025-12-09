@@ -12,6 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
@@ -22,6 +23,11 @@ namespace ZakYip.WheelDiverterSorter.Ingress;
 /// 本扩展类属于 Ingress 层，负责注册传感器相关的服务。
 /// 仅依赖 Core 层的抽象接口，不直接依赖具体驱动实现。
 /// 具体驱动的注册应在 Host 层或 Drivers 层的服务扩展中完成。
+/// 
+/// **架构原则**：
+/// - 默认使用真实硬件传感器（Leadshine/Siemens等）
+/// - 只有在仿真模式下（ISimulationModeProvider.IsSimulationMode() == true）才使用Mock传感器
+/// - 通过 POST /api/simulation/run-scenario-e 等端点进入仿真模式
 /// </remarks>
 public static class SensorServiceExtensions {
 
@@ -32,7 +38,13 @@ public static class SensorServiceExtensions {
     /// <param name="configuration">配置</param>
     /// <returns>服务集合</returns>
     /// <remarks>
-    /// 调用此方法前，需确保 IInputPort 已在服务容器中注册（如使用硬件传感器模式）。
+    /// 调用此方法前，需确保以下服务已注册：
+    /// - IInputPort（硬件传感器模式需要）
+    /// - ISimulationModeProvider（用于判断是否使用Mock传感器）
+    /// 
+    /// 传感器类型选择逻辑：
+    /// - 如果 ISimulationModeProvider.IsSimulationMode() 返回 true：使用 MockSensor
+    /// - 否则：使用真实硬件传感器（根据 VendorType 配置）
     /// </remarks>
     public static IServiceCollection AddSensorServices(
         this IServiceCollection services,
@@ -45,29 +57,34 @@ public static class SensorServiceExtensions {
         services.Configure<ParcelDetectionOptions>(
             options => configuration.GetSection("ParcelDetection").Bind(options));
 
-        // 注册传感器工厂
-        if (sensorOptions.UseHardwareSensor) {
-            // 使用硬件传感器 - 需要在调用此方法前注册 IInputPort
-            switch (sensorOptions.VendorType) {
-                case SensorVendorType.Leadshine:
-                    AddLeadshineSensorServices(services, sensorOptions);
-                    break;
-
-                case SensorVendorType.Siemens:
-                case SensorVendorType.Mitsubishi:
-                case SensorVendorType.Omron:
-                    throw new NotImplementedException(
-                        $"传感器厂商类型 {sensorOptions.VendorType} 尚未实现，请联系开发团队");
-
-                default:
-                    throw new NotSupportedException(
-                        $"不支持的传感器厂商类型: {sensorOptions.VendorType}");
+        // 注册传感器工厂 - 运行时根据仿真模式动态选择
+        // 这里注册一个工厂，它会在运行时检查 ISimulationModeProvider
+        services.AddSingleton<ISensorFactory>(sp => {
+            var simulationModeProvider = sp.GetService<ISimulationModeProvider>();
+            var logger = sp.GetRequiredService<ILogger<SensorServiceExtensions>>();
+            
+            // 判断是否为仿真模式
+            bool isSimulationMode = simulationModeProvider?.IsSimulationMode() ?? false;
+            
+            if (isSimulationMode)
+            {
+                // 仿真模式：使用Mock传感器
+                logger.LogInformation("系统运行在仿真模式下，使用Mock传感器");
+                return CreateMockSensorFactory(sp, sensorOptions);
             }
-        }
-        else {
-            // 使用模拟传感器
-            AddMockSensorServices(services, sensorOptions);
-        }
+            else
+            {
+                // 正常模式：使用真实硬件传感器
+                logger.LogInformation("系统运行在真实硬件模式下，使用 {VendorType} 传感器", sensorOptions.VendorType);
+                return CreateHardwareSensorFactory(sp, sensorOptions);
+            }
+        });
+
+        // 注册传感器实例
+        services.AddSingleton<IEnumerable<ISensor>>(sp => {
+            var factory = sp.GetRequiredService<ISensorFactory>();
+            return factory.CreateSensors();
+        });
 
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, Services.ParcelDetectionService>();
@@ -79,46 +96,57 @@ public static class SensorServiceExtensions {
     }
 
     /// <summary>
-    /// 添加雷赛传感器服务
+    /// 创建硬件传感器工厂
     /// </summary>
-    /// <remarks>
-    /// 此方法需要以下服务已在服务容器中注册：
-    /// - IInputPort（由 Drivers 层的 AddLeadshineIoServices 注册）
-    /// - ISensorVendorConfigProvider（由 Drivers 层的配置服务注册）
-    /// </remarks>
-    private static void AddLeadshineSensorServices(
-        IServiceCollection services,
-        SensorOptions sensorOptions) {
-        // 注册传感器工厂 - 依赖 IInputPort 和 ISensorVendorConfigProvider
-        // 两者都应由 Drivers 层或 Host 层预先注册
-        services.AddSingleton<ISensorFactory>(sp => {
-            var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var inputPort = sp.GetRequiredService<IInputPort>();
-            var configProvider = sp.GetRequiredService<ISensorVendorConfigProvider>();
-            var systemClock = sp.GetRequiredService<ISystemClock>();
-            return new LeadshineSensorFactory(
-                logger,
-                loggerFactory,
-                inputPort,
-                configProvider,
-                systemClock,
-                sensorOptions.PollingIntervalMs);
-        });
+    private static ISensorFactory CreateHardwareSensorFactory(
+        IServiceProvider sp,
+        SensorOptions sensorOptions)
+    {
+        switch (sensorOptions.VendorType) {
+            case SensorVendorType.Leadshine:
+                return CreateLeadshineSensorFactory(sp, sensorOptions);
 
-        // 注册传感器实例
-        services.AddSingleton<IEnumerable<ISensor>>(sp => {
-            var factory = sp.GetRequiredService<ISensorFactory>();
-            return factory.CreateSensors();
-        });
+            case SensorVendorType.Siemens:
+            case SensorVendorType.Mitsubishi:
+            case SensorVendorType.Omron:
+                throw new NotImplementedException(
+                    $"传感器厂商类型 {sensorOptions.VendorType} 尚未实现，请联系开发团队");
+
+            default:
+                throw new NotSupportedException(
+                    $"不支持的传感器厂商类型: {sensorOptions.VendorType}");
+        }
     }
 
     /// <summary>
-    /// 添加模拟传感器服务
+    /// 创建雷赛传感器工厂
     /// </summary>
-    private static void AddMockSensorServices(
-        IServiceCollection services,
-        SensorOptions sensorOptions) {
+    private static ISensorFactory CreateLeadshineSensorFactory(
+        IServiceProvider sp,
+        SensorOptions sensorOptions)
+    {
+        var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var inputPort = sp.GetRequiredService<IInputPort>();
+        var configProvider = sp.GetRequiredService<ISensorVendorConfigProvider>();
+        var systemClock = sp.GetRequiredService<ISystemClock>();
+        
+        return new LeadshineSensorFactory(
+            logger,
+            loggerFactory,
+            inputPort,
+            configProvider,
+            systemClock,
+            sensorOptions.PollingIntervalMs);
+    }
+
+    /// <summary>
+    /// 创建Mock传感器工厂
+    /// </summary>
+    private static ISensorFactory CreateMockSensorFactory(
+        IServiceProvider sp,
+        SensorOptions sensorOptions)
+    {
         // 如果没有配置模拟传感器，使用默认配置
         if (!sensorOptions.MockSensors.Any()) {
             sensorOptions.MockSensors = new List<MockSensorConfigDto>
@@ -128,16 +156,7 @@ public static class SensorServiceExtensions {
             };
         }
 
-        // 注册传感器工厂
-        services.AddSingleton<ISensorFactory>(sp => {
-            var logger = sp.GetRequiredService<ILogger<MockSensorFactory>>();
-            return new MockSensorFactory(logger, sensorOptions.MockSensors);
-        });
-
-        // 注册传感器实例
-        services.AddSingleton<IEnumerable<ISensor>>(sp => {
-            var factory = sp.GetRequiredService<ISensorFactory>();
-            return factory.CreateSensors();
-        });
+        var logger = sp.GetRequiredService<ILogger<MockSensorFactory>>();
+        return new MockSensorFactory(logger, sensorOptions.MockSensors);
     }
 }
