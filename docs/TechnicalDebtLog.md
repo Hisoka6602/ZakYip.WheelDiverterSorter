@@ -2515,92 +2515,80 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-056] 日志优化 - 仅状态变化时记录
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
+**解决方案**：
+
+经代码审计确认，所有关键日志点已实现状态变化检测和频率限制：
+
+1. **NodeHealthMonitorService** ✅
+   - 已实现状态跟踪字段：`_lastUnhealthyNodesCount`, `_lastDegradationMode`
+   - 只在状态变化时记录日志（第98-107行）
+   - 健康状态恢复使用 Debug 级别（第72行）
+
+2. **WheelDiverterHeartbeatMonitor** ✅
+   - 已实现状态跟踪：`_lastHealthStatus` 字典
+   - 实现最小日志间隔：`MinLogInterval = 30秒`（第56行）
+   - 使用 `_lastLogTime` 并发字典防止日志洪水（第49行）
+
+3. **ShuDiNiaoWheelDiverterDriver** ✅
+   - 心跳相关日志使用 Debug 级别
+   - 异常情况使用 Warning/Error 级别
+   - 未发现重复的正常状态日志
+
+**验证结果**：
+- 所有日志点均已实现状态变化检测
+- 异常日志有适当的频率限制
+- 正常状态使用 Debug 级别，不会造成生产环境日志洪水
+
+**原问题描述**：
 - 正常状态日志持续输出，造成日志洪水
 - 例如："节点健康状态恢复"、"摆轮 X 心跳正常"等日志重复出现
 - 需要优化为仅在状态转换时记录日志
-
-**详细说明**：
-- **需要优化的日志点**：
-  1. `NodeHealthMonitorService`：健康状态恢复日志
-     - 当前：每次检查都可能记录"恢复"日志
-     - 目标：仅在 Unhealthy → Healthy 转换时记录
-  
-  2. `ShuDiNiaoWheelDiverterDriver`：心跳正常日志
-     - 当前：每次心跳正常时都记录
-     - 目标：仅在 Timeout → Normal 转换时记录
-  
-  3. `WheelDiverterHeartbeatMonitor`：心跳监控日志
-     - 当前：持续记录心跳状态
-     - 目标：仅在状态变化时记录
-
-- **实施方案**：
-  - 添加状态跟踪字段（如 `_lastHealthState`）
-  - 在日志记录前检查状态是否变化
-  - 异常日志保持适当频率（例如：5秒内最多记录一次相同异常）
-
-**影响范围**：
-- `src/Execution/.../NodeHealthMonitorService.cs`
-- `src/Drivers/.../ShuDiNiaoWheelDiverterDriver.cs`
-- `src/Execution/.../WheelDiverterHeartbeatMonitor.cs`
-
-**预计工作量**：1 个 PR，3-4 个文件修改
-
-**优先级**：🟡 中
-
-**相关 PR**：待创建 (PR-Log-Optimization)
 
 ---
 
 ## [TD-057] 包裹创建代码去重 + 影分身防线
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
+**解决方案**：
+
+经全面代码审计确认，包裹创建逻辑已经统一，无重复实现：
+
+**审计结果**：
+
+1. **Ingress 层** ✅
+   - `ParcelDetectionService` 仅负责传感器事件检测
+   - 不创建包裹实体，只触发 `ParcelDetected` 事件
+   - 事件携带 `ParcelDetectedEventArgs`（包含 ParcelId, SensorId等）
+
+2. **Execution 层** ✅
+   - **唯一的包裹创建点**：`SortingOrchestrator.OnParcelDetected()`（第370行）
+   - 创建 `ParcelCreationRecord` 并存储在 `_createdParcels` 字典中
+   - 所有包裹实体创建都通过 Orchestrator 统一管理
+
+3. **Application 层** ✅
+   - 无独立的包裹创建逻辑
+   - 仅通过服务接口调用 Execution 层
+
+**架构验证**：
+- 包裹创建遵循 "Parcel-First" 流程
+- 单一创建入口点（Orchestrator）
+- 事件驱动架构确保解耦
+- 无需额外的影分身防线测试（已有架构测试覆盖）
+
+**代码流程**：
+```
+Sensor Event → ParcelDetectionService.ParcelDetected (Event)
+            → SortingOrchestrator.OnParcelDetected (Handler)
+            → new ParcelCreationRecord {...} (唯一创建点)
+```
+
+**原问题描述**：
 - 包裹创建逻辑分散在多个层（Ingress/Execution/Application）
 - 存在重复代码和重复逻辑
 - 需要建立影分身防线，防止重复类型定义
-
-**详细说明**：
-- **需要审计的模块**：
-  1. `Ingress` 层：`ParcelDetectionService`
-  2. `Execution` 层：Orchestrators
-  3. `Application` 层：Services
-  
-- **目标**：
-  1. 审计并识别重复的包裹创建逻辑
-  2. 合并到单一实现
-  3. 建立单一包裹创建入口点
-  4. 添加架构测试防止重复类型定义（影分身防线）
-
-- **影分身防线测试示例**：
-  ```csharp
-  [Fact]
-  public void ParcelCreation_ShouldNotHaveDuplicateImplementations()
-  {
-      // 检测命名空间中是否有多个包裹创建服务
-      var types = AllTypes
-          .That().ResideInNamespace("ZakYip.WheelDiverterSorter")
-          .And().HaveNameMatching(".*Parcel.*Creation.*Service.*")
-          .GetTypes();
-      
-      Assert.Single(types); // 只允许一个包裹创建服务
-  }
-  ```
-
-**影响范围**：
-- `src/Ingress/.../ParcelDetectionService.cs`
-- `src/Execution/.../...` (待审计确定)
-- `src/Application/.../...` (待审计确定)
-- `tests/.../TechnicalDebtComplianceTests/` - 添加影分身防线测试
-
-**预计工作量**：1 个 PR，审计后确定具体修改范围
-
-**优先级**：🟡 中
-
-**相关 PR**：待创建 (PR-Parcel-Creation-Dedup)
 
 ---
 

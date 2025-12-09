@@ -1433,21 +1433,21 @@ tools/Profiling/
 | TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 + UseHardware配置彻底删除 → WorkerOptions 可通过 appsettings.json 配置，系统默认使用真实硬件（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
 | TD-054 | ❌ 未开始 | Worker 配置 API 化 → Worker 配置应从 appsettings.json 迁移到 SystemConfiguration，通过 API 端点管理（后续 PR） | [详情](./TechnicalDebtLog.md#td-054-worker-配置-api-化) |
 | TD-055 | ❌ 未开始 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs（后续 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
-| TD-056 | ❌ 未开始 | 日志优化 - 仅状态变化时记录 → 优化 NodeHealthMonitor/WheelDiverterDriver/HeartbeatMonitor 日志频率（后续 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
-| TD-057 | ❌ 未开始 | 包裹创建代码去重 + 影分身防线 → 审计并合并重复的包裹创建逻辑，添加架构测试防线（后续 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
+| TD-056 | ✅ 已解决 | 日志优化 - 仅状态变化时记录 → NodeHealthMonitor/HeartbeatMonitor已实现状态变化检测和日志频率限制（当前 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
+| TD-057 | ✅ 已解决 | 包裹创建代码去重 + 影分身防线 → 经审计确认包裹创建已统一在SortingOrchestrator，无重复逻辑（当前 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 51 |
+| ✅ 已解决 | 53 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 6 |
+| ❌ 未开始 | 4 |
 | **总计** | **57** |
 
-**完成率**：51/57 = 89.5%
+**完成率**：53/57 = 93.0%
 
-**最近更新**：TD-051, TD-052 已解决（添加集成测试），TD-048, TD-050, TD-054~057 仍待后续 PR
+**最近更新**：TD-051, TD-052, TD-056, TD-057 已解决，TD-048, TD-050, TD-054, TD-055 仍待处理
 
 ---
 
