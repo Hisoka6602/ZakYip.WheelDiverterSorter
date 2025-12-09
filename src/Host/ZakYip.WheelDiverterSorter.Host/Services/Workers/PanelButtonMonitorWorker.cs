@@ -46,6 +46,16 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// 上次按钮状态缓存，用于检测状态变化
     /// </summary>
     private readonly ConcurrentDictionary<PanelButtonType, bool> _lastButtonStates = new();
+    
+    /// <summary>
+    /// 预警等待取消令牌源，用于在高优先级按钮按下时取消预警等待
+    /// </summary>
+    private CancellationTokenSource? _preWarningCancellationSource;
+    
+    /// <summary>
+    /// 预警等待锁，用于同步预警状态的访问
+    /// </summary>
+    private readonly object _preWarningLock = new();
 
     public PanelButtonMonitorWorker(
         ILogger<PanelButtonMonitorWorker> logger,
@@ -143,10 +153,29 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// <summary>
     /// 触发IO联动
     /// </summary>
+    /// <remarks>
+    /// 按钮优先级：急停 > 停止 > 启动
+    /// 如果当前正在预警等待期间，高优先级按钮（停止、急停）会立即取消预警等待
+    /// </remarks>
     private async Task TriggerIoLinkageAsync(PanelButtonType buttonType, CancellationToken cancellationToken)
     {
         try
         {
+            // 按钮优先级处理：如果按下的是停止或急停，取消正在进行的预警等待
+            if (buttonType is PanelButtonType.Stop or PanelButtonType.EmergencyStop)
+            {
+                lock (_preWarningLock)
+                {
+                    if (_preWarningCancellationSource != null && !_preWarningCancellationSource.IsCancellationRequested)
+                    {
+                        _logger.LogWarning(
+                            "检测到高优先级按钮 {ButtonType}，取消正在进行的启动预警等待",
+                            buttonType);
+                        _preWarningCancellationSource.Cancel();
+                    }
+                }
+            }
+            
             // 获取当前系统状态
             var currentState = _stateManager.CurrentState;
             
@@ -223,7 +252,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 PanelButtonType.Reset when currentState is SystemState.Faulted or SystemState.EmergencyStop =>
                     SystemState.Ready,
                 
-                PanelButtonType.EmergencyStop when currentState != SystemState.EmergencyStop =>
+                // 急停按钮在任何状态下都必须生效（最高优先级，安全第一）
+                PanelButtonType.EmergencyStop =>
                     SystemState.EmergencyStop,
                 
                 _ => null
@@ -273,6 +303,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// 2. 如果配置了预警时间，触发预警输出并等待
     /// 3. 预警时间结束后转换到Running状态
     /// 4. 无论是否正常结束，都确保关闭预警输出
+    /// 5. 在预警等待期间，如果按下停止或急停按钮，预警等待会被取消
     /// </remarks>
     private async Task HandleStartButtonWithPreWarningAsync(SystemState currentState, CancellationToken cancellationToken)
     {
@@ -337,14 +368,48 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                     }
                 }
 
-                // 等待预警时间
-                _logger.LogInformation("开始等待预警时间: {Duration} 秒...", preWarningDuration.Value);
-                await Task.Delay(TimeSpan.FromSeconds(preWarningDuration.Value), cancellationToken);
+                // 创建可以被高优先级按钮取消的预警等待令牌
+                // 先创建所有对象，再在锁内赋值，避免竞态条件
+                using var newSource = new CancellationTokenSource();
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    newSource.Token);
+                
+                lock (_preWarningLock)
+                {
+                    _preWarningCancellationSource = newSource;
+                }
 
-                var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
-                _logger.LogWarning(
-                    "✅ 预警时间结束，实际等待: {ActualWait:F2} 秒，准备转换到 Running 状态并启动摆轮",
-                    actualWaitTime);
+                try
+                {
+                    // 等待预警时间（可被高优先级按钮取消）
+                    _logger.LogInformation("开始等待预警时间: {Duration} 秒...", preWarningDuration.Value);
+                    await Task.Delay(TimeSpan.FromSeconds(preWarningDuration.Value), linkedCts.Token);
+
+                    var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
+                    _logger.LogWarning(
+                        "✅ 预警时间结束，实际等待: {ActualWait:F2} 秒，准备转换到 Running 状态并启动摆轮",
+                        actualWaitTime);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    // 预警等待被高优先级按钮取消（不是系统停止导致的取消）
+                    // 判断逻辑：
+                    // - 如果 cancellationToken 被取消，说明是系统停止，应该让异常继续传播
+                    // - 如果 cancellationToken 未被取消，说明是内部预警取消源被触发（高优先级按钮），捕获并处理
+                    var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
+                    _logger.LogWarning(
+                        "⚠️ 预警等待被高优先级按钮（停止/急停）取消，实际等待: {ActualWait:F2} 秒",
+                        actualWaitTime);
+                    
+                    // 不继续执行状态转换，由高优先级按钮处理
+                    return;
+                }
+                finally
+                {
+                    // 清理预警取消令牌源
+                    CleanupPreWarningCancellationSource();
+                }
             }
             else
             {
@@ -431,5 +496,26 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             SystemState.EmergencyStop => SystemOperatingState.EmergencyStopped,
             _ => SystemOperatingState.Standby
         };
+    }
+    
+    /// <summary>
+    /// 清理预警取消令牌源
+    /// </summary>
+    private void CleanupPreWarningCancellationSource()
+    {
+        lock (_preWarningLock)
+        {
+            _preWarningCancellationSource?.Dispose();
+            _preWarningCancellationSource = null;
+        }
+    }
+    
+    /// <summary>
+    /// 释放资源，确保取消令牌源被正确清理
+    /// </summary>
+    public override void Dispose()
+    {
+        CleanupPreWarningCancellationSource();
+        base.Dispose();
     }
 }
