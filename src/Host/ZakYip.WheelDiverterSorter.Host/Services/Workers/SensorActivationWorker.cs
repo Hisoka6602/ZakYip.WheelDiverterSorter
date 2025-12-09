@@ -13,14 +13,17 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 /// 传感器激活后台服务
 /// </summary>
 /// <remarks>
-/// 监控系统状态变化，在系统进入 Running 状态时自动启动传感器服务，
-/// 在系统停止时自动停止传感器服务。
+/// 在程序启动时立即启动传感器服务，无需等待系统进入 Running 状态。
 /// 
 /// **功能说明**：
-/// - 定期检查系统状态，检测状态转换
-/// - 当系统转换到 Running 状态时，自动启动 IParcelDetectionService
-/// - 当系统转换到 Stopped/Ready/EmergencyStop 状态时，自动停止 IParcelDetectionService
-/// - 支持可配置的轮询间隔
+/// - 程序启动时立即启动传感器检测（与面板IO监控一致）
+/// - 包裹创建逻辑会在后续流程中根据系统状态进行拦截
+/// - 摆轮执行逻辑也会在后续流程中根据系统状态进行拦截
+/// - 传感器保持持续运行，不受系统状态变化影响
+/// 
+/// **设计原则**：
+/// - 传感器和面板IO属于同一性质的监控，都在程序启动时立即生效
+/// - 状态拦截在业务逻辑层实现，而非传感器层
 /// 
 /// **修复问题**：
 /// - Issue 4: 创建包裹感应器没有创建包裹（传感器服务未被启动）
@@ -71,19 +74,15 @@ public sealed class SensorActivationWorker : BackgroundService
                 // 等待一小段时间，确保系统初始化完成
                 await Task.Delay(1000, stoppingToken);
                 
-                // 初始化：获取当前状态并同步传感器状态
-                // 注意：此处的状态同步只会在服务启动时执行一次
-                // 如果系统已经处于 Running 状态，传感器会立即启动
-                // 后续状态变化通过循环中的状态转换处理，不会重复触发
+                // 初始化：获取当前状态
                 var initialState = _stateManager.CurrentState;
                 _logger.LogInformation("初始系统状态: {State}", initialState);
                 _lastKnownState = initialState;
                 
-                // 根据初始状态决定是否启动传感器（仅执行一次）
-                if (initialState == SystemState.Running)
-                {
-                    await StartSensorsAsync(stoppingToken);
-                }
+                // 立即启动传感器服务，无需等待系统进入 Running 状态
+                // 包裹创建逻辑会在后续流程中根据系统状态进行拦截
+                _logger.LogInformation("程序启动时立即启动传感器检测");
+                await StartSensorsAsync(stoppingToken);
 
                 while (!stoppingToken.IsCancellationRequested)
                 {
@@ -147,9 +146,11 @@ public sealed class SensorActivationWorker : BackgroundService
             switch (newState)
             {
                 case SystemState.Running:
-                    // 系统开始运行，启动传感器服务
+                    // 系统开始运行，确保传感器服务已启动
+                    // 注意：传感器在程序启动时已经启动，此处仅作为保险
                     if (!_sensorsRunning)
                     {
+                        _logger.LogWarning("传感器服务未运行，立即启动");
                         await StartSensorsAsync(cancellationToken);
                     }
                     break;
@@ -157,29 +158,25 @@ public sealed class SensorActivationWorker : BackgroundService
                 case SystemState.Ready:
                 case SystemState.EmergencyStop:
                 case SystemState.Faulted:
-                    // 系统停止/急停/故障，停止传感器服务
-                    if (_sensorsRunning)
-                    {
-                        _logger.LogInformation(
-                            "系统进入{State}状态，停止传感器服务...",
-                            newState);
-                        await StopSensorsAsync();
-                    }
+                    // 注意：传感器保持运行状态，不停止
+                    // 包裹创建逻辑会在后续流程中根据系统状态进行拦截
+                    _logger.LogInformation(
+                        "系统进入{State}状态，传感器保持运行状态（包裹创建会被拦截）",
+                        newState);
                     break;
 
                 case SystemState.Paused:
-                    // 系统暂停，可选择停止传感器或保持运行
-                    // 当前实现：保持传感器运行状态不变
-                    _logger.LogDebug("系统进入暂停状态，传感器保持当前状态");
+                    // 系统暂停，传感器保持运行
+                    _logger.LogDebug("系统进入暂停状态，传感器保持运行");
                     break;
 
                 case SystemState.Booting:
-                    // 系统启动中，传感器暂不启动
-                    _logger.LogDebug("系统启动中，传感器暂不启动");
+                    // 系统启动中，传感器已在程序启动时启动
+                    _logger.LogDebug("系统启动中，传感器已在程序启动时启动");
                     break;
 
                 default:
-                    _logger.LogDebug("系统状态 {State} 无需传感器激活处理", newState);
+                    _logger.LogDebug("系统状态 {State}，传感器保持运行", newState);
                     break;
             }
         }
