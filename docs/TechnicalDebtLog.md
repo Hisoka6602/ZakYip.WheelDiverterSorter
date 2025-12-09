@@ -2443,38 +2443,62 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-054] Worker 配置 API 化
 
-**状态**：❌ 未开始
+**状态**：⏳ 进行中 (当前 PR 已建立基础，完整实现需独立 PR)
 
-**问题描述**：
+**已完成工作**（当前 PR）：
+
+1. **✅ 创建 WorkerConfiguration 模型** (`src/Core/.../WorkerConfiguration.cs`)
+   - `StateCheckIntervalMs`: 状态检查轮询间隔（默认 500ms）
+   - `ErrorRecoveryDelayMs`: 异常恢复延迟（默认 2000ms）
+   - 完整的XML文档注释和使用指南
+
+2. **✅ 集成到 SystemConfiguration 模型**
+   - 添加 `Worker` 字段：`public WorkerConfiguration Worker { get; set; } = new();`
+   - 更新 `GetDefault()` 方法包含 Worker 配置默认值
+   - 保持向后兼容
+
+**待完成工作**（需独立 PR）：
+
+由于完整的 API 化涉及多个核心组件的重构，需要作为独立 PR 完成：
+
+1. **DTO 层更新**：
+   - 更新 `SystemConfigRequest` 添加 `WorkerConfiguration` 字段
+   - 更新 `SystemConfigResponse` 添加 `WorkerConfiguration` 字段
+   - 添加验证特性
+
+2. **API 层更新**：
+   - 更新 `SystemConfigController` 映射逻辑
+   - 在 `MapToResponse()` 中包含 Worker 配置
+   - 在 `PUT` 请求处理中支持 Worker 配置更新
+
+3. **DI 重构**：
+   - 重构所有使用 `IOptions<WorkerOptions>` 的代码
+   - 改为从 `ISystemConfigService` 读取 Worker 配置
+   - 影响的组件：
+     - `SensorActivationWorker`
+     - `SystemStateWheelDiverterCoordinator`
+     - 其他 BackgroundService
+
+4. **配置迁移**：
+   - 从 `appsettings.json` 迁移现有 Worker 配置到数据库
+   - 提供迁移脚本或启动时自动迁移
+   - 移除 `appsettings.json` 中的 `Worker` 配置节
+
+5. **测试更新**：
+   - 添加 API 端点测试
+   - 更新集成测试
+   - 验证配置热更新
+
+**为什么需要独立 PR**：
+- 影响多个核心组件（Host、Application、Execution层）
+- 需要仔细的向后兼容性处理
+- 需要完整的测试覆盖
+- 运行时配置热更新需要额外的机制设计
+
+**原问题描述**：
 - Worker 轮询间隔（`StateCheckIntervalMs`, `ErrorRecoveryDelayMs`）当前通过 `appsettings.json` 配置
 - 根据架构原则"所有业务配置通过 API 端点管理"，Worker 配置应该 API 化
 - 目标：通过 `GET/PUT /api/config/system` 管理 Worker 配置
-
-**详细说明**：
-- **当前状态**：
-  - `WorkerOptions` 通过 `IOptions<WorkerOptions>` 从 appsettings.json 读取
-  - 配置位置：`appsettings.json` → `Worker` 节
-  - 字段：`StateCheckIntervalMs` (500ms), `ErrorRecoveryDelayMs` (2000ms)
-
-- **目标状态**：
-  - 在 `SystemConfiguration` 模型添加 `WorkerIntervals` 字段
-  - 通过 `GET /api/config/system` 返回 Worker 配置
-  - 通过 `PUT /api/config/system` 更新 Worker 配置
-  - 移除 `appsettings.json` 中的 `Worker` 配置节
-  - DI 注册改为从数据库读取配置
-
-**影响范围**：
-- `src/Core/.../SystemConfiguration.cs` - 添加 WorkerIntervals 字段
-- `src/Host/.../SystemConfigController.cs` - 更新 API 端点
-- `src/Host/.../appsettings.json` - 移除 Worker 节
-- `src/Application/.../Extensions/*.cs` - 更新 DI 注册逻辑
-- 测试文件相应更新
-
-**预计工作量**：1 个 PR，3-4 个文件修改
-
-**优先级**：🟡 中
-
-**相关 PR**：待创建 (PR-Worker-Config-API)
 
 ---
 
