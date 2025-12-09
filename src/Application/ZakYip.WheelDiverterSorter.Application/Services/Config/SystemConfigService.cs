@@ -237,7 +237,7 @@ public class SystemConfigService : ISystemConfigService
 
     private static SystemConfiguration MapToConfiguration(UpdateSystemConfigCommand request)
     {
-        return new SystemConfiguration
+        var config = new SystemConfiguration
         {
             ExceptionChuteId = request.ExceptionChuteId,
             SortingMode = request.SortingMode,
@@ -246,5 +246,17 @@ public class SystemConfigService : ISystemConfigService
             // Note: Communication-related fields are not set here.
             // They should be managed through /api/communication endpoints
         };
+
+        // 如果提供了 Worker 配置，则更新
+        if (request.Worker != null)
+        {
+            config.Worker = new WorkerConfiguration
+            {
+                StateCheckIntervalMs = request.Worker.StateCheckIntervalMs,
+                ErrorRecoveryDelayMs = request.Worker.ErrorRecoveryDelayMs
+            };
+        }
+
+        return config;
     }
 }

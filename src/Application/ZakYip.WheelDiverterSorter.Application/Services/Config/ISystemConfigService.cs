@@ -101,6 +101,14 @@ public record UpdateSystemConfigCommand
     /// 可用格口ID列表（仅在循环格口落格模式下使用）
     /// </summary>
     public List<long> AvailableChuteIds { get; init; } = new();
+
+    /// <summary>
+    /// Worker 后台服务配置（可选）
+    /// </summary>
+    /// <remarks>
+    /// 如果为 null，则不更新 Worker 配置
+    /// </remarks>
+    public WorkerConfiguration? Worker { get; init; }
 }
 
 /// <summary>
