@@ -33,32 +33,26 @@ public class EnumShadowDetectionTests
         var solutionRoot = GetSolutionRoot();
         var srcDirectory = Path.Combine(solutionRoot, "src");
         
-        var enumLocations = new Dictionary<string, List<string>>();
-        
         var csFiles = Directory.GetFiles(srcDirectory, "*.cs", SearchOption.AllDirectories)
             .Where(f => !f.Contains("\\obj\\") && !f.Contains("\\bin\\"))
             .ToList();
         
-        foreach (var file in csFiles)
-        {
-            var content = File.ReadAllText(file);
-            var relativePath = Path.GetRelativePath(srcDirectory, file);
-            
-            // 匹配枚举定义
-            var enumPattern = @"enum\s+(\w+)\s*[:\{]";
-            var matches = Regex.Matches(content, enumPattern);
-            
-            foreach (Match match in matches)
+        // 使用 LINQ 直接构建 enumLocations 字典
+        var enumPattern = @"enum\s+(\w+)\s*[:\{]";
+        var enumLocations = csFiles
+            .SelectMany(file =>
             {
-                var enumName = match.Groups[1].Value;
-                
-                if (!enumLocations.ContainsKey(enumName))
-                {
-                    enumLocations[enumName] = new List<string>();
-                }
-                enumLocations[enumName].Add(relativePath);
-            }
-        }
+                var content = File.ReadAllText(file);
+                var relativePath = Path.GetRelativePath(srcDirectory, file);
+                var matches = Regex.Matches(content, enumPattern);
+                return matches.Cast<Match>()
+                    .Select(match => new { EnumName = match.Groups[1].Value, RelativePath = relativePath });
+            })
+            .GroupBy(x => x.EnumName)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.RelativePath).ToList()
+            );
         
         // 查找重复的枚举名
         var duplicateEnums = enumLocations
@@ -90,25 +84,27 @@ public class EnumShadowDetectionTests
             var enumPattern = @"enum\s+(\w+)\s*\{([^}]+)\}";
             var matches = Regex.Matches(content, enumPattern, RegexOptions.Singleline);
             
-            foreach (Match match in matches)
-            {
-                var enumName = match.Groups[1].Value;
-                var membersText = match.Groups[2].Value;
-                
-                // 提取枚举成员名称
-                var memberPattern = @"(\w+)\s*(?:=|,)";
-                var memberMatches = Regex.Matches(membersText, memberPattern);
-                
-                var members = new HashSet<string>(
-                    memberMatches.Cast<Match>()
-                        .Select(m => m.Groups[1].Value)
-                        .Where(m => !string.IsNullOrWhiteSpace(m))
-                );
-                
-                if (members.Count > 0)
+            foreach (var entry in matches.Cast<Match>()
+                .Select(match =>
                 {
-                    enums[enumName] = members;
-                }
+                    var enumName = match.Groups[1].Value;
+                    var membersText = match.Groups[2].Value;
+                    
+                    // 提取枚举成员名称（改进以正确匹配最后一个成员）
+                    var memberPattern = @"(\w+)\s*(?:=\s*\d+\s*)?(?:,|(?=\}))";
+                    var memberMatches = Regex.Matches(membersText, memberPattern);
+                    
+                    var members = new HashSet<string>(
+                        memberMatches.Cast<Match>()
+                            .Select(m => m.Groups[1].Value)
+                            .Where(m => !string.IsNullOrWhiteSpace(m))
+                    );
+                    
+                    return new { enumName, members };
+                })
+                .Where(x => x.members.Count > 0))
+            {
+                enums[entry.enumName] = entry.members;
             }
         }
         

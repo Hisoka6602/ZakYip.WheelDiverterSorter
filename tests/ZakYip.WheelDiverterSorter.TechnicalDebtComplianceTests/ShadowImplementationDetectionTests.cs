@@ -92,31 +92,28 @@ public class ShadowImplementationDetectionTests
         var solutionRoot = GetSolutionRoot();
         var srcDirectory = Path.Combine(solutionRoot, "src");
         
-        var serviceTypes = new Dictionary<string, List<string>>();
-        
         var csFiles = Directory.GetFiles(srcDirectory, "*.cs", SearchOption.AllDirectories);
         
-        foreach (var file in csFiles)
-        {
-            var content = File.ReadAllText(file);
-            var relativePath = Path.GetRelativePath(srcDirectory, file);
-            
-            // 匹配服务类定义：class XXXService / class XXXServiceImpl / class XXXServiceV2
-            var servicePattern = @"class\s+(\w+Service(?:Impl|V\d+|Old|New|Legacy)?)\s*[:\{]";
-            var matches = Regex.Matches(content, servicePattern);
-            
-            foreach (Match match in matches)
+        // 使用 LINQ 直接构建 serviceTypes 字典
+        var servicePattern = @"class\s+(\w+Service(?:Impl|V\d+|Old|New|Legacy)?)\s*[:\{]";
+        var serviceTypes = csFiles
+            .SelectMany(file =>
             {
-                var serviceName = match.Groups[1].Value;
-                var baseName = Regex.Replace(serviceName, @"(Impl|V\d+|Old|New|Legacy)$", "");
-                
-                if (!serviceTypes.ContainsKey(baseName))
+                var content = File.ReadAllText(file);
+                var relativePath = Path.GetRelativePath(srcDirectory, file);
+                var matches = Regex.Matches(content, servicePattern);
+                return matches.Cast<Match>().Select(match =>
                 {
-                    serviceTypes[baseName] = new List<string>();
-                }
-                serviceTypes[baseName].Add($"{relativePath}: {serviceName}");
-            }
-        }
+                    var serviceName = match.Groups[1].Value;
+                    var baseName = Regex.Replace(serviceName, @"(Impl|V\d+|Old|New|Legacy)$", "");
+                    return new { baseName, location = $"{relativePath}: {serviceName}" };
+                });
+            })
+            .GroupBy(x => x.baseName)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => x.location).ToList()
+            );
         
         // 查找有多个变体的服务
         var duplicateServices = serviceTypes

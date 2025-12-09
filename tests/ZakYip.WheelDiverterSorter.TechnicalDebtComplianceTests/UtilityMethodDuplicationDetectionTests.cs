@@ -45,22 +45,16 @@ public class UtilityMethodDuplicationDetectionTests
             var content = File.ReadAllText(file);
             var relativePath = Path.GetRelativePath(srcDirectory, file);
             
-            // 提取 public static 方法
-            var methodPattern = @"public\s+static\s+\w+[\?\<\>\[\]]*\s+(\w+)\s*\(([^\)]*)\)";
+            // 提取 public static 方法（改进正则以支持泛型和复杂类型）
+            var methodPattern = @"public\s+static\s+[\w\.\<\>\[\]\?\,\s]+\s+(\w+)\s*\(([^\)]*)\)";
             var matches = Regex.Matches(content, methodPattern);
             
             foreach (Match match in matches)
             {
                 var methodName = match.Groups[1].Value;
-                var parameters = match.Groups[2].Value;
                 
-                // 简化参数列表（去除参数名，只保留类型）
-                var paramTypes = Regex.Matches(parameters, @"(\w+[\?\<\>\[\]]*)\s+\w+")
-                    .Cast<Match>()
-                    .Select(m => m.Groups[1].Value)
-                    .ToList();
-                
-                var signature = $"{methodName}({string.Join(", ", paramTypes)})";
+                // 简化方案：只使用方法名作为签名，避免复杂的参数类型解析问题
+                var signature = methodName;
                 
                 if (!utilityMethods.ContainsKey(signature))
                 {
@@ -103,32 +97,32 @@ public class UtilityMethodDuplicationDetectionTests
                 var classPattern = @"(?:public\s+)?(?:static\s+)?(?:partial\s+)?class\s+(\w+)";
                 var matches = Regex.Matches(content, classPattern);
                 
-                foreach (Match match in matches)
-                {
-                    var className = match.Groups[1].Value;
-                    
-                    // 如果类包含public static方法，但名称不符合规范
-                    if (!className.EndsWith("Helper") &&
-                        !className.EndsWith("Utils") &&
-                        !className.EndsWith("Util") &&
-                        !className.EndsWith("Extensions") &&
-                        !className.EndsWith("Extension") &&
-                        !className.Contains("Constants") &&
-                        !className.Contains("Defaults") &&
-                        // 排除一些合理的例外
-                        !className.Contains("Controller") &&
-                        !className.Contains("Service") &&
-                        !className.Contains("Factory") &&
-                        !className.Contains("Provider"))
-                    {
-                        // 确认类中确实有public static方法
-                        var staticMethodCount = Regex.Matches(content, @"public\s+static\s+\w+").Count;
-                        if (staticMethodCount > 0)
+                invalidUtilityClasses.AddRange(
+                    matches.Cast<Match>()
+                        .Select(match => match.Groups[1].Value)
+                        .Where(className =>
+                            !className.EndsWith("Helper") &&
+                            !className.EndsWith("Utils") &&
+                            !className.EndsWith("Util") &&
+                            !className.EndsWith("Extensions") &&
+                            !className.EndsWith("Extension") &&
+                            !className.Contains("Constants") &&
+                            !className.Contains("Defaults") &&
+                            // 排除一些合理的例外
+                            !className.Contains("Controller") &&
+                            !className.Contains("Service") &&
+                            !className.Contains("Factory") &&
+                            !className.Contains("Provider"))
+                        .Select(className =>
                         {
-                            invalidUtilityClasses.Add($"{relativePath}: class {className} (有 {staticMethodCount} 个public static方法)");
-                        }
-                    }
-                }
+                            var staticMethodCount = Regex.Matches(content, @"public\s+static\s+\w+").Count;
+                            return staticMethodCount > 0
+                                ? $"{relativePath}: class {className} (有 {staticMethodCount} 个public static方法)"
+                                : null;
+                        })
+                        .Where(x => x != null)
+                        .Cast<string>()
+                );
             }
         }
         

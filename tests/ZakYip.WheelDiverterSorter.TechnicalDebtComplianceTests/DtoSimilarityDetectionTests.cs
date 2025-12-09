@@ -52,23 +52,25 @@ public class DtoSimilarityDetectionTests
             var recordPattern = @"record\s+(\w+(?:Request|Response|Dto|Model))\s*\{([^}]+)\}";
             var matches = Regex.Matches(content, recordPattern, RegexOptions.Singleline);
             
-            foreach (Match match in matches)
-            {
-                var typeName = match.Groups[1].Value;
-                var bodyText = match.Groups[2].Value;
-                
-                // 提取属性名
-                var propPattern = @"public\s+\w+[\?\s]+(\w+)\s*\{";
-                var propMatches = Regex.Matches(bodyText, propPattern);
-                
-                var properties = propMatches.Cast<Match>()
-                    .Select(m => m.Groups[1].Value)
-                    .ToList();
-                
-                if (properties.Count > 0)
+            foreach (var entry in matches.Cast<Match>()
+                .Select(match =>
                 {
-                    dtoTypes[typeName] = properties;
-                }
+                    var typeName = match.Groups[1].Value;
+                    var bodyText = match.Groups[2].Value;
+                    
+                    // 提取属性名（改进正则以支持泛型、数组等复杂类型）
+                    var propPattern = @"public\s+[\w\.\<\>\[\]\?\,\s]+(\w+)\s*\{";
+                    var propMatches = Regex.Matches(bodyText, propPattern);
+                    
+                    var properties = propMatches.Cast<Match>()
+                        .Select(m => m.Groups[1].Value)
+                        .ToList();
+                    
+                    return new { typeName, properties };
+                })
+                .Where(x => x.properties.Count > 0))
+            {
+                dtoTypes[entry.typeName] = entry.properties;
             }
         }
         
@@ -76,12 +78,10 @@ public class DtoSimilarityDetectionTests
         var similarPairs = new List<string>();
         var checkedPairs = new HashSet<string>();
         
-        foreach (var type1 in dtoTypes)
+        foreach (var type1 in dtoTypes.Where(t => t.Value.Count >= 3))
         {
-            foreach (var type2 in dtoTypes)
+            foreach (var type2 in dtoTypes.Where(t => t.Key != type1.Key && t.Value.Count >= 3))
             {
-                if (type1.Key == type2.Key) continue;
-                
                 var pairKey = string.CompareOrdinal(type1.Key, type2.Key) < 0
                     ? $"{type1.Key}|{type2.Key}"
                     : $"{type2.Key}|{type1.Key}";
@@ -95,7 +95,7 @@ public class DtoSimilarityDetectionTests
                 var similarity = (double)commonProps / totalProps;
                 
                 // 如果相似度 > 90%，报告为可能的重复
-                if (similarity > 0.9 && type1.Value.Count >= 3)
+                if (similarity > 0.9)
                 {
                     similarPairs.Add(
                         $"⚠️  '{type1.Key}' 和 '{type2.Key}' 有 {similarity:P0} 字段重叠 " +

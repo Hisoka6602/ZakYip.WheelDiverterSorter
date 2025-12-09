@@ -50,14 +50,17 @@ public class PanelConfigControllerTests : IClassFixture<WebApplicationFactory<Pr
     }
 
     [Fact]
-    public async Task UpdatePanelConfig_ShouldSucceed_WithValidRequest()
+    public async Task GetPanelConfig_ShouldBeAccessible()
     {
-        // Act - For simplicity, we just verify the endpoint is accessible
-        // Detailed request validation would require knowing exact panel configuration structure
+        // Act
         var response = await _client.GetAsync("/api/config/panel");
 
         // Assert
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.NotNull(content);
+        Assert.NotEmpty(content);
     }
 
     [Fact]
