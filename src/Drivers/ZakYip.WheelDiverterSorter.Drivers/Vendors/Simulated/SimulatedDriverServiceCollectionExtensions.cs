@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
@@ -85,6 +86,14 @@ public static class SimulatedDriverServiceCollectionExtensions
 
         // 注册面板 IO 协调器
         services.AddSingleton<IPanelIoCoordinator, DefaultPanelIoCoordinator>();
+
+        // 注册模拟输出端口
+        services.AddSingleton<IOutputPort>(sp =>
+        {
+            var logger = sp.GetService<ILogger<SimulatedOutputPort>>();
+            var systemClock = sp.GetRequiredService<ISystemClock>();
+            return new SimulatedOutputPort(logger, systemClock);
+        });
 
         return services;
     }
