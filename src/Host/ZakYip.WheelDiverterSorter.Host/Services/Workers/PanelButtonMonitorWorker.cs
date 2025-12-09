@@ -252,7 +252,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 PanelButtonType.Reset when currentState is SystemState.Faulted or SystemState.EmergencyStop =>
                     SystemState.Ready,
                 
-                PanelButtonType.EmergencyStop when currentState != SystemState.EmergencyStop =>
+                // 急停按钮在任何状态下都必须生效（最高优先级，安全第一）
+                PanelButtonType.EmergencyStop =>
                     SystemState.EmergencyStop,
                 
                 _ => null
