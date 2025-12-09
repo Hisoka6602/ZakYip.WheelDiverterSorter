@@ -141,6 +141,15 @@ public class SystemConfiguration
     public int ThrottleMetricsWindowSeconds { get; set; } = 60;
 
     /// <summary>
+    /// Worker 后台服务配置选项
+    /// </summary>
+    /// <remarks>
+    /// 统一管理所有 BackgroundService/IHostedService 的轮询间隔和异常恢复延迟配置。
+    /// TD-054: 已从 appsettings.json (WorkerOptions) 迁移到 SystemConfiguration，支持 API 动态管理。
+    /// </remarks>
+    public WorkerConfiguration Worker { get; set; } = new();
+
+    /// <summary>
     /// 配置版本号
     /// </summary>
     /// <remarks>
@@ -223,6 +232,7 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
+            Worker = new WorkerConfiguration(), // TD-054: Worker 配置默认值
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now
