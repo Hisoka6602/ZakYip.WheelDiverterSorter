@@ -159,7 +159,6 @@ public sealed class SensorActivationWorker : BackgroundService
                 case SystemState.Ready:
                 case SystemState.EmergencyStop:
                 case SystemState.Faulted:
-                case SystemState.Stopped:
                     // 系统停止/急停/故障，停止传感器服务
                     if (_sensorsRunning)
                     {
