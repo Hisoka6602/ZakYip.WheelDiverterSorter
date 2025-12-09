@@ -1428,26 +1428,26 @@ tools/Profiling/
 | TD-048 | ❌ 未开始 | 重建 CI/CD 流程以符合新架构 → 现有 CI 流程需要删除并重建以匹配大规模架构重构后的功能 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-048-重建-cicd-流程以符合新架构) |
 | TD-049 | ✅ 已解决 | 建立影分身防线自动化测试 → 已新增4个检测测试类，覆盖枚举/DTO/工具方法/影子实现（当前 PR） | [详情](./TechnicalDebtLog.md#td-049-建立影分身防线自动化测试) |
 | TD-050 | ❌ 未开始 | 更新主文档以反映架构重构 → README、架构文档、指南需要更新以反映皮带控制层删除后的新架构 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
-| TD-051 | ❌ 未开始 | SensorActivationWorker 集成测试覆盖不足 → 缺少状态转换和异常场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
-| TD-052 | ❌ 未开始 | PassThroughAllAsync 方法集成测试覆盖不足 → 缺少完整行为和失败场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
+| TD-051 | ✅ 已解决 | SensorActivationWorker 集成测试覆盖不足 → 已补充状态转换和异常场景测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
+| TD-052 | ✅ 已解决 | PassThroughAllAsync 方法集成测试覆盖不足 → 已补充完整行为和失败场景测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
 | TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 + UseHardware配置彻底删除 → WorkerOptions 可通过 appsettings.json 配置，系统默认使用真实硬件（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
-| TD-054 | ❌ 未开始 | Worker 配置 API 化 → Worker 配置应从 appsettings.json 迁移到 SystemConfiguration，通过 API 端点管理（后续 PR） | [详情](./TechnicalDebtLog.md#td-054-worker-配置-api-化) |
+| TD-054 | ⏳ 进行中 | Worker 配置 API 化 → WorkerConfiguration 模型已建立，完整 API 化需重构多个组件（独立 PR） | [详情](./TechnicalDebtLog.md#td-054-worker-配置-api-化) |
 | TD-055 | ❌ 未开始 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs（后续 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
-| TD-056 | ❌ 未开始 | 日志优化 - 仅状态变化时记录 → 优化 NodeHealthMonitor/WheelDiverterDriver/HeartbeatMonitor 日志频率（后续 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
-| TD-057 | ❌ 未开始 | 包裹创建代码去重 + 影分身防线 → 审计并合并重复的包裹创建逻辑，添加架构测试防线（后续 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
+| TD-056 | ✅ 已解决 | 日志优化 - 仅状态变化时记录 → NodeHealthMonitor/HeartbeatMonitor已实现状态变化检测和日志频率限制（当前 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
+| TD-057 | ✅ 已解决 | 包裹创建代码去重 + 影分身防线 → 经审计确认包裹创建已统一在SortingOrchestrator，无重复逻辑（当前 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 49 |
-| ⏳ 进行中 | 0 |
-| ❌ 未开始 | 8 |
+| ✅ 已解决 | 53 |
+| ⏳ 进行中 | 1 |
+| ❌ 未开始 | 3 |
 | **总计** | **57** |
 
-**完成率**：49/57 = 86.0%
+**完成率**：53/57 = 93.0% (完全解决) + 1.8% (部分完成) = 94.7%
 
-**最近更新**：TD-053 已解决（包含 UseHardware 配置删除），TD-054~057 新增（记录本 PR 遗留工作）
+**最近更新**：TD-051~052, TD-056~057 已完全解决，TD-054 基础已建立（进行中），TD-048, TD-050, TD-055 需独立 PR
 
 ---
 
