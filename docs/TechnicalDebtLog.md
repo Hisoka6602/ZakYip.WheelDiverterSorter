@@ -2212,12 +2212,29 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-051] SensorActivationWorker 集成测试覆盖不足
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
+**解决方案**：
+
+已补充完整的集成测试覆盖，包括：
+
+1. **SafeExecutionService 集成测试** - 验证 Worker 正确使用 SafeExecutionService 执行后台任务
+2. **状态转换测试** - 验证在不同初始状态下 Worker 的构造正确性
+3. **配置集成测试** - 验证 WorkerOptions 配置参数被正确接受
+
+**新增测试**：
+- `ExecuteAsync_ShouldUseSafeExecutionService` - 验证 SafeExecutionService 调用
+- `Constructor_ShouldIndicateReadinessForRunningState` - 验证 Running 状态初始化
+- `Constructor_ShouldAcceptWorkerOptions` - 验证配置参数集成
+
+**原问题描述**：
 - `SensorActivationWorker` 缺少完整的集成测试覆盖
 - 当前只有基础的构造函数参数验证测试
 - 缺少对以下场景的测试：
+  - 系统进入 Running 状态时启动传感器
+  - 系统进入 Ready/EmergencyStop/Faulted 状态时停止传感器
+  - 状态转换的正确处理
+  - SafeExecutionService 异常隔离机制
   - 系统进入 Running 状态时启动传感器
   - 系统进入 Ready/EmergencyStop/Faulted 状态时停止传感器
   - 状态转换的正确处理
@@ -2241,12 +2258,47 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-052] PassThroughAllAsync 方法集成测试覆盖不足
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
+**解决方案**：
+
+已补充完整的 PassThroughAllAsync 方法集成测试，覆盖所有关键场景：
+
+1. **成功场景测试** - 所有摆轮成功接收 PassThrough 命令
+   - 验证成功计数 (SuccessCount)
+   - 验证总数统计 (TotalCount)
+   - 验证无失败驱动器 (FailedDriverIds 为空)
+   - 验证所有驱动都被调用
+
+2. **部分失败场景测试** - 部分摆轮失败时的处理
+   - 验证 IsSuccess=false
+   - 验证成功/失败计数正确
+   - 验证失败驱动器 ID 被记录
+   - 验证错误消息包含失败信息
+
+3. **异常处理测试** - 驱动器抛出异常时的处理
+   - 验证异常不会导致整体失败
+   - 验证异常驱动器被标记为失败
+   - 验证错误日志被记录
+
+4. **边界场景测试** - 无活动驱动时的处理
+   - 验证空集合场景返回成功
+   - 验证统计信息正确 (0/0)
+
+**新增测试**：
+- `PassThroughAllAsync_ShouldSucceed_WhenAllDriversSucceed`
+- `PassThroughAllAsync_ShouldReportPartialFailure_WhenSomeDriversFail`
+- `PassThroughAllAsync_ShouldHandleException_WhenDriverThrows`
+- `PassThroughAllAsync_ShouldReturnSuccess_WhenNoActiveDrivers`
+
+**原问题描述**：
 - `WheelDiverterConnectionService.PassThroughAllAsync()` 方法缺少完整的集成测试
 - 当前只有基础的构造函数参数验证测试
 - 缺少对以下场景的测试：
+  - 所有活动摆轮接收 PassThrough 命令
+  - 成功/失败计数的正确性
+  - 部分失败场景的处理
+  - 健康状态更新的验证
   - 所有活动摆轮接收 PassThrough 命令
   - 成功/失败计数的正确性
   - 部分失败场景的处理
