@@ -21,7 +21,6 @@ using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
@@ -39,7 +38,6 @@ using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Execution.Routing;
-using ZakYip.WheelDiverterSorter.Execution.Segments;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Adapters;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
@@ -193,7 +191,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddSingleton<IRouteReplanner, RouteReplanner>();
 
         // 16. 注册中段皮带 IO 联动服务
-        services.AddMiddleConveyorServices(configuration);
+        // Middle conveyor services removed - functionality replaced by ConveyorSegmentConfiguration
 
         // 17. 注册仿真服务
         services.AddSimulationServices(configuration);
@@ -468,98 +466,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// <summary>
     /// 注册中段皮带 IO 联动相关服务
     /// </summary>
-    private static IServiceCollection AddMiddleConveyorServices(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        // 绑定配置
-        var options = new MiddleConveyorIoOptions
-        {
-            Enabled = true,
-            IsSimulationMode = false,
-            Segments = Array.Empty<ConveyorIoMapping>()
-        };
-        configuration.GetSection("MiddleConveyorIo").Bind(options);
-
-        // 注册配置为单例
-        services.AddSingleton(options);
-
-        if (!options.Enabled)
-        {
-            // 如果未启用，注册空实现
-            services.AddSingleton<IMiddleConveyorCoordinator>(sp =>
-                new MiddleConveyorCoordinator(
-                    Array.Empty<IConveyorSegment>(),
-                    options,
-                    sp.GetRequiredService<ILogger<MiddleConveyorCoordinator>>()));
-            return services;
-        }
-
-        // 使用工厂模式延迟到运行时决定使用哪种驱动实现
-        services.AddSingleton<IMiddleConveyorCoordinator>(sp =>
-        {
-            var logger = sp.GetRequiredService<ILogger<MiddleConveyorCoordinator>>();
-            
-            var runtimeProfile = sp.GetService<IRuntimeProfile>();
-            var isSimulation = runtimeProfile?.IsSimulationMode ?? options.IsSimulationMode;
-            
-            var segments = CreateConveyorSegments(
-                options.Segments,
-                isSimulation,
-                sp);
-
-            return new MiddleConveyorCoordinator(segments, options, logger);
-        });
-
-        return services;
-    }
-
-    private static IReadOnlyList<IConveyorSegment> CreateConveyorSegments(
-        IReadOnlyList<ConveyorIoMapping> mappings,
-        bool isSimulation,
-        IServiceProvider serviceProvider)
-    {
-        var segments = new List<IConveyorSegment>();
-
-        var factory = serviceProvider.GetService<IVendorDriverFactory>();
-
-        foreach (var mapping in mappings)
-        {
-            IConveyorSegmentDriver? driver = null;
-
-            if (factory != null)
-            {
-                driver = factory.CreateConveyorSegmentDriver(mapping.SegmentKey);
-            }
-
-            if (driver == null)
-            {
-                if (isSimulation)
-                {
-                    driver = new SimulatedConveyorSegmentDriver(
-                        mapping,
-                        serviceProvider.GetRequiredService<ILogger<SimulatedConveyorSegmentDriver>>());
-                }
-                else
-                {
-                    var emcController = serviceProvider.GetRequiredService<IEmcController>();
-                    driver = new LeadshineConveyorSegmentDriver(
-                        mapping,
-                        emcController,
-                        serviceProvider.GetRequiredService<ILogger<LeadshineConveyorSegmentDriver>>());
-                }
-            }
-
-            var segment = new ConveyorSegment(
-                driver,
-                serviceProvider.GetRequiredService<ILogger<ConveyorSegment>>(),
-                serviceProvider.GetRequiredService<ISystemClock>());
-
-            segments.Add(segment);
-        }
-
-        return segments;
-    }
+    // AddMiddleConveyorServices and CreateConveyorSegments methods removed
+    // Middle conveyor functionality replaced by ConveyorSegmentConfiguration
 
     #endregion
 

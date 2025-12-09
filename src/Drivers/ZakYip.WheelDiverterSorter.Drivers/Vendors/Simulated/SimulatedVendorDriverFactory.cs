@@ -41,22 +41,6 @@ public class SimulatedVendorDriverFactory : IVendorDriverFactory
         return new SimulatedIoLinkageDriver(logger);
     }
 
-    public IConveyorSegmentDriver? CreateConveyorSegmentDriver(string segmentId)
-    {
-        // 创建模拟的传送带段驱动器
-        var logger = _loggerFactory.CreateLogger<SimulatedConveyorSegmentDriver>();
-        
-        // 创建一个默认的 mapping 配置
-        var mapping = new ConveyorIoMapping
-        {
-            SegmentKey = segmentId,
-            DisplayName = $"Simulated-{segmentId}",
-            StartOutputChannel = 0
-        };
-        
-        return new SimulatedConveyorSegmentDriver(mapping, logger);
-    }
-
     public ISensorInputReader? CreateSensorInputReader()
     {
         var logger = _loggerFactory.CreateLogger<SimulatedSensorInputReader>();

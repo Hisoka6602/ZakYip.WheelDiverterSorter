@@ -32,7 +32,7 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
         
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<IEnumerable<ConveyorSegmentResponse>>>();
         Assert.NotNull(result);
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotNull(result.Data);
     }
 
@@ -59,7 +59,7 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
         
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<ConveyorSegmentResponse>>();
         Assert.NotNull(result);
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(100, result.Data!.SegmentId);
         Assert.Equal("Test Segment", result.Data.SegmentName);
@@ -112,7 +112,7 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
         
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<ConveyorSegmentResponse>>();
         Assert.NotNull(result);
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal("Updated Name", result.Data!.SegmentName);
         Assert.Equal(6000, result.Data.LengthMm);
@@ -158,7 +158,7 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
         
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<ConveyorSegmentResponse>>();
         Assert.NotNull(result);
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(999, result.Data!.SegmentId);
         Assert.Equal(5000, result.Data.LengthMm); // Default length
@@ -224,7 +224,7 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
         
         var result = await response.Content.ReadFromJsonAsync<ApiResponse<ConveyorSegmentBatchResponse>>();
         Assert.NotNull(result);
-        Assert.True(result.IsSuccess);
+        Assert.True(result.Success);
         Assert.NotNull(result.Data);
         Assert.Equal(2, result.Data!.SuccessCount);
         Assert.Equal(0, result.Data.FailureCount);

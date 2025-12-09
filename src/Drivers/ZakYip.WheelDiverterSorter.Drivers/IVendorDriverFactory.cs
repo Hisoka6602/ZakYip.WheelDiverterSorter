@@ -43,13 +43,6 @@ public interface IVendorDriverFactory
     IIoLinkageDriver CreateIoLinkageDriver();
 
     /// <summary>
-    /// 创建传送带段驱动器
-    /// </summary>
-    /// <param name="segmentId">传送带段ID</param>
-    /// <returns>传送带段驱动器实例，如果不支持则返回null</returns>
-    IConveyorSegmentDriver? CreateConveyorSegmentDriver(string segmentId);
-
-    /// <summary>
     /// 创建传感器输入读取器
     /// </summary>
     /// <returns>传感器输入读取器实例，如果不支持则返回null</returns>
