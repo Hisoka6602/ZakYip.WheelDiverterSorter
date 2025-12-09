@@ -56,8 +56,7 @@ public static class LiteDbMapperConfig
         mapper.Entity<WheelDiverterConfiguration>()
             .Id(x => x.Id);
         
-        mapper.Entity<WheelBindingsConfig>()
-            .Id(x => x.Id);
+        // WheelBindingsConfig removed - wheel binding now handled via topology + vendor config association
     }
 
     /// <summary>

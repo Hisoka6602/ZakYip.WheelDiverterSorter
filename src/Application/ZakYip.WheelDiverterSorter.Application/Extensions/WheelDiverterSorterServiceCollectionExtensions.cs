@@ -286,14 +286,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             return repository;
         });
 
-        // 注册摆轮硬件绑定配置仓储为单例
-        services.AddSingleton<IWheelBindingsRepository>(serviceProvider =>
-        {
-            var clock = serviceProvider.GetRequiredService<ISystemClock>();
-            var repository = new LiteDbWheelBindingsRepository(fullDatabasePath, clock);
-            repository.InitializeDefault(clock.LocalNow);
-            return repository;
-        });
+        // WheelHardwareBinding removed - wheel binding now handled via topology + vendor config association
 
         // 注册日志配置仓储为单例
         services.AddSingleton<ILoggingConfigurationRepository>(serviceProvider =>
