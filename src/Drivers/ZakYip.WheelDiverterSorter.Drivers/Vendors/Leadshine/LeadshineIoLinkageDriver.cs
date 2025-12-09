@@ -1,14 +1,14 @@
-using Microsoft.Extensions.Logging;
 using csLTDMC;
+using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
+using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
-using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
@@ -22,7 +22,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     /// 雷赛控制卡错误码：控制卡未初始化
     /// </summary>
     private const short ErrorCodeCardNotInitialized = 9;
-    
+
     private readonly ILogger<LeadshineIoLinkageDriver> _logger;
     private readonly IEmcController _emcController;
 
@@ -94,7 +94,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
                         outputValue,
                         result);
                 }
-                
+
                 throw new InvalidOperationException(
                     $"设置 IO 点 {ioPoint.BitNumber} 失败，错误码: {result}。CardNo={_emcController.CardNo}");
             }
@@ -119,7 +119,7 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     public async Task SetIoPointsAsync(IEnumerable<IoLinkagePoint> ioPoints, CancellationToken cancellationToken = default)
     {
         var ioPointsList = ioPoints.ToList();
-        
+
         _logger.LogInformation("批量设置 IO 点，共 {Count} 个", ioPointsList.Count);
 
         foreach (var ioPoint in ioPointsList)
