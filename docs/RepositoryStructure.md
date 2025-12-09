@@ -1430,15 +1430,15 @@ tools/Profiling/
 | TD-050 | ❌ 未开始 | 更新主文档以反映架构重构 → README、架构文档、指南需要更新以反映皮带控制层删除后的新架构 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
 | TD-051 | ❌ 未开始 | SensorActivationWorker 集成测试覆盖不足 → 缺少状态转换和异常场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
 | TD-052 | ❌ 未开始 | PassThroughAllAsync 方法集成测试覆盖不足 → 缺少完整行为和失败场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
-| TD-053 | ❌ 未开始 | Worker 轮询间隔硬编码 → SensorActivationWorker 和 SystemStateWheelDiverterCoordinator 的轮询间隔应可配置 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
+| TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 → 已创建 WorkerOptions 配置类，StateCheckIntervalMs 和 ErrorRecoveryDelayMs 现在可通过 appsettings.json 配置（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 48 |
+| ✅ 已解决 | 49 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 5 |
+| ❌ 未开始 | 4 |
 | **总计** | **53** |
 
 **完成率**：48/53 = 90.6%

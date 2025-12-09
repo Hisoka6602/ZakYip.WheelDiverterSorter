@@ -2271,9 +2271,49 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-053] SensorActivationWorker 和 SystemStateWheelDiverterCoordinator 的轮询间隔硬编码
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
+**解决方案**：
+
+已创建 `WorkerOptions` 配置类，使轮询间隔和异常恢复延迟可通过 appsettings.json 配置：
+
+1. **新增 WorkerOptions 配置类**：
+   - 位置：`src/Host/.../Configuration/WorkerOptions.cs`
+   - 包含配置项：
+     - `StateCheckIntervalMs`：状态检查轮询间隔（默认 500ms）
+     - `ErrorRecoveryDelayMs`：异常恢复延迟（默认 2000ms）
+   - 提供详细的配置说明和建议范围
+
+2. **更新 SensorActivationWorker**：
+   - 移除硬编码的 `const int StateCheckIntervalMs = 500`
+   - 移除硬编码的 `const int ErrorRecoveryDelayMs = 2000`
+   - 通过构造函数注入 `IOptions<WorkerOptions>`
+   - 使用 `_workerOptions.StateCheckIntervalMs` 和 `_workerOptions.ErrorRecoveryDelayMs`
+
+3. **更新 SystemStateWheelDiverterCoordinator**：
+   - 移除硬编码常量
+   - 通过构造函数注入 `IOptions<WorkerOptions>`
+   - 使用配置化的轮询间隔
+
+4. **注册配置**：
+   - 在 `WheelDiverterSorterHostServiceCollectionExtensions` 中注册：
+     ```csharp
+     services.Configure<WorkerOptions>(configuration.GetSection(WorkerOptions.SectionName));
+     ```
+
+5. **更新 appsettings.json**：
+   ```json
+   "Worker": {
+     "StateCheckIntervalMs": 500,
+     "ErrorRecoveryDelayMs": 2000
+   }
+   ```
+
+6. **更新单元测试**：
+   - 在 `SensorActivationWorkerTests` 中添加 `IOptions<WorkerOptions>` 参数
+   - 使用 `Options.Create(new WorkerOptions())` 创建测试用配置
+
+**原问题描述**：
 - `SensorActivationWorker` 中的 `StateCheckIntervalMs` (500ms) 和 `ErrorRecoveryDelayMs` (2000ms) 是硬编码常量
 - `SystemStateWheelDiverterCoordinator` 也有类似的硬编码轮询间隔
 - 这些值在不同部署场景下可能需要调整，但当前需要重新编译代码
@@ -2291,12 +2331,64 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 3. 在 DI 注册时注入配置
 4. 保持当前的默认值以确保向后兼容
 
-**优先级**：🟢 低
+**优先级**：🟢 低 → ✅ 已完成
 
-**相关 PR**：PR-Sensor-Activation
+**相关 PR**：PR-Sensor-Activation → 当前 PR
+
+**验证结果**：
+- ✅ 构建通过，无编译错误
+- ✅ 单元测试更新完成
+- ✅ 配置项可通过 appsettings.json 修改
+- ✅ 保持默认值向后兼容
 
 ---
 
-**文档版本**：4.5 (TD-051~053 新增)  
+## 系统启动韧性验证 (Hardware Initialization Resilience Verification)
+
+**问题陈述**：即使任意硬件无法建立都不能影响系统启动
+
+**验证结果**：✅ 系统已满足韧性要求，无需额外修改
+
+**当前实现分析**：
+
+1. **WheelDiverterInitHostedService**（摆轮初始化服务）：
+   - ✅ 使用 `ISafeExecutionService.ExecuteAsync` 包裹整个初始化流程
+   - ✅ 捕获所有异常并记录日志，不会导致进程崩溃
+   - ✅ 连接失败时记录警告信息，系统继续启动
+   - ✅ 返回部分成功结果（ConnectedCount/TotalCount/FailedDriverIds）
+
+2. **BootHostedService**（系统自检服务）：
+   - ✅ 使用 try-catch 捕获自检过程中的所有异常
+   - ✅ 自检失败时转换到 Faulted 状态，不会阻止启动
+   - ✅ 记录详细的失败信息（驱动器、上游系统、配置）
+   - ✅ 更新 Prometheus 指标反映系统状态
+
+3. **LeadshineEmcController**（雷赛硬件控制器）：
+   - ✅ 使用 Polly 重试策略（0ms → 300ms → 1s → 2s）
+   - ✅ 初始化失败返回 false，不抛出异常
+   - ✅ 通过 `_isAvailable` 标志位标记硬件可用性
+   - ✅ 调用方可通过 `IsAvailable()` 方法检查状态
+
+4. **S7Connection**（西门子 PLC 连接）：
+   - ✅ 连接失败记录日志并返回 false
+   - ✅ 支持最大重连次数配置（MaxReconnectAttempts）
+   - ✅ 支持重连延迟配置（ReconnectDelay）
+   - ✅ 健康检查定时器自动尝试恢复连接
+
+5. **SensorActivationWorker & SystemStateWheelDiverterCoordinator**：
+   - ✅ 使用 `SafeExecutionService` 包裹后台任务循环
+   - ✅ 异常恢复延迟可配置（ErrorRecoveryDelayMs）
+   - ✅ 异常后等待延迟再重试，不会快速循环
+
+**结论**：
+- 系统启动流程已经具备完整的韧性设计
+- 所有硬件初始化失败都被优雅处理
+- 系统可在硬件部分或全部不可用的情况下启动
+- 状态机正确反映系统健康状况（Booting → Ready/Faulted）
+- 无需额外修改即可满足"即使任意硬件无法建立都不能影响系统启动"的要求
+
+---
+
+**文档版本**：4.6 (TD-053 已解决 + 硬件韧性验证)  
 **最后更新**：2025-12-09  
 **维护团队**：ZakYip Development Team
