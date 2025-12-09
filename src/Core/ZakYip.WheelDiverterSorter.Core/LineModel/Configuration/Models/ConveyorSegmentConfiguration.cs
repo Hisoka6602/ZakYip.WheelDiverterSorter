@@ -106,7 +106,6 @@ public record class ConveyorSegmentConfiguration
     /// <returns>验证结果：(是否正常, 是否超时, 是否丢失)</returns>
     public (bool IsNormal, bool IsTimeout, bool IsLost) ValidateTransitTime(double actualTimeMs)
     {
-        var theoreticalTime = CalculateTransitTimeMs();
         var timeoutThreshold = CalculateTimeoutThresholdMs();
 
         // 正常：实际时间 <= 超时阈值
