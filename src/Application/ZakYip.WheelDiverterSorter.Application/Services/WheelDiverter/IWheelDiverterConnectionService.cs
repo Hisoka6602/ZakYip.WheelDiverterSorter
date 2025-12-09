@@ -30,6 +30,13 @@ public interface IWheelDiverterConnectionService
     Task<WheelDiverterOperationResult> StopAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 让所有摆轮向前（直通）
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>操作结果</returns>
+    Task<WheelDiverterOperationResult> PassThroughAllAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 获取所有摆轮的健康状态
     /// </summary>
     /// <returns>健康状态列表</returns>
