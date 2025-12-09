@@ -379,18 +379,18 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         finally
         {
             // 无论如何都要关闭预警输出
-            if (warningOutputActivated && panelConfig?.PreStartWarningOutputBit.HasValue == true)
+            if (warningOutputActivated)
             {
                 try
                 {
                     // 关闭输出：与开启时相反的值
                     // ActiveHigh: 高电平有效 -> 写入 false（熄灭/禁用）
                     // ActiveLow: 低电平有效 -> 写入 true（熄灭/禁用）
-                    var outputValue = panelConfig.PreStartWarningOutputLevel != TriggerLevel.ActiveHigh;
+                    var outputValue = panelConfig!.PreStartWarningOutputLevel != TriggerLevel.ActiveHigh;
                     
                     _logger.LogInformation(
                         "关闭预警输出: Bit={OutputBit}, Level={OutputLevel}, Value={OutputValue}",
-                        panelConfig.PreStartWarningOutputBit.Value,
+                        panelConfig.PreStartWarningOutputBit!.Value,
                         panelConfig.PreStartWarningOutputLevel,
                         outputValue);
 
@@ -410,7 +410,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                     _logger.LogError(
                         ex,
                         "关闭预警输出异常: Bit={OutputBit}",
-                        panelConfig.PreStartWarningOutputBit.Value);
+                        panelConfig!.PreStartWarningOutputBit!.Value);
                 }
             }
         }

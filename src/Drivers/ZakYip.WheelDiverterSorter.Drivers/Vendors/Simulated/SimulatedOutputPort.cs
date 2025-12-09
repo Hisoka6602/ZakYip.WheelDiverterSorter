@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 
@@ -13,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 public class SimulatedOutputPort : IOutputPort
 {
     private readonly ILogger<SimulatedOutputPort>? _logger;
+    private readonly ISystemClock _systemClock;
     private readonly List<(int BitIndex, bool Value, DateTime Timestamp)> _writeHistory = new();
     private readonly object _lock = new();
 
@@ -20,9 +22,11 @@ public class SimulatedOutputPort : IOutputPort
     /// 初始化 SimulatedOutputPort
     /// </summary>
     /// <param name="logger">日志记录器（可选）</param>
-    public SimulatedOutputPort(ILogger<SimulatedOutputPort>? logger = null)
+    /// <param name="systemClock">系统时钟</param>
+    public SimulatedOutputPort(ILogger<SimulatedOutputPort>? logger, ISystemClock systemClock)
     {
         _logger = logger;
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <inheritdoc/>
@@ -30,7 +34,7 @@ public class SimulatedOutputPort : IOutputPort
     {
         lock (_lock)
         {
-            _writeHistory.Add((bitIndex, value, DateTime.UtcNow));
+            _writeHistory.Add((bitIndex, value, _systemClock.LocalNow));
         }
 
         _logger?.LogDebug(
@@ -48,7 +52,7 @@ public class SimulatedOutputPort : IOutputPort
         {
             for (int i = 0; i < values.Length; i++)
             {
-                _writeHistory.Add((startBit + i, values[i], DateTime.UtcNow));
+                _writeHistory.Add((startBit + i, values[i], _systemClock.LocalNow));
             }
         }
 
