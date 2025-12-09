@@ -1904,7 +1904,28 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-047] 补充 API 端点完整测试覆盖
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决（当前 PR）
+
+**解决方案**：
+
+已为11个缺少测试的控制器添加完整的集成测试：
+
+1. ✅ LoggingConfigControllerTests - 日志配置 API (4 tests)
+2. ✅ PanelConfigControllerTests - 面板配置 API (4 tests)  
+3. ✅ HardwareConfigControllerTests - 硬件配置 API (3 tests)
+4. ✅ HealthControllerTests - 健康检查 API (4 tests)
+5. ✅ AlarmsControllerTests - 告警 API (4 tests)
+6. ✅ DivertsControllerTests - 分拣 API (2 tests)
+7. ✅ PolicyControllerTests - 策略 API (2 tests)
+8. ✅ ChuteAssignmentTimeoutControllerTests - 格口分配超时 API (1 test)
+9. ✅ SimulationControllerTests - 仿真控制 API (2 tests)
+10. ✅ SimulationConfigControllerTests - 仿真配置 API (2 tests)
+11. ✅ SystemOperationsControllerTests - 系统操作 API (2 tests)
+
+**测试覆盖率**：
+- 已有测试：8个控制器
+- 新增测试：11个控制器
+- **总计**：19个控制器全部有集成测试 ✅
 
 **问题描述**：
 
@@ -2022,7 +2043,37 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-049] 建立影分身防线自动化测试
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决（当前 PR）
+
+**解决方案**：
+
+新增4个全面的影分身检测测试类，覆盖所有已知影分身模式：
+
+**1. ShadowImplementationDetectionTests** - 影子实现检测
+- ✅ `ShouldNotHaveLegacyPrefixedTypes` - 检测 Legacy/Old/Deprecated 前缀类型
+- ✅ `ShouldNotHaveObsoleteAttributeInSourceCode` - 检测 [Obsolete] 标记
+- ✅ `ShouldNotHaveShadowServiceImplementations` - 检测影子服务实现
+
+**2. EnumShadowDetectionTests** - 枚举影分身检测
+- ✅ `ShouldNotHaveDuplicateEnumNames` - 检测同名枚举在不同命名空间
+- ✅ `ShouldNotHaveSimilarEnumMemberSets` - 检测枚举成员高度相似的不同枚举
+
+**3. DtoSimilarityDetectionTests** - DTO 相似度检测
+- ✅ `DTOsShouldNotHaveHighlySimilarStructure` - 检测字段结构高度相似的 DTO
+
+**4. UtilityMethodDuplicationDetectionTests** - 工具方法重复检测
+- ✅ `UtilityMethodsShouldNotBeDuplicated` - 检测相同签名的工具方法分散定义
+- ✅ `UtilityClassesShouldFollowNamingConvention` - 检测工具类命名规范
+
+**影分身防线完整性**：
+- ✅ 重复接口检测（已有）
+- ✅ 纯转发 Facade/Adapter 检测（已有）
+- ✅ 重复 DTO/Options 检测（已有）
+- ✅ 重复 Utilities 检测（已有）
+- ✅ 重复枚举检测（新增）
+- ✅ 影子实现检测（新增）
+- ✅ DTO 字段相似度检测（新增）
+- ✅ 工具方法重复检测（新增）
 
 **问题描述**：
 
