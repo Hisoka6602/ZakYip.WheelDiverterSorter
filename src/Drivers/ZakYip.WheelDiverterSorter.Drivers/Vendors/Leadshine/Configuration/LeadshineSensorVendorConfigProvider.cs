@@ -40,7 +40,8 @@ public sealed class LeadshineSensorVendorConfigProvider : ISensorVendorConfigPro
                 SensorId = s.SensorId,
                 SensorTypeName = s.Type.ToString(),
                 InputBit = s.InputBit,
-                IsEnabled = s.IsEnabled
+                IsEnabled = s.IsEnabled,
+                PollingIntervalMs = s.PollingIntervalMs
             })
             .ToList()
             .AsReadOnly();
