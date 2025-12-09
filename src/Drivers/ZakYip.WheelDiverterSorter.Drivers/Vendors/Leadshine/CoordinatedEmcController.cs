@@ -198,7 +198,7 @@ public class CoordinatedEmcController : IEmcController
 
         try
         {
-            _logger.LogInformation("请求EMC锁以执行冷重置，卡号: {CardNo}", CardNo);
+            _logger.LogDebug("请求EMC锁以执行冷重置，卡号: {CardNo}", CardNo);
 
             // 1. 请求锁
             var lockAcquired = await _lockManager.RequestLockAsync(CardNo, timeoutMs: 10000, cancellationToken);
@@ -211,7 +211,7 @@ public class CoordinatedEmcController : IEmcController
             try
             {
                 // 2. 发送冷重置通知
-                _logger.LogInformation("发送冷重置通知，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("发送冷重置通知，卡号: {CardNo}", CardNo);
                 var notified = await _lockManager.NotifyColdResetAsync(CardNo, timeoutMs: 10000, cancellationToken);
                 if (!notified)
                 {
@@ -232,7 +232,7 @@ public class CoordinatedEmcController : IEmcController
                 }
 
                 // 5. 通知重置完成
-                _logger.LogInformation("发送重置完成通知，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("发送重置完成通知，卡号: {CardNo}", CardNo);
                 await _lockManager.NotifyResetCompleteAsync(CardNo, cancellationToken);
 
                 return true;
@@ -241,7 +241,7 @@ public class CoordinatedEmcController : IEmcController
             {
                 // 6. 释放锁
                 await _lockManager.ReleaseLockAsync(CardNo, cancellationToken);
-                _logger.LogInformation("已释放EMC锁，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("已释放EMC锁，卡号: {CardNo}", CardNo);
             }
         }
         catch (Exception ex)
@@ -263,7 +263,7 @@ public class CoordinatedEmcController : IEmcController
 
         try
         {
-            _logger.LogInformation("尝试获取EMC资源锁以执行冷重置，卡号: {CardNo}", CardNo);
+            _logger.LogDebug("尝试获取EMC资源锁以执行冷重置，卡号: {CardNo}", CardNo);
 
             // 1. 获取锁（30秒超时）
             var lockAcquired = await _resourceLock.TryAcquireAsync(TimeSpan.FromSeconds(30), cancellationToken);
@@ -278,7 +278,7 @@ public class CoordinatedEmcController : IEmcController
                 // 2. 发送冷重置通知到其他实例（如果提供了锁管理器）
                 if (_lockManager != null && _lockManager.IsConnected)
                 {
-                    _logger.LogInformation("发送冷重置通知，卡号: {CardNo}", CardNo);
+                    _logger.LogDebug("发送冷重置通知，卡号: {CardNo}", CardNo);
                     var notified = await _lockManager.NotifyColdResetAsync(CardNo, timeoutMs: 10000, cancellationToken);
                     if (!notified)
                     {
@@ -302,7 +302,7 @@ public class CoordinatedEmcController : IEmcController
                 // 4. 通知重置完成（如果提供了锁管理器）
                 if (_lockManager != null && _lockManager.IsConnected)
                 {
-                    _logger.LogInformation("发送重置完成通知，卡号: {CardNo}", CardNo);
+                    _logger.LogDebug("发送重置完成通知，卡号: {CardNo}", CardNo);
                     await _lockManager.NotifyResetCompleteAsync(CardNo, cancellationToken);
                 }
 
@@ -313,7 +313,7 @@ public class CoordinatedEmcController : IEmcController
             {
                 // 5. 释放锁
                 _resourceLock.Release();
-                _logger.LogInformation("已释放EMC资源锁，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("已释放EMC资源锁，卡号: {CardNo}", CardNo);
             }
         }
         catch (Exception ex)
@@ -336,7 +336,7 @@ public class CoordinatedEmcController : IEmcController
 
         try
         {
-            _logger.LogInformation("请求EMC锁以执行热重置，卡号: {CardNo}", CardNo);
+            _logger.LogDebug("请求EMC锁以执行热重置，卡号: {CardNo}", CardNo);
 
             // 1. 请求锁
             var lockAcquired = await _lockManager.RequestLockAsync(CardNo, timeoutMs: 10000, cancellationToken);
@@ -349,7 +349,7 @@ public class CoordinatedEmcController : IEmcController
             try
             {
                 // 2. 发送热重置通知
-                _logger.LogInformation("发送热重置通知，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("发送热重置通知，卡号: {CardNo}", CardNo);
                 var notified = await _lockManager.NotifyHotResetAsync(CardNo, timeoutMs: 10000, cancellationToken);
                 if (!notified)
                 {
@@ -370,7 +370,7 @@ public class CoordinatedEmcController : IEmcController
                 }
 
                 // 5. 通知重置完成
-                _logger.LogInformation("发送重置完成通知，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("发送重置完成通知，卡号: {CardNo}", CardNo);
                 await _lockManager.NotifyResetCompleteAsync(CardNo, cancellationToken);
 
                 return true;
@@ -379,7 +379,7 @@ public class CoordinatedEmcController : IEmcController
             {
                 // 6. 释放锁
                 await _lockManager.ReleaseLockAsync(CardNo, cancellationToken);
-                _logger.LogInformation("已释放EMC锁，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("已释放EMC锁，卡号: {CardNo}", CardNo);
             }
         }
         catch (Exception ex)
@@ -401,7 +401,7 @@ public class CoordinatedEmcController : IEmcController
 
         try
         {
-            _logger.LogInformation("尝试获取EMC资源锁以执行热重置，卡号: {CardNo}", CardNo);
+            _logger.LogDebug("尝试获取EMC资源锁以执行热重置，卡号: {CardNo}", CardNo);
 
             // 1. 获取锁（30秒超时）
             var lockAcquired = await _resourceLock.TryAcquireAsync(TimeSpan.FromSeconds(30), cancellationToken);
@@ -416,7 +416,7 @@ public class CoordinatedEmcController : IEmcController
                 // 2. 发送热重置通知到其他实例（如果提供了锁管理器）
                 if (_lockManager != null && _lockManager.IsConnected)
                 {
-                    _logger.LogInformation("发送热重置通知，卡号: {CardNo}", CardNo);
+                    _logger.LogDebug("发送热重置通知，卡号: {CardNo}", CardNo);
                     var notified = await _lockManager.NotifyHotResetAsync(CardNo, timeoutMs: 10000, cancellationToken);
                     if (!notified)
                     {
@@ -440,7 +440,7 @@ public class CoordinatedEmcController : IEmcController
                 // 4. 通知重置完成（如果提供了锁管理器）
                 if (_lockManager != null && _lockManager.IsConnected)
                 {
-                    _logger.LogInformation("发送重置完成通知，卡号: {CardNo}", CardNo);
+                    _logger.LogDebug("发送重置完成通知，卡号: {CardNo}", CardNo);
                     await _lockManager.NotifyResetCompleteAsync(CardNo, cancellationToken);
                 }
 
@@ -451,7 +451,7 @@ public class CoordinatedEmcController : IEmcController
             {
                 // 5. 释放锁
                 _resourceLock.Release();
-                _logger.LogInformation("已释放EMC资源锁，卡号: {CardNo}", CardNo);
+                _logger.LogDebug("已释放EMC资源锁，卡号: {CardNo}", CardNo);
             }
         }
         catch (Exception ex)
@@ -493,19 +493,19 @@ public class CoordinatedEmcController : IEmcController
                     if (_lockManager != null)
                     {
                         await _lockManager.SendReadyAsync(e.EventId, CardNo);
-                        _logger.LogInformation("已发送就绪消息，等待重置完成");
+                        _logger.LogDebug("已发送就绪消息，等待重置完成");
                     }
                     break;
 
                 case EmcLockNotificationType.ResetComplete:
                     // 重新初始化并恢复使用
-                    _logger.LogInformation("收到重置完成通知，恢复使用EMC，卡号: {CardNo}", CardNo);
+                    _logger.LogDebug("收到重置完成通知，恢复使用EMC，卡号: {CardNo}", CardNo);
                     await ResumeAsync();
                     break;
 
                 case EmcLockNotificationType.RequestLock:
                     // 有其他实例请求锁，可能即将执行重置
-                    _logger.LogInformation("其他实例请求EMC锁，卡号: {CardNo}", CardNo);
+                    _logger.LogDebug("其他实例请求EMC锁，卡号: {CardNo}", CardNo);
                     break;
             }
         }

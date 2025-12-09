@@ -102,7 +102,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             if (result)
             {
                 _currentStatus = "左转";
-                _logger.LogInformation("摆轮 {DiverterId} 左转命令发送成功", DiverterId);
+                _logger.LogDebug("摆轮 {DiverterId} 左转命令发送成功", DiverterId);
             }
             else
             {
@@ -130,7 +130,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             if (result)
             {
                 _currentStatus = "右转";
-                _logger.LogInformation("摆轮 {DiverterId} 右转命令发送成功", DiverterId);
+                _logger.LogDebug("摆轮 {DiverterId} 右转命令发送成功", DiverterId);
             }
             else
             {
@@ -158,7 +158,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             if (result)
             {
                 _currentStatus = "直通";
-                _logger.LogInformation("摆轮 {DiverterId} 直通命令发送成功", DiverterId);
+                _logger.LogDebug("摆轮 {DiverterId} 直通命令发送成功", DiverterId);
             }
             else
             {
@@ -186,7 +186,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             if (result)
             {
                 _currentStatus = "已停止";
-                _logger.LogInformation("摆轮 {DiverterId} 停止命令发送成功", DiverterId);
+                _logger.LogDebug("摆轮 {DiverterId} 停止命令发送成功", DiverterId);
             }
             else
             {
@@ -214,7 +214,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
             if (result)
             {
                 _currentStatus = "运行中";
-                _logger.LogInformation("摆轮 {DiverterId} 运行命令发送成功", DiverterId);
+                _logger.LogDebug("摆轮 {DiverterId} 运行命令发送成功", DiverterId);
             }
             else
             {
@@ -278,7 +278,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartb
 
             if (result)
             {
-                _logger.LogInformation(
+                _logger.LogDebug(
                     "摆轮 {DiverterId} 速度设置成功：摆动速度={Speed}mm/s（{SpeedMPerMin}m/min），摆动后速度={SpeedAfterSwing}mm/s（{SpeedAfterSwingMPerMin}m/min）",
                     DiverterId, speedMmPerSecond, speedMPerMin, speedAfterSwingMmPerSecond, speedAfterSwingMPerMin);
             }
