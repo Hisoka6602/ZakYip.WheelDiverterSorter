@@ -310,7 +310,6 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         var panelConfig = _panelConfigRepository.Get();
         var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
         var warningOutputActivated = false;
-        CancellationTokenSource? linkedCts = null;
 
         _logger.LogInformation(
             "启动按钮处理开始 - 当前状态: {CurrentState}, 配置的预警时间: {PreWarningDuration} 秒",
@@ -370,12 +369,15 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 }
 
                 // 创建可以被高优先级按钮取消的预警等待令牌
+                // 先创建所有对象，再在锁内赋值，避免竞态条件
+                using var newSource = new CancellationTokenSource();
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    newSource.Token);
+                
                 lock (_preWarningLock)
                 {
-                    _preWarningCancellationSource = new CancellationTokenSource();
-                    linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-                        cancellationToken,
-                        _preWarningCancellationSource.Token);
+                    _preWarningCancellationSource = newSource;
                 }
 
                 try
@@ -441,9 +443,6 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         }
         finally
         {
-            // 清理 linked cancellation token source
-            linkedCts?.Dispose();
-            
             // 无论如何都要关闭预警输出
             if (warningOutputActivated)
             {
@@ -509,5 +508,14 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             _preWarningCancellationSource?.Dispose();
             _preWarningCancellationSource = null;
         }
+    }
+    
+    /// <summary>
+    /// 释放资源，确保取消令牌源被正确清理
+    /// </summary>
+    public override void Dispose()
+    {
+        CleanupPreWarningCancellationSource();
+        base.Dispose();
     }
 }
