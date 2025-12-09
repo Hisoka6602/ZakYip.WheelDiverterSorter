@@ -28,10 +28,11 @@ public static class SiemensS7ServiceCollectionExtensions
     /// - <see cref="S7Connection"/> (用于 PLC 连接管理，支持热更新)
     /// - <see cref="S7InputPort"/> / <see cref="S7OutputPort"/> (用于 IO 端口操作)
     /// - <see cref="S7IoLinkageDriver"/> (用于 IO 联动控制)
-    /// - <see cref="S7ConveyorDriveController"/> (用于传送带驱动控制)
     /// 
     /// 注意：根据 TD-037 解决方案，Siemens S7 **不支持摆轮驱动**。
     /// 摆轮功能请使用 Leadshine 或 ShuDiNiao 厂商驱动。
+    /// 
+    /// 皮带控制现由 IO 联动系统统一处理，不再需要专门的皮带驱动接口。
     /// 
     /// 支持配置热更新：通过 IOptionsMonitor 监听配置变更，自动重连 PLC。
     /// </remarks>
@@ -52,23 +53,6 @@ public static class SiemensS7ServiceCollectionExtensions
             var logger = sp.GetRequiredService<ILogger<S7IoLinkageDriver>>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             return new S7IoLinkageDriver(connection, logger, loggerFactory);
-        });
-
-        // 注册传送带驱动控制器
-        // 注意：这里使用默认配置，实际使用时应从配置文件读取参数
-        services.AddSingleton<IConveyorDriveController>(sp =>
-        {
-            var connection = sp.GetRequiredService<S7Connection>();
-            var logger = sp.GetRequiredService<ILogger<S7ConveyorDriveController>>();
-            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            return new S7ConveyorDriveController(
-                connection,
-                segmentId: "MainConveyor",
-                startControlBit: 0,  // 启动控制位
-                stopControlBit: 1,   // 停止控制位
-                speedRegister: 100,  // 速度寄存器地址
-                logger,
-                loggerFactory);
         });
 
         return services;

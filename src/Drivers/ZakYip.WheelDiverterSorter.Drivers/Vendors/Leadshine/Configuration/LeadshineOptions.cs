@@ -43,9 +43,4 @@ public class LeadshineOptions
     /// 摆轮配置列表
     /// </summary>
     public List<LeadshineDiverterConfigDto> Diverters { get; set; } = new();
-
-    /// <summary>
-    /// 传送带段IO映射配置列表
-    /// </summary>
-    public List<Core.LineModel.Configuration.Models.ConveyorIoMapping> ConveyorSegmentMappings { get; set; } = new();
 }

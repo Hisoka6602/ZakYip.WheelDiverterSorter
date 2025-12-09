@@ -51,6 +51,7 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<ICommunicationConfigService, CommunicationConfigService>();
         services.AddSingleton<IIoLinkageConfigService, IoLinkageConfigService>();
         services.AddSingleton<IVendorConfigService, VendorConfigService>();
+        services.AddSingleton<IConveyorSegmentService, ConveyorSegmentService>();
         
         // 注册仿真模式提供者（单例模式）
         services.AddSingleton<ISimulationModeProvider, SimulationModeProvider>();

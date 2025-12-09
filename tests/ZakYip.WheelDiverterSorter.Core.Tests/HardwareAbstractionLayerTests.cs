@@ -116,43 +116,4 @@ public class HardwareAbstractionLayerTests
 
         Assert.Null(eventArgs.PreviousState);
     }
-
-    /// <summary>
-    /// 验证 ConveyorSegmentStateChangedEventArgs 是 readonly record struct
-    /// </summary>
-    [Fact]
-    public void ConveyorSegmentStateChangedEventArgs_ShouldBeReadonlyRecordStruct()
-    {
-        var timestamp = DateTimeOffset.UtcNow;
-        var eventArgs = new ConveyorSegmentStateChangedEventArgs
-        {
-            SegmentId = "SEG001",
-            NewState = ConveyorSegmentState.Running,
-            PreviousState = ConveyorSegmentState.Stopped,
-            CurrentSpeedMmPerSec = 1500m,
-            Timestamp = timestamp
-        };
-
-        Assert.Equal("SEG001", eventArgs.SegmentId);
-        Assert.Equal(ConveyorSegmentState.Running, eventArgs.NewState);
-        Assert.Equal(ConveyorSegmentState.Stopped, eventArgs.PreviousState);
-        Assert.Equal(1500m, eventArgs.CurrentSpeedMmPerSec);
-        Assert.Equal(timestamp, eventArgs.Timestamp);
-    }
-
-    /// <summary>
-    /// 验证 ConveyorSegmentStateChangedEventArgs 的可选字段
-    /// </summary>
-    [Fact]
-    public void ConveyorSegmentStateChangedEventArgs_OptionalFieldsAreNullable()
-    {
-        var eventArgs = new ConveyorSegmentStateChangedEventArgs
-        {
-            SegmentId = "SEG001",
-            NewState = ConveyorSegmentState.Fault
-        };
-
-        Assert.Null(eventArgs.PreviousState);
-        Assert.Null(eventArgs.CurrentSpeedMmPerSec);
-    }
 }

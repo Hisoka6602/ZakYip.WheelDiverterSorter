@@ -2,7 +2,6 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;
 
@@ -41,13 +40,6 @@ public interface IVendorDriverFactory
     /// </summary>
     /// <returns>IO联动驱动器实例</returns>
     IIoLinkageDriver CreateIoLinkageDriver();
-
-    /// <summary>
-    /// 创建传送带段驱动器
-    /// </summary>
-    /// <param name="segmentId">传送带段ID</param>
-    /// <returns>传送带段驱动器实例，如果不支持则返回null</returns>
-    IConveyorSegmentDriver? CreateConveyorSegmentDriver(string segmentId);
 
     /// <summary>
     /// 创建传感器输入读取器

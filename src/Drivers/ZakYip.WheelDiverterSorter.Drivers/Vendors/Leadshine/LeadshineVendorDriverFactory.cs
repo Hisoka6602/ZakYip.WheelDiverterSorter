@@ -10,7 +10,6 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
@@ -97,27 +96,6 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
     {
         var logger = _loggerFactory.CreateLogger<LeadshineIoLinkageDriver>();
         return new LeadshineIoLinkageDriver(logger, _emcController);
-    }
-
-    public IConveyorSegmentDriver? CreateConveyorSegmentDriver(string segmentId)
-    {
-        // 从配置中查找对应的传送带段映射
-        var mapping = _options.ConveyorSegmentMappings
-            .FirstOrDefault(m => m.SegmentKey == segmentId);
-
-        if (mapping == null)
-        {
-            // 没有找到对应的配置，记录日志并返回 null
-            var logger = _loggerFactory.CreateLogger<LeadshineVendorDriverFactory>();
-            logger.LogWarning(
-                "未找到传送带段映射配置: SegmentId={SegmentId}，已配置的段: [{ConfiguredSegments}]",
-                segmentId,
-                string.Join(", ", _options.ConveyorSegmentMappings.Select(m => m.SegmentKey)));
-            return null;
-        }
-
-        var driverLogger = _loggerFactory.CreateLogger<LeadshineConveyorSegmentDriver>();
-        return new LeadshineConveyorSegmentDriver(mapping, _emcController, driverLogger);
     }
 
     public ISensorInputReader? CreateSensorInputReader()

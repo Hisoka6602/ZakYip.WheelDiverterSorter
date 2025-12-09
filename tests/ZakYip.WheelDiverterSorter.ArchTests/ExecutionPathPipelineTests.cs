@@ -194,7 +194,6 @@ public class ExecutionPathPipelineTests
             ("IWheelDiverterDevice", "摆轮设备接口"),
             ("IInputPort", "输入端口接口"),
             ("IOutputPort", "输出端口接口"),
-            ("IConveyorDriveController", "输送带驱动控制器"),
             ("IAlarmOutputController", "报警输出控制器"),
             ("ISensorInputReader", "传感器输入读取器")
         };

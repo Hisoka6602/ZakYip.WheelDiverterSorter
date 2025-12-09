@@ -73,42 +73,4 @@ public readonly record struct WheelDiverterStateChangedEventArgs
     public DateTimeOffset Timestamp { get; init; }
 }
 
-/// <summary>
-/// 线体段状态变化事件参数 - 统一硬件事件模型
-/// Conveyor Segment State Changed Event Args - Unified Hardware Event Model
-/// </summary>
-/// <remarks>
-/// <para>当线体段运行状态发生变化时触发此事件。</para>
-/// <para>此事件只描述"设备状态变化"，不包含拓扑信息。</para>
-/// </remarks>
-public readonly record struct ConveyorSegmentStateChangedEventArgs
-{
-    /// <summary>
-    /// 线体段标识符
-    /// </summary>
-    public required string SegmentId { get; init; }
 
-    /// <summary>
-    /// 新的运行状态
-    /// </summary>
-    public required Enums.Hardware.ConveyorSegmentState NewState { get; init; }
-
-    /// <summary>
-    /// 之前的运行状态（可选）
-    /// </summary>
-    public Enums.Hardware.ConveyorSegmentState? PreviousState { get; init; }
-
-    /// <summary>
-    /// 当前速度（毫米/秒），可选
-    /// </summary>
-    public decimal? CurrentSpeedMmPerSec { get; init; }
-
-    /// <summary>
-    /// 状态变化的时间戳
-    /// </summary>
-    /// <remarks>
-    /// <para>表示驱动层检测到状态变化的时间点（本地时间）。</para>
-    /// <para>此时间由驱动层设置，用于事件排序和日志关联。</para>
-    /// </remarks>
-    public DateTimeOffset Timestamp { get; init; }
-}
