@@ -86,6 +86,13 @@ public static class SimulatedDriverServiceCollectionExtensions
         // 注册面板 IO 协调器
         services.AddSingleton<IPanelIoCoordinator, DefaultPanelIoCoordinator>();
 
+        // 注册模拟输出端口
+        services.AddSingleton<IOutputPort>(sp =>
+        {
+            var logger = sp.GetService<ILogger<SimulatedOutputPort>>();
+            return new SimulatedOutputPort(logger);
+        });
+
         return services;
     }
 
