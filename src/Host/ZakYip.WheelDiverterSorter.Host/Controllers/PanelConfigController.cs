@@ -248,9 +248,8 @@ public class PanelConfigController : ControllerBase
             _repository.Update(config);
 
             _logger.LogInformation(
-                "面板配置已更新并持久化: Enabled={Enabled}, UseSimulation={UseSimulation}, Polling={PollingMs}ms, Debounce={DebounceMs}ms",
+                "面板配置已更新并持久化: Enabled={Enabled}, Polling={PollingMs}ms, Debounce={DebounceMs}ms",
                 request.Enabled,
-                request.UseSimulation,
                 request.PollingIntervalMs,
                 request.DebounceMs);
 
@@ -324,7 +323,6 @@ public class PanelConfigController : ControllerBase
             ConfigName = "panel",
             Version = 1,
             Enabled = request.Enabled,
-            UseSimulation = request.UseSimulation,
             PollingIntervalMs = request.PollingIntervalMs,
             DebounceMs = request.DebounceMs,
             StartButtonInputBit = request.StartButton?.InputBit,
@@ -364,7 +362,6 @@ public class PanelConfigController : ControllerBase
         return new PanelConfigResponse
         {
             Enabled = config.Enabled,
-            UseSimulation = config.UseSimulation,
             PollingIntervalMs = config.PollingIntervalMs,
             DebounceMs = config.DebounceMs,
             StartButton = new StartButtonConfigDto

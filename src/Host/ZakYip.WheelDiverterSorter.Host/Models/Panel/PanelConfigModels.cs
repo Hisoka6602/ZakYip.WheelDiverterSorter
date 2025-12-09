@@ -8,7 +8,11 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Panel;
 /// 面板配置请求模型
 /// </summary>
 /// <remarks>
-/// 用于更新面板配置的请求数据传输对象，参数按功能分类组织
+/// <para>用于更新面板配置的请求数据传输对象，参数按功能分类组织</para>
+/// <para>
+/// 架构原则：系统默认使用真实硬件面板驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// 仿真模式由系统运行时配置控制，不再通过面板配置指定。
+/// </para>
 /// </remarks>
 public sealed record PanelConfigRequest
 {
@@ -18,17 +22,6 @@ public sealed record PanelConfigRequest
     /// <example>true</example>
     [Required]
     public required bool Enabled { get; init; }
-
-    /// <summary>
-    /// 是否使用仿真模式
-    /// </summary>
-    /// <remarks>
-    /// true: 使用仿真驱动（SimulatedPanelInputReader / SimulatedSignalTowerOutput）
-    /// false: 使用真实硬件驱动
-    /// </remarks>
-    /// <example>true</example>
-    [Required]
-    public required bool UseSimulation { get; init; }
 
     /// <summary>
     /// 面板按钮轮询间隔（毫秒）
@@ -93,7 +86,11 @@ public sealed record PanelConfigRequest
 /// 面板配置响应模型
 /// </summary>
 /// <remarks>
-/// 面板配置的数据传输对象，用于查询返回，参数按功能分类组织
+/// <para>面板配置的数据传输对象，用于查询返回，参数按功能分类组织</para>
+/// <para>
+/// 架构原则：系统默认使用真实硬件面板驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// 仿真模式由系统运行时配置控制，不再通过面板配置指定。
+/// </para>
 /// </remarks>
 public sealed record PanelConfigResponse
 {
@@ -101,11 +98,6 @@ public sealed record PanelConfigResponse
     /// 是否启用面板功能
     /// </summary>
     public required bool Enabled { get; init; }
-
-    /// <summary>
-    /// 是否使用仿真模式
-    /// </summary>
-    public required bool UseSimulation { get; init; }
 
     /// <summary>
     /// 面板按钮轮询间隔（毫秒）

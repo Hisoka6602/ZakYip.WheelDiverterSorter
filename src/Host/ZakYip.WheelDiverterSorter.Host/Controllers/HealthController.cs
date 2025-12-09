@@ -21,6 +21,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
@@ -525,7 +526,10 @@ public class HealthController : ControllerBase
                 {
                     var ioConfig = _ioDriverConfigRepository.Get();
                     var ioVendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
-                    var isSimulationMode = !ioConfig.UseHardwareDriver;
+                    
+                    // 使用 IRuntimeProfile 判断仿真模式
+                    var runtimeProfile = HttpContext.RequestServices.GetService<IRuntimeProfile>();
+                    var isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
                     
                     // 检查配置是否完整（非仿真模式下需要）
                     var isConfigured = true;
