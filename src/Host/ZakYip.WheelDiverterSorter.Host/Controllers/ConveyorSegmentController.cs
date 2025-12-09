@@ -283,7 +283,7 @@ public class ConveyorSegmentController : ControllerBase
             }
 
             _logger.LogInformation("输送线段配置已删除: SegmentId={SegmentId}", id);
-            return Ok(ApiResponse<object>.Ok(null, "输送线段配置已删除 - Conveyor segment configuration deleted"));
+            return Ok(ApiResponse<object>.Ok(new { }, "输送线段配置已删除 - Conveyor segment configuration deleted"));
         }
         catch (Exception ex)
         {
