@@ -71,6 +71,7 @@ public class ChutePathTopologyController : ControllerBase
     private static readonly IReadOnlyList<long> EmptyChuteIds = Array.Empty<long>();
 
     private readonly IChutePathTopologyService _topologyService;
+    private readonly IConveyorSegmentService _segmentService;
     private readonly ISystemClock _clock;
     private readonly ILogger<ChutePathTopologyController> _logger;
 
@@ -79,10 +80,12 @@ public class ChutePathTopologyController : ControllerBase
     /// </summary>
     public ChutePathTopologyController(
         IChutePathTopologyService topologyService,
+        IConveyorSegmentService segmentService,
         ISystemClock clock,
         ILogger<ChutePathTopologyController> logger)
     {
         _topologyService = topologyService;
+        _segmentService = segmentService;
         _clock = clock;
         _logger = logger;
     }
@@ -427,10 +430,15 @@ public class ChutePathTopologyController : ControllerBase
             // Process each diverter node
             foreach (var node in pathNodes)
             {
-                // Use class-level default values for simulation
-                var segmentLengthMm = SimulationDefaultSegmentLengthMm;
-                var lineSpeedMmps = SimulationDefaultLineSpeedMmps;
-                var transitTimeMs = (segmentLengthMm / (double)lineSpeedMmps) * 1000;
+                // Try to get segment configuration, fallback to default values if not configured
+                var segment = _segmentService.GetSegmentById(node.SegmentId);
+                var segmentLengthMm = segment?.LengthMm ?? SimulationDefaultSegmentLengthMm;
+                var lineSpeedMmps = segment?.SpeedMmps ?? SimulationDefaultLineSpeedMmps;
+                var transitTimeMs = segment != null 
+                    ? segment.CalculateTransitTimeMs() 
+                    : (segmentLengthMm / (double)lineSpeedMmps) * 1000;
+                
+                var isUsingDefault = segment == null;
                 
                 // Add tolerance for variation
                 if (request.SimulateTimeout && node.DiverterId == pathNodes.Last().DiverterId)
@@ -447,7 +455,8 @@ public class ChutePathTopologyController : ControllerBase
                 {
                     StepNumber = stepNumber++,
                     StepType = SimulationStepType.Transit,
-                    Description = $"包裹从上一节点运输到摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} - Parcel transit to diverter",
+                    Description = $"包裹从上一节点运输到摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} - Parcel transit to diverter" + 
+                        (isUsingDefault ? " [使用默认参数]" : " [使用配置参数]"),
                     NodeId = node.DiverterId,
                     NodeName = node.DiverterName ?? $"摆轮 D{node.DiverterId}",
                     StartTime = transitStartTime,
@@ -459,7 +468,9 @@ public class ChutePathTopologyController : ControllerBase
                     {
                         ["segmentId"] = node.SegmentId,
                         ["segmentLengthMm"] = segmentLengthMm,
-                        ["speedMmps"] = lineSpeedMmps
+                        ["speedMmps"] = lineSpeedMmps,
+                        ["segmentConfigured"] = !isUsingDefault,
+                        ["transitTimeMs"] = transitTimeMs
                     }
                 };
                 

@@ -315,6 +315,14 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             return repository;
         });
 
+        // 注册输送线段配置仓储为单例
+        services.AddSingleton<IConveyorSegmentRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbConveyorSegmentRepository(fullDatabasePath, clock);
+            return repository;
+        });
+
         return services;
     }
 
