@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Host.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 using ZakYip.WheelDiverterSorter.Application.Extensions;
 
@@ -59,6 +60,10 @@ public static class WheelDiverterSorterHostServiceCollectionExtensions
         // 1. 调用 Application 层的统一 DI 入口注册所有基础服务
         // 这会注册所有 Core/Execution/Drivers/Ingress/Communication/Observability/Simulation 相关服务
         services.AddWheelDiverterSorter(configuration);
+
+        // 1.5. 注册 Worker 配置选项（TD-053：使轮询间隔可配置）
+        services.Configure<WorkerOptions>(configuration.GetSection(WorkerOptions.SectionName));
+
 
         // 2. 注册健康检查和系统状态管理（Host 特定）
         var enableHealthCheck = configuration.GetValue<bool>("HealthCheck:Enabled", true);
