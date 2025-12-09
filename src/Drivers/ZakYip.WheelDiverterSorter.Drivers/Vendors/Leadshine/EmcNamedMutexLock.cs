@@ -82,7 +82,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine
                 if (acquired)
                 {
                     _isLockHeld = true;
-                    _logger.LogInformation("[EMC Lock] 成功获取锁: {LockIdentifier}", LockIdentifier);
+                    _logger.LogDebug("[EMC Lock] 成功获取锁: {LockIdentifier}", LockIdentifier);
                 }
                 else
                 {
@@ -93,7 +93,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine
             }
             catch (OperationCanceledException)
             {
-                _logger.LogInformation("[EMC Lock] 获取锁被取消: {LockIdentifier}", LockIdentifier);
+                _logger.LogDebug("[EMC Lock] 获取锁被取消: {LockIdentifier}", LockIdentifier);
                 throw;
             }
             catch (Exception ex)
@@ -119,7 +119,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine
             {
                 _mutex.ReleaseMutex();
                 _isLockHeld = false;
-                _logger.LogInformation("[EMC Lock] 成功释放锁: {LockIdentifier}", LockIdentifier);
+                _logger.LogDebug("[EMC Lock] 成功释放锁: {LockIdentifier}", LockIdentifier);
             }
             catch (Exception ex)
             {
