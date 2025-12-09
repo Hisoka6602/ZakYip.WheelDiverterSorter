@@ -31,7 +31,11 @@ public sealed record class EmergencyStopButtonConfig
 /// 电柜操作面板完整配置模型
 /// </summary>
 /// <remarks>
-/// 包含面板所有按钮和指示灯的IO绑定及触发电平配置
+/// <para>包含面板所有按钮和指示灯的IO绑定及触发电平配置</para>
+/// <para>
+/// 架构原则：系统默认使用真实硬件面板驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// Architecture principle: System uses real hardware panel driver by default, only uses Mock driver in simulation mode (IRuntimeProfile.IsSimulationMode).
+/// </para>
 /// </remarks>
 public sealed record class PanelConfiguration
 {
@@ -54,15 +58,6 @@ public sealed record class PanelConfiguration
     /// 是否启用面板功能
     /// </summary>
     public bool Enabled { get; init; } = false;
-
-    /// <summary>
-    /// 是否使用仿真模式
-    /// </summary>
-    /// <remarks>
-    /// true: 使用仿真驱动（SimulatedPanelInputReader / SimulatedSignalTowerOutput）
-    /// false: 使用真实硬件驱动
-    /// </remarks>
-    public bool UseSimulation { get; init; } = true;
 
     /// <summary>
     /// 面板按钮轮询间隔（毫秒）
@@ -229,7 +224,6 @@ public sealed record class PanelConfiguration
             ConfigName = "panel",
             Version = 1,
             Enabled = false,
-            UseSimulation = true,
             PollingIntervalMs = 100,
             DebounceMs = 50,
             StartButtonInputBit = null,

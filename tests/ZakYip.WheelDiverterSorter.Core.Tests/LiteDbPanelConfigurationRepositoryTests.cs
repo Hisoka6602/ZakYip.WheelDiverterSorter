@@ -43,7 +43,7 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("panel", config.ConfigName);
         Assert.False(config.Enabled);
-        Assert.True(config.UseSimulation);
+        // UseSimulation 字段已删除 - 系统默认使用真实硬件，仿真由 IRuntimeProfile.IsSimulationMode 控制
         Assert.Equal(100, config.PollingIntervalMs);
         Assert.Equal(50, config.DebounceMs);
         Assert.Equal(TriggerLevel.ActiveHigh, config.StartButtonTriggerLevel);
@@ -72,7 +72,7 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         Assert.NotNull(config);
         Assert.Equal("panel", config.ConfigName);
         Assert.False(config.Enabled);
-        Assert.True(config.UseSimulation);
+        // UseSimulation 字段已删除 - 系统默认使用真实硬件
     }
 
     [Fact]
@@ -83,7 +83,6 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         var newConfig = PanelConfiguration.GetDefault() with
         {
             Enabled = true,
-            UseSimulation = false,
             PollingIntervalMs = 200,
             DebounceMs = 100,
             StartButtonInputBit = 5,
@@ -96,7 +95,6 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
 
         // Assert
         Assert.True(updated.Enabled);
-        Assert.False(updated.UseSimulation);
         Assert.Equal(200, updated.PollingIntervalMs);
         Assert.Equal(100, updated.DebounceMs);
         Assert.Equal(5, updated.StartButtonInputBit);
@@ -187,7 +185,6 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
         var fullConfig = PanelConfiguration.GetDefault() with
         {
             Enabled = true,
-            UseSimulation = false,
             PollingIntervalMs = 150,
             DebounceMs = 75,
             
@@ -224,7 +221,6 @@ public class LiteDbPanelConfigurationRepositoryTests : IDisposable
 
         // Assert - verify all fields
         Assert.True(updated.Enabled);
-        Assert.False(updated.UseSimulation);
         Assert.Equal(150, updated.PollingIntervalMs);
         Assert.Equal(75, updated.DebounceMs);
         

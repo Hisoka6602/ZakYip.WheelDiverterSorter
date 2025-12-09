@@ -601,11 +601,14 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                     "未找到面板配置，无法初始化面板输入读取器。请先完成面板配置初始化。");
             }
                 
-            // 根据 UseSimulation 标志选择实现
-            if (panelConfig.UseSimulation)
+            // 根据 IRuntimeProfile.IsSimulationMode 选择实现
+            var runtimeProfile = sp.GetService<IRuntimeProfile>();
+            bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
+            
+            if (isSimulationMode)
             {
                 var logger = loggerFactory.CreateLogger<SimulatedPanelInputReader>();
-                logger.LogInformation("使用仿真面板输入读取器");
+                logger.LogInformation("使用仿真面板输入读取器（仿真模式）");
                 return new SimulatedPanelInputReader(systemClock);
             }
             else
@@ -657,15 +660,18 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 // 从数据库读取驱动器配置
                 var driverConfig = driverRepo.Get();
                 var vendorType = driverConfig.VendorType;
-                var useHardware = driverConfig.UseHardwareDriver;
+                
+                // 使用 IRuntimeProfile.IsSimulationMode 判断是否使用模拟驱动器
+                var runtimeProfile = sp.GetService<IRuntimeProfile>();
+                bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
                 
                 logger.LogInformation(
-                    "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}, UseHardware={UseHardware}",
+                    "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}, SimulationMode={SimulationMode}",
                     vendorType,
-                    useHardware);
+                    isSimulationMode);
                 
-                // 如果不使用硬件驱动器或使用 Mock，返回模拟驱动器
-                if (!useHardware || vendorType == DriverVendorType.Mock)
+                // 如果是仿真模式或使用 Mock，返回模拟驱动器
+                if (isSimulationMode || vendorType == DriverVendorType.Mock)
                 {
                     logger.LogInformation("使用模拟 IO 联动驱动器");
                     return new SimulatedIoLinkageDriver(
