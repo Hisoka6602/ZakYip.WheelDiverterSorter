@@ -18,6 +18,11 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// - **摆轮驱动器**（WheelDiverterConfiguration）: 控制摆轮转向（左转、右转、回中）
 ///   - 数递鸟（ShuDiNiao）: 通过TCP协议直接控制
 ///   - 莫迪（Modi）: 通过TCP协议直接控制
+///
+/// **架构原则**：
+/// - 系统默认使用真实硬件IO驱动器
+/// - 只有在仿真模式下（ISimulationModeProvider.IsSimulationMode() == true）才使用Mock驱动器
+/// - 通过 POST /api/simulation/run-scenario-e 等仿真端点进入仿真模式
 /// </remarks>
 public class DriverConfiguration
 {
@@ -27,19 +32,11 @@ public class DriverConfiguration
     public int Id { get; set; }
 
     /// <summary>
-    /// 是否使用硬件驱动器（false则使用模拟驱动器）
-    /// </summary>
-    /// <remarks>
-    /// 默认为 true（使用硬件驱动，不使用仿真）
-    /// </remarks>
-    public bool UseHardwareDriver { get; set; } = true;
-
-    /// <summary>
     /// IO驱动器厂商类型
     /// </summary>
     /// <remarks>
     /// 可选值:
-    /// - Mock: 模拟驱动器（用于测试）
+    /// - Mock: 模拟驱动器（仅在仿真模式下自动使用）
     /// - Leadshine: 雷赛运动控制卡
     /// - Siemens: 西门子PLC
     /// - Mitsubishi: 三菱PLC
@@ -74,18 +71,18 @@ public class DriverConfiguration
     /// </summary>
     /// <remarks>
     /// 默认配置：
-    /// - UseHardwareDriver = true（使用硬件驱动，不使用仿真）
     /// - VendorType = Leadshine（默认雷赛控制器）
     /// - ControllerIp = "192.168.5.11"
     /// - CardNo = 8
     /// - PortNo = 2
+    /// 
+    /// 系统默认使用真实硬件，仿真模式通过 ISimulationModeProvider 控制
     /// </remarks>
     public static DriverConfiguration GetDefault()
     {
         var now = ConfigurationDefaults.DefaultTimestamp;
         return new DriverConfiguration
         {
-            UseHardwareDriver = true,
             VendorType = DriverVendorType.Leadshine,
             Leadshine = new LeadshineDriverConfig
             {
@@ -114,9 +111,9 @@ public class DriverConfiguration
             return (false, "驱动器厂商类型无效");
         }
 
-        if (UseHardwareDriver && VendorType == DriverVendorType.Leadshine && Leadshine == null)
+        if (VendorType == DriverVendorType.Leadshine && Leadshine == null)
         {
-            return (false, "使用雷赛硬件驱动时，必须配置雷赛参数");
+            return (false, "使用雷赛驱动时，必须配置雷赛参数");
         }
 
         if (Leadshine != null)

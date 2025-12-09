@@ -12,7 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
@@ -26,7 +26,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress;
 /// 
 /// **架构原则**：
 /// - 默认使用真实硬件传感器（Leadshine/Siemens等）
-/// - 只有在仿真模式下（ISimulationModeProvider.IsSimulationMode() == true）才使用Mock传感器
+/// - 只有在仿真模式下（IRuntimeProfile.IsSimulationMode == true）才使用Mock传感器
 /// - 通过 POST /api/simulation/run-scenario-e 等端点进入仿真模式
 /// </remarks>
 public static class SensorServiceExtensions {
@@ -40,10 +40,10 @@ public static class SensorServiceExtensions {
     /// <remarks>
     /// 调用此方法前，需确保以下服务已注册：
     /// - IInputPort（硬件传感器模式需要）
-    /// - ISimulationModeProvider（用于判断是否使用Mock传感器）
+    /// - IRuntimeProfile（用于判断是否使用Mock传感器）
     /// 
     /// 传感器类型选择逻辑：
-    /// - 如果 ISimulationModeProvider.IsSimulationMode() 返回 true：使用 MockSensor
+    /// - 如果 IRuntimeProfile.IsSimulationMode 返回 true：使用 MockSensor
     /// - 否则：使用真实硬件传感器（根据 VendorType 配置）
     /// </remarks>
     public static IServiceCollection AddSensorServices(
@@ -58,13 +58,14 @@ public static class SensorServiceExtensions {
             options => configuration.GetSection("ParcelDetection").Bind(options));
 
         // 注册传感器工厂 - 运行时根据仿真模式动态选择
-        // 这里注册一个工厂，它会在运行时检查 ISimulationModeProvider
+        // 这里注册一个工厂，它会在运行时检查 IRuntimeProfile
         services.AddSingleton<ISensorFactory>(sp => {
-            var simulationModeProvider = sp.GetService<ISimulationModeProvider>();
-            var logger = sp.GetRequiredService<ILogger<SensorServiceExtensions>>();
+            var runtimeProfile = sp.GetService<IRuntimeProfile>();
+            var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger("ZakYip.WheelDiverterSorter.Ingress.SensorServiceExtensions");
             
             // 判断是否为仿真模式
-            bool isSimulationMode = simulationModeProvider?.IsSimulationMode() ?? false;
+            bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
             
             if (isSimulationMode)
             {
