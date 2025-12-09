@@ -162,8 +162,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             runtimeMode.Equals("PerformanceTest", StringComparison.OrdinalIgnoreCase))
         {
             // 仿真/性能测试模式
-            services.AddSimulatedIo()
-                    .AddSimulatedConveyorLine();
+            services.AddSimulatedIo();
         }
         else
         {
@@ -570,9 +569,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         
         // 注册数递鸟摆轮驱动器
         services.AddShuDiNiaoWheelDiverter();
-        
-        // 注册模拟传送带
-        services.AddSimulatedConveyorLine();
         
         // 注册面板输入读取器（根据配置动态选择）
         // 注意：面板配置在应用启动时读取一次，配置变更需要重启应用才能生效

@@ -10,7 +10,6 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine.Configuration;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;

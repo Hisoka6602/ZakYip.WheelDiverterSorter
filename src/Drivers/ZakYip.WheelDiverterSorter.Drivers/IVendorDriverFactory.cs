@@ -2,7 +2,6 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Segments;
 
 namespace ZakYip.WheelDiverterSorter.Drivers;
 

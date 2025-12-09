@@ -133,26 +133,7 @@ public static class SimulatedDriverServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>
-    /// 注册模拟线体实现
-    /// </summary>
-    /// <param name="services">服务集合</param>
-    /// <returns>服务集合</returns>
-    /// <remarks>
-    /// 注册以下服务：
-    /// - <see cref="IConveyorLineSegmentDevice"/> -> <see cref="SimulatedConveyorLineSegmentDevice"/>
-    /// </remarks>
-    public static IServiceCollection AddSimulatedConveyorLine(this IServiceCollection services)
-    {
-        // 注册模拟线体段设备
-        services.AddSingleton<IConveyorLineSegmentDevice>(sp =>
-        {
-            var logger = sp.GetService<ILogger<SimulatedConveyorLineSegmentDevice>>();
-            return new SimulatedConveyorLineSegmentDevice("SimulatedConveyor", logger);
-        });
 
-        return services;
-    }
 
     /// <summary>
     /// 注册模拟离散 IO 组实现
