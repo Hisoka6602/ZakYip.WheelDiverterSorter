@@ -133,8 +133,10 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
             switch (newState)
             {
                 case SystemState.Running:
-                    // 系统开始运行，启动所有摆轮
+                    // 系统开始运行，启动所有摆轮并让它们向前（直通）
                     _logger.LogInformation("系统进入运行状态，启动所有摆轮设备...");
+                    
+                    // 先调用 Run 命令启动摆轮（仅对支持的设备）
                     var runResult = await _wheelDiverterService.RunAllAsync(cancellationToken);
                     
                     if (runResult.IsSuccess)
@@ -157,6 +159,33 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                             _logger.LogWarning(
                                 "启动失败的摆轮ID: {FailedIds}",
                                 string.Join(", ", runResult.FailedDriverIds));
+                        }
+                    }
+                    
+                    // 然后让所有摆轮向前（直通）
+                    _logger.LogInformation("设置所有摆轮为向前（直通）状态...");
+                    var passThroughResult = await _wheelDiverterService.PassThroughAllAsync(cancellationToken);
+                    
+                    if (passThroughResult.IsSuccess)
+                    {
+                        _logger.LogInformation(
+                            "✅ 所有摆轮已设置为向前: 成功={SuccessCount}/{TotalCount}",
+                            passThroughResult.SuccessCount,
+                            passThroughResult.TotalCount);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "⚠️ 摆轮部分设置为向前: 成功={SuccessCount}/{TotalCount}, 失败={FailedCount}",
+                            passThroughResult.SuccessCount,
+                            passThroughResult.TotalCount,
+                            passThroughResult.FailedDriverIds.Count);
+                        
+                        if (passThroughResult.FailedDriverIds.Any())
+                        {
+                            _logger.LogWarning(
+                                "设置向前失败的摆轮ID: {FailedIds}",
+                                string.Join(", ", passThroughResult.FailedDriverIds));
                         }
                     }
                     break;

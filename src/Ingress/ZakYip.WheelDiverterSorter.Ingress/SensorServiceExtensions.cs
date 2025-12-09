@@ -102,7 +102,8 @@ public static class SensorServiceExtensions {
                 loggerFactory,
                 inputPort,
                 configProvider,
-                systemClock);
+                systemClock,
+                sensorOptions.PollingIntervalMs);
         });
 
         // 注册传感器实例

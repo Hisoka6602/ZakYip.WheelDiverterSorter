@@ -1428,6 +1428,9 @@ tools/Profiling/
 | TD-048 | ❌ 未开始 | 重建 CI/CD 流程以符合新架构 → 现有 CI 流程需要删除并重建以匹配大规模架构重构后的功能 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-048-重建-cicd-流程以符合新架构) |
 | TD-049 | ✅ 已解决 | 建立影分身防线自动化测试 → 已新增4个检测测试类，覆盖枚举/DTO/工具方法/影子实现（当前 PR） | [详情](./TechnicalDebtLog.md#td-049-建立影分身防线自动化测试) |
 | TD-050 | ❌ 未开始 | 更新主文档以反映架构重构 → README、架构文档、指南需要更新以反映皮带控制层删除后的新架构 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
+| TD-051 | ❌ 未开始 | SensorActivationWorker 集成测试覆盖不足 → 缺少状态转换和异常场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
+| TD-052 | ❌ 未开始 | PassThroughAllAsync 方法集成测试覆盖不足 → 缺少完整行为和失败场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
+| TD-053 | ❌ 未开始 | Worker 轮询间隔硬编码 → SensorActivationWorker 和 SystemStateWheelDiverterCoordinator 的轮询间隔应可配置 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
 
 ### 技术债统计
 
@@ -1435,10 +1438,10 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 48 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 2 |
-| **总计** | **50** |
+| ❌ 未开始 | 5 |
+| **总计** | **53** |
 
-**完成率**：48/50 = 96%
+**完成率**：48/53 = 90.6%
 
 ---
 

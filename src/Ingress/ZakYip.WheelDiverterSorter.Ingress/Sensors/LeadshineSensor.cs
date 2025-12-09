@@ -25,6 +25,7 @@ public class LeadshineSensor : ISensor {
     private readonly ISystemClock _systemClock;
     private readonly int _inputBit;
     private readonly string _sensorTypeName;
+    private readonly int _pollingIntervalMs;
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
     private bool _lastState;
@@ -63,19 +64,22 @@ public class LeadshineSensor : ISensor {
     /// <param name="inputPort">输入端口</param>
     /// <param name="inputBit">输入位索引</param>
     /// <param name="systemClock">系统时钟</param>
+    /// <param name="pollingIntervalMs">传感器轮询间隔（毫秒），默认10ms</param>
     public LeadshineSensor(
         ILogger logger,
         string sensorId,
         SensorType type,
         IInputPort inputPort,
         int inputBit,
-        ISystemClock systemClock) {
+        ISystemClock systemClock,
+        int pollingIntervalMs = 10) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
         Type = type;
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _inputBit = inputBit;
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _pollingIntervalMs = pollingIntervalMs;
         _lastState = false;
         
         // 根据传感器类型设置名称（用于日志）
@@ -160,8 +164,8 @@ public class LeadshineSensor : ISensor {
                         currentState ? "触发" : "解除");
                 }
 
-                // 短暂延迟以避免过度轮询（根据实际需求调整）
-                await Task.Delay(10, cancellationToken);
+                // 使用配置的轮询间隔
+                await Task.Delay(_pollingIntervalMs, cancellationToken);
             }
             catch (OperationCanceledException) {
                 break;

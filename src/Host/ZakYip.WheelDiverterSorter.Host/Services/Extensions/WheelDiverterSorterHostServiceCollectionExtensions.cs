@@ -83,6 +83,7 @@ public static class WheelDiverterSorterHostServiceCollectionExtensions
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
         services.AddHostedService<PanelButtonMonitorWorker>();
         services.AddHostedService<SystemStateWheelDiverterCoordinator>();
+        services.AddHostedService<SensorActivationWorker>();
 
         return services;
     }

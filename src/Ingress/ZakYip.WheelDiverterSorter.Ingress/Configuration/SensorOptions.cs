@@ -26,4 +26,13 @@ public class SensorOptions {
     /// 模拟传感器配置列表
     /// </summary>
     public List<MockSensorConfigDto> MockSensors { get; set; } = new();
+
+    /// <summary>
+    /// 传感器轮询间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 默认值为 10ms，确保能及时检测包裹通过。
+    /// 建议最大不超过 50ms，以保证检测精度。
+    /// </remarks>
+    public int PollingIntervalMs { get; set; } = 10;
 }

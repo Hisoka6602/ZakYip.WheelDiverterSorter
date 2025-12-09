@@ -351,6 +351,85 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
     }
 
     /// <inheritdoc />
+    public async Task<WheelDiverterOperationResult> PassThroughAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                _logger.LogInformation("开始让所有摆轮向前（直通）...");
+
+                var activeDrivers = _driverManager.GetActiveDrivers();
+                if (activeDrivers.Count == 0)
+                {
+                    _logger.LogWarning("没有已连接的摆轮");
+                    return new WheelDiverterOperationResult
+                    {
+                        IsSuccess = true,
+                        SuccessCount = 0,
+                        TotalCount = 0,
+                        FailedDriverIds = Array.Empty<string>()
+                    };
+                }
+
+                var successCount = 0;
+                var failedDriverIds = new List<string>();
+
+                foreach (var kvp in activeDrivers)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    try
+                    {
+                        var success = await kvp.Value.PassThroughAsync(cancellationToken);
+                        if (success)
+                        {
+                            successCount++;
+                            _logger.LogDebug("摆轮 {DiverterId} 设置为向前成功", kvp.Key);
+                            UpdateHealthStatus(kvp.Key, true, true, "向前（直通）");
+                        }
+                        else
+                        {
+                            failedDriverIds.Add(kvp.Key);
+                            _logger.LogWarning("摆轮 {DiverterId} 设置为向前失败", kvp.Key);
+                            UpdateHealthStatus(kvp.Key, false, true, "向前命令失败");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failedDriverIds.Add(kvp.Key);
+                        _logger.LogError(ex, "摆轮 {DiverterId} 设置为向前异常", kvp.Key);
+                        UpdateHealthStatus(kvp.Key, false, true, $"向前异常: {ex.Message}");
+                    }
+                }
+
+                var isSuccess = failedDriverIds.Count == 0;
+                _logger.LogInformation(
+                    "摆轮向前设置完成: 成功={SuccessCount}/{TotalCount}, 失败={FailedCount}",
+                    successCount, activeDrivers.Count, failedDriverIds.Count);
+
+                return new WheelDiverterOperationResult
+                {
+                    IsSuccess = isSuccess,
+                    SuccessCount = successCount,
+                    TotalCount = activeDrivers.Count,
+                    FailedDriverIds = failedDriverIds,
+                    ErrorMessage = isSuccess ? null : $"部分摆轮设置向前失败: {string.Join(", ", failedDriverIds)}"
+                };
+            },
+            operationName: "PassThroughAllWheelDiverters",
+            defaultValue: new WheelDiverterOperationResult
+            {
+                IsSuccess = false,
+                SuccessCount = 0,
+                TotalCount = 0,
+                FailedDriverIds = Array.Empty<string>(),
+                ErrorMessage = "设置摆轮向前时发生异常"
+            },
+            cancellationToken: cancellationToken
+        );
+    }
+
+    /// <inheritdoc />
     public async Task<IReadOnlyList<WheelDiverterHealthInfo>> GetHealthStatusesAsync()
     {
         return await _safeExecutor.ExecuteAsync<IReadOnlyList<WheelDiverterHealthInfo>>(

@@ -23,6 +23,7 @@ public class LeadshineSensorFactory : ISensorFactory {
     private readonly IInputPort _inputPort;
     private readonly ISensorVendorConfigProvider _configProvider;
     private readonly ISystemClock _systemClock;
+    private readonly int _pollingIntervalMs;
 
     /// <summary>
     /// 构造函数
@@ -32,17 +33,20 @@ public class LeadshineSensorFactory : ISensorFactory {
     /// <param name="inputPort">输入端口</param>
     /// <param name="configProvider">传感器配置提供者</param>
     /// <param name="systemClock">系统时钟</param>
+    /// <param name="pollingIntervalMs">传感器轮询间隔（毫秒），默认10ms</param>
     public LeadshineSensorFactory(
         ILogger<LeadshineSensorFactory> logger,
         ILoggerFactory loggerFactory,
         IInputPort inputPort,
         ISensorVendorConfigProvider configProvider,
-        ISystemClock systemClock) {
+        ISystemClock systemClock,
+        int pollingIntervalMs = 10) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _configProvider = configProvider ?? throw new ArgumentNullException(nameof(configProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _pollingIntervalMs = pollingIntervalMs;
     }
 
     /// <summary>
@@ -72,14 +76,16 @@ public class LeadshineSensorFactory : ISensorFactory {
                     sensorType,
                     _inputPort,
                     config.InputBit,
-                    _systemClock);
+                    _systemClock,
+                    _pollingIntervalMs);
 
                 sensors.Add(sensor);
                 _logger.LogInformation(
-                    "成功创建雷赛传感器 {SensorId}，类型: {Type}，输入位: {InputBit}",
+                    "成功创建雷赛传感器 {SensorId}，类型: {Type}，输入位: {InputBit}，轮询间隔: {PollingIntervalMs}ms",
                     config.SensorId,
                     sensorType,
-                    config.InputBit);
+                    config.InputBit,
+                    _pollingIntervalMs);
             }
             catch (Exception ex) {
                 _logger.LogError(ex, "创建雷赛传感器 {SensorId} 失败", config.SensorId);
