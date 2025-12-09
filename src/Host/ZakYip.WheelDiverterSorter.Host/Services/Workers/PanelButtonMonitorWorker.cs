@@ -391,6 +391,9 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     // 预警等待被高优先级按钮取消（不是系统停止导致的取消）
+                    // 判断逻辑：
+                    // - 如果 cancellationToken 被取消，说明是系统停止，应该让异常继续传播
+                    // - 如果 cancellationToken 未被取消，说明是内部预警取消源被触发（高优先级按钮），捕获并处理
                     var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
                     _logger.LogWarning(
                         "⚠️ 预警等待被高优先级按钮（停止/急停）取消，实际等待: {ActualWait:F2} 秒",
