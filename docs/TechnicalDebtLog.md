@@ -54,6 +54,10 @@
 - [TD-044] LeadshineIoLinkageDriver 缺少 EMC 初始化检查
 - [TD-045] IO 驱动需要全局单例实现（Leadshine/S7）
 - [TD-046] 所有DI注册统一使用单例模式
+- [TD-047] 补充 API 端点完整测试覆盖 (PR-ConveyorSegment)
+- [TD-048] 重建 CI/CD 流程以符合新架构 (PR-ConveyorSegment)
+- [TD-049] 建立影分身防线自动化测试 (PR-ConveyorSegment)
+- [TD-050] 更新主文档以反映架构重构 (PR-ConveyorSegment)
 
 ---
 
@@ -1896,4 +1900,261 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 **文档版本**：4.3 (TD-046 新增)  
 **最后更新**：2025-12-08  
+**维护团队**：ZakYip Development Team
+
+## [TD-047] 补充 API 端点完整测试覆盖
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+在 PR-ConveyorSegment（大规模架构重构）中，用户明确要求"所有Api都有测试"，但当前仅 `ConveyorSegmentController` 有完整的集成测试覆盖（9个测试场景）。
+
+**缺少测试的 API 端点**：
+
+需要补充集成测试的控制器：
+1. `SystemConfigController` - 系统配置 API
+2. `CommunicationController` - 通信配置 API  
+3. `LoggingConfigController` - 日志配置 API
+4. `PanelConfigController` - 面板配置 API
+5. `IoLinkageController` - IO联动配置 API
+6. `ChutePathTopologyController` - 拓扑配置 API（除 SimulateParcelPath 外）
+7. `HardwareConfigController` - 硬件配置 API
+8. `SensorController` - 传感器配置 API
+
+**测试要求**：
+
+每个控制器至少需要覆盖：
+- ✅ CRUD 操作（Create/Read/Update/Delete）
+- ✅ 参数验证（必填字段、范围检查、格式验证）
+- ✅ 错误场景（不存在的ID、重复创建等）
+- ✅ 批量操作（如适用）
+- ✅ API 响应格式统一性（ApiResponse<T>）
+
+**参考实现**：
+
+`ConveyorSegmentControllerTests.cs` 已实现完整测试覆盖，可作为参考模板：
+
+```csharp
+[Fact] public async Task GetById_WhenExists_ReturnsConfig()
+[Fact] public async Task GetById_WhenNotFound_ReturnsNotFound()
+[Fact] public async Task Create_WithValidData_ReturnsCreatedConfig()
+[Fact] public async Task Create_WithInvalidData_ReturnsBadRequest()
+[Fact] public async Task Update_WhenExists_ReturnsUpdatedConfig()
+[Fact] public async Task Delete_WhenExists_ReturnsNoContent()
+[Fact] public async Task CreateBatch_WithValidData_ReturnsCreatedConfigs()
+[Fact] public async Task GetDefaultTemplate_ReturnsDefaultConfig()
+[Fact] public async Task GetAll_ReturnsList()
+```
+
+**优先级**：🟡 中等
+
+**建议实施**：
+1. 为每个控制器创建对应的集成测试类
+2. 使用 WebApplicationFactory 模拟完整的 API 环境
+3. 确保测试覆盖率达到 80% 以上
+4. 在 CI 流程中强制执行测试通过（参见 TD-048）
+
+---
+
+## [TD-048] 重建 CI/CD 流程以符合新架构
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+用户在 PR-ConveyorSegment 中明确要求："删掉所有CI流程重新建立确保符合现在的要求和功能"。
+
+当前 CI 流程可能包含对已删除功能的测试和检查（如中段皮带硬件控制、皮带HAL接口等），需要重新设计以反映新架构。
+
+**架构变更影响**：
+
+本次大规模重构删除了以下功能：
+1. ✅ 所有皮带硬件控制层（IConveyorDriveController, IConveyorLineSegmentDevice等）
+2. ✅ 中段皮带硬件控制（MiddleConveyorCoordinator, ConveyorIoMapping等）
+3. ✅ 摆轮硬件绑定配置（WheelHardwareBinding）
+
+新架构特点：
+- ✅ 皮带控制统一由 IO 联动处理
+- ✅ 摆轮保持厂商驱动实现（Leadshine/ShuDiNiao）
+- ✅ 线段时间计算由 ConveyorSegmentConfiguration 提供
+
+**CI/CD 流程设计要求**：
+
+1. **构建阶段**：
+   - 编译所有项目（0 警告 0 错误）
+   - 确保所有依赖正确解析
+   - 检查代码格式和风格
+
+2. **测试阶段**：
+   - 运行单元测试（所有项目）
+   - 运行集成测试（Host.IntegrationTests）
+   - 运行架构测试（ArchTests）
+   - 运行技术债合规测试（TechnicalDebtComplianceTests）
+   - 测试覆盖率报告（≥80%）
+
+3. **质量检查**：
+   - CodeQL 安全扫描
+   - 依赖漏洞检查
+   - 代码重复度分析
+   - 影分身代码检测（TD-049）
+
+4. **文档验证**：
+   - 检查 API 文档完整性（Swagger）
+   - 验证 README.md 与代码一致性
+   - 检查技术债文档更新
+
+**当前 CI 流程位置**：
+
+检查现有 CI 配置文件：
+- `.github/workflows/*.yml`
+- `azure-pipelines.yml`（如存在）
+
+**优先级**：🔴 高
+
+**建议实施**：
+1. 审计现有 CI 流程，识别过时的检查项
+2. 设计新的 CI 流程架构
+3. 分阶段实施（构建→测试→质量检查→文档）
+4. 添加 PR 门禁规则（所有检查必须通过）
+
+---
+
+## [TD-049] 建立影分身防线自动化测试
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+用户在 PR-ConveyorSegment 中要求："建立影分身防线，建立单元测试"。
+
+当前虽然有 `TechnicalDebtComplianceTests` 检测部分影分身代码，但缺少全面的自动化防线和单元测试支持。
+
+**影分身类型清单**：
+
+需要防护的影分身模式：
+1. ✅ **重复接口** - 同一职责出现多个接口定义
+2. ✅ **纯转发 Facade/Adapter** - 无附加值的包装类
+3. ✅ **重复 DTO/Options** - 字段结构完全相同的数据传输对象
+4. ✅ **重复 Utilities** - 相同功能的工具方法分散定义
+5. ⚠️ **重复枚举** - 相同语义的枚举定义（部分覆盖）
+6. ❌ **影子实现** - 新旧两套等价实现并存
+
+**当前防线状态**：
+
+已有的检测机制：
+- `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests` - 检测重复类型
+- `TechnicalDebtComplianceTests.PureForwardingTypeDetectionTests` - 检测纯转发类型
+- `ArchTests.ExecutionPathPipelineTests` - 检测禁止的接口使用
+
+缺少的防线：
+- ❌ 枚举影分身检测（未完整覆盖）
+- ❌ 影子实现检测（新旧实现并存）
+- ❌ DTO 字段相似度分析
+- ❌ 工具方法签名相似度检测
+
+**建议实施方案**：
+
+1. **扩展 TechnicalDebtComplianceTests**：
+
+```csharp
+// 新增测试
+[Fact] public void ShouldNotHaveShadowImplementations()
+[Fact] public void ShouldNotHaveDuplicateEnums()
+[Fact] public void DTOsShouldNotHaveSimilarStructure()
+[Fact] public void UtilityMethodsShouldNotDuplicate()
+```
+
+2. **建立自动扫描工具**：
+   - 定期扫描代码库识别潜在影分身
+   - 生成报告并在 CI 中检查
+   - 与 TD-048 的 CI 流程集成
+
+3. **单元测试要求**：
+   - 为每个防线测试编写单元测试
+   - 覆盖正例和反例场景
+   - 确保测试稳定且高效
+
+**优先级**：🟡 中等
+
+**依赖关系**：
+- 依赖 TD-048（CI/CD 流程）提供运行环境
+- 与 TD-033（单一权威实现表）配合使用
+
+---
+
+## [TD-050] 更新主文档以反映架构重构
+
+**状态**：❌ 未开始
+
+**问题描述**：
+
+用户在 PR-ConveyorSegment 中要求："更新README.md和其他相关的说明文档，确保说明、功能、代码的一致性"。
+
+本次大规模架构重构（删除所有皮带硬件控制层）对系统架构产生重大影响，需要更新所有相关文档。
+
+**需要更新的文档**：
+
+1. **主 README.md**：
+   - ❌ 更新项目概述（删除皮带控制相关描述）
+   - ❌ 更新架构图（反映新的控制模型）
+   - ❌ 更新功能列表（删除中段皮带硬件控制）
+   - ❌ 更新快速开始指南（调整配置说明）
+
+2. **docs/RepositoryStructure.md**：
+   - ⚠️ 更新项目结构描述（部分已更新）
+   - ❌ 更新技术债索引（添加 TD-047~050）
+   - ❌ 更新依赖关系图
+
+3. **docs/ARCHITECTURE_PRINCIPLES.md**：
+   - ❌ 更新硬件控制架构说明
+   - ❌ 添加新架构原则（IO联动优先）
+   - ❌ 删除过时的皮带HAL描述
+
+4. **docs/guides/ 目录**：
+   - ❌ 审计所有指南文档
+   - ❌ 删除或更新皮带控制相关指南
+   - ❌ 添加 ConveyorSegmentConfiguration 使用指南
+
+5. **API 文档**：
+   - ✅ ConveyorSegmentController 已有完整 Swagger 注释
+   - ❌ 更新其他控制器的文档说明
+
+**文档一致性检查清单**：
+
+对每个文档执行以下检查：
+- [ ] 是否提及已删除的类型（MiddleConveyorIoOptions, WheelHardwareBinding等）？
+- [ ] 是否包含过时的配置示例？
+- [ ] 架构图是否反映最新结构？
+- [ ] 代码示例是否可编译通过？
+- [ ] API 端点列表是否完整准确？
+
+**建议实施步骤**：
+
+1. **审计阶段**：
+   - 列出所有 Markdown 文档
+   - 搜索已删除类型的引用
+   - 标记需要更新的章节
+
+2. **更新阶段**：
+   - 按优先级更新文档（README > 架构 > 指南）
+   - 更新架构图和流程图
+   - 添加新增功能的文档
+
+3. **验证阶段**：
+   - 验证所有链接有效
+   - 确保代码示例可编译
+   - 与实际代码交叉验证
+
+**优先级**：🔴 高
+
+**参考资料**：
+- PR-ConveyorSegment 描述中的架构说明
+- copilot-instructions.md 中的文档要求
+- DOCUMENTATION_INDEX.md 中的文档索引
+
+---
+
+**文档版本**：4.4 (TD-047~050 新增)  
+**最后更新**：2025-12-09  
 **维护团队**：ZakYip Development Team

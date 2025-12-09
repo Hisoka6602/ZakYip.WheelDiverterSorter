@@ -1424,6 +1424,10 @@ tools/Profiling/
 | TD-044 | ✅ 已解决 | LeadshineIoLinkageDriver 缺少 EMC 初始化检查 → 已添加 IsAvailable 检查和增强错误日志 (当前 PR) | [详情](./TechnicalDebtLog.md#td-044-leadshineiolinkagedriver-缺少-emc-初始化检查) |
 | TD-045 | ✅ 已解决 | IO 驱动需要全局单例实现（Leadshine/S7）→ 已审计线程安全性并确认架构满足要求 (当前 PR) | [详情](./TechnicalDebtLog.md#td-045-io-驱动需要全局单例实现leadshines7) |
 | TD-046 | ✅ 已解决 | 所有DI注册统一使用单例模式 → 已将7个AddScoped改为AddSingleton (当前 PR) | [详情](./TechnicalDebtLog.md#td-046-所有di注册统一使用单例模式) |
+| TD-047 | ❌ 未开始 | 补充 API 端点完整测试覆盖 → 除 ConveyorSegmentController 外，其他 API 端点缺少集成测试 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-047-补充-api-端点完整测试覆盖) |
+| TD-048 | ❌ 未开始 | 重建 CI/CD 流程以符合新架构 → 现有 CI 流程需要删除并重建以匹配大规模架构重构后的功能 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-048-重建-cicd-流程以符合新架构) |
+| TD-049 | ❌ 未开始 | 建立影分身防线自动化测试 → 扩展 TechnicalDebtComplianceTests，增加枚举/DTO/工具方法影分身检测 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-049-建立影分身防线自动化测试) |
+| TD-050 | ❌ 未开始 | 更新主文档以反映架构重构 → README、架构文档、指南需要更新以反映皮带控制层删除后的新架构 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
 
 ### 技术债统计
 
@@ -1431,8 +1435,8 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 46 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 0 |
-| **总计** | **46** |
+| ❌ 未开始 | 4 |
+| **总计** | **50** |
 
 ---
 
