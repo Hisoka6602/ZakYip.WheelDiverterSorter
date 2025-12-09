@@ -1250,9 +1250,6 @@ public class HardwareConfigController : ControllerBase
 /// <summary>
 /// IO驱动器配置响应模型
 /// </summary>
-/// <summary>
-/// IO驱动器配置响应模型
-/// </summary>
 /// <remarks>
 /// 架构原则：系统默认使用真实硬件驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
 /// </remarks>
