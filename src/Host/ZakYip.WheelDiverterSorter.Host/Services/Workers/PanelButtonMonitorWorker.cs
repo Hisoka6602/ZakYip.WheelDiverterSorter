@@ -388,20 +388,13 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                         "✅ 预警时间结束，实际等待: {ActualWait:F2} 秒，准备转换到 Running 状态并启动摆轮",
                         actualWaitTime);
                 }
-                catch (OperationCanceledException) when (_preWarningCancellationSource?.IsCancellationRequested == true)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
-                    // 预警等待被高优先级按钮取消
+                    // 预警等待被高优先级按钮取消（不是系统停止导致的取消）
                     var actualWaitTime = (_systemClock.LocalNow - warningStartTime).TotalSeconds;
                     _logger.LogWarning(
                         "⚠️ 预警等待被高优先级按钮（停止/急停）取消，实际等待: {ActualWait:F2} 秒",
                         actualWaitTime);
-                    
-                    // 清理预警取消令牌源
-                    lock (_preWarningLock)
-                    {
-                        _preWarningCancellationSource?.Dispose();
-                        _preWarningCancellationSource = null;
-                    }
                     
                     // 不继续执行状态转换，由高优先级按钮处理
                     return;
@@ -409,11 +402,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 finally
                 {
                     // 清理预警取消令牌源
-                    lock (_preWarningLock)
-                    {
-                        _preWarningCancellationSource?.Dispose();
-                        _preWarningCancellationSource = null;
-                    }
+                    CleanupPreWarningCancellationSource();
                 }
             }
             else
@@ -504,5 +493,17 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             SystemState.EmergencyStop => SystemOperatingState.EmergencyStopped,
             _ => SystemOperatingState.Standby
         };
+    }
+    
+    /// <summary>
+    /// 清理预警取消令牌源
+    /// </summary>
+    private void CleanupPreWarningCancellationSource()
+    {
+        lock (_preWarningLock)
+        {
+            _preWarningCancellationSource?.Dispose();
+            _preWarningCancellationSource = null;
+        }
     }
 }
