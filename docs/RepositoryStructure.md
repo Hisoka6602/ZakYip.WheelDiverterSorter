@@ -1431,8 +1431,8 @@ tools/Profiling/
 | TD-051 | ✅ 已解决 | SensorActivationWorker 集成测试覆盖不足 → 已补充状态转换和异常场景测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
 | TD-052 | ✅ 已解决 | PassThroughAllAsync 方法集成测试覆盖不足 → 已补充完整行为和失败场景测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
 | TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 + UseHardware配置彻底删除 → WorkerOptions 可通过 appsettings.json 配置，系统默认使用真实硬件（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
-| TD-054 | ⏳ 进行中 | Worker 配置 API 化 → WorkerConfiguration 模型已建立，完整 API 化需重构多个组件（独立 PR） | [详情](./TechnicalDebtLog.md#td-054-worker-配置-api-化) |
-| TD-055 | ❌ 未开始 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs（后续 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
+| TD-054 | ✅ 已解决 | Worker 配置 API 化 → WorkerConfiguration 已集成到 SystemConfig API，支持动态管理（当前 PR） | [详情](./TechnicalDebtLog.md#td-054-worker-配置-api-化) |
+| TD-055 | ✅ 已解决 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs，支持 per-sensor 优化（当前 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
 | TD-056 | ✅ 已解决 | 日志优化 - 仅状态变化时记录 → NodeHealthMonitor/HeartbeatMonitor已实现状态变化检测和日志频率限制（当前 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
 | TD-057 | ✅ 已解决 | 包裹创建代码去重 + 影分身防线 → 经审计确认包裹创建已统一在SortingOrchestrator，无重复逻辑（当前 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
 
@@ -1440,14 +1440,14 @@ tools/Profiling/
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 53 |
-| ⏳ 进行中 | 1 |
-| ❌ 未开始 | 3 |
+| ✅ 已解决 | 55 |
+| ⏳ 进行中 | 0 |
+| ❌ 未开始 | 2 |
 | **总计** | **57** |
 
-**完成率**：53/57 = 93.0% (完全解决) + 1.8% (部分完成) = 94.7%
+**完成率**：55/57 = 96.5%
 
-**最近更新**：TD-051~052, TD-056~057 已完全解决，TD-054 基础已建立（进行中），TD-048, TD-050, TD-055 需独立 PR
+**最近更新**：TD-054, TD-055 已完全解决（当前 PR），TD-048, TD-050 需独立 PR
 
 ---
 
