@@ -70,7 +70,7 @@ public class S7ConveyorDriveController : IConveyorDriveController
     {
         try
         {
-            _logger.LogInformation("启动传送带: SegmentId={SegmentId}", _segmentId);
+            _logger.LogDebug("启动传送带: SegmentId={SegmentId}", _segmentId);
 
             // 设置启动控制位为高电平
             bool success = await _outputPort.WriteAsync(_startControlBit, true);
@@ -78,7 +78,7 @@ public class S7ConveyorDriveController : IConveyorDriveController
             if (success)
             {
                 _isRunning = true;
-                _logger.LogInformation("传送带启动成功: SegmentId={SegmentId}", _segmentId);
+                _logger.LogDebug("传送带启动成功: SegmentId={SegmentId}", _segmentId);
             }
             else
             {
@@ -99,7 +99,7 @@ public class S7ConveyorDriveController : IConveyorDriveController
     {
         try
         {
-            _logger.LogInformation("停止传送带: SegmentId={SegmentId}", _segmentId);
+            _logger.LogDebug("停止传送带: SegmentId={SegmentId}", _segmentId);
 
             // 设置停止控制位为高电平
             bool success = await _outputPort.WriteAsync(_stopControlBit, true);
@@ -108,7 +108,7 @@ public class S7ConveyorDriveController : IConveyorDriveController
             {
                 _isRunning = false;
                 _currentSpeed = 0;
-                _logger.LogInformation("传送带停止成功: SegmentId={SegmentId}", _segmentId);
+                _logger.LogDebug("传送带停止成功: SegmentId={SegmentId}", _segmentId);
             }
             else
             {
