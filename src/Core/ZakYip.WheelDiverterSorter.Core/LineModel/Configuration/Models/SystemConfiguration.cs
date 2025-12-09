@@ -213,6 +213,17 @@ public class SystemConfiguration
             }
         }
 
+        // 验证 Worker 配置
+        if (Worker.StateCheckIntervalMs < 100 || Worker.StateCheckIntervalMs > 5000)
+        {
+            return (false, "Worker 状态检查间隔必须在 100ms - 5000ms 范围内");
+        }
+
+        if (Worker.ErrorRecoveryDelayMs < 1000 || Worker.ErrorRecoveryDelayMs > 30000)
+        {
+            return (false, "Worker 异常恢复延迟必须在 1000ms - 30000ms 范围内");
+        }
+
         return (true, null);
     }
 

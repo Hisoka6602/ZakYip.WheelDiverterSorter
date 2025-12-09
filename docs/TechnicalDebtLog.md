@@ -2235,10 +2235,6 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
   - 系统进入 Ready/EmergencyStop/Faulted 状态时停止传感器
   - 状态转换的正确处理
   - SafeExecutionService 异常隔离机制
-  - 系统进入 Running 状态时启动传感器
-  - 系统进入 Ready/EmergencyStop/Faulted 状态时停止传感器
-  - 状态转换的正确处理
-  - SafeExecutionService 异常隔离机制
 
 **影响范围**：
 - `src/Host/.../Services/Workers/SensorActivationWorker.cs`
@@ -2295,10 +2291,6 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 - `WheelDiverterConnectionService.PassThroughAllAsync()` 方法缺少完整的集成测试
 - 当前只有基础的构造函数参数验证测试
 - 缺少对以下场景的测试：
-  - 所有活动摆轮接收 PassThrough 命令
-  - 成功/失败计数的正确性
-  - 部分失败场景的处理
-  - 健康状态更新的验证
   - 所有活动摆轮接收 PassThrough 命令
   - 成功/失败计数的正确性
   - 部分失败场景的处理

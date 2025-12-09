@@ -109,7 +109,7 @@ public class SensorActivationWorkerTests
     }
 
     /// <summary>
-    /// 测试：验证 Worker 能够正确使用 SafeExecutionService
+    /// 测试：验证 Worker 能够正确使用 SafeExecutionService 并执行实际逻辑
     /// TD-051: 验证 SafeExecutionService 集成
     /// </summary>
     [Fact]
@@ -125,8 +125,12 @@ public class SensorActivationWorkerTests
                 It.IsAny<Func<Task>>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .Callback(() => { executeCalled = true; })
-            .ReturnsAsync(true);
+            .Returns<Func<Task>, string, CancellationToken>(async (func, _, ct) =>
+            {
+                executeCalled = true;
+                await func(); // 实际执行传入的委托以验证内部逻辑
+                return true;
+            });
 
         var worker = new SensorActivationWorker(
             _mockLogger.Object,
@@ -135,7 +139,7 @@ public class SensorActivationWorkerTests
             _mockSafeExecutor.Object,
             _workerOptions);
 
-        var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 
         // Act
         await worker.StartAsync(cts.Token);
@@ -152,58 +156,5 @@ public class SensorActivationWorkerTests
                 It.IsAny<CancellationToken>()),
             Times.Once,
             "应使用正确的操作名称调用 SafeExecutionService");
-    }
-
-    /// <summary>
-    /// 测试：验证在初始 Running 状态下传感器被启动
-    /// TD-051: 完善状态转换场景测试
-    /// </summary>
-    [Fact]
-    public void Constructor_ShouldIndicateReadinessForRunningState()
-    {
-        // Arrange
-        _mockStateManager.Setup(sm => sm.CurrentState).Returns(SystemState.Running);
-
-        // Act
-        var worker = new SensorActivationWorker(
-            _mockLogger.Object,
-            _mockStateManager.Object,
-            _mockParcelDetectionService.Object,
-            _mockSafeExecutor.Object,
-            _workerOptions);
-
-        // Assert
-        Assert.NotNull(worker);
-        // 注意：实际的传感器启动会在 ExecuteAsync 中通过 SafeExecutionService 执行
-        // 这里验证 Worker 能够在 Running 状态下正确构造
-    }
-
-    /// <summary>
-    /// 测试：验证 Worker 配置参数被正确使用
-    /// TD-051: 验证配置集成
-    /// </summary>
-    [Fact]
-    public void Constructor_ShouldAcceptWorkerOptions()
-    {
-        // Arrange
-        var customOptions = Options.Create(new WorkerOptions
-        {
-            StateCheckIntervalMs = 1000,
-            ErrorRecoveryDelayMs = 5000
-        });
-
-        _mockStateManager.Setup(sm => sm.CurrentState).Returns(SystemState.Ready);
-
-        // Act
-        var worker = new SensorActivationWorker(
-            _mockLogger.Object,
-            _mockStateManager.Object,
-            _mockParcelDetectionService.Object,
-            _mockSafeExecutor.Object,
-            customOptions);
-
-        // Assert
-        Assert.NotNull(worker);
-        // Worker 应该能够接受自定义配置并成功构造
     }
 }
