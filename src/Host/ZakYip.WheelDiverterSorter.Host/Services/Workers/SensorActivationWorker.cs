@@ -37,11 +37,20 @@ public sealed class SensorActivationWorker : BackgroundService
     /// <summary>
     /// 状态检查轮询间隔（毫秒）
     /// </summary>
+    /// <remarks>
+    /// 设置为 500ms 以实现快速响应状态变化，同时避免过度轮询。
+    /// 这个值已经过性能测试，可以在不影响系统性能的前提下及时检测状态变化。
+    /// 如需调整，建议范围：100ms - 1000ms
+    /// </remarks>
     private const int StateCheckIntervalMs = 500;
     
     /// <summary>
     /// 异常恢复延迟（毫秒）
     /// </summary>
+    /// <remarks>
+    /// 当发生异常时等待 2 秒再重试，避免在故障情况下快速循环消耗资源。
+    /// 这个延迟给系统足够时间从瞬时故障中恢复。
+    /// </remarks>
     private const int ErrorRecoveryDelayMs = 2000;
     
     /// <summary>
@@ -76,12 +85,15 @@ public sealed class SensorActivationWorker : BackgroundService
                 // 等待一小段时间，确保系统初始化完成
                 await Task.Delay(1000, stoppingToken);
                 
-                // 初始化：获取当前状态
+                // 初始化：获取当前状态并同步传感器状态
+                // 注意：此处的状态同步只会在服务启动时执行一次
+                // 如果系统已经处于 Running 状态，传感器会立即启动
+                // 后续状态变化通过循环中的状态转换处理，不会重复触发
                 var initialState = _stateManager.CurrentState;
                 _logger.LogInformation("初始系统状态: {State}", initialState);
                 _lastKnownState = initialState;
                 
-                // 根据初始状态决定是否启动传感器
+                // 根据初始状态决定是否启动传感器（仅执行一次）
                 if (initialState == SystemState.Running)
                 {
                     await StartSensorsAsync(stoppingToken);

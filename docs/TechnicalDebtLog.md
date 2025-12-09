@@ -2209,3 +2209,94 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 **文档版本**：4.4 (TD-047~050 新增)  
 **最后更新**：2025-12-09  
 **维护团队**：ZakYip Development Team
+
+## [TD-051] SensorActivationWorker 集成测试覆盖不足
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- `SensorActivationWorker` 缺少完整的集成测试覆盖
+- 当前只有基础的构造函数参数验证测试
+- 缺少对以下场景的测试：
+  - 系统进入 Running 状态时启动传感器
+  - 系统进入 Ready/EmergencyStop/Faulted 状态时停止传感器
+  - 状态转换的正确处理
+  - SafeExecutionService 异常隔离机制
+
+**影响范围**：
+- `src/Host/.../Services/Workers/SensorActivationWorker.cs`
+- `tests/ZakYip.WheelDiverterSorter.Host.Application.Tests/Workers/SensorActivationWorkerTests.cs`
+
+**建议方案**：
+1. 添加集成测试验证状态转换场景
+2. 使用真实的 `ISystemStateManager` 和 `IParcelDetectionService` 模拟
+3. 验证传感器在正确的状态下启动和停止
+4. 测试异常场景下的恢复机制
+
+**优先级**：🟡 中
+
+**相关 PR**：PR-Sensor-Activation
+
+---
+
+## [TD-052] PassThroughAllAsync 方法集成测试覆盖不足
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- `WheelDiverterConnectionService.PassThroughAllAsync()` 方法缺少完整的集成测试
+- 当前只有基础的构造函数参数验证测试
+- 缺少对以下场景的测试：
+  - 所有活动摆轮接收 PassThrough 命令
+  - 成功/失败计数的正确性
+  - 部分失败场景的处理
+  - 健康状态更新的验证
+
+**影响范围**：
+- `src/Application/.../Services/WheelDiverter/WheelDiverterConnectionService.cs`
+- `tests/ZakYip.WheelDiverterSorter.Host.Application.Tests/WheelDiverterConnectionServiceTests.cs`
+
+**建议方案**：
+1. 添加集成测试验证 PassThroughAllAsync 的完整行为
+2. 使用模拟的 `IWheelDiverterDriver` 实例
+3. 验证所有摆轮都接收到 PassThrough 命令
+4. 测试部分失败和完全失败场景
+5. 验证健康状态注册表的更新
+
+**优先级**：🟡 中
+
+**相关 PR**：PR-Sensor-Activation
+
+---
+
+## [TD-053] SensorActivationWorker 和 SystemStateWheelDiverterCoordinator 的轮询间隔硬编码
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- `SensorActivationWorker` 中的 `StateCheckIntervalMs` (500ms) 和 `ErrorRecoveryDelayMs` (2000ms) 是硬编码常量
+- `SystemStateWheelDiverterCoordinator` 也有类似的硬编码轮询间隔
+- 这些值在不同部署场景下可能需要调整，但当前需要重新编译代码
+- 与 `SensorOptions.PollingIntervalMs` 的配置化设计不一致
+
+**影响范围**：
+- `src/Host/.../Services/Workers/SensorActivationWorker.cs`
+- `src/Host/.../Services/Workers/SystemStateWheelDiverterCoordinator.cs`
+
+**建议方案**：
+1. 创建 `WorkerOptions` 配置类，包含：
+   - `StateCheckIntervalMs` - 状态检查轮询间隔（默认 500ms）
+   - `ErrorRecoveryDelayMs` - 异常恢复延迟（默认 2000ms）
+2. 通过 `appsettings.json` 配置这些值
+3. 在 DI 注册时注入配置
+4. 保持当前的默认值以确保向后兼容
+
+**优先级**：🟢 低
+
+**相关 PR**：PR-Sensor-Activation
+
+---
+
+**文档版本**：4.5 (TD-051~053 新增)  
+**最后更新**：2025-12-09  
+**维护团队**：ZakYip Development Team
