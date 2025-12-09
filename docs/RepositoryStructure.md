@@ -1430,7 +1430,11 @@ tools/Profiling/
 | TD-050 | ❌ 未开始 | 更新主文档以反映架构重构 → README、架构文档、指南需要更新以反映皮带控制层删除后的新架构 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
 | TD-051 | ❌ 未开始 | SensorActivationWorker 集成测试覆盖不足 → 缺少状态转换和异常场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
 | TD-052 | ❌ 未开始 | PassThroughAllAsync 方法集成测试覆盖不足 → 缺少完整行为和失败场景的集成测试 (PR-Sensor-Activation) | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
-| TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 → 已创建 WorkerOptions 配置类，StateCheckIntervalMs 和 ErrorRecoveryDelayMs 现在可通过 appsettings.json 配置（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
+| TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 + UseHardware配置彻底删除 → WorkerOptions 可通过 appsettings.json 配置，系统默认使用真实硬件（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
+| TD-054 | ❌ 未开始 | Worker 配置 API 化 → Worker 配置应从 appsettings.json 迁移到 SystemConfiguration，通过 API 端点管理（后续 PR） | [详情](./TechnicalDebtLog.md#td-054-worker-配置-api-化) |
+| TD-055 | ❌ 未开始 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs（后续 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
+| TD-056 | ❌ 未开始 | 日志优化 - 仅状态变化时记录 → 优化 NodeHealthMonitor/WheelDiverterDriver/HeartbeatMonitor 日志频率（后续 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
+| TD-057 | ❌ 未开始 | 包裹创建代码去重 + 影分身防线 → 审计并合并重复的包裹创建逻辑，添加架构测试防线（后续 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
 
 ### 技术债统计
 
@@ -1438,10 +1442,12 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 49 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 4 |
-| **总计** | **53** |
+| ❌ 未开始 | 8 |
+| **总计** | **57** |
 
-**完成率**：48/53 = 90.6%
+**完成率**：49/57 = 86.0%
+
+**最近更新**：TD-053 已解决（包含 UseHardware 配置删除），TD-054~057 新增（记录本 PR 遗留工作）
 
 ---
 

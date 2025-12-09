@@ -2389,6 +2389,169 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ---
 
-**文档版本**：4.6 (TD-053 已解决 + 硬件韧性验证)  
+## [TD-054] Worker 配置 API 化
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- Worker 轮询间隔（`StateCheckIntervalMs`, `ErrorRecoveryDelayMs`）当前通过 `appsettings.json` 配置
+- 根据架构原则"所有业务配置通过 API 端点管理"，Worker 配置应该 API 化
+- 目标：通过 `GET/PUT /api/config/system` 管理 Worker 配置
+
+**详细说明**：
+- **当前状态**：
+  - `WorkerOptions` 通过 `IOptions<WorkerOptions>` 从 appsettings.json 读取
+  - 配置位置：`appsettings.json` → `Worker` 节
+  - 字段：`StateCheckIntervalMs` (500ms), `ErrorRecoveryDelayMs` (2000ms)
+
+- **目标状态**：
+  - 在 `SystemConfiguration` 模型添加 `WorkerIntervals` 字段
+  - 通过 `GET /api/config/system` 返回 Worker 配置
+  - 通过 `PUT /api/config/system` 更新 Worker 配置
+  - 移除 `appsettings.json` 中的 `Worker` 配置节
+  - DI 注册改为从数据库读取配置
+
+**影响范围**：
+- `src/Core/.../SystemConfiguration.cs` - 添加 WorkerIntervals 字段
+- `src/Host/.../SystemConfigController.cs` - 更新 API 端点
+- `src/Host/.../appsettings.json` - 移除 Worker 节
+- `src/Application/.../Extensions/*.cs` - 更新 DI 注册逻辑
+- 测试文件相应更新
+
+**预计工作量**：1 个 PR，3-4 个文件修改
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Worker-Config-API)
+
+---
+
+## [TD-055] 传感器独立轮询周期配置
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 当前所有传感器使用全局 `SensorOptions.PollingIntervalMs` (10ms)
+- 不同类型传感器可能需要不同的轮询周期
+- 例如：ParcelCreation 传感器可能需要更快的轮询（5ms），ChuteLock 传感器可以较慢（20ms）
+
+**详细说明**：
+- **当前状态**：
+  - 全局配置：`SensorOptions.PollingIntervalMs` = 10ms
+  - 应用于所有传感器类型
+
+- **目标状态**：
+  - 在 `SensorIoEntry` 模型添加 `PollingIntervalMs` 字段（可选，int?）
+  - 默认值：10ms（如果字段为 null，使用全局默认值）
+  - 通过传感器 API 端点配置每个传感器的轮询周期
+  - `LeadshineSensorFactory` 使用 per-sensor 配置创建传感器
+
+**影响范围**：
+- `src/Core/.../SensorIoEntry.cs` - 添加 PollingIntervalMs 字段
+- `src/Host/.../LeadshineSensorsController.cs` - API 端点更新
+- `src/Drivers/.../LeadshineSensorFactory.cs` - 使用 per-sensor 配置
+- `src/Ingress/.../SensorServiceExtensions.cs` - 传感器注册逻辑
+- 数据库迁移（如使用 EF Core）或默认值处理（如使用 LiteDB）
+
+**预计工作量**：1 个 PR，5-6 个文件修改
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Sensor-Polling-Config)
+
+---
+
+## [TD-056] 日志优化 - 仅状态变化时记录
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 正常状态日志持续输出，造成日志洪水
+- 例如："节点健康状态恢复"、"摆轮 X 心跳正常"等日志重复出现
+- 需要优化为仅在状态转换时记录日志
+
+**详细说明**：
+- **需要优化的日志点**：
+  1. `NodeHealthMonitorService`：健康状态恢复日志
+     - 当前：每次检查都可能记录"恢复"日志
+     - 目标：仅在 Unhealthy → Healthy 转换时记录
+  
+  2. `ShuDiNiaoWheelDiverterDriver`：心跳正常日志
+     - 当前：每次心跳正常时都记录
+     - 目标：仅在 Timeout → Normal 转换时记录
+  
+  3. `WheelDiverterHeartbeatMonitor`：心跳监控日志
+     - 当前：持续记录心跳状态
+     - 目标：仅在状态变化时记录
+
+- **实施方案**：
+  - 添加状态跟踪字段（如 `_lastHealthState`）
+  - 在日志记录前检查状态是否变化
+  - 异常日志保持适当频率（例如：5秒内最多记录一次相同异常）
+
+**影响范围**：
+- `src/Execution/.../NodeHealthMonitorService.cs`
+- `src/Drivers/.../ShuDiNiaoWheelDiverterDriver.cs`
+- `src/Execution/.../WheelDiverterHeartbeatMonitor.cs`
+
+**预计工作量**：1 个 PR，3-4 个文件修改
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Log-Optimization)
+
+---
+
+## [TD-057] 包裹创建代码去重 + 影分身防线
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 包裹创建逻辑分散在多个层（Ingress/Execution/Application）
+- 存在重复代码和重复逻辑
+- 需要建立影分身防线，防止重复类型定义
+
+**详细说明**：
+- **需要审计的模块**：
+  1. `Ingress` 层：`ParcelDetectionService`
+  2. `Execution` 层：Orchestrators
+  3. `Application` 层：Services
+  
+- **目标**：
+  1. 审计并识别重复的包裹创建逻辑
+  2. 合并到单一实现
+  3. 建立单一包裹创建入口点
+  4. 添加架构测试防止重复类型定义（影分身防线）
+
+- **影分身防线测试示例**：
+  ```csharp
+  [Fact]
+  public void ParcelCreation_ShouldNotHaveDuplicateImplementations()
+  {
+      // 检测命名空间中是否有多个包裹创建服务
+      var types = AllTypes
+          .That().ResideInNamespace("ZakYip.WheelDiverterSorter")
+          .And().HaveNameMatching(".*Parcel.*Creation.*Service.*")
+          .GetTypes();
+      
+      Assert.Single(types); // 只允许一个包裹创建服务
+  }
+  ```
+
+**影响范围**：
+- `src/Ingress/.../ParcelDetectionService.cs`
+- `src/Execution/.../...` (待审计确定)
+- `src/Application/.../...` (待审计确定)
+- `tests/.../TechnicalDebtComplianceTests/` - 添加影分身防线测试
+
+**预计工作量**：1 个 PR，审计后确定具体修改范围
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Parcel-Creation-Dedup)
+
+---
+
+**文档版本**：4.7 (TD-053 已解决 + TD-054~057 新增)  
 **最后更新**：2025-12-09  
 **维护团队**：ZakYip Development Team
