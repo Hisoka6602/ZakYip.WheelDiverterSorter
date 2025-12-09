@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -29,6 +30,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ISystemClock _systemClock;
+    private readonly IOutputPort _outputPort;
     
     /// <summary>
     /// 默认按钮轮询间隔（毫秒）
@@ -52,7 +54,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         ISystemStateManager stateManager,
         IPanelConfigurationRepository panelConfigRepository,
         ISafeExecutionService safeExecutor,
-        ISystemClock systemClock)
+        ISystemClock systemClock,
+        IOutputPort outputPort)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _panelInputReader = panelInputReader ?? throw new ArgumentNullException(nameof(panelInputReader));
@@ -61,6 +64,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _outputPort = outputPort ?? throw new ArgumentNullException(nameof(outputPort));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -268,19 +272,21 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// 1. 保持在Ready状态
     /// 2. 如果配置了预警时间，触发预警输出并等待
     /// 3. 预警时间结束后转换到Running状态
+    /// 4. 无论是否正常结束，都确保关闭预警输出
     /// </remarks>
     private async Task HandleStartButtonWithPreWarningAsync(SystemState currentState, CancellationToken cancellationToken)
     {
+        var panelConfig = _panelConfigRepository.Get();
+        var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
+        var warningOutputActivated = false;
+
+        _logger.LogInformation(
+            "启动按钮处理开始 - 当前状态: {CurrentState}, 配置的预警时间: {PreWarningDuration} 秒",
+            currentState,
+            preWarningDuration?.ToString() ?? "未配置");
+
         try
         {
-            var panelConfig = _panelConfigRepository.Get();
-            var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
-
-            _logger.LogInformation(
-                "启动按钮处理开始 - 当前状态: {CurrentState}, 配置的预警时间: {PreWarningDuration} 秒",
-                currentState,
-                preWarningDuration?.ToString() ?? "未配置");
-
             if (preWarningDuration.HasValue && preWarningDuration.Value > 0)
             {
                 _logger.LogWarning(
@@ -291,15 +297,44 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 // 记录预警开始时间用于验证
                 var warningStartTime = _systemClock.LocalNow;
 
-                // TODO: 触发预警输出（PreStartWarningOutputBit）
-                // 这需要通过输出端口服务来实现
-                // 如果配置了预警输出位，应该在这里设置输出为高/低电平
+                // 触发预警输出
                 if (panelConfig?.PreStartWarningOutputBit.HasValue == true)
                 {
-                    _logger.LogInformation(
-                        "预警输出位已配置: Bit={OutputBit}, Level={OutputLevel}（注：当前版本暂未实现物理输出控制）",
-                        panelConfig.PreStartWarningOutputBit.Value,
-                        panelConfig.PreStartWarningOutputLevel);
+                    try
+                    {
+                        // 根据触发电平计算应该写入的值
+                        // ActiveHigh: 高电平有效 -> 写入 true（点亮/启用）
+                        // ActiveLow: 低电平有效 -> 写入 false（点亮/启用）
+                        var outputValue = panelConfig.PreStartWarningOutputLevel == TriggerLevel.ActiveHigh;
+                        
+                        _logger.LogInformation(
+                            "开启预警输出: Bit={OutputBit}, Level={OutputLevel}, Value={OutputValue}",
+                            panelConfig.PreStartWarningOutputBit.Value,
+                            panelConfig.PreStartWarningOutputLevel,
+                            outputValue);
+
+                        var writeSuccess = await _outputPort.WriteAsync(
+                            panelConfig.PreStartWarningOutputBit.Value,
+                            outputValue);
+
+                        if (writeSuccess)
+                        {
+                            warningOutputActivated = true;
+                        }
+                        else
+                        {
+                            _logger.LogError(
+                                "预警输出写入失败: Bit={OutputBit}",
+                                panelConfig.PreStartWarningOutputBit.Value);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "写入预警输出异常: Bit={OutputBit}",
+                            panelConfig.PreStartWarningOutputBit.Value);
+                    }
                 }
 
                 // 等待预警时间
@@ -340,6 +375,44 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         {
             _logger.LogError(ex, "❌ 处理启动按钮预警逻辑异常");
             throw;
+        }
+        finally
+        {
+            // 无论如何都要关闭预警输出
+            if (warningOutputActivated && panelConfig?.PreStartWarningOutputBit.HasValue == true)
+            {
+                try
+                {
+                    // 关闭输出：与开启时相反的值
+                    // ActiveHigh: 高电平有效 -> 写入 false（熄灭/禁用）
+                    // ActiveLow: 低电平有效 -> 写入 true（熄灭/禁用）
+                    var outputValue = panelConfig.PreStartWarningOutputLevel != TriggerLevel.ActiveHigh;
+                    
+                    _logger.LogInformation(
+                        "关闭预警输出: Bit={OutputBit}, Level={OutputLevel}, Value={OutputValue}",
+                        panelConfig.PreStartWarningOutputBit.Value,
+                        panelConfig.PreStartWarningOutputLevel,
+                        outputValue);
+
+                    var writeSuccess = await _outputPort.WriteAsync(
+                        panelConfig.PreStartWarningOutputBit.Value,
+                        outputValue);
+
+                    if (!writeSuccess)
+                    {
+                        _logger.LogError(
+                            "关闭预警输出失败: Bit={OutputBit}",
+                            panelConfig.PreStartWarningOutputBit.Value);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "关闭预警输出异常: Bit={OutputBit}",
+                        panelConfig.PreStartWarningOutputBit.Value);
+                }
+            }
         }
     }
 
