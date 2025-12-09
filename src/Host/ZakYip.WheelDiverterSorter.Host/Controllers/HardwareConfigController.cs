@@ -147,9 +147,8 @@ public class HardwareConfigController : ControllerBase
             _driverRepository.Update(request);
 
             _logger.LogInformation(
-                "IO驱动器配置已更新: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
+                "IO驱动器配置已更新: VendorType={VendorType}, Version={Version}",
                 request.VendorType,
-                request.UseHardwareDriver,
                 request.Version);
 
             var updatedConfig = _driverRepository.Get();
@@ -1020,7 +1019,6 @@ public class HardwareConfigController : ControllerBase
         return new IoDriverConfiguration
         {
             Id = config.Id,
-            UseHardwareDriver = config.UseHardwareDriver,
             VendorType = config.VendorType,
             VendorDisplayName = GetVendorDisplayName(config.VendorType),
             Leadshine = config.Leadshine != null ? new LeadshineIoConnectionConfig
@@ -1252,17 +1250,15 @@ public class HardwareConfigController : ControllerBase
 /// <summary>
 /// IO驱动器配置响应模型
 /// </summary>
+/// <remarks>
+/// 架构原则：系统默认使用真实硬件驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// </remarks>
 public class IoDriverConfiguration
 {
     /// <summary>
     /// 配置唯一标识
     /// </summary>
     public int Id { get; set; }
-
-    /// <summary>
-    /// 是否使用硬件驱动器
-    /// </summary>
-    public bool UseHardwareDriver { get; set; }
 
     /// <summary>
     /// IO驱动器厂商类型

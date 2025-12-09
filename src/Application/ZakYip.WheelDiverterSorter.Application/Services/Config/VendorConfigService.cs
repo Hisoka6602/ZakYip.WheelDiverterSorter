@@ -85,9 +85,8 @@ public sealed class VendorConfigService : IVendorConfigService
             afterConfig: updatedConfig);
 
         _logger.LogInformation(
-            "IO驱动器配置已更新（热更新生效）: VendorType={VendorType}, UseHardware={UseHardware}, Version={Version}",
+            "IO驱动器配置已更新（热更新生效）: VendorType={VendorType}, Version={Version}",
             updatedConfig.VendorType,
-            updatedConfig.UseHardwareDriver,
             updatedConfig.Version);
     }
 

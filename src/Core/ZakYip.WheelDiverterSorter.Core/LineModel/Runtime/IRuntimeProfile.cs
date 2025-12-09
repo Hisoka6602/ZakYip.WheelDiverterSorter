@@ -21,22 +21,12 @@ public interface IRuntimeProfile
     RuntimeMode Mode { get; }
 
     /// <summary>
-    /// 是否使用硬件驱动器
-    /// Whether to use hardware drivers
-    /// </summary>
-    /// <remarks>
-    /// 生产模式返回 true，仿真和性能测试模式返回 false。
-    /// Production mode returns true, Simulation and PerformanceTest modes return false.
-    /// </remarks>
-    bool UseHardwareDriver { get; }
-
-    /// <summary>
     /// 是否为仿真模式
     /// Whether in simulation mode
     /// </summary>
     /// <remarks>
-    /// 仿真模式返回 true，用于替代 ISimulationModeProvider。
-    /// Simulation mode returns true, used to replace ISimulationModeProvider.
+    /// 仿真模式返回 true。系统默认使用真实硬件，只有在仿真模式下才使用Mock实现。
+    /// Simulation mode returns true. System uses real hardware by default, only uses Mock in simulation mode.
     /// </remarks>
     bool IsSimulationMode { get; }
 

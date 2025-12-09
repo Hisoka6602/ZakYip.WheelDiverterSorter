@@ -2271,9 +2271,49 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-053] SensorActivationWorker 和 SystemStateWheelDiverterCoordinator 的轮询间隔硬编码
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
+**解决方案**：
+
+已创建 `WorkerOptions` 配置类，使轮询间隔和异常恢复延迟可通过 appsettings.json 配置：
+
+1. **新增 WorkerOptions 配置类**：
+   - 位置：`src/Host/.../Configuration/WorkerOptions.cs`
+   - 包含配置项：
+     - `StateCheckIntervalMs`：状态检查轮询间隔（默认 500ms）
+     - `ErrorRecoveryDelayMs`：异常恢复延迟（默认 2000ms）
+   - 提供详细的配置说明和建议范围
+
+2. **更新 SensorActivationWorker**：
+   - 移除硬编码的 `const int StateCheckIntervalMs = 500`
+   - 移除硬编码的 `const int ErrorRecoveryDelayMs = 2000`
+   - 通过构造函数注入 `IOptions<WorkerOptions>`
+   - 使用 `_workerOptions.StateCheckIntervalMs` 和 `_workerOptions.ErrorRecoveryDelayMs`
+
+3. **更新 SystemStateWheelDiverterCoordinator**：
+   - 移除硬编码常量
+   - 通过构造函数注入 `IOptions<WorkerOptions>`
+   - 使用配置化的轮询间隔
+
+4. **注册配置**：
+   - 在 `WheelDiverterSorterHostServiceCollectionExtensions` 中注册：
+     ```csharp
+     services.Configure<WorkerOptions>(configuration.GetSection(WorkerOptions.SectionName));
+     ```
+
+5. **更新 appsettings.json**：
+   ```json
+   "Worker": {
+     "StateCheckIntervalMs": 500,
+     "ErrorRecoveryDelayMs": 2000
+   }
+   ```
+
+6. **更新单元测试**：
+   - 在 `SensorActivationWorkerTests` 中添加 `IOptions<WorkerOptions>` 参数
+   - 使用 `Options.Create(new WorkerOptions())` 创建测试用配置
+
+**原问题描述**：
 - `SensorActivationWorker` 中的 `StateCheckIntervalMs` (500ms) 和 `ErrorRecoveryDelayMs` (2000ms) 是硬编码常量
 - `SystemStateWheelDiverterCoordinator` 也有类似的硬编码轮询间隔
 - 这些值在不同部署场景下可能需要调整，但当前需要重新编译代码
@@ -2291,12 +2331,227 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 3. 在 DI 注册时注入配置
 4. 保持当前的默认值以确保向后兼容
 
-**优先级**：🟢 低
+**优先级**：🟢 低 → ✅ 已完成
 
-**相关 PR**：PR-Sensor-Activation
+**相关 PR**：PR-Sensor-Activation → 当前 PR
+
+**验证结果**：
+- ✅ 构建通过，无编译错误
+- ✅ 单元测试更新完成
+- ✅ 配置项可通过 appsettings.json 修改
+- ✅ 保持默认值向后兼容
 
 ---
 
-**文档版本**：4.5 (TD-051~053 新增)  
+## 系统启动韧性验证 (Hardware Initialization Resilience Verification)
+
+**问题陈述**：即使任意硬件无法建立都不能影响系统启动
+
+**验证结果**：✅ 系统已满足韧性要求，无需额外修改
+
+**当前实现分析**：
+
+1. **WheelDiverterInitHostedService**（摆轮初始化服务）：
+   - ✅ 使用 `ISafeExecutionService.ExecuteAsync` 包裹整个初始化流程
+   - ✅ 捕获所有异常并记录日志，不会导致进程崩溃
+   - ✅ 连接失败时记录警告信息，系统继续启动
+   - ✅ 返回部分成功结果（ConnectedCount/TotalCount/FailedDriverIds）
+
+2. **BootHostedService**（系统自检服务）：
+   - ✅ 使用 try-catch 捕获自检过程中的所有异常
+   - ✅ 自检失败时转换到 Faulted 状态，不会阻止启动
+   - ✅ 记录详细的失败信息（驱动器、上游系统、配置）
+   - ✅ 更新 Prometheus 指标反映系统状态
+
+3. **LeadshineEmcController**（雷赛硬件控制器）：
+   - ✅ 使用 Polly 重试策略（0ms → 300ms → 1s → 2s）
+   - ✅ 初始化失败返回 false，不抛出异常
+   - ✅ 通过 `_isAvailable` 标志位标记硬件可用性
+   - ✅ 调用方可通过 `IsAvailable()` 方法检查状态
+
+4. **S7Connection**（西门子 PLC 连接）：
+   - ✅ 连接失败记录日志并返回 false
+   - ✅ 支持最大重连次数配置（MaxReconnectAttempts）
+   - ✅ 支持重连延迟配置（ReconnectDelay）
+   - ✅ 健康检查定时器自动尝试恢复连接
+
+5. **SensorActivationWorker & SystemStateWheelDiverterCoordinator**：
+   - ✅ 使用 `SafeExecutionService` 包裹后台任务循环
+   - ✅ 异常恢复延迟可配置（ErrorRecoveryDelayMs）
+   - ✅ 异常后等待延迟再重试，不会快速循环
+
+**结论**：
+- 系统启动流程已经具备完整的韧性设计
+- 所有硬件初始化失败都被优雅处理
+- 系统可在硬件部分或全部不可用的情况下启动
+- 状态机正确反映系统健康状况（Booting → Ready/Faulted）
+- 无需额外修改即可满足"即使任意硬件无法建立都不能影响系统启动"的要求
+
+---
+
+## [TD-054] Worker 配置 API 化
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- Worker 轮询间隔（`StateCheckIntervalMs`, `ErrorRecoveryDelayMs`）当前通过 `appsettings.json` 配置
+- 根据架构原则"所有业务配置通过 API 端点管理"，Worker 配置应该 API 化
+- 目标：通过 `GET/PUT /api/config/system` 管理 Worker 配置
+
+**详细说明**：
+- **当前状态**：
+  - `WorkerOptions` 通过 `IOptions<WorkerOptions>` 从 appsettings.json 读取
+  - 配置位置：`appsettings.json` → `Worker` 节
+  - 字段：`StateCheckIntervalMs` (500ms), `ErrorRecoveryDelayMs` (2000ms)
+
+- **目标状态**：
+  - 在 `SystemConfiguration` 模型添加 `WorkerIntervals` 字段
+  - 通过 `GET /api/config/system` 返回 Worker 配置
+  - 通过 `PUT /api/config/system` 更新 Worker 配置
+  - 移除 `appsettings.json` 中的 `Worker` 配置节
+  - DI 注册改为从数据库读取配置
+
+**影响范围**：
+- `src/Core/.../SystemConfiguration.cs` - 添加 WorkerIntervals 字段
+- `src/Host/.../SystemConfigController.cs` - 更新 API 端点
+- `src/Host/.../appsettings.json` - 移除 Worker 节
+- `src/Application/.../Extensions/*.cs` - 更新 DI 注册逻辑
+- 测试文件相应更新
+
+**预计工作量**：1 个 PR，3-4 个文件修改
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Worker-Config-API)
+
+---
+
+## [TD-055] 传感器独立轮询周期配置
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 当前所有传感器使用全局 `SensorOptions.PollingIntervalMs` (10ms)
+- 不同类型传感器可能需要不同的轮询周期
+- 例如：ParcelCreation 传感器可能需要更快的轮询（5ms），ChuteLock 传感器可以较慢（20ms）
+
+**详细说明**：
+- **当前状态**：
+  - 全局配置：`SensorOptions.PollingIntervalMs` = 10ms
+  - 应用于所有传感器类型
+
+- **目标状态**：
+  - 在 `SensorIoEntry` 模型添加 `PollingIntervalMs` 字段（可选，int?）
+  - 默认值：10ms（如果字段为 null，使用全局默认值）
+  - 通过传感器 API 端点配置每个传感器的轮询周期
+  - `LeadshineSensorFactory` 使用 per-sensor 配置创建传感器
+
+**影响范围**：
+- `src/Core/.../SensorIoEntry.cs` - 添加 PollingIntervalMs 字段
+- `src/Host/.../LeadshineSensorsController.cs` - API 端点更新
+- `src/Drivers/.../LeadshineSensorFactory.cs` - 使用 per-sensor 配置
+- `src/Ingress/.../SensorServiceExtensions.cs` - 传感器注册逻辑
+- 数据库迁移（如使用 EF Core）或默认值处理（如使用 LiteDB）
+
+**预计工作量**：1 个 PR，5-6 个文件修改
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Sensor-Polling-Config)
+
+---
+
+## [TD-056] 日志优化 - 仅状态变化时记录
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 正常状态日志持续输出，造成日志洪水
+- 例如："节点健康状态恢复"、"摆轮 X 心跳正常"等日志重复出现
+- 需要优化为仅在状态转换时记录日志
+
+**详细说明**：
+- **需要优化的日志点**：
+  1. `NodeHealthMonitorService`：健康状态恢复日志
+     - 当前：每次检查都可能记录"恢复"日志
+     - 目标：仅在 Unhealthy → Healthy 转换时记录
+  
+  2. `ShuDiNiaoWheelDiverterDriver`：心跳正常日志
+     - 当前：每次心跳正常时都记录
+     - 目标：仅在 Timeout → Normal 转换时记录
+  
+  3. `WheelDiverterHeartbeatMonitor`：心跳监控日志
+     - 当前：持续记录心跳状态
+     - 目标：仅在状态变化时记录
+
+- **实施方案**：
+  - 添加状态跟踪字段（如 `_lastHealthState`）
+  - 在日志记录前检查状态是否变化
+  - 异常日志保持适当频率（例如：5秒内最多记录一次相同异常）
+
+**影响范围**：
+- `src/Execution/.../NodeHealthMonitorService.cs`
+- `src/Drivers/.../ShuDiNiaoWheelDiverterDriver.cs`
+- `src/Execution/.../WheelDiverterHeartbeatMonitor.cs`
+
+**预计工作量**：1 个 PR，3-4 个文件修改
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Log-Optimization)
+
+---
+
+## [TD-057] 包裹创建代码去重 + 影分身防线
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 包裹创建逻辑分散在多个层（Ingress/Execution/Application）
+- 存在重复代码和重复逻辑
+- 需要建立影分身防线，防止重复类型定义
+
+**详细说明**：
+- **需要审计的模块**：
+  1. `Ingress` 层：`ParcelDetectionService`
+  2. `Execution` 层：Orchestrators
+  3. `Application` 层：Services
+  
+- **目标**：
+  1. 审计并识别重复的包裹创建逻辑
+  2. 合并到单一实现
+  3. 建立单一包裹创建入口点
+  4. 添加架构测试防止重复类型定义（影分身防线）
+
+- **影分身防线测试示例**：
+  ```csharp
+  [Fact]
+  public void ParcelCreation_ShouldNotHaveDuplicateImplementations()
+  {
+      // 检测命名空间中是否有多个包裹创建服务
+      var types = AllTypes
+          .That().ResideInNamespace("ZakYip.WheelDiverterSorter")
+          .And().HaveNameMatching(".*Parcel.*Creation.*Service.*")
+          .GetTypes();
+      
+      Assert.Single(types); // 只允许一个包裹创建服务
+  }
+  ```
+
+**影响范围**：
+- `src/Ingress/.../ParcelDetectionService.cs`
+- `src/Execution/.../...` (待审计确定)
+- `src/Application/.../...` (待审计确定)
+- `tests/.../TechnicalDebtComplianceTests/` - 添加影分身防线测试
+
+**预计工作量**：1 个 PR，审计后确定具体修改范围
+
+**优先级**：🟡 中
+
+**相关 PR**：待创建 (PR-Parcel-Creation-Dedup)
+
+---
+
+**文档版本**：4.7 (TD-053 已解决 + TD-054~057 新增)  
 **最后更新**：2025-12-09  
 **维护团队**：ZakYip Development Team

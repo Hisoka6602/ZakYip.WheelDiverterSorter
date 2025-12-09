@@ -1,6 +1,8 @@
 using Moq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Host.Configuration;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Ingress;
@@ -26,6 +28,7 @@ public class SensorActivationWorkerTests
     private readonly Mock<ISystemStateManager> _mockStateManager;
     private readonly Mock<IParcelDetectionService> _mockParcelDetectionService;
     private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
+    private readonly IOptions<WorkerOptions> _workerOptions;
 
     public SensorActivationWorkerTests()
     {
@@ -33,6 +36,7 @@ public class SensorActivationWorkerTests
         _mockStateManager = new Mock<ISystemStateManager>();
         _mockParcelDetectionService = new Mock<IParcelDetectionService>();
         _mockSafeExecutor = new Mock<ISafeExecutionService>();
+        _workerOptions = Options.Create(new WorkerOptions());
     }
 
     [Fact]
@@ -43,7 +47,8 @@ public class SensorActivationWorkerTests
             null!,
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
-            _mockSafeExecutor.Object));
+            _mockSafeExecutor.Object,
+            _workerOptions));
     }
 
     [Fact]
@@ -54,7 +59,8 @@ public class SensorActivationWorkerTests
             _mockLogger.Object,
             null!,
             _mockParcelDetectionService.Object,
-            _mockSafeExecutor.Object));
+            _mockSafeExecutor.Object,
+            _workerOptions));
     }
 
     [Fact]
@@ -65,7 +71,8 @@ public class SensorActivationWorkerTests
             _mockLogger.Object,
             _mockStateManager.Object,
             null!,
-            _mockSafeExecutor.Object));
+            _mockSafeExecutor.Object,
+            _workerOptions));
     }
 
     [Fact]
@@ -76,7 +83,8 @@ public class SensorActivationWorkerTests
             _mockLogger.Object,
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
-            null!));
+            null!,
+            _workerOptions));
     }
 
     [Theory]
@@ -93,7 +101,8 @@ public class SensorActivationWorkerTests
             _mockLogger.Object,
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
-            _mockSafeExecutor.Object);
+            _mockSafeExecutor.Object,
+            _workerOptions);
 
         // Assert - Worker should be created without throwing
         Assert.NotNull(worker);

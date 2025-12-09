@@ -38,7 +38,7 @@ public class RuntimeProfileServiceExtensionsTests
 
         // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.Production, profile.Mode);
-        Assert.True(profile.UseHardwareDriver);
+        // Production mode: NOT in simulation mode (uses real hardware by default)
         Assert.False(profile.IsSimulationMode);
         Assert.False(profile.IsPerformanceTestMode);
     }
@@ -63,7 +63,7 @@ public class RuntimeProfileServiceExtensionsTests
 
         // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.Simulation, profile.Mode);
-        Assert.False(profile.UseHardwareDriver);
+        // Simulation mode: IS in simulation mode (uses mock hardware)
         Assert.True(profile.IsSimulationMode);
         Assert.False(profile.IsPerformanceTestMode);
     }
@@ -88,7 +88,7 @@ public class RuntimeProfileServiceExtensionsTests
 
         // Assert - verify behavior through interface, not concrete type
         Assert.Equal(RuntimeMode.PerformanceTest, profile.Mode);
-        Assert.False(profile.UseHardwareDriver);
+        // PerformanceTest mode: NOT in simulation mode (different from Simulation mode)
         Assert.False(profile.IsSimulationMode);
         Assert.True(profile.IsPerformanceTestMode);
     }
@@ -205,7 +205,7 @@ public class RuntimeProfileServiceExtensionsTests
 
         // Assert
         Assert.Equal(RuntimeMode.Production, profile.Mode);
-        Assert.True(profile.UseHardwareDriver);
+        // Production mode: NOT in simulation mode (uses real hardware by default)
         Assert.False(profile.IsSimulationMode);
         Assert.False(profile.IsPerformanceTestMode);
         Assert.True(profile.EnableIoOperations);
@@ -235,7 +235,7 @@ public class RuntimeProfileServiceExtensionsTests
 
         // Assert
         Assert.Equal(RuntimeMode.Simulation, profile.Mode);
-        Assert.False(profile.UseHardwareDriver);
+        // Simulation mode: IS in simulation mode (uses mock hardware)
         Assert.True(profile.IsSimulationMode);
         Assert.False(profile.IsPerformanceTestMode);
         Assert.True(profile.EnableIoOperations);
@@ -265,7 +265,7 @@ public class RuntimeProfileServiceExtensionsTests
 
         // Assert
         Assert.Equal(RuntimeMode.PerformanceTest, profile.Mode);
-        Assert.False(profile.UseHardwareDriver);
+        // PerformanceTest mode: NOT in simulation mode (different from Simulation mode)
         Assert.False(profile.IsSimulationMode);
         Assert.True(profile.IsPerformanceTestMode);
         Assert.False(profile.EnableIoOperations);

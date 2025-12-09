@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Host.Configuration;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -33,25 +35,7 @@ public sealed class SensorActivationWorker : BackgroundService
     private readonly ISystemStateManager _stateManager;
     private readonly IParcelDetectionService _parcelDetectionService;
     private readonly ISafeExecutionService _safeExecutor;
-    
-    /// <summary>
-    /// 状态检查轮询间隔（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 设置为 500ms 以实现快速响应状态变化，同时避免过度轮询。
-    /// 这个值已经过性能测试，可以在不影响系统性能的前提下及时检测状态变化。
-    /// 如需调整，建议范围：100ms - 1000ms
-    /// </remarks>
-    private const int StateCheckIntervalMs = 500;
-    
-    /// <summary>
-    /// 异常恢复延迟（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 当发生异常时等待 2 秒再重试，避免在故障情况下快速循环消耗资源。
-    /// 这个延迟给系统足够时间从瞬时故障中恢复。
-    /// </remarks>
-    private const int ErrorRecoveryDelayMs = 2000;
+    private readonly WorkerOptions _workerOptions;
     
     /// <summary>
     /// 上次已知系统状态
@@ -67,12 +51,14 @@ public sealed class SensorActivationWorker : BackgroundService
         ILogger<SensorActivationWorker> logger,
         ISystemStateManager stateManager,
         IParcelDetectionService parcelDetectionService,
-        ISafeExecutionService safeExecutor)
+        ISafeExecutionService safeExecutor,
+        IOptions<WorkerOptions> workerOptions)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
+        _workerOptions = (workerOptions ?? throw new ArgumentNullException(nameof(workerOptions))).Value;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -122,7 +108,7 @@ public sealed class SensorActivationWorker : BackgroundService
                         }
 
                         // 等待下一次检查
-                        await Task.Delay(StateCheckIntervalMs, stoppingToken);
+                        await Task.Delay(_workerOptions.StateCheckIntervalMs, stoppingToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -134,7 +120,7 @@ public sealed class SensorActivationWorker : BackgroundService
                         _logger.LogError(ex, "传感器激活服务异常");
                         
                         // 发生异常后稍作延迟再继续
-                        await Task.Delay(ErrorRecoveryDelayMs, stoppingToken);
+                        await Task.Delay(_workerOptions.ErrorRecoveryDelayMs, stoppingToken);
                     }
                 }
 

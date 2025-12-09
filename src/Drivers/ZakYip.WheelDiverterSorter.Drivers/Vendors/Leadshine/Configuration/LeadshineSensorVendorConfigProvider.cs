@@ -26,9 +26,6 @@ public sealed class LeadshineSensorVendorConfigProvider : ISensorVendorConfigPro
     }
 
     /// <inheritdoc/>
-    public bool UseHardwareSensor => true;
-
-    /// <inheritdoc/>
     public string VendorTypeName => "Leadshine";
 
     /// <inheritdoc/>

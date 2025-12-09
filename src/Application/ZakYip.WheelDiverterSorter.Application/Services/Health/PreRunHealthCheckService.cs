@@ -15,6 +15,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Health;
 
@@ -35,6 +36,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
     private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<PreRunHealthCheckService> _logger;
+    private readonly IRuntimeProfile? _runtimeProfile;
 
     public PreRunHealthCheckService(
         ISystemConfigurationRepository systemConfigRepository,
@@ -46,7 +48,8 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         IUpstreamRoutingClient upstreamClient,
         ISafeExecutionService safeExecutor,
         ILogger<PreRunHealthCheckService> logger,
-        IWheelDiverterDriverManager? wheelDiverterDriverManager = null)
+        IWheelDiverterDriverManager? wheelDiverterDriverManager = null,
+        IRuntimeProfile? runtimeProfile = null)
     {
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
@@ -58,6 +61,7 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _wheelDiverterDriverManager = wheelDiverterDriverManager;
+        _runtimeProfile = runtimeProfile;
     }
 
     /// <inheritdoc />
@@ -427,8 +431,11 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 // 获取厂商显示名称
                 var vendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
 
-                // 如果是仿真模式（不使用硬件驱动），返回不健康（正式环境运行准备检查）
-                if (!ioConfig.UseHardwareDriver)
+                // 检查运行时模式
+                bool isSimulationMode = _runtimeProfile?.IsSimulationMode ?? false;
+                
+                // 如果是仿真模式，返回不健康（正式环境运行准备检查）
+                if (isSimulationMode)
                 {
                     return new HealthCheckItem
                     {
