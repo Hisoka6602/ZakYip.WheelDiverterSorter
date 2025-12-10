@@ -310,7 +310,10 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         var timeSinceLastTrigger = sensorEvent.TriggerTime - lastTime;
         var timeSinceLastTriggerMs = timeSinceLastTrigger.TotalMilliseconds;
 
-        if (timeSinceLastTriggerMs < _options.DeduplicationWindowMs)
+        // 从传感器配置读取防抖时间，如果未配置则使用全局默认值
+        var deduplicationWindowMs = GetDeduplicationWindowForSensor(sensorEvent.SensorId);
+
+        if (timeSinceLastTriggerMs < deduplicationWindowMs)
         {
             _logger?.LogWarning(
                 "检测到重复触发: 传感器 {SensorId}, 距上次触发 {TimeSinceLastMs}ms",
@@ -320,6 +323,35 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
 
         return (false, timeSinceLastTriggerMs);
+    }
+
+    /// <summary>
+    /// 获取传感器的防抖时间窗口
+    /// </summary>
+    /// <param name="sensorId">传感器ID</param>
+    /// <returns>防抖时间窗口（毫秒）</returns>
+    private int GetDeduplicationWindowForSensor(long sensorId)
+    {
+        // 尝试从传感器配置读取
+        if (_sensorConfigRepository != null)
+        {
+            try
+            {
+                var config = _sensorConfigRepository.Get();
+                var sensor = config?.Sensors?.FirstOrDefault(s => s.SensorId == sensorId);
+                if (sensor?.DeduplicationWindowMs.HasValue == true)
+                {
+                    return sensor.DeduplicationWindowMs.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "读取传感器 {SensorId} 的防抖配置失败，使用全局默认值", sensorId);
+            }
+        }
+
+        // 使用全局默认值
+        return _options.DeduplicationWindowMs;
     }
 
     /// <summary>
@@ -335,6 +367,8 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     private void RaiseDuplicateTriggerEvent(long parcelId, SensorEvent sensorEvent, double timeSinceLastTriggerMs)
     {
+        var deduplicationWindowMs = GetDeduplicationWindowForSensor(sensorEvent.SensorId);
+        
         var duplicateEventArgs = new DuplicateTriggerEventArgs
         {
             ParcelId = parcelId,
@@ -342,7 +376,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             SensorId = sensorEvent.SensorId,
             SensorType = sensorEvent.SensorType,
             TimeSinceLastTriggerMs = timeSinceLastTriggerMs,
-            Reason = $"传感器在{_options.DeduplicationWindowMs}ms去重窗口内重复触发"
+            Reason = $"传感器在{deduplicationWindowMs}ms去重窗口内重复触发"
         };
 
         _logger?.LogWarning(

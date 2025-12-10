@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
@@ -35,6 +36,7 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Execution.Routing;
@@ -378,6 +380,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 注册 UpstreamConnectionOptions（从配置绑定）
         services.Configure<UpstreamConnectionOptions>(configuration.GetSection(UpstreamConnectionOptions.SectionName));
+
+        // 注册系统运行状态服务（必须，用于状态验证）
+        services.AddSingleton<ISystemRunStateService, DefaultSystemRunStateService>();
 
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
