@@ -5,27 +5,13 @@ namespace ZakYip.WheelDiverterSorter.Execution.Configuration;
 /// </summary>
 /// <remarks>
 /// 系统现在只支持拓扑驱动的延迟执行模式：
-/// ParcelCreation传感器 → 创建包裹 → 请求路由 → 加入PendingQueue → 
+/// ParcelCreation传感器 → 创建包裹 → 请求路由 → 计算拓扑时间 → 加入PendingQueue → 
 /// WheelFront传感器触发 → 执行分拣
+/// 
+/// 超时时间通过线体拓扑配置自动计算：
+/// 超时阈值 = (段长度mm / 线速mmps * 1000) + 容差ms
 /// </remarks>
 public class TopologyDrivenSortingOptions
 {
-    /// <summary>
-    /// 默认超时时间（秒）
-    /// </summary>
-    /// <remarks>
-    /// 包裹在PendingQueue中等待超过此时间将被视为超时，
-    /// 自动路由到异常格口。
-    /// 默认值: 30秒
-    /// </remarks>
-    public int DefaultTimeoutSeconds { get; set; } = 30;
-
-    /// <summary>
-    /// 超时监控检查间隔（秒）
-    /// </summary>
-    /// <remarks>
-    /// 后台监控服务每隔此时间检查一次PendingQueue中是否有超时包裹。
-    /// 默认值: 10秒
-    /// </remarks>
-    public int MonitorIntervalSeconds { get; set; } = 10;
+    // 不再需要配置参数，所有时间都从拓扑配置计算
 }
