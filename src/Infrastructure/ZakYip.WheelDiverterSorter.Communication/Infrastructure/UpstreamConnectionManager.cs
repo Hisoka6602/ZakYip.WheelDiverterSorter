@@ -314,7 +314,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
             IsConnected = isConnected,
             ChangedAt = _systemClock.LocalNowOffset,
             ErrorMessage = errorMessage
-        });
+        }, _logger, nameof(ConnectionStateChanged));
 
         var status = isConnected ? "connected" : "disconnected";
         _logger.LogInformation(

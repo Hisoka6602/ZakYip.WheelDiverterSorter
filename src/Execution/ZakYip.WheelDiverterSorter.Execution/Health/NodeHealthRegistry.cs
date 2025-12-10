@@ -59,7 +59,7 @@ public class NodeHealthRegistry : INodeHealthRegistry
             NodeId = status.NodeId,
             NewStatus = status,
             PreviousStatus = previousStatus
-        });
+        }, _logger, nameof(NodeHealthChanged));
     }
 
     /// <inheritdoc/>

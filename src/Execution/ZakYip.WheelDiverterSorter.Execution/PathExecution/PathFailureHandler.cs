@@ -68,7 +68,7 @@ public class PathFailureHandler : IPathFailureHandler
             OriginalTargetChuteId = originalPath.TargetChuteId,
             FailureReason = failureReason,
             FailureTime = failureTime
-        });
+        }, _logger, nameof(SegmentExecutionFailed));
 
         // 同时触发路径失败事件
         HandlePathFailure(parcelId, originalPath, failureReason, failedSegment);
@@ -100,7 +100,7 @@ public class PathFailureHandler : IPathFailureHandler
             FailureReason = failureReason,
             FailureTime = failureTime,
             ActualChuteId = originalPath.FallbackChuteId
-        });
+        }, _logger, nameof(PathExecutionFailed));
 
         // 计算并记录备用路径切换
         var backupPath = CalculateBackupPath(originalPath);
@@ -121,7 +121,7 @@ public class PathFailureHandler : IPathFailureHandler
                 BackupPath = backupPath,
                 SwitchReason = failureReason,
                 SwitchTime = failureTime
-            });
+            }, _logger, nameof(PathSwitched));
         }
         else
         {

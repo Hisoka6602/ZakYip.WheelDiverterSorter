@@ -103,7 +103,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
             OriginalTargetChuteId = originalPath.TargetChuteId,
             FailureReason = failureReason,
             FailureTime = failureTime
-        });
+        }, _logger, nameof(SegmentExecutionFailed));
 
         // 尝试重规划（如果服务可用）
         var reroutingAttempted = TryRerouteAsync(
@@ -145,7 +145,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
             FailureReason = failureReason,
             FailureTime = failureTime,
             ActualChuteId = originalPath.FallbackChuteId
-        });
+        }, _logger, nameof(PathExecutionFailed));
 
         // 计算并记录备用路径切换
         var backupPath = CalculateBackupPath(originalPath);
@@ -166,7 +166,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
                 BackupPath = backupPath,
                 SwitchReason = failureReason,
                 SwitchTime = failureTime
-            });
+            }, _logger, nameof(PathSwitched));
         }
         else
         {
@@ -249,7 +249,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
                     NewPath = result.NewPath,
                     FailedNodeId = failedNodeId,
                     ReroutedAt = result.ReroutedAt
-                });
+                }, _logger, nameof(ReroutingSucceeded));
 
                 return true;
             }
@@ -267,7 +267,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
                     FailedNodeId = failedNodeId,
                     FailureReason = result.FailureReason ?? "未知原因",
                     ReroutedAt = result.ReroutedAt
-                });
+                }, _logger, nameof(ReroutingFailed));
 
                 return false;
             }
