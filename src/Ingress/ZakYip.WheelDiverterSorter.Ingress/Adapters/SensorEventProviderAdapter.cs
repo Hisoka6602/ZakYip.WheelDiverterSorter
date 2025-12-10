@@ -50,10 +50,10 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
     }
 
     /// <inheritdoc />
-    public event EventHandler<ParcelDetectedArgs>? ParcelDetected;
+    public event EventHandler<ParcelDetectedEventArgs>? ParcelDetected;
 
     /// <inheritdoc />
-    public event EventHandler<DuplicateTriggerArgs>? DuplicateTriggerDetected;
+    public event EventHandler<DuplicateTriggerEventArgs>? DuplicateTriggerDetected;
 
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -74,22 +74,16 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
     /// <summary>
     /// 处理底层服务的包裹检测事件并转发到 Execution 层
     /// </summary>
+    /// <remarks>
+    /// 由于现在使用统一的 ParcelDetectedEventArgs 类型，无需类型转换，直接转发事件。
+    /// </remarks>
     private void OnUnderlyingParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
         _logger.LogDebug("适配器收到底层包裹检测事件: ParcelId={ParcelId}, SensorId={SensorId}", 
             e.ParcelId, e.SensorId);
 
-        // 转换为 Execution 层的事件参数类型
-        var executionArgs = new ParcelDetectedArgs
-        {
-            ParcelId = e.ParcelId,
-            DetectedAt = e.DetectedAt,
-            SensorId = e.SensorId,
-            SensorType = e.SensorType
-        };
-
-        // 触发 Execution 层的事件
-        ParcelDetected.SafeInvoke(this, executionArgs, _logger, nameof(ParcelDetected));
+        // 直接触发 Execution 层的事件（无需类型转换，统一使用 ParcelDetectedEventArgs）
+        ParcelDetected.SafeInvoke(this, e, _logger, nameof(ParcelDetected));
     }
 
     /// <summary>
@@ -100,18 +94,7 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
         _logger.LogDebug("适配器收到底层重复触发事件: ParcelId={ParcelId}, SensorId={SensorId}", 
             e.ParcelId, e.SensorId);
 
-        // 转换为 Execution 层的事件参数类型
-        var executionArgs = new DuplicateTriggerArgs
-        {
-            ParcelId = e.ParcelId,
-            DetectedAt = e.DetectedAt,
-            SensorId = e.SensorId,
-            SensorType = e.SensorType,
-            TimeSinceLastTriggerMs = e.TimeSinceLastTriggerMs,
-            Reason = e.Reason
-        };
-
-        // 触发 Execution 层的事件
-        DuplicateTriggerDetected.SafeInvoke(this, executionArgs, _logger, nameof(DuplicateTriggerDetected));
+        // 直接触发 Execution 层的事件（无需类型转换，统一使用 DuplicateTriggerEventArgs）
+        DuplicateTriggerDetected.SafeInvoke(this, e, _logger, nameof(DuplicateTriggerDetected));
     }
 }

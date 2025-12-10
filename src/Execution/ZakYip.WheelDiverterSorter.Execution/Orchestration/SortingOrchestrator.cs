@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -1228,7 +1229,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹检测事件
     /// </summary>
-    private async void OnParcelDetected(object? sender, ParcelDetectedArgs e)
+    private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
         try
         {
@@ -1243,7 +1244,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理重复触发异常事件
     /// </summary>
-    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerArgs e)
+    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerEventArgs e)
     {
         var parcelId = e.ParcelId;
         _logger.LogWarning(
