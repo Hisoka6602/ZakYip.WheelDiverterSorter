@@ -156,7 +156,7 @@ public class AlarmServiceTests
     public void ReportSensorFault_TriggersP2Alarm()
     {
         // Act
-        _alarmService.ReportSensorFault(1, "No signal detected");
+        _alarmService.ReportSensorFault("S1", "No signal detected");
 
         // Assert
         var alarms = _alarmService.GetActiveAlarms();
@@ -165,25 +165,25 @@ public class AlarmServiceTests
         Assert.NotNull(sensorFaultAlarm);
         Assert.Equal(AlarmLevel.P2, sensorFaultAlarm.Level);
         Assert.Contains("传感器故障", sensorFaultAlarm.Message);
-        Assert.Contains(1, sensorFaultAlarm.Message);
+        Assert.Contains("S1", sensorFaultAlarm.Message);
     }
 
     [Fact]
     public void ClearSensorFault_RemovesAlarm()
     {
         // Arrange
-        _alarmService.ReportSensorFault(1, "No signal detected");
+        _alarmService.ReportSensorFault("S1", "No signal detected");
         Assert.NotEmpty(_alarmService.GetActiveAlarms());
 
         // Act
-        _alarmService.ClearSensorFault(1);
+        _alarmService.ClearSensorFault("S1");
 
         // Assert
         var alarms = _alarmService.GetActiveAlarms();
         var sensorFaultAlarm = alarms.FirstOrDefault(a => 
             a.Type == AlarmType.SensorFault && 
             a.Details.ContainsKey("sensorId") &&
-            a.Details["sensorId"].ToString() == 1);
+            a.Details["sensorId"].ToString() == "S1");
         Assert.Null(sensorFaultAlarm);
     }
 

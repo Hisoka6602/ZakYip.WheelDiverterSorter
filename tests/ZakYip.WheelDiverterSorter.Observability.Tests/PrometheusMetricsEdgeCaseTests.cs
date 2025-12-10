@@ -294,7 +294,7 @@ public class PrometheusMetricsEdgeCaseTests
         var metrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
 
         // Act & Assert
-        var exception = Record.Exception(() => metrics.SetSensorHealthStatus(1, "", true));
+        var exception = Record.Exception(() => metrics.SetSensorHealthStatus("S1", "", true));
         Assert.Null(exception);
     }
 

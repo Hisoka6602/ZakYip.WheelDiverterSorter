@@ -25,7 +25,7 @@ public class ParcelDescriptorExtensionsTests
             ParcelId = 123456789,
             Barcode = "BC001",
             DetectedAt = TestTime,
-            SensorId = 01,
+            SensorId = "SENSOR-01",
             Metadata = TestMetadata
         };
 
@@ -86,7 +86,7 @@ public class ParcelDescriptorExtensionsTests
             ParcelId = 123456789,
             Barcode = "BC002",
             RequestTime = TestTime,
-            SensorId = 02,
+            SensorId = "SENSOR-02",
             Metadata = TestMetadata,
             CandidateChuteIds = new[] { 1, 2, 3 }
         };
@@ -125,7 +125,7 @@ public class ParcelDescriptorExtensionsTests
             ParcelId = 123456789,
             Barcode = "BC003",
             RequestTime = TestTime,
-            SensorId = 03,
+            SensorId = "SENSOR-03",
             Metadata = TestMetadata,
             CandidateChuteIds = new[] { 1, 2, 3 }
         };
@@ -200,7 +200,7 @@ public class ParcelDescriptorExtensionsTests
             ParcelId = 123456789,
             Barcode = "BC005",
             CreatedAt = TestTime,
-            SensorId = 05
+            SensorId = "SENSOR-05"
         };
 
         // Act
