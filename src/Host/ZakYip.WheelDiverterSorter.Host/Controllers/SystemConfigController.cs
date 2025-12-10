@@ -96,12 +96,7 @@ public class SystemConfigController : ApiControllerBase
             ExceptionChuteId = defaultConfig.ExceptionChuteId,
             SortingMode = defaultConfig.SortingMode,
             FixedChuteId = defaultConfig.FixedChuteId,
-            AvailableChuteIds = defaultConfig.AvailableChuteIds,
-            Worker = new WorkerConfigRequest
-            {
-                StateCheckIntervalMs = defaultConfig.Worker.StateCheckIntervalMs,
-                ErrorRecoveryDelayMs = defaultConfig.Worker.ErrorRecoveryDelayMs
-            }
+            AvailableChuteIds = defaultConfig.AvailableChuteIds
         };
 #pragma warning restore CS0618
         return Success(request, "获取默认配置模板成功");
@@ -149,12 +144,7 @@ public class SystemConfigController : ApiControllerBase
                 ExceptionChuteId = request.ExceptionChuteId,
                 SortingMode = request.SortingMode,
                 FixedChuteId = request.FixedChuteId,
-                AvailableChuteIds = request.AvailableChuteIds,
-                Worker = request.Worker != null ? new WorkerConfiguration
-                {
-                    StateCheckIntervalMs = request.Worker.StateCheckIntervalMs,
-                    ErrorRecoveryDelayMs = request.Worker.ErrorRecoveryDelayMs
-                } : null
+                AvailableChuteIds = request.AvailableChuteIds
             };
 
             var result = await _configService.UpdateSystemConfigAsync(command);
@@ -322,12 +312,7 @@ public class SystemConfigController : ApiControllerBase
             AvailableChuteIds = config.AvailableChuteIds ?? new List<long>(),
             Version = config.Version,
             CreatedAt = config.CreatedAt,
-            UpdatedAt = config.UpdatedAt,
-            Worker = new WorkerConfigResponse
-            {
-                StateCheckIntervalMs = config.Worker.StateCheckIntervalMs,
-                ErrorRecoveryDelayMs = config.Worker.ErrorRecoveryDelayMs
-            }
+            UpdatedAt = config.UpdatedAt
         };
 #pragma warning restore CS0618
     }

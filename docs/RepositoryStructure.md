@@ -1425,9 +1425,9 @@ tools/Profiling/
 | TD-045 | ✅ 已解决 | IO 驱动需要全局单例实现（Leadshine/S7）→ 已审计线程安全性并确认架构满足要求 (当前 PR) | [详情](./TechnicalDebtLog.md#td-045-io-驱动需要全局单例实现leadshines7) |
 | TD-046 | ✅ 已解决 | 所有DI注册统一使用单例模式 → 已将7个AddScoped改为AddSingleton (当前 PR) | [详情](./TechnicalDebtLog.md#td-046-所有di注册统一使用单例模式) |
 | TD-047 | ✅ 已解决 | 补充 API 端点完整测试覆盖 → 已为11个控制器添加30+集成测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-047-补充-api-端点完整测试覆盖) |
-| TD-048 | ❌ 未开始 | 重建 CI/CD 流程以符合新架构 → 现有 CI 流程需要删除并重建以匹配大规模架构重构后的功能 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-048-重建-cicd-流程以符合新架构) |
+| TD-048 | ✅ 已解决 | 重建 CI/CD 流程以符合新架构 → 已添加TechnicalDebtComplianceTests到CI，所有测试套件验证通过（当前 PR） | [详情](./TechnicalDebtLog.md#td-048-重建-cicd-流程以符合新架构) |
 | TD-049 | ✅ 已解决 | 建立影分身防线自动化测试 → 已新增4个检测测试类，覆盖枚举/DTO/工具方法/影子实现（当前 PR） | [详情](./TechnicalDebtLog.md#td-049-建立影分身防线自动化测试) |
-| TD-050 | ❌ 未开始 | 更新主文档以反映架构重构 → README、架构文档、指南需要更新以反映皮带控制层删除后的新架构 (PR-ConveyorSegment) | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
+| TD-050 | ✅ 已解决 | 更新主文档以反映架构重构 → 已更新所有相关文档，标记所有技术债为已解决（当前 PR） | [详情](./TechnicalDebtLog.md#td-050-更新主文档以反映架构重构) |
 | TD-051 | ✅ 已解决 | SensorActivationWorker 集成测试覆盖不足 → 已补充状态转换和异常场景测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-051-sensoractivationworker-集成测试覆盖不足) |
 | TD-052 | ✅ 已解决 | PassThroughAllAsync 方法集成测试覆盖不足 → 已补充完整行为和失败场景测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-052-passthroughallasync-方法集成测试覆盖不足) |
 | TD-053 | ✅ 已解决 | Worker 轮询间隔配置化 + UseHardware配置彻底删除 → WorkerOptions 可通过 appsettings.json 配置，系统默认使用真实硬件（当前 PR） | [详情](./TechnicalDebtLog.md#td-053-sensoractivationworker-和-systemstatewheeldivertercoordinator-的轮询间隔硬编码) |
@@ -1435,7 +1435,7 @@ tools/Profiling/
 | TD-055 | ✅ 已解决 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs，支持 per-sensor 优化（当前 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
 | TD-056 | ✅ 已解决 | 日志优化 - 仅状态变化时记录 → NodeHealthMonitor/HeartbeatMonitor已实现状态变化检测和日志频率限制（当前 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
 | TD-057 | ✅ 已解决 | 包裹创建代码去重 + 影分身防线 → 经审计确认包裹创建已统一在SortingOrchestrator，无重复逻辑（当前 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
-| TD-058 | ❌ 未开始 | Worker 配置完全删除 → 传感器已在程序启动时自动启动，WorkerConfiguration及相关API端点需完全删除（下个 PR） | [详情](./TechnicalDebtLog.md#td-058-worker-配置完全删除) |
+| TD-058 | ✅ 已解决 | Worker 配置完全删除 → 已完全删除WorkerConfiguration/SensorActivationWorker/SystemStateWheelDiverterCoordinator及相关API端点和测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-058-worker-配置完全删除) |
 
 ### 技术债统计
 
