@@ -405,10 +405,10 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var clock = sp.GetRequiredService<ISystemClock>();
             var logger = sp.GetRequiredService<ILogger<SortingOrchestrator>>();
             var exceptionHandler = sp.GetRequiredService<ISortingExceptionHandler>();
+            var stateService = sp.GetRequiredService<ISystemRunStateService>(); // 必需
             
             // 可选依赖
             var pathFailureHandler = sp.GetService<IPathFailureHandler>();
-            var stateService = sp.GetService<ISystemRunStateService>();
             var congestionDetector = sp.GetService<ICongestionDetector>();
             var overloadPolicy = sp.GetService<IOverloadHandlingPolicy>();
             var congestionCollector = sp.GetService<ICongestionDataCollector>();
@@ -432,8 +432,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 clock,
                 logger,
                 exceptionHandler,
+                stateService, // 必需参数
                 pathFailureHandler,
-                stateService,
                 congestionDetector,
                 overloadPolicy,
                 congestionCollector,

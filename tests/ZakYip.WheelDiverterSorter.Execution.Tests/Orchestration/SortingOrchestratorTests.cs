@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -18,6 +19,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.Results;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
@@ -48,6 +50,7 @@ public class SortingOrchestratorTests : IDisposable
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<SortingOrchestrator>> _mockLogger;
     private readonly Mock<ISortingExceptionHandler> _mockExceptionHandler;
+    private readonly Mock<ISystemRunStateService> _mockStateService;
     private readonly IOptions<UpstreamConnectionOptions> _options;
     private readonly SortingOrchestrator _orchestrator;
     private readonly SystemConfiguration _defaultConfig;
@@ -63,6 +66,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockClock = new Mock<ISystemClock>();
         _mockLogger = new Mock<ILogger<SortingOrchestrator>>();
         _mockExceptionHandler = new Mock<ISortingExceptionHandler>();
+        _mockStateService = new Mock<ISystemRunStateService>();
 
         _testTime = new DateTimeOffset(2025, 11, 22, 12, 0, 0, TimeSpan.Zero);
         _mockClock.Setup(c => c.LocalNow).Returns(_testTime.LocalDateTime);
@@ -101,6 +105,11 @@ public class SortingOrchestratorTests : IDisposable
                     FailureReason: $"路径生成失败: {r}，连异常格口路径都无法生成"
                 ));
 
+        // Setup state service - by default, allow parcel creation (Running state)
+        _mockStateService
+            .Setup(s => s.ValidateParcelCreation())
+            .Returns(OperationResult.Success());
+
         _orchestrator = new SortingOrchestrator(
             _mockSensorEventProvider.Object,
             _mockUpstreamClient.Object,
@@ -110,7 +119,8 @@ public class SortingOrchestratorTests : IDisposable
             _mockConfigRepository.Object,
             _mockClock.Object,
             _mockLogger.Object,
-            _mockExceptionHandler.Object
+            _mockExceptionHandler.Object,
+            _mockStateService.Object
         );
     }
 

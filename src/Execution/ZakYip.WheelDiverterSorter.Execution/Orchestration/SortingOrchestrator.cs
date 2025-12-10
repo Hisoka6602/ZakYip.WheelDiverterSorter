@@ -67,7 +67,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ILogger<SortingOrchestrator> _logger;
     private readonly UpstreamConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
-    private readonly ISystemRunStateService? _stateService;
+    private readonly ISystemRunStateService _stateService; // 必需：用于状态验证
     private readonly ICongestionDetector? _congestionDetector;
     private readonly IOverloadHandlingPolicy? _overloadPolicy;
     private readonly ICongestionDataCollector? _congestionCollector;
@@ -114,8 +114,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISystemClock clock,
         ILogger<SortingOrchestrator> logger,
         ISortingExceptionHandler exceptionHandler,
+        ISystemRunStateService stateService, // 必需：用于状态验证
         IPathFailureHandler? pathFailureHandler = null,
-        ISystemRunStateService? stateService = null,
         ICongestionDetector? congestionDetector = null,
         IOverloadHandlingPolicy? overloadPolicy = null,
         ICongestionDataCollector? congestionCollector = null,
@@ -135,8 +135,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _exceptionHandler = exceptionHandler ?? throw new ArgumentNullException(nameof(exceptionHandler));
+        _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService)); // 必需
         _pathFailureHandler = pathFailureHandler;
-        _stateService = stateService;
         _congestionDetector = congestionDetector;
         _overloadPolicy = overloadPolicy;
         _congestionCollector = congestionCollector;
@@ -430,11 +430,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private Task<(bool IsValid, string? Reason)> ValidateSystemStateAsync(long parcelId)
     {
-        if (_stateService == null)
-        {
-            return Task.FromResult((IsValid: true, Reason: (string?)null));
-        }
-
         var validationResult = _stateService.ValidateParcelCreation();
         if (!validationResult.IsSuccess)
         {
