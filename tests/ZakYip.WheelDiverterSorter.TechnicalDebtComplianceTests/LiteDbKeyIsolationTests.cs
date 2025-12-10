@@ -13,6 +13,19 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// </remarks>
 public class LiteDbKeyIsolationTests
 {
+    /// <summary>
+    /// 单例配置响应白名单（这些类型只包含配置值，不包含业务实体 ID）
+    /// Singleton configuration response whitelist (these types only contain configuration values, not business entity IDs)
+    /// </summary>
+    private static readonly HashSet<string> SingletonConfigResponses = new()
+    {
+        "SystemConfigResponse",
+        "LoggingConfigResponse",
+        "SimulationConfigResponse",
+        "CommunicationConfigurationResponse",
+        "IoLinkageConfigResponse"
+    };
+
     private static string GetSolutionRoot()
     {
         var currentDir = Directory.GetCurrentDirectory();
@@ -98,9 +111,8 @@ public class LiteDbKeyIsolationTests
             if (onlyIntIds && allIdFields.Any() && !stringIds.Any())
             {
                 // This might be critical if it's a configuration/entity response
-                // Exception: Singleton configs like LoggingConfig are acceptable with just int Id
-                var isSingletonConfig = type.Name == "LoggingConfigResponse" || 
-                                       type.Name == "SimulationConfigResponse";
+                // Exception: Singleton configs are acceptable with just int Id
+                var isSingletonConfig = SingletonConfigResponses.Contains(type.Name);
                 
                 if (!isSingletonConfig && 
                     (type.Name.Contains("Config") || type.Name.Contains("Sensor") || 
@@ -160,7 +172,7 @@ public class LiteDbKeyIsolationTests
         // Warnings are just logged
         if (warnings.Any())
         {
-            Console.WriteLine(report.ToString());
+            Console.WriteLine(report);
         }
 
         // If no issues, test passes
@@ -190,14 +202,7 @@ public class LiteDbKeyIsolationTests
             .Where(t => t.Name.EndsWith("Response") && t.Name.Contains("Config"))
             .ToList();
 
-        var acceptableResponses = new List<string>
-        {
-            "SystemConfigResponse", // Has int Id but also has long ExceptionChuteId as business ID
-            "CommunicationConfigurationResponse",
-            "LoggingConfigResponse", // Singleton config - only contains feature toggles
-            "IoLinkageConfigResponse",
-            "SimulationConfigResponse"
-        };
+        var acceptableResponses = SingletonConfigResponses.ToList();
 
         var violations = new List<(string TypeName, string Details)>();
 
@@ -360,7 +365,7 @@ public class LiteDbKeyIsolationTests
         report.AppendLine("3. ❌ **Needs Fix**: 只有 int Id，没有 long 业务 ID");
         report.AppendLine("4. ℹ️ **String ID**: 使用 string 类型 ID（某些场景下可接受）");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
 
         // This test always passes, just generates a report
         Assert.True(true);

@@ -307,7 +307,7 @@ public class ApiFieldTypeConsistencyTests
         report.AppendLine($"- {(totalInt > 0 ? "⚠️" : "✅")} Int ID fields: {totalInt} {(totalInt > 0 ? "(除了 database internal Id 外应全部为 long)" : "")}");
         report.AppendLine($"- {(totalOther > 0 ? "⚠️" : "✅")} Other type ID fields: {totalOther}");
 
-        Console.WriteLine(report.ToString());
+        Console.WriteLine(report);
 
         // This test always passes, just generates a report
         Assert.True(true);
