@@ -24,7 +24,7 @@ public class UpstreamConnectionOptionsTests
         // Assert
         Assert.Equal(CommunicationMode.Tcp, options.Mode);
         Assert.Equal(ConnectionMode.Client, options.ConnectionMode);
-        Assert.Equal("127.0.0.1:2000", options.TcpServer); // 默认值
+        Assert.Equal(UpstreamConnectionOptions.DefaultTcpServer, options.TcpServer); // 默认值
         Assert.Null(options.SignalRHub);
         Assert.Null(options.MqttBroker);
         Assert.Equal("sorting/chute/assignment", options.MqttTopic);
