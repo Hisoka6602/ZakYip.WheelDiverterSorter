@@ -77,6 +77,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
+    private readonly object? _serverBackgroundService; // UpstreamServerBackgroundService (optional, avoid direct type reference for layering)
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -122,7 +123,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IParcelTraceSink? traceSink = null,
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
-        IChuteSelectionService? chuteSelectionService = null)
+        IChuteSelectionService? chuteSelectionService = null,
+        object? serverBackgroundService = null) // UpstreamServerBackgroundService (optional)
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -143,6 +145,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pathHealthChecker = pathHealthChecker;
         _timeoutCalculator = timeoutCalculator;
         _chuteSelectionService = chuteSelectionService;
+        _serverBackgroundService = serverBackgroundService;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -640,14 +643,50 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogError(
-                "包裹 {ParcelId} 无法发送检测通知到上游系统。连接失败或上游不可用。",
+                "包裹 {ParcelId} 无法发送检测通知到上游系统（Client模式）。连接失败或上游不可用。",
                 parcelId);
         }
         else
         {
             _logger.LogDebug(
-                "包裹 {ParcelId} 已成功发送检测通知到上游系统",
+                "包裹 {ParcelId} 已成功发送检测通知到上游系统（Client模式）",
                 parcelId);
+        }
+
+        // Server模式: 向所有连接的客户端广播通知
+        if (_serverBackgroundService != null)
+        {
+            try
+            {
+                // 使用反射访问CurrentServer属性（避免直接类型依赖）
+                var serverProperty = _serverBackgroundService.GetType().GetProperty("CurrentServer");
+                var currentServer = serverProperty?.GetValue(_serverBackgroundService);
+                
+                if (currentServer != null)
+                {
+                    // 使用反射调用BroadcastParcelDetectedAsync方法
+                    var broadcastMethod = currentServer.GetType().GetMethod("BroadcastParcelDetectedAsync");
+                    if (broadcastMethod != null)
+                    {
+                        var task = (Task?)broadcastMethod.Invoke(currentServer, new object[] { parcelId, CancellationToken.None });
+                        if (task != null)
+                        {
+                            await task;
+                            _logger.LogDebug(
+                                "包裹 {ParcelId} 已成功广播检测通知到所有客户端（Server模式）",
+                                parcelId);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "包裹 {ParcelId} 广播检测通知到客户端失败（Server模式）: {Message}",
+                    parcelId,
+                    ex.Message);
+            }
         }
     }
 
