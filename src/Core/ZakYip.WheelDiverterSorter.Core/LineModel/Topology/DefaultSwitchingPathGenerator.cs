@@ -57,6 +57,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     private readonly IRouteConfigurationRepository? _routeRepository;
     private readonly IChutePathTopologyRepository? _topologyRepository;
     private readonly ISystemClock? _systemClock;
+    private bool _topologyConfigLogged = false;  // 用于记录是否已输出拓扑配置日志
 
     /// <summary>
     /// 初始化路径生成器（使用路由配置仓储）
@@ -132,6 +133,20 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     private SwitchingPath? GeneratePathFromTopology(long targetChuteId)
     {
         var topologyConfig = _topologyRepository!.Get();
+        
+        // 首次使用拓扑配置时输出配置信息（仅在首次调用时记录）
+        if (!_topologyConfigLogged)
+        {
+            _topologyConfigLogged = true;
+            System.Diagnostics.Debug.WriteLine(
+                $"========== 使用拓扑配置生成路径 ==========\n" +
+                $"  - 拓扑名称: {topologyConfig.TopologyName}\n" +
+                $"  - 拓扑ID: {topologyConfig.TopologyId}\n" +
+                $"  - 摆轮节点数: {topologyConfig.DiverterNodes.Count}\n" +
+                $"  - 异常格口ID: {topologyConfig.ExceptionChuteId}\n" +
+                $"  - 配置来源: 数据库 (Production)\n" +
+                $"=========================================");
+        }
         
         // 如果目标是异常口，生成全直通路径
         if (targetChuteId == topologyConfig.ExceptionChuteId)
