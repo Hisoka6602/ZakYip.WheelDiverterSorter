@@ -68,7 +68,7 @@ public interface ISortingOrchestrator
     ///   <item>记录结果和追踪日志</item>
     /// </list>
     /// </remarks>
-    Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, CancellationToken cancellationToken = default);
+    Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行调试分拣（跳过包裹创建和上游路由）

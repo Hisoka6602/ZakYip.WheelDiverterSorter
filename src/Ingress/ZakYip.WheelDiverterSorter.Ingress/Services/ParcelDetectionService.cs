@@ -21,7 +21,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastTriggerTimes = new();
+    private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
     // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
     private readonly ConcurrentQueue<long> _recentParcelIds = new();
     private readonly ConcurrentDictionary<long, byte> _parcelIdSet = new(); // 使用 byte 作为 dummy value
@@ -163,7 +163,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     private (bool IsDuplicate, double TimeSinceLastTriggerMs) CheckForDuplicateTrigger(SensorEvent sensorEvent)
     {
-        if (!_lastTriggerTimes.TryGetValue(sensorEvent.SensorId.ToString(), out var lastTime))
+        if (!_lastTriggerTimes.TryGetValue(sensorEvent.SensorId, out var lastTime))
         {
             return (false, 0);
         }
@@ -188,7 +188,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     private void UpdateLastTriggerTime(SensorEvent sensorEvent)
     {
-        _lastTriggerTimes[sensorEvent.SensorId.ToString()] = sensorEvent.TriggerTime;
+        _lastTriggerTimes[sensorEvent.SensorId] = sensorEvent.TriggerTime;
     }
 
     /// <summary>
@@ -308,7 +308,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             e.ErrorMessage);
 
         // 报告给健康监控器
-        _healthMonitor?.ReportError(e.SensorId.ToString(), e.ErrorMessage);
+        _healthMonitor?.ReportError(e.SensorId, e.ErrorMessage);
     }
 
     /// <summary>

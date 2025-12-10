@@ -37,18 +37,18 @@ public interface ISensorHealthMonitor
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <returns>健康状态</returns>
-    SensorHealthStatus GetHealthStatus(string sensorId);
+    SensorHealthStatus GetHealthStatus(long sensorId);
 
     /// <summary>
     /// 获取所有传感器的健康状态
     /// </summary>
     /// <returns>健康状态字典</returns>
-    IDictionary<string, SensorHealthStatus> GetAllHealthStatus();
+    IDictionary<long, SensorHealthStatus> GetAllHealthStatus();
 
     /// <summary>
     /// 手动报告传感器错误
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="error">错误信息</param>
-    void ReportError(string sensorId, string error);
+    void ReportError(long sensorId, string error);
 }

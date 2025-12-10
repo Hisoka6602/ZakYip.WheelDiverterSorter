@@ -196,7 +196,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹分拣流程（主入口）
     /// </summary>
-    public async Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, CancellationToken cancellationToken = default)
+    public async Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         
@@ -372,7 +372,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
     /// </summary>
-    private async Task CreateParcelEntityAsync(long parcelId, string sensorId)
+    private async Task CreateParcelEntityAsync(long parcelId, long sensorId)
     {
         var createdAt = new DateTimeOffset(_clock.LocalNow);
         

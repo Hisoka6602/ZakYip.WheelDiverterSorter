@@ -17,8 +17,8 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     private readonly IEnumerable<ISensor> _sensors;
     private readonly ILogger<SensorHealthMonitor>? _logger;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
-    private readonly ConcurrentDictionary<string, SensorHealthStatus> _healthStatus = new();
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _faultStartTimes = new();
+    private readonly ConcurrentDictionary<long, SensorHealthStatus> _healthStatus = new();
+    private readonly ConcurrentDictionary<long, DateTimeOffset> _faultStartTimes = new();
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
     private bool _isRunning;
@@ -52,7 +52,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
         // 初始化健康状态
         foreach (var sensor in _sensors) {
-            _healthStatus[sensor.SensorId.ToString()] = new SensorHealthStatus {
+            _healthStatus[sensor.SensorId] = new SensorHealthStatus {
                 SensorId = sensor.SensorId,
                 Type = sensor.Type,
                 IsHealthy = true,
@@ -131,7 +131,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 获取所有传感器的健康状态
     /// </summary>
-    public IDictionary<string, SensorHealthStatus> GetAllHealthStatus() {
+    public IDictionary<long, SensorHealthStatus> GetAllHealthStatus() {
         // PR-44: ConcurrentDictionary 迭代器和构造函数是线程安全的
         // 更新所有传感器的运行时长
         foreach (var status in _healthStatus.Values) {
@@ -140,7 +140,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
             }
         }
 
-        return new Dictionary<string, SensorHealthStatus>(_healthStatus);
+        return new Dictionary<long, SensorHealthStatus>(_healthStatus);
     }
 
     /// <summary>
@@ -172,14 +172,14 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// </summary>
     private void OnSensorTriggered(object? sender, SensorEvent sensorEvent) {
         // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
-        if (_healthStatus.TryGetValue(sensorEvent.SensorId.ToString(), out var status)) {
+        if (_healthStatus.TryGetValue(sensorEvent.SensorId, out var status)) {
             status.LastTriggerTime = sensorEvent.TriggerTime;
             status.TotalTriggerCount++;
             status.LastCheckTime = DateTimeOffset.Now;
 
             // 如果传感器之前处于故障状态，现在恢复了
             if (!status.IsHealthy) {
-                MarkSensorAsRecovered(sensorEvent.SensorId.ToString());
+                MarkSensorAsRecovered(sensorEvent.SensorId);
             }
 
             // 重置错误计数
@@ -235,7 +235,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 标记传感器为故障状态
     /// </summary>
-    private void MarkSensorAsFaulty(string sensorId, SensorFaultType faultType, string description) {
+    private void MarkSensorAsFaulty(long sensorId, SensorFaultType faultType, string description) {
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             status.IsHealthy = false;
             _faultStartTimes[sensorId] = DateTimeOffset.Now;
@@ -248,7 +248,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
             // 触发故障事件
             SensorFault?.Invoke(this, new SensorFaultEventArgs {
-                SensorId = long.Parse(sensorId),
+                SensorId = sensorId,
                 Type = status.Type,
                 FaultType = faultType,
                 Description = description,
@@ -260,7 +260,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 标记传感器为恢复状态
     /// </summary>
-    private void MarkSensorAsRecovered(string sensorId) {
+    private void MarkSensorAsRecovered(long sensorId) {
         if (_healthStatus.TryGetValue(sensorId, out var status) && !status.IsHealthy) {
             status.IsHealthy = true;
             status.ErrorCount = 0;
@@ -279,7 +279,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
             // 触发恢复事件
             SensorRecovery?.Invoke(this, new SensorRecoveryEventArgs {
-                SensorId = long.Parse(sensorId),
+                SensorId = sensorId,
                 Type = status.Type,
                 RecoveryTime = DateTimeOffset.Now,
                 FaultDurationSeconds = faultDuration

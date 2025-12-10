@@ -39,7 +39,7 @@ public class DefaultUpstreamContractMapperTests
             ParcelId = 12345,
             Barcode = "BC001",
             RequestTime = DateTimeOffset.Parse("2024-01-15T10:30:00+08:00"),
-            SensorId = "S01",
+            SensorId = 1,
             CandidateChuteIds = new List<int> { 1, 2, 3 },
             Metadata = new Dictionary<string, string> { { "key", "value" } }
         };
