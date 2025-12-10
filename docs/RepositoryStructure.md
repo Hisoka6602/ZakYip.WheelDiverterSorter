@@ -1440,22 +1440,22 @@ tools/Profiling/
 | TD-056 | ✅ 已解决 | 日志优化 - 仅状态变化时记录 → NodeHealthMonitor/HeartbeatMonitor已实现状态变化检测和日志频率限制（当前 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
 | TD-057 | ✅ 已解决 | 包裹创建代码去重 + 影分身防线 → 经审计确认包裹创建已统一在SortingOrchestrator，无重复逻辑（当前 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
 | TD-058 | ✅ 已解决 | Worker 配置完全删除 → 已完全删除WorkerConfiguration/SensorActivationWorker/SystemStateWheelDiverterCoordinator及相关API端点和测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-058-worker-配置完全删除) |
-| TD-059 | ❌ 未开始 | API 字段类型一致性检查 + 防线测试 → 系统性检查所有配置API端点字段类型与Core层模型一致性（计划 PR） | [详情](./TechnicalDebtLog.md#td-059-api-字段类型一致性检查--防线测试) |
-| TD-060 | ❌ 未开始 | LiteDB Key 隔离验证 → 确保数据库内部key不暴露到API端点（计划 PR） | [详情](./TechnicalDebtLog.md#td-060-litedb-key-隔离验证) |
-| TD-061 | ❌ 未开始 | 清理所有重复、冗余、过时代码 → 系统性扫描并清理冗余代码，建立防线测试（计划 PR） | [详情](./TechnicalDebtLog.md#td-061-清理所有重复冗余过时代码) |
+| TD-059 | ✅ 已解决 | API 字段类型一致性检查 + 防线测试 → 已新增 ApiFieldTypeConsistencyTests 防线，修复 SortingModeResponse 字段类型（当前 PR） | [详情](./TechnicalDebtLog.md#td-059-api-字段类型一致性检查--防线测试) |
+| TD-060 | ✅ 已解决 | LiteDB Key 隔离验证 → 已新增 LiteDbKeyIsolationTests 防线，确认当前实现合规（当前 PR） | [详情](./TechnicalDebtLog.md#td-060-litedb-key-隔离验证) |
+| TD-061 | ✅ 已解决 | 清理所有重复、冗余、过时代码 → 已验证无遗留代码，现有防线测试完整（当前 PR） | [详情](./TechnicalDebtLog.md#td-061-清理所有重复冗余过时代码) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 55 |
+| ✅ 已解决 | 58 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 6 |
+| ❌ 未开始 | 3 |
 | **总计** | **61** |
 
-**完成率**：55/61 = 90.2%
+**完成率**：58/61 = 95.1%
 
-**最近更新**：TD-059/060/061 已登记为后续 PR 任务（当前 PR），TD-054/TD-055/TD-058 已完全解决
+**最近更新**：TD-059/060/061 已在当前 PR 中完全解决，建立了完整的防线测试
 
 ---
 

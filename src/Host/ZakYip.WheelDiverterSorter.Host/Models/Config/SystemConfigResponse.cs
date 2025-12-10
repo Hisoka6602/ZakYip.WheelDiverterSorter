@@ -13,19 +13,12 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 /// System configuration response model
 /// </summary>
 /// <remarks>
-/// 系统配置不包含通信相关字段，通信配置请使用 /api/communication/config/persisted 端点
+/// 系统配置不包含通信相关字段，通信配置请使用 /api/communication/config/persisted 端点。
+/// 注意：LiteDB 内部 ID 不暴露在 API 响应中，配置为单例模式。
 /// </remarks>
 [SwaggerSchema(Description = "系统全局配置响应，包含异常处理、分拣模式等配置参数")]
 public record SystemConfigResponse
 {
-    /// <summary>
-    /// 配置ID
-    /// Configuration ID
-    /// </summary>
-    /// <example>1</example>
-    [SwaggerSchema(Description = "配置的唯一标识符")]
-    public required int Id { get; init; }
-
     /// <summary>
     /// 异常格口ID
     /// Exception chute ID

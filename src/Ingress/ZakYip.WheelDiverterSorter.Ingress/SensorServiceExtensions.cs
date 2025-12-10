@@ -14,6 +14,8 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
@@ -89,7 +91,23 @@ public static class SensorServiceExtensions {
         });
 
         // 注册包裹检测服务
-        services.AddSingleton<IParcelDetectionService, Services.ParcelDetectionService>();
+        services.AddSingleton<IParcelDetectionService>(sp =>
+        {
+            var sensors = sp.GetRequiredService<IEnumerable<ISensor>>();
+            var options = sp.GetService<IOptions<ParcelDetectionOptions>>();
+            var logger = sp.GetService<ILogger<Services.ParcelDetectionService>>();
+            var healthMonitor = sp.GetService<Services.ISensorHealthMonitor>();
+            var sensorConfigRepo = sp.GetService<ISensorConfigurationRepository>();
+            var systemRunStateService = sp.GetService<ISystemRunStateService>();
+            
+            return new Services.ParcelDetectionService(
+                sensors,
+                options,
+                logger,
+                healthMonitor,
+                sensorConfigRepo,
+                systemRunStateService);
+        });
 
         // 注册传感器健康监控服务
         services.AddSingleton<Services.ISensorHealthMonitor, Services.SensorHealthMonitor>();

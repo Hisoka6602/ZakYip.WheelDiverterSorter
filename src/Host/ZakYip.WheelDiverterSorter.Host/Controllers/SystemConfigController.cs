@@ -221,8 +221,8 @@ public class SystemConfigController : ApiControllerBase
             var response = new SortingModeResponse
             {
                 SortingMode = modeInfo.SortingMode,
-                FixedChuteId = modeInfo.FixedChuteId.HasValue ? (int?)modeInfo.FixedChuteId.Value : null,
-                AvailableChuteIds = modeInfo.AvailableChuteIds.Select(id => (int)id).ToList()
+                FixedChuteId = modeInfo.FixedChuteId,
+                AvailableChuteIds = modeInfo.AvailableChuteIds
             };
             return Success(response, "获取分拣模式配置成功");
         }
@@ -287,8 +287,8 @@ public class SystemConfigController : ApiControllerBase
             var response = new SortingModeResponse
             {
                 SortingMode = result.UpdatedMode!.SortingMode,
-                FixedChuteId = result.UpdatedMode.FixedChuteId.HasValue ? (int?)result.UpdatedMode.FixedChuteId.Value : null,
-                AvailableChuteIds = result.UpdatedMode.AvailableChuteIds.Select(id => (int)id).ToList()
+                FixedChuteId = result.UpdatedMode.FixedChuteId,
+                AvailableChuteIds = result.UpdatedMode.AvailableChuteIds
             };
 
             return Success(response, "分拣模式配置更新成功");
@@ -305,7 +305,6 @@ public class SystemConfigController : ApiControllerBase
 #pragma warning disable CS0618 // 向后兼容
         return new SystemConfigResponse
         {
-            Id = config.Id,
             ExceptionChuteId = config.ExceptionChuteId,
             SortingMode = config.SortingMode,
             FixedChuteId = config.FixedChuteId,

@@ -518,11 +518,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <remarks>
     /// PR-08: 当 IChuteSelectionService 可用时，使用统一的策略服务进行格口选择。
     /// 这样可以将分拣模式的判断逻辑收敛到单一服务中，消除多处重复的分支代码。
+    /// 
+    /// PR-fix-upstream-notification-all-modes: 在所有模式下都向上游发送包裹检测通知。
+    /// 只有 Formal 模式会等待并使用上游返回的路由决策，其他模式仅发送通知但使用本地策略。
     /// </remarks>
     private async Task<long> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
     {
         var systemConfig = _systemConfigRepository.Get();
         var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+        // PR-fix-upstream-notification-all-modes: 在所有模式下都向上游发送包裹检测通知
+        await SendUpstreamNotificationAsync(parcelId, systemConfig.ExceptionChuteId);
 
         // 如果超载决策要求强制异常，直接返回异常格口
         if (overloadDecision.ShouldForceException)
@@ -596,24 +602,26 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
-    /// 从上游系统获取格口分配（正式分拣模式）
+    /// PR-fix-upstream-notification-all-modes: 向上游发送包裹检测通知（所有模式）
     /// </summary>
-    private async Task<long> GetChuteFromUpstreamAsync(long parcelId, SystemConfiguration systemConfig)
+    /// <remarks>
+    /// 在所有分拣模式下都向上游发送包裹检测通知。
+    /// 通知失败时记录错误日志，但不阻止后续流程（只有 Formal 模式会因此返回异常格口）。
+    /// </remarks>
+    private async Task SendUpstreamNotificationAsync(long parcelId, long exceptionChuteId)
     {
-        var exceptionChuteId = systemConfig.ExceptionChuteId;
-
         // PR-42: Invariant 1 - 上游请求必须引用已存在的本地包裹
         // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
         if (!_createdParcels.ContainsKey(parcelId))
         {
             _logger.LogError(
-                "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游请求。" +
-                "请求已阻止，不发送到上游。包裹将被路由到异常格口。",
+                "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游通知。" +
+                "通知已阻止，不发送到上游。",
                 parcelId);
-            return exceptionChuteId;
+            return;
         }
 
-        // 发送上游请求
+        // 发送上游通知
         var upstreamRequestSentAt = new DateTimeOffset(_clock.LocalNow);
         
         // PR-44: 使用 TryGetValue 是线程安全的
@@ -623,7 +631,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         _logger.LogTrace(
-            "[PR-42 Parcel-First] 发送上游路由请求: ParcelId={ParcelId}, RequestSentAt={SentAt:o}",
+            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}",
             parcelId,
             upstreamRequestSentAt);
         
@@ -632,10 +640,29 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogError(
-                "包裹 {ParcelId} 无法发送检测通知到上游系统，将返回异常格口",
+                "包裹 {ParcelId} 无法发送检测通知到上游系统。连接失败或上游不可用。",
                 parcelId);
-            return exceptionChuteId;
         }
+        else
+        {
+            _logger.LogDebug(
+                "包裹 {ParcelId} 已成功发送检测通知到上游系统",
+                parcelId);
+        }
+    }
+
+    /// <summary>
+    /// 从上游系统获取格口分配（正式分拣模式）
+    /// </summary>
+    /// <remarks>
+    /// PR-fix-upstream-notification-all-modes: 通知发送逻辑已提取到 SendUpstreamNotificationAsync，
+    /// 此方法仅负责等待上游返回格口分配。
+    /// </remarks>
+    private async Task<long> GetChuteFromUpstreamAsync(long parcelId, SystemConfiguration systemConfig)
+    {
+        var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+        // 注意：上游通知已在 DetermineTargetChuteAsync 中发送，此处不再重复发送
 
         // 等待上游推送格口分配（带动态超时）
         var tcs = new TaskCompletionSource<long>();

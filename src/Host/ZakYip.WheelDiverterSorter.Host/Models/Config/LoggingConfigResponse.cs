@@ -7,19 +7,12 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Config;
 /// Logging configuration response model
 /// </summary>
 /// <remarks>
-/// 返回当前日志开关配置状态
+/// 返回当前日志开关配置状态。
+/// 注意：LiteDB 内部 ID 不暴露在 API 响应中，配置为单例模式。
 /// </remarks>
 [SwaggerSchema(Description = "日志配置响应，包含所有日志开关的当前状态")]
 public record LoggingConfigResponse
 {
-    /// <summary>
-    /// 配置ID
-    /// Configuration ID
-    /// </summary>
-    /// <example>1</example>
-    [SwaggerSchema(Description = "配置的唯一标识符")]
-    public required int Id { get; init; }
-
     /// <summary>
     /// 是否启用包裹生命周期日志
     /// Whether parcel lifecycle log is enabled

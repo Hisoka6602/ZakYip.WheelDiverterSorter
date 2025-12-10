@@ -29,7 +29,7 @@ public record SortingModeResponse
     /// </summary>
     /// <example>1</example>
     [SwaggerSchema(Description = "固定格口模式下的目标格口编号")]
-    public int? FixedChuteId { get; init; }
+    public long? FixedChuteId { get; init; }
 
     /// <summary>
     /// 可用格口ID列表（仅在循环格口落格模式下使用）
@@ -37,5 +37,5 @@ public record SortingModeResponse
     /// </summary>
     /// <example>[1, 2, 3]</example>
     [SwaggerSchema(Description = "循环格口模式下的可用格口编号列表")]
-    public List<int> AvailableChuteIds { get; init; } = new();
+    public List<long> AvailableChuteIds { get; init; } = new();
 }
