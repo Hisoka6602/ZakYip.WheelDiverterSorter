@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 
@@ -236,7 +237,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             SensorType = sensorEvent.SensorType
         };
 
-        ParcelDetected?.Invoke(this, eventArgs);
+        ParcelDetected.SafeInvoke(this, eventArgs, _logger, nameof(ParcelDetected));
     }
 
     /// <summary>

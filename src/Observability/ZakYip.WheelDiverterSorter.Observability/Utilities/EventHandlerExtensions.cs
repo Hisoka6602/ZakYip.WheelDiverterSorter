@@ -7,10 +7,10 @@ namespace ZakYip.WheelDiverterSorter.Observability.Utilities;
 /// Extension methods for safely invoking event handlers - prevents one subscriber's exception from affecting others
 /// </summary>
 /// <remarks>
-/// 设为 internal 以限制可见性 - 当前未被使用，但保留以备未来需要
-/// Set to internal to limit visibility - currently unused but kept for future use
+/// PR-SAFE-EVENTS: 确保所有事件订阅者的异常不会影响其他订阅者和发布者
+/// PR-SAFE-EVENTS: Ensures exceptions from event subscribers don't affect other subscribers or the publisher
 /// </remarks>
-internal static class EventHandlerExtensions
+public static class EventHandlerExtensions
 {
     /// <summary>
     /// 安全调用事件 - 捕获并记录每个订阅者的异常，但不阻止其他订阅者执行
@@ -34,6 +34,9 @@ internal static class EventHandlerExtensions
     /// Use cases:
     /// - Event publisher wants to ensure all subscribers receive the event, even if some throw exceptions
     /// - Need to log which subscriber threw an exception for debugging
+    /// 
+    /// PR-SAFE-EVENTS: 移除 EventArgs 约束，支持自定义事件参数类型
+    /// PR-SAFE-EVENTS: Removed EventArgs constraint to support custom event argument types
     /// </remarks>
     public static void SafeInvoke<TEventArgs>(
         this EventHandler<TEventArgs>? eventHandler,
@@ -41,7 +44,6 @@ internal static class EventHandlerExtensions
         TEventArgs args,
         ILogger? logger = null,
         string? eventName = null)
-        where TEventArgs : EventArgs
     {
         if (eventHandler == null)
         {

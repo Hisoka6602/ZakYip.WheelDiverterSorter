@@ -2,6 +2,7 @@ using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
@@ -162,14 +163,14 @@ public class MockSensor : ISensor {
     /// 触发传感器事件
     /// </summary>
     protected virtual void OnSensorTriggered(SensorEvent sensorEvent) {
-        SensorTriggered?.Invoke(this, sensorEvent);
+        SensorTriggered.SafeInvoke(this, sensorEvent, logger: null, nameof(SensorTriggered));
     }
 
     /// <summary>
     /// 触发传感器错误事件
     /// </summary>
     protected virtual void OnSensorError(SensorErrorEventArgs args) {
-        SensorError?.Invoke(this, args);
+        SensorError.SafeInvoke(this, args, logger: null, nameof(SensorError));
     }
 
     /// <summary>

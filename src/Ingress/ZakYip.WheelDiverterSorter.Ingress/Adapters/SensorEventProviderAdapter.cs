@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Adapters;
 
@@ -88,7 +89,7 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
         };
 
         // 触发 Execution 层的事件
-        ParcelDetected?.Invoke(this, executionArgs);
+        ParcelDetected.SafeInvoke(this, executionArgs, _logger, nameof(ParcelDetected));
     }
 
     /// <summary>
@@ -111,6 +112,6 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
         };
 
         // 触发 Execution 层的事件
-        DuplicateTriggerDetected?.Invoke(this, executionArgs);
+        DuplicateTriggerDetected.SafeInvoke(this, executionArgs, _logger, nameof(DuplicateTriggerDetected));
     }
 }

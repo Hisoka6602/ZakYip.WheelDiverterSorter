@@ -201,14 +201,14 @@ public class LeadshineSensor : ISensor {
     /// 触发传感器事件
     /// </summary>
     protected virtual void OnSensorTriggered(SensorEvent sensorEvent) {
-        SensorTriggered?.Invoke(this, sensorEvent);
+        SensorTriggered.SafeInvoke(this, sensorEvent, _logger, nameof(SensorTriggered));
     }
 
     /// <summary>
     /// 触发传感器错误事件
     /// </summary>
     protected virtual void OnSensorError(SensorErrorEventArgs args) {
-        SensorError?.Invoke(this, args);
+        SensorError.SafeInvoke(this, args, _logger, nameof(SensorError));
     }
 
     /// <summary>
