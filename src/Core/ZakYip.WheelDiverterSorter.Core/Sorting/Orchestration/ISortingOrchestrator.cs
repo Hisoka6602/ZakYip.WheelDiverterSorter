@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
+
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 
 /// <summary>
@@ -28,6 +30,11 @@ namespace ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 /// </remarks>
 public interface ISortingOrchestrator
 {
+    /// <summary>
+    /// 包裹创建事件 - 当通过IO检测到包裹并在本地创建后触发
+    /// </summary>
+    event EventHandler<ParcelCreatedEventArgs>? ParcelCreated;
+    
     /// <summary>
     /// 启动编排服务
     /// </summary>
