@@ -58,6 +58,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 |------|------|------|----------------|
 | API_USAGE_GUIDE.md | `./docs/guides/API_USAGE_GUIDE.md` | API 使用指南 | 🟡 中 |
 | SYSTEM_CONFIG_GUIDE.md | `./docs/guides/SYSTEM_CONFIG_GUIDE.md` | 系统配置指南 | 🟡 中 |
+| SENSOR_IO_POLLING_CONFIGURATION.md | `./docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md` | 感应IO轮询时间配置指南 | 🟡 中 |
 | UPSTREAM_CONNECTION_GUIDE.md | `./docs/guides/UPSTREAM_CONNECTION_GUIDE.md` | 上游连接配置 | 🟡 中 |
 | VENDOR_EXTENSION_GUIDE.md | `./docs/guides/VENDOR_EXTENSION_GUIDE.md` | 厂商扩展开发 | 🟡 中 |
 
