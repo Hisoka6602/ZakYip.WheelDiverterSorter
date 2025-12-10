@@ -53,7 +53,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
     /// <summary>
     /// 日志输出最小间隔（秒）- 防止日志洪水
     /// </summary>
-    private static readonly TimeSpan MinLogInterval = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan MinLogInterval = TimeSpan.FromSeconds(60);
 
     public WheelDiverterHeartbeatMonitor(
         IWheelDiverterDriverManager driverManager,

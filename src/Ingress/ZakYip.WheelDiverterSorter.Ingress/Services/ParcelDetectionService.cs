@@ -85,6 +85,20 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
 
         _isRunning = true;
+        
+        // 输出启动完成总结
+        var sensorCount = _sensors.Count();
+        var activeSensorCount = _sensors.Count(s => s != null);
+        _logger?.LogInformation(
+            "========== 包裹检测服务启动完成 ==========\n" +
+            "  - 已注册传感器: {SensorCount} 个\n" +
+            "  - 已激活传感器: {ActiveSensorCount} 个\n" +
+            "  - 健康监控: {HealthMonitorStatus}\n" +
+            "  - 服务状态: 运行中，等待包裹触发事件\n" +
+            "========================================",
+            sensorCount,
+            activeSensorCount,
+            _healthMonitor != null ? "已启用" : "未启用");
     }
 
     /// <summary>
