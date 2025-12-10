@@ -299,7 +299,7 @@ public class HardwareConfigController : ControllerBase
     ///         "sensorId": 1,
     ///         "sensorName": "创建包裹感应IO",
     ///         "ioType": "ParcelCreation",
-    ///         "ioPointId": 0,
+    ///         "bitNumber": 0,
     ///         "pollingIntervalMs": 10,
     ///         "triggerLevel": "ActiveHigh",
     ///         "isEnabled": true
@@ -362,7 +362,7 @@ public class HardwareConfigController : ControllerBase
     ///       "sensorId": 1,
     ///       "sensorName": "创建包裹感应IO",
     ///       "ioType": "ParcelCreation",
-    ///       "ioPointId": 0,
+    ///       "bitNumber": 0,
     ///       "pollingIntervalMs": 20,
     ///       "triggerLevel": "ActiveHigh",
     ///       "isEnabled": true
@@ -371,7 +371,7 @@ public class HardwareConfigController : ControllerBase
     ///       "sensorId": 2,
     ///       "sensorName": "摆轮1前感应IO",
     ///       "ioType": "WheelFront",
-    ///       "ioPointId": 1,
+    ///       "bitNumber": 1,
     ///       "boundWheelNodeId": "WHEEL-1",
     ///       "pollingIntervalMs": null,
     ///       "triggerLevel": "ActiveHigh",

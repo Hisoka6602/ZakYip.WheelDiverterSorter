@@ -562,7 +562,7 @@ PUT /api/hardware/leadshine/sensors
     "sensorId": 1,
     "sensorName": "创建包裹感应IO",
     "ioType": "ParcelCreation",
-    "ioPointId": 0,
+    "bitNumber": 0,
     "pollingIntervalMs": 20,
     "isEnabled": true
   }]
