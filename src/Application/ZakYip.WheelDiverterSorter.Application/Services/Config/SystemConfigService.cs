@@ -250,21 +250,6 @@ public class SystemConfigService : ISystemConfigService
             // They should be managed through /api/communication endpoints
         };
 
-        // 如果提供了 Worker 配置，则更新；否则保留现有配置
-        if (request.Worker != null)
-        {
-            config.Worker = new WorkerConfiguration
-            {
-                StateCheckIntervalMs = request.Worker.StateCheckIntervalMs,
-                ErrorRecoveryDelayMs = request.Worker.ErrorRecoveryDelayMs
-            };
-        }
-        else
-        {
-            // 保留现有 Worker 配置
-            config.Worker = existingConfig.Worker;
-        }
-
         return config;
     }
 }

@@ -79,38 +79,4 @@ public record SystemConfigResponse
     /// </summary>
     [SwaggerSchema(Description = "配置最后更新的时间")]
     public required DateTime UpdatedAt { get; init; }
-
-    /// <summary>
-    /// Worker 后台服务配置
-    /// Worker background service configuration
-    /// </summary>
-    /// <remarks>
-    /// 统一管理所有 BackgroundService/IHostedService 的轮询间隔和异常恢复延迟配置
-    /// </remarks>
-    [SwaggerSchema(Description = "后台服务轮询间隔和异常恢复延迟配置")]
-    public WorkerConfigResponse Worker { get; init; } = new() { StateCheckIntervalMs = 500, ErrorRecoveryDelayMs = 2000 };
-}
-
-/// <summary>
-/// Worker 后台服务配置响应模型
-/// Worker background service configuration response model
-/// </summary>
-[SwaggerSchema(Description = "后台服务的轮询间隔和异常恢复延迟配置")]
-public record WorkerConfigResponse
-{
-    /// <summary>
-    /// 状态检查轮询间隔（毫秒）
-    /// State check polling interval (milliseconds)
-    /// </summary>
-    /// <example>500</example>
-    [SwaggerSchema(Description = "后台服务检查系统状态的轮询间隔")]
-    public required int StateCheckIntervalMs { get; init; }
-
-    /// <summary>
-    /// 异常恢复延迟（毫秒）
-    /// Error recovery delay (milliseconds)
-    /// </summary>
-    /// <example>2000</example>
-    [SwaggerSchema(Description = "后台服务发生异常后的重试延迟")]
-    public required int ErrorRecoveryDelayMs { get; init; }
 }
