@@ -87,19 +87,21 @@ public sealed class DatabaseBackedLeadshineSensorVendorConfigProvider : ISensorV
     }
 
     /// <summary>
-    /// 将业务类型 SensorIoType 映射到硬件类型 SensorType
+    /// 将业务类型 SensorIoType 显式映射到硬件类型 SensorType
     /// </summary>
     /// <param name="ioType">业务IO类型</param>
     /// <returns>硬件传感器类型</returns>
     /// <remarks>
-    /// SensorIoType 是业务功能分类（创建包裹、摆轮前、锁格），
-    /// SensorType 是硬件类型（光电、激光）。
-    /// 目前统一映射到 Photoelectric（光电传感器）。
+    /// 当前所有业务类型均映射为 Photoelectric（光电传感器）。
+    /// 如需支持不同硬件类型，可在此 switch expression 中扩展映射规则。
     /// </remarks>
-    private static SensorType MapIoTypeToSensorType(SensorIoType ioType)
-    {
-        // 目前所有业务类型都使用光电传感器
-        // 未来如果需要支持不同硬件类型，可以在 SensorConfiguration 中添加硬件类型字段
-        return SensorType.Photoelectric;
-    }
+    private static SensorType MapIoTypeToSensorType(SensorIoType ioType) =>
+        ioType switch
+        {
+            SensorIoType.ParcelCreation => SensorType.Photoelectric,
+            SensorIoType.WheelFront => SensorType.Photoelectric,
+            SensorIoType.ChuteLock => SensorType.Photoelectric,
+            // 未来可扩展其他类型
+            _ => SensorType.Photoelectric
+        };
 }

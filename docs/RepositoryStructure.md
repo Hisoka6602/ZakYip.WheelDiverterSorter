@@ -730,9 +730,10 @@ ZakYip.WheelDiverterSorter.Drivers/
 │   │   ├── Configuration/           # 雷赛配置类
 │   │   │   ├── LeadshineOptions.cs          # 雷赛控制器配置
 │   │   │   ├── LeadshineDiverterConfigDto.cs # 摆轮配置DTO
-│   │   │   ├── LeadshineSensorOptions.cs    # 传感器配置
-│   │   │   ├── LeadshineSensorConfigDto.cs  # 传感器配置DTO
-│   │   │   └── LeadshineSensorVendorConfigProvider.cs  # PR-TD7: 实现 ISensorVendorConfigProvider
+│   │   │   ├── LeadshineSensorOptions.cs    # 传感器配置（appsettings.json，已废弃）
+│   │   │   ├── LeadshineSensorConfigDto.cs  # 传感器配置DTO（appsettings.json，已废弃）
+│   │   │   ├── LeadshineSensorVendorConfigProvider.cs  # 旧实现：从 appsettings.json 读取（已废弃）
+│   │   │   └── DatabaseBackedLeadshineSensorVendorConfigProvider.cs  # 新实现：从 LiteDB 读取，实现 ISensorVendorConfigProvider
 │   │   ├── IoMapping/               # IO映射
 │   │   │   └── LeadshineIoMapper.cs
 │   │   ├── LTDMC.cs                 # 雷赛 SDK P/Invoke 封装
@@ -1326,8 +1327,9 @@ tools/Profiling/
 │  │ └── SensorConfigEntry (厂商无关的配置条目)          │                 │
 │  │                                                    │                 │
 │  │ 实现位于 Drivers 层:                                │                 │
-│  │ └── LeadshineSensorVendorConfigProvider.cs         │                 │
-│  │     (将 LeadshineSensorOptions → SensorConfigEntry) │                 │
+│  │ └── DatabaseBackedLeadshineSensorVendorConfigProvider.cs │           │
+│  │     (从 LiteDB SensorConfiguration → SensorConfigEntry)  │           │
+│  │     (替代旧的 LeadshineSensorVendorConfigProvider)      │           │
 │  └────────────────────────────────────────────────────┘                 │
 │       │                                                                 │
 │       │ 注入 ISensorVendorConfigProvider                                │
@@ -1349,9 +1351,9 @@ tools/Profiling/
 
 | 层次 | 位置 | 职责 | 关键类型 |
 |-----|------|-----|---------|
-| 厂商 Options | Drivers/Vendors/{Vendor}/Configuration/ | 定义厂商特定的配置结构，直接对应硬件配置 | `LeadshineSensorOptions`, `LeadshineSensorConfigDto` |
+| 业务配置 | Core/LineModel/Configuration/Models/ | 定义业务层的传感器配置（存储在 LiteDB） | `SensorConfiguration`, `SensorIoEntry` |
 | HAL 抽象 | Core/Hardware/Providers/ | 定义厂商无关的配置访问协议，实现类型转换 | `ISensorVendorConfigProvider`, `SensorConfigEntry` |
-| HAL 实现 | Drivers/Vendors/{Vendor}/Configuration/ | 将厂商 Options 转换为通用配置条目 | `LeadshineSensorVendorConfigProvider` |
+| HAL 实现 | Drivers/Vendors/{Vendor}/Configuration/ | 将业务配置或厂商配置转换为通用配置条目 | `DatabaseBackedLeadshineSensorVendorConfigProvider`（从 LiteDB 读取） |
 | 消费层 | Ingress/Sensors/ | 基于通用配置创建传感器实例 | `LeadshineSensorFactory` |
 
 **为什么不是简单的 Options 包装器**：
