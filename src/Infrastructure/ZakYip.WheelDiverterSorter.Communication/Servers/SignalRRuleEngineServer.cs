@@ -136,6 +136,39 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
             chuteId);
     }
 
+    public async Task BroadcastParcelDetectedAsync(
+        long parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        if (_hubContext == null)
+        {
+            _logger.LogWarning("HubContext未注入，无法广播包裹检测通知");
+            return;
+        }
+
+        if (!_isRunning)
+        {
+            _logger.LogWarning("SignalR服务器未运行，无法广播包裹检测通知");
+            return;
+        }
+
+        var notification = new ParcelDetectionNotification
+        {
+            ParcelId = parcelId,
+            DetectionTime = _systemClock.LocalNowOffset
+        };
+
+        await _hubContext.Clients.All.SendAsync(
+            "ReceiveParcelDetected",
+            notification,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "[{LocalTime}] 已向所有SignalR客户端广播包裹检测通知: ParcelId={ParcelId}",
+            _systemClock.LocalNow,
+            parcelId);
+    }
+
     internal void RegisterClient(string connectionId)
     {
         var clientInfo = new ClientInfo

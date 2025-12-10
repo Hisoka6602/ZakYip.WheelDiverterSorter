@@ -167,6 +167,45 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             chuteId);
     }
 
+    public async Task BroadcastParcelDetectedAsync(
+        long parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        if (_mqttServer == null || !_isRunning)
+        {
+            _logger.LogWarning("MQTT服务器未运行，无法广播包裹检测通知");
+            return;
+        }
+
+        var notification = new ParcelDetectionNotification
+        {
+            ParcelId = parcelId,
+            DetectionTime = _systemClock.LocalNowOffset
+        };
+
+        var json = JsonSerializer.Serialize(notification);
+        var payload = Encoding.UTF8.GetBytes(json);
+
+        var message = new MqttApplicationMessageBuilder()
+            .WithTopic(_options.MqttTopic)
+            .WithPayload(payload)
+            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+            .WithRetainFlag(false)
+            .Build();
+
+        await _mqttServer.InjectApplicationMessage(
+            new InjectedMqttApplicationMessage(message)
+            {
+                SenderClientId = "RuleEngineServer"
+            });
+
+        _logger.LogInformation(
+            "[{LocalTime}] 已向主题 {Topic} 广播包裹检测通知: ParcelId={ParcelId}",
+            _systemClock.LocalNow,
+            _options.MqttTopic,
+            parcelId);
+    }
+
     private Task OnClientConnectedAsync(ClientConnectedEventArgs args)
     {
         var clientId = args.ClientId;
