@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
@@ -60,7 +61,7 @@ public class SensorConfiguration
                     SensorId = 1, 
                     SensorName = "创建包裹感应IO", 
                     IoType = SensorIoType.ParcelCreation, 
-                    IoPointId = 0, 
+                    BitNumber = 0, 
                     IsEnabled = true 
                 },
                 new() 
@@ -68,7 +69,7 @@ public class SensorConfiguration
                     SensorId = 2, 
                     SensorName = "摆轮1前感应IO", 
                     IoType = SensorIoType.WheelFront, 
-                    IoPointId = 1, 
+                    BitNumber = 1, 
                     BoundWheelNodeId = "WHEEL-1",
                     IsEnabled = true 
                 },
@@ -77,7 +78,7 @@ public class SensorConfiguration
                     SensorId = 3, 
                     SensorName = "格口1锁格感应IO", 
                     IoType = SensorIoType.ChuteLock, 
-                    IoPointId = 2, 
+                    BitNumber = 2, 
                     BoundChuteId = "CHUTE-001",
                     IsEnabled = true 
                 }
@@ -175,13 +176,16 @@ public class SensorIoEntry
     public required SensorIoType IoType { get; set; }
 
     /// <summary>
-    /// 关联的IO点位ID（引用IO驱动器配置中的IO点位）
+    /// IO端口编号（0-1023，对应硬件IO点位）
     /// </summary>
     /// <remarks>
-    /// 此ID对应 IO驱动器配置中定义的输入IO点位。
+    /// 此编号对应 IO驱动器配置中定义的输入IO点位。
     /// 具体的硬件映射（如雷赛控制卡的 InputBit）由 IO驱动器配置管理。
+    /// 与 IoLinkagePoint.BitNumber 命名保持一致。
     /// </remarks>
-    public required int IoPointId { get; set; }
+    [Required(ErrorMessage = "IO端口编号不能为空")]
+    [Range(0, 1023, ErrorMessage = "IO端口编号必须在 0-1023 之间")]
+    public required int BitNumber { get; set; }
 
     /// <summary>
     /// 绑定的摆轮节点ID（仅当 IoType 为 WheelFront 时使用）

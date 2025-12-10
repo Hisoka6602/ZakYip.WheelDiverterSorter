@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
@@ -21,6 +22,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 /// </remarks>
 public class LeadshineSensor : ISensor {
     private readonly ILogger _logger;
+    private readonly ILogDeduplicator _logDeduplicator;
     private readonly IInputPort _inputPort;
     private readonly ISystemClock _systemClock;
     private readonly int _inputBit;
@@ -59,6 +61,7 @@ public class LeadshineSensor : ISensor {
     /// 构造函数
     /// </summary>
     /// <param name="logger">日志记录器</param>
+    /// <param name="logDeduplicator">日志去重器</param>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="type">传感器类型</param>
     /// <param name="inputPort">输入端口</param>
@@ -67,6 +70,7 @@ public class LeadshineSensor : ISensor {
     /// <param name="pollingIntervalMs">传感器轮询间隔（毫秒），默认10ms</param>
     public LeadshineSensor(
         ILogger logger,
+        ILogDeduplicator logDeduplicator,
         string sensorId,
         SensorType type,
         IInputPort inputPort,
@@ -74,6 +78,7 @@ public class LeadshineSensor : ISensor {
         ISystemClock systemClock,
         int pollingIntervalMs = 10) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logDeduplicator = logDeduplicator ?? throw new ArgumentNullException(nameof(logDeduplicator));
         SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
         Type = type;
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
@@ -157,7 +162,9 @@ public class LeadshineSensor : ISensor {
 
                     OnSensorTriggered(sensorEvent);
 
-                    _logger.LogDebug(
+                    // 使用去重日志记录，防止相同状态变化在短时间内重复输出
+                    _logger.LogInformationDeduplicated(
+                        _logDeduplicator,
                         "雷赛{SensorTypeName} {SensorId} 状态变化: {State}",
                         _sensorTypeName,
                         SensorId,
