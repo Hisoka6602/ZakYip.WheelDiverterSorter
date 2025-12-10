@@ -79,6 +79,7 @@ public static class WheelDiverterSorterHostServiceCollectionExtensions
             Health.HostHealthStatusProvider>();
 
         // 4. 注册后台工作服务（Host 特定）
+        services.AddHostedService<SortingServicesInitHostedService>(); // 分拣服务初始化（启动传感器和编排器）
         services.AddHostedService<AlarmMonitoringWorker>();
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
         services.AddHostedService<PanelButtonMonitorWorker>();
