@@ -24,7 +24,7 @@ public class UpstreamConnectionOptionsTests
         // Assert
         Assert.Equal(CommunicationMode.Tcp, options.Mode);
         Assert.Equal(ConnectionMode.Client, options.ConnectionMode);
-        Assert.Null(options.TcpServer);
+        Assert.Equal(UpstreamConnectionOptions.DefaultTcpServer, options.TcpServer); // 默认值
         Assert.Null(options.SignalRHub);
         Assert.Null(options.MqttBroker);
         Assert.Equal("sorting/chute/assignment", options.MqttTopic);
@@ -43,10 +43,11 @@ public class UpstreamConnectionOptionsTests
     public void Validate_TcpMode_WithoutTcpServer_ShouldFail()
     {
         // Arrange
+        // 显式设置 TcpServer 为 null 以覆盖默认值
         var options = new UpstreamConnectionOptions
         {
             Mode = CommunicationMode.Tcp,
-            TcpServer = null
+            TcpServer = null!
         };
 
         // Act

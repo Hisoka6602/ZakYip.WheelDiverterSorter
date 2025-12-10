@@ -21,6 +21,11 @@ public record UpstreamConnectionOptions
     public const string SectionName = "UpstreamConnection";
 
     /// <summary>
+    /// 默认 TCP 服务器地址（本地回环）
+    /// </summary>
+    public const string DefaultTcpServer = "127.0.0.1:2000";
+
+    /// <summary>
     /// 通信模式
     /// </summary>
     /// <remarks>
@@ -40,9 +45,9 @@ public record UpstreamConnectionOptions
     /// TCP服务器地址（格式：host:port）
     /// </summary>
     /// <remarks>
-    /// 当 Mode 为 Tcp 时必须配置
+    /// 当 Mode 为 Tcp 时使用。默认值：127.0.0.1:2000（本地回环地址）
     /// </remarks>
-    public string? TcpServer { get; init; }
+    public string? TcpServer { get; init; } = DefaultTcpServer;
 
     /// <summary>
     /// SignalR Hub URL
