@@ -13,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
@@ -128,6 +129,7 @@ public static class SensorServiceExtensions {
     {
         var logger = sp.GetRequiredService<ILogger<LeadshineSensorFactory>>();
         var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var logDeduplicator = sp.GetRequiredService<ILogDeduplicator>();
         var inputPort = sp.GetRequiredService<IInputPort>();
         var configProvider = sp.GetRequiredService<ISensorVendorConfigProvider>();
         var systemClock = sp.GetRequiredService<ISystemClock>();
@@ -135,6 +137,7 @@ public static class SensorServiceExtensions {
         return new LeadshineSensorFactory(
             logger,
             loggerFactory,
+            logDeduplicator,
             inputPort,
             configProvider,
             systemClock,

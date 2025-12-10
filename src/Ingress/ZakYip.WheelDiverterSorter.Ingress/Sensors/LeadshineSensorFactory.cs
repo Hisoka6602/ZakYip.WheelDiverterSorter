@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 
@@ -20,6 +21,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Sensors;
 public class LeadshineSensorFactory : ISensorFactory {
     private readonly ILogger<LeadshineSensorFactory> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly ILogDeduplicator _logDeduplicator;
     private readonly IInputPort _inputPort;
     private readonly ISensorVendorConfigProvider _configProvider;
     private readonly ISystemClock _systemClock;
@@ -30,6 +32,7 @@ public class LeadshineSensorFactory : ISensorFactory {
     /// </summary>
     /// <param name="logger">日志记录器</param>
     /// <param name="loggerFactory">日志工厂</param>
+    /// <param name="logDeduplicator">日志去重器</param>
     /// <param name="inputPort">输入端口</param>
     /// <param name="configProvider">传感器配置提供者</param>
     /// <param name="systemClock">系统时钟</param>
@@ -37,12 +40,14 @@ public class LeadshineSensorFactory : ISensorFactory {
     public LeadshineSensorFactory(
         ILogger<LeadshineSensorFactory> logger,
         ILoggerFactory loggerFactory,
+        ILogDeduplicator logDeduplicator,
         IInputPort inputPort,
         ISensorVendorConfigProvider configProvider,
         ISystemClock systemClock,
         int defaultPollingIntervalMs = 10) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
+        _logDeduplicator = logDeduplicator ?? throw new ArgumentNullException(nameof(logDeduplicator));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _configProvider = configProvider ?? throw new ArgumentNullException(nameof(configProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
@@ -75,6 +80,7 @@ public class LeadshineSensorFactory : ISensorFactory {
 
                 var sensor = new LeadshineSensor(
                     _loggerFactory.CreateLogger<LeadshineSensor>(),
+                    _logDeduplicator,
                     config.SensorId,
                     sensorType,
                     _inputPort,
