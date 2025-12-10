@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 
@@ -13,7 +14,14 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 /// 包裹检测服务
 /// </summary>
 /// <remarks>
-/// 负责监听传感器事件，检测包裹到达，并生成唯一包裹ID
+/// 负责监听传感器事件，检测包裹到达，并生成唯一包裹ID。
+/// 
+/// <para><b>重要规则（PR-fix-sensor-type-filtering）</b>：</para>
+/// <list type="bullet">
+///   <item>只有 `ParcelCreation` 类型的传感器会触发 `ParcelDetected` 事件（创建包裹）</item>
+///   <item>`WheelFront` 和 `ChuteLock` 类型的传感器只用于监控和日志记录</item>
+///   <item>系统中只能有一个 `ParcelCreation` 类型的传感器处于激活状态</item>
+/// </list>
 /// </remarks>
 public class ParcelDetectionService : IParcelDetectionService, IDisposable
 {
@@ -21,6 +29,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly ILogger<ParcelDetectionService>? _logger;
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
+    private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
     private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
     // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
@@ -45,16 +54,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="options">包裹检测配置选项</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="healthMonitor">传感器健康监控器（可选）</param>
+    /// <param name="sensorConfigRepository">传感器配置仓储（可选，用于获取 IoType）</param>
     public ParcelDetectionService(
         IEnumerable<ISensor> sensors,
         IOptions<ParcelDetectionOptions>? options = null,
         ILogger<ParcelDetectionService>? logger = null,
-        Services.ISensorHealthMonitor? healthMonitor = null)
+        Services.ISensorHealthMonitor? healthMonitor = null,
+        ISensorConfigurationRepository? sensorConfigRepository = null)
     {
         _sensors = sensors ?? throw new ArgumentNullException(nameof(sensors));
         _options = options?.Value ?? new ParcelDetectionOptions();
         _logger = logger;
         _healthMonitor = healthMonitor;
+        _sensorConfigRepository = sensorConfigRepository;
     }
 
     /// <summary>
@@ -156,7 +168,79 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
         }
 
-        RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
+        // PR-fix-sensor-type-filtering: 只有 ParcelCreation 类型的传感器才触发 ParcelDetected 事件
+        // 其他类型（WheelFront, ChuteLock）只用于监控和日志记录
+        if (ShouldTriggerParcelCreation(sensorEvent.SensorId))
+        {
+            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
+        }
+        else
+        {
+            // 记录非 ParcelCreation 类型传感器的触发（用于监控和调试）
+            _logger?.LogInformation(
+                "传感器 {SensorId} 触发（非包裹创建类型），包裹ID: {ParcelId}，用于监控目的",
+                sensorEvent.SensorId,
+                parcelId);
+        }
+    }
+
+    /// <summary>
+    /// 判断传感器是否应触发包裹创建
+    /// </summary>
+    /// <param name="sensorId">传感器ID</param>
+    /// <returns>true 表示应触发包裹创建，false 表示只用于监控</returns>
+    private bool ShouldTriggerParcelCreation(long sensorId)
+    {
+        // 如果没有配置仓储，默认允许所有传感器触发（向后兼容）
+        if (_sensorConfigRepository == null)
+        {
+            _logger?.LogWarning(
+                "未注入 ISensorConfigurationRepository，传感器 {SensorId} 默认允许创建包裹（向后兼容模式）",
+                sensorId);
+            return true;
+        }
+
+        try
+        {
+            var config = _sensorConfigRepository.Get();
+            var sensor = config.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
+
+            if (sensor == null)
+            {
+                _logger?.LogWarning(
+                    "传感器 {SensorId} 未在配置中找到，默认不允许创建包裹",
+                    sensorId);
+                return false;
+            }
+
+            if (!sensor.IsEnabled)
+            {
+                _logger?.LogDebug(
+                    "传感器 {SensorId} 已禁用，不触发包裹创建",
+                    sensorId);
+                return false;
+            }
+
+            // 只有 ParcelCreation 类型的传感器才能创建包裹
+            bool isParcelCreationType = sensor.IoType == SensorIoType.ParcelCreation;
+            
+            if (!isParcelCreationType)
+            {
+                _logger?.LogDebug(
+                    "传感器 {SensorId} 类型为 {IoType}，不触发包裹创建（只用于监控）",
+                    sensorId,
+                    sensor.IoType);
+            }
+
+            return isParcelCreationType;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex,
+                "检查传感器 {SensorId} 是否应创建包裹时发生异常，默认不允许创建",
+                sensorId);
+            return false;
+        }
     }
 
     /// <summary>
