@@ -2681,8 +2681,14 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 **验证结果**：
 - ✅ 构建成功（0警告0错误）
 - ✅ 所有测试通过
-- ✅ 传感器在程序启动时自动启动（无需Worker监控）
+- ✅ 传感器在程序启动时自动启动（通过 SortingOrchestrator.StartAsync 调用 ISensorEventProvider.StartAsync）
 - ✅ 系统架构更加简洁
+
+**实现说明**：
+- `SortingServicesInitHostedService` 在程序启动时调用 `ISortingOrchestrator.StartAsync()`
+- `SortingOrchestrator.StartAsync()` 内部调用 `ISensorEventProvider.StartAsync()` 启动传感器监听
+- 传感器通过 `SensorEventProviderAdapter` → `ParcelDetectionService` → 各个 `ISensor` 实现（LeadshineSensor/MockSensor）启动轮询
+- 传感器检测到信号后触发事件链：`SensorTriggered` → `ParcelDetected` → `SortingOrchestrator.OnParcelDetected()` → 分拣流程
 
 **原因**：
 - 传感器已在程序启动时自动启动（与面板IO监控行为一致），不再需要 Worker 监控系统状态变化

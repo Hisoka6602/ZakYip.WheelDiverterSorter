@@ -156,6 +156,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         _logger.LogInformation("正在启动分拣编排服务...");
 
+        // 启动传感器事件监听
+        _logger.LogInformation("正在启动传感器事件监听...");
+        await _sensorEventProvider.StartAsync(cancellationToken);
+        _logger.LogInformation("传感器事件监听已启动");
+
         // 连接到上游系统
         _isConnected = await _upstreamClient.ConnectAsync(cancellationToken);
 
@@ -175,6 +180,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     public async Task StopAsync()
     {
         _logger.LogInformation("正在停止分拣编排服务...");
+
+        // 停止传感器事件监听
+        _logger.LogInformation("正在停止传感器事件监听...");
+        await _sensorEventProvider.StopAsync();
+        _logger.LogInformation("传感器事件监听已停止");
 
         // 断开与上游系统的连接
         await _upstreamClient.DisconnectAsync();
