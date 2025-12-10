@@ -6,6 +6,8 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
@@ -83,6 +85,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
     private bool _isConnected;
+
+    /// <summary>
+    /// 包裹创建事件 - 当通过IO检测到包裹并在本地创建后触发
+    /// </summary>
+    public event EventHandler<ParcelCreatedEventArgs>? ParcelCreated;
 
     /// <summary>
     /// PR-42: 包裹创建记录（用于 Parcel-First 语义验证）
@@ -196,7 +203,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹分拣流程（主入口）
     /// </summary>
-    public async Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, CancellationToken cancellationToken = default)
+    public async Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
         
@@ -372,7 +379,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
     /// </summary>
-    private async Task CreateParcelEntityAsync(long parcelId, string sensorId)
+    private async Task CreateParcelEntityAsync(long parcelId, long sensorId)
     {
         var createdAt = new DateTimeOffset(_clock.LocalNow);
         
@@ -402,6 +409,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // PR-08B: 记录包裹进入系统
         _congestionCollector?.RecordParcelEntry(parcelId, _clock.LocalNow);
+
+        // 触发包裹创建事件，通知其他逻辑代码
+        var parcelCreatedArgs = new ParcelCreatedEventArgs
+        {
+            ParcelId = parcelId,
+            CreatedAt = createdAt,
+            SensorId = sensorId,
+            Barcode = null  // 将来可以从扫码器获取
+        };
+
+        ParcelCreated.SafeInvoke(this, parcelCreatedArgs, _logger, nameof(ParcelCreated));
     }
 
     /// <summary>
@@ -1211,7 +1229,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹检测事件
     /// </summary>
-    private async void OnParcelDetected(object? sender, ParcelDetectedArgs e)
+    private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
         try
         {
@@ -1226,7 +1244,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理重复触发异常事件
     /// </summary>
-    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerArgs e)
+    private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerEventArgs e)
     {
         var parcelId = e.ParcelId;
         _logger.LogWarning(

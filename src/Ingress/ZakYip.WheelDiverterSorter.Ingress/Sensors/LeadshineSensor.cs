@@ -35,7 +35,7 @@ public class LeadshineSensor : ISensor {
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public string SensorId { get; }
+    public long SensorId { get; }
 
     /// <summary>
     /// 传感器类型
@@ -71,7 +71,7 @@ public class LeadshineSensor : ISensor {
     public LeadshineSensor(
         ILogger logger,
         ILogDeduplicator logDeduplicator,
-        string sensorId,
+        long sensorId,
         SensorType type,
         IInputPort inputPort,
         int inputBit,
@@ -79,7 +79,7 @@ public class LeadshineSensor : ISensor {
         int pollingIntervalMs = 10) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _logDeduplicator = logDeduplicator ?? throw new ArgumentNullException(nameof(logDeduplicator));
-        SensorId = sensorId ?? throw new ArgumentNullException(nameof(sensorId));
+        SensorId = sensorId;
         Type = type;
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _inputBit = inputBit;
@@ -201,14 +201,14 @@ public class LeadshineSensor : ISensor {
     /// 触发传感器事件
     /// </summary>
     protected virtual void OnSensorTriggered(SensorEvent sensorEvent) {
-        SensorTriggered?.Invoke(this, sensorEvent);
+        SensorTriggered.SafeInvoke(this, sensorEvent, _logger, nameof(SensorTriggered));
     }
 
     /// <summary>
     /// 触发传感器错误事件
     /// </summary>
     protected virtual void OnSensorError(SensorErrorEventArgs args) {
-        SensorError?.Invoke(this, args);
+        SensorError.SafeInvoke(this, args, _logger, nameof(SensorError));
     }
 
     /// <summary>

@@ -23,5 +23,5 @@ public readonly record struct ParcelCreatedEventArgs
     /// <summary>
     /// 传感器编号
     /// </summary>
-    public string? SensorId { get; init; }
+    public long? SensorId { get; init; }
 }

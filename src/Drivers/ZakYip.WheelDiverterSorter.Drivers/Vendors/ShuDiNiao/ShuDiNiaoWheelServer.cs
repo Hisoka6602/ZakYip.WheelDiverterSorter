@@ -440,12 +440,12 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
             }
 
             // 触发状态事件
-            DeviceStatusReceived?.Invoke(this, new DeviceStatusEventArgs
+            DeviceStatusReceived.SafeInvoke(this, new DeviceStatusEventArgs
             {
                 DeviceAddress = devAddr,
                 DeviceState = deviceState,
                 ReceivedAt = _systemClock.LocalNow
-            });
+            }, _logger, nameof(DeviceStatusReceived));
 
             return deviceAddress;
         }
@@ -508,12 +508,12 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
             deviceAddress,
             clientAddress);
 
-        DeviceConnected?.Invoke(this, new DeviceConnectionEventArgs
+        DeviceConnected.SafeInvoke(this, new DeviceConnectionEventArgs
         {
             DeviceAddress = deviceAddress,
             ClientAddress = clientAddress,
             Timestamp = _systemClock.LocalNow
-        });
+        }, _logger, nameof(DeviceConnected));
     }
 
     /// <summary>
@@ -526,12 +526,12 @@ public sealed class ShuDiNiaoWheelServer : IDisposable
             deviceAddress,
             clientAddress);
 
-        DeviceDisconnected?.Invoke(this, new DeviceConnectionEventArgs
+        DeviceDisconnected.SafeInvoke(this, new DeviceConnectionEventArgs
         {
             DeviceAddress = deviceAddress,
             ClientAddress = clientAddress,
             Timestamp = _systemClock.LocalNow
-        });
+        }, _logger, nameof(DeviceDisconnected));
     }
 
     /// <summary>

@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
+
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 
 /// <summary>
@@ -28,6 +30,11 @@ namespace ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 /// </remarks>
 public interface ISortingOrchestrator
 {
+    /// <summary>
+    /// 包裹创建事件 - 当通过IO检测到包裹并在本地创建后触发
+    /// </summary>
+    event EventHandler<ParcelCreatedEventArgs>? ParcelCreated;
+    
     /// <summary>
     /// 启动编排服务
     /// </summary>
@@ -68,7 +75,7 @@ public interface ISortingOrchestrator
     ///   <item>记录结果和追踪日志</item>
     /// </list>
     /// </remarks>
-    Task<SortingResult> ProcessParcelAsync(long parcelId, string sensorId, CancellationToken cancellationToken = default);
+    Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行调试分拣（跳过包裹创建和上游路由）

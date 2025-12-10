@@ -62,7 +62,7 @@ public sealed class DatabaseBackedLeadshineSensorVendorConfigProvider : ISensorV
                 .Where(s => s.IsEnabled)
                 .Select(s => new SensorConfigEntry
                 {
-                    SensorId = s.SensorId.ToString(),
+                    SensorId = s.SensorId,
                     // 将业务类型 SensorIoType 映射到硬件类型 SensorType
                     // 目前统一使用 Photoelectric（光电传感器）作为默认硬件类型
                     SensorTypeName = MapIoTypeToSensorType(s.IoType).ToString(),

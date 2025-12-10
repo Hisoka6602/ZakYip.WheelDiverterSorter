@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
@@ -115,7 +116,7 @@ public class InMemoryRuleEngineClient : IUpstreamRoutingClient, IDisposable
         };
 
         _logger?.LogDebug("内存模拟客户端：推送格口分配 {ParcelId} -> 格口 {ChuteId}", parcelId, chuteId);
-        ChuteAssigned?.Invoke(this, eventArgs);
+        ChuteAssigned.SafeInvoke(this, eventArgs, _logger, nameof(ChuteAssigned));
 
         return true;
     }

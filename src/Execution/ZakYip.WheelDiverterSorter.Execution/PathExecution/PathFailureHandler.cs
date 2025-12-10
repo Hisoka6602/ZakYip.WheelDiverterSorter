@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Events.Path;
 
@@ -60,14 +61,14 @@ public class PathFailureHandler : IPathFailureHandler
             failureReason);
 
         // 触发段失败事件
-        SegmentExecutionFailed?.Invoke(this, new PathSegmentExecutionFailedEventArgs
+        SegmentExecutionFailed.SafeInvoke(this, new PathSegmentExecutionFailedEventArgs
         {
             ParcelId = parcelId,
             FailedSegment = failedSegment,
             OriginalTargetChuteId = originalPath.TargetChuteId,
             FailureReason = failureReason,
             FailureTime = failureTime
-        });
+        }, _logger, nameof(SegmentExecutionFailed));
 
         // 同时触发路径失败事件
         HandlePathFailure(parcelId, originalPath, failureReason, failedSegment);
@@ -91,7 +92,7 @@ public class PathFailureHandler : IPathFailureHandler
             originalPath.FallbackChuteId);
 
         // 触发路径失败事件
-        PathExecutionFailed?.Invoke(this, new PathExecutionFailedEventArgs
+        PathExecutionFailed.SafeInvoke(this, new PathExecutionFailedEventArgs
         {
             ParcelId = parcelId,
             OriginalPath = originalPath,
@@ -99,7 +100,7 @@ public class PathFailureHandler : IPathFailureHandler
             FailureReason = failureReason,
             FailureTime = failureTime,
             ActualChuteId = originalPath.FallbackChuteId
-        });
+        }, _logger, nameof(PathExecutionFailed));
 
         // 计算并记录备用路径切换
         var backupPath = CalculateBackupPath(originalPath);
@@ -113,14 +114,14 @@ public class PathFailureHandler : IPathFailureHandler
                 backupPath.Segments.Count);
 
             // 触发路径切换事件
-            PathSwitched?.Invoke(this, new PathSwitchedEventArgs
+            PathSwitched.SafeInvoke(this, new PathSwitchedEventArgs
             {
                 ParcelId = parcelId,
                 OriginalPath = originalPath,
                 BackupPath = backupPath,
                 SwitchReason = failureReason,
                 SwitchTime = failureTime
-            });
+            }, _logger, nameof(PathSwitched));
         }
         else
         {

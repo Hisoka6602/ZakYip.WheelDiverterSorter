@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using System.Collections.Concurrent;
 using System.Text;
@@ -181,12 +182,12 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
             clientAddress);
 
         // 触发客户端连接事件
-        ClientConnected?.Invoke(this, new ClientConnectionEventArgs
+        ClientConnected.SafeInvoke(this, new ClientConnectionEventArgs
         {
             ClientId = clientId,
             ConnectedAt = now,
             ClientAddress = clientAddress
-        });
+        }, _logger, nameof(ClientConnected));
 
         return Task.CompletedTask;
     }
@@ -205,12 +206,12 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 _systemClock.LocalNowOffset - clientInfo.ConnectedAt);
 
             // 触发客户端断开事件
-            ClientDisconnected?.Invoke(this, new ClientConnectionEventArgs
+            ClientDisconnected.SafeInvoke(this, new ClientConnectionEventArgs
             {
                 ClientId = clientId,
                 ConnectedAt = clientInfo.ConnectedAt,
                 ClientAddress = clientInfo.ClientAddress
-            });
+            }, _logger, nameof(ClientDisconnected));
         }
 
         return Task.CompletedTask;
@@ -239,12 +240,12 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                     notification.ParcelId);
 
                 // 触发包裹通知接收事件
-                ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
+                ParcelNotificationReceived.SafeInvoke(this, new ParcelNotificationReceivedEventArgs
                 {
                     ParcelId = notification.ParcelId,
                     ReceivedAt = _systemClock.LocalNowOffset,
                     ClientId = client.Id
-                });
+                }, _logger, nameof(ParcelNotificationReceived));
 
                 // 如果有处理器，调用处理器
                 if (_handler != null)

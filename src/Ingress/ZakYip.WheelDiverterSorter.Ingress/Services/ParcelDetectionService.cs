@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 
@@ -21,7 +22,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastTriggerTimes = new();
+    private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
     // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
     private readonly ConcurrentQueue<long> _recentParcelIds = new();
     private readonly ConcurrentDictionary<long, byte> _parcelIdSet = new(); // 使用 byte 作为 dummy value
@@ -212,7 +213,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             sensorEvent.SensorId,
             timeSinceLastTriggerMs);
 
-        DuplicateTriggerDetected?.Invoke(this, duplicateEventArgs);
+        DuplicateTriggerDetected.SafeInvoke(this, duplicateEventArgs, _logger, nameof(DuplicateTriggerDetected));
     }
 
     /// <summary>
@@ -236,7 +237,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             SensorType = sensorEvent.SensorType
         };
 
-        ParcelDetected?.Invoke(this, eventArgs);
+        ParcelDetected.SafeInvoke(this, eventArgs, _logger, nameof(ParcelDetected));
     }
 
     /// <summary>

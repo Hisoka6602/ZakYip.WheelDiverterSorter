@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;
@@ -17,8 +18,8 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     private readonly IEnumerable<ISensor> _sensors;
     private readonly ILogger<SensorHealthMonitor>? _logger;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
-    private readonly ConcurrentDictionary<string, SensorHealthStatus> _healthStatus = new();
-    private readonly ConcurrentDictionary<string, DateTimeOffset> _faultStartTimes = new();
+    private readonly ConcurrentDictionary<long, SensorHealthStatus> _healthStatus = new();
+    private readonly ConcurrentDictionary<long, DateTimeOffset> _faultStartTimes = new();
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
     private bool _isRunning;
@@ -115,7 +116,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 获取传感器健康状态
     /// </summary>
-    public SensorHealthStatus GetHealthStatus(string sensorId) {
+    public SensorHealthStatus GetHealthStatus(long sensorId) {
         // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             // 更新运行时长
@@ -131,7 +132,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 获取所有传感器的健康状态
     /// </summary>
-    public IDictionary<string, SensorHealthStatus> GetAllHealthStatus() {
+    public IDictionary<long, SensorHealthStatus> GetAllHealthStatus() {
         // PR-44: ConcurrentDictionary 迭代器和构造函数是线程安全的
         // 更新所有传感器的运行时长
         foreach (var status in _healthStatus.Values) {
@@ -140,13 +141,13 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
             }
         }
 
-        return new Dictionary<string, SensorHealthStatus>(_healthStatus);
+        return new Dictionary<long, SensorHealthStatus>(_healthStatus);
     }
 
     /// <summary>
     /// 手动报告传感器错误
     /// </summary>
-    public void ReportError(string sensorId, string error) {
+    public void ReportError(long sensorId, string error) {
         // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             status.ErrorCount++;
@@ -235,7 +236,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 标记传感器为故障状态
     /// </summary>
-    private void MarkSensorAsFaulty(string sensorId, SensorFaultType faultType, string description) {
+    private void MarkSensorAsFaulty(long sensorId, SensorFaultType faultType, string description) {
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             status.IsHealthy = false;
             _faultStartTimes[sensorId] = DateTimeOffset.Now;
@@ -247,20 +248,20 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 description);
 
             // 触发故障事件
-            SensorFault?.Invoke(this, new SensorFaultEventArgs {
+            SensorFault.SafeInvoke(this, new SensorFaultEventArgs {
                 SensorId = sensorId,
                 Type = status.Type,
                 FaultType = faultType,
                 Description = description,
                 FaultTime = DateTimeOffset.Now
-            });
+            }, _logger, nameof(SensorFault));
         }
     }
 
     /// <summary>
     /// 标记传感器为恢复状态
     /// </summary>
-    private void MarkSensorAsRecovered(string sensorId) {
+    private void MarkSensorAsRecovered(long sensorId) {
         if (_healthStatus.TryGetValue(sensorId, out var status) && !status.IsHealthy) {
             status.IsHealthy = true;
             status.ErrorCount = 0;
@@ -278,12 +279,12 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 faultDuration);
 
             // 触发恢复事件
-            SensorRecovery?.Invoke(this, new SensorRecoveryEventArgs {
+            SensorRecovery.SafeInvoke(this, new SensorRecoveryEventArgs {
                 SensorId = sensorId,
                 Type = status.Type,
                 RecoveryTime = DateTimeOffset.Now,
                 FaultDurationSeconds = faultDuration
-            });
+            }, _logger, nameof(SensorRecovery));
         }
     }
 

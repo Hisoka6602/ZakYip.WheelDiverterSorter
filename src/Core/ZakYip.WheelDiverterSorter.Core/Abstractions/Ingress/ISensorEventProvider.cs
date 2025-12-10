@@ -1,4 +1,4 @@
-using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 
 namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 
@@ -18,6 +18,9 @@ namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 /// 
 /// <para><b>实现层</b>：</para>
 /// Ingress 项目实现此接口，内部使用 IParcelDetectionService 等具体实现。
+/// 
+/// <para><b>事件类型说明</b>：</para>
+/// 使用 Core.Events.Sensor 中定义的统一事件参数类型，避免重复定义。
 /// </remarks>
 public interface ISensorEventProvider
 {
@@ -26,16 +29,18 @@ public interface ISensorEventProvider
     /// </summary>
     /// <remarks>
     /// 当传感器检测到包裹到达时触发此事件。
+    /// 使用 <see cref="ParcelDetectedEventArgs"/> 作为事件参数。
     /// </remarks>
-    event EventHandler<ParcelDetectedArgs>? ParcelDetected;
+    event EventHandler<ParcelDetectedEventArgs>? ParcelDetected;
 
     /// <summary>
     /// 重复触发异常事件
     /// </summary>
     /// <remarks>
     /// 当检测到同一传感器在短时间内重复触发时触发此事件。
+    /// 使用 <see cref="DuplicateTriggerEventArgs"/> 作为事件参数。
     /// </remarks>
-    event EventHandler<DuplicateTriggerArgs>? DuplicateTriggerDetected;
+    event EventHandler<DuplicateTriggerEventArgs>? DuplicateTriggerDetected;
 
     /// <summary>
     /// 启动传感器事件监听
@@ -49,74 +54,4 @@ public interface ISensorEventProvider
     /// </summary>
     /// <returns>异步任务</returns>
     Task StopAsync();
-}
-
-/// <summary>
-/// 包裹检测事件参数
-/// </summary>
-/// <remarks>
-/// 本类型属于 Core 层，用于传递包裹检测事件的数据。
-/// 纯数据对象，不依赖具体的 Ingress 层类型。
-/// </remarks>
-public record ParcelDetectedArgs
-{
-    /// <summary>
-    /// 生成的唯一包裹ID
-    /// </summary>
-    public required long ParcelId { get; init; }
-
-    /// <summary>
-    /// 检测时间
-    /// </summary>
-    public required DateTimeOffset DetectedAt { get; init; }
-
-    /// <summary>
-    /// 触发检测的传感器ID
-    /// </summary>
-    public required string SensorId { get; init; }
-
-    /// <summary>
-    /// 传感器类型
-    /// </summary>
-    public required SensorType SensorType { get; init; }
-}
-
-/// <summary>
-/// 重复触发异常事件参数
-/// </summary>
-/// <remarks>
-/// 本类型属于 Core 层，用于传递重复触发异常事件的数据。
-/// 纯数据对象，不依赖具体的 Ingress 层类型。
-/// </remarks>
-public record DuplicateTriggerArgs
-{
-    /// <summary>
-    /// 包裹ID
-    /// </summary>
-    public required long ParcelId { get; init; }
-
-    /// <summary>
-    /// 检测时间
-    /// </summary>
-    public required DateTimeOffset DetectedAt { get; init; }
-
-    /// <summary>
-    /// 触发检测的传感器ID
-    /// </summary>
-    public required string SensorId { get; init; }
-
-    /// <summary>
-    /// 传感器类型
-    /// </summary>
-    public required SensorType SensorType { get; init; }
-
-    /// <summary>
-    /// 距离上次触发的时间间隔（毫秒）
-    /// </summary>
-    public required double TimeSinceLastTriggerMs { get; init; }
-
-    /// <summary>
-    /// 异常原因
-    /// </summary>
-    public required string Reason { get; init; }
 }

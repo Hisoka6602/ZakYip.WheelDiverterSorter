@@ -61,8 +61,8 @@ public class DatabaseBackedLeadshineSensorVendorConfigProviderTests
 
         // Assert
         Assert.Equal(2, result.Count);
-        Assert.Contains(result, c => c.SensorId == "1");
-        Assert.Contains(result, c => c.SensorId == "3");
+        Assert.Contains(result, c => c.SensorId == 1);
+        Assert.Contains(result, c => c.SensorId == 3);
     }
 
     [Fact]
@@ -118,8 +118,8 @@ public class DatabaseBackedLeadshineSensorVendorConfigProviderTests
         var result = provider.GetSensorConfigs();
 
         // Assert
-        Assert.Contains(result, c => c.SensorId == "1" && c.InputBit == 8);
-        Assert.Contains(result, c => c.SensorId == "2" && c.InputBit == 9);
+        Assert.Contains(result, c => c.SensorId == 1 && c.InputBit == 8);
+        Assert.Contains(result, c => c.SensorId == 2 && c.InputBit == 9);
     }
 
     [Fact]
@@ -145,8 +145,8 @@ public class DatabaseBackedLeadshineSensorVendorConfigProviderTests
         var result = provider.GetSensorConfigs();
 
         // Assert
-        Assert.Contains(result, c => c.SensorId == "1" && c.PollingIntervalMs == 20);
-        Assert.Contains(result, c => c.SensorId == "2" && c.PollingIntervalMs == null);
+        Assert.Contains(result, c => c.SensorId == 1 && c.PollingIntervalMs == 20);
+        Assert.Contains(result, c => c.SensorId == 2 && c.PollingIntervalMs == null);
     }
 
     [Fact]

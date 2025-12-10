@@ -124,7 +124,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 12345;
-        string sensorId = "SENSOR_01";
+        long sensorId = 1;
         long targetChuteId = 5;
         int actualChuteId = 5;
 
@@ -190,7 +190,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 12346;
-        string sensorId = "SENSOR_01";
+        long sensorId = 1;
         long fixedChuteId = 3;
 
         var config = new SystemConfiguration
@@ -267,9 +267,9 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = 1 });
 
         // Act - 处理 3 个包裹
-        var result1 = await _orchestrator.ProcessParcelAsync(1001, "SENSOR_01");
-        var result2 = await _orchestrator.ProcessParcelAsync(1002, "SENSOR_01");
-        var result3 = await _orchestrator.ProcessParcelAsync(1003, "SENSOR_01");
+        var result1 = await _orchestrator.ProcessParcelAsync(1001, 1);
+        var result2 = await _orchestrator.ProcessParcelAsync(1002, 1);
+        var result3 = await _orchestrator.ProcessParcelAsync(1003, 1);
 
         // Assert - 应该轮询分配格口 1, 2, 3
         Assert.Equal(1, result1.TargetChuteId);
@@ -289,7 +289,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 12347;
-        string sensorId = "SENSOR_02";
+        long sensorId = 2;
         long exceptionChuteId = 99;
 
         var config = new SystemConfiguration
@@ -341,7 +341,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 12348;
-        string sensorId = "SENSOR_03";
+        long sensorId = 3;
         long targetChuteId = 5;
         long exceptionChuteId = 99;
 
@@ -401,7 +401,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 12349;
-        string sensorId = "SENSOR_04";
+        long sensorId = 4;
         long targetChuteId = 5;
 
         // 模拟上游返回格口分配
@@ -459,7 +459,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 12350;
-        string sensorId = "SENSOR_05";
+        long sensorId = 5;
         long targetChuteId = 5;
 
         // 模拟上游返回格口分配
@@ -624,7 +624,7 @@ public class SortingOrchestratorTests : IDisposable
     {
         // Arrange
         long parcelId = 20001;
-        string sensorId = "SENSOR_ENTRY";
+        long sensorId = 100;
         long targetChuteId = 3;
 
         bool notificationSent = false;

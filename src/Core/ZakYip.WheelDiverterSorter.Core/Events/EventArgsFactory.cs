@@ -84,7 +84,7 @@ file static class EventArgsFactory
     public static ParcelDetectedEventArgs CreateParcelDetected(
         long parcelId,
         DateTimeOffset detectedAt,
-        string sensorId,
+        long sensorId,
         SensorType sensorType) =>
         new()
         {
@@ -119,7 +119,7 @@ file static class EventArgsFactory
         long parcelId,
         DateTimeOffset createdAt,
         string? barcode = null,
-        string? sensorId = null) =>
+        long? sensorId = null) =>
         new()
         {
             ParcelId = parcelId,

@@ -41,7 +41,7 @@ public record AssignChuteRequest
     /// <summary>
     /// 检测传感器ID
     /// </summary>
-    public string? SensorId { get; init; }
+    public long? SensorId { get; init; }
 
     /// <summary>
     /// 附加元数据

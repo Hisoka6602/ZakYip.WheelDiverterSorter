@@ -28,8 +28,14 @@ public static class DeduplicatedLoggerExtensions
     /// </summary>
     /// <param name="logger">日志记录器 - Logger instance</param>
     /// <param name="deduplicator">日志去重器 - Log deduplicator instance</param>
-    /// <param name="message">日志消息 - Log message</param>
+    /// <param name="message">日志消息 - Log message (structured logging format with named placeholders)</param>
     /// <param name="args">格式化参数 - Format arguments</param>
+    /// <remarks>
+    /// BUG FIX: 使用消息模板作为去重键，而不是格式化后的消息。
+    /// 这样可以支持结构化日志格式（如 "{SensorId}"）而不需要转换为位置格式（如 "{0}"）。
+    /// BUG FIX: Use message template as deduplication key instead of formatted message.
+    /// This supports structured logging format (like "{SensorId}") without converting to positional format (like "{0}").
+    /// </remarks>
     public static void LogInformationDeduplicated(
         this ILogger logger,
         ILogDeduplicator deduplicator,
@@ -41,12 +47,13 @@ public static class DeduplicatedLoggerExtensions
             return;
         }
 
-        var formattedMessage = string.Format(message, args);
+        // Use message template as deduplication key to avoid string.Format issues
+        var deduplicationKey = message;
         
-        if (deduplicator.ShouldLog(LogLevel.Information, formattedMessage))
+        if (deduplicator.ShouldLog(LogLevel.Information, deduplicationKey))
         {
             logger.LogInformation(message, args);
-            deduplicator.RecordLog(LogLevel.Information, formattedMessage);
+            deduplicator.RecordLog(LogLevel.Information, deduplicationKey);
         }
     }
 
@@ -56,7 +63,7 @@ public static class DeduplicatedLoggerExtensions
     /// </summary>
     /// <param name="logger">日志记录器 - Logger instance</param>
     /// <param name="deduplicator">日志去重器 - Log deduplicator instance</param>
-    /// <param name="message">日志消息 - Log message</param>
+    /// <param name="message">日志消息 - Log message (structured logging format with named placeholders)</param>
     /// <param name="args">格式化参数 - Format arguments</param>
     public static void LogWarningDeduplicated(
         this ILogger logger,
@@ -69,12 +76,12 @@ public static class DeduplicatedLoggerExtensions
             return;
         }
 
-        var formattedMessage = string.Format(message, args);
+        var deduplicationKey = message;
         
-        if (deduplicator.ShouldLog(LogLevel.Warning, formattedMessage))
+        if (deduplicator.ShouldLog(LogLevel.Warning, deduplicationKey))
         {
             logger.LogWarning(message, args);
-            deduplicator.RecordLog(LogLevel.Warning, formattedMessage);
+            deduplicator.RecordLog(LogLevel.Warning, deduplicationKey);
         }
     }
 
@@ -84,7 +91,7 @@ public static class DeduplicatedLoggerExtensions
     /// </summary>
     /// <param name="logger">日志记录器 - Logger instance</param>
     /// <param name="deduplicator">日志去重器 - Log deduplicator instance</param>
-    /// <param name="message">日志消息 - Log message</param>
+    /// <param name="message">日志消息 - Log message (structured logging format with named placeholders)</param>
     /// <param name="args">格式化参数 - Format arguments</param>
     public static void LogDebugDeduplicated(
         this ILogger logger,
@@ -97,12 +104,12 @@ public static class DeduplicatedLoggerExtensions
             return;
         }
 
-        var formattedMessage = string.Format(message, args);
+        var deduplicationKey = message;
         
-        if (deduplicator.ShouldLog(LogLevel.Debug, formattedMessage))
+        if (deduplicator.ShouldLog(LogLevel.Debug, deduplicationKey))
         {
             logger.LogDebug(message, args);
-            deduplicator.RecordLog(LogLevel.Debug, formattedMessage);
+            deduplicator.RecordLog(LogLevel.Debug, deduplicationKey);
         }
     }
 
@@ -113,7 +120,7 @@ public static class DeduplicatedLoggerExtensions
     /// <param name="logger">日志记录器 - Logger instance</param>
     /// <param name="deduplicator">日志去重器 - Log deduplicator instance</param>
     /// <param name="exception">异常对象 - Exception object</param>
-    /// <param name="message">日志消息 - Log message</param>
+    /// <param name="message">日志消息 - Log message (structured logging format with named placeholders)</param>
     /// <param name="args">格式化参数 - Format arguments</param>
     public static void LogErrorDeduplicated(
         this ILogger logger,
@@ -127,13 +134,13 @@ public static class DeduplicatedLoggerExtensions
             return;
         }
 
-        var formattedMessage = string.Format(message, args);
+        var deduplicationKey = message;
         var exceptionType = exception?.GetType().Name;
         
-        if (deduplicator.ShouldLog(LogLevel.Error, formattedMessage, exceptionType))
+        if (deduplicator.ShouldLog(LogLevel.Error, deduplicationKey, exceptionType))
         {
             logger.LogError(exception, message, args);
-            deduplicator.RecordLog(LogLevel.Error, formattedMessage, exceptionType);
+            deduplicator.RecordLog(LogLevel.Error, deduplicationKey, exceptionType);
         }
     }
 }

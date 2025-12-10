@@ -19,7 +19,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -38,7 +38,7 @@ public class ParcelDetectionServiceTests
         {
             var sensorEvent = new SensorEvent
             {
-                SensorId = "SENSOR_01",
+                SensorId = 1,
                 SensorType = SensorType.Photoelectric,
                 TriggerTime = DateTimeOffset.Now.AddMilliseconds(i * 1500),
                 IsTriggered = true
@@ -58,7 +58,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -82,7 +82,7 @@ public class ParcelDetectionServiceTests
         // Act - Trigger twice within deduplication window
         var sensorEvent1 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime,
             IsTriggered = true
@@ -91,7 +91,7 @@ public class ParcelDetectionServiceTests
 
         var sensorEvent2 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime.AddMilliseconds(300), // Within 500ms window
             IsTriggered = true
@@ -108,7 +108,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -130,7 +130,7 @@ public class ParcelDetectionServiceTests
         // Act - Trigger twice outside deduplication window
         var sensorEvent1 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime,
             IsTriggered = true
@@ -139,7 +139,7 @@ public class ParcelDetectionServiceTests
 
         var sensorEvent2 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime.AddMilliseconds(600), // Outside 500ms window
             IsTriggered = true
@@ -155,7 +155,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -174,7 +174,7 @@ public class ParcelDetectionServiceTests
         // Act
         var sensorEvent = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = triggerTime,
             IsTriggered = true
@@ -185,9 +185,9 @@ public class ParcelDetectionServiceTests
         Assert.NotNull(detectedArgs);
         Assert.True(detectedArgs.ParcelId > 0); // ParcelId should be a positive timestamp
         Assert.Equal(triggerTime, detectedArgs.DetectedAt);
-        Assert.Equal("SENSOR_01", detectedArgs.SensorId);
+        Assert.Equal(1, detectedArgs.SensorId);
         Assert.Equal(SensorType.Photoelectric, detectedArgs.SensorType);
-        Assert.Equal("SENSOR_01", detectedArgs.Position); // Position should match SensorId
+        Assert.Equal("1", detectedArgs.Position); // Position should match SensorId
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -212,7 +212,7 @@ public class ParcelDetectionServiceTests
         // Act - Trigger with IsTriggered = false
         var sensorEvent1 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = DateTimeOffset.Now,
             IsTriggered = false // Not triggered
@@ -222,7 +222,7 @@ public class ParcelDetectionServiceTests
         // Act - Trigger with IsTriggered = true
         var sensorEvent2 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = DateTimeOffset.Now.AddSeconds(1),
             IsTriggered = true // Triggered
@@ -238,12 +238,12 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor1 = new Mock<ISensor>();
-        mockSensor1.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor1.Setup(s => s.SensorId).Returns(1);
         mockSensor1.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor1.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var mockSensor2 = new Mock<ISensor>();
-        mockSensor2.Setup(s => s.SensorId).Returns("SENSOR_02");
+        mockSensor2.Setup(s => s.SensorId).Returns(2);
         mockSensor2.Setup(s => s.Type).Returns(SensorType.Laser);
         mockSensor2.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -265,7 +265,7 @@ public class ParcelDetectionServiceTests
         // Act - Trigger both sensors at the same time
         var sensorEvent1 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime,
             IsTriggered = true
@@ -274,7 +274,7 @@ public class ParcelDetectionServiceTests
 
         var sensorEvent2 = new SensorEvent
         {
-            SensorId = "SENSOR_02",
+            SensorId = 2,
             SensorType = SensorType.Laser,
             TriggerTime = baseTime.AddMilliseconds(100),
             IsTriggered = true
@@ -290,7 +290,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -312,7 +312,7 @@ public class ParcelDetectionServiceTests
         // Act - Trigger twice within deduplication window
         var sensorEvent1 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime,
             IsTriggered = true
@@ -321,7 +321,7 @@ public class ParcelDetectionServiceTests
 
         var sensorEvent2 = new SensorEvent
         {
-            SensorId = "SENSOR_01",
+            SensorId = 1,
             SensorType = SensorType.Photoelectric,
             TriggerTime = baseTime.AddMilliseconds(300), // Within 500ms window
             IsTriggered = true
@@ -331,7 +331,7 @@ public class ParcelDetectionServiceTests
         // Assert - Duplicate event should be triggered with correct information
         Assert.NotNull(duplicateArgs);
         Assert.True(duplicateArgs.ParcelId > 0);
-        Assert.Equal("SENSOR_01", duplicateArgs.SensorId);
+        Assert.Equal(1, duplicateArgs.SensorId);
         Assert.Equal(SensorType.Photoelectric, duplicateArgs.SensorType);
         Assert.Equal(baseTime.AddMilliseconds(300), duplicateArgs.DetectedAt);
         Assert.True(duplicateArgs.TimeSinceLastTriggerMs >= 299 && duplicateArgs.TimeSinceLastTriggerMs <= 301); // Allow small tolerance
@@ -343,7 +343,7 @@ public class ParcelDetectionServiceTests
     {
         // Arrange
         var mockSensor = new Mock<ISensor>();
-        mockSensor.Setup(s => s.SensorId).Returns("SENSOR_01");
+        mockSensor.Setup(s => s.SensorId).Returns(1);
         mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
@@ -366,7 +366,7 @@ public class ParcelDetectionServiceTests
         {
             var sensorEvent = new SensorEvent
             {
-                SensorId = "SENSOR_01",
+                SensorId = 1,
                 SensorType = SensorType.Photoelectric,
                 TriggerTime = DateTimeOffset.Now.AddMilliseconds(i * 150),
                 IsTriggered = true

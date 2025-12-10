@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using System.Collections.Concurrent;
 using System.Net;
@@ -213,12 +214,12 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                     client.ClientAddress);
 
                 // 触发客户端连接事件
-                ClientConnected?.Invoke(this, new ClientConnectionEventArgs
+                ClientConnected.SafeInvoke(this, new ClientConnectionEventArgs
                 {
                     ClientId = clientId,
                     ConnectedAt = client.ConnectedAt,
                     ClientAddress = client.ClientAddress
-                });
+                }, _logger, nameof(ClientConnected));
 
                 // 为每个客户端启动消息处理循环
                 _ = Task.Run(() => HandleClientMessagesAsync(client, cancellationToken), cancellationToken);
@@ -270,12 +271,12 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                             notification.ParcelId);
 
                         // 触发包裹通知接收事件
-                        ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
+                        ParcelNotificationReceived.SafeInvoke(this, new ParcelNotificationReceivedEventArgs
                         {
                             ParcelId = notification.ParcelId,
                             ClientId = client.ClientId,
                             ReceivedAt = _systemClock.LocalNowOffset
-                        });
+                        }, _logger, nameof(ParcelNotificationReceived));
 
                         // 如果有处理器，调用处理器
                         if (_handler != null)
@@ -337,12 +338,12 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
                 client.ClientId);
 
             // 触发客户端断开事件
-            ClientDisconnected?.Invoke(this, new ClientConnectionEventArgs
+            ClientDisconnected.SafeInvoke(this, new ClientConnectionEventArgs
             {
                 ClientId = client.ClientId,
                 ConnectedAt = client.ConnectedAt,
                 ClientAddress = client.ClientAddress
-            });
+            }, _logger, nameof(ClientDisconnected));
         }
         catch (Exception ex)
         {
