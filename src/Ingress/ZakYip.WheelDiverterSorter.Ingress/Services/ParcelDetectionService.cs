@@ -213,7 +213,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             sensorEvent.SensorId,
             timeSinceLastTriggerMs);
 
-        DuplicateTriggerDetected?.Invoke(this, duplicateEventArgs);
+        DuplicateTriggerDetected.SafeInvoke(this, duplicateEventArgs, _logger, nameof(DuplicateTriggerDetected));
     }
 
     /// <summary>

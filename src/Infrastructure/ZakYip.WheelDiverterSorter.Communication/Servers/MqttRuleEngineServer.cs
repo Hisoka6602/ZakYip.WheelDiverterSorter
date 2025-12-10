@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Communication.Configuration;
 using ZakYip.WheelDiverterSorter.Communication.Models;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Servers;
 
@@ -183,12 +184,12 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             clientId);
 
         // 触发客户端连接事件
-        ClientConnected?.Invoke(this, new ClientConnectionEventArgs
+        ClientConnected.SafeInvoke(this, new ClientConnectionEventArgs
         {
             ClientId = clientId,
             ConnectedAt = clientInfo.ConnectedAt,
             ClientAddress = null
-        });
+        }, _logger, nameof(ClientConnected));
 
         return Task.CompletedTask;
     }
@@ -205,12 +206,12 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                 clientId);
 
             // 触发客户端断开事件
-            ClientDisconnected?.Invoke(this, new ClientConnectionEventArgs
+            ClientDisconnected.SafeInvoke(this, new ClientConnectionEventArgs
             {
                 ClientId = clientId,
                 ConnectedAt = clientInfo.ConnectedAt,
                 ClientAddress = null
-            });
+            }, _logger, nameof(ClientDisconnected));
         }
 
         return Task.CompletedTask;
@@ -239,12 +240,12 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                     notification.ParcelId);
 
                 // 触发包裹通知接收事件
-                ParcelNotificationReceived?.Invoke(this, new ParcelNotificationReceivedEventArgs
+                ParcelNotificationReceived.SafeInvoke(this, new ParcelNotificationReceivedEventArgs
                 {
                     ParcelId = notification.ParcelId,
                     ClientId = args.ClientId,
                     ReceivedAt = _systemClock.LocalNowOffset
-                });
+                }, _logger, nameof(ParcelNotificationReceived));
 
                 // 如果有处理器，调用处理器
                 if (_handler != null)

@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;
@@ -247,13 +248,13 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 description);
 
             // 触发故障事件
-            SensorFault?.Invoke(this, new SensorFaultEventArgs {
+            SensorFault.SafeInvoke(this, new SensorFaultEventArgs {
                 SensorId = sensorId,
                 Type = status.Type,
                 FaultType = faultType,
                 Description = description,
                 FaultTime = DateTimeOffset.Now
-            });
+            }, _logger, nameof(SensorFault));
         }
     }
 
@@ -278,12 +279,12 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
                 faultDuration);
 
             // 触发恢复事件
-            SensorRecovery?.Invoke(this, new SensorRecoveryEventArgs {
+            SensorRecovery.SafeInvoke(this, new SensorRecoveryEventArgs {
                 SensorId = sensorId,
                 Type = status.Type,
                 RecoveryTime = DateTimeOffset.Now,
                 FaultDurationSeconds = faultDuration
-            });
+            }, _logger, nameof(SensorRecovery));
         }
     }
 
