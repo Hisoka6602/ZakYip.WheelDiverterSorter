@@ -2483,15 +2483,6 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 **状态**：✅ 已解决 (当前 PR)
 
-**问题描述**：
-- 当前所有传感器使用全局 `SensorOptions.PollingIntervalMs` (10ms)
-- 不同类型传感器可能需要不同的轮询周期
-- 例如：ParcelCreation 传感器可能需要更快的轮询（5ms），ChuteLock 传感器可以较慢（20ms）
-
-## [TD-055] 传感器独立轮询周期配置
-
-**状态**：✅ 已解决 (当前 PR)
-
 **实施工作**（当前 PR）：
 
 1. **✅ Core 层模型更新**：
@@ -2614,6 +2605,46 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 
 ---
 
-**文档版本**：4.7 (TD-053 已解决 + TD-054~057 新增)  
-**最后更新**：2025-12-09  
+## [TD-058] Worker 配置完全删除
+
+**状态**：❌ 未开始 (下个 PR)
+
+**原因**：
+- 传感器已在程序启动时自动启动（与面板IO监控行为一致），不再需要 Worker 监控系统状态变化
+- `SensorActivationWorker` 和 `SystemStateWheelDiverterCoordinator` 的状态监控逻辑已失去作用
+- WorkerConfiguration（StateCheckIntervalMs, ErrorRecoveryDelayMs）配置不再被使用
+
+**需要删除的内容**：
+
+1. **配置模型**：
+   - `Core/LineModel/Configuration/Models/WorkerConfiguration.cs`
+   - `SystemConfiguration.Worker` 字段
+
+2. **API 端点**：
+   - `SystemConfigRequest.Worker` 字段
+   - `SystemConfigResponse.Worker` 字段
+   - `/api/config/system` 中 Worker 相关的请求/响应处理逻辑
+
+3. **应用层**：
+   - `UpdateSystemConfigCommand.Worker` 字段
+   - `SystemConfigService` 中 Worker 相关的映射逻辑
+
+4. **Worker 实现（如不再需要）**：
+   - `SensorActivationWorker` - 传感器已自动启动，可能不再需要
+   - `SystemStateWheelDiverterCoordinator` - 需评估是否仍需协调逻辑
+
+**影响评估**：
+- 需要验证删除 Workers 后系统启动/停止流程是否正常
+- 需要验证状态转换时的协调逻辑是否有其他实现接管
+- 需要删除相关集成测试和文档
+
+**预期收益**：
+- 简化架构，移除不必要的轮询循环
+- 减少配置复杂度
+- 提高系统响应速度（传感器立即启动，无需等待状态变化检测）
+
+---
+
+**文档版本**：4.8 (TD-058 新增)  
+**最后更新**：2025-12-10  
 **维护团队**：ZakYip Development Team

@@ -1435,6 +1435,7 @@ tools/Profiling/
 | TD-055 | ✅ 已解决 | 传感器独立轮询周期配置 → 每个传感器可配置独立的 PollingIntervalMs，支持 per-sensor 优化（当前 PR） | [详情](./TechnicalDebtLog.md#td-055-传感器独立轮询周期配置) |
 | TD-056 | ✅ 已解决 | 日志优化 - 仅状态变化时记录 → NodeHealthMonitor/HeartbeatMonitor已实现状态变化检测和日志频率限制（当前 PR） | [详情](./TechnicalDebtLog.md#td-056-日志优化---仅状态变化时记录) |
 | TD-057 | ✅ 已解决 | 包裹创建代码去重 + 影分身防线 → 经审计确认包裹创建已统一在SortingOrchestrator，无重复逻辑（当前 PR） | [详情](./TechnicalDebtLog.md#td-057-包裹创建代码去重--影分身防线) |
+| TD-058 | ❌ 未开始 | Worker 配置完全删除 → 传感器已在程序启动时自动启动，WorkerConfiguration及相关API端点需完全删除（下个 PR） | [详情](./TechnicalDebtLog.md#td-058-worker-配置完全删除) |
 
 ### 技术债统计
 
@@ -1442,12 +1443,12 @@ tools/Profiling/
 |------|------|
 | ✅ 已解决 | 55 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 2 |
-| **总计** | **57** |
+| ❌ 未开始 | 3 |
+| **总计** | **58** |
 
-**完成率**：55/57 = 96.5%
+**完成率**：55/58 = 94.8%
 
-**最近更新**：TD-054, TD-055 已完全解决（当前 PR），TD-048, TD-050 需独立 PR
+**最近更新**：TD-054, TD-055 已完全解决（当前 PR），TD-058 待下个PR完成，TD-048, TD-050 需独立 PR
 
 ---
 

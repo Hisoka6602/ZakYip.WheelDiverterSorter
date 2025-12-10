@@ -235,8 +235,11 @@ public class SystemConfigService : ISystemConfigService
         }
     }
 
-    private static SystemConfiguration MapToConfiguration(UpdateSystemConfigCommand request)
+    private SystemConfiguration MapToConfiguration(UpdateSystemConfigCommand request)
     {
+        // Get existing config to preserve Worker settings if not provided
+        var existingConfig = _repository.Get();
+        
         var config = new SystemConfiguration
         {
             ExceptionChuteId = request.ExceptionChuteId,
@@ -247,7 +250,7 @@ public class SystemConfigService : ISystemConfigService
             // They should be managed through /api/communication endpoints
         };
 
-        // 如果提供了 Worker 配置，则更新
+        // 如果提供了 Worker 配置，则更新；否则保留现有配置
         if (request.Worker != null)
         {
             config.Worker = new WorkerConfiguration
@@ -255,6 +258,11 @@ public class SystemConfigService : ISystemConfigService
                 StateCheckIntervalMs = request.Worker.StateCheckIntervalMs,
                 ErrorRecoveryDelayMs = request.Worker.ErrorRecoveryDelayMs
             };
+        }
+        else
+        {
+            // 保留现有 Worker 配置
+            config.Worker = existingConfig.Worker;
         }
 
         return config;
