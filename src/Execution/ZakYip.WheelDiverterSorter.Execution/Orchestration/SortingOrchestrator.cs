@@ -1445,6 +1445,70 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     #endregion
 
     /// <summary>
+    /// 处理超时包裹（路由到异常格口）
+    /// </summary>
+    public async Task ProcessTimedOutParcelAsync(long parcelId, CancellationToken cancellationToken = default)
+    {
+        _logger.LogWarning("包裹 {ParcelId} 等待超时未到达摆轮，准备路由到异常格口", parcelId);
+
+        try
+        {
+            // 获取异常格口配置（同步方法）
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+
+            // 使用统一的异常处理器生成到异常格口的路径
+            var path = _exceptionHandler.GenerateExceptionPath(
+                exceptionChuteId,
+                parcelId,
+                "包裹等待超时未到达摆轮");
+
+            if (path == null)
+            {
+                _logger.LogError(
+                    "包裹 {ParcelId} 超时后无法生成到异常格口 {ChuteId} 的路径",
+                    parcelId, exceptionChuteId);
+                _metrics?.RecordSortingFailedParcel("PathGenerationFailed");
+                return;
+            }
+
+            // 执行到异常格口的分拣
+            _logger.LogInformation(
+                "包裹 {ParcelId} 开始执行超时兜底分拣，目标格口: {ChuteId}",
+                parcelId, exceptionChuteId);
+
+            var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
+
+            if (executionResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "超时包裹 {ParcelId} 已成功路由到异常格口 {ChuteId}",
+                    parcelId, exceptionChuteId);
+
+                // 记录指标
+                _metrics?.RecordSortingSuccess(0);
+            }
+            else
+            {
+                _logger.LogError(
+                    "超时包裹 {ParcelId} 路由到异常格口 {ChuteId} 失败: {FailureReason}",
+                    parcelId, exceptionChuteId, executionResult.FailureReason);
+
+                // 记录失败指标
+                _metrics?.RecordSortingFailedParcel(executionResult.FailureReason ?? "Unknown");
+            }
+
+            // 记录拥堵数据（如果启用）
+            _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, executionResult.IsSuccess);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理超时包裹 {ParcelId} 时发生异常", parcelId);
+            _metrics?.RecordSortingFailedParcel($"Exception: {ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 释放资源
     /// </summary>
     public void Dispose()

@@ -96,6 +96,23 @@ public interface ISortingOrchestrator
     /// </list>
     /// </remarks>
     Task<SortingResult> ExecuteDebugSortAsync(string parcelId, long targetChuteId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 处理超时包裹（路由到异常格口）
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>处理任务</returns>
+    /// <remarks>
+    /// <para>当包裹在待执行队列中等待超时时调用此方法。</para>
+    /// <para>超时包裹将被路由到系统配置的异常格口。</para>
+    /// <para><b>调用来源</b>：</para>
+    /// <list type="bullet">
+    ///   <item>PendingParcelTimeoutMonitor - 监控到包裹超时</item>
+    ///   <item>PendingParcelQueue.ParcelTimedOut 事件</item>
+    /// </list>
+    /// </remarks>
+    Task ProcessTimedOutParcelAsync(long parcelId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
