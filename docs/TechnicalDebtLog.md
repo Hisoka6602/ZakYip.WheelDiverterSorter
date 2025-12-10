@@ -2726,6 +2726,109 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 
 ---
 
-**文档版本**：4.8 (TD-058 新增)  
+## [TD-059] API 字段类型一致性检查 + 防线测试
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 需要系统性检查所有配置 API 端点的字段类型与 Core 层模型的一致性
+- 确保 API DTO 字段类型与业务逻辑代码完全匹配
+- 建立 ArchTest 防线测试，防止类型不一致的回归
+
+**需要检查的配置模型**：
+- `SystemConfiguration` (ExceptionChuteId, Version 等)
+- `WheelDiverterConfiguration` (所有 ID 字段)
+- `ChutePathTopologyConfig` (ChuteId, DiverterId 等)
+- `IoLinkageConfiguration` (BitNumber 等)
+- `SensorConfiguration` (SensorId 已在 PR-SensorId 中统一为 long)
+- 其他所有配置模型的 API 端点
+
+**计划的防线测试**：
+1. `ApiFieldTypeConsistencyTests` - API DTO 字段类型与 Core 层模型完全一致
+2. 所有 ID 字段统一使用 long 类型检查
+3. 任何类型不一致会导致构建失败
+
+**关联技术债**：
+- 参考 PR-SensorId 中 SensorId 的类型统一方法
+- 与 TD-060 (LiteDB Key 隔离) 协同处理
+
+**预期收益**：
+- 编译时类型安全
+- 避免 API 与业务逻辑之间的类型转换错误
+- 提高 API 可靠性
+
+**计划 PR**：PR-API-TYPE-CONSISTENCY
+
+---
+
+## [TD-060] LiteDB Key 隔离验证
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 需要确保 LiteDB 的内部 key (如 `int Id` 自增主键) 不暴露到 API 端点
+- API 应该只使用业务 ID (如 `long SensorId`, `long ChuteId`)，而非数据库内部 Id
+- 建立防线测试检测 LiteDB key 泄露
+
+**需要检查的内容**：
+1. LiteDB 的 `int Id` (自增主键) 仅用于数据库内部
+2. API 响应中不暴露 LiteDB 的 Id 字段
+3. API 使用业务 ID (如 long SensorId, long ChuteId) 而非数据库 Id
+4. 如有暴露，在 DTO mapping 时排除 database Id
+
+**计划的防线测试**：
+1. `LiteDbKeyIsolationTests` - 确保数据库内部 key 不暴露到 API
+2. 扫描所有 API 响应 DTO，检查是否包含 `int Id` 字段
+3. 验证所有配置模型的 API 映射逻辑
+
+**预期收益**：
+- 防止数据库实现细节泄露
+- API 设计更加清晰和业务导向
+- 降低数据库迁移风险
+
+**计划 PR**：PR-LITEDB-KEY-ISOLATION
+
+---
+
+## [TD-061] 清理所有重复、冗余、过时代码
+
+**状态**：❌ 未开始
+
+**问题描述**：
+- 代码库中可能存在未被清理的重复、冗余或过时代码
+- 需要系统性扫描并清理这些代码
+- 建立防线测试防止新的冗余代码引入
+
+**清理范围**：
+1. 搜索所有 `[Obsolete]` 标记的成员并删除
+2. 查找 Legacy/Deprecated 命名的类型和目录
+3. 检测重复的 DTO/Model/Options 定义
+4. 使用 Roslyn 分析器查找未使用的代码
+5. 删除注释掉的代码块
+6. 清理无用的 using 语句
+7. 清理空的或几乎为空的文件
+
+**计划的防线测试**：
+1. `ObsoleteCodeDetectionTests` - 检测并禁止 [Obsolete] 标记的代码
+2. `DuplicateTypeDetectionTests` - 检测重复 DTO/Model 定义（已部分存在）
+3. `UnusedCodeDetectionTests` - 检测未使用的代码
+
+**执行策略**：
+- 在测试全部通过后执行清理，避免破坏现有功能
+- 分阶段清理，每个阶段验证构建和测试
+- 优先清理明显的重复和过时代码
+- 对于不确定的代码，先标记后删除
+
+**预期收益**：
+- 减少代码库复杂度
+- 提高代码可维护性
+- 加快构建速度
+- 降低开发者认知负担
+
+**计划 PR**：PR-CODE-CLEANUP
+
+---
+
+**文档版本**：4.9 (TD-059/060/061 新增)  
 **最后更新**：2025-12-10  
 **维护团队**：ZakYip Development Team
