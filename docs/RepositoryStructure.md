@@ -1443,19 +1443,20 @@ tools/Profiling/
 | TD-059 | ✅ 已解决 | API 字段类型一致性检查 + 防线测试 → 已新增 ApiFieldTypeConsistencyTests 防线，修复 SortingModeResponse 字段类型（当前 PR） | [详情](./TechnicalDebtLog.md#td-059-api-字段类型一致性检查--防线测试) |
 | TD-060 | ✅ 已解决 | LiteDB Key 隔离验证 → 已新增 LiteDbKeyIsolationTests 防线，确认当前实现合规（当前 PR） | [详情](./TechnicalDebtLog.md#td-060-litedb-key-隔离验证) |
 | TD-061 | ✅ 已解决 | 清理所有重复、冗余、过时代码 → 已验证无遗留代码，现有防线测试完整（当前 PR） | [详情](./TechnicalDebtLog.md#td-061-清理所有重复冗余过时代码) |
+| TD-062 | ❌ 未开始 | 完成拓扑驱动分拣流程集成（Issue #4 剩余50%）→ Orchestrator集成 + DI注册 + 测试 | [详情](./TechnicalDebtLog.md#td-062-完成拓扑驱动分拣流程集成) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 58 |
+| ✅ 已解决 | 61 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 3 |
-| **总计** | **61** |
+| ❌ 未开始 | 1 |
+| **总计** | **62** |
 
-**完成率**：58/61 = 95.1%
+**完成率**：61/62 = 98.4%
 
-**最近更新**：TD-059/060/061 已在当前 PR 中完全解决，建立了完整的防线测试
+**最近更新**：新增 TD-062（拓扑驱动分拣流程集成），基础架构已完成（50%），剩余 Orchestrator 集成待下一个 PR 完成
 
 ---
 

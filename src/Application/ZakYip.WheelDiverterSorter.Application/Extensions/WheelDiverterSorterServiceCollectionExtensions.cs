@@ -12,19 +12,25 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
 using ZakYip.WheelDiverterSorter.Core.Sorting;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Overload;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Strategy;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
@@ -35,6 +41,8 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
+using ZakYip.WheelDiverterSorter.Execution.Health;
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Execution.Routing;
@@ -379,11 +387,63 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册 UpstreamConnectionOptions（从配置绑定）
         services.Configure<UpstreamConnectionOptions>(configuration.GetSection(UpstreamConnectionOptions.SectionName));
 
+        // 注册系统运行状态服务（必须，用于状态验证）
+        services.AddSingleton<ISystemRunStateService, DefaultSystemRunStateService>();
+
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
 
-        // 注册分拣编排服务
-        services.AddSingleton<ISortingOrchestrator, SortingOrchestrator>();
+        // 注册分拣编排服务（支持Client和Server模式通知）
+        services.AddSingleton<ISortingOrchestrator>(sp =>
+        {
+            var sensorEventProvider = sp.GetRequiredService<ISensorEventProvider>();
+            var upstreamClient = sp.GetRequiredService<IUpstreamRoutingClient>();
+            var pathGenerator = sp.GetRequiredService<ISwitchingPathGenerator>();
+            var pathExecutor = sp.GetRequiredService<ISwitchingPathExecutor>();
+            var options = sp.GetRequiredService<IOptions<UpstreamConnectionOptions>>();
+            var systemConfigRepository = sp.GetRequiredService<ISystemConfigurationRepository>();
+            var clock = sp.GetRequiredService<ISystemClock>();
+            var logger = sp.GetRequiredService<ILogger<SortingOrchestrator>>();
+            var exceptionHandler = sp.GetRequiredService<ISortingExceptionHandler>();
+            var stateService = sp.GetRequiredService<ISystemRunStateService>(); // 必需
+            
+            // 可选依赖
+            var pathFailureHandler = sp.GetService<IPathFailureHandler>();
+            var congestionDetector = sp.GetService<ICongestionDetector>();
+            var overloadPolicy = sp.GetService<IOverloadHandlingPolicy>();
+            var congestionCollector = sp.GetService<ICongestionDataCollector>();
+            var metrics = sp.GetService<PrometheusMetrics>();
+            var traceSink = sp.GetService<IParcelTraceSink>();
+            var pathHealthChecker = sp.GetService<PathHealthChecker>();
+            var timeoutCalculator = sp.GetService<IChuteAssignmentTimeoutCalculator>();
+            var chuteSelectionService = sp.GetService<IChuteSelectionService>();
+            
+            // 获取UpstreamServerBackgroundService（用于Server模式广播）
+            var serverBackgroundService = sp.GetServices<object>()
+                .FirstOrDefault(s => s.GetType().Name == "UpstreamServerBackgroundService");
+            
+            return new SortingOrchestrator(
+                sensorEventProvider,
+                upstreamClient,
+                pathGenerator,
+                pathExecutor,
+                options,
+                systemConfigRepository,
+                clock,
+                logger,
+                exceptionHandler,
+                stateService, // 必需参数
+                pathFailureHandler,
+                congestionDetector,
+                overloadPolicy,
+                congestionCollector,
+                metrics,
+                traceSink,
+                pathHealthChecker,
+                timeoutCalculator,
+                chuteSelectionService,
+                serverBackgroundService);
+        });
 
         // 注册路由-拓扑一致性检查器
         services.AddSingleton<IRouteTopologyConsistencyChecker, RouteTopologyConsistencyChecker>();

@@ -2863,6 +2863,96 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 
 ---
 
-**文档版本**：5.0 (TD-059/060/061 已解决，完成率 95.1%)  
+**文档版本**：6.1 (新增 TD-062，61项已解决 + 1项待开始，完成率 98.4%)  
 **最后更新**：2025-12-10  
 **维护团队**：ZakYip Development Team
+
+---
+
+## [TD-062] 完成拓扑驱动分拣流程集成
+
+**ID**: TD-062  
+**状态**: ❌ 未开始  
+**相关 PR**: 待创建（下一个 PR）  
+**预计工作量**: 2-3 小时  
+**优先级**: 高
+
+**问题描述**：
+用户反馈的 Issue #4（拓扑驱动分拣流程）在当前 PR 中完成了基础架构（50%），剩余的 Orchestrator 集成、DI 注册和测试需要在下一个 PR 中完成。
+
+**已完成的工作（当前 PR）**：
+
+**Phase 1 - 基础架构** (commit d63c1c3):
+- ✅ `PendingParcelQueue` 实现（线程安全 FIFO 队列）
+- ✅ 按摆轮节点分组存储
+- ✅ 超时检测机制
+- ✅ `IPendingParcelQueue` 接口定义
+
+**Phase 2a - 配置结构** (commit 41e60c6):
+- ✅ `TopologyDrivenSortingOptions` 配置类
+- ✅ `PendingParcelTimeoutMonitor` 后台服务骨架
+- ✅ 移除 Immediate 模式的配置准备（按用户要求"旧流程(Immediate模式 - 需要彻底删除)"）
+
+**Phase 2b - 设计规范** (commit 46a924c):
+- ✅ 事件驱动 Timer 设计（替代轮询间隔）
+- ✅ 超时从 `calculatedTimeoutThresholdMs` 计算的规范
+- ✅ `frontSensorId` 映射规范
+- ✅ 方向从 `leftChuteIds`/`rightChuteIds` 判断的逻辑
+- ✅ 完整实现文档（`TOPOLOGY_IMPLEMENTATION_PLAN.md`）
+
+**待完成的工作（下一个 PR）**：
+
+**Phase 2c - Orchestrator 集成**：
+1. ⏳ 修改 `ProcessParcelAsync` 方法：
+   - 路由成功后加入 `PendingQueue` 而不立即执行
+   - 查询拓扑配置获取摆轮节点信息
+   - 查询线体段配置获取超时时间
+2. ⏳ 订阅 WheelFront 传感器事件：
+   - 过滤 `SensorType.WheelFront` 事件
+   - 根据 `frontSensorId` 查找对应摆轮
+   - 从队列取出包裹并执行分拣
+3. ⏳ 实现超时包裹处理：
+   - 在 `PendingParcelTimeoutMonitor` 中定时检查
+   - 超时包裹自动路由到异常格口（999）
+
+**Phase 3 - DI 注册和测试**：
+1. ⏳ 注册服务：
+   - `services.AddSingleton<IPendingParcelQueue, PendingParcelQueue>();`
+   - `services.AddHostedService<PendingParcelTimeoutMonitor>();`
+2. ⏳ 单元测试：
+   - `PendingParcelQueueTests` - 队列操作、FIFO、超时、并发
+   - `PendingParcelTimeoutMonitorTests` - 超时识别和处理
+3. ⏳ 集成测试：
+   - `TopologyDrivenSortingFlowTests` - 完整流程和超时场景
+
+**实施指南**：
+详细的实现步骤和代码示例请参考根目录的 `NEXT_PR_GUIDE.md` 文档。
+
+**验收标准**：
+1. ✅ 构建成功（0 errors, 0 warnings）
+2. ✅ 所有测试通过（包括新增测试）
+3. ✅ E2E 测试验证完整流程：ParcelCreation → Queue → WheelFront → Execute
+4. ✅ 超时测试验证：超时包裹路由到异常格口
+5. ✅ 日志完整记录每个步骤
+6. ✅ TD-062 在 `RepositoryStructure.md` 中标记为 ✅
+
+**配置要求**：
+完成后系统运行需要配置：
+- 拓扑配置（`/api/topology/config`）- 包含 `diverterNodes` 及 `frontSensorId`、`leftChuteIds`、`rightChuteIds`
+- 线体段配置（`/api/topology/segments`）- 包含 `calculatedTimeoutThresholdMs`
+
+**破坏性变更警告**：
+⚠️ 完成此技术债后，旧的 Immediate 立即执行模式将完全失效。系统必须配置完整的拓扑和线体段信息才能正常运行。
+
+**参考文档**：
+- `TOPOLOGY_IMPLEMENTATION_PLAN.md` - 完整架构设计
+- `NEXT_PR_GUIDE.md` - 下一个 PR 实施指南
+- `docs/RepositoryStructure.md` - 技术债索引
+
+**预期收益**：
+- 符合真实物理流程（包裹必须到达摆轮前才分拣）
+- 提高分拣准确性（避免包裹未到达就执行动作）
+- 支持超时保护（丢失包裹自动路由到异常格口）
+- 基于拓扑配置的灵活超时设置
+
+---

@@ -56,6 +56,16 @@ public interface IRuleEngineServer : IDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 向所有连接的客户端广播包裹检测通知
+    /// Broadcast parcel detected notification to all connected clients
+    /// </summary>
+    /// <param name="parcelId">包裹ID / Parcel ID</param>
+    /// <param name="cancellationToken">取消令牌 / Cancellation token</param>
+    Task BroadcastParcelDetectedAsync(
+        long parcelId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 客户端连接事件
     /// Client connected event
     /// </summary>

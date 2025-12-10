@@ -231,6 +231,22 @@ public class SensorIoEntry
     public int? PollingIntervalMs { get; set; }
 
     /// <summary>
+    /// 防抖/去重时间窗口（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// <para>在此时间窗口内，同一传感器的重复触发将被检测并标记为异常。</para>
+    /// <para>如果为 null，则使用全局默认值 (1000ms)。</para>
+    /// <para>**建议范围**：500ms - 3000ms</para>
+    /// <list type="bullet">
+    /// <item>500-1000ms: 快速响应，适用于高速分拣场景</item>
+    /// <item>1000-2000ms: 标准防抖，平衡误触发和响应速度（推荐）</item>
+    /// <item>2000-3000ms: 强防抖，适用于传感器不稳定的场景</item>
+    /// </list>
+    /// </remarks>
+    /// <example>1000</example>
+    public int? DeduplicationWindowMs { get; set; }
+
+    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; } = true;

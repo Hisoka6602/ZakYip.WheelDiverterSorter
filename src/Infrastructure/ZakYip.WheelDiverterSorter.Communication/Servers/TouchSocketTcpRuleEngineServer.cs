@@ -339,6 +339,56 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         }
     }
 
+    public async Task BroadcastParcelDetectedAsync(
+        long parcelId,
+        CancellationToken cancellationToken = default)
+    {
+        var notification = new ParcelDetectionNotification
+        {
+            ParcelId = parcelId,
+            DetectionTime = _systemClock.LocalNowOffset
+        };
+
+        var json = JsonSerializer.Serialize(notification);
+        var bytes = Encoding.UTF8.GetBytes(json + "\n");
+
+        var disconnectedClients = new List<string>();
+
+        foreach (var kvp in _clients)
+        {
+            try
+            {
+                var socketClient = _service?.GetClient(kvp.Key);
+                if (socketClient != null)
+                {
+                    await socketClient.SendAsync(bytes);
+
+                    _logger.LogDebug(
+                        "[{LocalTime}] [服务端模式-广播] 已向客户端 {ClientId} 广播包裹检测通知: ParcelId={ParcelId}",
+                        _systemClock.LocalNow,
+                        kvp.Key,
+                        parcelId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "[{LocalTime}] [服务端模式-广播失败] 向客户端 {ClientId} 广播包裹检测通知失败: {Message}",
+                    _systemClock.LocalNow,
+                    kvp.Key,
+                    ex.Message);
+                disconnectedClients.Add(kvp.Key);
+            }
+        }
+
+        // 清理断开的客户端
+        foreach (var clientId in disconnectedClients)
+        {
+            _clients.TryRemove(clientId, out _);
+        }
+    }
+
     private static void ValidateTcpServerOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.TcpServer))
