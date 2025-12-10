@@ -1,8 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
-using ZakYip.WheelDiverterSorter.Host.Configuration;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -38,7 +37,7 @@ public sealed class SensorActivationWorker : BackgroundService
     private readonly ISystemStateManager _stateManager;
     private readonly IParcelDetectionService _parcelDetectionService;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly WorkerOptions _workerOptions;
+    private readonly ISystemConfigService _systemConfigService;
     
     /// <summary>
     /// 上次已知系统状态
@@ -55,13 +54,13 @@ public sealed class SensorActivationWorker : BackgroundService
         ISystemStateManager stateManager,
         IParcelDetectionService parcelDetectionService,
         ISafeExecutionService safeExecutor,
-        IOptions<WorkerOptions> workerOptions)
+        ISystemConfigService systemConfigService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
-        _workerOptions = (workerOptions ?? throw new ArgumentNullException(nameof(workerOptions))).Value;
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -106,8 +105,9 @@ public sealed class SensorActivationWorker : BackgroundService
                             _lastKnownState = currentState;
                         }
 
-                        // 等待下一次检查
-                        await Task.Delay(_workerOptions.StateCheckIntervalMs, stoppingToken);
+                        // 等待下一次检查（从数据库读取配置）
+                        var workerConfig = _systemConfigService.GetSystemConfig().Worker;
+                        await Task.Delay(workerConfig.StateCheckIntervalMs, stoppingToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -118,8 +118,9 @@ public sealed class SensorActivationWorker : BackgroundService
                     {
                         _logger.LogError(ex, "传感器激活服务异常");
                         
-                        // 发生异常后稍作延迟再继续
-                        await Task.Delay(_workerOptions.ErrorRecoveryDelayMs, stoppingToken);
+                        // 发生异常后稍作延迟再继续（从数据库读取配置）
+                        var workerConfig = _systemConfigService.GetSystemConfig().Worker;
+                        await Task.Delay(workerConfig.ErrorRecoveryDelayMs, stoppingToken);
                     }
                 }
 
