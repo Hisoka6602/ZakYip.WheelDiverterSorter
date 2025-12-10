@@ -23,7 +23,7 @@ public class LeadshineSensorFactory : ISensorFactory {
     private readonly IInputPort _inputPort;
     private readonly ISensorVendorConfigProvider _configProvider;
     private readonly ISystemClock _systemClock;
-    private readonly int _pollingIntervalMs;
+    private readonly int _defaultPollingIntervalMs;
 
     /// <summary>
     /// 构造函数
@@ -33,20 +33,20 @@ public class LeadshineSensorFactory : ISensorFactory {
     /// <param name="inputPort">输入端口</param>
     /// <param name="configProvider">传感器配置提供者</param>
     /// <param name="systemClock">系统时钟</param>
-    /// <param name="pollingIntervalMs">传感器轮询间隔（毫秒），默认10ms</param>
+    /// <param name="defaultPollingIntervalMs">全局默认传感器轮询间隔（毫秒），默认10ms</param>
     public LeadshineSensorFactory(
         ILogger<LeadshineSensorFactory> logger,
         ILoggerFactory loggerFactory,
         IInputPort inputPort,
         ISensorVendorConfigProvider configProvider,
         ISystemClock systemClock,
-        int pollingIntervalMs = 10) {
+        int defaultPollingIntervalMs = 10) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
         _configProvider = configProvider ?? throw new ArgumentNullException(nameof(configProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
-        _pollingIntervalMs = pollingIntervalMs;
+        _defaultPollingIntervalMs = defaultPollingIntervalMs;
     }
 
     /// <summary>
@@ -70,6 +70,9 @@ public class LeadshineSensorFactory : ISensorFactory {
                     continue;
                 }
 
+                // 使用传感器独立的轮询间隔，如果未配置则使用全局默认值
+                var pollingIntervalMs = config.PollingIntervalMs ?? _defaultPollingIntervalMs;
+
                 var sensor = new LeadshineSensor(
                     _loggerFactory.CreateLogger<LeadshineSensor>(),
                     config.SensorId,
@@ -77,15 +80,16 @@ public class LeadshineSensorFactory : ISensorFactory {
                     _inputPort,
                     config.InputBit,
                     _systemClock,
-                    _pollingIntervalMs);
+                    pollingIntervalMs);
 
                 sensors.Add(sensor);
                 _logger.LogInformation(
-                    "成功创建雷赛传感器 {SensorId}，类型: {Type}，输入位: {InputBit}，轮询间隔: {PollingIntervalMs}ms",
+                    "成功创建雷赛传感器 {SensorId}，类型: {Type}，输入位: {InputBit}，轮询间隔: {PollingIntervalMs}ms{Source}",
                     config.SensorId,
                     sensorType,
                     config.InputBit,
-                    _pollingIntervalMs);
+                    pollingIntervalMs,
+                    config.PollingIntervalMs.HasValue ? " (独立配置)" : " (全局默认)");
             }
             catch (Exception ex) {
                 _logger.LogError(ex, "创建雷赛传感器 {SensorId} 失败", config.SensorId);

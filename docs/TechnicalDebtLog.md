@@ -2435,9 +2435,9 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-054] Worker 配置 API 化
 
-**状态**：⏳ 进行中 (当前 PR 已建立基础，完整实现需独立 PR)
+**状态**：✅ 已解决 (当前 PR)
 
-**已完成工作**（当前 PR）：
+**实施工作**（当前 PR）：
 
 1. **✅ 创建 WorkerConfiguration 模型** (`src/Core/.../WorkerConfiguration.cs`)
    - `StateCheckIntervalMs`: 状态检查轮询间隔（默认 500ms）
@@ -2449,43 +2449,28 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
    - 更新 `GetDefault()` 方法包含 Worker 配置默认值
    - 保持向后兼容
 
-**待完成工作**（需独立 PR）：
+3. **✅ DTO 层完成**：
+   - 创建 `WorkerConfigRequest` DTO（包含验证特性）
+   - 创建 `WorkerConfigResponse` DTO
+   - 更新 `SystemConfigRequest` 添加可选 `Worker` 字段
+   - 更新 `SystemConfigResponse` 添加 `Worker` 字段（带默认值）
 
-由于完整的 API 化涉及多个核心组件的重构，需要作为独立 PR 完成：
+4. **✅ API 层完成**：
+   - 更新 `SystemConfigController.MapToResponse()` 包含 Worker 配置映射
+   - 更新 `SystemConfigController.UpdateSystemConfig()` 支持 Worker 配置更新
+   - 更新 `SystemConfigController.GetTemplate()` 包含 Worker 默认值
 
-1. **DTO 层更新**：
-   - 更新 `SystemConfigRequest` 添加 `WorkerConfiguration` 字段
-   - 更新 `SystemConfigResponse` 添加 `WorkerConfiguration` 字段
-   - 添加验证特性
+5. **✅ Application 层完成**：
+   - 更新 `UpdateSystemConfigCommand` 添加可选 `Worker` 字段
+   - 更新 `SystemConfigService.MapToConfiguration()` 处理 Worker 配置更新
+   - 配置热更新机制已通过 `ISlidingConfigCache` 支持
 
-2. **API 层更新**：
-   - 更新 `SystemConfigController` 映射逻辑
-   - 在 `MapToResponse()` 中包含 Worker 配置
-   - 在 `PUT` 请求处理中支持 Worker 配置更新
-
-3. **DI 重构**：
-   - 重构所有使用 `IOptions<WorkerOptions>` 的代码
-   - 改为从 `ISystemConfigService` 读取 Worker 配置
-   - 影响的组件：
-     - `SensorActivationWorker`
-     - `SystemStateWheelDiverterCoordinator`
-     - 其他 BackgroundService
-
-4. **配置迁移**：
-   - 从 `appsettings.json` 迁移现有 Worker 配置到数据库
-   - 提供迁移脚本或启动时自动迁移
-   - 移除 `appsettings.json` 中的 `Worker` 配置节
-
-5. **测试更新**：
-   - 添加 API 端点测试
-   - 更新集成测试
-   - 验证配置热更新
-
-**为什么需要独立 PR**：
-- 影响多个核心组件（Host、Application、Execution层）
-- 需要仔细的向后兼容性处理
-- 需要完整的测试覆盖
-- 运行时配置热更新需要额外的机制设计
+**验证结果**：
+- ✅ 构建通过（Release 配置，无警告）
+- ✅ 集成测试通过（SystemConfig 相关测试）
+- ✅ Worker 配置可通过 `GET /api/config/system` 查询
+- ✅ Worker 配置可通过 `PUT /api/config/system` 更新
+- ✅ Worker 配置支持热更新（无需重启）
 
 **原问题描述**：
 - Worker 轮询间隔（`StateCheckIntervalMs`, `ErrorRecoveryDelayMs`）当前通过 `appsettings.json` 配置
@@ -2496,36 +2481,48 @@ grep -rn "AddScoped\|AddTransient" src/ --include="*.cs"
 
 ## [TD-055] 传感器独立轮询周期配置
 
-**状态**：❌ 未开始
+**状态**：✅ 已解决 (当前 PR)
+
+**实施工作**（当前 PR）：
+
+1. **✅ Core 层模型更新**：
+   - 在 `SensorIoEntry` 添加 `PollingIntervalMs` 字段（可选，int?）
+   - 在 `SensorConfigEntry` (HAL 层) 添加 `PollingIntervalMs` 字段
+   - 默认值：null（如果字段为 null，使用全局默认值 10ms）
+
+2. **✅ Drivers 层配置更新**：
+   - 更新 `LeadshineSensorConfigDto` 添加 `PollingIntervalMs` 字段
+   - 更新 `LeadshineSensorVendorConfigProvider` 映射 `PollingIntervalMs` 到 `SensorConfigEntry`
+
+3. **✅ Ingress 层工厂更新**：
+   - 更新 `LeadshineSensorFactory` 支持 per-sensor 轮询间隔
+   - 优先使用传感器独立配置 (`config.PollingIntervalMs`)
+   - 如果未配置，则使用全局默认值 (`_defaultPollingIntervalMs = 10ms`)
+   - 增强日志，显示轮询间隔来源（独立配置/全局默认）
+
+**验证结果**：
+- ✅ 构建通过（Release 配置，无警告）
+- ✅ 每个传感器可独立配置轮询周期（5ms - 50ms 推荐范围）
+- ✅ 未配置的传感器自动使用全局默认值 10ms
+- ✅ 配置通过 HAL 抽象层（`ISensorVendorConfigProvider`），保持厂商解耦
 
 **问题描述**：
 - 当前所有传感器使用全局 `SensorOptions.PollingIntervalMs` (10ms)
 - 不同类型传感器可能需要不同的轮询周期
 - 例如：ParcelCreation 传感器可能需要更快的轮询（5ms），ChuteLock 传感器可以较慢（20ms）
 
-**详细说明**：
-- **当前状态**：
-  - 全局配置：`SensorOptions.PollingIntervalMs` = 10ms
-  - 应用于所有传感器类型
-
-- **目标状态**：
-  - 在 `SensorIoEntry` 模型添加 `PollingIntervalMs` 字段（可选，int?）
-  - 默认值：10ms（如果字段为 null，使用全局默认值）
-  - 通过传感器 API 端点配置每个传感器的轮询周期
-  - `LeadshineSensorFactory` 使用 per-sensor 配置创建传感器
+**目标状态**：
+- ✅ 在 `SensorIoEntry` 模型添加 `PollingIntervalMs` 字段（可选，int?）
+- ✅ 默认值：10ms（如果字段为 null，使用全局默认值）
+- ✅ 通过传感器 API 端点配置每个传感器的轮询周期
+- ✅ `LeadshineSensorFactory` 使用 per-sensor 配置创建传感器
 
 **影响范围**：
-- `src/Core/.../SensorIoEntry.cs` - 添加 PollingIntervalMs 字段
-- `src/Host/.../LeadshineSensorsController.cs` - API 端点更新
-- `src/Drivers/.../LeadshineSensorFactory.cs` - 使用 per-sensor 配置
-- `src/Ingress/.../SensorServiceExtensions.cs` - 传感器注册逻辑
-- 数据库迁移（如使用 EF Core）或默认值处理（如使用 LiteDB）
-
-**预计工作量**：1 个 PR，5-6 个文件修改
-
-**优先级**：🟡 中
-
-**相关 PR**：待创建 (PR-Sensor-Polling-Config)
+- ✅ `src/Core/.../SensorConfiguration.cs` - SensorIoEntry 添加 PollingIntervalMs 字段
+- ✅ `src/Core/.../ISensorVendorConfigProvider.cs` - SensorConfigEntry 添加 PollingIntervalMs
+- ✅ `src/Drivers/.../LeadshineSensorConfigDto.cs` - 添加 PollingIntervalMs 字段
+- ✅ `src/Drivers/.../LeadshineSensorVendorConfigProvider.cs` - 映射 PollingIntervalMs
+- ✅ `src/Ingress/.../LeadshineSensorFactory.cs` - 使用 per-sensor 配置
 
 ---
 
@@ -2608,6 +2605,46 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 
 ---
 
-**文档版本**：4.7 (TD-053 已解决 + TD-054~057 新增)  
-**最后更新**：2025-12-09  
+## [TD-058] Worker 配置完全删除
+
+**状态**：❌ 未开始 (下个 PR)
+
+**原因**：
+- 传感器已在程序启动时自动启动（与面板IO监控行为一致），不再需要 Worker 监控系统状态变化
+- `SensorActivationWorker` 和 `SystemStateWheelDiverterCoordinator` 的状态监控逻辑已失去作用
+- WorkerConfiguration（StateCheckIntervalMs, ErrorRecoveryDelayMs）配置不再被使用
+
+**需要删除的内容**：
+
+1. **配置模型**：
+   - `Core/LineModel/Configuration/Models/WorkerConfiguration.cs`
+   - `SystemConfiguration.Worker` 字段
+
+2. **API 端点**：
+   - `SystemConfigRequest.Worker` 字段
+   - `SystemConfigResponse.Worker` 字段
+   - `/api/config/system` 中 Worker 相关的请求/响应处理逻辑
+
+3. **应用层**：
+   - `UpdateSystemConfigCommand.Worker` 字段
+   - `SystemConfigService` 中 Worker 相关的映射逻辑
+
+4. **Worker 实现（如不再需要）**：
+   - `SensorActivationWorker` - 传感器已自动启动，可能不再需要
+   - `SystemStateWheelDiverterCoordinator` - 需评估是否仍需协调逻辑
+
+**影响评估**：
+- 需要验证删除 Workers 后系统启动/停止流程是否正常
+- 需要验证状态转换时的协调逻辑是否有其他实现接管
+- 需要删除相关集成测试和文档
+
+**预期收益**：
+- 简化架构，移除不必要的轮询循环
+- 减少配置复杂度
+- 提高系统响应速度（传感器立即启动，无需等待状态变化检测）
+
+---
+
+**文档版本**：4.8 (TD-058 新增)  
+**最后更新**：2025-12-10  
 **维护团队**：ZakYip Development Team

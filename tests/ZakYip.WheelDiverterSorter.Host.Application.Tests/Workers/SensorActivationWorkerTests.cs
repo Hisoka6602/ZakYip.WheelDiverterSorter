@@ -1,8 +1,8 @@
 using Moq;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
-using ZakYip.WheelDiverterSorter.Host.Configuration;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Ingress;
@@ -15,12 +15,12 @@ namespace ZakYip.WheelDiverterSorter.Host.Application.Tests.Workers;
 /// </summary>
 /// <remarks>
 /// 测试 SensorActivationWorker 的传感器生命周期管理功能：
-/// - 系统进入 Running 状态时启动传感器
-/// - 系统进入 Ready/EmergencyStop/Faulted 状态时停止传感器
-/// - 状态转换处理正确性
+/// - 程序启动时立即启动传感器（不再等待 Running 状态）
+/// - 异常场景处理
 /// - SafeExecutionService 异常隔离
 /// 
-/// TD-051: 已完善状态转换场景测试和异常场景测试（当前 PR）
+/// TD-051: 已完善状态转换场景测试和异常场景测试
+/// 当前 PR: 传感器在程序启动时立即启动，不再依赖状态转换
 /// </remarks>
 public class SensorActivationWorkerTests
 {
@@ -28,7 +28,7 @@ public class SensorActivationWorkerTests
     private readonly Mock<ISystemStateManager> _mockStateManager;
     private readonly Mock<IParcelDetectionService> _mockParcelDetectionService;
     private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
-    private readonly IOptions<WorkerOptions> _workerOptions;
+    private readonly Mock<ISystemConfigService> _mockConfigService;
 
     public SensorActivationWorkerTests()
     {
@@ -36,7 +36,11 @@ public class SensorActivationWorkerTests
         _mockStateManager = new Mock<ISystemStateManager>();
         _mockParcelDetectionService = new Mock<IParcelDetectionService>();
         _mockSafeExecutor = new Mock<ISafeExecutionService>();
-        _workerOptions = Options.Create(new WorkerOptions());
+        _mockConfigService = new Mock<ISystemConfigService>();
+        
+        // Setup default system config
+        _mockConfigService.Setup(cs => cs.GetSystemConfig())
+            .Returns(SystemConfiguration.GetDefault());
     }
 
     [Fact]
@@ -48,7 +52,7 @@ public class SensorActivationWorkerTests
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
             _mockSafeExecutor.Object,
-            _workerOptions));
+            _mockConfigService.Object));
     }
 
     [Fact]
@@ -60,7 +64,7 @@ public class SensorActivationWorkerTests
             null!,
             _mockParcelDetectionService.Object,
             _mockSafeExecutor.Object,
-            _workerOptions));
+            _mockConfigService.Object));
     }
 
     [Fact]
@@ -72,7 +76,7 @@ public class SensorActivationWorkerTests
             _mockStateManager.Object,
             null!,
             _mockSafeExecutor.Object,
-            _workerOptions));
+            _mockConfigService.Object));
     }
 
     [Fact]
@@ -84,7 +88,19 @@ public class SensorActivationWorkerTests
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
             null!,
-            _workerOptions));
+            _mockConfigService.Object));
+    }
+
+    [Fact]
+    public void Constructor_ShouldThrowArgumentNullException_WhenConfigServiceIsNull()
+    {
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new SensorActivationWorker(
+            _mockLogger.Object,
+            _mockStateManager.Object,
+            _mockParcelDetectionService.Object,
+            _mockSafeExecutor.Object,
+            null!));
     }
 
     [Theory]
@@ -102,7 +118,7 @@ public class SensorActivationWorkerTests
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
             _mockSafeExecutor.Object,
-            _workerOptions);
+            _mockConfigService.Object);
 
         // Assert - Worker should be created without throwing
         Assert.NotNull(worker);
@@ -137,7 +153,7 @@ public class SensorActivationWorkerTests
             _mockStateManager.Object,
             _mockParcelDetectionService.Object,
             _mockSafeExecutor.Object,
-            _workerOptions);
+            _mockConfigService.Object);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(100));
 

@@ -212,6 +212,21 @@ public class SensorIoEntry
     public TriggerLevel TriggerLevel { get; set; } = TriggerLevel.ActiveHigh;
 
     /// <summary>
+    /// 传感器轮询间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// <para>设置此传感器的独立轮询周期。如果为 null，则使用全局默认值 (SensorOptions.PollingIntervalMs = 10ms)。</para>
+    /// <para>**建议范围**：5ms - 50ms</para>
+    /// <list type="bullet">
+    /// <item>5-10ms: 高精度检测，适用于快速移动的包裹</item>
+    /// <item>10-20ms: 标准精度，平衡检测精度和CPU占用（推荐）</item>
+    /// <item>20-50ms: 降低CPU占用，适用于低速场景</item>
+    /// </list>
+    /// </remarks>
+    /// <example>10</example>
+    public int? PollingIntervalMs { get; set; }
+
+    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; } = true;

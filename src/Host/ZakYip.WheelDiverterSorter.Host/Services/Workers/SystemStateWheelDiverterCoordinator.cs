@@ -1,9 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
-using ZakYip.WheelDiverterSorter.Host.Configuration;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
@@ -34,7 +33,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     private readonly ISystemStateManager _stateManager;
     private readonly IWheelDiverterConnectionService _wheelDiverterService;
     private readonly ISafeExecutionService _safeExecutor;
-    private readonly WorkerOptions _workerOptions;
+    private readonly ISystemConfigService _systemConfigService;
     
     /// <summary>
     /// 上次已知系统状态
@@ -46,13 +45,13 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
         ISystemStateManager stateManager,
         IWheelDiverterConnectionService wheelDiverterService,
         ISafeExecutionService safeExecutor,
-        IOptions<WorkerOptions> workerOptions)
+        ISystemConfigService systemConfigService)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _wheelDiverterService = wheelDiverterService ?? throw new ArgumentNullException(nameof(wheelDiverterService));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
-        _workerOptions = (workerOptions ?? throw new ArgumentNullException(nameof(workerOptions))).Value;
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -95,8 +94,9 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                             _lastKnownState = currentState;
                         }
 
-                        // 等待下一次检查
-                        await Task.Delay(_workerOptions.StateCheckIntervalMs, stoppingToken);
+                        // 等待下一次检查（从数据库读取配置）
+                        var workerConfig = _systemConfigService.GetSystemConfig().Worker;
+                        await Task.Delay(workerConfig.StateCheckIntervalMs, stoppingToken);
                     }
                     catch (OperationCanceledException)
                     {
@@ -107,8 +107,9 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                     {
                         _logger.LogError(ex, "系统状态与摆轮联动协调器异常");
                         
-                        // 发生异常后稍作延迟再继续
-                        await Task.Delay(_workerOptions.ErrorRecoveryDelayMs, stoppingToken);
+                        // 发生异常后稍作延迟再继续（从数据库读取配置）
+                        var workerConfig = _systemConfigService.GetSystemConfig().Worker;
+                        await Task.Delay(workerConfig.ErrorRecoveryDelayMs, stoppingToken);
                     }
                 }
 

@@ -26,4 +26,13 @@ public record LeadshineSensorConfigDto
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; init; } = true;
+
+    /// <summary>
+    /// 传感器轮询间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 如果为 null，则使用全局默认值 (SensorOptions.PollingIntervalMs = 10ms)。
+    /// 建议范围：5ms - 50ms。
+    /// </remarks>
+    public int? PollingIntervalMs { get; init; }
 }
