@@ -305,10 +305,13 @@ public class ParcelTimelineFactory
     private void AddSensorEvent(ParcelTimeline timeline, string sensorId, DateTimeOffset triggerTime, 
         string segmentName, bool shouldJitter, decimal frictionFactor = 1.0m)
     {
+        // 将字符串sensor ID转换为数字（使用哈希码作为唯一标识）
+        long numericSensorId = sensorId.GetHashCode() & 0x7FFFFFFF; // 确保为正数
+        
         // 添加主传感器事件
         timeline.SensorEvents.Add(new SimulatedSensorEvent
         {
-            SensorId = sensorId,
+            SensorId = numericSensorId,
             TriggerTime = triggerTime,
             SegmentName = segmentName,
             FrictionFactor = frictionFactor
@@ -325,7 +328,7 @@ public class ParcelTimelineFactory
                 var jitterTime = triggerTime.AddMilliseconds(j * jitterIntervalMs / (double)jitterCount);
                 timeline.SensorEvents.Add(new SimulatedSensorEvent
                 {
-                    SensorId = sensorId + $"_Jitter{j}",
+                    SensorId = numericSensorId + j, // 使用数字偏移而不是字符串拼接
                     TriggerTime = jitterTime,
                     SegmentName = segmentName,
                     FrictionFactor = frictionFactor

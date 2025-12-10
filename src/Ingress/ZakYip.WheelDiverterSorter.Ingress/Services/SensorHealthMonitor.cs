@@ -115,7 +115,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 获取传感器健康状态
     /// </summary>
-    public SensorHealthStatus GetHealthStatus(string sensorId) {
+    public SensorHealthStatus GetHealthStatus(long sensorId) {
         // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             // 更新运行时长
@@ -146,7 +146,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// <summary>
     /// 手动报告传感器错误
     /// </summary>
-    public void ReportError(string sensorId, string error) {
+    public void ReportError(long sensorId, string error) {
         // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
         if (_healthStatus.TryGetValue(sensorId, out var status)) {
             status.ErrorCount++;

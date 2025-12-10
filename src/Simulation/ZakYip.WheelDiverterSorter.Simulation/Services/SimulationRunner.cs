@@ -958,7 +958,7 @@ public class SimulationRunner
                 ParcelId = parcelId,
                 EventTime = sensorEvent.TriggerTime,
                 IsSimulation = true
-            }, sensorEvent.SensorId);
+            }, sensorEvent.SensorId.ToString());
         }
     }
 

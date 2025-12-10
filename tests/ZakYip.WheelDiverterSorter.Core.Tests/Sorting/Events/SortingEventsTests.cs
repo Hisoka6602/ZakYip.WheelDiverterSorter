@@ -20,14 +20,14 @@ public class SortingEventsTests
             ParcelId = 12345,
             Barcode = "BC-001",
             CreatedAt = timestamp,
-            SensorId = "SENSOR-01"
+            SensorId = 01
         };
 
         // Assert
         Assert.Equal(12345, args.ParcelId);
         Assert.Equal("BC-001", args.Barcode);
         Assert.Equal(timestamp, args.CreatedAt);
-        Assert.Equal("SENSOR-01", args.SensorId);
+        Assert.Equal(1, args.SensorId);
     }
 
     [Fact]
