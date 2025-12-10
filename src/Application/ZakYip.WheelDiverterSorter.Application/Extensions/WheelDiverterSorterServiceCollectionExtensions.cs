@@ -39,12 +39,14 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
+using ZakYip.WheelDiverterSorter.Execution.BackgroundServices;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
+using ZakYip.WheelDiverterSorter.Execution.Queues;
 using ZakYip.WheelDiverterSorter.Execution.Routing;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Ingress.Adapters;
@@ -392,6 +394,18 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
+
+        // 注册待执行包裹队列（拓扑驱动分拣流程 - TD-062）
+        services.AddSingleton<IPendingParcelQueue, PendingParcelQueue>();
+
+        // 注册待执行包裹超时监控服务（拓扑驱动分拣流程 - TD-062）
+        services.AddHostedService<PendingParcelTimeoutMonitor>();
+
+        // 注册格口路径拓扑服务
+        services.AddSingleton<IChutePathTopologyService, ChutePathTopologyService>();
+
+        // 注册输送线段配置服务
+        services.AddSingleton<IConveyorSegmentService, ConveyorSegmentService>();
 
         // 注册分拣编排服务（支持Client和Server模式通知）
         services.AddSingleton<ISortingOrchestrator>(sp =>
