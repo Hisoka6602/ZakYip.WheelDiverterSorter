@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Communication;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
@@ -34,7 +35,7 @@ public abstract class EmcResourceLockManagerBase : IEmcResourceLockManager
     /// </summary>
     protected virtual void OnEmcLockEventReceived(EmcLockEventArgs e)
     {
-        EmcLockEventReceived?.Invoke(this, e);
+        EmcLockEventReceived.SafeInvoke(this, e, logger: null, nameof(EmcLockEventReceived));
     }
 
     /// <summary>

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
@@ -53,7 +54,7 @@ public class NodeHealthRegistry : INodeHealthRegistry
         }
 
         // Fire event
-        NodeHealthChanged?.Invoke(this, new NodeHealthChangedEventArgs
+        NodeHealthChanged.SafeInvoke(this, new NodeHealthChangedEventArgs
         {
             NodeId = status.NodeId,
             NewStatus = status,

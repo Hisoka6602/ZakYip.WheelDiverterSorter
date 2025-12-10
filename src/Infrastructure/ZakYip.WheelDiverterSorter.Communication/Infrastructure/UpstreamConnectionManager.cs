@@ -309,7 +309,7 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
 
     private void SetConnectionState(bool isConnected, string? errorMessage)
     {
-        ConnectionStateChanged?.Invoke(this, new ConnectionStateChangedEventArgs
+        ConnectionStateChanged.SafeInvoke(this, new ConnectionStateChangedEventArgs
         {
             IsConnected = isConnected,
             ChangedAt = _systemClock.LocalNowOffset,

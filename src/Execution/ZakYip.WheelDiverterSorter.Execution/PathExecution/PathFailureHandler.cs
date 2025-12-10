@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Events.Path;
 
@@ -60,7 +61,7 @@ public class PathFailureHandler : IPathFailureHandler
             failureReason);
 
         // 触发段失败事件
-        SegmentExecutionFailed?.Invoke(this, new PathSegmentExecutionFailedEventArgs
+        SegmentExecutionFailed.SafeInvoke(this, new PathSegmentExecutionFailedEventArgs
         {
             ParcelId = parcelId,
             FailedSegment = failedSegment,
@@ -91,7 +92,7 @@ public class PathFailureHandler : IPathFailureHandler
             originalPath.FallbackChuteId);
 
         // 触发路径失败事件
-        PathExecutionFailed?.Invoke(this, new PathExecutionFailedEventArgs
+        PathExecutionFailed.SafeInvoke(this, new PathExecutionFailedEventArgs
         {
             ParcelId = parcelId,
             OriginalPath = originalPath,
@@ -113,7 +114,7 @@ public class PathFailureHandler : IPathFailureHandler
                 backupPath.Segments.Count);
 
             // 触发路径切换事件
-            PathSwitched?.Invoke(this, new PathSwitchedEventArgs
+            PathSwitched.SafeInvoke(this, new PathSwitchedEventArgs
             {
                 ParcelId = parcelId,
                 OriginalPath = originalPath,

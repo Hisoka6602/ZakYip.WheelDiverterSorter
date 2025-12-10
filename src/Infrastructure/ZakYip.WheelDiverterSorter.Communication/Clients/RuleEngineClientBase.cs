@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 
@@ -96,7 +97,7 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
             DwsPayload = dwsPayload,
             Metadata = metadata
         };
-        ChuteAssigned?.Invoke(this, notification);
+        ChuteAssigned.SafeInvoke(this, notification, Logger, nameof(ChuteAssigned));
     }
 
     /// <summary>

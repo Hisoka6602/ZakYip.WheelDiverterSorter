@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Events.Path;
@@ -95,7 +96,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
         _metrics?.RecordPathFailure(failureReasonEnum.ToString());
 
         // 触发段失败事件
-        SegmentExecutionFailed?.Invoke(this, new PathSegmentExecutionFailedEventArgs
+        SegmentExecutionFailed.SafeInvoke(this, new PathSegmentExecutionFailedEventArgs
         {
             ParcelId = parcelId,
             FailedSegment = failedSegment,
@@ -136,7 +137,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
             originalPath.FallbackChuteId);
 
         // 触发路径失败事件
-        PathExecutionFailed?.Invoke(this, new PathExecutionFailedEventArgs
+        PathExecutionFailed.SafeInvoke(this, new PathExecutionFailedEventArgs
         {
             ParcelId = parcelId,
             OriginalPath = originalPath,
@@ -158,7 +159,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
                 backupPath.Segments.Count);
 
             // 触发路径切换事件
-            PathSwitched?.Invoke(this, new PathSwitchedEventArgs
+            PathSwitched.SafeInvoke(this, new PathSwitchedEventArgs
             {
                 ParcelId = parcelId,
                 OriginalPath = originalPath,
@@ -241,7 +242,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
                 _metrics?.RecordRerouteSuccess();
 
                 // 触发重规划成功事件
-                ReroutingSucceeded?.Invoke(this, new ReroutingSucceededEventArgs
+                ReroutingSucceeded.SafeInvoke(this, new ReroutingSucceededEventArgs
                 {
                     ParcelId = parcelId,
                     OriginalPath = originalPath,
@@ -259,7 +260,7 @@ public class EnhancedPathFailureHandler : IPathFailureHandler
                     parcelId, result.FailureReason);
 
                 // 触发重规划失败事件
-                ReroutingFailed?.Invoke(this, new ReroutingFailedEventArgs
+                ReroutingFailed.SafeInvoke(this, new ReroutingFailedEventArgs
                 {
                     ParcelId = parcelId,
                     OriginalPath = originalPath,
