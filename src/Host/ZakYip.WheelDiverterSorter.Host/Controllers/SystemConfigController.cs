@@ -305,7 +305,6 @@ public class SystemConfigController : ApiControllerBase
 #pragma warning disable CS0618 // 向后兼容
         return new SystemConfigResponse
         {
-            Id = config.Id,
             ExceptionChuteId = config.ExceptionChuteId,
             SortingMode = config.SortingMode,
             FixedChuteId = config.FixedChuteId,

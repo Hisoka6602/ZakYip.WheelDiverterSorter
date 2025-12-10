@@ -217,7 +217,6 @@ public class LoggingConfigController : ApiControllerBase
     {
         return new LoggingConfigResponse
         {
-            Id = config.Id,
             EnableParcelLifecycleLog = config.EnableParcelLifecycleLog,
             EnableParcelTraceLog = config.EnableParcelTraceLog,
             EnablePathExecutionLog = config.EnablePathExecutionLog,
