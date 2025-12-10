@@ -51,6 +51,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | TOPOLOGY_LINEAR_N_DIVERTERS.md | `./docs/TOPOLOGY_LINEAR_N_DIVERTERS.md` | N 摆轮线性拓扑模型（PR-TOPO02） | 🟡 中 |
 | TouchSocket_Migration_Assessment.md | `./docs/TouchSocket_Migration_Assessment.md` | TouchSocket迁移评估报告 | 🟡 中 |
 | S7_Driver_Enhancement.md | `./docs/S7_Driver_Enhancement.md` | S7 IO驱动功能增强文档 | 🟡 中 |
+| PRODUCTION_SERVICE_STARTUP.md | `./docs/PRODUCTION_SERVICE_STARTUP.md` | **生产环境服务启动说明（服务启动流程、配置加载、日志验证、故障排查）** | 🔴 高 |
 
 ### docs/guides/ 使用指南
 
