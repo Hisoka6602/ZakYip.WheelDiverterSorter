@@ -282,10 +282,39 @@ public class HardwareConfigController : ControllerBase
     /// <returns>感应IO配置信息</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// **配置字段说明：**
+    /// 
+    /// - `pollingIntervalMs`: 传感器轮询间隔（毫秒），可为null表示使用全局默认值10ms
+    /// - 建议范围：5-50ms，推荐10-20ms
+    /// - 支持为每个传感器单独配置不同的轮询间隔
+    /// 
+    /// **示例响应：**
+    /// ```json
+    /// {
+    ///   "success": true,
+    ///   "data": {
+    ///     "sensors": [
+    ///       {
+    ///         "sensorId": 1,
+    ///         "sensorName": "创建包裹感应IO",
+    ///         "ioType": "ParcelCreation",
+    ///         "ioPointId": 0,
+    ///         "pollingIntervalMs": 10,
+    ///         "triggerLevel": "ActiveHigh",
+    ///         "isEnabled": true
+    ///       }
+    ///     ]
+    ///   }
+    /// }
+    /// ```
+    /// 
+    /// 详细配置指南：[docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md](https://github.com/Hisoka6602/ZakYip.WheelDiverterSorter/blob/main/docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md)
+    /// </remarks>
     [HttpGet("leadshine/sensors")]
     [SwaggerOperation(
-        Summary = "获取感应IO配置",
-        Description = "返回当前系统的感应IO配置，包括所有感应IO的业务类型和绑定关系",
+        Summary = "获取感应IO配置（包含轮询间隔配置）",
+        Description = "返回当前系统的感应IO配置，包括所有感应IO的业务类型、绑定关系和轮询间隔（pollingIntervalMs）。每个传感器可以独立配置轮询间隔，null表示使用默认值10ms。",
         OperationId = "GetLeadshineSensorIoConfig",
         Tags = new[] { "硬件配置" }
     )]
@@ -315,10 +344,53 @@ public class HardwareConfigController : ControllerBase
     /// <response code="200">更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// **配置轮询间隔（pollingIntervalMs）：**
+    /// 
+    /// - 设置为具体数值（如20）：使用独立配置的轮询间隔
+    /// - 设置为null或不设置：使用全局默认值10ms
+    /// - 建议范围：5-50ms
+    ///   - 5-10ms: 快速移动包裹（高CPU占用，高精度）
+    ///   - 10-20ms: 标准速度（推荐，平衡性能）
+    ///   - 20-50ms: 低速场景（低CPU占用，较低精度）
+    /// 
+    /// **示例请求：**
+    /// ```json
+    /// {
+    ///   "sensors": [
+    ///     {
+    ///       "sensorId": 1,
+    ///       "sensorName": "创建包裹感应IO",
+    ///       "ioType": "ParcelCreation",
+    ///       "ioPointId": 0,
+    ///       "pollingIntervalMs": 20,
+    ///       "triggerLevel": "ActiveHigh",
+    ///       "isEnabled": true
+    ///     },
+    ///     {
+    ///       "sensorId": 2,
+    ///       "sensorName": "摆轮1前感应IO",
+    ///       "ioType": "WheelFront",
+    ///       "ioPointId": 1,
+    ///       "boundWheelNodeId": "WHEEL-1",
+    ///       "pollingIntervalMs": null,
+    ///       "triggerLevel": "ActiveHigh",
+    ///       "isEnabled": true
+    ///     }
+    ///   ]
+    /// }
+    /// ```
+    /// 
+    /// **注意事项：**
+    /// - 必须包含所有传感器的完整配置（替换式更新）
+    /// - 配置立即生效，无需重启服务
+    /// 
+    /// 详细配置指南：[docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md](https://github.com/Hisoka6602/ZakYip.WheelDiverterSorter/blob/main/docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md)
+    /// </remarks>
     [HttpPut("leadshine/sensors")]
     [SwaggerOperation(
-        Summary = "更新感应IO配置",
-        Description = "更新系统感应IO配置，配置立即生效无需重启。",
+        Summary = "更新感应IO配置（支持轮询间隔配置）",
+        Description = "更新系统感应IO配置，配置立即生效无需重启。支持为每个传感器单独配置轮询间隔（pollingIntervalMs），null表示使用默认值10ms。建议范围：5-50ms。",
         OperationId = "UpdateLeadshineSensorIoConfig",
         Tags = new[] { "硬件配置" }
     )]
