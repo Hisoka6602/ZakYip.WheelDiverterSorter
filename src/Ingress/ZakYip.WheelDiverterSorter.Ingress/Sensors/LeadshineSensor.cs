@@ -157,7 +157,8 @@ public class LeadshineSensor : ISensor {
 
                     OnSensorTriggered(sensorEvent);
 
-                    _logger.LogDebug(
+                    // 提升日志级别从 Debug 到 Information，确保传感器触发事件被记录
+                    _logger.LogInformation(
                         "雷赛{SensorTypeName} {SensorId} 状态变化: {State}",
                         _sensorTypeName,
                         SensorId,

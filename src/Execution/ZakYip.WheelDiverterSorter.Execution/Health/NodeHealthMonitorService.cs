@@ -60,18 +60,23 @@ public class NodeHealthMonitorService : BackgroundService
 
     private void OnNodeHealthChanged(object? sender, NodeHealthChangedEventArgs e)
     {
-        // 只在状态变成不健康时输出日志，健康状态恢复使用 Debug 级别
-        if (!e.NewStatus.IsHealthy)
+        // 只在健康状态实际发生变化时才输出日志
+        bool statusChanged = e.PreviousStatus == null || e.PreviousStatus.Value.IsHealthy != e.NewStatus.IsHealthy;
+        
+        if (statusChanged)
         {
-            _logger.LogWarning(
-                "节点健康状态变更: NodeId={NodeId}, IsHealthy={IsHealthy}",
-                e.NodeId, e.NewStatus.IsHealthy);
-        }
-        else
-        {
-            _logger.LogDebug(
-                "节点健康状态恢复: NodeId={NodeId}, IsHealthy={IsHealthy}",
-                e.NodeId, e.NewStatus.IsHealthy);
+            if (!e.NewStatus.IsHealthy)
+            {
+                _logger.LogWarning(
+                    "节点健康状态变更: NodeId={NodeId}, IsHealthy={IsHealthy}",
+                    e.NodeId, e.NewStatus.IsHealthy);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "节点健康状态恢复: NodeId={NodeId}, IsHealthy={IsHealthy}",
+                    e.NodeId, e.NewStatus.IsHealthy);
+            }
         }
 
         // Immediately update metrics when health changes
