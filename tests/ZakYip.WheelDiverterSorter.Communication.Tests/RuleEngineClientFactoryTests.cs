@@ -45,10 +45,23 @@ public class UpstreamRoutingClientFactoryTests
     }
 
     [Fact]
-    public void Constructor_WithNullOptions_ThrowsArgumentNullException()
+    public void Constructor_WithNullOptionsProvider_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => null!, _clockMock));
+        // 构造函数应该验证 optionsProvider 函数本身不为 null
+        Assert.Throws<ArgumentNullException>(() => new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, null!, _clockMock));
+    }
+
+    [Fact]
+    public void CreateClient_WithNullOptions_ThrowsException()
+    {
+        // Arrange
+        // 提供一个返回 null 的 options provider
+        var factory = new UpstreamRoutingClientFactory(_loggerFactoryMock.Object, () => null!, _clockMock);
+
+        // Act & Assert
+        // CreateClient 应该抛出异常，因为 options 为 null
+        Assert.Throws<NullReferenceException>(() => factory.CreateClient());
     }
 
     [Fact]
