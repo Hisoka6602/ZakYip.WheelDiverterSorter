@@ -73,7 +73,7 @@ public record ParcelDetectedArgs
     /// <summary>
     /// 触发检测的传感器ID
     /// </summary>
-    public required string SensorId { get; init; }
+    public required long SensorId { get; init; }
 
     /// <summary>
     /// 传感器类型
@@ -103,7 +103,7 @@ public record DuplicateTriggerArgs
     /// <summary>
     /// 触发检测的传感器ID
     /// </summary>
-    public required string SensorId { get; init; }
+    public required long SensorId { get; init; }
 
     /// <summary>
     /// 传感器类型

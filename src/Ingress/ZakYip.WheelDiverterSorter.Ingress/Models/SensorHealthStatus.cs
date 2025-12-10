@@ -11,7 +11,7 @@ public class SensorHealthStatus {
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public required string SensorId { get; set; }
+    public required long SensorId { get; set; }
 
     /// <summary>
     /// 传感器类型

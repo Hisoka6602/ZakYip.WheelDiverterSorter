@@ -16,7 +16,7 @@ public interface ISensor : IDisposable {
     /// <summary>
     /// 传感器ID
     /// </summary>
-    string SensorId { get; }
+    long SensorId { get; }
 
     /// <summary>
     /// 传感器类型

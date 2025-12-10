@@ -14,7 +14,7 @@ public sealed record class SimulatedSensorEvent
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public required string SensorId { get; init; }
+    public required long SensorId { get; init; }
 
     /// <summary>
     /// 触发时间

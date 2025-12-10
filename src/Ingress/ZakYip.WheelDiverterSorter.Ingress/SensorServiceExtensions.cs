@@ -155,8 +155,8 @@ public static class SensorServiceExtensions {
         if (!sensorOptions.MockSensors.Any()) {
             sensorOptions.MockSensors = new List<MockSensorConfigDto>
             {
-                new() { SensorId = "SENSOR_PE_01", Type = SensorType.Photoelectric, IsEnabled = true },
-                new() { SensorId = "SENSOR_LASER_01", Type = SensorType.Laser, IsEnabled = true }
+                new() { SensorId = 1, Type = SensorType.Photoelectric, IsEnabled = true },
+                new() { SensorId = 2, Type = SensorType.Laser, IsEnabled = true }
             };
         }
 

@@ -22,7 +22,7 @@ public sealed record class ParcelDetectedEventArgs
     /// <summary>
     /// 触发检测的传感器ID
     /// </summary>
-    public required string SensorId { get; init; }
+    public required long SensorId { get; init; }
 
     /// <summary>
     /// 传感器类型
@@ -32,5 +32,5 @@ public sealed record class ParcelDetectedEventArgs
     /// <summary>
     /// 检测位置（传感器ID的别名，用于更明确表达位置信息）
     /// </summary>
-    public string Position => SensorId;
+    public string Position => SensorId.ToString();
 }

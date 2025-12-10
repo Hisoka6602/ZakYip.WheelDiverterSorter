@@ -47,7 +47,7 @@ public record SortingRequest
     /// <remarks>
     /// 记录检测到该包裹的传感器标识
     /// </remarks>
-    public string? SensorId { get; init; }
+    public long? SensorId { get; init; }
 
     /// <summary>
     /// 附加元数据

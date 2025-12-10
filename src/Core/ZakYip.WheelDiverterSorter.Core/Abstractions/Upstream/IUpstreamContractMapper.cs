@@ -134,7 +134,7 @@ public record UpstreamSortingRequest
     /// <summary>
     /// 检测传感器ID（可选）
     /// </summary>
-    public string? SensorId { get; init; }
+    public long? SensorId { get; init; }
 
     /// <summary>
     /// 候选格口ID列表（可选）

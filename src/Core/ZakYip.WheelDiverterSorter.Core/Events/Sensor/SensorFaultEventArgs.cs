@@ -12,7 +12,7 @@ public sealed record class SensorFaultEventArgs
     /// <summary>
     /// 传感器ID
     /// </summary>
-    public required string SensorId { get; init; }
+    public required long SensorId { get; init; }
 
     /// <summary>
     /// 传感器类型

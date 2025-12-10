@@ -52,7 +52,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
         // 初始化健康状态
         foreach (var sensor in _sensors) {
-            _healthStatus[sensor.SensorId] = new SensorHealthStatus {
+            _healthStatus[sensor.SensorId.ToString()] = new SensorHealthStatus {
                 SensorId = sensor.SensorId,
                 Type = sensor.Type,
                 IsHealthy = true,
@@ -172,14 +172,14 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
     /// </summary>
     private void OnSensorTriggered(object? sender, SensorEvent sensorEvent) {
         // PR-44: ConcurrentDictionary.TryGetValue 是线程安全的
-        if (_healthStatus.TryGetValue(sensorEvent.SensorId, out var status)) {
+        if (_healthStatus.TryGetValue(sensorEvent.SensorId.ToString(), out var status)) {
             status.LastTriggerTime = sensorEvent.TriggerTime;
             status.TotalTriggerCount++;
             status.LastCheckTime = DateTimeOffset.Now;
 
             // 如果传感器之前处于故障状态，现在恢复了
             if (!status.IsHealthy) {
-                MarkSensorAsRecovered(sensorEvent.SensorId);
+                MarkSensorAsRecovered(sensorEvent.SensorId.ToString());
             }
 
             // 重置错误计数
@@ -248,7 +248,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
             // 触发故障事件
             SensorFault?.Invoke(this, new SensorFaultEventArgs {
-                SensorId = sensorId,
+                SensorId = long.Parse(sensorId),
                 Type = status.Type,
                 FaultType = faultType,
                 Description = description,
@@ -279,7 +279,7 @@ public class SensorHealthMonitor : ISensorHealthMonitor, IDisposable {
 
             // 触发恢复事件
             SensorRecovery?.Invoke(this, new SensorRecoveryEventArgs {
-                SensorId = sensorId,
+                SensorId = long.Parse(sensorId),
                 Type = status.Type,
                 RecoveryTime = DateTimeOffset.Now,
                 FaultDurationSeconds = faultDuration

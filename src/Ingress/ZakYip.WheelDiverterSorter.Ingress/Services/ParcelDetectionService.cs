@@ -163,7 +163,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     private (bool IsDuplicate, double TimeSinceLastTriggerMs) CheckForDuplicateTrigger(SensorEvent sensorEvent)
     {
-        if (!_lastTriggerTimes.TryGetValue(sensorEvent.SensorId, out var lastTime))
+        if (!_lastTriggerTimes.TryGetValue(sensorEvent.SensorId.ToString(), out var lastTime))
         {
             return (false, 0);
         }
@@ -188,7 +188,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     private void UpdateLastTriggerTime(SensorEvent sensorEvent)
     {
-        _lastTriggerTimes[sensorEvent.SensorId] = sensorEvent.TriggerTime;
+        _lastTriggerTimes[sensorEvent.SensorId.ToString()] = sensorEvent.TriggerTime;
     }
 
     /// <summary>
@@ -308,7 +308,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             e.ErrorMessage);
 
         // 报告给健康监控器
-        _healthMonitor?.ReportError(e.SensorId, e.ErrorMessage);
+        _healthMonitor?.ReportError(e.SensorId.ToString(), e.ErrorMessage);
     }
 
     /// <summary>
