@@ -136,20 +136,18 @@ public static class LeadshineIoServiceCollectionExtensions
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
 
         // 注册传感器厂商配置提供者
+        // 使用数据库配置（从 LiteDB SensorConfiguration）而不是 appsettings.json
         services.AddSingleton<ISensorVendorConfigProvider>(sp =>
         {
-            var options = sp.GetRequiredService<DriverOptions>();
+            var sensorRepository = sp.GetRequiredService<Core.LineModel.Configuration.Repositories.Interfaces.ISensorConfigurationRepository>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-            var logger = loggerFactory.CreateLogger<LeadshineSensorVendorConfigProvider>();
+            var logger = loggerFactory.CreateLogger<DatabaseBackedLeadshineSensorVendorConfigProvider>();
+            var options = sp.GetRequiredService<DriverOptions>();
 
-            if (options.Sensor == null)
-            {
-                logger.LogWarning(
-                    "雷赛传感器配置 (DriverOptions.Sensor) 未设置，使用空配置。" +
-                    "如果需要使用传感器功能，请在 appsettings.json 中配置 Driver:Sensor 节点。");
-                return new LeadshineSensorVendorConfigProvider(new LeadshineSensorOptions());
-            }
-            return new LeadshineSensorVendorConfigProvider(options.Sensor);
+            return new DatabaseBackedLeadshineSensorVendorConfigProvider(
+                sensorRepository,
+                logger,
+                options.Leadshine.CardNo);
         });
 
         // 注册 IInputPort 和 IOutputPort（用于面板输入读取等功能）
