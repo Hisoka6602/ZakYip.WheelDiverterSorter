@@ -541,10 +541,41 @@ DOTNET_ENVIRONMENT=Production ASPNETCORE_URLS=http://0.0.0.0:5000 ./ZakYip.Wheel
 | 端点 | 方法 | 说明 |
 |------|------|------|
 | `/api/hardware/leadshine` | GET/PUT | 雷赛 IO 卡配置 |
-| `/api/hardware/leadshine/sensors` | GET/PUT | 雷赛传感器配置 |
+| `/api/hardware/leadshine/sensors` | GET/PUT | **雷赛传感器配置（含轮询间隔）** |
 | `/api/hardware/shudiniao` | GET/PUT | 数递鸟摆轮配置 |
 | `/api/hardware/shudiniao/control` | POST | 数递鸟摆轮控制（运行/停止） |
 | `/api/hardware/shudiniao/speed` | POST | **数递鸟摆轮速度设置** |
+
+#### 传感器轮询间隔配置
+
+支持为每个传感器独立配置轮询间隔（`pollingIntervalMs`），优化CPU占用和检测精度的平衡。
+
+**快速开始：**
+```bash
+# 查看当前配置
+GET /api/hardware/leadshine/sensors
+
+# 更新轮询间隔
+PUT /api/hardware/leadshine/sensors
+{
+  "sensors": [{
+    "sensorId": 1,
+    "sensorName": "创建包裹感应IO",
+    "ioType": "ParcelCreation",
+    "ioPointId": 0,
+    "pollingIntervalMs": 20,
+    "isEnabled": true
+  }]
+}
+```
+
+**建议配置：**
+- 5-10ms: 快速移动包裹（高CPU，高精度）
+- 10-20ms: 标准速度（推荐，平衡性能）
+- 20-50ms: 低速场景（低CPU，较低精度）
+- null: 使用默认值10ms
+
+📖 **详细配置指南：** [docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md](docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md)
 
 #### 数递鸟摆轮速度设置
 
