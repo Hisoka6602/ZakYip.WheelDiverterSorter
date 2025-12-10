@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 
@@ -21,6 +22,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 ///   <item>只有 `ParcelCreation` 类型的传感器会触发 `ParcelDetected` 事件（创建包裹）</item>
 ///   <item>`WheelFront` 和 `ChuteLock` 类型的传感器只用于监控和日志记录</item>
 ///   <item>系统中只能有一个 `ParcelCreation` 类型的传感器处于激活状态</item>
+///   <item>只有系统处于运行状态（Running）时才创建包裹</item>
 /// </list>
 /// </remarks>
 public class ParcelDetectionService : IParcelDetectionService, IDisposable
@@ -30,6 +32,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
+    private readonly ISystemRunStateService? _systemRunStateService;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
     private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
     // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
@@ -55,18 +58,21 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="logger">日志记录器</param>
     /// <param name="healthMonitor">传感器健康监控器（可选）</param>
     /// <param name="sensorConfigRepository">传感器配置仓储（可选，用于获取 IoType）</param>
+    /// <param name="systemRunStateService">系统运行状态服务（可选，用于验证是否允许创建包裹）</param>
     public ParcelDetectionService(
         IEnumerable<ISensor> sensors,
         IOptions<ParcelDetectionOptions>? options = null,
         ILogger<ParcelDetectionService>? logger = null,
         Services.ISensorHealthMonitor? healthMonitor = null,
-        ISensorConfigurationRepository? sensorConfigRepository = null)
+        ISensorConfigurationRepository? sensorConfigRepository = null,
+        ISystemRunStateService? systemRunStateService = null)
     {
         _sensors = sensors ?? throw new ArgumentNullException(nameof(sensors));
         _options = options?.Value ?? new ParcelDetectionOptions();
         _logger = logger;
         _healthMonitor = healthMonitor;
         _sensorConfigRepository = sensorConfigRepository;
+        _systemRunStateService = systemRunStateService;
     }
 
     /// <summary>
@@ -170,9 +176,21 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         // PR-fix-sensor-type-filtering: 只有 ParcelCreation 类型的传感器才触发 ParcelDetected 事件
         // 其他类型（WheelFront, ChuteLock）只用于监控和日志记录
+        // PR-fix-system-state-check: 只有系统处于运行状态时才创建包裹
         if (ShouldTriggerParcelCreation(sensorEvent.SensorId))
         {
-            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
+            // 检查系统是否允许创建包裹
+            if (IsSystemReadyForParcelCreation())
+            {
+                RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
+            }
+            else
+            {
+                _logger?.LogWarning(
+                    "传感器 {SensorId} 触发包裹创建，但系统未处于运行状态，已忽略。包裹ID: {ParcelId}",
+                    sensorEvent.SensorId,
+                    parcelId);
+            }
         }
         else
         {
@@ -181,6 +199,42 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 "传感器 {SensorId} 触发（非包裹创建类型），包裹ID: {ParcelId}，用于监控目的",
                 sensorEvent.SensorId,
                 parcelId);
+        }
+    }
+
+    /// <summary>
+    /// 检查系统是否允许创建包裹
+    /// </summary>
+    /// <returns>true 表示允许创建包裹，false 表示系统未就绪</returns>
+    private bool IsSystemReadyForParcelCreation()
+    {
+        // 如果没有系统状态服务，默认允许（向后兼容）
+        if (_systemRunStateService == null)
+        {
+            _logger?.LogDebug("未注入 ISystemRunStateService，默认允许创建包裹（向后兼容模式）");
+            return true;
+        }
+
+        try
+        {
+            // 使用系统状态服务验证是否允许创建包裹
+            var validationResult = _systemRunStateService.ValidateParcelCreation();
+            
+            if (!validationResult.IsSuccess)
+            {
+                _logger?.LogDebug(
+                    "系统状态验证失败，不允许创建包裹。当前状态: {CurrentState}，原因: {Reason}",
+                    _systemRunStateService.Current,
+                    validationResult.ErrorMessage);
+                return false;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "检查系统状态时发生异常，默认不允许创建包裹");
+            return false;
         }
     }
 
