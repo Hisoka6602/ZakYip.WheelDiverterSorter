@@ -57,17 +57,21 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
         if (_pendingParcels.TryAdd(parcelId, entry))
         {
             // 启动超时 Timer（事件驱动，替代轮询）
-            var timer = new System.Timers.Timer(timeoutSeconds * 1000);
+            // 防止溢出：timeoutSeconds * 1000 可能溢出 int，先转换为 long
+            var timer = new System.Timers.Timer((double)((long)timeoutSeconds * 1000));
+            timer.AutoReset = false;
             timer.Elapsed += (sender, e) =>
             {
-                timer.Stop();
-                timer.Dispose();
+                // 移除并释放 timer
+                if (_timers.TryRemove(parcelId, out var t))
+                {
+                    t.Stop();
+                    t.Dispose();
+                }
                 OnParcelTimedOut(entry);
             };
-            timer.AutoReset = false;
-            timer.Start();
-            
             _timers.TryAdd(parcelId, timer);
+            timer.Start();
 
             _logger.LogDebug(
                 "包裹 {ParcelId} 已加入待执行队列，目标格口: {ChuteId}, 摆轮节点: {WheelNodeId}, 超时时间: {TimeoutSeconds}秒",

@@ -56,6 +56,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private const double EstimatedTotalTtlMs = 30000; // 预估30秒TTL
     private const double EstimatedArrivalWindowMs = 10000; // 预估10秒窗口
     private const double EstimatedElapsedMs = 1000; // 假设包裹进入后已经过1秒
+    
+    // TD-062: 拓扑驱动分拣流程常量
+    private const int DefaultTimeoutSeconds = 10; // 默认超时时间（秒）
 
     // 空的可用格口列表（静态共享实例）
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
@@ -306,7 +309,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var segment = _segmentRepository.GetById(diverterNode.SegmentId);
             var timeoutSeconds = segment != null 
                 ? (int)(segment.CalculateTimeoutThresholdMs() / 1000) 
-                : 10; // 默认10秒超时
+                : DefaultTimeoutSeconds;
             
             // TD-062: 路径预生成优化 - 在入队前生成路径，WheelFront触发时直接执行
             _logger.LogDebug("开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的分拣路径", parcelId, targetChuteId);
@@ -1440,86 +1443,58 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             // 使用 SafeExecutionService 包裹异步操作
             await _safeExecutor.ExecuteAsync(
-                async () =>
-                {
-                    // 从队列取出该摆轮的第一个包裹
-                    var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
-                    
-                    if (parcel == null)
-                    {
-                        _logger.LogWarning(
-                            "摆轮 {WheelNodeId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
-                            boundWheelNodeId, sensorId);
-                        return;
-                    }
-                    
-                    _logger.LogInformation(
-                        "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
-                        parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
-                    
-                    // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
-                    var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
-                    
-                    if (executionResult.IsSuccess)
-                    {
-                        _logger.LogInformation(
-                            "包裹 {ParcelId} 分拣成功：实际格口={ActualChuteId}，目标格口={TargetChuteId}",
-                            parcel.ParcelId,
-                            executionResult.ActualChuteId,
-                            parcel.TargetChuteId);
-                        _metrics?.RecordSortingSuccess(0); // 执行时间由路径执行器内部记录
-                    }
-                    else
-                    {
-                        _logger.LogError(
-                            "包裹 {ParcelId} 分拣失败：失败原因={FailureReason}，实际到达格口={ActualChuteId}",
-                            parcel.ParcelId,
-                            executionResult.FailureReason,
-                            executionResult.ActualChuteId);
-                        _metrics?.RecordSortingFailure(0);
-                    }
-                },
+                () => ExecuteWheelFrontSortingAsync(boundWheelNodeId, sensorId),
                 operationName: $"WheelFrontTriggered_Sensor{sensorId}",
                 cancellationToken: default);
         }
         else
         {
             // Fallback: 没有 SafeExecutor 时直接执行
-            var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
-            
-            if (parcel == null)
-            {
-                _logger.LogWarning(
-                    "摆轮 {WheelNodeId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
-                    boundWheelNodeId, sensorId);
-                return;
-            }
-            
+            await ExecuteWheelFrontSortingAsync(boundWheelNodeId, sensorId);
+        }
+    }
+
+    /// <summary>
+    /// 执行摆轮前传感器触发的分拣逻辑（TD-062）
+    /// </summary>
+    private async Task ExecuteWheelFrontSortingAsync(string boundWheelNodeId, long sensorId)
+    {
+        // 从队列取出该摆轮的第一个包裹
+        var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
+        
+        if (parcel == null)
+        {
+            _logger.LogWarning(
+                "摆轮 {WheelNodeId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
+                boundWheelNodeId, sensorId);
+            return;
+        }
+        
+        _logger.LogInformation(
+            "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
+            parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
+        
+        // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
+        var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
+        
+        if (executionResult.IsSuccess)
+        {
             _logger.LogInformation(
-                "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
-                parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
-            
-            // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
-            var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
-            
-            if (executionResult.IsSuccess)
-            {
-                _logger.LogInformation(
-                    "包裹 {ParcelId} 分拣成功：实际格口={ActualChuteId}，目标格口={TargetChuteId}",
-                    parcel.ParcelId,
-                    executionResult.ActualChuteId,
-                    parcel.TargetChuteId);
-                _metrics?.RecordSortingSuccess(0);
-            }
-            else
-            {
-                _logger.LogError(
-                    "包裹 {ParcelId} 分拣失败：失败原因={FailureReason}，实际到达格口={ActualChuteId}",
-                    parcel.ParcelId,
-                    executionResult.FailureReason,
-                    executionResult.ActualChuteId);
-                _metrics?.RecordSortingFailure(0);
-            }
+                "包裹 {ParcelId} 分拣成功：实际格口={ActualChuteId}，目标格口={TargetChuteId}",
+                parcel.ParcelId,
+                executionResult.ActualChuteId,
+                parcel.TargetChuteId);
+            // TODO: 从executionResult获取实际执行时间而非传入0
+            _metrics?.RecordSortingSuccess(0);
+        }
+        else
+        {
+            _logger.LogError(
+                "包裹 {ParcelId} 分拣失败：失败原因={FailureReason}，实际到达格口={ActualChuteId}",
+                parcel.ParcelId,
+                executionResult.FailureReason,
+                executionResult.ActualChuteId);
+            _metrics?.RecordSortingFailure(0);
         }
     }
 
@@ -1706,7 +1681,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     "超时包裹 {ParcelId} 已成功路由到异常格口 {ChuteId}",
                     parcelId, exceptionChuteId);
 
-                // 记录指标
+                // TODO: 从executionResult获取实际执行时间而非传入0
                 _metrics?.RecordSortingSuccess(0);
             }
             else
