@@ -308,15 +308,43 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 ? (int)(segment.CalculateTimeoutThresholdMs() / 1000) 
                 : 10; // 默认10秒超时
             
-            // 将包裹加入待执行队列，等待 WheelFront 传感器触发
+            // TD-062: 路径预生成优化 - 在入队前生成路径，WheelFront触发时直接执行
+            _logger.LogDebug("开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的分拣路径", parcelId, targetChuteId);
+            var path = _pathGenerator.GeneratePath(targetChuteId);
+            
+            if (path == null)
+            {
+                // 路径生成失败，路由到异常格口
+                _logger.LogError(
+                    "包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，路由到异常格口",
+                    parcelId, targetChuteId);
+                
+                stopwatch.Stop();
+                await ProcessTimedOutParcelAsync(parcelId);
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId.ToString(),
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                    FailureReason: "无法生成分拣路径，已路由到异常格口"
+                );
+            }
+            
+            _logger.LogInformation(
+                "包裹 {ParcelId} 路径生成成功：段数={SegmentCount}，目标格口={TargetChuteId}",
+                parcelId, path.Segments.Count, targetChuteId);
+            
+            // 将包裹和预生成的路径一起加入待执行队列，等待 WheelFront 传感器触发
             _pendingQueue.Enqueue(
                 parcelId, 
                 targetChuteId, 
                 diverterNode.DiverterId.ToString(), 
-                timeoutSeconds);
+                timeoutSeconds,
+                path);
             
             _logger.LogInformation(
-                "包裹 {ParcelId} 已加入待执行队列：目标格口={TargetChuteId}, 摆轮节点={DiverterId}, 超时={TimeoutSeconds}秒",
+                "包裹 {ParcelId} 已加入待执行队列：目标格口={TargetChuteId}, 摆轮节点={DiverterId}, 超时={TimeoutSeconds}秒，路径已预生成",
                 parcelId, targetChuteId, diverterNode.DiverterId, timeoutSeconds);
             
             stopwatch.Stop();
@@ -1426,15 +1454,30 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     }
                     
                     _logger.LogInformation(
-                        "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行分拣到格口 {TargetChuteId}",
+                        "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
                         parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
                     
-                    // 执行分拣操作
-                    await ExecuteSortingWorkflowAsync(
-                        parcel.ParcelId,
-                        parcel.TargetChuteId,
-                        isOverloadException: false,
-                        CancellationToken.None);
+                    // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
+                    var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
+                    
+                    if (executionResult.IsSuccess)
+                    {
+                        _logger.LogInformation(
+                            "包裹 {ParcelId} 分拣成功：实际格口={ActualChuteId}，目标格口={TargetChuteId}",
+                            parcel.ParcelId,
+                            executionResult.ActualChuteId,
+                            parcel.TargetChuteId);
+                        _metrics?.RecordSortingSuccess(0); // 执行时间由路径执行器内部记录
+                    }
+                    else
+                    {
+                        _logger.LogError(
+                            "包裹 {ParcelId} 分拣失败：失败原因={FailureReason}，实际到达格口={ActualChuteId}",
+                            parcel.ParcelId,
+                            executionResult.FailureReason,
+                            executionResult.ActualChuteId);
+                        _metrics?.RecordSortingFailure(0);
+                    }
                 },
                 operationName: $"WheelFrontTriggered_Sensor{sensorId}",
                 cancellationToken: default);
@@ -1453,14 +1496,30 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
             
             _logger.LogInformation(
-                "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行分拣到格口 {TargetChuteId}",
+                "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
                 parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
             
-            await ExecuteSortingWorkflowAsync(
-                parcel.ParcelId,
-                parcel.TargetChuteId,
-                isOverloadException: false,
-                CancellationToken.None);
+            // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
+            var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
+            
+            if (executionResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "包裹 {ParcelId} 分拣成功：实际格口={ActualChuteId}，目标格口={TargetChuteId}",
+                    parcel.ParcelId,
+                    executionResult.ActualChuteId,
+                    parcel.TargetChuteId);
+                _metrics?.RecordSortingSuccess(0);
+            }
+            else
+            {
+                _logger.LogError(
+                    "包裹 {ParcelId} 分拣失败：失败原因={FailureReason}，实际到达格口={ActualChuteId}",
+                    parcel.ParcelId,
+                    executionResult.FailureReason,
+                    executionResult.ActualChuteId);
+                _metrics?.RecordSortingFailure(0);
+            }
         }
     }
 

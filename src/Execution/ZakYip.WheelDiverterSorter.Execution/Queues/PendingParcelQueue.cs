@@ -37,7 +37,12 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
     /// <summary>
     /// 添加包裹到待执行队列
     /// </summary>
-    public void Enqueue(long parcelId, long targetChuteId, string wheelNodeId, int timeoutSeconds)
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <param name="wheelNodeId">摆轮节点ID</param>
+    /// <param name="timeoutSeconds">超时时间（秒）</param>
+    /// <param name="preGeneratedPath">预生成的分拣路径（TD-062: 路径预生成优化）</param>
+    public void Enqueue(long parcelId, long targetChuteId, string wheelNodeId, int timeoutSeconds, ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath preGeneratedPath)
     {
         var entry = new PendingParcelEntry
         {
@@ -45,7 +50,8 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
             TargetChuteId = targetChuteId,
             WheelNodeId = wheelNodeId,
             EnqueuedAt = _clock.LocalNow,
-            TimeoutAt = _clock.LocalNow.AddSeconds(timeoutSeconds)
+            TimeoutAt = _clock.LocalNow.AddSeconds(timeoutSeconds),
+            PreGeneratedPath = preGeneratedPath
         };
 
         if (_pendingParcels.TryAdd(parcelId, entry))
@@ -209,6 +215,15 @@ public sealed record PendingParcelEntry
     /// 超时时间
     /// </summary>
     public required DateTime TimeoutAt { get; init; }
+
+    /// <summary>
+    /// 预生成的分拣路径（TD-062: 路径预生成优化）
+    /// </summary>
+    /// <remarks>
+    /// 在包裹加入队列时即生成路径，WheelFront传感器触发时直接执行，
+    /// 避免实时生成路径的延迟。路径包含完整的摆轮转向指令。
+    /// </remarks>
+    public required ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath PreGeneratedPath { get; init; }
 }
 
 /// <summary>
@@ -224,7 +239,12 @@ public interface IPendingParcelQueue
     /// <summary>
     /// 添加包裹到待执行队列
     /// </summary>
-    void Enqueue(long parcelId, long targetChuteId, string wheelNodeId, int timeoutSeconds);
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <param name="wheelNodeId">摆轮节点ID</param>
+    /// <param name="timeoutSeconds">超时时间（秒）</param>
+    /// <param name="preGeneratedPath">预生成的分拣路径（TD-062: 路径预生成优化）</param>
+    void Enqueue(long parcelId, long targetChuteId, string wheelNodeId, int timeoutSeconds, ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath preGeneratedPath);
 
     /// <summary>
     /// 当WheelFront传感器触发时，取出对应包裹
