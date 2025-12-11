@@ -389,6 +389,82 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         }
     }
 
+    public async Task BroadcastSortingCompletedAsync(
+        Core.Abstractions.Upstream.SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        if (_disposed)
+        {
+            throw new ObjectDisposedException(nameof(TouchSocketTcpRuleEngineServer));
+        }
+
+        if (!_isRunning || _service == null)
+        {
+            _logger.LogWarning(
+                "[{LocalTime}] [服务端模式-广播失败] TCP服务器未运行，无法广播分拣完成通知: ParcelId={ParcelId}",
+                _systemClock.LocalNow,
+                notification.ParcelId);
+            return;
+        }
+
+        _logger.LogInformation(
+            "[{LocalTime}] [服务端模式-广播] 准备向 {ClientCount} 个客户端广播分拣完成通知: ParcelId={ParcelId}, ActualChuteId={ActualChuteId}, IsSuccess={IsSuccess}",
+            _systemClock.LocalNow,
+            _clients.Count,
+            notification.ParcelId,
+            notification.ActualChuteId,
+            notification.IsSuccess);
+
+        var notificationDto = new SortingCompletedNotificationDto
+        {
+            ParcelId = notification.ParcelId,
+            ActualChuteId = notification.ActualChuteId,
+            CompletedAt = notification.CompletedAt,
+            IsSuccess = notification.IsSuccess,
+            FinalStatus = notification.FinalStatus,
+            FailureReason = notification.FailureReason
+        };
+
+        var json = JsonSerializer.Serialize(notificationDto);
+        var bytes = Encoding.UTF8.GetBytes(json + "\n");
+
+        var disconnectedClients = new List<string>();
+
+        foreach (var kvp in _clients)
+        {
+            try
+            {
+                var socketClient = _service?.GetClient(kvp.Key);
+                if (socketClient != null)
+                {
+                    await socketClient.SendAsync(bytes);
+
+                    _logger.LogDebug(
+                        "[{LocalTime}] [服务端模式-广播] 已向客户端 {ClientId} 广播分拣完成通知: ParcelId={ParcelId}",
+                        _systemClock.LocalNow,
+                        kvp.Key,
+                        notification.ParcelId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "[{LocalTime}] [服务端模式-广播失败] 向客户端 {ClientId} 广播分拣完成通知失败: {Message}",
+                    _systemClock.LocalNow,
+                    kvp.Key,
+                    ex.Message);
+                disconnectedClients.Add(kvp.Key);
+            }
+        }
+
+        // 清理断开的客户端
+        foreach (var clientId in disconnectedClients)
+        {
+            _clients.TryRemove(clientId, out _);
+        }
+    }
+
     private static void ValidateTcpServerOptions(UpstreamConnectionOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.TcpServer))

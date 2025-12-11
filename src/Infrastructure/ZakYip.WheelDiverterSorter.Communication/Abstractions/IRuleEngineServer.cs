@@ -66,6 +66,16 @@ public interface IRuleEngineServer : IDisposable
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 向所有连接的客户端广播分拣完成通知
+    /// Broadcast sorting completed notification to all connected clients
+    /// </summary>
+    /// <param name="notification">分拣完成通知 / Sorting completed notification</param>
+    /// <param name="cancellationToken">取消令牌 / Cancellation token</param>
+    Task BroadcastSortingCompletedAsync(
+        Core.Abstractions.Upstream.SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 客户端连接事件
     /// Client connected event
     /// </summary>

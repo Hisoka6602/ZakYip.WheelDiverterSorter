@@ -57,6 +57,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// PR-UPSTREAM01: 移除 HTTP 模式支持。
     /// PR-TOUCHSOCKET01: 使用 TouchSocket 实现的 TCP 客户端。
     /// PR-HOTRELOAD: 每次创建时获取最新配置，支持热更新。
+    /// PR-SERVER-ADAPTER: 在Server模式下，返回ServerModeClientAdapter包装IRuleEngineServer。
     /// 对于不支持的通信模式，会记录警告并使用 TCP 模式作为降级方案，确保程序不会崩溃。
     /// </remarks>
     public IUpstreamRoutingClient CreateClient()
@@ -66,6 +67,13 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
         
         try
         {
+            // PR-SERVER-ADAPTER: 如果是服务端模式，创建适配器包装服务器
+            if (options.ConnectionMode == ConnectionMode.Server)
+            {
+                return CreateServerModeAdapter(options);
+            }
+
+            // 客户端模式：根据通信协议创建对应客户端
             return options.Mode switch
             {
                 CommunicationMode.Tcp => new TouchSocketTcpRuleEngineClient(
@@ -129,6 +137,29 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
         return new TouchSocketTcpRuleEngineClient(
             _loggerFactory.CreateLogger<TouchSocketTcpRuleEngineClient>(),
             fallbackOptions,
+            _systemClock);
+    }
+
+    /// <summary>
+    /// 创建服务端模式适配器
+    /// </summary>
+    /// <remarks>
+    /// PR-SERVER-ADAPTER: 在Server模式下，创建ServerModeClientAdapter包装IRuleEngineServer。
+    /// 适配器将IUpstreamRoutingClient接口调用转换为IRuleEngineServer的广播调用。
+    /// </remarks>
+    private IUpstreamRoutingClient CreateServerModeAdapter(UpstreamConnectionOptions options)
+    {
+        var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
+        logger.LogInformation("创建服务端模式适配器，通信模式: {Mode}", options.Mode);
+
+        // 创建RuleEngine服务器实例
+        var serverFactory = new RuleEngineServerFactory(_loggerFactory, _systemClock);
+        var server = serverFactory.CreateServer(options);
+
+        // 使用适配器包装服务器，实现IUpstreamRoutingClient接口
+        return new Adapters.ServerModeClientAdapter(
+            server,
+            _loggerFactory.CreateLogger<Adapters.ServerModeClientAdapter>(),
             _systemClock);
     }
 }

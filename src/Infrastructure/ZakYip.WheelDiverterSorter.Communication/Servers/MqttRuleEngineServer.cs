@@ -206,6 +206,51 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             parcelId);
     }
 
+    public async Task BroadcastSortingCompletedAsync(
+        Core.Abstractions.Upstream.SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        if (!_isRunning || _mqttServer == null)
+        {
+            _logger.LogWarning("MQTT服务器未运行，无法广播分拣完成通知");
+            return;
+        }
+
+        var notificationDto = new SortingCompletedNotificationDto
+        {
+            ParcelId = notification.ParcelId,
+            ActualChuteId = notification.ActualChuteId,
+            CompletedAt = notification.CompletedAt,
+            IsSuccess = notification.IsSuccess,
+            FinalStatus = notification.FinalStatus,
+            FailureReason = notification.FailureReason
+        };
+
+        var json = JsonSerializer.Serialize(notificationDto);
+        var payload = Encoding.UTF8.GetBytes(json);
+
+        var message = new MqttApplicationMessageBuilder()
+            .WithTopic(_options.MqttTopic)
+            .WithPayload(payload)
+            .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)
+            .WithRetainFlag(false)
+            .Build();
+
+        await _mqttServer.InjectApplicationMessage(
+            new InjectedMqttApplicationMessage(message)
+            {
+                SenderClientId = "RuleEngineServer"
+            });
+
+        _logger.LogInformation(
+            "[{LocalTime}] 已向主题 {Topic} 广播分拣完成通知: ParcelId={ParcelId}",
+            _systemClock.LocalNow,
+            _options.MqttTopic,
+            notification.ParcelId);
+    }
+
     private Task OnClientConnectedAsync(ClientConnectedEventArgs args)
     {
         var clientId = args.ClientId;
