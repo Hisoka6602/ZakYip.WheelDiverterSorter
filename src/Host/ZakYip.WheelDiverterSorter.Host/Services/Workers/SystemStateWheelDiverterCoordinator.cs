@@ -87,13 +87,22 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                                 currentState);
 
                             // 当系统进入 Running 状态时，启动所有摆轮并设置为直行
-                            if (currentState == SystemState.Running && _lastKnownState != SystemState.Running)
+                            // 注意：外层已检查 currentState != _lastKnownState，确保只在状态转换时触发
+                            if (currentState == SystemState.Running)
                             {
+                                _logger.LogInformation(
+                                    "系统状态转换到 Running，准备启动摆轮 (从 {FromState} → {ToState})",
+                                    _lastKnownState,
+                                    currentState);
                                 await StartAndInitializeWheelDivertersAsync(stoppingToken);
                             }
                             // 当系统从 Running 状态切换到其他状态时，停止所有摆轮
-                            else if (_lastKnownState == SystemState.Running && currentState != SystemState.Running)
+                            else if (_lastKnownState == SystemState.Running)
                             {
+                                _logger.LogInformation(
+                                    "系统状态离开 Running，准备停止摆轮 (从 {FromState} → {ToState})",
+                                    _lastKnownState,
+                                    currentState);
                                 await StopAllWheelDivertersAsync(stoppingToken);
                             }
 

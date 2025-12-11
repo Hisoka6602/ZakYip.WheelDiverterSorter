@@ -122,6 +122,16 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                                 // 触发IO联动
                                 await TriggerIoLinkageAsync(buttonType, stoppingToken);
                             }
+                            // 检测急停按钮从按下到释放的状态变化（下降沿）
+                            else if (!isPressed && wasPressed && buttonType == PanelButtonType.EmergencyStop)
+                            {
+                                _logger.LogInformation(
+                                    "检测到急停按钮解除：{ButtonType}，触发Reset状态转换",
+                                    buttonType);
+
+                                // 急停解除时，触发Reset按钮的IO联动以自动恢复系统
+                                await TriggerIoLinkageAsync(PanelButtonType.Reset, stoppingToken);
+                            }
 
                             // 更新状态缓存
                             _lastButtonStates[buttonType] = isPressed;

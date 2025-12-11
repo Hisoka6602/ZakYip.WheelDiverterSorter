@@ -93,7 +93,7 @@ public class SystemStateWheelDiverterCoordinatorTests
     }
 
     /// <summary>
-    /// 测试状态转换到 Running 时调用 PassThroughAllAsync
+    /// 测试状态转换到 Running 时调用 RunAllAsync 和 PassThroughAllAsync
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_ShouldCallPassThroughAll_WhenStateChangesToRunning()
@@ -109,6 +109,16 @@ public class SystemStateWheelDiverterCoordinatorTests
         _mockStateManager
             .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
+
+        _mockWheelDiverterService
+            .Setup(s => s.RunAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WheelDiverterOperationResult
+            {
+                IsSuccess = true,
+                SuccessCount = 2,
+                TotalCount = 2,
+                FailedDriverIds = new List<string>()
+            });
 
         _mockWheelDiverterService
             .Setup(s => s.PassThroughAllAsync(It.IsAny<CancellationToken>()))
@@ -142,15 +152,20 @@ public class SystemStateWheelDiverterCoordinatorTests
             // 预期的取消异常
         }
 
-        // Assert - 验证 PassThroughAllAsync 被调用
+        // Assert - 验证 RunAllAsync 和 PassThroughAllAsync 都被调用
+        _mockWheelDiverterService.Verify(
+            s => s.RunAllAsync(It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce(),
+            "当状态转换到 Running 时应先调用 RunAllAsync 启动摆轮");
+        
         _mockWheelDiverterService.Verify(
             s => s.PassThroughAllAsync(It.IsAny<CancellationToken>()),
             Times.AtLeastOnce(),
-            "当状态转换到 Running 时应调用 PassThroughAllAsync");
+            "当状态转换到 Running 时应调用 PassThroughAllAsync 设置摆轮为直行");
     }
 
     /// <summary>
-    /// 测试 PassThroughAllAsync 成功时的日志记录
+    /// 测试 RunAllAsync 和 PassThroughAllAsync 成功时的日志记录
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_ShouldLogSuccess_WhenPassThroughAllSucceeds()
@@ -165,6 +180,16 @@ public class SystemStateWheelDiverterCoordinatorTests
         _mockStateManager
             .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
+
+        _mockWheelDiverterService
+            .Setup(s => s.RunAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WheelDiverterOperationResult
+            {
+                IsSuccess = true,
+                SuccessCount = 3,
+                TotalCount = 3,
+                FailedDriverIds = new List<string>()
+            });
 
         _mockWheelDiverterService
             .Setup(s => s.PassThroughAllAsync(It.IsAny<CancellationToken>()))
@@ -210,7 +235,7 @@ public class SystemStateWheelDiverterCoordinatorTests
     }
 
     /// <summary>
-    /// 测试 PassThroughAllAsync 部分失败时的日志记录
+    /// 测试 RunAllAsync 或 PassThroughAllAsync 部分失败时的日志记录
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_ShouldLogWarning_WhenPassThroughAllPartiallyFails()
@@ -225,6 +250,16 @@ public class SystemStateWheelDiverterCoordinatorTests
         _mockStateManager
             .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
+
+        _mockWheelDiverterService
+            .Setup(s => s.RunAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WheelDiverterOperationResult
+            {
+                IsSuccess = true,
+                SuccessCount = 3,
+                TotalCount = 3,
+                FailedDriverIds = new List<string>()
+            });
 
         _mockWheelDiverterService
             .Setup(s => s.PassThroughAllAsync(It.IsAny<CancellationToken>()))
@@ -311,7 +346,7 @@ public class SystemStateWheelDiverterCoordinatorTests
     }
 
     /// <summary>
-    /// 测试从 Paused 恢复到 Running 也会触发 PassThroughAllAsync
+    /// 测试从 Paused 恢复到 Running 也会触发 RunAllAsync 和 PassThroughAllAsync
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_ShouldCallPassThroughAll_WhenResumingFromPaused()
@@ -326,6 +361,16 @@ public class SystemStateWheelDiverterCoordinatorTests
         _mockStateManager
             .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
+
+        _mockWheelDiverterService
+            .Setup(s => s.RunAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WheelDiverterOperationResult
+            {
+                IsSuccess = true,
+                SuccessCount = 2,
+                TotalCount = 2,
+                FailedDriverIds = new List<string>()
+            });
 
         _mockWheelDiverterService
             .Setup(s => s.PassThroughAllAsync(It.IsAny<CancellationToken>()))
@@ -359,7 +404,12 @@ public class SystemStateWheelDiverterCoordinatorTests
             // 预期的取消异常
         }
 
-        // Assert - 验证 PassThroughAllAsync 被调用
+        // Assert - 验证 RunAllAsync 和 PassThroughAllAsync 都被调用
+        _mockWheelDiverterService.Verify(
+            s => s.RunAllAsync(It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce(),
+            "从 Paused 恢复到 Running 时应先调用 RunAllAsync");
+        
         _mockWheelDiverterService.Verify(
             s => s.PassThroughAllAsync(It.IsAny<CancellationToken>()),
             Times.AtLeastOnce(),

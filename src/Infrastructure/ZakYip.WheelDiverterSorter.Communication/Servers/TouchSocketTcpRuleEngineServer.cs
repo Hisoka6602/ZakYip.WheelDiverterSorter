@@ -307,8 +307,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         {
             try
             {
-                var socketClient = _service?.GetClient(kvp.Key);
-                if (socketClient != null)
+                if (_service?.Clients.TryGetClient(kvp.Key, out var socketClient) ?? false)
                 {
                     await socketClient.SendAsync(bytes);
 
@@ -358,8 +357,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         {
             try
             {
-                var socketClient = _service?.GetClient(kvp.Key);
-                if (socketClient is not null)
+                if (_service?.Clients.TryGetClient(kvp.Key, out var socketClient) ?? false)
                 {
                     await socketClient.SendAsync(bytes);
 
@@ -434,8 +432,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         {
             try
             {
-                var socketClient = _service?.GetClient(kvp.Key);
-                if (socketClient is not null)
+                if (_service?.Clients.TryGetClient(kvp.Key, out var socketClient) ?? false)
                 {
                     await socketClient.SendAsync(bytes);
 
