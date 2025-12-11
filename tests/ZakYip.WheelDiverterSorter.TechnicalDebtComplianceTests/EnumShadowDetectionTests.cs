@@ -112,6 +112,14 @@ public class EnumShadowDetectionTests
         var similarEnums = new List<string>();
         var checkedPairs = new HashSet<string>();
         
+        // 白名单：已确认为合理的相似枚举对（有不同的语义和用途）
+        var whitelist = new HashSet<string>
+        {
+            "ConnectionMode|ShuDiNiaoMode",  // 通用通信模式 vs 数递鸟厂商专用模式
+            "DriverVendorType|SensorVendorType",  // 驱动器厂商 vs 传感器厂商
+            "DiverterDirection|DiverterSide"  // 硬件驱动层方向 vs 拓扑模型层方向
+        };
+        
         foreach (var enum1 in enums)
         {
             foreach (var enum2 in enums)
@@ -124,6 +132,9 @@ public class EnumShadowDetectionTests
                 
                 if (checkedPairs.Contains(pairKey)) continue;
                 checkedPairs.Add(pairKey);
+                
+                // 跳过白名单中的枚举对
+                if (whitelist.Contains(pairKey)) continue;
                 
                 // 计算相似度：相同成员数 / 总成员数
                 var commonMembers = enum1.Value.Intersect(enum2.Value).Count();
