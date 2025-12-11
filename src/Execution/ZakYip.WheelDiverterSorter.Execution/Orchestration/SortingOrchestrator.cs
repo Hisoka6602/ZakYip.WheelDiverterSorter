@@ -25,6 +25,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Strategy;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
+using ZakYip.WheelDiverterSorter.Execution.Queues;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
@@ -79,6 +80,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteSelectionService? _chuteSelectionService;
     private readonly object? _serverBackgroundService; // UpstreamServerBackgroundService (optional, avoid direct type reference for layering)
     
+    // TD-062: 拓扑驱动分拣流程依赖
+    private readonly IPendingParcelQueue? _pendingQueue;
+    private readonly IChutePathTopologyRepository? _topologyRepository;
+    private readonly IConveyorSegmentRepository? _segmentRepository;
+    private readonly ISafeExecutionService? _safeExecutor;
+    
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
     private readonly ConcurrentDictionary<long, SwitchingPath> _parcelPaths;
@@ -124,7 +131,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
         IChuteSelectionService? chuteSelectionService = null,
-        object? serverBackgroundService = null) // UpstreamServerBackgroundService (optional)
+        object? serverBackgroundService = null, // UpstreamServerBackgroundService (optional)
+        IPendingParcelQueue? pendingQueue = null, // TD-062: 拓扑驱动分拣队列
+        IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
+        IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
+        ISafeExecutionService? safeExecutor = null) // TD-062: 安全执行服务
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -146,6 +157,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _timeoutCalculator = timeoutCalculator;
         _chuteSelectionService = chuteSelectionService;
         _serverBackgroundService = serverBackgroundService;
+        
+        // TD-062: 拓扑驱动分拣流程依赖（可选）
+        _pendingQueue = pendingQueue;
+        _topologyRepository = topologyRepository;
+        _segmentRepository = segmentRepository;
+        _safeExecutor = safeExecutor;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();

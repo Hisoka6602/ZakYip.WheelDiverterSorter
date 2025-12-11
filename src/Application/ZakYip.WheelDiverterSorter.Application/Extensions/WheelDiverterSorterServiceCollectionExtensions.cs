@@ -436,6 +436,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var serverBackgroundService = sp.GetServices<object>()
                 .FirstOrDefault(s => s.GetType().Name == "UpstreamServerBackgroundService");
             
+            // TD-062: 拓扑驱动分拣流程依赖（可选）
+            var pendingQueue = sp.GetService<IPendingParcelQueue>();
+            var topologyRepository = sp.GetService<IChutePathTopologyRepository>();
+            var segmentRepository = sp.GetService<IConveyorSegmentRepository>();
+            var safeExecutor = sp.GetService<ISafeExecutionService>();
+            
             return new SortingOrchestrator(
                 sensorEventProvider,
                 upstreamClient,
@@ -456,7 +462,11 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pathHealthChecker,
                 timeoutCalculator,
                 chuteSelectionService,
-                serverBackgroundService);
+                serverBackgroundService,
+                pendingQueue,
+                topologyRepository,
+                segmentRepository,
+                safeExecutor);
         });
 
         // 注册路由-拓扑一致性检查器
