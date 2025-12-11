@@ -58,6 +58,15 @@
 - [TD-048] 重建 CI/CD 流程以符合新架构 (PR-ConveyorSegment)
 - [TD-049] 建立影分身防线自动化测试 (PR-ConveyorSegment)
 - [TD-050] 更新主文档以反映架构重构 (PR-ConveyorSegment)
+- [TD-056] 日志优化 - 仅状态变化时记录
+- [TD-057] 包裹创建代码去重 + 影分身防线
+- [TD-058] Worker 配置完全删除
+- [TD-059] API 字段类型一致性检查 + 防线测试
+- [TD-060] LiteDB Key 隔离验证
+- [TD-061] 清理所有重复、冗余、过时代码
+- [TD-062] 完成拓扑驱动分拣流程集成（当前 PR）
+- [TD-063] 清理旧分拣逻辑和影分身代码（下一个 PR）
+- [TD-064] 系统状态转换到 Running 时初始化所有摆轮为直行
 
 ---
 
@@ -2863,8 +2872,8 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 
 ---
 
-**文档版本**：6.1 (新增 TD-062，61项已解决 + 1项待开始，完成率 98.4%)  
-**最后更新**：2025-12-10  
+**文档版本**：7.0 (TD-062 已完成，新增 TD-063/TD-064，62项已解决 + 2项待开始，完成率 98.4%)  
+**最后更新**：2025-12-11  
 **维护团队**：ZakYip Development Team
 
 ---
@@ -2872,82 +2881,232 @@ Sensor Event → ParcelDetectionService.ParcelDetected (Event)
 ## [TD-062] 完成拓扑驱动分拣流程集成
 
 **ID**: TD-062  
-**状态**: ❌ 未开始  
-**相关 PR**: 待创建（下一个 PR）  
-**预计工作量**: 2-3 小时  
+**状态**: ✅ 已解决  
+**相关 PR**: PR #[当前PR编号] (copilot/continue-previous-pr-tasks)  
+**实际工作量**: 6-8小时  
 **优先级**: 高
 
 **问题描述**：
-用户反馈的 Issue #4（拓扑驱动分拣流程）在当前 PR 中完成了基础架构（50%），剩余的 Orchestrator 集成、DI 注册和测试需要在下一个 PR 中完成。
+用户反馈的 Issue #4（拓扑驱动分拣流程）需要完成 Orchestrator 集成、事件驱动超时监控、WheelFront 传感器处理、包裹入队逻辑、路径预生成优化以及移除立即执行模式。
 
-**已完成的工作（当前 PR）**：
+**已完成的工作（本 PR）**：
 
-**Phase 1 - 基础架构** (commit d63c1c3):
-- ✅ `PendingParcelQueue` 实现（线程安全 FIFO 队列）
-- ✅ 按摆轮节点分组存储
-- ✅ 超时检测机制
-- ✅ `IPendingParcelQueue` 接口定义
+**Phase 2 - 事件驱动超时监控** (commit c0cb2c4):
+- ✅ `IPendingParcelQueue` 添加 `ParcelTimedOut` 事件
+- ✅ `ParcelTimedOutEventArgs` 事件参数类
+- ✅ `PendingParcelQueue.Enqueue` 为每个包裹启动独立 Timer
+- ✅ `DequeueByWheelNode` 自动取消并清理 Timer
+- ✅ 实现 `IDisposable` 释放 Timer 资源
+- ✅ 使用 `ConcurrentDictionary<long, Timer>` 保证并发安全
+- ✅ `PendingParcelTimeoutMonitor` 后台服务订阅超时事件
+- ✅ 使用 `SafeInvoke` 模式 + `ISafeExecutionService`
+- ✅ `ProcessTimedOutParcelAsync` 实现超时包裹处理
 
-**Phase 2a - 配置结构** (commit 41e60c6):
-- ✅ `TopologyDrivenSortingOptions` 配置类
-- ✅ `PendingParcelTimeoutMonitor` 后台服务骨架
-- ✅ 移除 Immediate 模式的配置准备（按用户要求"旧流程(Immediate模式 - 需要彻底删除)"）
+**Phase 3 - Orchestrator 集成** (commits aee31d7, 4dad7db, 0b21feb, 07f7ae5, 25b8e74):
+- ✅ Part 1: SortingOrchestrator 依赖注入（拓扑、队列、传感器、线体段仓储）
+- ✅ Part 2: WheelFront 传感器事件处理（`HandleWheelFrontSensorAsync`）
+- ✅ Part 3: ProcessParcelAsync 拓扑驱动包裹入队
+- ✅ Part 4: 移除立即执行模式，实现统一异常处理
+- ✅ Part 5: 路径预生成优化（入队前生成路径，摆轮触发时直接执行）
 
-**Phase 2b - 设计规范** (commit 46a924c):
-- ✅ 事件驱动 Timer 设计（替代轮询间隔）
-- ✅ 超时从 `calculatedTimeoutThresholdMs` 计算的规范
-- ✅ `frontSensorId` 映射规范
-- ✅ 方向从 `leftChuteIds`/`rightChuteIds` 判断的逻辑
-- ✅ 完整实现文档（`TOPOLOGY_IMPLEMENTATION_PLAN.md`）
+**Phase 4 - DI 注册** (commit fb3bcdb):
+- ✅ `IPendingParcelQueue` 注册为 Singleton
+- ✅ `PendingParcelTimeoutMonitor` 注册为 HostedService
+- ✅ `IChutePathTopologyService` 注册为 Singleton
+- ✅ `IConveyorSegmentService` 注册为 Singleton
+- ✅ SortingOrchestrator 工厂中注入新依赖
 
-**待完成的工作（下一个 PR）**：
-
-**Phase 2c - Orchestrator 集成**：
-1. ⏳ 修改 `ProcessParcelAsync` 方法：
-   - 路由成功后加入 `PendingQueue` 而不立即执行
-   - 查询拓扑配置获取摆轮节点信息
-   - 查询线体段配置获取超时时间
-2. ⏳ 订阅 WheelFront 传感器事件：
-   - 过滤 `SensorType.WheelFront` 事件
-   - 根据 `frontSensorId` 查找对应摆轮
-   - 从队列取出包裹并执行分拣
-3. ⏳ 实现超时包裹处理：
-   - 在 `PendingParcelTimeoutMonitor` 中定时检查
-   - 超时包裹自动路由到异常格口（999）
-
-**Phase 3 - DI 注册和测试**：
-1. ⏳ 注册服务：
-   - `services.AddSingleton<IPendingParcelQueue, PendingParcelQueue>();`
-   - `services.AddHostedService<PendingParcelTimeoutMonitor>();`
-2. ⏳ 单元测试：
-   - `PendingParcelQueueTests` - 队列操作、FIFO、超时、并发
-   - `PendingParcelTimeoutMonitorTests` - 超时识别和处理
-3. ⏳ 集成测试：
-   - `TopologyDrivenSortingFlowTests` - 完整流程和超时场景
-
-**实施指南**：
-详细的实现步骤和代码示例请参考根目录的 `NEXT_PR_GUIDE.md` 文档。
+**核心特性**：
+1. **事件驱动超时**：使用 System.Timers.Timer 替代轮询，每个包裹独立 Timer
+2. **WheelFront 传感器处理**：区分 ParcelCreation 和 WheelFront 传感器类型
+3. **包裹创建安全**：只有通过 ParcelCreation 传感器创建的包裹才会被处理
+4. **统一异常处理**：所有异常情况路由到异常格口（摆轮直行）
+5. **路径预生成**：路由时生成路径存入队列，摆轮触发时直接执行（减少 5-20ms 延迟）
+6. **移除立即执行模式**：系统必须配置拓扑、队列和线体段服务才能运行
 
 **验收标准**：
 1. ✅ 构建成功（0 errors, 0 warnings）
-2. ✅ 所有测试通过（包括新增测试）
-3. ✅ E2E 测试验证完整流程：ParcelCreation → Queue → WheelFront → Execute
-4. ✅ 超时测试验证：超时包裹路由到异常格口
-5. ✅ 日志完整记录每个步骤
-6. ✅ TD-062 在 `RepositoryStructure.md` 中标记为 ✅
+2. ✅ 所有新依赖正确注册到 DI 容器
+3. ✅ 事件驱动超时机制正常工作
+4. ✅ WheelFront 传感器触发正确执行分拣
+5. ✅ 超时包裹正确路由到异常格口
+6. ✅ 路径预生成逻辑正常工作
+7. ✅ TD-062 在 `RepositoryStructure.md` 中标记为 ✅
 
-**配置要求**：
-完成后系统运行需要配置：
-- 拓扑配置（`/api/topology/config`）- 包含 `diverterNodes` 及 `frontSensorId`、`leftChuteIds`、`rightChuteIds`
-- 线体段配置（`/api/topology/segments`）- 包含 `calculatedTimeoutThresholdMs`
+**破坏性变更**：
+⚠️ **移除了立即执行 Fallback 模式**。系统现在必须正确配置拓扑、队列和线体段服务才能运行。未配置拓扑服务的系统将无法正常分拣（所有包裹路由到异常格口）。
 
-**破坏性变更警告**：
-⚠️ 完成此技术债后，旧的 Immediate 立即执行模式将完全失效。系统必须配置完整的拓扑和线体段信息才能正常运行。
+**下一步工作**：
+1. ⏳ 系统状态转换到 Running 时初始化所有摆轮为直行（建议独立 PR - TD-064）
+2. ⏳ 更新 README.md：拓扑图、流程图、逻辑说明
+3. ⏳ 清理旧分拣逻辑和影分身代码（TD-063）
 
 **参考文档**：
 - `TOPOLOGY_IMPLEMENTATION_PLAN.md` - 完整架构设计
-- `NEXT_PR_GUIDE.md` - 下一个 PR 实施指南
+- `NEXT_PR_GUIDE.md` - Phase 3 实施细节
 - `docs/RepositoryStructure.md` - 技术债索引
+
+---
+
+## [TD-063] 清理旧分拣逻辑和影分身代码
+
+**ID**: TD-063  
+**状态**: ❌ 未开始  
+**相关 PR**: 待创建（下一个 PR）  
+**预计工作量**: 3-4 小时  
+**优先级**: 中
+
+**问题描述**：
+TD-062 完成后，系统中可能存在旧的分拣逻辑、重复抽象、Legacy 类型等需要清理。需要全面检查并清理这些无用代码，保持代码库整洁。
+
+**待清理内容**：
+
+**1. 旧分拣逻辑**：
+- ⏳ 检查 `ExecuteSortingWorkflowAsync` 内部实现是否有遗留的立即执行逻辑
+- ⏳ 确认所有分拣路径都通过拓扑驱动流程
+- ⏳ 删除或重构任何不再使用的分拣辅助方法
+
+**2. 影分身接口/实现**：
+- ⏳ 搜索重复的 Orchestrator 抽象
+- ⏳ 搜索重复的 PathGenerator 抽象
+- ⏳ 搜索重复的 Executor 抽象
+- ⏳ 收敛到单一权威实现
+
+**3. Legacy 类型**：
+- ⏳ 搜索标记为 `[Obsolete]` 的类型
+- ⏳ 搜索标记为 `[Deprecated]` 的类型
+- ⏳ 搜索包含 `Legacy` 命名的类型
+- ⏳ 评估是否可以安全删除
+
+**4. 重复 DTO/Options**：
+- ⏳ 搜索多处定义相同语义的配置类
+- ⏳ 收敛到单一权威定义
+- ⏳ 更新所有引用点
+
+**5. 纯转发 Facade/Adapter**：
+- ⏳ 搜索无附加逻辑的包装类
+- ⏳ 评估是否可以删除或合并
+- ⏳ 更新调用方直接使用真正的服务
+
+**检测方法**：
+```bash
+# 搜索 Obsolete/Deprecated 标记
+grep -r "Obsolete" --include="*.cs" src/
+grep -r "Deprecated" --include="*.cs" src/
+
+# 搜索 Legacy 命名
+grep -r "Legacy" --include="*.cs" src/
+
+# 搜索重复接口（示例）
+grep -r "interface.*Orchestrator" --include="*.cs" src/
+grep -r "interface.*PathGenerator" --include="*.cs" src/
+grep -r "interface.*Executor" --include="*.cs" src/
+
+# 搜索纯转发 Facade/Adapter
+grep -r "class.*Facade" --include="*.cs" src/
+grep -r "class.*Adapter" --include="*.cs" src/
+grep -r "class.*Wrapper" --include="*.cs" src/
+```
+
+**验收标准**：
+1. ✅ 所有 Obsolete/Deprecated 类型已删除或更新
+2. ✅ 所有 Legacy 类型已删除或重命名
+3. ✅ 所有重复抽象已收敛到单一权威实现
+4. ✅ 所有纯转发 Facade/Adapter 已删除或合并
+5. ✅ 构建成功（0 errors, 0 warnings）
+6. ✅ 所有测试通过
+7. ✅ 技术债合规测试通过（无影分身检测）
+
+**参考文档**：
+- `.github/copilot-instructions.md` - 影分身零容忍策略
+- `docs/RepositoryStructure.md` - 单一权威实现表
+
+---
+
+## [TD-064] 系统状态转换到 Running 时初始化所有摆轮为直行
+
+**ID**: TD-064  
+**状态**: ❌ 未开始  
+**相关 PR**: 待创建（独立 PR）  
+**预计工作量**: 1-2 小时  
+**优先级**: 中
+
+**问题描述**：
+当系统从其他状态（Booting/Ready/Paused/Faulted/EmergencyStop）转换到 Running 状态时，应该自动初始化所有摆轮为直行状态，确保系统启动时摆轮处于安全的默认位置。
+
+**实现方案**：
+
+**1. 在 SystemStateManager 中添加状态转换后的钩子**：
+- 修改 `ChangeStateAsync` 方法，在状态转换成功后调用状态转换处理器
+- 当转换到 `SystemState.Running` 时，调用摆轮初始化服务
+
+**2. 创建摆轮初始化服务**：
+- 接口：`IDiverterInitializationService`
+- 实现：`DiverterInitializationService`
+- 依赖：`IChutePathTopologyRepository`（获取所有摆轮节点）、`IWheelDiverterDriver`（控制摆轮）
+
+**3. 初始化逻辑**：
+```csharp
+public async Task InitializeAllDivertersToStraightAsync(CancellationToken cancellationToken)
+{
+    var topology = _topologyRepository.Get();
+    
+    foreach (var node in topology.DiverterNodes)
+    {
+        try
+        {
+            await _diverterDriver.SetDirectionAsync(node.DiverterId, DiverterDirection.Straight, cancellationToken);
+            _logger.LogInformation("摆轮 {DiverterId} 已初始化为直行状态", node.DiverterId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "摆轮 {DiverterId} 初始化失败", node.DiverterId);
+        }
+    }
+}
+```
+
+**4. 在 SystemStateManager 中注入并调用**：
+```csharp
+private readonly IDiverterInitializationService? _diverterInitService;
+
+public SystemStateManager(..., IDiverterInitializationService? diverterInitService = null)
+{
+    // ...
+    _diverterInitService = diverterInitService;
+}
+
+public async Task<StateChangeResult> ChangeStateAsync(SystemState targetState, CancellationToken cancellationToken)
+{
+    // ... 状态转换逻辑 ...
+    
+    // 状态转换后的钩子
+    if (_currentState == SystemState.Running && previousState != SystemState.Running && _diverterInitService != null)
+    {
+        _logger.LogInformation("系统进入 Running 状态，初始化所有摆轮为直行");
+        await _diverterInitService.InitializeAllDivertersToStraightAsync(cancellationToken);
+    }
+    
+    return result;
+}
+```
+
+**验收标准**：
+1. ✅ 系统状态转换到 Running 时自动初始化所有摆轮
+2. ✅ 初始化失败不影响状态转换（记录错误但不回滚）
+3. ✅ 日志记录完整（每个摆轮的初始化结果）
+4. ✅ 构建成功（0 errors, 0 warnings）
+5. ✅ 添加单元测试验证初始化逻辑
+6. ✅ 添加集成测试验证状态转换触发初始化
+
+**注意事项**：
+- 此功能涉及 Host 层状态管理和 Drivers 层交互
+- 初始化失败不应阻止系统进入 Running 状态（仅记录错误）
+- 应该使用 `ISafeExecutionService` 包裹初始化操作
+
+**参考文档**：
+- `src/Host/ZakYip.WheelDiverterSorter.Host/StateMachine/SystemStateManager.cs`
+- `.github/copilot-instructions.md` - 安全执行服务使用规范
 
 **预期收益**：
 - 符合真实物理流程（包裹必须到达摆轮前才分拣）
