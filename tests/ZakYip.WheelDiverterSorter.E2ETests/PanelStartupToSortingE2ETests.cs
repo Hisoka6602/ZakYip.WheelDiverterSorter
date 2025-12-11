@@ -162,7 +162,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
             _output.WriteLine($"✓ 启动按钮按下成功，结果: {startResult.IsSuccess}");
 
             // 验证线体状态
-            _stateService.Current.Should().Be(SystemOperatingState.Running, "线体应该进入Running状态");
+            _stateService.Current.Should().Be(SystemState.Running, "线体应该进入Running状态");
             _output.WriteLine($"✓ 线体状态: {_stateService.Current}");
 
             // 验证启动过程无Error日志
@@ -216,7 +216,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
 
         if (_stateService != null)
         {
-            _stateService.Current.Should().Be(SystemOperatingState.Running, "系统应该保持Running状态");
+            _stateService.Current.Should().Be(SystemState.Running, "系统应该保持Running状态");
             _output.WriteLine($"✓ 系统状态稳定: {_stateService.Current}");
         }
 

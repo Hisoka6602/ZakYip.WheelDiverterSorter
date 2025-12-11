@@ -27,7 +27,7 @@ public class PanelOperationsE2ETests
         var coordinator = new DefaultPanelIoCoordinator();
 
         // 初始状态：系统待机
-        var currentState = SystemOperatingState.Standby;
+        var currentState = SystemState.Ready;
 
         // Act & Assert: 步骤 1 - 待机状态，显示黄灯
         await signalTower.TurnOffAllAsync();
@@ -47,7 +47,7 @@ public class PanelOperationsE2ETests
         Assert.True(coordinator.IsButtonOperationAllowed(PanelButtonType.Start, currentState));
 
         // 步骤 3 - 系统切换到运行状态
-        currentState = SystemOperatingState.Running;
+        currentState = SystemState.Running;
         await signalTower.TurnOffAllAsync();
         states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: false, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -64,7 +64,7 @@ public class PanelOperationsE2ETests
         Assert.True(coordinator.IsButtonOperationAllowed(PanelButtonType.Stop, currentState));
 
         // 步骤 6 - 系统切换到停止中状态
-        currentState = SystemOperatingState.Stopping;
+        currentState = SystemState.Ready;
         await signalTower.TurnOffAllAsync();
         states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: false, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -73,7 +73,7 @@ public class PanelOperationsE2ETests
         Assert.True(towerStates[SignalTowerChannel.Yellow].IsBlinking);
 
         // 步骤 7 - 系统完全停止
-        currentState = SystemOperatingState.Stopped;
+        currentState = SystemState.Ready;
         await signalTower.TurnOffAllAsync();
         states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: false, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -96,7 +96,7 @@ public class PanelOperationsE2ETests
         var coordinator = new DefaultPanelIoCoordinator();
 
         // Act - 模拟系统故障
-        var currentState = SystemOperatingState.Faulted;
+        var currentState = SystemState.Faulted;
         await signalTower.TurnOffAllAsync();
         var states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: true, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -117,7 +117,7 @@ public class PanelOperationsE2ETests
         Assert.True(resetState.IsPressed);
 
         // 系统恢复到待机状态 - 先关闭所有灯，再设置新状态
-        currentState = SystemOperatingState.Standby;
+        currentState = SystemState.Ready;
         await signalTower.TurnOffAllAsync();
         states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: false, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -141,7 +141,7 @@ public class PanelOperationsE2ETests
         var coordinator = new DefaultPanelIoCoordinator();
 
         // 系统运行中
-        var currentState = SystemOperatingState.Running;
+        var currentState = SystemState.Running;
         await signalTower.TurnOffAllAsync();
         var states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: false, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -151,7 +151,7 @@ public class PanelOperationsE2ETests
         Assert.True(coordinator.IsButtonOperationAllowed(PanelButtonType.EmergencyStop, currentState));
 
         // 系统进入急停状态
-        currentState = SystemOperatingState.EmergencyStopped;
+        currentState = SystemState.EmergencyStop;
         await signalTower.TurnOffAllAsync();
         states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: true, upstreamConnected: true);
         await signalTower.SetChannelStatesAsync(states);
@@ -179,7 +179,7 @@ public class PanelOperationsE2ETests
         var coordinator = new DefaultPanelIoCoordinator();
 
         // Act - 系统运行中，但上游断开
-        var currentState = SystemOperatingState.Running;
+        var currentState = SystemState.Running;
         await signalTower.TurnOffAllAsync();
         var states = coordinator.DetermineSignalTowerStates(currentState, hasAlarms: false, upstreamConnected: false);
         await signalTower.SetChannelStatesAsync(states);
@@ -206,11 +206,11 @@ public class PanelOperationsE2ETests
         // Act - 执行完整的工作流程
         var workflow = new[]
         {
-            SystemOperatingState.Initializing,
-            SystemOperatingState.Standby,
-            SystemOperatingState.Running,
-            SystemOperatingState.Stopping,
-            SystemOperatingState.Stopped
+            SystemState.Booting,
+            SystemState.Ready,
+            SystemState.Running,
+            SystemState.Ready,
+            SystemState.Ready
         };
 
         foreach (var state in workflow)

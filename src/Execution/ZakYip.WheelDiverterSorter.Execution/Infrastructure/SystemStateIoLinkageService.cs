@@ -54,7 +54,7 @@ public class SystemStateIoLinkageService
     public async Task<OperationResult> HandleStartAsync(CancellationToken cancellationToken = default)
     {
         // 1. 尝试状态切换
-        var stateResult = _systemStateManager.TryHandleStartAsync();
+        var stateResult = await _systemStateManager.TryHandleStartAsync();
         if (!stateResult.IsSuccess)
         {
             // 状态切换失败，不执行 IO 联动
@@ -62,7 +62,7 @@ public class SystemStateIoLinkageService
         }
 
         // 2. 状态切换成功，执行 IO 联动
-        var currentState = _systemStateManager.Current;
+        var currentState = _systemStateManager.CurrentState;
         var linkagePoints = _linkageCoordinator.DetermineIoLinkagePoints(currentState, _linkageOptions);
 
         if (linkagePoints.Count > 0)
@@ -89,7 +89,7 @@ public class SystemStateIoLinkageService
     public async Task<OperationResult> HandleStopAsync(CancellationToken cancellationToken = default)
     {
         // 1. 尝试状态切换
-        var stateResult = _systemStateManager.TryHandleStopAsync();
+        var stateResult = await _systemStateManager.TryHandleStopAsync();
         if (!stateResult.IsSuccess)
         {
             // 状态切换失败，不执行 IO 联动
@@ -100,7 +100,7 @@ public class SystemStateIoLinkageService
         await StopAllWheelDivertersAsync(cancellationToken);
 
         // 3. 执行 IO 联动
-        var currentState = _systemStateManager.Current;
+        var currentState = _systemStateManager.CurrentState;
         var linkagePoints = _linkageCoordinator.DetermineIoLinkagePoints(currentState, _linkageOptions);
 
         if (linkagePoints.Count > 0)
@@ -123,7 +123,7 @@ public class SystemStateIoLinkageService
     public async Task<OperationResult> HandleEmergencyStopAsync(CancellationToken cancellationToken = default)
     {
         // 1. 尝试状态切换
-        var stateResult = _systemStateManager.TryHandleEmergencyStopAsync();
+        var stateResult = await _systemStateManager.TryHandleEmergencyStopAsync();
         if (!stateResult.IsSuccess)
         {
             // 状态切换失败，不执行 IO 联动
@@ -135,7 +135,7 @@ public class SystemStateIoLinkageService
         await StopAllWheelDivertersAsync(cancellationToken);
 
         // 3. 状态切换成功，执行停止联动 IO（急停时使用停止联动 IO）
-        var currentState = _systemStateManager.Current;
+        var currentState = _systemStateManager.CurrentState;
         
         // 急停时直接使用 StoppedStateIos
         IReadOnlyList<IoLinkagePoint> linkagePoints = _linkageOptions.Enabled 
@@ -159,10 +159,10 @@ public class SystemStateIoLinkageService
     /// <summary>
     /// 处理急停复位事件（包含状态切换，不执行 IO 联动）
     /// </summary>
-    public OperationResult HandleEmergencyReset()
+    public async Task<OperationResult> HandleEmergencyReset()
     {
         // 急停复位只切换状态，不执行 IO 联动
-        return _systemStateManager.TryHandleEmergencyResetAsync();
+        return await _systemStateManager.TryHandleEmergencyResetAsync();
     }
 
     /// <summary>
@@ -170,7 +170,7 @@ public class SystemStateIoLinkageService
     /// </summary>
     public SystemState GetCurrentState()
     {
-        return _systemStateManager.Current;
+        return _systemStateManager.CurrentState;
     }
 
     /// <summary>

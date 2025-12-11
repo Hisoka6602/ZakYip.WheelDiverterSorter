@@ -15,7 +15,7 @@ public class DefaultPanelIoCoordinatorTests
     public void DetermineSignalTowerStates_WhenRunning_ShouldReturnGreenLight()
     {
         // Arrange
-        var systemState = SystemOperatingState.Running;
+        var systemState = SystemState.Running;
 
         // Act
         var states = _coordinator.DetermineSignalTowerStates(systemState, hasAlarms: false, upstreamConnected: true);
@@ -30,7 +30,7 @@ public class DefaultPanelIoCoordinatorTests
     public void DetermineSignalTowerStates_WhenFaulted_ShouldReturnBlinkingRedLightAndBuzzer()
     {
         // Arrange
-        var systemState = SystemOperatingState.Faulted;
+        var systemState = SystemState.Faulted;
 
         // Act
         var states = _coordinator.DetermineSignalTowerStates(systemState, hasAlarms: true, upstreamConnected: true);
@@ -45,7 +45,7 @@ public class DefaultPanelIoCoordinatorTests
     public void DetermineSignalTowerStates_WhenEmergencyStopped_ShouldReturnSolidRedLightAndBuzzer()
     {
         // Arrange
-        var systemState = SystemOperatingState.EmergencyStopped;
+        var systemState = SystemState.EmergencyStop;
 
         // Act
         var states = _coordinator.DetermineSignalTowerStates(systemState, hasAlarms: true, upstreamConnected: true);
@@ -60,7 +60,7 @@ public class DefaultPanelIoCoordinatorTests
     public void DetermineSignalTowerStates_WhenStandby_ShouldReturnYellowLight()
     {
         // Arrange
-        var systemState = SystemOperatingState.Standby;
+        var systemState = SystemState.Ready;
 
         // Act
         var states = _coordinator.DetermineSignalTowerStates(systemState, hasAlarms: false, upstreamConnected: true);
@@ -75,7 +75,7 @@ public class DefaultPanelIoCoordinatorTests
     public void DetermineSignalTowerStates_WhenRunningWithoutUpstream_ShouldIncludeBlinkingYellow()
     {
         // Arrange
-        var systemState = SystemOperatingState.Running;
+        var systemState = SystemState.Running;
 
         // Act
         var states = _coordinator.DetermineSignalTowerStates(systemState, hasAlarms: false, upstreamConnected: false);
@@ -91,7 +91,7 @@ public class DefaultPanelIoCoordinatorTests
     {
         // Arrange
         var buttonType = PanelButtonType.Start;
-        var systemState = SystemOperatingState.Standby;
+        var systemState = SystemState.Ready;
 
         // Act
         var result = _coordinator.IsButtonOperationAllowed(buttonType, systemState);
@@ -105,7 +105,7 @@ public class DefaultPanelIoCoordinatorTests
     {
         // Arrange
         var buttonType = PanelButtonType.Start;
-        var systemState = SystemOperatingState.Running;
+        var systemState = SystemState.Running;
 
         // Act
         var result = _coordinator.IsButtonOperationAllowed(buttonType, systemState);
@@ -119,7 +119,7 @@ public class DefaultPanelIoCoordinatorTests
     {
         // Arrange
         var buttonType = PanelButtonType.Stop;
-        var systemState = SystemOperatingState.Running;
+        var systemState = SystemState.Running;
 
         // Act
         var result = _coordinator.IsButtonOperationAllowed(buttonType, systemState);
@@ -133,7 +133,7 @@ public class DefaultPanelIoCoordinatorTests
     {
         // Arrange
         var buttonType = PanelButtonType.Reset;
-        var systemState = SystemOperatingState.Faulted;
+        var systemState = SystemState.Faulted;
 
         // Act
         var result = _coordinator.IsButtonOperationAllowed(buttonType, systemState);
@@ -149,11 +149,11 @@ public class DefaultPanelIoCoordinatorTests
         var buttonType = PanelButtonType.EmergencyStop;
 
         // Act & Assert - Should be allowed in most states
-        Assert.True(_coordinator.IsButtonOperationAllowed(buttonType, SystemOperatingState.Running));
-        Assert.True(_coordinator.IsButtonOperationAllowed(buttonType, SystemOperatingState.Standby));
-        Assert.True(_coordinator.IsButtonOperationAllowed(buttonType, SystemOperatingState.Faulted));
+        Assert.True(_coordinator.IsButtonOperationAllowed(buttonType, SystemState.Running));
+        Assert.True(_coordinator.IsButtonOperationAllowed(buttonType, SystemState.Ready));
+        Assert.True(_coordinator.IsButtonOperationAllowed(buttonType, SystemState.Faulted));
 
         // Should NOT be allowed if already emergency stopped
-        Assert.False(_coordinator.IsButtonOperationAllowed(buttonType, SystemOperatingState.EmergencyStopped));
+        Assert.False(_coordinator.IsButtonOperationAllowed(buttonType, SystemState.EmergencyStop));
     }
 }

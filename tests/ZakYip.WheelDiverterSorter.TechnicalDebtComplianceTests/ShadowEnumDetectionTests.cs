@@ -12,14 +12,14 @@ namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 /// 
 /// <para><b>什么是影分身枚举？</b></para>
 /// <list type="bullet">
-///   <item><description>两个枚举表达相同或高度相似的业务概念（如 SystemState vs SystemOperatingState）</description></item>
+///   <item><description>两个枚举表达相同或高度相似的业务概念（如 SystemState vs SystemState）</description></item>
 ///   <item><description>两个枚举的值集合有显著重叠（如都有 Running/Paused/Faulted 等值）</description></item>
 ///   <item><description>名称相似度高，容易混淆（如 State vs OperatingState, Status vs StatusType）</description></item>
 /// </list>
 /// 
 /// <para><b>为什么需要这个测试？</b></para>
 /// <para>
-/// SystemState vs SystemOperatingState 影分身问题说明了之前的防线测试不够全面：
+/// SystemState vs SystemState 影分身问题说明了之前的防线测试不够全面：
 /// - 只检查了 DTO、Options、Utilities 等类型的影分身
 /// - **没有检查枚举影分身**
 /// - 导致两个状态枚举长期并存，状态不同步，引发包裹创建失败
@@ -91,7 +91,7 @@ public class ShadowEnumDetectionTests
         // Assert
         similarPairs.Should().BeEmpty(
             because: "不应存在名称高度相似的枚举，这可能表示影分身问题。" +
-                     "例如：SystemState vs SystemOperatingState（相似度82%）。" +
+                     "例如：SystemState vs SystemState（相似度82%）。" +
                      Environment.NewLine +
                      "发现的相似枚举对：" + Environment.NewLine +
                      string.Join(Environment.NewLine, similarPairs.Select(p =>
@@ -139,7 +139,7 @@ public class ShadowEnumDetectionTests
         // Assert
         overlappingPairs.Should().BeEmpty(
             because: "不应存在值集合高度重叠的枚举，这可能表示影分身问题。" +
-                     "例如：SystemState vs SystemOperatingState 都有 Running/Paused/Faulted 等值。" +
+                     "例如：SystemState vs SystemState 都有 Running/Paused/Faulted 等值。" +
                      Environment.NewLine +
                      "发现的重叠枚举对：" + Environment.NewLine +
                      string.Join(Environment.NewLine, overlappingPairs.Select(p =>
@@ -153,7 +153,7 @@ public class ShadowEnumDetectionTests
         // Arrange: 已知的影分身枚举列表
         var knownShadowEnums = new[]
         {
-            "ZakYip.WheelDiverterSorter.Core.Enums.System.SystemOperatingState", // 已删除
+            "ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState", // 已删除
         };
 
         var assemblies = new[] { _coreAssembly, _executionAssembly, _driversAssembly, _ingressAssembly, _hostAssembly, _applicationAssembly };
@@ -227,7 +227,7 @@ public class ShadowEnumDetectionTests
         // Assert
         suspiciousGroups.Should().BeEmpty(
             because: "相同关键词结尾的枚举如果值重叠，可能是影分身。" +
-                     "例如：SystemState vs SystemOperatingState（都以State结尾，且值重叠）。" +
+                     "例如：SystemState vs SystemState（都以State结尾，且值重叠）。" +
                      Environment.NewLine +
                      "发现的可疑枚举组：" + Environment.NewLine +
                      string.Join(Environment.NewLine, suspiciousGroups.Select(g =>

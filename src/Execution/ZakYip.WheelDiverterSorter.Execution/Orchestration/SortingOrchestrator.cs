@@ -551,7 +551,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 parcelId,
                 errorMessage);
             
-            return Task.FromResult((IsValid: false, Reason: errorMessage));
+            return Task.FromResult((IsValid: false, Reason: (string?)errorMessage));
         }
 
         return Task.FromResult((IsValid: true, Reason: (string?)null));

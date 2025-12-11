@@ -34,7 +34,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Running, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Running, options);
 
         // Assert
         Assert.Empty(result);
@@ -59,7 +59,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Running, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Running, options);
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -86,7 +86,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Stopped, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Ready, options);
 
         // Assert
         Assert.Equal(2, result.Count);
@@ -112,7 +112,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Standby, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Ready, options);
 
         // Assert
         Assert.Single(result);
@@ -137,7 +137,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Stopping, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Ready, options);
 
         // Assert
         Assert.Single(result);
@@ -162,8 +162,8 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act & Assert - Only Initializing and Paused states should not trigger IO linkage
-        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.Initializing, options));
-        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemOperatingState.Paused, options));
+        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemState.Booting, options));
+        Assert.Empty(_coordinator.DetermineIoLinkagePoints(SystemState.Paused, options));
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act - Faulted state with empty DiverterExceptionStateIos should use StoppedStateIos
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Faulted, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Faulted, options);
 
         // Assert
         Assert.Single(result);
@@ -209,7 +209,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act - EmergencyStopped with empty EmergencyStopStateIos should use StoppedStateIos
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.EmergencyStopped, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.EmergencyStop, options);
 
         // Assert
         Assert.Single(result);
@@ -239,7 +239,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act - EmergencyStopped with custom EmergencyStopStateIos should use them
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.EmergencyStopped, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.EmergencyStop, options);
 
         // Assert - Should return custom emergency stop IOs, not stopped state IOs
         Assert.Equal(2, result.Count);
@@ -271,7 +271,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act - Faulted with custom DiverterExceptionStateIos should use them
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.Faulted, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Faulted, options);
 
         // Assert - Should return custom diverter exception IOs, not stopped state IOs
         Assert.Equal(2, result.Count);
@@ -302,7 +302,7 @@ public class DefaultIoLinkageCoordinatorTests
         };
 
         // Act
-        var result = _coordinator.DetermineIoLinkagePoints(SystemOperatingState.WaitingUpstream, options);
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Paused, options);
 
         // Assert
         Assert.Single(result);
@@ -313,7 +313,7 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenRunning_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.Running);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.Running);
 
         // Assert
         Assert.True(result);
@@ -323,7 +323,7 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenStopped_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.Stopped);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.Ready);
 
         // Assert
         Assert.True(result);
@@ -333,7 +333,7 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenStandby_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.Standby);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.Ready);
 
         // Assert
         Assert.True(result);
@@ -343,7 +343,7 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenStopping_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.Stopping);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.Ready);
 
         // Assert
         Assert.True(result);
@@ -353,15 +353,15 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenOtherStates_ShouldReturnFalse()
     {
         // Act & Assert - Only Initializing and Paused should return false
-        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.Initializing));
-        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemOperatingState.Paused));
+        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemState.Booting));
+        Assert.False(_coordinator.ShouldActivateIoLinkage(SystemState.Paused));
     }
 
     [Fact]
     public void ShouldActivateIoLinkage_WhenEmergencyStopped_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.EmergencyStopped);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.EmergencyStop);
 
         // Assert
         Assert.True(result);
@@ -371,7 +371,7 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenWaitingUpstream_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.WaitingUpstream);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.Paused);
 
         // Assert
         Assert.True(result);
@@ -381,7 +381,7 @@ public class DefaultIoLinkageCoordinatorTests
     public void ShouldActivateIoLinkage_WhenFaulted_ShouldReturnTrue()
     {
         // Act
-        var result = _coordinator.ShouldActivateIoLinkage(SystemOperatingState.Faulted);
+        var result = _coordinator.ShouldActivateIoLinkage(SystemState.Faulted);
 
         // Assert
         Assert.True(result);
