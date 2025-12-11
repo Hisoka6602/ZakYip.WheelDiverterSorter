@@ -199,6 +199,34 @@ public sealed record class PanelConfiguration
     /// </remarks>
     public TriggerLevel PreStartWarningOutputLevel { get; init; } = TriggerLevel.ActiveHigh;
 
+    // ========== 急停蜂鸣配置 ==========
+
+    /// <summary>
+    /// 急停蜂鸣持续时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 按下急停按钮时，蜂鸣器持续响铃的时间（秒）。
+    /// 用于提醒操作人员注意急停状态。
+    /// </remarks>
+    public int? EmergencyStopBuzzerDurationSeconds { get; init; }
+
+    /// <summary>
+    /// 急停蜂鸣输出 IO 绑定（输出位）
+    /// </summary>
+    /// <remarks>
+    /// 用于绑定急停蜂鸣器的 IO 地址
+    /// </remarks>
+    public int? EmergencyStopBuzzerOutputBit { get; init; }
+
+    /// <summary>
+    /// 急停蜂鸣输出 IO 电平配置
+    /// </summary>
+    /// <remarks>
+    /// - ActiveHigh: 高电平触发蜂鸣（输出1）
+    /// - ActiveLow: 低电平触发蜂鸣（输出0）
+    /// </remarks>
+    public TriggerLevel EmergencyStopBuzzerOutputLevel { get; init; } = TriggerLevel.ActiveHigh;
+
     // ========== 元数据 ==========
 
     /// <summary>
@@ -246,6 +274,9 @@ public sealed record class PanelConfiguration
             PreStartWarningDurationSeconds = null,
             PreStartWarningOutputBit = null,
             PreStartWarningOutputLevel = TriggerLevel.ActiveHigh,
+            EmergencyStopBuzzerDurationSeconds = null,
+            EmergencyStopBuzzerOutputBit = null,
+            EmergencyStopBuzzerOutputLevel = TriggerLevel.ActiveHigh,
             CreatedAt = now,
             UpdatedAt = now
         };
@@ -278,7 +309,8 @@ public sealed record class PanelConfiguration
             StartButtonInputBit, StopButtonInputBit,
             StartLightOutputBit, StopLightOutputBit, ConnectionLightOutputBit,
             SignalTowerRedOutputBit, SignalTowerYellowOutputBit, SignalTowerGreenOutputBit,
-            PreStartWarningOutputBit
+            PreStartWarningOutputBit,
+            EmergencyStopBuzzerOutputBit
         };
 
         // 添加急停按钮的输入位到验证列表
@@ -301,6 +333,15 @@ public sealed record class PanelConfiguration
             if (PreStartWarningDurationSeconds.Value < 0 || PreStartWarningDurationSeconds.Value > 60)
             {
                 return (false, "运行前预警时间必须在 0-60 秒之间");
+            }
+        }
+
+        // 验证急停蜂鸣时间范围
+        if (EmergencyStopBuzzerDurationSeconds.HasValue)
+        {
+            if (EmergencyStopBuzzerDurationSeconds.Value < 0 || EmergencyStopBuzzerDurationSeconds.Value > 60)
+            {
+                return (false, "急停蜂鸣时间必须在 0-60 秒之间");
             }
         }
 
