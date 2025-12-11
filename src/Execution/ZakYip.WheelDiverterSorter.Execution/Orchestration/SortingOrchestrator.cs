@@ -235,11 +235,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         try
         {
             _logger.LogInformation(
-                "========== 开始处理包裹 ==========\n" +
-                "  包裹ID: {ParcelId}\n" +
-                "  来源传感器: {SensorId}\n" +
-                "  开始时间: {StartTime:o}\n" +
-                "=====================================",
+                "[开始] 开始处理包裹: ParcelId={ParcelId}, SensorId={SensorId}, StartTime={StartTime:o}",
                 parcelId,
                 sensorId,
                 _clock.LocalNow);
@@ -372,14 +368,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 path);
             
             _logger.LogInformation(
-                "========== 包裹已加入待执行队列 ==========\n" +
-                "  包裹ID: {ParcelId}\n" +
-                "  目标格口: {TargetChuteId}\n" +
-                "  摆轮节点: {DiverterId}\n" +
-                "  超时时间: {TimeoutSeconds}秒\n" +
-                "  路径段数: {SegmentCount}\n" +
-                "  处理耗时: {ElapsedMs:F0}ms\n" +
-                "==========================================",
+                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
                 parcelId,
                 targetChuteId,
                 diverterNode.DiverterId,
@@ -401,10 +390,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _logger.LogError(
                 ex,
-                "[处理异常] 处理包裹 {ParcelId} 时发生异常: {ErrorMessage}\n{StackTrace}",
-                parcelId,
-                ex.Message,
-                ex.StackTrace);
+                "[处理异常] 处理包裹 {ParcelId} 时发生异常",
+                parcelId);
             CleanupParcelRecord(parcelId);
             stopwatch.Stop();
             
@@ -1422,7 +1409,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         try
         {
-            _logger.LogInformation(
+            _logger.LogDebug(
                 "[事件处理] 收到 ParcelDetected 事件: ParcelId={ParcelId}, SensorId={SensorId}, DetectedAt={DetectedAt:o}",
                 e.ParcelId,
                 e.SensorId,
@@ -1473,19 +1460,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _logger.LogError(
                 ex,
-                "[事件处理异常] 处理 ParcelDetected 事件时发生异常: ParcelId={ParcelId}, SensorId={SensorId}, ErrorMessage={ErrorMessage}",
+                "[事件处理异常] 处理 ParcelDetected 事件时发生异常: ParcelId={ParcelId}, SensorId={SensorId}",
                 e.ParcelId,
-                e.SensorId,
-                ex.Message);
-            
-            // 使用 SafeExecutionService 记录异常（如果可用）
-            if (_safeExecutor != null)
-            {
-                await _safeExecutor.ExecuteAsync(
-                    async () => await Task.CompletedTask,
-                    operationName: $"OnParcelDetected_Cleanup_{e.ParcelId}",
-                    cancellationToken: default);
-            }
+                e.SensorId);
         }
     }
 
