@@ -242,7 +242,7 @@ public class IoLinkageController : ControllerBase
     [ProducesResponseType(typeof(object), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public async Task<IActionResult> TriggerIoLinkage([FromQuery] SystemOperatingState systemState)
+    public async Task<IActionResult> TriggerIoLinkage([FromQuery] SystemState systemState)
     {
         try
         {

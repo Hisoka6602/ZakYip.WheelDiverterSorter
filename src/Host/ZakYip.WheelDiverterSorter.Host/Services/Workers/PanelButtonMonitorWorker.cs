@@ -482,19 +482,19 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     }
 
     /// <summary>
-    /// 将 SystemState 映射到 SystemOperatingState
+    /// 将 SystemState 映射到 SystemState
     /// </summary>
-    private static SystemOperatingState MapToOperatingState(SystemState state)
+    private static SystemState MapToOperatingState(SystemState state)
     {
         return state switch
         {
-            SystemState.Booting => SystemOperatingState.Initializing,
-            SystemState.Ready => SystemOperatingState.Standby,
-            SystemState.Running => SystemOperatingState.Running,
-            SystemState.Paused => SystemOperatingState.Paused,
-            SystemState.Faulted => SystemOperatingState.Faulted,
-            SystemState.EmergencyStop => SystemOperatingState.EmergencyStopped,
-            _ => SystemOperatingState.Standby
+            SystemState.Booting => SystemState.Initializing,
+            SystemState.Ready => SystemState.Standby,
+            SystemState.Running => SystemState.Running,
+            SystemState.Paused => SystemState.Paused,
+            SystemState.Faulted => SystemState.Faulted,
+            SystemState.EmergencyStop => SystemState.EmergencyStopped,
+            _ => SystemState.Standby
         };
     }
     

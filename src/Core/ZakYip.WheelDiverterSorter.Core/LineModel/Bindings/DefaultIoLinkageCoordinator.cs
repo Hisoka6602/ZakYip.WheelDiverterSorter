@@ -22,7 +22,7 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
 
     /// <inheritdoc/>
     public IReadOnlyList<IoLinkagePoint> DetermineIoLinkagePoints(
-        SystemOperatingState systemState,
+        SystemState systemState,
         IoLinkageOptions options)
     {
         if (!options.Enabled)
@@ -35,31 +35,31 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
         // 根据系统状态选择对应的 IO 联动配置
         switch (systemState)
         {
-            case SystemOperatingState.Running:
+            case SystemState.Running:
                 // 运行中状态时，使用 RunningStateIos 配置
                 points = options.RunningStateIos;
                 break;
             
-            case SystemOperatingState.Stopped:
-            case SystemOperatingState.Standby:
-            case SystemOperatingState.Stopping:
+            case SystemState.Stopped:
+            case SystemState.Standby:
+            case SystemState.Stopping:
                 // 停止/复位/待机状态时，使用 StoppedStateIos 配置
                 points = options.StoppedStateIos;
                 break;
             
-            case SystemOperatingState.EmergencyStopped:
+            case SystemState.EmergencyStopped:
                 // 急停状态时，优先使用 EmergencyStopStateIos，如果为空则使用 StoppedStateIos
                 points = options.EmergencyStopStateIos.Count > 0
                     ? options.EmergencyStopStateIos
                     : options.StoppedStateIos;
                 break;
             
-            case SystemOperatingState.WaitingUpstream:
+            case SystemState.WaitingUpstream:
                 // 等待上游状态时，使用 UpstreamConnectionExceptionStateIos 配置
                 points = options.UpstreamConnectionExceptionStateIos;
                 break;
             
-            case SystemOperatingState.Faulted:
+            case SystemState.Faulted:
                 // 故障状态时，优先使用 DiverterExceptionStateIos，如果为空则使用 StoppedStateIos
                 points = options.DiverterExceptionStateIos.Count > 0
                     ? options.DiverterExceptionStateIos
@@ -77,15 +77,15 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
     }
 
     /// <inheritdoc/>
-    public bool ShouldActivateIoLinkage(SystemOperatingState systemState)
+    public bool ShouldActivateIoLinkage(SystemState systemState)
     {
         // 在以下状态时激活 IO 联动
-        return systemState is SystemOperatingState.Running
-                           or SystemOperatingState.Stopped
-                           or SystemOperatingState.Standby
-                           or SystemOperatingState.Stopping
-                           or SystemOperatingState.EmergencyStopped
-                           or SystemOperatingState.WaitingUpstream
-                           or SystemOperatingState.Faulted;
+        return systemState is SystemState.Running
+                           or SystemState.Stopped
+                           or SystemState.Standby
+                           or SystemState.Stopping
+                           or SystemState.EmergencyStopped
+                           or SystemState.WaitingUpstream
+                           or SystemState.Faulted;
     }
 }
