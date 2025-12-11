@@ -360,17 +360,20 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 diverterNode.DiverterId);
             
             // 将包裹和预生成的路径一起加入待执行队列，等待 WheelFront 传感器触发
+            // FIX: 使用与传感器配置一致的节点ID格式 "WHEEL-{DiverterId}"
+            var wheelNodeId = $"WHEEL-{diverterNode.DiverterId}";
             _pendingQueue.Enqueue(
                 parcelId, 
                 targetChuteId, 
-                diverterNode.DiverterId.ToString(), 
+                wheelNodeId, 
                 timeoutSeconds,
                 path);
             
             _logger.LogInformation(
-                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
+                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, WheelNodeId={WheelNodeId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
                 parcelId,
                 targetChuteId,
+                wheelNodeId,
                 diverterNode.DiverterId,
                 timeoutSeconds,
                 path.Segments.Count,
