@@ -177,28 +177,29 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         // PR-fix-sensor-type-filtering: 
         // - ParcelCreation 类型：创建包裹并触发 ParcelDetected 事件
         // - WheelFront/ChuteLock 类型：触发 ParcelDetected 事件（但不创建包裹，由 Orchestrator 处理）
-        // PR-fix-system-state-check: 只有系统处于运行状态时才创建包裹
+        // PR-fix-system-state-check: 所有传感器类型都需要检查系统状态
         
         var sensorType = GetSensorType(sensorEvent.SensorId);
         
+        // 所有传感器类型都需要检查系统是否处于运行状态
+        if (!IsSystemReadyForParcelCreation())
+        {
+            _logger?.LogWarning(
+                "传感器 {SensorId} ({SensorType}) 触发，但系统未处于运行状态，已忽略。包裹ID: {ParcelId}",
+                sensorEvent.SensorId,
+                sensorType,
+                parcelId);
+            return;
+        }
+        
         if (sensorType == SensorIoType.ParcelCreation)
         {
-            // ParcelCreation 传感器：检查系统状态后创建包裹
-            if (IsSystemReadyForParcelCreation())
-            {
-                _logger?.LogDebug(
-                    "传感器 {SensorId} 类型为 {SensorType}，触发包裹创建",
-                    sensorEvent.SensorId,
-                    sensorType);
-                RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
-            }
-            else
-            {
-                _logger?.LogWarning(
-                    "传感器 {SensorId} 触发包裹创建，但系统未处于运行状态，已忽略。包裹ID: {ParcelId}",
-                    sensorEvent.SensorId,
-                    parcelId);
-            }
+            // ParcelCreation 传感器：创建包裹并触发事件
+            _logger?.LogDebug(
+                "传感器 {SensorId} 类型为 {SensorType}，触发包裹创建",
+                sensorEvent.SensorId,
+                sensorType);
+            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate, sensorType);
         }
         else
         {
@@ -209,7 +210,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 sensorType);
             
             // 仍然触发 ParcelDetected 事件，让 Orchestrator 根据传感器类型决定如何处理
-            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
+            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate, sensorType);
         }
     }
 
@@ -442,10 +443,12 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <summary>
     /// 触发包裹检测事件
     /// </summary>
-    private void RaiseParcelDetectedEvent(long parcelId, SensorEvent sensorEvent, bool isDuplicate)
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="sensorEvent">传感器事件</param>
+    /// <param name="isDuplicate">是否为重复触发</param>
+    /// <param name="sensorType">传感器类型（避免重复查询）</param>
+    private void RaiseParcelDetectedEvent(long parcelId, SensorEvent sensorEvent, bool isDuplicate, SensorIoType sensorType)
     {
-        var sensorType = GetSensorType(sensorEvent.SensorId);
-        
         _logger?.LogInformation(
             "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}{DuplicateFlag}",
             parcelId,
