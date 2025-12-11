@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Timers;
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Events.Queue;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Queues;
@@ -269,30 +270,4 @@ public interface IPendingParcelQueue
     /// 获取所有待执行包裹（用于监控）
     /// </summary>
     IReadOnlyCollection<PendingParcelEntry> GetAll();
-}
-
-/// <summary>
-/// 包裹超时事件参数
-/// </summary>
-public sealed class ParcelTimedOutEventArgs : EventArgs
-{
-    /// <summary>
-    /// 包裹ID
-    /// </summary>
-    public required long ParcelId { get; init; }
-
-    /// <summary>
-    /// 目标格口ID
-    /// </summary>
-    public required long TargetChuteId { get; init; }
-
-    /// <summary>
-    /// 绑定的摆轮节点ID
-    /// </summary>
-    public required string WheelNodeId { get; init; }
-
-    /// <summary>
-    /// 已等待时间（毫秒）
-    /// </summary>
-    public required double ElapsedMs { get; init; }
 }
