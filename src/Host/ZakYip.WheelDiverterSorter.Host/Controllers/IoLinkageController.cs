@@ -15,6 +15,7 @@ using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -53,6 +54,7 @@ public class IoLinkageController : ControllerBase
     private readonly IIoLinkageConfigurationRepository _repository;
     private readonly IIoLinkageDriver _ioLinkageDriver;
     private readonly IIoLinkageCoordinator _ioLinkageCoordinator;
+    private readonly ISystemStateManager _systemStateManager;
     private readonly ISystemClock _systemClock;
     private readonly ILogger<IoLinkageController> _logger;
 
@@ -60,12 +62,14 @@ public class IoLinkageController : ControllerBase
         IIoLinkageConfigurationRepository repository,
         IIoLinkageDriver ioLinkageDriver,
         IIoLinkageCoordinator ioLinkageCoordinator,
+        ISystemStateManager systemStateManager,
         ISystemClock systemClock,
         ILogger<IoLinkageController> logger)
     {
         _repository = repository;
         _ioLinkageDriver = ioLinkageDriver;
         _ioLinkageCoordinator = ioLinkageCoordinator;
+        _systemStateManager = systemStateManager;
         _systemClock = systemClock;
         _logger = logger;
     }
@@ -167,7 +171,7 @@ public class IoLinkageController : ControllerBase
     [ProducesResponseType(typeof(IoLinkageConfigResponse), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<IoLinkageConfigResponse> UpdateIoLinkageConfig([FromBody] IoLinkageConfigRequest request)
+    public async Task<ActionResult<IoLinkageConfigResponse>> UpdateIoLinkageConfig([FromBody] IoLinkageConfigRequest request)
     {
         try
         {
@@ -197,6 +201,29 @@ public class IoLinkageController : ControllerBase
                 config.DiverterExceptionStateIos.Count,
                 config.PostPreStartWarningStateIos.Count,
                 config.WheelDiverterDisconnectedStateIos.Count);
+
+            // 热更新：立即应用IO联动配置到当前系统状态
+            if (config.Enabled)
+            {
+                var currentState = _systemStateManager.CurrentState;
+                var options = ConvertToOptions(config);
+                var ioPoints = _ioLinkageCoordinator.DetermineIoLinkagePoints(currentState, options);
+                
+                if (ioPoints.Count > 0)
+                {
+                    await _ioLinkageDriver.SetIoPointsAsync(ioPoints);
+                    _logger.LogInformation(
+                        "IO 联动配置热更新成功：已将 {Count} 个IO点应用到当前系统状态 {SystemState}",
+                        ioPoints.Count,
+                        currentState);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "IO 联动配置热更新：当前系统状态 {SystemState} 无需设置IO点",
+                        currentState);
+                }
+            }
 
             // 重新获取更新后的配置
             var updatedConfig = _repository.Get();

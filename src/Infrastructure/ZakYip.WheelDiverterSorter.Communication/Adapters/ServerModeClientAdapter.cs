@@ -122,12 +122,20 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
 
         try
         {
-            _logger.LogDebug(
-                "[{LocalTime}] [服务端模式-适配器] 转换NotifyParcelDetectedAsync为BroadcastParcelDetectedAsync: ParcelId={ParcelId}",
+            _logger.LogInformation(
+                "[{LocalTime}] [服务端模式-适配器] 转换NotifyParcelDetectedAsync为BroadcastParcelDetectedAsync: ParcelId={ParcelId}, ServerIsRunning={IsRunning}, ConnectedClientsCount={ClientCount}",
                 _systemClock.LocalNow,
-                parcelId);
+                parcelId,
+                _server.IsRunning,
+                _server.ConnectedClientsCount);
 
             await _server.BroadcastParcelDetectedAsync(parcelId, cancellationToken);
+            
+            _logger.LogInformation(
+                "[{LocalTime}] [服务端模式-适配器] BroadcastParcelDetectedAsync调用完成: ParcelId={ParcelId}",
+                _systemClock.LocalNow,
+                parcelId);
+            
             return true;
         }
         catch (Exception ex)

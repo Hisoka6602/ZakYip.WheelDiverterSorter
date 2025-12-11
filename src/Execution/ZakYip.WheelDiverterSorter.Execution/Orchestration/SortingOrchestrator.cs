@@ -777,11 +777,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
         }
         
-        _logger.LogTrace(
-            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, IsConnected={IsConnected}",
+        _logger.LogInformation(
+            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, ClientFullName={ClientFullName}, IsConnected={IsConnected}",
             parcelId,
             upstreamRequestSentAt,
             _upstreamClient.GetType().Name,
+            _upstreamClient.GetType().FullName,
             _upstreamClient.IsConnected);
         
         var notificationSent = await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
@@ -789,15 +790,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogError(
-                "包裹 {ParcelId} 无法发送检测通知到上游系统。连接失败或上游不可用。",
-                parcelId);
+                "包裹 {ParcelId} 无法发送检测通知到上游系统。连接失败或上游不可用。ClientType={ClientType}",
+                parcelId,
+                _upstreamClient.GetType().Name);
         }
         else
         {
             _logger.LogInformation(
-                "包裹 {ParcelId} 已成功发送检测通知到上游系统 (ClientType={ClientType}, IsConnected={IsConnected})",
+                "包裹 {ParcelId} 已成功发送检测通知到上游系统 (ClientType={ClientType}, ClientFullName={ClientFullName}, IsConnected={IsConnected})",
                 parcelId,
                 _upstreamClient.GetType().Name,
+                _upstreamClient.GetType().FullName,
                 _upstreamClient.IsConnected);
         }
     }

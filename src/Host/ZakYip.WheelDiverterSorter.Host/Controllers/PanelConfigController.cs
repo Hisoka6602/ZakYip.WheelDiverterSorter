@@ -349,6 +349,9 @@ public class PanelConfigController : ControllerBase
             PreStartWarningDurationSeconds = request.PreStartWarning?.DurationSeconds,
             PreStartWarningOutputBit = request.PreStartWarning?.OutputBit,
             PreStartWarningOutputLevel = request.PreStartWarning?.OutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
+            EmergencyStopBuzzerDurationSeconds = request.EmergencyStopBuzzer?.DurationSeconds,
+            EmergencyStopBuzzerOutputBit = request.EmergencyStopBuzzer?.OutputBit,
+            EmergencyStopBuzzerOutputLevel = request.EmergencyStopBuzzer?.OutputLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
             CreatedAt = currentTime,
             UpdatedAt = currentTime
         };
@@ -402,6 +405,12 @@ public class PanelConfigController : ControllerBase
                 DurationSeconds = config.PreStartWarningDurationSeconds,
                 OutputBit = config.PreStartWarningOutputBit,
                 OutputLevel = config.PreStartWarningOutputLevel
+            },
+            EmergencyStopBuzzer = new EmergencyStopBuzzerConfigDto
+            {
+                DurationSeconds = config.EmergencyStopBuzzerDurationSeconds,
+                OutputBit = config.EmergencyStopBuzzerOutputBit,
+                OutputLevel = config.EmergencyStopBuzzerOutputLevel
             }
         };
     }

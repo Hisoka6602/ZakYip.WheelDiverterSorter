@@ -66,6 +66,11 @@ public static class LiteDbMapperConfig
     public static BsonMapper CreateConfiguredMapper()
     {
         var mapper = new BsonMapper();
+        
+        // 启用非公共成员访问，以支持具有私有 setter 的实体（如 RoutePlan）
+        // Enable non-public member access to support entities with private setters (e.g., RoutePlan)
+        mapper.IncludeNonPublic = true;
+        
         ConfigureEnumAsString(mapper);
         ConfigureEntityIds(mapper);
         return mapper;

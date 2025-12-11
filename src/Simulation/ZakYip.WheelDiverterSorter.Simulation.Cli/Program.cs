@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Prometheus;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
-using ZakYip.WheelDiverterSorter.Communication.Clients;
+using ZakYip.WheelDiverterSorter.Simulation.Cli.Clients;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
@@ -68,7 +68,7 @@ var host = Host.CreateDefaultBuilder(args)
         // PR-U1: 注册模拟上游路由客户端（替代 IRuleEngineClient）
         services.AddSingleton<IUpstreamRoutingClient>(sp =>
         {
-            var logger = sp.GetService<ILogger<InMemoryRuleEngineClient>>();
+            var logger = sp.GetService<ILogger<SimulatedUpstreamRoutingClient>>();
             var options = sp.GetRequiredService<IOptions<SimulationOptions>>().Value;
             
             // 根据分拣模式创建不同的格口分配函数
@@ -80,7 +80,7 @@ var host = Host.CreateDefaultBuilder(args)
                 _ => throw new InvalidOperationException($"不支持的分拣模式: {options.SortingMode}")
             };
 
-            return new InMemoryRuleEngineClient(chuteAssignmentFunc, sp.GetRequiredService<ISystemClock>(), logger);
+            return new SimulatedUpstreamRoutingClient(chuteAssignmentFunc, sp.GetRequiredService<ISystemClock>(), logger);
         });
 
         // 注册Prometheus指标服务

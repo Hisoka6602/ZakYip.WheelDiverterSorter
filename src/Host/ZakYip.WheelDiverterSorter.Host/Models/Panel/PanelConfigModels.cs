@@ -80,6 +80,11 @@ public sealed record PanelConfigRequest
     /// 运行前预警配置
     /// </summary>
     public PreStartWarningConfigDto? PreStartWarning { get; init; }
+
+    /// <summary>
+    /// 急停蜂鸣配置
+    /// </summary>
+    public EmergencyStopBuzzerConfigDto? EmergencyStopBuzzer { get; init; }
 }
 
 /// <summary>
@@ -138,6 +143,11 @@ public sealed record PanelConfigResponse
     /// 运行前预警配置
     /// </summary>
     public required PreStartWarningConfigDto PreStartWarning { get; init; }
+
+    /// <summary>
+    /// 急停蜂鸣配置
+    /// </summary>
+    public required EmergencyStopBuzzerConfigDto EmergencyStopBuzzer { get; init; }
 }
 
 /// <summary>
@@ -322,6 +332,36 @@ public sealed record PreStartWarningConfigDto
 
     /// <summary>
     /// 预警输出电平
+    /// </summary>
+    public TriggerLevel OutputLevel { get; init; } = TriggerLevel.ActiveHigh;
+}
+
+/// <summary>
+/// 急停蜂鸣配置
+/// </summary>
+[SwaggerSchema(Description = "急停时蜂鸣器的配置")]
+public sealed record EmergencyStopBuzzerConfigDto
+{
+    /// <summary>
+    /// 蜂鸣持续时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// 按下急停按钮时，蜂鸣器持续响铃的时间（秒）
+    /// 用于提醒操作人员注意急停状态
+    /// </remarks>
+    /// <example>10</example>
+    [Range(0, 60, ErrorMessage = "急停蜂鸣时间必须在 0-60 秒之间")]
+    public int? DurationSeconds { get; init; }
+
+    /// <summary>
+    /// 蜂鸣器输出 IO 位
+    /// </summary>
+    /// <example>7</example>
+    [Range(0, 1023, ErrorMessage = "IO位必须在 0-1023 之间")]
+    public int? OutputBit { get; init; }
+
+    /// <summary>
+    /// 蜂鸣器输出电平
     /// </summary>
     public TriggerLevel OutputLevel { get; init; } = TriggerLevel.ActiveHigh;
 }
