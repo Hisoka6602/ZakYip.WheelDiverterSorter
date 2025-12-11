@@ -72,7 +72,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         _logger = logger;
         _healthMonitor = healthMonitor;
         _sensorConfigRepository = sensorConfigRepository;
-        _systemRunStateService = systemRunStateService;
+        _systemStateManager = systemStateManager;
     }
 
     /// <summary>

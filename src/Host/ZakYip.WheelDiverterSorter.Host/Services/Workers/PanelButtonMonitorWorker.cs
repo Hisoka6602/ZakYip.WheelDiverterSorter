@@ -9,7 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
-using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;

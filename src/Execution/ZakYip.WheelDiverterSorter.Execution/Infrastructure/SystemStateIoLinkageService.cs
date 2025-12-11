@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -53,7 +54,7 @@ public class SystemStateIoLinkageService
     public async Task<OperationResult> HandleStartAsync(CancellationToken cancellationToken = default)
     {
         // 1. 尝试状态切换
-        var stateResult = _systemStateManager.TryHandleStart();
+        var stateResult = _systemStateManager.TryHandleStartAsync();
         if (!stateResult.IsSuccess)
         {
             // 状态切换失败，不执行 IO 联动
@@ -88,7 +89,7 @@ public class SystemStateIoLinkageService
     public async Task<OperationResult> HandleStopAsync(CancellationToken cancellationToken = default)
     {
         // 1. 尝试状态切换
-        var stateResult = _systemStateManager.TryHandleStop();
+        var stateResult = _systemStateManager.TryHandleStopAsync();
         if (!stateResult.IsSuccess)
         {
             // 状态切换失败，不执行 IO 联动
@@ -122,7 +123,7 @@ public class SystemStateIoLinkageService
     public async Task<OperationResult> HandleEmergencyStopAsync(CancellationToken cancellationToken = default)
     {
         // 1. 尝试状态切换
-        var stateResult = _systemStateManager.TryHandleEmergencyStop();
+        var stateResult = _systemStateManager.TryHandleEmergencyStopAsync();
         if (!stateResult.IsSuccess)
         {
             // 状态切换失败，不执行 IO 联动
@@ -161,7 +162,7 @@ public class SystemStateIoLinkageService
     public OperationResult HandleEmergencyReset()
     {
         // 急停复位只切换状态，不执行 IO 联动
-        return _systemStateManager.TryHandleEmergencyReset();
+        return _systemStateManager.TryHandleEmergencyResetAsync();
     }
 
     /// <summary>

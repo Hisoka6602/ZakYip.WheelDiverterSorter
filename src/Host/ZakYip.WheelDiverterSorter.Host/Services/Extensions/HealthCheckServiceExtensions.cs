@@ -12,7 +12,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
-using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Host.Services.Workers;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 

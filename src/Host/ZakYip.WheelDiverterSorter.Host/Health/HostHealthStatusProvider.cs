@@ -8,7 +8,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Diagnostics;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Runtime.Health;
 
