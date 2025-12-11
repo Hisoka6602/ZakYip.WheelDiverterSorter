@@ -440,6 +440,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var pendingQueue = sp.GetService<IPendingParcelQueue>();
             var topologyRepository = sp.GetService<IChutePathTopologyRepository>();
             var segmentRepository = sp.GetService<IConveyorSegmentRepository>();
+            var sensorConfigRepository = sp.GetService<ISensorConfigurationRepository>();
             var safeExecutor = sp.GetService<ISafeExecutionService>();
             
             return new SortingOrchestrator(
@@ -466,6 +467,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pendingQueue,
                 topologyRepository,
                 segmentRepository,
+                sensorConfigRepository,
                 safeExecutor);
         });
 

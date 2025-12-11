@@ -30,6 +30,7 @@ using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Orchestration;
 
@@ -84,6 +85,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IPendingParcelQueue? _pendingQueue;
     private readonly IChutePathTopologyRepository? _topologyRepository;
     private readonly IConveyorSegmentRepository? _segmentRepository;
+    private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     private readonly ISafeExecutionService? _safeExecutor;
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
@@ -135,6 +137,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IPendingParcelQueue? pendingQueue = null, // TD-062: 拓扑驱动分拣队列
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
+        ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
         ISafeExecutionService? safeExecutor = null) // TD-062: 安全执行服务
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
@@ -162,6 +165,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pendingQueue = pendingQueue;
         _topologyRepository = topologyRepository;
         _segmentRepository = segmentRepository;
+        _sensorConfigRepository = sensorConfigRepository;
         _safeExecutor = safeExecutor;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
@@ -1311,11 +1315,93 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         try
         {
+            // TD-062: 检查是否为 WheelFront 传感器触发
+            if (_sensorConfigRepository != null && _pendingQueue != null && _topologyRepository != null)
+            {
+                var sensorConfig = _sensorConfigRepository.Get();
+                var sensor = sensorConfig.Sensors.FirstOrDefault(s => s.SensorId == e.SensorId);
+                
+                if (sensor?.IoType == SensorIoType.WheelFront)
+                {
+                    // 这是摆轮前传感器触发，处理待执行队列中的包裹
+                    await HandleWheelFrontSensorAsync(e.SensorId, sensor.BoundWheelNodeId);
+                    return;
+                }
+            }
+            
+            // 默认行为：ParcelCreation 传感器，创建新包裹并进入正常分拣流程
             await ProcessParcelAsync(e.ParcelId, e.SensorId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "处理包裹检测事件时发生异常: ParcelId={ParcelId}", e.ParcelId);
+        }
+    }
+
+    /// <summary>
+    /// 处理摆轮前传感器触发事件（TD-062）
+    /// </summary>
+    private async Task HandleWheelFrontSensorAsync(long sensorId, string? boundWheelNodeId)
+    {
+        if (string.IsNullOrEmpty(boundWheelNodeId))
+        {
+            _logger.LogWarning("摆轮前传感器 {SensorId} 未绑定摆轮节点，跳过处理", sensorId);
+            return;
+        }
+
+        if (_safeExecutor != null)
+        {
+            // 使用 SafeExecutionService 包裹异步操作
+            await _safeExecutor.ExecuteAsync(
+                async () =>
+                {
+                    // 从队列取出该摆轮的第一个包裹
+                    var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
+                    
+                    if (parcel == null)
+                    {
+                        _logger.LogWarning(
+                            "摆轮 {WheelNodeId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
+                            boundWheelNodeId, sensorId);
+                        return;
+                    }
+                    
+                    _logger.LogInformation(
+                        "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行分拣到格口 {TargetChuteId}",
+                        parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
+                    
+                    // 执行分拣操作
+                    await ExecuteSortingWorkflowAsync(
+                        parcel.ParcelId,
+                        parcel.TargetChuteId,
+                        isOverloadException: false,
+                        CancellationToken.None);
+                },
+                operationName: $"WheelFrontTriggered_Sensor{sensorId}",
+                cancellationToken: default);
+        }
+        else
+        {
+            // Fallback: 没有 SafeExecutor 时直接执行
+            var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
+            
+            if (parcel == null)
+            {
+                _logger.LogWarning(
+                    "摆轮 {WheelNodeId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
+                    boundWheelNodeId, sensorId);
+                return;
+            }
+            
+            _logger.LogInformation(
+                "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行分拣到格口 {TargetChuteId}",
+                parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
+            
+            await ExecuteSortingWorkflowAsync(
+                parcel.ParcelId,
+                parcel.TargetChuteId,
+                isOverloadException: false,
+                CancellationToken.None);
         }
     }
 
