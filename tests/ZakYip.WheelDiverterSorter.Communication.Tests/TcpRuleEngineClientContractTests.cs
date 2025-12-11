@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 using System.Net;
 using System.Net.Sockets;

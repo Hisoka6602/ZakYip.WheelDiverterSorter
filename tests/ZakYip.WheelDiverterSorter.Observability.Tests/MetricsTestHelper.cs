@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using System.Diagnostics.Metrics;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;

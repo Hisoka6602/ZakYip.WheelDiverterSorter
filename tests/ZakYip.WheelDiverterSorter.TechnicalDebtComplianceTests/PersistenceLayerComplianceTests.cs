@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 namespace ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests;
 
 /// <summary>

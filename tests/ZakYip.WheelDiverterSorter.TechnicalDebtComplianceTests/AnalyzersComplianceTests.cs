@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using System.Reflection;
 using Microsoft.CodeAnalysis.Diagnostics;
 using ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests.Utilities;

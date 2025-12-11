@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
 #pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
 using FluentAssertions;

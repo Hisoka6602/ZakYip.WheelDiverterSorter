@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using System.Net;
 
 namespace ZakYip.WheelDiverterSorter.Host.IntegrationTests;

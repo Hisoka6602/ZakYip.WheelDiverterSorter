@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using FluentAssertions;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using Microsoft.Extensions.DependencyInjection;
