@@ -211,7 +211,7 @@ public class PerformanceBaselineTests : IDisposable
         Console.WriteLine("==========================================");
         
         // Save baseline to dedicated results directory
-        var resultsDir = Path.Combine(Environment.CurrentDirectory, "performance-results");
+        var resultsDir = Path.Combine(Environment.CurrentStateirectory, "performance-results");
         Directory.CreateDirectory(resultsDir);
         var baselinePath = Path.Combine(resultsDir, $"baseline-{DateTime.Now:yyyy-MM-dd-HHmmss}.txt");
         

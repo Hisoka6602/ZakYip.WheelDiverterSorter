@@ -25,7 +25,7 @@ public class RoutePlanTests
         // Assert
         Assert.Equal(parcelId, routePlan.ParcelId);
         Assert.Equal(targetChuteId, routePlan.InitialTargetChuteId);
-        Assert.Equal(targetChuteId, routePlan.CurrentTargetChuteId);
+        Assert.Equal(targetChuteId, routePlan.CurrentStateargetChuteId);
         Assert.Equal(RoutePlanStatus.Created, routePlan.Status);
         Assert.Equal(createdAt, routePlan.CreatedAt);
         Assert.Equal(0, routePlan.ChuteChangeCount);
@@ -46,7 +46,7 @@ public class RoutePlanTests
         Assert.True(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.Accepted, decision.Outcome);
         Assert.Equal(requestedChuteId, decision.AppliedChuteId);
-        Assert.Equal(requestedChuteId, routePlan.CurrentTargetChuteId);
+        Assert.Equal(requestedChuteId, routePlan.CurrentStateargetChuteId);
         Assert.Equal(1, routePlan.ChuteChangeCount);
     }
 
@@ -65,7 +65,7 @@ public class RoutePlanTests
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.Accepted, decision.Outcome);
-        Assert.Equal(requestedChuteId, routePlan.CurrentTargetChuteId);
+        Assert.Equal(requestedChuteId, routePlan.CurrentStateargetChuteId);
     }
 
     [Fact]
@@ -74,7 +74,7 @@ public class RoutePlanTests
         // Arrange
         var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
         routePlan.MarkAsCompleted(DateTimeOffset.Now);
-        var originalChuteId = routePlan.CurrentTargetChuteId;
+        var originalChuteId = routePlan.CurrentStateargetChuteId;
         var requestedChuteId = 20;
         var requestedAt = DateTimeOffset.Now;
 
@@ -85,7 +85,7 @@ public class RoutePlanTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.IgnoredAlreadyCompleted, decision.Outcome);
         Assert.Equal(originalChuteId, decision.AppliedChuteId);
-        Assert.Equal(originalChuteId, routePlan.CurrentTargetChuteId);
+        Assert.Equal(originalChuteId, routePlan.CurrentStateargetChuteId);
         Assert.Equal(0, routePlan.ChuteChangeCount);
     }
 
@@ -95,7 +95,7 @@ public class RoutePlanTests
         // Arrange
         var routePlan = new RoutePlan(12345L, 10, DateTimeOffset.Now);
         routePlan.MarkAsExceptionRouted(DateTimeOffset.Now);
-        var originalChuteId = routePlan.CurrentTargetChuteId;
+        var originalChuteId = routePlan.CurrentStateargetChuteId;
         var requestedChuteId = 20;
         var requestedAt = DateTimeOffset.Now;
 
@@ -106,7 +106,7 @@ public class RoutePlanTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.IgnoredExceptionRouted, decision.Outcome);
         Assert.Equal(originalChuteId, decision.AppliedChuteId);
-        Assert.Equal(originalChuteId, routePlan.CurrentTargetChuteId);
+        Assert.Equal(originalChuteId, routePlan.CurrentStateargetChuteId);
         Assert.Equal(0, routePlan.ChuteChangeCount);
     }
 
@@ -126,7 +126,7 @@ public class RoutePlanTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.RejectedInvalidState, decision.Outcome);
         Assert.Equal(10, decision.AppliedChuteId);
-        Assert.Equal(10, routePlan.CurrentTargetChuteId); // Original chute
+        Assert.Equal(10, routePlan.CurrentStateargetChuteId); // Original chute
         Assert.Equal(0, routePlan.ChuteChangeCount);
     }
 
@@ -147,7 +147,7 @@ public class RoutePlanTests
         Assert.False(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.RejectedTooLate, decision.Outcome);
         Assert.Equal(10, decision.AppliedChuteId);
-        Assert.Equal(10, routePlan.CurrentTargetChuteId);
+        Assert.Equal(10, routePlan.CurrentStateargetChuteId);
         Assert.Equal(0, routePlan.ChuteChangeCount);
     }
 
@@ -168,7 +168,7 @@ public class RoutePlanTests
         Assert.True(result.IsSuccess);
         Assert.Equal(ChuteChangeOutcome.Accepted, decision.Outcome);
         Assert.Equal(requestedChuteId, decision.AppliedChuteId);
-        Assert.Equal(requestedChuteId, routePlan.CurrentTargetChuteId);
+        Assert.Equal(requestedChuteId, routePlan.CurrentStateargetChuteId);
         Assert.Equal(1, routePlan.ChuteChangeCount);
     }
 
@@ -221,6 +221,6 @@ public class RoutePlanTests
 
         // Assert
         Assert.Equal(3, routePlan.ChuteChangeCount);
-        Assert.Equal(40, routePlan.CurrentTargetChuteId);
+        Assert.Equal(40, routePlan.CurrentStateargetChuteId);
     }
 }

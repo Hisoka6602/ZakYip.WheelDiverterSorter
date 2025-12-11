@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Host.StateMachine;

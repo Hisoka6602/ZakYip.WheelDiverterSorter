@@ -50,7 +50,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
     private readonly InMemoryLogCollector _logCollector;
 
     // 服务引用
-    private readonly ISystemRunStateService? _stateService;
+    private readonly ISystemStateManager? _stateService;
     private readonly SystemStateIoLinkageService? _linkageService;
     private readonly IRouteConfigurationRepository _routeRepo;
     private readonly ISystemConfigurationRepository _systemRepo;
@@ -67,7 +67,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _logCollector.Clear();
 
         // 获取核心服务
-        _stateService = _scope.ServiceProvider.GetService<ISystemRunStateService>();
+        _stateService = _scope.ServiceProvider.GetService<ISystemStateManager>();
         _linkageService = _scope.ServiceProvider.GetService<SystemStateIoLinkageService>();
         _routeRepo = _scope.ServiceProvider.GetRequiredService<IRouteConfigurationRepository>();
         _systemRepo = _scope.ServiceProvider.GetRequiredService<ISystemConfigurationRepository>();
@@ -162,8 +162,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
             _output.WriteLine($"✓ 启动按钮按下成功，结果: {startResult.IsSuccess}");
 
             // 验证线体状态
-            _stateService.Current.Should().Be(SystemState.Running, "线体应该进入Running状态");
-            _output.WriteLine($"✓ 线体状态: {_stateService.Current}");
+            _stateService.CurrentStateShould().Be(SystemState.Running, "线体应该进入Running状态");
+            _output.WriteLine($"✓ 线体状态: {_stateService.CurrentState");
 
             // 验证启动过程无Error日志
             var startErrors = _logCollector.GetLogs(LogLevel.Error);
@@ -216,8 +216,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
 
         if (_stateService != null)
         {
-            _stateService.Current.Should().Be(SystemState.Running, "系统应该保持Running状态");
-            _output.WriteLine($"✓ 系统状态稳定: {_stateService.Current}");
+            _stateService.CurrentStateShould().Be(SystemState.Running, "系统应该保持Running状态");
+            _output.WriteLine($"✓ 系统状态稳定: {_stateService.CurrentState");
         }
 
         // 最终验证：整个流程无Error日志
@@ -275,7 +275,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         if (_linkageService != null && _stateService != null)
         {
             await _linkageService.HandleStartAsync();
-            _output.WriteLine($"✓ 系统启动: {_stateService.Current}");
+            _output.WriteLine($"✓ 系统启动: {_stateService.CurrentState");
         }
 
         // 配置上游延迟响应（但不超时）
@@ -378,7 +378,7 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         {
             var startResult = await _linkageService.HandleStartAsync();
             startResult.IsSuccess.Should().BeTrue();
-            _output.WriteLine($"✓ 系统启动成功: {_stateService.Current}");
+            _output.WriteLine($"✓ 系统启动成功: {_stateService.CurrentState");
         }
 
         // 立即测试第一个包裹（暖机验证）

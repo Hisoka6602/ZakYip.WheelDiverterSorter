@@ -120,7 +120,7 @@ public class EventPayloadLocationComplianceTests
                 var relativePath = Path.GetRelativePath(solutionRoot, violation.FilePath);
                 report.AppendLine($"\n❌ {violation.TypeName}:");
                 report.AppendLine($"   位置: {relativePath}:{violation.LineNumber}");
-                report.AppendLine($"   当前命名空间: {violation.CurrentNamespace}");
+                report.AppendLine($"   当前命名空间: {violation.CurrentStateamespace}");
                 report.AppendLine($"   期望命名空间: {violation.ExpectedNamespace}");
             }
 

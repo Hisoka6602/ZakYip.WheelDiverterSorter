@@ -1,4 +1,5 @@
 #pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using Moq;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
@@ -11,6 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution;
@@ -50,7 +52,7 @@ public class SortingOrchestratorTests : IDisposable
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<SortingOrchestrator>> _mockLogger;
     private readonly Mock<ISortingExceptionHandler> _mockExceptionHandler;
-    private readonly Mock<ISystemRunStateService> _mockStateService;
+    private readonly Mock<ISystemStateManager> _mockStateService;
     private readonly IOptions<UpstreamConnectionOptions> _options;
     private readonly SortingOrchestrator _orchestrator;
     private readonly SystemConfiguration _defaultConfig;
@@ -66,7 +68,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockClock = new Mock<ISystemClock>();
         _mockLogger = new Mock<ILogger<SortingOrchestrator>>();
         _mockExceptionHandler = new Mock<ISortingExceptionHandler>();
-        _mockStateService = new Mock<ISystemRunStateService>();
+        _mockStateService = new Mock<ISystemStateManager>();
 
         _testTime = new DateTimeOffset(2025, 11, 22, 12, 0, 0, TimeSpan.Zero);
         _mockClock.Setup(c => c.LocalNow).Returns(_testTime.LocalDateTime);

@@ -488,13 +488,13 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     {
         return state switch
         {
-            SystemState.Booting => SystemState.Initializing,
-            SystemState.Ready => SystemState.Standby,
+            SystemState.Booting => SystemState.Booting,
+            SystemState.Ready => SystemState.Ready,
             SystemState.Running => SystemState.Running,
             SystemState.Paused => SystemState.Paused,
             SystemState.Faulted => SystemState.Faulted,
-            SystemState.EmergencyStop => SystemState.EmergencyStopped,
-            _ => SystemState.Standby
+            SystemState.EmergencyStop => SystemState.EmergencyStop,
+            _ => SystemState.Ready
         };
     }
     

@@ -279,7 +279,6 @@ public class ShadowEnumDetectionTests
     /// </summary>
     private bool IsInWhitelist(Type enum1, Type enum2)
     {
-        var pair = (enum1.FullName, enum2.FullName);
         
         // 白名单：这些枚举对虽然相似，但有合理的业务理由共存
         var whitelist = new[]

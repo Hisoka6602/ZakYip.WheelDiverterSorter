@@ -180,7 +180,7 @@ public class UpstreamAssignmentPatternTests
     {
         // Arrange
         var srcPath = Path.GetFullPath(Path.Combine(
-            AppDomain.CurrentDomain.BaseDirectory,
+            AppDomain.CurrentStateomain.BaseDirectory,
             "..", "..", "..", "..", "..", "src"));
 
         if (!Directory.Exists(srcPath))

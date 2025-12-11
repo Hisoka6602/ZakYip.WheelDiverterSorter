@@ -89,7 +89,7 @@ public class SortingPipelineTests
         // Arrange
         var middleware = new TestMiddleware(ctx =>
         {
-            ctx.CurrentStage = "TestStage";
+            ctx.CurrentStatetage = "TestStage";
             ctx.TargetChuteId = 42;
         });
 
@@ -106,7 +106,7 @@ public class SortingPipelineTests
         await pipeline.ExecuteAsync(context);
 
         // Assert
-        Assert.Equal("TestStage", context.CurrentStage);
+        Assert.Equal("TestStage", context.CurrentStatetage);
         Assert.Equal(42, context.TargetChuteId);
     }
 

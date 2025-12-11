@@ -287,11 +287,9 @@ public class InterfaceShadowDetectionTests
     private bool IsInMethodWhitelist(Type interface1, Type interface2)
     {
         // 白名单：这些接口对虽然方法相似，但有合理的业务理由共存
-        var whitelist = new[]
-        {
-            // 例子：Repository vs Service 接口 - 虽然方法相似但职责不同
-            // 暂无白名单，发现即为影分身
-        };
+        var whitelist = Array.Empty<(string, string)>();
+        // 例子：Repository vs Service 接口 - 虽然方法相似但职责不同
+        // 暂无白名单，发现即为影分身
 
         return whitelist.Any(w =>
             (interface1.FullName?.Contains(w.Item1) == true && interface2.FullName?.Contains(w.Item2) == true) ||

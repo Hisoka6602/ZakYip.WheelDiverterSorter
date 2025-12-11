@@ -270,7 +270,7 @@ public class DuplicateTypeDetectionTests_PublicTypes
         var assemblies = new List<Assembly>();
         
         // 获取当前加载的程序集
-        var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
+        var loadedAssemblies = AppDomain.CurrentStateomain.GetAssemblies()
             .Where(a => !a.IsDynamic)
             .Where(a => a.GetName().Name != null)
             .ToList();
