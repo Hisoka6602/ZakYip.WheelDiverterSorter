@@ -166,14 +166,6 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         var (isDuplicate, timeSinceLastTriggerMs) = CheckForDuplicateTrigger(sensorEvent);
         UpdateLastTriggerTime(sensorEvent);
 
-        var parcelId = GenerateUniqueParcelId(sensorEvent);
-        AddParcelIdToHistory(parcelId);
-
-        if (isDuplicate)
-        {
-            RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
-        }
-
         // PR-fix-sensor-type-filtering: 
         // - ParcelCreation 类型：创建包裹并触发 ParcelDetected 事件
         // - WheelFront/ChuteLock 类型：触发 ParcelDetected 事件（但不创建包裹，由 Orchestrator 处理）
@@ -185,16 +177,23 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         if (!IsSystemReadyForParcelCreation())
         {
             _logger?.LogWarning(
-                "传感器 {SensorId} ({SensorType}) 触发，但系统未处于运行状态，已忽略。包裹ID: {ParcelId}",
+                "传感器 {SensorId} ({SensorType}) 触发，但系统未处于运行状态，已忽略",
                 sensorEvent.SensorId,
-                sensorType,
-                parcelId);
+                sensorType);
             return;
         }
         
         if (sensorType == SensorIoType.ParcelCreation)
         {
             // ParcelCreation 传感器：创建包裹并触发事件
+            var parcelId = GenerateUniqueParcelId(sensorEvent);
+            AddParcelIdToHistory(parcelId);
+
+            if (isDuplicate)
+            {
+                RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
+            }
+            
             _logger?.LogDebug(
                 "传感器 {SensorId} 类型为 {SensorType}，触发包裹创建",
                 sensorEvent.SensorId,
@@ -203,14 +202,15 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
         else
         {
-            // WheelFront/ChuteLock 传感器：不创建包裹，但触发事件供 Orchestrator 处理
+            // WheelFront/ChuteLock 传感器：不创建包裹，只触发事件供 Orchestrator 处理
+            // 使用 0 作为 ParcelId，表示这不是一个真正的包裹创建事件
             _logger?.LogDebug(
                 "传感器 {SensorId} 类型为 {SensorType}，不触发包裹创建（只用于监控）",
                 sensorEvent.SensorId,
                 sensorType);
             
-            // 仍然触发 ParcelDetected 事件，让 Orchestrator 根据传感器类型决定如何处理
-            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate, sensorType);
+            // 触发 ParcelDetected 事件，ParcelId=0 表示非包裹创建事件
+            RaiseParcelDetectedEvent(0, sensorEvent, isDuplicate, sensorType);
         }
     }
 
@@ -443,19 +443,31 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <summary>
     /// 触发包裹检测事件
     /// </summary>
-    /// <param name="parcelId">包裹ID</param>
+    /// <param name="parcelId">包裹ID（对于WheelFront/ChuteLock传感器为0，表示非包裹创建事件）</param>
     /// <param name="sensorEvent">传感器事件</param>
     /// <param name="isDuplicate">是否为重复触发</param>
     /// <param name="sensorType">传感器类型（避免重复查询）</param>
     private void RaiseParcelDetectedEvent(long parcelId, SensorEvent sensorEvent, bool isDuplicate, SensorIoType sensorType)
     {
-        _logger?.LogInformation(
-            "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}{DuplicateFlag}",
-            parcelId,
-            sensorEvent.SensorId,
-            sensorEvent.SensorType,
-            sensorEvent.SensorId,
-            isDuplicate ? " [重复触发]" : "");
+        // 根据传感器类型输出不同的日志
+        if (sensorType == SensorIoType.ParcelCreation)
+        {
+            _logger?.LogInformation(
+                "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType}){DuplicateFlag}",
+                parcelId,
+                sensorEvent.SensorId,
+                sensorEvent.SensorType,
+                isDuplicate ? " [重复触发]" : "");
+        }
+        else
+        {
+            // WheelFront/ChuteLock传感器不创建包裹，只记录触发
+            _logger?.LogInformation(
+                "传感器 {SensorId} ({IoType}) 触发{DuplicateFlag}（不创建包裹，等待Orchestrator处理）",
+                sensorEvent.SensorId,
+                sensorType,
+                isDuplicate ? " [重复触发]" : "");
+        }
 
         var eventArgs = new ParcelDetectedEventArgs
         {
