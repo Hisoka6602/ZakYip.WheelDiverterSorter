@@ -83,7 +83,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
-    private readonly object? _serverBackgroundService; // UpstreamServerBackgroundService (optional, avoid direct type reference for layering)
     
     // TD-062: 拓扑驱动分拣流程依赖
     private readonly IPendingParcelQueue? _pendingQueue;
@@ -137,7 +136,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
         IChuteSelectionService? chuteSelectionService = null,
-        object? serverBackgroundService = null, // UpstreamServerBackgroundService (optional)
         IPendingParcelQueue? pendingQueue = null, // TD-062: 拓扑驱动分拣队列
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
@@ -163,7 +161,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pathHealthChecker = pathHealthChecker;
         _timeoutCalculator = timeoutCalculator;
         _chuteSelectionService = chuteSelectionService;
-        _serverBackgroundService = serverBackgroundService;
         
         // TD-062: 拓扑驱动分拣流程依赖（可选）
         _pendingQueue = pendingQueue;
@@ -718,6 +715,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <remarks>
     /// 在所有分拣模式下都向上游发送包裹检测通知。
     /// 通知失败时记录错误日志，但不阻止后续流程（只有 Formal 模式会因此返回异常格口）。
+    /// 
+    /// <para><b>PR-fix-shadow-upstream-notification</b>：删除影子实现，上游通知只通过 IUpstreamRoutingClient 发送一次。</para>
+    /// <list type="bullet">
+    ///   <item>删除了重复的 Server 模式广播逻辑（line 764-798）</item>
+    ///   <item>IUpstreamRoutingClient 的实现类会根据配置自动选择 Client 或 Server 模式</item>
+    ///   <item>Server 模式下，实现类内部会自动广播到所有连接的客户端</item>
+    /// </list>
     /// </remarks>
     private async Task SendUpstreamNotificationAsync(long parcelId, long exceptionChuteId)
     {
@@ -751,50 +755,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogError(
-                "包裹 {ParcelId} 无法发送检测通知到上游系统（Client模式）。连接失败或上游不可用。",
+                "包裹 {ParcelId} 无法发送检测通知到上游系统。连接失败或上游不可用。",
                 parcelId);
         }
         else
         {
-            _logger.LogDebug(
-                "包裹 {ParcelId} 已成功发送检测通知到上游系统（Client模式）",
+            _logger.LogInformation(
+                "包裹 {ParcelId} 已成功发送检测通知到上游系统",
                 parcelId);
-        }
-
-        // Server模式: 向所有连接的客户端广播通知
-        if (_serverBackgroundService != null)
-        {
-            try
-            {
-                // 使用反射访问CurrentServer属性（避免直接类型依赖）
-                var serverProperty = _serverBackgroundService.GetType().GetProperty("CurrentServer");
-                var currentServer = serverProperty?.GetValue(_serverBackgroundService);
-                
-                if (currentServer != null)
-                {
-                    // 使用反射调用BroadcastParcelDetectedAsync方法
-                    var broadcastMethod = currentServer.GetType().GetMethod("BroadcastParcelDetectedAsync");
-                    if (broadcastMethod != null)
-                    {
-                        var task = (Task?)broadcastMethod.Invoke(currentServer, new object[] { parcelId, CancellationToken.None });
-                        if (task != null)
-                        {
-                            await task;
-                            _logger.LogDebug(
-                                "包裹 {ParcelId} 已成功广播检测通知到所有客户端（Server模式）",
-                                parcelId);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "包裹 {ParcelId} 广播检测通知到客户端失败（Server模式）: {Message}",
-                    parcelId,
-                    ex.Message);
-            }
         }
     }
 

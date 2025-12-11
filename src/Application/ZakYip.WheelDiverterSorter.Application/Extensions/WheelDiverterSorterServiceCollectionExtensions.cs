@@ -432,10 +432,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var timeoutCalculator = sp.GetService<IChuteAssignmentTimeoutCalculator>();
             var chuteSelectionService = sp.GetService<IChuteSelectionService>();
             
-            // 获取UpstreamServerBackgroundService（用于Server模式广播）
-            var serverBackgroundService = sp.GetServices<object>()
-                .FirstOrDefault(s => s.GetType().Name == "UpstreamServerBackgroundService");
-            
             // TD-062: 拓扑驱动分拣流程依赖（可选）
             var pendingQueue = sp.GetService<IPendingParcelQueue>();
             var topologyRepository = sp.GetService<IChutePathTopologyRepository>();
@@ -463,7 +459,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pathHealthChecker,
                 timeoutCalculator,
                 chuteSelectionService,
-                serverBackgroundService,
                 pendingQueue,
                 topologyRepository,
                 segmentRepository,
