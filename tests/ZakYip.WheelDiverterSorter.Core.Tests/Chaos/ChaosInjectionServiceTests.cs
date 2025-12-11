@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Chaos;

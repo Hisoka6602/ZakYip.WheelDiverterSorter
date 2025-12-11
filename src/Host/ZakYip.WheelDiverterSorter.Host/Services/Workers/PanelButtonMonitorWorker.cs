@@ -9,7 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Inter
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
-using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
@@ -482,19 +482,19 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     }
 
     /// <summary>
-    /// 将 SystemState 映射到 SystemOperatingState
+    /// 将 SystemState 映射到 SystemState
     /// </summary>
-    private static SystemOperatingState MapToOperatingState(SystemState state)
+    private static SystemState MapToOperatingState(SystemState state)
     {
         return state switch
         {
-            SystemState.Booting => SystemOperatingState.Initializing,
-            SystemState.Ready => SystemOperatingState.Standby,
-            SystemState.Running => SystemOperatingState.Running,
-            SystemState.Paused => SystemOperatingState.Paused,
-            SystemState.Faulted => SystemOperatingState.Faulted,
-            SystemState.EmergencyStop => SystemOperatingState.EmergencyStopped,
-            _ => SystemOperatingState.Standby
+            SystemState.Booting => SystemState.Booting,
+            SystemState.Ready => SystemState.Ready,
+            SystemState.Running => SystemState.Running,
+            SystemState.Paused => SystemState.Paused,
+            SystemState.Faulted => SystemState.Faulted,
+            SystemState.EmergencyStop => SystemState.EmergencyStop,
+            _ => SystemState.Ready
         };
     }
     

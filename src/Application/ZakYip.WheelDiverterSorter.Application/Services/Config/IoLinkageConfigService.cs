@@ -109,7 +109,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
     }
 
     /// <inheritdoc />
-    public async Task<IoLinkageTriggerResult> TriggerIoLinkageAsync(SystemOperatingState systemState)
+    public async Task<IoLinkageTriggerResult> TriggerIoLinkageAsync(SystemState systemState)
     {
         try
         {

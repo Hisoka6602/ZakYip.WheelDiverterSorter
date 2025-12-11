@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Moq;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;

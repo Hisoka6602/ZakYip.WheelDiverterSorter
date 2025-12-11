@@ -390,7 +390,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.Configure<UpstreamConnectionOptions>(configuration.GetSection(UpstreamConnectionOptions.SectionName));
 
         // 注册系统运行状态服务（必须，用于状态验证）
-        services.AddSingleton<ISystemRunStateService, DefaultSystemRunStateService>();
+        // Note: ISystemStateManager 已在 Host 层注册，不在此处注册
 
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
@@ -419,7 +419,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var clock = sp.GetRequiredService<ISystemClock>();
             var logger = sp.GetRequiredService<ILogger<SortingOrchestrator>>();
             var exceptionHandler = sp.GetRequiredService<ISortingExceptionHandler>();
-            var stateService = sp.GetRequiredService<ISystemRunStateService>(); // 必需
+            var systemStateManager = sp.GetRequiredService<ISystemStateManager>(); // 必需
             
             // 可选依赖
             var pathFailureHandler = sp.GetService<IPathFailureHandler>();
@@ -453,7 +453,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 clock,
                 logger,
                 exceptionHandler,
-                stateService, // 必需参数
+                systemStateManager, // 必需参数
                 pathFailureHandler,
                 congestionDetector,
                 overloadPolicy,

@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using FluentAssertions;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;

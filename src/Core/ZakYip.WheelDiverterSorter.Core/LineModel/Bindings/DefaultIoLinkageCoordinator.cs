@@ -22,7 +22,7 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
 
     /// <inheritdoc/>
     public IReadOnlyList<IoLinkagePoint> DetermineIoLinkagePoints(
-        SystemOperatingState systemState,
+        SystemState systemState,
         IoLinkageOptions options)
     {
         if (!options.Enabled)
@@ -33,33 +33,36 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
         List<IoLinkagePoint> points;
 
         // 根据系统状态选择对应的 IO 联动配置
+        // PR-FIX-SHADOW-ENUM: SystemOperatingState 已统一为 SystemState
+        // 映射：Stopped/Standby/Stopping → Ready, EmergencyStopped → EmergencyStop, WaitingUpstream → Ready
         switch (systemState)
         {
-            case SystemOperatingState.Running:
+            case SystemState.Running:
                 // 运行中状态时，使用 RunningStateIos 配置
                 points = options.RunningStateIos;
                 break;
             
-            case SystemOperatingState.Stopped:
-            case SystemOperatingState.Standby:
-            case SystemOperatingState.Stopping:
+            case SystemState.Ready: // 对应原 Stopped/Standby/Stopping
+            case SystemState.Booting: // 启动中也使用 Stopped 配置
                 // 停止/复位/待机状态时，使用 StoppedStateIos 配置
                 points = options.StoppedStateIos;
                 break;
             
-            case SystemOperatingState.EmergencyStopped:
+            case SystemState.EmergencyStop: // 对应原 EmergencyStopped
                 // 急停状态时，优先使用 EmergencyStopStateIos，如果为空则使用 StoppedStateIos
                 points = options.EmergencyStopStateIos.Count > 0
                     ? options.EmergencyStopStateIos
                     : options.StoppedStateIos;
                 break;
             
-            case SystemOperatingState.WaitingUpstream:
-                // 等待上游状态时，使用 UpstreamConnectionExceptionStateIos 配置
-                points = options.UpstreamConnectionExceptionStateIos;
+            case SystemState.Paused:
+                // 暂停状态：使用 StoppedStateIos 配置（原 WaitingUpstream 也映射到这里）
+                points = options.UpstreamConnectionExceptionStateIos.Count > 0
+                    ? options.UpstreamConnectionExceptionStateIos
+                    : options.StoppedStateIos;
                 break;
             
-            case SystemOperatingState.Faulted:
+            case SystemState.Faulted:
                 // 故障状态时，优先使用 DiverterExceptionStateIos，如果为空则使用 StoppedStateIos
                 points = options.DiverterExceptionStateIos.Count > 0
                     ? options.DiverterExceptionStateIos
@@ -77,15 +80,14 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
     }
 
     /// <inheritdoc/>
-    public bool ShouldActivateIoLinkage(SystemOperatingState systemState)
+    public bool ShouldActivateIoLinkage(SystemState systemState)
     {
+        // PR-FIX-SHADOW-ENUM: 所有非Booting状态都激活IO联动
         // 在以下状态时激活 IO 联动
-        return systemState is SystemOperatingState.Running
-                           or SystemOperatingState.Stopped
-                           or SystemOperatingState.Standby
-                           or SystemOperatingState.Stopping
-                           or SystemOperatingState.EmergencyStopped
-                           or SystemOperatingState.WaitingUpstream
-                           or SystemOperatingState.Faulted;
+        return systemState is SystemState.Running
+                           or SystemState.Ready // 对应原 Stopped/Standby/Stopping
+                           or SystemState.Paused // 对应原 WaitingUpstream
+                           or SystemState.EmergencyStop // 对应原 EmergencyStopped
+                           or SystemState.Faulted;
     }
 }

@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
@@ -72,7 +73,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ILogger<SortingOrchestrator> _logger;
     private readonly UpstreamConnectionOptions _options;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
-    private readonly ISystemRunStateService _stateService; // 必需：用于状态验证
+    private readonly ISystemStateManager _systemStateManager; // 必需：用于状态验证
     private readonly ICongestionDetector? _congestionDetector;
     private readonly IOverloadHandlingPolicy? _overloadPolicy;
     private readonly ICongestionDataCollector? _congestionCollector;
@@ -126,7 +127,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISystemClock clock,
         ILogger<SortingOrchestrator> logger,
         ISortingExceptionHandler exceptionHandler,
-        ISystemRunStateService stateService, // 必需：用于状态验证
+        ISystemStateManager systemStateManager, // 必需：用于状态验证
         IPathFailureHandler? pathFailureHandler = null,
         ICongestionDetector? congestionDetector = null,
         IOverloadHandlingPolicy? overloadPolicy = null,
@@ -152,7 +153,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _exceptionHandler = exceptionHandler ?? throw new ArgumentNullException(nameof(exceptionHandler));
-        _stateService = stateService ?? throw new ArgumentNullException(nameof(stateService)); // 必需
+        _systemStateManager = systemStateManager ?? throw new ArgumentNullException(nameof(systemStateManager)); // 必需
         _pathFailureHandler = pathFailureHandler;
         _congestionDetector = congestionDetector;
         _overloadPolicy = overloadPolicy;
@@ -541,15 +542,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private Task<(bool IsValid, string? Reason)> ValidateSystemStateAsync(long parcelId)
     {
-        var validationResult = _stateService.ValidateParcelCreation();
-        if (!validationResult.IsSuccess)
+        var currentState = _systemStateManager.CurrentState;
+        if (!currentState.AllowsParcelCreation())
         {
+            var errorMessage = currentState.GetParcelCreationDeniedMessage();
             _logger.LogWarning(
                 "包裹 {ParcelId} 被拒绝：{ErrorMessage}",
                 parcelId,
-                validationResult.ErrorMessage);
+                errorMessage);
             
-            return Task.FromResult((IsValid: false, Reason: validationResult.ErrorMessage));
+            return Task.FromResult((IsValid: false, Reason: (string?)errorMessage));
         }
 
         return Task.FromResult((IsValid: true, Reason: (string?)null));

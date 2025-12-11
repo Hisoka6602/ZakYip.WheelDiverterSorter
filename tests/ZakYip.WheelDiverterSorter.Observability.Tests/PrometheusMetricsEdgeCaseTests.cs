@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Utilities;

@@ -18,7 +18,7 @@ public interface IIoLinkageCoordinator
     /// <param name="options">IO 联动配置选项</param>
     /// <returns>需要设置的 IO 联动点列表</returns>
     IReadOnlyList<IoLinkagePoint> DetermineIoLinkagePoints(
-        SystemOperatingState systemState,
+        SystemState systemState,
         IoLinkageOptions options);
 
     /// <summary>
@@ -26,5 +26,5 @@ public interface IIoLinkageCoordinator
     /// </summary>
     /// <param name="systemState">系统运行状态</param>
     /// <returns>如果应当激活返回 true，否则返回 false</returns>
-    bool ShouldActivateIoLinkage(SystemOperatingState systemState);
+    bool ShouldActivateIoLinkage(SystemState systemState);
 }

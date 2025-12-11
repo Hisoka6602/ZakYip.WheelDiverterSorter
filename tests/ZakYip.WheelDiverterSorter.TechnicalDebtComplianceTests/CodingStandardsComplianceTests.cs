@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using System.Text.RegularExpressions;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 

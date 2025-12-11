@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;

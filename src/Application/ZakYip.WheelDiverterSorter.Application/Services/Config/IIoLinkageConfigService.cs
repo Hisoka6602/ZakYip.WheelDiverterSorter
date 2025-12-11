@@ -32,7 +32,7 @@ public interface IIoLinkageConfigService
     /// </summary>
     /// <param name="systemState">目标系统状态</param>
     /// <returns>触发结果</returns>
-    Task<IoLinkageTriggerResult> TriggerIoLinkageAsync(SystemOperatingState systemState);
+    Task<IoLinkageTriggerResult> TriggerIoLinkageAsync(SystemState systemState);
 
     /// <summary>
     /// 获取指定 IO 点的状态

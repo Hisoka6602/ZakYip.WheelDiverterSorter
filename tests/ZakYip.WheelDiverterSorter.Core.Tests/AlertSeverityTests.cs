@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using System.ComponentModel;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using Xunit;

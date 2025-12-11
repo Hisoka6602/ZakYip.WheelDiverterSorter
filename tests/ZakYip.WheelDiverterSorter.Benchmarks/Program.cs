@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using BenchmarkDotNet.Running;
 
 namespace ZakYip.WheelDiverterSorter.Benchmarks;
