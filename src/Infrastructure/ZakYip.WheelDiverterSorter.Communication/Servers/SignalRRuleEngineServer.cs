@@ -169,6 +169,45 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
             parcelId);
     }
 
+    public async Task BroadcastSortingCompletedAsync(
+        Core.Abstractions.Upstream.SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        if (_hubContext == null)
+        {
+            _logger.LogWarning("HubContext未注入，无法广播分拣完成通知");
+            return;
+        }
+
+        if (!_isRunning)
+        {
+            _logger.LogWarning("SignalR服务器未运行，无法广播分拣完成通知");
+            return;
+        }
+
+        var notificationDto = new SortingCompletedNotificationDto
+        {
+            ParcelId = notification.ParcelId,
+            ActualChuteId = notification.ActualChuteId,
+            CompletedAt = notification.CompletedAt,
+            IsSuccess = notification.IsSuccess,
+            FinalStatus = notification.FinalStatus,
+            FailureReason = notification.FailureReason
+        };
+
+        await _hubContext.Clients.All.SendAsync(
+            "ReceiveSortingCompleted",
+            notificationDto,
+            cancellationToken);
+
+        _logger.LogInformation(
+            "[{LocalTime}] 已向所有SignalR客户端广播分拣完成通知: ParcelId={ParcelId}",
+            _systemClock.LocalNow,
+            notification.ParcelId);
+    }
+
     internal void RegisterClient(string connectionId)
     {
         var clientInfo = new ClientInfo

@@ -803,6 +803,70 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
+    /// 通知上游系统包裹分拣完成
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="actualChuteId">实际落格格口ID</param>
+    /// <param name="isSuccess">是否成功</param>
+    /// <param name="failureReason">失败原因（如果失败）</param>
+    /// <remarks>
+    /// 在所有分拣模式下都向上游发送分拣完成通知。
+    /// 通知失败时记录错误日志，但不阻止后续流程。
+    /// </remarks>
+    private async Task NotifyUpstreamSortingCompletedAsync(
+        long parcelId, 
+        long actualChuteId, 
+        bool isSuccess, 
+        string? failureReason)
+    {
+        try
+        {
+            var notification = new SortingCompletedNotification
+            {
+                ParcelId = parcelId,
+                ActualChuteId = actualChuteId,
+                CompletedAt = new DateTimeOffset(_clock.LocalNow),
+                IsSuccess = isSuccess,
+                FailureReason = failureReason,
+                FinalStatus = isSuccess 
+                    ? Core.Enums.Parcel.ParcelFinalStatus.Success 
+                    : Core.Enums.Parcel.ParcelFinalStatus.ExecutionError
+            };
+
+            _logger.LogTrace(
+                "发送分拣完成通知到上游: ParcelId={ParcelId}, ActualChuteId={ActualChuteId}, IsSuccess={IsSuccess}, ClientType={ClientType}",
+                parcelId,
+                actualChuteId,
+                isSuccess,
+                _upstreamClient.GetType().Name);
+
+            var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+
+            if (!notificationSent)
+            {
+                _logger.LogError(
+                    "包裹 {ParcelId} 无法发送分拣完成通知到上游系统。连接失败或上游不可用。",
+                    parcelId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "包裹 {ParcelId} 已成功发送分拣完成通知到上游系统: ActualChuteId={ActualChuteId}, IsSuccess={IsSuccess}",
+                    parcelId,
+                    actualChuteId,
+                    isSuccess);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "发送包裹 {ParcelId} 分拣完成通知到上游系统时发生异常",
+                parcelId);
+        }
+    }
+
+    /// <summary>
     /// 从上游系统获取格口分配（正式分拣模式）
     /// </summary>
     /// <remarks>
@@ -1551,6 +1615,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 parcel.TargetChuteId);
             // TODO: 从executionResult获取实际执行时间而非传入0
             _metrics?.RecordSortingSuccess(0);
+            
+            // 通知上游系统包裹已完成落格
+            await NotifyUpstreamSortingCompletedAsync(
+                parcel.ParcelId,
+                executionResult.ActualChuteId,
+                isSuccess: true,
+                failureReason: null);
         }
         else
         {
@@ -1560,6 +1631,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 executionResult.FailureReason,
                 executionResult.ActualChuteId);
             _metrics?.RecordSortingFailure(0);
+            
+            // 通知上游系统包裹分拣失败
+            await NotifyUpstreamSortingCompletedAsync(
+                parcel.ParcelId,
+                executionResult.ActualChuteId,
+                isSuccess: false,
+                failureReason: executionResult.FailureReason);
         }
     }
 

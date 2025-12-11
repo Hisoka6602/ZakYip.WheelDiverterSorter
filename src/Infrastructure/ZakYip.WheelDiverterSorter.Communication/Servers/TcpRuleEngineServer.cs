@@ -234,6 +234,62 @@ public sealed class TcpRuleEngineServer : IRuleEngineServer
         }
     }
 
+    public async Task BroadcastSortingCompletedAsync(
+        Core.Abstractions.Upstream.SortingCompletedNotification notification,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(notification);
+
+        var notificationDto = new SortingCompletedNotificationDto
+        {
+            ParcelId = notification.ParcelId,
+            ActualChuteId = notification.ActualChuteId,
+            CompletedAt = notification.CompletedAt,
+            IsSuccess = notification.IsSuccess,
+            FinalStatus = notification.FinalStatus,
+            FailureReason = notification.FailureReason
+        };
+
+        var json = JsonSerializer.Serialize(notificationDto);
+        var bytes = Encoding.UTF8.GetBytes(json + "\n");
+
+        var disconnectedClients = new List<string>();
+
+        foreach (var kvp in _clients)
+        {
+            try
+            {
+                await kvp.Value.Stream.WriteAsync(bytes, cancellationToken);
+                await kvp.Value.Stream.FlushAsync(cancellationToken);
+
+                _logger.LogDebug(
+                    "[{LocalTime}] 已向客户端 {ClientId} 广播分拣完成通知: ParcelId={ParcelId}",
+                    _systemClock.LocalNow,
+                    kvp.Key,
+                    notification.ParcelId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "[{LocalTime}] 向客户端 {ClientId} 广播分拣完成通知失败: {Message}",
+                    _systemClock.LocalNow,
+                    kvp.Key,
+                    ex.Message);
+                disconnectedClients.Add(kvp.Key);
+            }
+        }
+
+        // 清理断开的客户端
+        foreach (var clientId in disconnectedClients)
+        {
+            if (_clients.TryRemove(clientId, out var client))
+            {
+                await DisconnectClientAsync(client);
+            }
+        }
+    }
+
     private async Task AcceptClientsLoopAsync(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested && _isRunning)
