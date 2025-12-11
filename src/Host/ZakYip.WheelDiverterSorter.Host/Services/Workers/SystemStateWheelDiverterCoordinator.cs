@@ -270,7 +270,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     /// 
     /// 此操作是异步的，如果部分摆轮设置失败，会记录警告日志但不会阻止系统运行。
     /// </remarks>
-    [Obsolete("此方法已被 StartAndInitializeWheelDivertersAsync 替代，仅保留用于向后兼容")]
+    [Obsolete("此方法已被 StartAndInitializeWheelDivertersAsync 替代。请使用新方法以确保摆轮正确启动和初始化。", error: false)]
     private async Task InitializeWheelDivertersToPassThroughAsync(CancellationToken cancellationToken)
     {
         try
