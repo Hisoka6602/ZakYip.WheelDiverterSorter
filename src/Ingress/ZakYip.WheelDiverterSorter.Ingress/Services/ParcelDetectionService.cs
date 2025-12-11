@@ -32,7 +32,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
-    private readonly ISystemRunStateService? _systemRunStateService;
+    private readonly ISystemStateManager? _systemStateManager;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
     private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
     // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
@@ -65,7 +65,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         ILogger<ParcelDetectionService>? logger = null,
         Services.ISensorHealthMonitor? healthMonitor = null,
         ISensorConfigurationRepository? sensorConfigRepository = null,
-        ISystemRunStateService? systemRunStateService = null)
+        ISystemStateManager? systemStateManager = null)
     {
         _sensors = sensors ?? throw new ArgumentNullException(nameof(sensors));
         _options = options?.Value ?? new ParcelDetectionOptions();
@@ -208,24 +208,24 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <returns>true 表示允许创建包裹，false 表示系统未就绪</returns>
     private bool IsSystemReadyForParcelCreation()
     {
-        // 如果没有系统状态服务，默认允许（向后兼容）
-        if (_systemRunStateService == null)
+        // 如果没有系统状态管理器，默认允许（向后兼容）
+        if (_systemStateManager == null)
         {
-            _logger?.LogDebug("未注入 ISystemRunStateService，默认允许创建包裹（向后兼容模式）");
+            _logger?.LogDebug("未注入 ISystemStateManager，默认允许创建包裹（向后兼容模式）");
             return true;
         }
 
         try
         {
-            // 使用系统状态服务验证是否允许创建包裹
-            var validationResult = _systemRunStateService.ValidateParcelCreation();
+            // 使用系统状态管理器检查当前状态
+            var currentState = _systemStateManager.CurrentState;
             
-            if (!validationResult.IsSuccess)
+            // 只有 Running 状态才允许创建包裹
+            if (currentState != Core.Enums.System.SystemState.Running)
             {
                 _logger?.LogDebug(
-                    "系统状态验证失败，不允许创建包裹。当前状态: {CurrentState}，原因: {Reason}",
-                    _systemRunStateService.Current,
-                    validationResult.ErrorMessage);
+                    "系统状态验证失败，不允许创建包裹。当前状态: {CurrentState}（需要 Running 状态）",
+                    currentState);
                 return false;
             }
 
