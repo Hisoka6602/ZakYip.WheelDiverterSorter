@@ -25,6 +25,15 @@ public class SystemStateWheelDiverterCoordinatorTests
     private readonly Mock<ISafeExecutionService> _mockSafeExecutor;
     private readonly Mock<ILogger<SystemStateWheelDiverterCoordinator>> _mockLogger;
 
+    /// <summary>
+    /// 状态变化检测延迟时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 测试中需要等待足够时间让后台服务检测到状态变化（轮询间隔200ms）。
+    /// 使用1000ms确保有足够时间完成状态变化检测和处理。
+    /// </remarks>
+    private const int StateChangeDetectionDelayMs = 1000;
+
     public SystemStateWheelDiverterCoordinatorTests()
     {
         _mockStateManager = new Mock<ISystemStateManager>();
@@ -120,7 +129,7 @@ public class SystemStateWheelDiverterCoordinatorTests
 
         // Act - 启动服务，等待一段时间让它检测到状态变化
         var executeTask = coordinator.StartAsync(cts.Token);
-        await Task.Delay(1000);  // 等待足够时间让状态变化被检测
+        await Task.Delay(StateChangeDetectionDelayMs);  // 等待足够时间让状态变化被检测
         cts.Cancel();
         
         try
@@ -176,7 +185,7 @@ public class SystemStateWheelDiverterCoordinatorTests
 
         // Act
         var executeTask = coordinator.StartAsync(cts.Token);
-        await Task.Delay(1000);
+        await Task.Delay(StateChangeDetectionDelayMs);
         cts.Cancel();
         
         try
@@ -237,7 +246,7 @@ public class SystemStateWheelDiverterCoordinatorTests
 
         // Act
         var executeTask = coordinator.StartAsync(cts.Token);
-        await Task.Delay(1000);
+        await Task.Delay(StateChangeDetectionDelayMs);
         cts.Cancel();
         
         try
@@ -337,7 +346,7 @@ public class SystemStateWheelDiverterCoordinatorTests
 
         // Act
         var executeTask = coordinator.StartAsync(cts.Token);
-        await Task.Delay(1000);
+        await Task.Delay(StateChangeDetectionDelayMs);
         cts.Cancel();
         
         try

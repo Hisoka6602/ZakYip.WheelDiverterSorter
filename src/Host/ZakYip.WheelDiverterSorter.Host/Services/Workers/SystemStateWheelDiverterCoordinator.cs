@@ -40,6 +40,11 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     private const int PollingIntervalMs = 200;
 
     /// <summary>
+    /// 异常恢复延迟（毫秒）
+    /// </summary>
+    private const int ExceptionRetryDelayMs = 1000;
+
+    /// <summary>
     /// 上次记录的系统状态
     /// </summary>
     private SystemState _lastKnownState = SystemState.Booting;
@@ -104,7 +109,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                         _logger.LogError(ex, "系统状态监控异常");
 
                         // 异常后稍作延迟再继续
-                        await Task.Delay(1000, stoppingToken);
+                        await Task.Delay(ExceptionRetryDelayMs, stoppingToken);
                     }
                 }
 
