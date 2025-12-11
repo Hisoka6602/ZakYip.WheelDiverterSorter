@@ -70,7 +70,7 @@ public class SensorConfiguration
                     SensorName = "摆轮1前感应IO", 
                     IoType = SensorIoType.WheelFront, 
                     BitNumber = 1, 
-                    BoundWheelNodeId = "WHEEL-1",
+                    BoundWheelNodeId = "1",  // 绑定到摆轮ID=1（数字格式）
                     IsEnabled = true 
                 },
                 new() 

@@ -360,20 +360,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 diverterNode.DiverterId);
             
             // 将包裹和预生成的路径一起加入待执行队列，等待 WheelFront 传感器触发
-            // FIX: 使用与传感器配置一致的节点ID格式 "WHEEL-{DiverterId}"
-            var wheelNodeId = $"WHEEL-{diverterNode.DiverterId}";
+            // 使用摆轮ID（数字格式）作为队列键，与传感器配置的 BoundWheelNodeId 必须一致
             _pendingQueue.Enqueue(
                 parcelId, 
                 targetChuteId, 
-                wheelNodeId, 
+                diverterNode.DiverterId.ToString(), 
                 timeoutSeconds,
                 path);
             
             _logger.LogInformation(
-                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, WheelNodeId={WheelNodeId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
+                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
                 parcelId,
                 targetChuteId,
-                wheelNodeId,
                 diverterNode.DiverterId,
                 timeoutSeconds,
                 path.Segments.Count,
@@ -780,9 +778,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         _logger.LogTrace(
-            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}",
+            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, IsConnected={IsConnected}",
             parcelId,
-            upstreamRequestSentAt);
+            upstreamRequestSentAt,
+            _upstreamClient.GetType().Name,
+            _upstreamClient.IsConnected);
         
         var notificationSent = await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
         
@@ -795,8 +795,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         else
         {
             _logger.LogInformation(
-                "包裹 {ParcelId} 已成功发送检测通知到上游系统",
-                parcelId);
+                "包裹 {ParcelId} 已成功发送检测通知到上游系统 (ClientType={ClientType}, IsConnected={IsConnected})",
+                parcelId,
+                _upstreamClient.GetType().Name,
+                _upstreamClient.IsConnected);
         }
     }
 
