@@ -65,11 +65,11 @@ public class PendingParcelTimeoutMonitor : BackgroundService
             async () =>
             {
                 _logger.LogWarning(
-                    "包裹 {ParcelId} 等待超时，摆轮节点: {WheelNodeId}, 等待时间: {ElapsedMs}ms，准备处理超时包裹",
-                    e.ParcelId, e.WheelNodeId, e.ElapsedMs);
+                    "包裹 {ParcelId} 等待超时，摆轮ID: {WheelDiverterId}, 等待时间: {ElapsedMs}ms，准备处理超时包裹",
+                    e.ParcelId, e.WheelDiverterId, e.ElapsedMs);
 
                 // 从队列中移除超时包裹（防止重复处理）
-                var removed = _pendingQueue.DequeueByWheelNode(e.WheelNodeId);
+                var removed = _pendingQueue.DequeueByWheelDiverterId(e.WheelDiverterId);
                 
                 if (removed != null)
                 {

@@ -360,11 +360,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 diverterNode.DiverterId);
             
             // 将包裹和预生成的路径一起加入待执行队列，等待 WheelFront 传感器触发
-            // 使用摆轮ID（数字格式）作为队列键，与传感器配置的 BoundWheelNodeId 必须一致
+            // 使用摆轮ID（long类型）作为队列键，与传感器配置的 BoundWheelDiverterId 必须一致
             _pendingQueue.Enqueue(
                 parcelId, 
                 targetChuteId, 
-                diverterNode.DiverterId.ToString(), 
+                diverterNode.DiverterId, 
                 timeoutSeconds,
                 path);
             
@@ -1427,20 +1427,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var sensor = sensorConfig.Sensors.FirstOrDefault(s => s.SensorId == e.SensorId);
                 
                 _logger.LogDebug(
-                    "[传感器类型检查] SensorId={SensorId}, IoType={IoType}, BoundWheelNodeId={BoundWheelNodeId}",
+                    "[传感器类型检查] SensorId={SensorId}, IoType={IoType}, BoundWheelDiverterId={BoundWheelDiverterId}",
                     e.SensorId,
                     sensor?.IoType,
-                    sensor?.BoundWheelNodeId);
+                    sensor?.BoundWheelDiverterId);
                 
                 if (sensor?.IoType == SensorIoType.WheelFront)
                 {
+                    if (!sensor.BoundWheelDiverterId.HasValue)
+                    {
+                        _logger.LogError(
+                            "[配置错误] WheelFront传感器 {SensorId} 未绑定摆轮ID",
+                            e.SensorId);
+                        return;
+                    }
+                    
                     _logger.LogInformation(
-                        "[WheelFront触发] 检测到摆轮前传感器触发: SensorId={SensorId}, BoundWheelNodeId={BoundWheelNodeId}",
+                        "[WheelFront触发] 检测到摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}",
                         e.SensorId,
-                        sensor.BoundWheelNodeId);
+                        sensor.BoundWheelDiverterId.Value);
                     
                     // 这是摆轮前传感器触发，处理待执行队列中的包裹
-                    await HandleWheelFrontSensorAsync(e.SensorId, sensor.BoundWheelNodeId);
+                    await HandleWheelFrontSensorAsync(e.SensorId, sensor.BoundWheelDiverterId.Value);
                     return;
                 }
             }
@@ -1474,25 +1482,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理摆轮前传感器触发事件（TD-062）
     /// </summary>
-    private async Task HandleWheelFrontSensorAsync(long sensorId, string? boundWheelNodeId)
+    /// <param name="sensorId">传感器ID</param>
+    /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
+    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId)
     {
         _logger.LogDebug(
-            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelNodeId={BoundWheelNodeId}",
+            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}",
             sensorId,
-            boundWheelNodeId);
-
-        if (string.IsNullOrEmpty(boundWheelNodeId))
-        {
-            _logger.LogWarning("摆轮前传感器 {SensorId} 未绑定摆轮节点，跳过处理", sensorId);
-            return;
-        }
+            boundWheelDiverterId);
 
         if (_safeExecutor != null)
         {
             _logger.LogDebug("使用 SafeExecutionService 执行摆轮前传感器处理");
             // 使用 SafeExecutionService 包裹异步操作
             await _safeExecutor.ExecuteAsync(
-                () => ExecuteWheelFrontSortingAsync(boundWheelNodeId, sensorId),
+                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId),
                 operationName: $"WheelFrontTriggered_Sensor{sensorId}",
                 cancellationToken: default);
         }
@@ -1500,33 +1504,35 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _logger.LogDebug("直接执行摆轮前传感器处理（无 SafeExecutor）");
             // Fallback: 没有 SafeExecutor 时直接执行
-            await ExecuteWheelFrontSortingAsync(boundWheelNodeId, sensorId);
+            await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId);
         }
     }
 
     /// <summary>
     /// 执行摆轮前传感器触发的分拣逻辑（TD-062）
     /// </summary>
-    private async Task ExecuteWheelFrontSortingAsync(string boundWheelNodeId, long sensorId)
+    /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
+    /// <param name="sensorId">传感器ID</param>
+    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId)
     {
         _logger.LogDebug(
-            "从队列中查找摆轮 {WheelNodeId} 的待执行包裹",
-            boundWheelNodeId);
+            "从队列中查找摆轮 {WheelDiverterId} 的待执行包裹",
+            boundWheelDiverterId);
 
         // 从队列取出该摆轮的第一个包裹
-        var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
+        var parcel = _pendingQueue!.DequeueByWheelDiverterId(boundWheelDiverterId);
         
         if (parcel == null)
         {
             _logger.LogWarning(
-                "摆轮 {WheelNodeId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
-                boundWheelNodeId, sensorId);
+                "摆轮 {WheelDiverterId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
+                boundWheelDiverterId, sensorId);
             return;
         }
         
         _logger.LogInformation(
-            "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelNodeId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
-            parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
+            "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelDiverterId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
+            parcel.ParcelId, boundWheelDiverterId, parcel.TargetChuteId);
         
         // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
         _logger.LogDebug(

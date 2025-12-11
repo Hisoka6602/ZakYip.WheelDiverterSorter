@@ -20,9 +20,9 @@ public sealed record class ParcelTimedOutEventArgs
     public required long TargetChuteId { get; init; }
 
     /// <summary>
-    /// 绑定的摆轮节点ID
+    /// 绑定的摆轮ID（long类型，用于匹配）
     /// </summary>
-    public required string WheelNodeId { get; init; }
+    public required long WheelDiverterId { get; init; }
 
     /// <summary>
     /// 已等待时间（毫秒）
