@@ -1737,6 +1737,32 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                 // TODO: 从executionResult获取实际执行时间而非传入0
                 _metrics?.RecordSortingSuccess(0);
+                
+                // 发送落格完成通知到上游系统
+                var notification = new SortingCompletedNotification
+                {
+                    ParcelId = parcelId,
+                    ActualChuteId = exceptionChuteId,
+                    CompletedAt = new DateTimeOffset(_clock.LocalNow),
+                    IsSuccess = false, // 超时被视为失败
+                    FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Timeout,
+                    FailureReason = "包裹等待超时未到达摆轮"
+                };
+
+                var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+                
+                if (!notificationSent)
+                {
+                    _logger.LogWarning(
+                        "超时包裹 {ParcelId} 落格完成通知发送失败",
+                        parcelId);
+                }
+                else
+                {
+                    _logger.LogInformation(
+                        "超时包裹 {ParcelId} 已发送落格完成通知到上游系统 (FinalStatus=Timeout)",
+                        parcelId);
+                }
             }
             else
             {
@@ -1746,6 +1772,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                 // 记录失败指标
                 _metrics?.RecordSortingFailedParcel(executionResult.FailureReason ?? "Unknown");
+                
+                // 即使路由失败也发送通知到上游
+                var notification = new SortingCompletedNotification
+                {
+                    ParcelId = parcelId,
+                    ActualChuteId = exceptionChuteId,
+                    CompletedAt = new DateTimeOffset(_clock.LocalNow),
+                    IsSuccess = false,
+                    FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.ExecutionError,
+                    FailureReason = $"超时后路由到异常格口失败: {executionResult.FailureReason}"
+                };
+
+                await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
             }
 
             // 记录拥堵数据（如果启用）
