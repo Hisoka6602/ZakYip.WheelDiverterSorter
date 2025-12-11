@@ -453,21 +453,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         if (sensorType == SensorIoType.ParcelCreation)
         {
             _logger?.LogInformation(
-                "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}{DuplicateFlag}",
+                "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType}){DuplicateFlag}",
                 parcelId,
                 sensorEvent.SensorId,
                 sensorEvent.SensorType,
-                sensorEvent.SensorId,
                 isDuplicate ? " [重复触发]" : "");
         }
         else
         {
             // WheelFront/ChuteLock传感器不创建包裹，只记录触发
             _logger?.LogInformation(
-                "传感器 {SensorId} ({IoType}) 触发，位置: {Position}{DuplicateFlag}（不创建包裹，等待Orchestrator处理）",
+                "传感器 {SensorId} ({IoType}) 触发{DuplicateFlag}（不创建包裹，等待Orchestrator处理）",
                 sensorEvent.SensorId,
                 sensorType,
-                sensorEvent.SensorId,
                 isDuplicate ? " [重复触发]" : "");
         }
 

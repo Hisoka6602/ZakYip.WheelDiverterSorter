@@ -1744,12 +1744,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     ParcelId = parcelId,
                     ActualChuteId = exceptionChuteId,
                     CompletedAt = new DateTimeOffset(_clock.LocalNow),
-                    IsSuccess = false, // 超时被视为失败
+                    // IsSuccess 表示"是否成功到达目标格口"。根据 UPSTREAM_CONNECTION_GUIDE.md，
+                    // 虽然超时后成功路由到异常格口属于系统已妥善处理，但本字段仅在包裹到达预期目标格口时为 true。
+                    // 路由到异常格口（如因超时）视为"未达目标"，因此 IsSuccess=false，FinalStatus=Timeout。
+                    IsSuccess = false,
                     FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Timeout,
                     FailureReason = "包裹等待超时未到达摆轮"
                 };
 
-                var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+                var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, cancellationToken);
                 
                 if (!notificationSent)
                 {
@@ -1774,17 +1777,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 _metrics?.RecordSortingFailedParcel(executionResult.FailureReason ?? "Unknown");
                 
                 // 即使路由失败也发送通知到上游
+                // 根因是超时，执行失败是次要问题，因此 FinalStatus 仍为 Timeout
                 var notification = new SortingCompletedNotification
                 {
                     ParcelId = parcelId,
                     ActualChuteId = exceptionChuteId,
                     CompletedAt = new DateTimeOffset(_clock.LocalNow),
                     IsSuccess = false,
-                    FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.ExecutionError,
+                    FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Timeout,
                     FailureReason = $"超时后路由到异常格口失败: {executionResult.FailureReason}"
                 };
 
-                await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+                await _upstreamClient.NotifySortingCompletedAsync(notification, cancellationToken);
             }
 
             // 记录拥堵数据（如果启用）
