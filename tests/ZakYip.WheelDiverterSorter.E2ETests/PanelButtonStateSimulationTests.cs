@@ -10,7 +10,8 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
-// using ZakYip.WheelDiverterSorter.Drivers.Simulated.Ports; // TODO: Fix namespace
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
+using ZakYip.WheelDiverterSorter.Drivers;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -27,7 +28,6 @@ public class PanelButtonStateSimulationTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly ServiceProvider _serviceProvider;
     private readonly ISystemStateManager _stateService;
-    // private readonly SimulatedOutputPort _simulatedOutput; // TODO: Fix namespace
 
     public PanelButtonStateSimulationTests(ITestOutputHelper output)
     {
@@ -65,15 +65,10 @@ public class PanelButtonStateSimulationTests : IDisposable
         // 添加核心服务
         services.AddSingleton<ISystemStateManager, SystemStateManager>();
         services.AddSingleton<IIoLinkageCoordinator, DefaultIoLinkageCoordinator>();
-        
-        // 添加模拟 IO 端口
-        // var simulatedOutput = new SimulatedOutputPort(); // TODO: Fix namespace
-        // services.AddSingleton<IOutputPort>(simulatedOutput); // TODO: Fix namespace
         services.AddSingleton<IIoLinkageExecutor, DefaultIoLinkageExecutor>();
 
         _serviceProvider = services.BuildServiceProvider();
         _stateService = _serviceProvider.GetRequiredService<ISystemStateManager>();
-        // _simulatedOutput = simulatedOutput; // TODO: Fix namespace
     }
 
     [Fact(Skip = "需要重构 - SystemStateIoLinkageService已被移除，需要使用 ISystemStateManager 和 PanelButtonMonitorWorker")]
