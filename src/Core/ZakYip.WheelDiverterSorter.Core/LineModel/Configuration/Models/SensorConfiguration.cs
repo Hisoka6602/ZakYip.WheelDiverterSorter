@@ -70,7 +70,7 @@ public class SensorConfiguration
                     SensorName = "摆轮1前感应IO", 
                     IoType = SensorIoType.WheelFront, 
                     BitNumber = 1, 
-                    BoundWheelNodeId = "WHEEL-1",
+                    BoundWheelDiverterId = 1,  // 绑定到摆轮ID=1（long类型）
                     IsEnabled = true 
                 },
                 new() 
@@ -79,7 +79,7 @@ public class SensorConfiguration
                     SensorName = "格口1锁格感应IO", 
                     IoType = SensorIoType.ChuteLock, 
                     BitNumber = 2, 
-                    BoundChuteId = "CHUTE-001",
+                    BoundChuteId = 1,  // 绑定到格口ID=1（long类型）
                     IsEnabled = true 
                 }
             },
@@ -119,7 +119,7 @@ public class SensorConfiguration
 
             // 检查 WheelFront 类型必须绑定摆轮节点
             var wheelFrontWithoutBinding = Sensors
-                .Where(s => s.IoType == SensorIoType.WheelFront && s.IsEnabled && string.IsNullOrEmpty(s.BoundWheelNodeId))
+                .Where(s => s.IoType == SensorIoType.WheelFront && s.IsEnabled && !s.BoundWheelDiverterId.HasValue)
                 .ToList();
 
             if (wheelFrontWithoutBinding.Any())
@@ -129,7 +129,7 @@ public class SensorConfiguration
 
             // 检查 ChuteLock 类型必须绑定格口
             var chuteLockWithoutBinding = Sensors
-                .Where(s => s.IoType == SensorIoType.ChuteLock && s.IsEnabled && string.IsNullOrEmpty(s.BoundChuteId))
+                .Where(s => s.IoType == SensorIoType.ChuteLock && s.IsEnabled && !s.BoundChuteId.HasValue)
                 .ToList();
 
             if (chuteLockWithoutBinding.Any())
@@ -193,8 +193,9 @@ public class SensorIoEntry
     /// <remarks>
     /// WheelFront 类型的感应IO必须绑定一个摆轮节点，
     /// 用于在包裹到达摆轮前触发摆轮提前动作。
+    /// 使用 long 类型的 DiverterId 进行匹配，符合项目ID匹配规范。
     /// </remarks>
-    public string? BoundWheelNodeId { get; set; }
+    public long? BoundWheelDiverterId { get; set; }
 
     /// <summary>
     /// 绑定的格口ID（仅当 IoType 为 ChuteLock 时使用）
@@ -202,8 +203,9 @@ public class SensorIoEntry
     /// <remarks>
     /// ChuteLock 类型的感应IO必须绑定一个格口，
     /// 用于确认包裹已成功落入目标格口。
+    /// 使用 long 类型的 ChuteId 进行匹配，符合项目ID匹配规范。
     /// </remarks>
-    public string? BoundChuteId { get; set; }
+    public long? BoundChuteId { get; set; }
 
     /// <summary>
     /// IO触发电平配置（高电平有效/低电平有效）

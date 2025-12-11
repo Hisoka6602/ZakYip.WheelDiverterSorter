@@ -40,16 +40,16 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
     /// </summary>
     /// <param name="parcelId">包裹ID</param>
     /// <param name="targetChuteId">目标格口ID</param>
-    /// <param name="wheelNodeId">摆轮节点ID</param>
+    /// <param name="wheelDiverterId">摆轮ID（long类型，用于匹配）</param>
     /// <param name="timeoutSeconds">超时时间（秒）</param>
     /// <param name="preGeneratedPath">预生成的分拣路径（TD-062: 路径预生成优化）</param>
-    public void Enqueue(long parcelId, long targetChuteId, string wheelNodeId, int timeoutSeconds, ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath preGeneratedPath)
+    public void Enqueue(long parcelId, long targetChuteId, long wheelDiverterId, int timeoutSeconds, ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath preGeneratedPath)
     {
         var entry = new PendingParcelEntry
         {
             ParcelId = parcelId,
             TargetChuteId = targetChuteId,
-            WheelNodeId = wheelNodeId,
+            WheelDiverterId = wheelDiverterId,
             EnqueuedAt = _clock.LocalNow,
             TimeoutAt = _clock.LocalNow.AddSeconds(timeoutSeconds),
             PreGeneratedPath = preGeneratedPath
@@ -75,8 +75,8 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
             timer.Start();
 
             _logger.LogDebug(
-                "包裹 {ParcelId} 已加入待执行队列，目标格口: {ChuteId}, 摆轮节点: {WheelNodeId}, 超时时间: {TimeoutSeconds}秒",
-                parcelId, targetChuteId, wheelNodeId, timeoutSeconds);
+                "包裹 {ParcelId} 已加入待执行队列，目标格口: {ChuteId}, 摆轮ID: {WheelDiverterId}, 超时时间: {TimeoutSeconds}秒",
+                parcelId, targetChuteId, wheelDiverterId, timeoutSeconds);
         }
         else
         {
@@ -94,14 +94,14 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
         var elapsedMs = (_clock.LocalNow - entry.EnqueuedAt).TotalMilliseconds;
         
         _logger.LogWarning(
-            "包裹 {ParcelId} 等待超时，目标格口: {ChuteId}, 摆轮节点: {WheelNodeId}, 等待时间: {ElapsedMs}ms",
-            entry.ParcelId, entry.TargetChuteId, entry.WheelNodeId, elapsedMs);
+            "包裹 {ParcelId} 等待超时，目标格口: {ChuteId}, 摆轮ID: {WheelDiverterId}, 等待时间: {ElapsedMs}ms",
+            entry.ParcelId, entry.TargetChuteId, entry.WheelDiverterId, elapsedMs);
         
         ParcelTimedOut?.Invoke(this, new ParcelTimedOutEventArgs
         {
             ParcelId = entry.ParcelId,
             TargetChuteId = entry.TargetChuteId,
-            WheelNodeId = entry.WheelNodeId,
+            WheelDiverterId = entry.WheelDiverterId,
             ElapsedMs = elapsedMs
         });
     }
@@ -109,11 +109,12 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
     /// <summary>
     /// 当WheelFront传感器触发时，取出对应包裹
     /// </summary>
-    public PendingParcelEntry? DequeueByWheelNode(string wheelNodeId)
+    /// <param name="wheelDiverterId">摆轮ID（long类型）</param>
+    public PendingParcelEntry? DequeueByWheelDiverterId(long wheelDiverterId)
     {
-        // 查找第一个匹配该摆轮节点的包裹
+        // 查找第一个匹配该摆轮ID的包裹
         var matchingEntry = _pendingParcels
-            .Where(kvp => kvp.Value.WheelNodeId == wheelNodeId)
+            .Where(kvp => kvp.Value.WheelDiverterId == wheelDiverterId)
             .OrderBy(kvp => kvp.Value.EnqueuedAt) // FIFO顺序
             .FirstOrDefault();
 
@@ -129,8 +130,8 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
 
             var waitTime = (_clock.LocalNow - entry.EnqueuedAt).TotalMilliseconds;
             _logger.LogDebug(
-                "包裹 {ParcelId} 已从待执行队列取出，摆轮节点: {WheelNodeId}, 等待时间: {WaitTime}ms",
-                entry.ParcelId, wheelNodeId, waitTime);
+                "包裹 {ParcelId} 已从待执行队列取出，摆轮ID: {WheelDiverterId}, 等待时间: {WaitTime}ms",
+                entry.ParcelId, wheelDiverterId, waitTime);
             return entry;
         }
 
@@ -153,8 +154,8 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
                 {
                     var waitTime = (now - entry.EnqueuedAt).TotalSeconds;
                     _logger.LogWarning(
-                        "包裹 {ParcelId} 等待超时，目标格口: {ChuteId}, 摆轮节点: {WheelNodeId}, 等待时间: {WaitTime}秒",
-                        entry.ParcelId, entry.TargetChuteId, entry.WheelNodeId, waitTime);
+                        "包裹 {ParcelId} 等待超时，目标格口: {ChuteId}, 摆轮ID: {WheelDiverterId}, 等待时间: {WaitTime}秒",
+                        entry.ParcelId, entry.TargetChuteId, entry.WheelDiverterId, waitTime);
                     timedOut.Add(entry);
                 }
             }
@@ -207,9 +208,12 @@ public sealed record PendingParcelEntry
     public required long TargetChuteId { get; init; }
 
     /// <summary>
-    /// 绑定的摆轮节点ID
+    /// 绑定的摆轮ID（用于匹配WheelFront传感器触发）
     /// </summary>
-    public required string WheelNodeId { get; init; }
+    /// <remarks>
+    /// 使用 long 类型的 DiverterId 进行匹配，符合项目ID匹配规范。
+    /// </remarks>
+    public required long WheelDiverterId { get; init; }
 
     /// <summary>
     /// 加入队列时间
@@ -246,15 +250,16 @@ public interface IPendingParcelQueue
     /// </summary>
     /// <param name="parcelId">包裹ID</param>
     /// <param name="targetChuteId">目标格口ID</param>
-    /// <param name="wheelNodeId">摆轮节点ID</param>
+    /// <param name="wheelDiverterId">摆轮ID（long类型，用于匹配）</param>
     /// <param name="timeoutSeconds">超时时间（秒）</param>
     /// <param name="preGeneratedPath">预生成的分拣路径（TD-062: 路径预生成优化）</param>
-    void Enqueue(long parcelId, long targetChuteId, string wheelNodeId, int timeoutSeconds, ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath preGeneratedPath);
+    void Enqueue(long parcelId, long targetChuteId, long wheelDiverterId, int timeoutSeconds, ZakYip.WheelDiverterSorter.Core.LineModel.Topology.SwitchingPath preGeneratedPath);
 
     /// <summary>
     /// 当WheelFront传感器触发时，取出对应包裹
     /// </summary>
-    PendingParcelEntry? DequeueByWheelNode(string wheelNodeId);
+    /// <param name="wheelDiverterId">摆轮ID（long类型）</param>
+    PendingParcelEntry? DequeueByWheelDiverterId(long wheelDiverterId);
 
     /// <summary>
     /// 获取所有超时的包裹

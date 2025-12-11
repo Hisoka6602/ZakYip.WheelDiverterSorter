@@ -1446,6 +1446,7 @@ tools/Profiling/
 | TD-062 | ✅ 已解决 | 完成拓扑驱动分拣流程集成 + 路径预生成优化 → Orchestrator集成完成、DI注册完成、移除立即执行模式（当前 PR） | [详情](./TechnicalDebtLog.md#td-062-完成拓扑驱动分拣流程集成) |
 | TD-063 | ✅ 已解决 | 清理旧分拣逻辑和影分身代码 → 经审计确认无遗留代码，防线测试完整（当前 PR）| [详情](./TechnicalDebtLog.md#td-063-清理旧分拣逻辑和影分身代码) |
 | TD-064 | ✅ 已解决 | 系统状态转换到 Running 时初始化所有摆轮为直行 → 已通过现有架构实现，无需额外代码（当前 PR）| [详情](./TechnicalDebtLog.md#td-064-系统状态转换到-running-时初始化所有摆轮为直行) |
+| TD-065 | ✅ 已解决 | 强制执行 long 类型 ID 匹配规范 + 修复包裹超时问题 → 修复传感器ID类型不匹配、移除重复上游通知、建立 LongIdMatchingEnforcementTests 防线（当前 PR）| [详情](./TechnicalDebtLog.md#td-065-强制执行-long-类型-id-匹配规范) |
 
 ### 技术债统计
 
