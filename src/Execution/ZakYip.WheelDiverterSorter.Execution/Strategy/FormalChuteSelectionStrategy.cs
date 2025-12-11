@@ -96,20 +96,11 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
                 "上游系统未连接");
         }
 
-        // 发送包裹检测通知
-        var notificationSent = await _upstreamClient.NotifyParcelDetectedAsync(context.ParcelId, cancellationToken);
-
-        if (!notificationSent)
-        {
-            _logger.LogWarning(
-                "包裹 {ParcelId} 无法发送检测通知到上游系统，将使用异常格口 {ExceptionChuteId}",
-                context.ParcelId,
-                context.ExceptionChuteId);
-
-            return ChuteSelectionResult.Exception(
-                context.ExceptionChuteId,
-                "无法发送检测通知到上游系统");
-        }
+        // PR-fix-upstream-notification: 上游通知已在 DetermineTargetChuteAsync 中统一发送
+        // 此处不再重复发送，避免双重通知
+        _logger.LogDebug(
+            "包裹 {ParcelId} 上游通知已在 DetermineTargetChuteAsync 中发送，FormalChuteSelectionStrategy 不再重复发送",
+            context.ParcelId);
 
         // 等待上游推送格口分配
         var tcs = new TaskCompletionSource<long>();
