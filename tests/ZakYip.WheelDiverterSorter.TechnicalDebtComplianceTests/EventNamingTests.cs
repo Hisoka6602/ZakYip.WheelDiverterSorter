@@ -84,7 +84,7 @@ public class EventNamingTests
                 var relativePath = Path.GetRelativePath(solutionRoot, violation.FilePath);
                 report.AppendLine($"\n❌ {violation.TypeName}:");
                 report.AppendLine($"   位置: {relativePath}:{violation.LineNumber}");
-                report.AppendLine($"   当前定义: {violation.CurrentStateefinition}");
+                report.AppendLine($"   当前定义: {violation.CurrentDefinition}");
                 report.AppendLine($"   问题: {violation.Issue}");
             }
 

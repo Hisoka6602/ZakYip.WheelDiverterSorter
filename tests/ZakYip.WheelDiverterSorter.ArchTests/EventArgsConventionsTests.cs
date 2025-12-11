@@ -116,7 +116,7 @@ public class EventArgsConventionsTests
         if (violations.Any())
         {
             var message = "以下 EventArgs 类型不是 record 或 record struct:\n" +
-                string.Join("\n", violations.Select(v => $"  - {v.TypeName} ({v.CurrentStateefinition}) at {Path.GetRelativePath(solutionRoot, v.FilePath)}:{v.LineNumber}"));
+                string.Join("\n", violations.Select(v => $"  - {v.TypeName} ({v.CurrentDefinition}) at {Path.GetRelativePath(solutionRoot, v.FilePath)}:{v.LineNumber}"));
             Assert.Fail(message);
         }
     }

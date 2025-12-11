@@ -40,7 +40,7 @@ public class S7ConnectionTests
             EnableHealthCheck = false,  // 禁用健康检查以简化测试
             EnablePerformanceMetrics = true
         };
-        _mockOptionsMonitor.Setup(x => x.CurrentStatealue).Returns(_options);
+        _mockOptionsMonitor.Setup(x => x.CurrentValue).Returns(_options);
         _mockClock.Setup(x => x.LocalNow).Returns(DateTime.Now);
         
         // Setup SafeExecutionService to execute the action immediately

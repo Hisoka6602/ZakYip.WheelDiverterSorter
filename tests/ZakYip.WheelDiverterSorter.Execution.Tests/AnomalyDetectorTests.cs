@@ -7,7 +7,6 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Events.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Events.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Events.Chute;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Execution.Diagnostics;

@@ -12,7 +12,6 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;

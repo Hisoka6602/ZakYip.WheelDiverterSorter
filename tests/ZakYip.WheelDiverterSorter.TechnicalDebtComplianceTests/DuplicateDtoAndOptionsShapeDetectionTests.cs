@@ -291,7 +291,7 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
     {
         var assemblies = new List<Assembly>();
         
-        var loadedAssemblies = AppDomain.CurrentStateomain.GetAssemblies()
+        var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
             .Where(a => !a.IsDynamic)
             .Where(a => a.GetName().Name != null)
             .ToList();

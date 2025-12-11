@@ -135,8 +135,6 @@ public class SystemStateIoLinkageService
         await StopAllWheelDivertersAsync(cancellationToken);
 
         // 3. 状态切换成功，执行停止联动 IO（急停时使用停止联动 IO）
-        var currentState = _systemStateManager.CurrentState;
-        
         // 急停时直接使用 StoppedStateIos
         IReadOnlyList<IoLinkagePoint> linkagePoints = _linkageOptions.Enabled 
             ? _linkageOptions.StoppedStateIos.AsReadOnly()

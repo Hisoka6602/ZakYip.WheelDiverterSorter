@@ -1,6 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using Moq;
 using Xunit;
 using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
@@ -108,7 +107,7 @@ public class SystemStateWheelDiverterCoordinatorTests
         });
 
         _mockStateManager
-            .Setup(m => m.CurrentStatetate)
+            .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
 
         _mockWheelDiverterService
@@ -164,7 +163,7 @@ public class SystemStateWheelDiverterCoordinatorTests
         });
 
         _mockStateManager
-            .Setup(m => m.CurrentStatetate)
+            .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
 
         _mockWheelDiverterService
@@ -224,7 +223,7 @@ public class SystemStateWheelDiverterCoordinatorTests
         });
 
         _mockStateManager
-            .Setup(m => m.CurrentStatetate)
+            .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
 
         _mockWheelDiverterService
@@ -279,7 +278,7 @@ public class SystemStateWheelDiverterCoordinatorTests
     {
         // Arrange
         _mockStateManager
-            .Setup(m => m.CurrentStatetate)
+            .Setup(m => m.CurrentState)
             .Returns(SystemState.Ready);  // 保持在 Ready 状态
 
         var coordinator = new SystemStateWheelDiverterCoordinator(
@@ -325,7 +324,7 @@ public class SystemStateWheelDiverterCoordinatorTests
         });
 
         _mockStateManager
-            .Setup(m => m.CurrentStatetate)
+            .Setup(m => m.CurrentState)
             .Returns(() => currentStateSequence.Count > 0 ? currentStateSequence.Dequeue() : SystemState.Running);
 
         _mockWheelDiverterService
