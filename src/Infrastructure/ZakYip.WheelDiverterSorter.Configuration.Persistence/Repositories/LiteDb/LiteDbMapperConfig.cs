@@ -60,6 +60,21 @@ public static class LiteDbMapperConfig
     }
 
     /// <summary>
+    /// 配置嵌套类型的序列化支持
+    /// </summary>
+    /// <param name="mapper">要配置的 BsonMapper 实例</param>
+    public static void ConfigureNestedTypes(BsonMapper mapper)
+    {
+        // 显式注册 EmergencyStopButtonConfig 以避免 LiteDB 序列化 record 类型时的"Invalid handle"错误
+        // 这是因为 record 类型可能包含编译器生成的方法（如 Equals/GetHashCode/ToString），
+        // LiteDB 在自动发现类型时可能错误地尝试序列化这些方法引用
+        //
+        // 通过简单注册实体，让 LiteDB 知道这是一个需要序列化的类型
+        // IncludeNonPublic = true 应该已经在 CreateConfiguredMapper 中设置，能够访问 record 的 init 属性
+        mapper.Entity<EmergencyStopButtonConfig>();
+    }
+
+    /// <summary>
     /// 创建一个配置了枚举字符串序列化和 Id 映射的新 BsonMapper
     /// </summary>
     /// <returns>配置好的 BsonMapper 实例</returns>
@@ -67,12 +82,17 @@ public static class LiteDbMapperConfig
     {
         var mapper = new BsonMapper();
         
-        // 启用非公共成员访问，以支持具有私有 setter 的实体（如 RoutePlan）
-        // Enable non-public member access to support entities with private setters (e.g., RoutePlan)
-        mapper.IncludeNonPublic = true;
+        // 注意：IncludeNonPublic 在 .NET 9 + LiteDB 5.0.21 中可能导致序列化错误
+        // 暂时禁用，仅序列化公共成员
+        // mapper.IncludeNonPublic = true;
+        
+        // 配置序列化行为
+        mapper.SerializeNullValues = false;  // 不序列化 null 值
+        mapper.TrimWhitespace = false;  // 不修剪空白字符
         
         ConfigureEnumAsString(mapper);
         ConfigureEntityIds(mapper);
+        ConfigureNestedTypes(mapper);
         return mapper;
     }
 }

@@ -10,12 +10,12 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// <remarks>
 /// 包含单个急停按钮的IO绑定和触发电平配置
 /// </remarks>
-public sealed record class EmergencyStopButtonConfig
+public sealed class EmergencyStopButtonConfig
 {
     /// <summary>
     /// 急停按钮输入 IO 位
     /// </summary>
-    public int InputBit { get; init; }
+    public int InputBit { get; set; }
 
     /// <summary>
     /// 急停按钮触发电平
@@ -24,7 +24,23 @@ public sealed record class EmergencyStopButtonConfig
     /// - ActiveHigh: 高电平表示按下急停，低电平表示解除急停
     /// - ActiveLow: 低电平表示按下急停，高电平表示解除急停
     /// </remarks>
-    public TriggerLevel InputTriggerLevel { get; init; } = TriggerLevel.ActiveHigh;
+    public TriggerLevel InputTriggerLevel { get; set; } = TriggerLevel.ActiveHigh;
+
+    /// <summary>
+    /// 默认构造函数（LiteDB 反序列化需要）
+    /// </summary>
+    public EmergencyStopButtonConfig()
+    {
+    }
+
+    /// <summary>
+    /// 带参数的构造函数
+    /// </summary>
+    public EmergencyStopButtonConfig(int inputBit, TriggerLevel inputTriggerLevel = TriggerLevel.ActiveHigh)
+    {
+        InputBit = inputBit;
+        InputTriggerLevel = inputTriggerLevel;
+    }
 }
 
 /// <summary>
