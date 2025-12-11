@@ -47,20 +47,17 @@ public class LongIdMatchingEnforcementTests
 
         foreach (var type in allTypes)
         {
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(prop => IsIdProperty(prop.Name) && !IsExceptionIdProperty(prop.Name));
             
             foreach (var prop in properties)
             {
-                // 检查是否是ID属性（以Id结尾，但不是例外情况）
-                if (IsIdProperty(prop.Name) && !IsExceptionIdProperty(prop.Name))
+                var propertyType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                
+                // 如果是string类型，记录违规
+                if (propertyType == typeof(string))
                 {
-                    var propertyType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
-                    
-                    // 如果是string类型，记录违规
-                    if (propertyType == typeof(string))
-                    {
-                        violations.Add($"{type.FullName}.{prop.Name} 使用了 string 类型，应使用 long 类型");
-                    }
+                    violations.Add($"{type.FullName}.{prop.Name} 使用了 string 类型，应使用 long 类型");
                 }
             }
         }
@@ -96,18 +93,16 @@ public class LongIdMatchingEnforcementTests
 
         foreach (var type in allTypes)
         {
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(prop => IsIdProperty(prop.Name) && !IsExceptionIdProperty(prop.Name));
             
             foreach (var prop in properties)
             {
-                if (IsIdProperty(prop.Name) && !IsExceptionIdProperty(prop.Name))
+                var propertyType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                
+                if (propertyType == typeof(string))
                 {
-                    var propertyType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
-                    
-                    if (propertyType == typeof(string))
-                    {
-                        violations.Add($"{type.FullName}.{prop.Name} 使用了 string 类型，应使用 long 类型");
-                    }
+                    violations.Add($"{type.FullName}.{prop.Name} 使用了 string 类型，应使用 long 类型");
                 }
             }
         }
@@ -143,18 +138,16 @@ public class LongIdMatchingEnforcementTests
 
         foreach (var type in allTypes)
         {
-            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance);
+            var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(prop => IsIdProperty(prop.Name) && !IsExceptionIdProperty(prop.Name));
             
             foreach (var prop in properties)
             {
-                if (IsIdProperty(prop.Name) && !IsExceptionIdProperty(prop.Name))
+                var propertyType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
+                
+                if (propertyType == typeof(string))
                 {
-                    var propertyType = Nullable.GetUnderlyingType(prop.PropertyType) ?? prop.PropertyType;
-                    
-                    if (propertyType == typeof(string))
-                    {
-                        violations.Add($"{type.FullName}.{prop.Name} 使用了 string 类型，应使用 long 类型");
-                    }
+                    violations.Add($"{type.FullName}.{prop.Name} 使用了 string 类型，应使用 long 类型");
                 }
             }
         }
@@ -196,26 +189,21 @@ public class LongIdMatchingEnforcementTests
 
             foreach (var type in allTypes)
             {
-                var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+                var methods = type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static)
+                    .Where(m => !m.IsSpecialName && !m.Name.Contains("<"));
                 
                 foreach (var method in methods)
                 {
-                    // 跳过属性访问器和编译器生成的方法
-                    if (method.IsSpecialName || method.Name.Contains("<"))
-                        continue;
-
-                    var parameters = method.GetParameters();
+                    var parameters = method.GetParameters()
+                        .Where(p => IsIdParameter(p.Name ?? "") && !IsExceptionIdProperty(p.Name ?? ""));
+                    
                     foreach (var param in parameters)
                     {
-                        // 检查参数名是否是ID
-                        if (IsIdParameter(param.Name ?? "") && !IsExceptionIdProperty(param.Name ?? ""))
+                        var paramType = Nullable.GetUnderlyingType(param.ParameterType) ?? param.ParameterType;
+                        
+                        if (paramType == typeof(string))
                         {
-                            var paramType = Nullable.GetUnderlyingType(param.ParameterType) ?? param.ParameterType;
-                            
-                            if (paramType == typeof(string))
-                            {
-                                violations.Add($"{type.FullName}.{method.Name}({param.Name}: string) 应使用 long 类型");
-                            }
+                            violations.Add($"{type.FullName}.{method.Name}({param.Name}: string) 应使用 long 类型");
                         }
                     }
                 }
