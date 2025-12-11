@@ -337,12 +337,10 @@ public sealed record class PanelConfiguration
         }
 
         // 验证急停蜂鸣时间范围
-        if (EmergencyStopBuzzerDurationSeconds.HasValue)
+        if (EmergencyStopBuzzerDurationSeconds.HasValue && 
+            (EmergencyStopBuzzerDurationSeconds.Value < 0 || EmergencyStopBuzzerDurationSeconds.Value > 60))
         {
-            if (EmergencyStopBuzzerDurationSeconds.Value < 0 || EmergencyStopBuzzerDurationSeconds.Value > 60)
-            {
-                return (false, "急停蜂鸣时间必须在 0-60 秒之间");
-            }
+            return (false, "急停蜂鸣时间必须在 0-60 秒之间");
         }
 
         return (true, null);
