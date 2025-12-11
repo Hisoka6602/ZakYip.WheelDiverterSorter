@@ -195,8 +195,17 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddRuleEngineCommunication(configuration);
         services.AddUpstreamConnectionManagement(configuration);
 
-        // 15. 注册改口功能服务
-        services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
+        // 15. 注册改口功能服务（使用LiteDB持久化）
+        services.AddSingleton<IRoutePlanRepository>(sp =>
+        {
+            var dbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "route_plans.db");
+            var directory = Path.GetDirectoryName(dbPath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            return new LiteDbRoutePlanRepository(dbPath);
+        });
         services.AddSingleton<IRouteReplanner, RouteReplanner>();
 
         // 16. 注册中段皮带 IO 联动服务
