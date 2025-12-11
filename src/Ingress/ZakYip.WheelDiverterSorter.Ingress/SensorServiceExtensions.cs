@@ -16,6 +16,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Host.StateMachine;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;
 
@@ -98,7 +99,7 @@ public static class SensorServiceExtensions {
             var logger = sp.GetService<ILogger<Services.ParcelDetectionService>>();
             var healthMonitor = sp.GetService<Services.ISensorHealthMonitor>();
             var sensorConfigRepo = sp.GetService<ISensorConfigurationRepository>();
-            var systemRunStateService = sp.GetService<ISystemRunStateService>();
+            var systemStateManager = sp.GetService<ISystemStateManager>();
             
             return new Services.ParcelDetectionService(
                 sensors,
@@ -106,7 +107,7 @@ public static class SensorServiceExtensions {
                 logger,
                 healthMonitor,
                 sensorConfigRepo,
-                systemRunStateService);
+                systemStateManager);
         });
 
         // 注册传感器健康监控服务

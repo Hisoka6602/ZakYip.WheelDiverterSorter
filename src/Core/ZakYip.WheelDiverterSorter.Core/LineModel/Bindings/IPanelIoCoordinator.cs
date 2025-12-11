@@ -18,7 +18,7 @@ public interface IPanelIoCoordinator
     /// <param name="upstreamConnected">上游是否连接</param>
     /// <returns>应当激活的信号塔通道状态集合</returns>
     IEnumerable<SignalTowerState> DetermineSignalTowerStates(
-        SystemOperatingState systemState,
+        SystemState systemState,
         bool hasAlarms,
         bool upstreamConnected);
 
@@ -28,5 +28,5 @@ public interface IPanelIoCoordinator
     /// <param name="buttonType">按钮类型</param>
     /// <param name="systemState">系统运行状态</param>
     /// <returns>如果允许操作返回 true，否则返回 false</returns>
-    bool IsButtonOperationAllowed(PanelButtonType buttonType, SystemOperatingState systemState);
+    bool IsButtonOperationAllowed(PanelButtonType buttonType, SystemState systemState);
 }
