@@ -260,58 +260,74 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 步骤 4: 确定目标格口
             var targetChuteId = await DetermineTargetChuteAsync(parcelId, overloadDecision);
 
-            // 步骤 5: 拓扑驱动分拣流程（TD-062）或立即执行（Fallback）
-            if (_pendingQueue != null && _topologyRepository != null && _segmentRepository != null && !overloadDecision.ShouldForceException)
+            // 步骤 5: 拓扑驱动分拣流程（TD-062）- 必须使用拓扑配置
+            if (_pendingQueue == null || _topologyRepository == null || _segmentRepository == null)
             {
-                // TD-062: 拓扑驱动模式 - 将包裹加入待执行队列
-                var topology = _topologyRepository.Get();
-                var diverterNode = topology.FindNodeByChuteId(targetChuteId);
+                // 缺少必需的拓扑服务，路由到异常格口（所有摆轮直行）
+                _logger.LogError(
+                    "包裹 {ParcelId} 分拣失败：拓扑服务未配置（PendingQueue={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），路由到异常格口",
+                    parcelId, _pendingQueue != null, _topologyRepository != null, _segmentRepository != null);
                 
-                if (diverterNode != null)
-                {
-                    // 查询线体段配置获取超时时间
-                    var segment = _segmentRepository.GetById(diverterNode.SegmentId);
-                    var timeoutSeconds = segment != null 
-                        ? (int)(segment.CalculateTimeoutThresholdMs() / 1000) 
-                        : 10; // 默认10秒超时
-                    
-                    // 将包裹加入待执行队列，等待 WheelFront 传感器触发
-                    _pendingQueue.Enqueue(
-                        parcelId, 
-                        targetChuteId, 
-                        diverterNode.DiverterId.ToString(), 
-                        timeoutSeconds);
-                    
-                    _logger.LogInformation(
-                        "包裹 {ParcelId} 已加入待执行队列：目标格口={TargetChuteId}, 摆轮节点={DiverterId}, 超时={TimeoutSeconds}秒",
-                        parcelId, targetChuteId, diverterNode.DiverterId, timeoutSeconds);
-                    
-                    stopwatch.Stop();
-                    return new SortingResult(
-                        IsSuccess: true,
-                        ParcelId: parcelId.ToString(),
-                        ActualChuteId: targetChuteId,
-                        TargetChuteId: targetChuteId,
-                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: null
-                    );
-                }
-                
-                // 拓扑中未找到对应的摆轮节点，fallback 到立即执行模式
+                stopwatch.Stop();
+                await ProcessTimedOutParcelAsync(parcelId);
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId.ToString(),
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                    FailureReason: "拓扑服务未配置，已路由到异常格口"
+                );
+            }
+
+            var topology = _topologyRepository.Get();
+            var diverterNode = topology.FindNodeByChuteId(targetChuteId);
+            
+            if (diverterNode == null)
+            {
+                // 拓扑中未找到对应的摆轮节点，路由到异常格口（所有摆轮直行）
                 _logger.LogWarning(
-                    "包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，fallback 到立即执行模式",
+                    "包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，路由到异常格口",
                     parcelId, targetChuteId);
+                
+                stopwatch.Stop();
+                await ProcessTimedOutParcelAsync(parcelId);
+                return new SortingResult(
+                    IsSuccess: false,
+                    ParcelId: parcelId.ToString(),
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
+                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                    FailureReason: "目标格口在拓扑中不存在，已路由到异常格口"
+                );
             }
             
-            // Fallback: 立即执行分拣工作流（兼容旧模式或超载异常情况）
-            var result = await ExecuteSortingWorkflowAsync(
+            // 查询线体段配置获取超时时间
+            var segment = _segmentRepository.GetById(diverterNode.SegmentId);
+            var timeoutSeconds = segment != null 
+                ? (int)(segment.CalculateTimeoutThresholdMs() / 1000) 
+                : 10; // 默认10秒超时
+            
+            // 将包裹加入待执行队列，等待 WheelFront 传感器触发
+            _pendingQueue.Enqueue(
                 parcelId, 
                 targetChuteId, 
-                overloadDecision.ShouldForceException,
-                cancellationToken);
-
+                diverterNode.DiverterId.ToString(), 
+                timeoutSeconds);
+            
+            _logger.LogInformation(
+                "包裹 {ParcelId} 已加入待执行队列：目标格口={TargetChuteId}, 摆轮节点={DiverterId}, 超时={TimeoutSeconds}秒",
+                parcelId, targetChuteId, diverterNode.DiverterId, timeoutSeconds);
+            
             stopwatch.Stop();
-            return result with { ExecutionTimeMs = stopwatch.Elapsed.TotalMilliseconds };
+            return new SortingResult(
+                IsSuccess: true,
+                ParcelId: parcelId.ToString(),
+                ActualChuteId: targetChuteId,
+                TargetChuteId: targetChuteId,
+                ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                FailureReason: null
+            );
         }
         catch (Exception ex)
         {
