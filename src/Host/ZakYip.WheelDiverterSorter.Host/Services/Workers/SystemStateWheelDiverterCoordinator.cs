@@ -86,10 +86,15 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                                 _lastKnownState,
                                 currentState);
 
-                            // 当系统进入 Running 状态时，设置所有摆轮为直行
+                            // 当系统进入 Running 状态时，启动所有摆轮并设置为直行
                             if (currentState == SystemState.Running && _lastKnownState != SystemState.Running)
                             {
-                                await InitializeWheelDivertersToPassThroughAsync(stoppingToken);
+                                await StartAndInitializeWheelDivertersAsync(stoppingToken);
+                            }
+                            // 当系统从 Running 状态切换到其他状态时，停止所有摆轮
+                            else if (_lastKnownState == SystemState.Running && currentState != SystemState.Running)
+                            {
+                                await StopAllWheelDivertersAsync(stoppingToken);
                             }
 
                             // 更新上次记录的状态
@@ -120,14 +125,152 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     }
 
     /// <summary>
-    /// 初始化所有摆轮为直行状态
+    /// 启动并初始化所有摆轮为直行状态
     /// </summary>
     /// <remarks>
+    /// 当系统进入 Running 状态时调用，执行以下步骤：
+    /// 1. 先调用 RunAsync 启动所有摆轮运行
+    /// 2. 再调用 PassThroughAsync 将所有摆轮设置为直行状态
+    /// 
+    /// 此操作是异步的，如果部分摆轮操作失败，会记录警告日志但不会阻止系统运行。
+    /// </remarks>
+    private async Task StartAndInitializeWheelDivertersAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation("⚙️ 系统进入 Running 状态，正在启动所有摆轮并设置为直行...");
+
+            // 步骤 1: 启动所有摆轮运行
+            var runResult = await _wheelDiverterService.RunAllAsync(cancellationToken);
+            
+            if (runResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "✅ 所有摆轮已成功启动运行: {SuccessCount}/{TotalCount}",
+                    runResult.SuccessCount,
+                    runResult.TotalCount);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "⚠️ 部分摆轮启动失败: 成功={SuccessCount}/{TotalCount}, 失败={FailedCount}",
+                    runResult.SuccessCount,
+                    runResult.TotalCount,
+                    runResult.FailedDriverIds.Count);
+
+                if (runResult.FailedDriverIds.Any())
+                {
+                    _logger.LogWarning(
+                        "启动失败的摆轮ID: {FailedIds}",
+                        string.Join(", ", runResult.FailedDriverIds));
+                }
+            }
+
+            // 步骤 2: 设置所有摆轮为直行状态
+            var passThroughResult = await _wheelDiverterService.PassThroughAllAsync(cancellationToken);
+
+            if (passThroughResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "✅ 所有摆轮已成功设置为直行状态: {SuccessCount}/{TotalCount}",
+                    passThroughResult.SuccessCount,
+                    passThroughResult.TotalCount);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "⚠️ 部分摆轮设置为直行失败: 成功={SuccessCount}/{TotalCount}, 失败={FailedCount}",
+                    passThroughResult.SuccessCount,
+                    passThroughResult.TotalCount,
+                    passThroughResult.FailedDriverIds.Count);
+
+                if (passThroughResult.FailedDriverIds.Any())
+                {
+                    _logger.LogWarning(
+                        "设置失败的摆轮ID: {FailedIds}",
+                        string.Join(", ", passThroughResult.FailedDriverIds));
+                }
+
+                if (!string.IsNullOrEmpty(passThroughResult.ErrorMessage))
+                {
+                    _logger.LogWarning("错误信息: {ErrorMessage}", passThroughResult.ErrorMessage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "❌ 启动并初始化摆轮时发生异常。系统将继续运行，但摆轮可能未处于正确状态。");
+        }
+    }
+
+    /// <summary>
+    /// 停止所有摆轮
+    /// </summary>
+    /// <remarks>
+    /// 当系统从 Running 状态切换到 Stopped/EmergencyStop/Fault 等状态时调用。
+    /// 调用所有摆轮的 StopAsync 方法以停止运行。
+    /// 
+    /// 此操作是异步的，如果部分摆轮停止失败，会记录警告日志。
+    /// </remarks>
+    private async Task StopAllWheelDivertersAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "🛑 系统退出 Running 状态（当前状态: {CurrentState}），正在停止所有摆轮...",
+                _lastKnownState);
+
+            var result = await _wheelDiverterService.StopAllAsync(cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "✅ 所有摆轮已成功停止: {SuccessCount}/{TotalCount}",
+                    result.SuccessCount,
+                    result.TotalCount);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "⚠️ 部分摆轮停止失败: 成功={SuccessCount}/{TotalCount}, 失败={FailedCount}",
+                    result.SuccessCount,
+                    result.TotalCount,
+                    result.FailedDriverIds.Count);
+
+                if (result.FailedDriverIds.Any())
+                {
+                    _logger.LogWarning(
+                        "停止失败的摆轮ID: {FailedIds}",
+                        string.Join(", ", result.FailedDriverIds));
+                }
+
+                if (!string.IsNullOrEmpty(result.ErrorMessage))
+                {
+                    _logger.LogWarning("错误信息: {ErrorMessage}", result.ErrorMessage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "❌ 停止摆轮时发生异常。部分摆轮可能仍在运行。");
+        }
+    }
+
+    /// <summary>
+    /// 初始化所有摆轮为直行状态（已废弃，保留用于向后兼容）
+    /// </summary>
+    /// <remarks>
+    /// 此方法已被 StartAndInitializeWheelDivertersAsync 替代。
     /// 通过调用 PassThroughAllAsync 将所有活动摆轮设置为直行（PassThrough）状态，
     /// 确保系统启动时摆轮处于安全的默认位置。
     /// 
     /// 此操作是异步的，如果部分摆轮设置失败，会记录警告日志但不会阻止系统运行。
     /// </remarks>
+    [Obsolete("此方法已被 StartAndInitializeWheelDivertersAsync 替代，仅保留用于向后兼容")]
     private async Task InitializeWheelDivertersToPassThroughAsync(CancellationToken cancellationToken)
     {
         try
