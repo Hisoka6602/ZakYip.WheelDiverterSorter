@@ -83,7 +83,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
-    private readonly object? _serverBackgroundService; // UpstreamServerBackgroundService (optional, avoid direct type reference for layering)
     
     // TD-062: 拓扑驱动分拣流程依赖
     private readonly IPendingParcelQueue? _pendingQueue;
@@ -137,7 +136,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
         IChuteSelectionService? chuteSelectionService = null,
-        object? serverBackgroundService = null, // UpstreamServerBackgroundService (optional)
         IPendingParcelQueue? pendingQueue = null, // TD-062: 拓扑驱动分拣队列
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
@@ -163,7 +161,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pathHealthChecker = pathHealthChecker;
         _timeoutCalculator = timeoutCalculator;
         _chuteSelectionService = chuteSelectionService;
-        _serverBackgroundService = serverBackgroundService;
         
         // TD-062: 拓扑驱动分拣流程依赖（可选）
         _pendingQueue = pendingQueue;
@@ -237,15 +234,25 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         try
         {
-            _logger.LogInformation("开始处理包裹 {ParcelId}，来源传感器: {SensorId}", parcelId, sensorId);
+            _logger.LogInformation(
+                "[开始] 开始处理包裹: ParcelId={ParcelId}, SensorId={SensorId}, StartTime={StartTime:o}",
+                parcelId,
+                sensorId,
+                _clock.LocalNow);
 
             // 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
+            _logger.LogDebug("[步骤 1/5] 创建本地包裹实体");
             await CreateParcelEntityAsync(parcelId, sensorId);
 
             // 步骤 2: 验证系统状态
+            _logger.LogDebug("[步骤 2/5] 验证系统状态");
             var stateValidation = await ValidateSystemStateAsync(parcelId);
             if (!stateValidation.IsValid)
             {
+                _logger.LogWarning(
+                    "[系统状态验证失败] 包裹 {ParcelId} 被拒绝: {Reason}",
+                    parcelId,
+                    stateValidation.Reason);
                 CleanupParcelRecord(parcelId);
                 stopwatch.Stop();
                 return new SortingResult(
@@ -259,17 +266,24 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 步骤 3: 拥堵检测与超载评估
+            _logger.LogDebug("[步骤 3/5] 拥堵检测与超载评估");
             var overloadDecision = await DetectCongestionAndOverloadAsync(parcelId);
             
             // 步骤 4: 确定目标格口
+            _logger.LogDebug("[步骤 4/5] 确定目标格口");
             var targetChuteId = await DetermineTargetChuteAsync(parcelId, overloadDecision);
+            _logger.LogInformation(
+                "[目标格口确定] 包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                parcelId,
+                targetChuteId);
 
             // 步骤 5: 拓扑驱动分拣流程（TD-062）- 必须使用拓扑配置
+            _logger.LogDebug("[步骤 5/5] 拓扑驱动分拣流程");
             if (_pendingQueue == null || _topologyRepository == null || _segmentRepository == null)
             {
                 // 缺少必需的拓扑服务，路由到异常格口（所有摆轮直行）
                 _logger.LogError(
-                    "包裹 {ParcelId} 分拣失败：拓扑服务未配置（PendingQueue={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），路由到异常格口",
+                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（PendingQueue={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），路由到异常格口",
                     parcelId, _pendingQueue != null, _topologyRepository != null, _segmentRepository != null);
                 
                 stopwatch.Stop();
@@ -291,7 +305,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 // 拓扑中未找到对应的摆轮节点，路由到异常格口（所有摆轮直行）
                 _logger.LogWarning(
-                    "包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，路由到异常格口",
+                    "[拓扑节点未找到] 包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，路由到异常格口",
                     parcelId, targetChuteId);
                 
                 stopwatch.Stop();
@@ -313,14 +327,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 : DefaultTimeoutSeconds;
             
             // TD-062: 路径预生成优化 - 在入队前生成路径，WheelFront触发时直接执行
-            _logger.LogDebug("开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的分拣路径", parcelId, targetChuteId);
+            _logger.LogDebug(
+                "[路径生成] 开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的分拣路径",
+                parcelId,
+                targetChuteId);
             var path = _pathGenerator.GeneratePath(targetChuteId);
             
             if (path == null)
             {
                 // 路径生成失败，路由到异常格口
                 _logger.LogError(
-                    "包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，路由到异常格口",
+                    "[路径生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，路由到异常格口",
                     parcelId, targetChuteId);
                 
                 stopwatch.Stop();
@@ -336,8 +353,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
             
             _logger.LogInformation(
-                "包裹 {ParcelId} 路径生成成功：段数={SegmentCount}，目标格口={TargetChuteId}",
-                parcelId, path.Segments.Count, targetChuteId);
+                "[路径生成成功] 包裹 {ParcelId}: 段数={SegmentCount}, 目标格口={TargetChuteId}, 摆轮={DiverterId}",
+                parcelId,
+                path.Segments.Count,
+                targetChuteId,
+                diverterNode.DiverterId);
             
             // 将包裹和预生成的路径一起加入待执行队列，等待 WheelFront 传感器触发
             _pendingQueue.Enqueue(
@@ -348,8 +368,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 path);
             
             _logger.LogInformation(
-                "包裹 {ParcelId} 已加入待执行队列：目标格口={TargetChuteId}, 摆轮节点={DiverterId}, 超时={TimeoutSeconds}秒，路径已预生成",
-                parcelId, targetChuteId, diverterNode.DiverterId, timeoutSeconds);
+                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
+                parcelId,
+                targetChuteId,
+                diverterNode.DiverterId,
+                timeoutSeconds,
+                path.Segments.Count,
+                stopwatch.Elapsed.TotalMilliseconds);
             
             stopwatch.Stop();
             return new SortingResult(
@@ -363,7 +388,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理包裹 {ParcelId} 时发生异常", parcelId);
+            _logger.LogError(
+                ex,
+                "[处理异常] 处理包裹 {ParcelId} 时发生异常",
+                parcelId);
             CleanupParcelRecord(parcelId);
             stopwatch.Stop();
             
@@ -718,6 +746,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <remarks>
     /// 在所有分拣模式下都向上游发送包裹检测通知。
     /// 通知失败时记录错误日志，但不阻止后续流程（只有 Formal 模式会因此返回异常格口）。
+    /// 
+    /// <para><b>PR-fix-shadow-upstream-notification</b>：删除影子实现，上游通知只通过 IUpstreamRoutingClient 发送一次。</para>
+    /// <list type="bullet">
+    ///   <item>删除了重复的 Server 模式广播逻辑（line 764-798）</item>
+    ///   <item>IUpstreamRoutingClient 的实现类会根据配置自动选择 Client 或 Server 模式</item>
+    ///   <item>Server 模式下，实现类内部会自动广播到所有连接的客户端</item>
+    /// </list>
     /// </remarks>
     private async Task SendUpstreamNotificationAsync(long parcelId, long exceptionChuteId)
     {
@@ -751,50 +786,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogError(
-                "包裹 {ParcelId} 无法发送检测通知到上游系统（Client模式）。连接失败或上游不可用。",
+                "包裹 {ParcelId} 无法发送检测通知到上游系统。连接失败或上游不可用。",
                 parcelId);
         }
         else
         {
-            _logger.LogDebug(
-                "包裹 {ParcelId} 已成功发送检测通知到上游系统（Client模式）",
+            _logger.LogInformation(
+                "包裹 {ParcelId} 已成功发送检测通知到上游系统",
                 parcelId);
-        }
-
-        // Server模式: 向所有连接的客户端广播通知
-        if (_serverBackgroundService != null)
-        {
-            try
-            {
-                // 使用反射访问CurrentServer属性（避免直接类型依赖）
-                var serverProperty = _serverBackgroundService.GetType().GetProperty("CurrentServer");
-                var currentServer = serverProperty?.GetValue(_serverBackgroundService);
-                
-                if (currentServer != null)
-                {
-                    // 使用反射调用BroadcastParcelDetectedAsync方法
-                    var broadcastMethod = currentServer.GetType().GetMethod("BroadcastParcelDetectedAsync");
-                    if (broadcastMethod != null)
-                    {
-                        var task = (Task?)broadcastMethod.Invoke(currentServer, new object[] { parcelId, CancellationToken.None });
-                        if (task != null)
-                        {
-                            await task;
-                            _logger.LogDebug(
-                                "包裹 {ParcelId} 已成功广播检测通知到所有客户端（Server模式）",
-                                parcelId);
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    "包裹 {ParcelId} 广播检测通知到客户端失败（Server模式）: {Message}",
-                    parcelId,
-                    ex.Message);
-            }
         }
     }
 
@@ -1403,14 +1402,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹检测事件
     /// </summary>
+    /// <remarks>
+    /// PR-fix-event-handler-logging: 增强日志和异常处理
+    /// </remarks>
     private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
         try
         {
-            _logger.LogTrace(
-                "收到 ParcelDetected 事件: ParcelId={ParcelId}, SensorId={SensorId}",
+            _logger.LogDebug(
+                "[事件处理] 收到 ParcelDetected 事件: ParcelId={ParcelId}, SensorId={SensorId}, DetectedAt={DetectedAt:o}",
                 e.ParcelId,
-                e.SensorId);
+                e.SensorId,
+                e.DetectedAt);
 
             // TD-062: 检查是否为 WheelFront 传感器触发
             if (_sensorConfigRepository != null && _pendingQueue != null && _topologyRepository != null)
@@ -1418,10 +1421,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var sensorConfig = _sensorConfigRepository.Get();
                 var sensor = sensorConfig.Sensors.FirstOrDefault(s => s.SensorId == e.SensorId);
                 
+                _logger.LogDebug(
+                    "[传感器类型检查] SensorId={SensorId}, IoType={IoType}, BoundWheelNodeId={BoundWheelNodeId}",
+                    e.SensorId,
+                    sensor?.IoType,
+                    sensor?.BoundWheelNodeId);
+                
                 if (sensor?.IoType == SensorIoType.WheelFront)
                 {
                     _logger.LogInformation(
-                        "检测到 WheelFront 传感器触发: SensorId={SensorId}, BoundWheelNodeId={BoundWheelNodeId}",
+                        "[WheelFront触发] 检测到摆轮前传感器触发: SensorId={SensorId}, BoundWheelNodeId={BoundWheelNodeId}",
                         e.SensorId,
                         sensor.BoundWheelNodeId);
                     
@@ -1430,17 +1439,30 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     return;
                 }
             }
+            else
+            {
+                _logger.LogWarning(
+                    "[配置缺失] 拓扑驱动组件未完全配置: SensorConfigRepo={HasSensorConfig}, PendingQueue={HasQueue}, TopologyRepo={HasTopo}",
+                    _sensorConfigRepository != null,
+                    _pendingQueue != null,
+                    _topologyRepository != null);
+            }
             
             // 默认行为：ParcelCreation 传感器，创建新包裹并进入正常分拣流程
             _logger.LogInformation(
-                "检测到 ParcelCreation 传感器触发: ParcelId={ParcelId}, SensorId={SensorId}",
+                "[ParcelCreation触发] 检测到包裹创建传感器触发，开始处理包裹: ParcelId={ParcelId}, SensorId={SensorId}",
                 e.ParcelId,
                 e.SensorId);
+            
             await ProcessParcelAsync(e.ParcelId, e.SensorId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "处理包裹检测事件时发生异常: ParcelId={ParcelId}", e.ParcelId);
+            _logger.LogError(
+                ex,
+                "[事件处理异常] 处理 ParcelDetected 事件时发生异常: ParcelId={ParcelId}, SensorId={SensorId}",
+                e.ParcelId,
+                e.SensorId);
         }
     }
 
