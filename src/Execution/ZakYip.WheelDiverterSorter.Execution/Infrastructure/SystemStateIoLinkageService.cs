@@ -1,15 +1,15 @@
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Core.LineModel;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Core.Results;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 
@@ -79,7 +79,8 @@ public class SystemStateIoLinkageService
 
         // 3. 启动所有已连接的摆轮
         await RunAllWheelDivertersAsync(cancellationToken);
-
+        //4. 直通所有摆轮
+        await PassThroughAllWheelDivertersAsync(cancellationToken);
         return OperationResult.Success();
     }
 
@@ -136,7 +137,7 @@ public class SystemStateIoLinkageService
 
         // 3. 状态切换成功，执行停止联动 IO（急停时使用停止联动 IO）
         // 急停时直接使用 StoppedStateIos
-        IReadOnlyList<IoLinkagePoint> linkagePoints = _linkageOptions.Enabled 
+        IReadOnlyList<IoLinkagePoint> linkagePoints = _linkageOptions.Enabled
             ? _linkageOptions.StoppedStateIos.AsReadOnly()
             : Array.Empty<IoLinkagePoint>();
 
@@ -196,8 +197,8 @@ public class SystemStateIoLinkageService
         }
 
         _logger.LogInformation("系统启动，准备启动 {Count} 个摆轮", activeDrivers.Count);
-        await ExecuteWheelDiverterOperationAsync(activeDrivers, 
-            (driver, ct) => driver.RunAsync(ct), 
+        await ExecuteWheelDiverterOperationAsync(activeDrivers,
+            (driver, ct) => driver.RunAsync(ct),
             "启动", cancellationToken);
     }
 
@@ -218,9 +219,33 @@ public class SystemStateIoLinkageService
         }
 
         _logger.LogInformation("准备停止 {Count} 个摆轮", activeDrivers.Count);
-        await ExecuteWheelDiverterOperationAsync(activeDrivers, 
-            (driver, ct) => driver.StopAsync(ct), 
+        await ExecuteWheelDiverterOperationAsync(activeDrivers,
+            (driver, ct) => driver.StopAsync(ct),
             "停止", cancellationToken);
+    }
+
+    /// <summary>
+    /// 直通所有摆轮
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    private async Task PassThroughAllWheelDivertersAsync(CancellationToken cancellationToken = default)
+    {
+        if (_wheelDiverterDriverManager == null)
+        {
+            return;
+        }
+
+        var activeDrivers = _wheelDiverterDriverManager.GetActiveDrivers();
+        if (activeDrivers.Count == 0)
+        {
+            return;
+        }
+
+        _logger.LogInformation("准备直通 {Count} 个摆轮", activeDrivers.Count);
+        await ExecuteWheelDiverterOperationAsync(activeDrivers,
+            (driver, ct) => driver.PassThroughAsync(ct),
+            "直通", cancellationToken);
     }
 
     /// <summary>
