@@ -7,7 +7,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Events.Queue;
 /// 当包裹在待执行队列中等待超时时触发此事件。
 /// 用于拓扑驱动分拣流程中的超时包裹处理。
 /// </remarks>
-public sealed class ParcelTimedOutEventArgs : EventArgs
+public sealed record class ParcelTimedOutEventArgs
 {
     /// <summary>
     /// 包裹ID
