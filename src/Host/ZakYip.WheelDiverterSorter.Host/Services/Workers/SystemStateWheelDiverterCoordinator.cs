@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -12,14 +12,14 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 /// </summary>
 /// <remarks>
 /// 监控系统状态转换，当系统进入 Running 状态时自动将所有摆轮设置为直行（PassThrough）。
-/// 
+///
 /// <para><b>设计目的</b>：</para>
 /// <list type="bullet">
 ///   <item>确保系统启动时摆轮处于安全的直行状态</item>
 ///   <item>支持不通过 IO 联动控制摆轮的厂商（如某些厂商仅支持 Modbus/TCP 控制）</item>
 ///   <item>在 Ready→Running 和 Paused→Running 状态转换时都会触发</item>
 /// </list>
-/// 
+///
 /// <para><b>触发场景</b>：</para>
 /// <list type="bullet">
 ///   <item>面板启动按钮按下（Ready → Running）</item>
@@ -140,7 +140,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     /// 当系统进入 Running 状态时调用，执行以下步骤：
     /// 1. 先调用 RunAsync 启动所有摆轮运行
     /// 2. 再调用 PassThroughAsync 将所有摆轮设置为直行状态
-    /// 
+    ///
     /// 此操作是异步的，如果部分摆轮操作失败，会记录警告日志但不会阻止系统运行。
     /// </remarks>
     private async Task StartAndInitializeWheelDivertersAsync(CancellationToken cancellationToken)
@@ -151,7 +151,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
 
             // 步骤 1: 启动所有摆轮运行
             var runResult = await _wheelDiverterService.RunAllAsync(cancellationToken);
-            
+
             if (runResult.IsSuccess)
             {
                 _logger.LogInformation(
@@ -175,6 +175,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                 }
             }
 
+            await Task.Delay(100, cancellationToken);
             // 步骤 2: 设置所有摆轮为直行状态
             var passThroughResult = await _wheelDiverterService.PassThroughAllAsync(cancellationToken);
 
@@ -220,7 +221,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     /// <remarks>
     /// 当系统从 Running 状态切换到 Stopped/EmergencyStop/Fault 等状态时调用。
     /// 调用所有摆轮的 StopAsync 方法以停止运行。
-    /// 
+    ///
     /// 此操作是异步的，如果部分摆轮停止失败，会记录警告日志。
     /// </remarks>
     private async Task StopAllWheelDivertersAsync(CancellationToken cancellationToken)
@@ -276,7 +277,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     /// 此方法已被 StartAndInitializeWheelDivertersAsync 替代。
     /// 通过调用 PassThroughAllAsync 将所有活动摆轮设置为直行（PassThrough）状态，
     /// 确保系统启动时摆轮处于安全的默认位置。
-    /// 
+    ///
     /// 此操作是异步的，如果部分摆轮设置失败，会记录警告日志但不会阻止系统运行。
     /// </remarks>
     [Obsolete("此方法已被 StartAndInitializeWheelDivertersAsync 替代。请使用新方法以确保摆轮正确启动和初始化。", error: false)]
