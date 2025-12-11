@@ -1407,6 +1407,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         try
         {
+            _logger.LogTrace(
+                "收到 ParcelDetected 事件: ParcelId={ParcelId}, SensorId={SensorId}",
+                e.ParcelId,
+                e.SensorId);
+
             // TD-062: 检查是否为 WheelFront 传感器触发
             if (_sensorConfigRepository != null && _pendingQueue != null && _topologyRepository != null)
             {
@@ -1415,6 +1420,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 
                 if (sensor?.IoType == SensorIoType.WheelFront)
                 {
+                    _logger.LogInformation(
+                        "检测到 WheelFront 传感器触发: SensorId={SensorId}, BoundWheelNodeId={BoundWheelNodeId}",
+                        e.SensorId,
+                        sensor.BoundWheelNodeId);
+                    
                     // 这是摆轮前传感器触发，处理待执行队列中的包裹
                     await HandleWheelFrontSensorAsync(e.SensorId, sensor.BoundWheelNodeId);
                     return;
@@ -1422,6 +1432,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
             
             // 默认行为：ParcelCreation 传感器，创建新包裹并进入正常分拣流程
+            _logger.LogInformation(
+                "检测到 ParcelCreation 传感器触发: ParcelId={ParcelId}, SensorId={SensorId}",
+                e.ParcelId,
+                e.SensorId);
             await ProcessParcelAsync(e.ParcelId, e.SensorId);
         }
         catch (Exception ex)
@@ -1435,6 +1449,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private async Task HandleWheelFrontSensorAsync(long sensorId, string? boundWheelNodeId)
     {
+        _logger.LogDebug(
+            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelNodeId={BoundWheelNodeId}",
+            sensorId,
+            boundWheelNodeId);
+
         if (string.IsNullOrEmpty(boundWheelNodeId))
         {
             _logger.LogWarning("摆轮前传感器 {SensorId} 未绑定摆轮节点，跳过处理", sensorId);
@@ -1443,6 +1462,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         if (_safeExecutor != null)
         {
+            _logger.LogDebug("使用 SafeExecutionService 执行摆轮前传感器处理");
             // 使用 SafeExecutionService 包裹异步操作
             await _safeExecutor.ExecuteAsync(
                 () => ExecuteWheelFrontSortingAsync(boundWheelNodeId, sensorId),
@@ -1451,6 +1471,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         else
         {
+            _logger.LogDebug("直接执行摆轮前传感器处理（无 SafeExecutor）");
             // Fallback: 没有 SafeExecutor 时直接执行
             await ExecuteWheelFrontSortingAsync(boundWheelNodeId, sensorId);
         }
@@ -1461,6 +1482,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private async Task ExecuteWheelFrontSortingAsync(string boundWheelNodeId, long sensorId)
     {
+        _logger.LogDebug(
+            "从队列中查找摆轮 {WheelNodeId} 的待执行包裹",
+            boundWheelNodeId);
+
         // 从队列取出该摆轮的第一个包裹
         var parcel = _pendingQueue!.DequeueByWheelNode(boundWheelNodeId);
         
@@ -1477,6 +1502,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             parcel.ParcelId, boundWheelNodeId, parcel.TargetChuteId);
         
         // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
+        _logger.LogDebug(
+            "开始执行包裹 {ParcelId} 的预生成路径: 段数={SegmentCount}",
+            parcel.ParcelId,
+            parcel.PreGeneratedPath.Segments.Count);
+
         var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
         
         if (executionResult.IsSuccess)

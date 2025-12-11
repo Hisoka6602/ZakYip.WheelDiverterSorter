@@ -174,14 +174,22 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
         }
 
-        // PR-fix-sensor-type-filtering: 只有 ParcelCreation 类型的传感器才触发 ParcelDetected 事件
-        // 其他类型（WheelFront, ChuteLock）只用于监控和日志记录
+        // PR-fix-sensor-type-filtering: 
+        // - ParcelCreation 类型：创建包裹并触发 ParcelDetected 事件
+        // - WheelFront/ChuteLock 类型：触发 ParcelDetected 事件（但不创建包裹，由 Orchestrator 处理）
         // PR-fix-system-state-check: 只有系统处于运行状态时才创建包裹
-        if (ShouldTriggerParcelCreation(sensorEvent.SensorId))
+        
+        var sensorType = GetSensorType(sensorEvent.SensorId);
+        
+        if (sensorType == SensorIoType.ParcelCreation)
         {
-            // 检查系统是否允许创建包裹
+            // ParcelCreation 传感器：检查系统状态后创建包裹
             if (IsSystemReadyForParcelCreation())
             {
+                _logger?.LogDebug(
+                    "传感器 {SensorId} 类型为 {SensorType}，触发包裹创建",
+                    sensorEvent.SensorId,
+                    sensorType);
                 RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
             }
             else
@@ -194,11 +202,14 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
         else
         {
-            // 记录非 ParcelCreation 类型传感器的触发（用于监控和调试）
-            _logger?.LogInformation(
-                "传感器 {SensorId} 触发（非包裹创建类型），包裹ID: {ParcelId}，用于监控目的",
+            // WheelFront/ChuteLock 传感器：不创建包裹，但触发事件供 Orchestrator 处理
+            _logger?.LogDebug(
+                "传感器 {SensorId} 类型为 {SensorType}，不触发包裹创建（只用于监控）",
                 sensorEvent.SensorId,
-                parcelId);
+                sensorType);
+            
+            // 仍然触发 ParcelDetected 事件，让 Orchestrator 根据传感器类型决定如何处理
+            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate);
         }
     }
 
@@ -235,6 +246,46 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         {
             _logger?.LogError(ex, "检查系统状态时发生异常，默认不允许创建包裹");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// 获取传感器类型
+    /// </summary>
+    /// <param name="sensorId">传感器ID</param>
+    /// <returns>传感器类型</returns>
+    private SensorIoType GetSensorType(long sensorId)
+    {
+        // 如果没有配置仓储，默认为 ParcelCreation 类型（向后兼容）
+        if (_sensorConfigRepository == null)
+        {
+            _logger?.LogWarning(
+                "未注入 ISensorConfigurationRepository，传感器 {SensorId} 默认为 ParcelCreation 类型（向后兼容模式）",
+                sensorId);
+            return SensorIoType.ParcelCreation;
+        }
+
+        try
+        {
+            var config = _sensorConfigRepository.Get();
+            var sensor = config.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
+
+            if (sensor == null)
+            {
+                _logger?.LogWarning(
+                    "传感器 {SensorId} 未在配置中找到，默认为 ParcelCreation 类型",
+                    sensorId);
+                return SensorIoType.ParcelCreation;
+            }
+
+            return sensor.IoType;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex,
+                "获取传感器 {SensorId} 类型时发生异常，默认为 ParcelCreation 类型",
+                sensorId);
+            return SensorIoType.ParcelCreation;
         }
     }
 
@@ -393,6 +444,8 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     private void RaiseParcelDetectedEvent(long parcelId, SensorEvent sensorEvent, bool isDuplicate)
     {
+        var sensorType = GetSensorType(sensorEvent.SensorId);
+        
         _logger?.LogInformation(
             "检测到包裹 {ParcelId}，传感器: {SensorId} ({SensorType})，位置: {Position}{DuplicateFlag}",
             parcelId,
@@ -408,6 +461,12 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             SensorId = sensorEvent.SensorId,
             SensorType = sensorEvent.SensorType
         };
+
+        _logger?.LogTrace(
+            "触发 ParcelDetected 事件: ParcelId={ParcelId}, SensorId={SensorId}, IoType={IoType}",
+            parcelId,
+            sensorEvent.SensorId,
+            sensorType);
 
         ParcelDetected.SafeInvoke(this, eventArgs, _logger, nameof(ParcelDetected));
     }
