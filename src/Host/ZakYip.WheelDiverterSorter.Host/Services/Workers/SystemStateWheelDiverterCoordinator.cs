@@ -87,7 +87,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                                 currentState);
 
                             // 当系统进入 Running 状态时，启动所有摆轮并设置为直行
-                            // 简化条件：只要当前状态是 Running 且不是从 Running 转换来的，就启动摆轮
+                            // 注意：外层已检查 currentState != _lastKnownState，确保只在状态转换时触发
                             if (currentState == SystemState.Running)
                             {
                                 _logger.LogInformation(
