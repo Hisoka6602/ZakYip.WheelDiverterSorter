@@ -342,6 +342,13 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         long parcelId,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "[{LocalTime}] [服务端模式-广播-开始] BroadcastParcelDetectedAsync: ParcelId={ParcelId}, ClientsCount={ClientCount}, IsRunning={IsRunning}",
+            _systemClock.LocalNow,
+            parcelId,
+            _clients.Count,
+            _isRunning);
+
         var notification = new ParcelDetectionNotification
         {
             ParcelId = parcelId,
@@ -352,6 +359,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         var bytes = Encoding.UTF8.GetBytes(json + "\n");
 
         var disconnectedClients = new List<string>();
+        var successCount = 0;
 
         foreach (var kvp in _clients)
         {
@@ -360,9 +368,18 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 if (_service?.Clients.TryGetClient(kvp.Key, out var socketClient) ?? false)
                 {
                     await socketClient.SendAsync(bytes);
+                    successCount++;
 
-                    _logger.LogDebug(
-                        "[{LocalTime}] [服务端模式-广播] 已向客户端 {ClientId} 广播包裹检测通知: ParcelId={ParcelId}",
+                    _logger.LogInformation(
+                        "[{LocalTime}] [服务端模式-广播-成功] 已向客户端 {ClientId} 广播包裹检测通知: ParcelId={ParcelId}",
+                        _systemClock.LocalNow,
+                        kvp.Key,
+                        parcelId);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "[{LocalTime}] [服务端模式-广播-跳过] 无法获取客户端 {ClientId} 的socket连接: ParcelId={ParcelId}",
                         _systemClock.LocalNow,
                         kvp.Key,
                         parcelId);
@@ -385,6 +402,14 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         {
             _clients.TryRemove(clientId, out _);
         }
+
+        _logger.LogInformation(
+            "[{LocalTime}] [服务端模式-广播-完成] BroadcastParcelDetectedAsync: ParcelId={ParcelId}, SuccessCount={SuccessCount}, FailedCount={FailedCount}, RemainingClientsCount={RemainingCount}",
+            _systemClock.LocalNow,
+            parcelId,
+            successCount,
+            disconnectedClients.Count,
+            _clients.Count);
     }
 
     public async Task BroadcastSortingCompletedAsync(
