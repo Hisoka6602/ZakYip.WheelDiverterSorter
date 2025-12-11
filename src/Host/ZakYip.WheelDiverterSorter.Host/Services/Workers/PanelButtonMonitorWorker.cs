@@ -286,6 +286,11 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                         buttonType,
                         result.ErrorMessage);
                 }
+                else if (targetState.Value == SystemState.EmergencyStop && currentState != SystemState.EmergencyStop)
+                {
+                    // 当从其他状态转换到急停状态时，触发蜂鸣
+                    await TriggerEmergencyStopBuzzerAsync(cancellationToken);
+                }
             }
             else
             {
@@ -506,6 +511,95 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             SystemState.EmergencyStop => SystemState.EmergencyStop,
             _ => SystemState.Ready
         };
+    }
+    
+    /// <summary>
+    /// 触发急停蜂鸣
+    /// </summary>
+    /// <remarks>
+    /// 当系统从其他状态转换到急停状态时触发蜂鸣器：
+    /// 1. 读取面板配置获取蜂鸣器输出位和持续时间
+    /// 2. 启动蜂鸣器输出
+    /// 3. 等待配置的持续时间
+    /// 4. 关闭蜂鸣器输出
+    /// 
+    /// 如果未配置蜂鸣器输出位或持续时间，则不执行蜂鸣。
+    /// 蜂鸣过程在后台异步执行，不会阻塞急停状态转换。
+    /// </remarks>
+    private async Task TriggerEmergencyStopBuzzerAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            var panelConfig = _panelConfigRepository.Get();
+            
+            // 检查是否配置了蜂鸣器
+            if (panelConfig?.EmergencyStopBuzzerOutputBit == null || 
+                panelConfig.EmergencyStopBuzzerDurationSeconds == null ||
+                panelConfig.EmergencyStopBuzzerDurationSeconds.Value <= 0)
+            {
+                _logger.LogDebug("未配置急停蜂鸣器或蜂鸣持续时间，跳过蜂鸣");
+                return;
+            }
+
+            var buzzerBit = panelConfig.EmergencyStopBuzzerOutputBit.Value;
+            var buzzerDuration = panelConfig.EmergencyStopBuzzerDurationSeconds.Value;
+            var buzzerLevel = panelConfig.EmergencyStopBuzzerOutputLevel;
+            
+            _logger.LogWarning(
+                "⚠️ 急停触发！开启蜂鸣器: Bit={BuzzerBit}, Duration={Duration}秒, Level={Level}",
+                buzzerBit,
+                buzzerDuration,
+                buzzerLevel);
+
+            // 启动蜂鸣器（根据触发电平决定值）
+            // ActiveHigh: 高电平有效 -> 写入 true（启动蜂鸣）
+            // ActiveLow: 低电平有效 -> 写入 false（启动蜂鸣）
+            var activateValue = buzzerLevel == TriggerLevel.ActiveHigh;
+            
+            var writeSuccess = await _outputPort.WriteAsync(buzzerBit, activateValue);
+            
+            if (!writeSuccess)
+            {
+                _logger.LogError("启动急停蜂鸣器失败: Bit={BuzzerBit}", buzzerBit);
+                return;
+            }
+            
+            _logger.LogInformation("急停蜂鸣器已启动，将在 {Duration} 秒后自动关闭", buzzerDuration);
+
+            // 在后台异步等待并关闭蜂鸣器（不阻塞当前流程）
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(buzzerDuration), cancellationToken);
+                    
+                    // 关闭蜂鸣器（与启动时相反的值）
+                    var deactivateValue = buzzerLevel != TriggerLevel.ActiveHigh;
+                    var stopSuccess = await _outputPort.WriteAsync(buzzerBit, deactivateValue);
+                    
+                    if (stopSuccess)
+                    {
+                        _logger.LogInformation("急停蜂鸣器已自动关闭");
+                    }
+                    else
+                    {
+                        _logger.LogWarning("关闭急停蜂鸣器失败: Bit={BuzzerBit}", buzzerBit);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogDebug("急停蜂鸣器关闭任务被取消");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "关闭急停蜂鸣器异常: Bit={BuzzerBit}", buzzerBit);
+                }
+            }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "触发急停蜂鸣器异常");
+        }
     }
     
     /// <summary>
