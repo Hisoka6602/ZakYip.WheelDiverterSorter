@@ -51,7 +51,7 @@ public sealed class LiteDbRoutePlanRepository : IRoutePlanRepository, IDisposabl
             .Where(x => x.ParcelId == parcelId)
             .FirstOrDefault();
 
-        return Task.FromResult(plan);
+        return Task.FromResult<RoutePlan?>(plan);
     }
 
     /// <inheritdoc/>

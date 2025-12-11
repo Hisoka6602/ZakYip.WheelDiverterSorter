@@ -81,7 +81,10 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
     /// <summary>
     /// 请求包裹路由（模拟实现）
     /// </summary>
-    public Task<bool> RequestRoutingAsync(long parcelId, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// PR-UPSTREAM02: 重命名为 NotifyParcelDetectedAsync（原RequestRoutingAsync）
+    /// </remarks>
+    public Task<bool> NotifyParcelDetectedAsync(long parcelId, CancellationToken cancellationToken = default)
     {
         if (_isDisposed)
         {
@@ -90,7 +93,7 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
 
         if (!_isConnected)
         {
-            _logger?.LogWarning("仿真客户端：未连接，无法请求路由");
+            _logger?.LogWarning("仿真客户端：未连接，无法发送包裹检测通知");
             return Task.FromResult(false);
         }
 
@@ -100,7 +103,7 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
             var targetChuteId = _chuteAssignmentFunc(parcelId);
             
             _logger?.LogInformation(
-                "仿真客户端：包裹 {ParcelId} 请求路由成功，分配格口 {ChuteId}",
+                "仿真客户端：包裹 {ParcelId} 检测通知已发送，分配格口 {ChuteId}",
                 parcelId,
                 targetChuteId);
 
@@ -108,7 +111,7 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
             ChuteAssigned.SafeInvoke(this, new ChuteAssignmentEventArgs
             {
                 ParcelId = parcelId,
-                AssignedChuteId = targetChuteId,
+                ChuteId = targetChuteId,
                 AssignedAt = _systemClock.LocalNowOffset
             }, _logger, nameof(ChuteAssigned));
 
@@ -116,7 +119,7 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "仿真客户端：包裹 {ParcelId} 路由请求失败", parcelId);
+            _logger?.LogError(ex, "仿真客户端：包裹 {ParcelId} 检测通知发送失败", parcelId);
             return Task.FromResult(false);
         }
     }
@@ -124,7 +127,7 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
     /// <summary>
     /// 通知包裹分拣完成（模拟实现）
     /// </summary>
-    public Task NotifySortingCompletedAsync(
+    public Task<bool> NotifySortingCompletedAsync(
         Core.Abstractions.Upstream.SortingCompletedNotification notification,
         CancellationToken cancellationToken = default)
     {
@@ -137,7 +140,7 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
             "仿真客户端：包裹 {ParcelId} 分拣完成通知已发送（模拟）",
             notification.ParcelId);
 
-        return Task.CompletedTask;
+        return Task.FromResult(true);
     }
 
     /// <summary>
