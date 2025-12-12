@@ -68,7 +68,11 @@ public class DuplicateDtoAndOptionsShapeDetectionTests
     /// </summary>
     private static readonly HashSet<string> AllowedStructuralDuplicates = new(StringComparer.Ordinal)
     {
-        // PR-CONFIG-HOTRELOAD02: 所有影分身技术债已解决，白名单已清空
+        // EmergencyStopButton: Core的Config模型 vs Host的Dto（API层需要独立DTO）
+        "EmergencyStopButtonConfig,EmergencyStopButtonConfigDto",
+        
+        // EmergencyStopBuzzer 和 PreStartWarning: 结构相同但语义不同的配置
+        "EmergencyStopBuzzerConfigDto,PreStartWarningConfigDto",
     };
 
     /// <summary>
