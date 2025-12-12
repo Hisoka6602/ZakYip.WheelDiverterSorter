@@ -1515,30 +1515,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
         
         // 执行摆轮动作（Phase 5 完整实现）
-        // 复用现有的 PathExecutor，创建单段路径执行
-        await ExecuteSingleDiverterActionAsync(task.DiverterId, actionToExecute, task.ParcelId, positionIndex);
-        
-        if (!isTimeout)
-        {
-            _metrics?.RecordSortingSuccess(0);
-        }
-    }
-
-    /// <summary>
-    /// 执行单个摆轮动作
-    /// </summary>
-    /// <param name="diverterId">摆轮ID</param>
-    /// <param name="direction">摆轮方向</param>
-    /// <param name="parcelId">包裹ID（用于日志）</param>
-    /// <param name="positionIndex">位置索引（用于日志）</param>
-    private async Task ExecuteSingleDiverterActionAsync(
-        long diverterId,
-        DiverterDirection direction,
-        string parcelId,
-        int positionIndex)
-    {
-        // 使用现有的 PathExecutor 执行单段路径
-        // 这会内部调用 IWheelCommandExecutor 来执行实际的硬件动作
+        // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
         var singleSegmentPath = new SwitchingPath
         {
             TargetChuteId = 0, // 单段执行时不关心目标格口
@@ -1547,8 +1524,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 new SwitchingPathSegment
                 {
                     SequenceNumber = 1,
-                    DiverterId = diverterId,
-                    TargetDirection = direction,
+                    DiverterId = task.DiverterId,
+                    TargetDirection = actionToExecute,
                     TtlMilliseconds = 5000 // 单个动作执行超时5秒
                 }
             }.AsReadOnly(),
@@ -1563,23 +1540,29 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (!executionResult.IsSuccess)
             {
                 _logger.LogError(
-                    "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮 {DiverterId} 动作 {Direction} 失败: {ErrorMessage}",
-                    parcelId, positionIndex, diverterId, direction, executionResult.FailureReason);
+                    "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作失败: {ErrorMessage}",
+                    task.ParcelId, positionIndex, executionResult.FailureReason);
                 _metrics?.RecordSortingFailure(0);
                 return;
             }
             
             _logger.LogDebug(
-                "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功: Diverter={DiverterId}, Direction={Direction}",
-                parcelId, positionIndex, diverterId, direction);
+                "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功",
+                task.ParcelId, positionIndex);
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
-                "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常: Diverter={DiverterId}, Direction={Direction}",
-                parcelId, positionIndex, diverterId, direction);
+                "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常",
+                task.ParcelId, positionIndex);
             _metrics?.RecordSortingFailure(0);
+            return;
+        }
+        
+        if (!isTimeout)
+        {
+            _metrics?.RecordSortingSuccess(0);
         }
     }
 
