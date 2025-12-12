@@ -149,9 +149,8 @@ public class CommunicationController : ControllerBase {
                 }
             }
 
-            // Client 模式：尝试实际连接
-            var connected = // 连接测试改用PingAsync
-                var connected = await _upstreamClient.PingAsync(cancellationToken);
+            // Client 模式：尝试实际连接（连接测试改用PingAsync）
+            var connected = await _upstreamClient.PingAsync(cancellationToken);
             sw.Stop();
 
             if (connected) {

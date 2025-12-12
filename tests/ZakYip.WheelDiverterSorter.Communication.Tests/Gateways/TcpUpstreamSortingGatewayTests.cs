@@ -68,7 +68,7 @@ public class TcpUpstreamSortingGatewayTests
         };
 
         _mockClient.Setup(x => x.IsConnected).Returns(true);
-        _mockClient.Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = 
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
             .Callback<long, CancellationToken>((parcelId, ct) =>
@@ -112,7 +112,7 @@ public class TcpUpstreamSortingGatewayTests
         _mockClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        _mockClient.Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = 
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
             .Callback<long, CancellationToken>((parcelId, ct) =>
@@ -164,7 +164,7 @@ public class TcpUpstreamSortingGatewayTests
         };
 
         _mockClient.Setup(x => x.IsConnected).Returns(true);
-        _mockClient.Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = 
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -184,7 +184,7 @@ public class TcpUpstreamSortingGatewayTests
         };
 
         _mockClient.Setup(x => x.IsConnected).Returns(true);
-        _mockClient.Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = 
+        _mockClient.Setup(x => x.NotifyParcelDetectedAsync(
             It.IsAny<long>(),
             It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
