@@ -1,5 +1,7 @@
 namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+
 /// <summary>
 /// 上游路由通讯客户端接口
 /// </summary>
@@ -26,6 +28,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 /// Communication 项目实现此接口。
 /// PR-U1: 合并 IRuleEngineClient 语义到此接口，删除中间适配层。
 /// PR-UPSTREAM02: 移除格口分配请求模式，改为检测通知 + 异步推送 + 落格通知。
+/// PR-UPSTREAM-UNIFIED: 添加统一发送接口和Ping/热更新方法，逐步迁移到1事件+2方法模式。
 /// </remarks>
 public interface IUpstreamRoutingClient : IDisposable
 {
@@ -81,6 +84,42 @@ public interface IUpstreamRoutingClient : IDisposable
     /// 发送即忘记模式：发送失败只记录日志，不重试。
     /// </remarks>
     Task<bool> NotifySortingCompletedAsync(SortingCompletedNotification notification, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 发送消息到上游系统（统一发送接口）
+    /// </summary>
+    /// <param name="message">上游消息（包裹检测通知或落格完成通知）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功发送</returns>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 新增统一发送接口，支持：
+    /// - ParcelDetectedMessage - 包裹检测通知
+    /// - SortingCompletedMessage - 落格完成通知
+    /// 发送即忘记模式：发送失败只记录日志，不重试。
+    /// 建议新代码使用此方法替代NotifyParcelDetectedAsync和NotifySortingCompletedAsync。
+    /// </remarks>
+    Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ping上游系统进行健康检查
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否Ping成功</returns>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 新增Ping接口，用于主动健康检查。
+    /// 内部自动重连逻辑独立处理，此方法仅用于按需检查。
+    /// </remarks>
+    Task<bool> PingAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 热更新连接参数
+    /// </summary>
+    /// <param name="options">新的连接选项</param>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 新增热更新接口，支持运行时更新连接参数。
+    /// 内部会断开当前连接并使用新参数重新连接。
+    /// </remarks>
+    Task UpdateOptionsAsync(UpstreamConnectionOptions options);
 }
 
 /// <summary>
@@ -216,4 +255,77 @@ public record SortingCompletedNotification
     /// </list>
     /// </remarks>
     public Core.Enums.Parcel.ParcelFinalStatus FinalStatus { get; init; } = Core.Enums.Parcel.ParcelFinalStatus.Success;
+}
+
+/// <summary>
+/// 上游消息基接口
+/// </summary>
+/// <remarks>
+/// PR-UPSTREAM-UNIFIED: 统一的消息接口，所有发送到上游的消息都实现此接口
+/// </remarks>
+public interface IUpstreamMessage
+{
+    /// <summary>
+    /// 消息类型
+    /// </summary>
+    UpstreamMessageType MessageType { get; }
+}
+
+/// <summary>
+/// 上游消息类型枚举
+/// </summary>
+public enum UpstreamMessageType
+{
+    /// <summary>
+    /// 包裹检测通知
+    /// </summary>
+    ParcelDetected = 1,
+
+    /// <summary>
+    /// 落格完成通知
+    /// </summary>
+    SortingCompleted = 2
+}
+
+/// <summary>
+/// 包裹检测通知消息
+/// </summary>
+/// <remarks>
+/// PR-UPSTREAM-UNIFIED: 封装包裹检测通知，用于SendAsync方法
+/// </remarks>
+public sealed record ParcelDetectedMessage : IUpstreamMessage
+{
+    /// <summary>
+    /// 包裹ID
+    /// </summary>
+    public required long ParcelId { get; init; }
+
+    /// <summary>
+    /// 检测时间
+    /// </summary>
+    public required DateTimeOffset DetectedAt { get; init; }
+
+    /// <summary>
+    /// 消息类型
+    /// </summary>
+    public UpstreamMessageType MessageType => UpstreamMessageType.ParcelDetected;
+}
+
+/// <summary>
+/// 落格完成通知消息
+/// </summary>
+/// <remarks>
+/// PR-UPSTREAM-UNIFIED: 封装落格完成通知，用于SendAsync方法
+/// </remarks>
+public sealed record SortingCompletedMessage : IUpstreamMessage
+{
+    /// <summary>
+    /// 落格完成通知内容
+    /// </summary>
+    public required SortingCompletedNotification Notification { get; init; }
+
+    /// <summary>
+    /// 消息类型
+    /// </summary>
+    public UpstreamMessageType MessageType => UpstreamMessageType.SortingCompleted;
 }

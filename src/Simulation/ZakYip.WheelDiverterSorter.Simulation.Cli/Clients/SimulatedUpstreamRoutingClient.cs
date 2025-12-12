@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Cli.Clients;
 
@@ -141,6 +142,30 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
             notification.ParcelId);
 
         return Task.FromResult(true);
+    }
+
+    public Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
+    {
+        return message switch
+        {
+            ParcelDetectedMessage detected => NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
+            SortingCompletedMessage completed => NotifySortingCompletedAsync(completed.Notification, cancellationToken),
+            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
+        };
+    }
+
+    public Task<bool> PingAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(IsConnected);
+    }
+
+    public Task UpdateOptionsAsync(UpstreamConnectionOptions options)
+    {
+        if (_logger != null)
+        {
+            _logger.LogInformation("热更新连接参数（仿真）：{Options}", options);
+        }
+        return Task.CompletedTask;
     }
 
     /// <summary>

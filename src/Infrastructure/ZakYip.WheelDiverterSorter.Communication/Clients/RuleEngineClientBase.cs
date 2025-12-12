@@ -254,4 +254,61 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
             throw new ObjectDisposedException(GetType().Name);
         }
     }
+
+    /// <summary>
+    /// 发送消息到上游系统（统一发送接口）
+    /// </summary>
+    /// <param name="message">上游消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功发送</returns>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 新增统一发送接口，内部路由到具体方法
+    /// </remarks>
+    public virtual Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        return message switch
+        {
+            ParcelDetectedMessage detected => NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
+            SortingCompletedMessage completed => NotifySortingCompletedAsync(completed.Notification, cancellationToken),
+            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
+        };
+    }
+
+    /// <summary>
+    /// Ping上游系统进行健康检查
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否Ping成功</returns>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 新增Ping接口，默认实现检查连接状态
+    /// </remarks>
+    public virtual Task<bool> PingAsync(CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        // 默认实现：返回当前连接状态
+        return Task.FromResult(IsConnected);
+    }
+
+    /// <summary>
+    /// 热更新连接参数
+    /// </summary>
+    /// <param name="options">新的连接选项</param>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 新增热更新接口，子类需要override实现具体逻辑
+    /// </remarks>
+    public virtual async Task UpdateOptionsAsync(UpstreamConnectionOptions options)
+    {
+        ThrowIfDisposed();
+        Logger.LogInformation("热更新连接参数：{Options}", options);
+        
+        // 断开当前连接
+        if (IsConnected)
+        {
+            await DisconnectAsync();
+        }
+        
+        // 子类应override此方法以更新Options字段并重新连接
+        throw new NotSupportedException("子类必须override UpdateOptionsAsync方法以支持热更新");
+    }
 }
