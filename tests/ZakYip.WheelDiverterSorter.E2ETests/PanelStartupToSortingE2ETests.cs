@@ -151,31 +151,20 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         // ===== 步骤3: 按下启动按钮（通过仿真IO输入）=====
         _output.WriteLine("\n【步骤3】按下启动按钮");
 
-        // if (_linkageService != null && _stateService != null) // TODO: Refactor - SystemStateIoLinkageService removed
-        if (false) // TODO: Refactor - tests need rewriting after SystemStateIoLinkageService removal
-#pragma warning disable CS0162 // Unreachable code
-        {
-            // 清除之前的日志
-            _logCollector.Clear();
-
-            // 按下启动按钮
-            // var startResult = // await _linkageService.HandleStartAsync(); // TODO: Refactor // TODO: Refactor
-            // startResult.IsSuccess.Should() // TODO: Refactor.BeTrue("启动按钮操作应该成功");
-            // _output.WriteLine($"✓ 启动按钮按下成功，结果: {startResult.IsSuccess}"); // TODO: Refactor
-
-            // 验证线体状态
-            _stateService.CurrentState.Should().Be(SystemState.Running, "线体应该进入Running状态");
-            _output.WriteLine($"✓ 线体状态: {_stateService.CurrentState}");
-
-            // 验证启动过程无Error日志
-            var startErrors = _logCollector.GetLogs(LogLevel.Error);
-            startErrors.Should().BeEmpty("启动过程不允许有Error级别日志");
-            _output.WriteLine("✓ 启动过程无Error日志");
-        }
-        else
-        {
-            _output.WriteLine("⚠ 状态服务未注册，跳过面板按钮验证");
-        }
+        // TODO: Refactor - tests need rewriting after SystemStateIoLinkageService removal
+        // This section is disabled pending test refactoring to use ISystemStateManager directly
+        // 
+        // Original logic:
+        // 1. Clear log collector
+        // 2. Call HandleStartAsync() on linkage service
+        // 3. Verify state transitioned to Running
+        // 4. Verify no error logs during startup
+        //
+        // New approach needed:
+        // - Use ISystemStateManager.TransitionToAsync() directly
+        // - Or use PanelButtonMonitorWorker to simulate button press
+        
+        _output.WriteLine("⚠ 面板按钮验证暂时禁用 - 等待测试重构");
 
         // ===== 步骤4: 上游分配格口（通过仿真通讯）=====
         _output.WriteLine("\n【步骤4】上游分配格口");
@@ -274,13 +263,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _output.WriteLine("✓ 路由配置完成");
 
         // 启动系统
-        // if (_linkageService != null && _stateService != null) // TODO: Refactor - SystemStateIoLinkageService removed
-        if (false) // TODO: Refactor - tests need rewriting after SystemStateIoLinkageService removal
-#pragma warning disable CS0162 // Unreachable code
-        {
-            // await _linkageService.HandleStartAsync(); // TODO: Refactor
-            _output.WriteLine($"✓ 系统启动: {_stateService.CurrentState}");
-        }
+        // TODO: Refactor - tests need rewriting after SystemStateIoLinkageService removal
+        // Disabled pending refactoring to use ISystemStateManager directly
 
         // 配置上游延迟响应（但不超时）
         long testParcelId = 100002;
@@ -378,14 +362,8 @@ public class PanelStartupToSortingE2ETests : IClassFixture<PanelE2ETestFactory>,
         _logCollector.Clear();
 
         // 按下启动按钮
-        // if (_linkageService != null && _stateService != null) // TODO: Refactor - SystemStateIoLinkageService removed
-        if (false) // TODO: Refactor - tests need rewriting after SystemStateIoLinkageService removal
-#pragma warning disable CS0162 // Unreachable code
-        {
-            // var startResult = // await _linkageService.HandleStartAsync(); // TODO: Refactor // TODO: Refactor
-            // startResult.IsSuccess.Should() // TODO: Refactor.BeTrue();
-            _output.WriteLine($"✓ 系统启动成功: {_stateService.CurrentState}");
-        }
+        // TODO: Refactor - tests need rewriting after SystemStateIoLinkageService removal
+        // Disabled pending refactoring to use ISystemStateManager directly
 
         // 立即测试第一个包裹（暖机验证）
         long firstParcelId = 100003;
