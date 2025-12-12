@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Events.Alarm;
 
 namespace ZakYip.WheelDiverterSorter.Observability;
 

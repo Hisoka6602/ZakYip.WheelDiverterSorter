@@ -5,7 +5,7 @@ using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao.Events;
+using ZakYip.WheelDiverterSorter.Core.Events.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 

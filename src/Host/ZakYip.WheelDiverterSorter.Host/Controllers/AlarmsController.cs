@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using ZakYip.WheelDiverterSorter.Observability;
 using Swashbuckle.AspNetCore.Annotations;
+using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Events.Alarm;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 

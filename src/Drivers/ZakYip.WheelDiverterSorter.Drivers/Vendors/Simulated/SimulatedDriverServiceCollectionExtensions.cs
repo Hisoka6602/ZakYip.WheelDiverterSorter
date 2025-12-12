@@ -134,25 +134,4 @@ public static class SimulatedDriverServiceCollectionExtensions
     }
 
 
-
-    /// <summary>
-    /// 注册模拟离散 IO 组实现
-    /// </summary>
-    /// <param name="services">服务集合</param>
-    /// <param name="groupName">IO 组名称</param>
-    /// <param name="portCount">端口数量</param>
-    /// <returns>服务集合</returns>
-    public static IServiceCollection AddSimulatedDiscreteIoGroup(
-        this IServiceCollection services,
-        string groupName = "SimulatedIoGroup",
-        int portCount = 32)
-    {
-        services.AddSingleton<IDiscreteIoGroup>(sp =>
-        {
-            var logger = sp.GetService<ILogger<SimulatedDiscreteIoGroup>>();
-            return new SimulatedDiscreteIoGroup(groupName, portCount, logger);
-        });
-
-        return services;
-    }
 }
