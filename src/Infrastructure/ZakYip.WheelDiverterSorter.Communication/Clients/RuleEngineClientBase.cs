@@ -295,20 +295,13 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// </summary>
     /// <param name="options">新的连接选项</param>
     /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增热更新接口，子类需要override实现具体逻辑
+    /// PR-UPSTREAM-UNIFIED: 新增热更新接口，子类可以override实现具体逻辑。
+    /// 基类默认实现：记录警告日志，不执行实际操作。
     /// </remarks>
-    public virtual async Task UpdateOptionsAsync(UpstreamConnectionOptions options)
+    public virtual Task UpdateOptionsAsync(UpstreamConnectionOptions options)
     {
         ThrowIfDisposed();
-        Logger.LogInformation("热更新连接参数：{Options}", options);
-        
-        // 断开当前连接
-        if (IsConnected)
-        {
-            await DisconnectAsync();
-        }
-        
-        // 子类应override此方法以更新Options字段并重新连接
-        throw new NotSupportedException("子类必须override UpdateOptionsAsync方法以支持热更新");
+        Logger.LogWarning("当前实现不支持热更新连接参数，请在子类中override此方法。Options={Options}", options);
+        return Task.CompletedTask;
     }
 }
