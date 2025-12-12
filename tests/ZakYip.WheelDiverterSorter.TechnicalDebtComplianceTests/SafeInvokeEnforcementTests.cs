@@ -40,6 +40,24 @@ public class SafeInvokeEnforcementTests
     }
 
     /// <summary>
+    /// 白名单：合法的委托调用（非multicast事件，不需要SafeInvoke）
+    /// Whitelist: Legitimate delegate invocations (not multicast events, don't need SafeInvoke)
+    /// </summary>
+    /// <remarks>
+    /// 单播委托（single-cast delegates）不需要SafeInvoke保护，因为：
+    /// 1. 只有一个订阅者，不存在"一个订阅者崩溃影响其他订阅者"的问题
+    /// 2. 调用者通常期望获得异常反馈
+    /// 3. 性能考虑：不需要额外的遍历和异常捕获开销
+    /// </remarks>
+    private static readonly HashSet<string> AllowedDelegateInvocations = new()
+    {
+        // ParcelCompletionDelegate: 包裹完成回调委托（单播）
+        "_completionDelegate?.Invoke",
+        
+        // 其他合法的单播委托调用可以添加到这里
+    };
+
+    /// <summary>
     /// 核心防线：禁止在业务代码中直接使用 event?.Invoke() 模式
     /// Core Defense: Prohibit direct event?.Invoke() pattern in business code
     /// </summary>
@@ -91,9 +109,15 @@ public class SafeInvokeEnforcementTests
                         // Exclude SafeInvoke calls
                         if (!line.Contains("SafeInvoke"))
                         {
-                            var relativePath = Path.GetRelativePath(SolutionRoot, file);
-                            var lineNumber = i + 1;
-                            violations.Add($"{relativePath}:{lineNumber} - {line.Trim()}");
+                            // Check if it's a whitelisted delegate invocation
+                            bool isWhitelisted = AllowedDelegateInvocations.Any(allowed => line.Contains(allowed));
+                            
+                            if (!isWhitelisted)
+                            {
+                                var relativePath = Path.GetRelativePath(SolutionRoot, file);
+                                var lineNumber = i + 1;
+                                violations.Add($"{relativePath}:{lineNumber} - {line.Trim()}");
+                            }
                         }
                     }
                 }
