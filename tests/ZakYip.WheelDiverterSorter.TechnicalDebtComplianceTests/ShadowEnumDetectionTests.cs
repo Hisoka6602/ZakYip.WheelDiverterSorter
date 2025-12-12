@@ -289,7 +289,75 @@ public class ShadowEnumDetectionTests
              "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDeviceState"),
             
             // 厂商协议枚举 vs 通用枚举 - 允许共存
-            // 如 ShuDiNiaoDeviceState vs WheelDeviceState
+            // ShuDiNiaoDeviceState vs WheelDeviceState - 厂商特定协议枚举
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDeviceState",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors.ShuDiNiaoDeviceState"),
+            
+            // 包裹状态相关 - 不同阶段的状态
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelSimulationStatus"),
+            
+            // 摆轮方向 vs 侧面 - 语义不同但值重叠
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DiverterDirection",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DiverterSide"),
+            
+            // 厂商类型枚举 - 不同设备类型的厂商
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DriverVendorType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DriverVendorType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.VendorId"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.VendorId"),
+            
+            // 通讯协议相关
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Communication.CommunicationMode",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Communication.UpstreamProtocolType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Communication.CommunicationMode",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Communication.ConnectionMode"),
+            
+            // 硬件相关 - 不同类型但名称相似
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.ActuatorBindingType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorBindingType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DriverVendorType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorBindingType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorIoType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorBindingType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorFaultType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorIoType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorFaultType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorFaultType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorIoType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorIoType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterCommand",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterState"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterCommand",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterVendorType"),
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterState",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDiverterVendorType"),
+            
+            // 厂商协议消息类型
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors.ShuDiNiaoMessageType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors.ShuDiNiaoResponseCode"),
+            
+            // 系统状态相关
+            ("ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDeviceState"),
+            
+            // 步骤状态 vs 包裹状态 - 不同领域
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Execution.StepStatus",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus"),
+            
+            // 运行模式相关
+            ("ZakYip.WheelDiverterSorter.Core.Enums.System.EnvironmentMode",
+             "ZakYip.WheelDiverterSorter.Core.Enums.System.RuntimeMode"),
         };
 
         return whitelist.Any(w =>
