@@ -10,11 +10,22 @@ namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 public interface IPositionIndexQueueManager
 {
     /// <summary>
-    /// 将任务加入指定 position 的队列
+    /// 将任务加入指定 position 的队列（追加到尾部）
     /// </summary>
     /// <param name="positionIndex">Position Index</param>
     /// <param name="task">任务项</param>
     void EnqueueTask(int positionIndex, PositionQueueItem task);
+    
+    /// <summary>
+    /// 将任务优先加入指定 position 的队列（插入到头部）
+    /// </summary>
+    /// <param name="positionIndex">Position Index</param>
+    /// <param name="task">任务项</param>
+    /// <remarks>
+    /// 用于超时包裹的后续 position 插入 Straight 任务。
+    /// 因为超时包裹虽然超时，但仍排在后续包裹前面，需要优先处理。
+    /// </remarks>
+    void EnqueuePriorityTask(int positionIndex, PositionQueueItem task);
     
     /// <summary>
     /// 从指定 position 的队列中取出任务（FIFO）

@@ -35,7 +35,36 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
 
         _logger.LogDebug(
-            "任务已加入 Position {PositionIndex} 队列: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, QueueCount={QueueCount}",
+            "任务已加入 Position {PositionIndex} 队列尾部: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, QueueCount={QueueCount}",
+            positionIndex, task.ParcelId, task.DiverterId, task.DiverterAction, queue.Count);
+    }
+
+    /// <inheritdoc/>
+    public void EnqueuePriorityTask(int positionIndex, PositionQueueItem task)
+    {
+        var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
+        
+        // ConcurrentQueue 不支持直接插入头部，需要重建队列
+        // 1. 取出所有现有任务
+        var existingTasks = new List<PositionQueueItem>();
+        while (queue.TryDequeue(out var existingTask))
+        {
+            existingTasks.Add(existingTask);
+        }
+        
+        // 2. 先加入优先任务
+        queue.Enqueue(task);
+        
+        // 3. 再加入原有任务
+        foreach (var existingTask in existingTasks)
+        {
+            queue.Enqueue(existingTask);
+        }
+        
+        _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
+
+        _logger.LogWarning(
+            "优先任务已插入 Position {PositionIndex} 队列头部: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, QueueCount={QueueCount}",
             positionIndex, task.ParcelId, task.DiverterId, task.DiverterAction, queue.Count);
     }
 

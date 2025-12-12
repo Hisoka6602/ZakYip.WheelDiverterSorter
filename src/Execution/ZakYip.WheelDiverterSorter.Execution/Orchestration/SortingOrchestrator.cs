@@ -1548,6 +1548,49 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 task.ParcelId, positionIndex, delayMs, task.FallbackAction);
             
             actionToExecute = task.FallbackAction;
+            
+            // 超时包裹需要在后续所有 position 插入 Straight 任务到队列头部
+            // 因为超时包裹虽然超时，但仍排在后续包裹前面
+            if (_topologyRepository != null)
+            {
+                var topology = _topologyRepository.Get();
+                if (topology != null)
+                {
+                    // 找到所有比当前 position 大的节点
+                    var subsequentNodes = topology.DiverterNodes
+                        .Where(n => n.PositionIndex > positionIndex)
+                        .OrderBy(n => n.PositionIndex)
+                        .ToList();
+                    
+                    if (subsequentNodes.Any())
+                    {
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
+                            task.ParcelId,
+                            subsequentNodes.Count,
+                            string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
+                        
+                        foreach (var node in subsequentNodes)
+                        {
+                            var straightTask = new PositionQueueItem
+                            {
+                                ParcelId = task.ParcelId,
+                                DiverterId = node.DiverterId,
+                                DiverterAction = DiverterDirection.Straight,
+                                ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                                TimeoutThresholdMs = task.TimeoutThresholdMs,
+                                FallbackAction = DiverterDirection.Straight,
+                                PositionIndex = node.PositionIndex,
+                                CreatedAt = _clock.LocalNow
+                            };
+                            
+                            // 使用优先入队，插入到队列头部
+                            _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
+                        }
+                    }
+                }
+            }
+            
             _metrics?.RecordSortingFailure(0);
         }
         else
