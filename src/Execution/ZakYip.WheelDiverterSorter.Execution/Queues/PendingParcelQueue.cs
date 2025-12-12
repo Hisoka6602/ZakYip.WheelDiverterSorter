@@ -3,6 +3,7 @@ using System.Timers;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Events.Queue;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 
@@ -97,13 +98,13 @@ public class PendingParcelQueue : IPendingParcelQueue, IDisposable
             "包裹 {ParcelId} 等待超时，目标格口: {ChuteId}, 摆轮ID: {WheelDiverterId}, 等待时间: {ElapsedMs}ms",
             entry.ParcelId, entry.TargetChuteId, entry.WheelDiverterId, elapsedMs);
         
-        ParcelTimedOut?.Invoke(this, new ParcelTimedOutEventArgs
+        ParcelTimedOut.SafeInvoke(this, new ParcelTimedOutEventArgs
         {
             ParcelId = entry.ParcelId,
             TargetChuteId = entry.TargetChuteId,
             WheelDiverterId = entry.WheelDiverterId,
             ElapsedMs = elapsedMs
-        });
+        }, _logger, nameof(ParcelTimedOut));
     }
 
     /// <summary>

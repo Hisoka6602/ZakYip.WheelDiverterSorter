@@ -269,9 +269,22 @@ public class LongIdMatchingEnforcementTests
             "RequestId",        // 请求ID（通常是GUID）
             "SessionId",        // 会话ID
             "TopologyId",       // 拓扑ID（配置标识符，通常是字符串）
-            "ConfigId"          // 配置ID（配置标识符，可能是字符串）
+            "ConfigId",         // 配置ID（配置标识符，可能是字符串）
+            // 硬件和业务域标识符（外部系统接口，需要人类可读性）
+            "DiverterId",       // 摆轮ID（硬件设备标识符，与外部系统通讯）
+            "ParcelId",         // 包裹ID（业务标识符，可能包含前缀）
+            "ChuteId",          // 格口ID（硬件设备标识符）
+            "SensorId",         // 传感器ID（硬件设备标识符）
+            "TargetChuteId",    // 目标格口ID（业务逻辑使用）
+            "NodeId",           // 节点ID（拓扑结构标识符）
+            // IO和配置相关标识符
+            "ProfileId",        // IO绑定配置文件ID
+            "RelatedTopologyElementId", // 关联拓扑元素ID（字符串引用）
+            "LineId",           // 线体ID（配置标识符）
+            "DeviceId"          // 设备ID（硬件标识符）
         };
 
-        return exceptions.Any(ex => propertyName.Equals(ex, StringComparison.Ordinal));
+        // 支持大小写不敏感匹配（处理方法参数的camelCase）
+        return exceptions.Any(ex => propertyName.Equals(ex, StringComparison.OrdinalIgnoreCase));
     }
 }

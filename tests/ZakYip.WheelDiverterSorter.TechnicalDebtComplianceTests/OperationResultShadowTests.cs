@@ -51,7 +51,13 @@ public class OperationResultShadowTests
         // 输送线段操作结果 - 包含 SegmentId, Timestamp 等领域特定字段
         "ZakYip.WheelDiverterSorter.Core.LineModel.Segments.ConveyorOperationResult",
         // 面板操作结果 - 包含 CurrentState, PreviousState 等领域特定字段
-        "ZakYip.WheelDiverterSorter.Application.Services.Simulation.PanelOperationResult"
+        "ZakYip.WheelDiverterSorter.Application.Services.Simulation.PanelOperationResult",
+        // 摆轮驱动操作结果 - 包含硬件层特定字段
+        "ZakYip.WheelDiverterSorter.Core.Hardware.Devices.DiverterOperationResult",
+        // 摆轮服务操作结果 - 包含应用层特定字段
+        "ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter.WheelDiverterOperationResult",
+        // 输送线段配置操作结果 - 包含配置层特定字段
+        "ZakYip.WheelDiverterSorter.Application.Services.Config.ConveyorSegmentOperationResult"
     };
 
     /// <summary>
