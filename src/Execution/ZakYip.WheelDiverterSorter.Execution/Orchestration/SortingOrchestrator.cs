@@ -279,22 +279,63 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
             // 步骤 5: 拓扑驱动分拣流程（TD-062）- 必须使用拓扑配置
             _logger.LogDebug("[步骤 5/5] 拓扑驱动分拣流程");
+            
+            // 获取系统配置和异常格口ID
+            var systemConfig = _systemConfigRepository.Get();
+            var exceptionChuteId = systemConfig.ExceptionChuteId;
+            
+            // 检查拓扑服务是否可用
             if (_pendingQueue == null || _topologyRepository == null || _segmentRepository == null)
             {
-                // 缺少必需的拓扑服务，路由到异常格口（所有摆轮直行）
+                // TD-068: 缺少必需的拓扑服务，生成异常格口路径并加入队列
                 _logger.LogError(
-                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（PendingQueue={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），路由到异常格口",
+                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（PendingQueue={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），生成异常格口路径",
                     parcelId, _pendingQueue != null, _topologyRepository != null, _segmentRepository != null);
                 
+                // 尝试生成异常格口路径（所有摆轮直行）
+                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
+                    exceptionChuteId,
+                    parcelId,
+                    "拓扑服务未配置");
+                
+                if (exceptionPath == null || _pendingQueue == null)
+                {
+                    // 连异常格口路径都无法生成，或队列服务不可用，只能记录失败
+                    stopwatch.Stop();
+                    _metrics?.RecordSortingFailedParcel("TopologyServiceMissing");
+                    return new SortingResult(
+                        IsSuccess: false,
+                        ParcelId: parcelId.ToString(),
+                        ActualChuteId: 0,
+                        TargetChuteId: targetChuteId,
+                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                        FailureReason: "拓扑服务未配置，且无法生成异常格口路径"
+                    );
+                }
+                
+                // 使用异常格口路径的第一个摆轮ID作为队列键
+                var firstDiverterId = exceptionPath.Segments.FirstOrDefault()?.DiverterId ?? 1;
+                _pendingQueue.Enqueue(
+                    parcelId,
+                    exceptionChuteId,
+                    firstDiverterId,
+                    DefaultTimeoutSeconds,
+                    exceptionPath);
+                
+                _logger.LogInformation(
+                    "[完成] 包裹 {ParcelId} 已加入待执行队列（异常格口路径），目标格口: {ExceptionChuteId}, 摆轮ID: {DiverterId}",
+                    parcelId,
+                    exceptionChuteId,
+                    firstDiverterId);
+                
                 stopwatch.Stop();
-                await ProcessTimedOutParcelAsync(parcelId);
                 return new SortingResult(
-                    IsSuccess: false,
+                    IsSuccess: true,
                     ParcelId: parcelId.ToString(),
-                    ActualChuteId: 0,
-                    TargetChuteId: targetChuteId,
+                    ActualChuteId: exceptionChuteId,
+                    TargetChuteId: exceptionChuteId,
                     ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: "拓扑服务未配置，已路由到异常格口"
+                    FailureReason: null
                 );
             }
 
@@ -303,20 +344,55 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             if (diverterNode == null)
             {
-                // 拓扑中未找到对应的摆轮节点，路由到异常格口（所有摆轮直行）
+                // TD-068: 拓扑中未找到对应的摆轮节点，生成异常格口路径并加入队列
                 _logger.LogWarning(
-                    "[拓扑节点未找到] 包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，路由到异常格口",
+                    "[拓扑节点未找到] 包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，生成异常格口路径",
                     parcelId, targetChuteId);
                 
+                // 生成异常格口路径（所有摆轮直行）
+                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
+                    exceptionChuteId,
+                    parcelId,
+                    "目标格口在拓扑中不存在");
+                
+                if (exceptionPath == null)
+                {
+                    // 连异常格口路径都无法生成
+                    stopwatch.Stop();
+                    _metrics?.RecordSortingFailedParcel("NodeNotFoundAndPathFailed");
+                    return new SortingResult(
+                        IsSuccess: false,
+                        ParcelId: parcelId.ToString(),
+                        ActualChuteId: 0,
+                        TargetChuteId: targetChuteId,
+                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                        FailureReason: "目标格口在拓扑中不存在，且无法生成异常格口路径"
+                    );
+                }
+                
+                // 使用拓扑的第一个摆轮ID作为队列键（异常格口路径需要等待第一个摆轮前的传感器触发）
+                var firstDiverterId = topology.DiverterNodes.FirstOrDefault()?.DiverterId ?? 1;
+                _pendingQueue.Enqueue(
+                    parcelId,
+                    exceptionChuteId,
+                    firstDiverterId,
+                    DefaultTimeoutSeconds,
+                    exceptionPath);
+                
+                _logger.LogInformation(
+                    "[完成] 包裹 {ParcelId} 已加入待执行队列（异常格口路径），目标格口: {ExceptionChuteId}, 摆轮ID: {DiverterId}",
+                    parcelId,
+                    exceptionChuteId,
+                    firstDiverterId);
+                
                 stopwatch.Stop();
-                await ProcessTimedOutParcelAsync(parcelId);
                 return new SortingResult(
-                    IsSuccess: false,
+                    IsSuccess: true,
                     ParcelId: parcelId.ToString(),
-                    ActualChuteId: 0,
-                    TargetChuteId: targetChuteId,
+                    ActualChuteId: exceptionChuteId,
+                    TargetChuteId: exceptionChuteId,
                     ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: "目标格口在拓扑中不存在，已路由到异常格口"
+                    FailureReason: null
                 );
             }
             
@@ -335,20 +411,55 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             if (path == null)
             {
-                // 路径生成失败，路由到异常格口
+                // TD-068: 路径生成失败，生成异常格口路径并加入队列
                 _logger.LogError(
-                    "[路径生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，路由到异常格口",
+                    "[路径生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，生成异常格口路径",
                     parcelId, targetChuteId);
                 
+                // 生成异常格口路径
+                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
+                    exceptionChuteId,
+                    parcelId,
+                    "无法生成到目标格口的路径");
+                
+                if (exceptionPath == null)
+                {
+                    // 连异常格口路径都无法生成
+                    stopwatch.Stop();
+                    _metrics?.RecordSortingFailedParcel("PathGenerationFailed");
+                    return new SortingResult(
+                        IsSuccess: false,
+                        ParcelId: parcelId.ToString(),
+                        ActualChuteId: 0,
+                        TargetChuteId: targetChuteId,
+                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
+                        FailureReason: "无法生成分拣路径，且无法生成异常格口路径"
+                    );
+                }
+                
+                // 使用拓扑的第一个摆轮ID作为队列键
+                var firstDiverterId = topology.DiverterNodes.FirstOrDefault()?.DiverterId ?? 1;
+                _pendingQueue.Enqueue(
+                    parcelId,
+                    exceptionChuteId,
+                    firstDiverterId,
+                    timeoutSeconds,
+                    exceptionPath);
+                
+                _logger.LogInformation(
+                    "[完成] 包裹 {ParcelId} 已加入待执行队列（异常格口路径），目标格口: {ExceptionChuteId}, 摆轮ID: {DiverterId}",
+                    parcelId,
+                    exceptionChuteId,
+                    firstDiverterId);
+                
                 stopwatch.Stop();
-                await ProcessTimedOutParcelAsync(parcelId);
                 return new SortingResult(
-                    IsSuccess: false,
+                    IsSuccess: true,
                     ParcelId: parcelId.ToString(),
-                    ActualChuteId: 0,
-                    TargetChuteId: targetChuteId,
+                    ActualChuteId: exceptionChuteId,
+                    TargetChuteId: exceptionChuteId,
                     ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: "无法生成分拣路径，已路由到异常格口"
+                    FailureReason: null
                 );
             }
             
