@@ -89,12 +89,12 @@ public class MandatoryArchitectureRulesTests
             for (int i = 0; i < lines.Length; i++)
             {
                 var line = lines[i];
-                foreach (var pattern in todoPatterns)
+                var matchingPatterns = todoPatterns.Where(pattern => 
+                    Regex.IsMatch(line, pattern, RegexOptions.IgnoreCase));
+                
+                foreach (var pattern in matchingPatterns)
                 {
-                    if (Regex.IsMatch(line, pattern, RegexOptions.IgnoreCase))
-                    {
-                        violations.Add((file, i + 1, line.Trim()));
-                    }
+                    violations.Add((file, i + 1, line.Trim()));
                 }
             }
         }
@@ -368,14 +368,14 @@ public class MandatoryArchitectureRulesTests
             int maxAllowedDays = 180; // 默认值
             string matchedCategory = "一般文档";
 
-            foreach (var rule in DocumentLifespanRules.OrderBy(r => r.Value))
+            var matchingRule = DocumentLifespanRules
+                .OrderBy(r => r.Value)
+                .FirstOrDefault(rule => Regex.IsMatch(fileName, rule.Key, RegexOptions.IgnoreCase));
+            
+            if (matchingRule.Key != null)
             {
-                if (Regex.IsMatch(fileName, rule.Key, RegexOptions.IgnoreCase))
-                {
-                    maxAllowedDays = rule.Value;
-                    matchedCategory = rule.Key;
-                    break;
-                }
+                maxAllowedDays = matchingRule.Value;
+                matchedCategory = matchingRule.Key;
             }
 
             if (daysOld > maxAllowedDays)
@@ -425,22 +425,18 @@ public class MandatoryArchitectureRulesTests
             [@"TODO_.*\.md"] = "TODO文档应该转换为 GitHub Issues",
         };
 
-        foreach (var file in mdFiles)
-        {
-            var fileName = Path.GetFileName(file);
-            
-            // 跳过白名单
-            if (PermanentDocuments.Contains(fileName))
-            {
-                continue;
-            }
+        var nonWhitelistedFiles = mdFiles
+            .Select(file => Path.GetFileName(file))
+            .Where(fileName => !PermanentDocuments.Contains(fileName));
 
-            foreach (var pattern in forbiddenPatterns)
+        foreach (var fileName in nonWhitelistedFiles)
+        {
+            var matchingPatterns = forbiddenPatterns
+                .Where(pattern => Regex.IsMatch(fileName, pattern.Key, RegexOptions.IgnoreCase));
+
+            foreach (var pattern in matchingPatterns)
             {
-                if (Regex.IsMatch(fileName, pattern.Key, RegexOptions.IgnoreCase))
-                {
-                    violations.Add((fileName, pattern.Value));
-                }
+                violations.Add((fileName, pattern.Value));
             }
         }
 
@@ -468,14 +464,12 @@ public class MandatoryArchitectureRulesTests
         {
             var lines = File.ReadAllLines(filePath);
 
-            foreach (var line in lines)
-            {
-                var match = EnumPattern.Match(line);
-                if (match.Success)
-                {
-                    enums.Add(match.Groups["name"].Value);
-                }
-            }
+            var enumNames = lines
+                .Select(line => EnumPattern.Match(line))
+                .Where(match => match.Success)
+                .Select(match => match.Groups["name"].Value);
+
+            enums.AddRange(enumNames);
         }
         catch (Exception ex)
         {
