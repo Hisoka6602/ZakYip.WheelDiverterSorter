@@ -155,32 +155,7 @@ public class SimulationRunner
                 break;
             }
 
-            // 检查是否需要暂停
-            if (_throttlePolicy != null && _congestionDetector != null && _metricsCollector != null)
-            {
-                var metrics = _metricsCollector.GetCurrentMetrics();
-                var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
-                
-                while (_throttlePolicy.IsPaused(congestionLevel))
-                {
-                    if (congestionLevel != _currentCongestionLevel)
-                    {
-                        _logger.LogWarning("系统拥堵严重，暂停放包。在途包裹数: {InFlight}", metrics.InFlightParcels);
-                        _metrics.RecordThrottleEvent("pause");
-                        UpdateCongestionMetrics(congestionLevel);
-                    }
-                    
-                    await Task.Delay(1000, cancellationToken);
-                    metrics = _metricsCollector.GetCurrentMetrics();
-                    congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
-                }
-                
-                if (_currentCongestionLevel == CongestionLevel.Severe && congestionLevel != CongestionLevel.Severe)
-                {
-                    _logger.LogInformation("拥堵缓解，恢复放包");
-                    _metrics.RecordThrottleEvent("resume");
-                }
-            }
+            // 策略相关暂停逻辑已删除
 
             await ProcessSingleParcelAsync(i, startTime, cancellationToken);
 
@@ -251,33 +226,8 @@ public class SimulationRunner
             // 等待下一个包裹到达 - 使用动态间隔
             var interval = GetCurrentReleaseInterval();
             
-            // 检查是否需要暂停
-            if (_throttlePolicy != null && _congestionDetector != null && _metricsCollector != null)
-            {
-                var metrics = _metricsCollector.GetCurrentMetrics();
-                var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
-                
-                while (_throttlePolicy.IsPaused(congestionLevel))
-                {
-                    if (congestionLevel != _currentCongestionLevel)
-                    {
-                        _logger.LogWarning("系统拥堵严重，暂停放包。在途包裹数: {InFlight}", metrics.InFlightParcels);
-                        _metrics.RecordThrottleEvent("pause");
-                        UpdateCongestionMetrics(congestionLevel);
-                    }
-                    
-                    await Task.Delay(1000, cancellationToken);
-                    metrics = _metricsCollector.GetCurrentMetrics();
-                    congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
-                }
-                
-                if (_currentCongestionLevel == CongestionLevel.Severe && congestionLevel != CongestionLevel.Severe)
-                {
-                    _logger.LogInformation("拥堵缓解，恢复放包");
-                    _metrics.RecordThrottleEvent("resume");
-                }
-            }
-            
+            // 策略相关暂停逻辑已删除
+
             await Task.Delay(interval, cancellationToken);
         }
 
@@ -308,11 +258,7 @@ public class SimulationRunner
         // 更新在途包裹数指标
         _metrics.SetInFlightParcels(currentConcurrent);
         
-        // 更新拥堵级别（如果启用了节流）
-        if (_congestionDetector != null && _metricsCollector != null && _throttlePolicy != null)
-        {
-            UpdateCongestionLevel();
-        }
+        // 策略相关拥堵级别更新已删除
         
         if (_options.IsEnableVerboseLogging)
         {
@@ -1007,25 +953,8 @@ public class SimulationRunner
     /// </summary>
     private TimeSpan GetCurrentReleaseInterval()
     {
-        if (_throttlePolicy == null || _congestionDetector == null || _metricsCollector == null)
-        {
-            return _options.ParcelInterval;
-        }
-
-        var metrics = _metricsCollector.GetCurrentMetrics();
-        var congestionLevel = _congestionDetector.DetectCongestionLevel(metrics);
-        var intervalMs = _throttlePolicy.GetReleaseIntervalMs(congestionLevel);
-        
-        if (intervalMs != _currentReleaseIntervalMs)
-        {
-            _logger.LogInformation("放包间隔已调整: {OldInterval}ms -> {NewInterval}ms (拥堵级别: {Level})",
-                _currentReleaseIntervalMs, intervalMs, congestionLevel);
-            _currentReleaseIntervalMs = intervalMs;
-            _metrics.SetReleaseInterval(intervalMs);
-            _metrics.RecordThrottleEvent("throttle");
-        }
-
-        return TimeSpan.FromMilliseconds(intervalMs);
+        // 策略相关动态间隔已删除，使用配置的固定间隔
+        return _options.ParcelInterval;
     }
 
     /// <summary>

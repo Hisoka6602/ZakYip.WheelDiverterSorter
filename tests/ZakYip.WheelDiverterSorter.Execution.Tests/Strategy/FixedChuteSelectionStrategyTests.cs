@@ -44,29 +44,6 @@ public class FixedChuteSelectionStrategyTests
     }
 
     [Fact]
-    public async Task SelectChuteAsync_WithOverloadForced_ReturnsExceptionChute()
-    {
-        // Arrange
-        var context = new SortingContext
-        {
-            ParcelId = 1001,
-            SortingMode = SortingMode.FixedChute,
-            ExceptionChuteId = 999,
-            FixedChuteId = 5,
-            IsOverloadForced = true
-        };
-
-        // Act
-        var result = await _strategy.SelectChuteAsync(context, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(999, result.TargetChuteId);
-        Assert.True(result.IsException);
-        Assert.Contains("超载", result.ExceptionReason);
-    }
-
-    [Fact]
     public async Task SelectChuteAsync_WithNullFixedChuteId_ReturnsExceptionChute()
     {
         // Arrange

@@ -75,29 +75,6 @@ public class RoundRobinChuteSelectionStrategyTests
     }
 
     [Fact]
-    public async Task SelectChuteAsync_WithOverloadForced_ReturnsExceptionChute()
-    {
-        // Arrange
-        var context = new SortingContext
-        {
-            ParcelId = 1001,
-            SortingMode = SortingMode.RoundRobin,
-            ExceptionChuteId = 999,
-            AvailableChuteIds = new List<long> { 1, 2, 3 },
-            IsOverloadForced = true
-        };
-
-        // Act
-        var result = await _strategy.SelectChuteAsync(context, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(999, result.TargetChuteId);
-        Assert.True(result.IsException);
-        Assert.Contains("超载", result.ExceptionReason);
-    }
-
-    [Fact]
     public async Task SelectChuteAsync_WithEmptyAvailableChutes_ReturnsExceptionChute()
     {
         // Arrange

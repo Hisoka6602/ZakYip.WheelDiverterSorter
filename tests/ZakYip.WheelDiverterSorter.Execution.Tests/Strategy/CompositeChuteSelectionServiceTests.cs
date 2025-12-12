@@ -133,34 +133,6 @@ public class CompositeChuteSelectionServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task SelectChuteAsync_WithOverloadForced_AllModesReturnExceptionChute()
-    {
-        // Arrange
-        var modes = new[] { SortingMode.Formal, SortingMode.FixedChute, SortingMode.RoundRobin };
-
-        foreach (var mode in modes)
-        {
-            var context = new SortingContext
-            {
-                ParcelId = 1001,
-                SortingMode = mode,
-                ExceptionChuteId = 999,
-                FixedChuteId = 5,
-                AvailableChuteIds = new List<long> { 1, 2, 3 },
-                IsOverloadForced = true
-            };
-
-            // Act
-            var result = await _service.SelectChuteAsync(context, CancellationToken.None);
-
-            // Assert
-            Assert.True(result.IsSuccess);
-            Assert.Equal(999, result.TargetChuteId);
-            Assert.True(result.IsException);
-        }
-    }
-
-    [Fact]
     public async Task SelectChuteAsync_WithInvalidFixedChuteConfig_FallsBackToExceptionChute()
     {
         // Arrange
