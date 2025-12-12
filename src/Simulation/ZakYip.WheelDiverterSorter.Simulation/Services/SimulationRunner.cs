@@ -37,7 +37,6 @@ public class SimulationRunner
     private readonly ILogger<SimulationRunner> _logger;
     private readonly IParcelLifecycleLogger? _lifecycleLogger;
     private readonly ICongestionDetector? _congestionDetector;
-    private readonly IReleaseThrottlePolicy? _throttlePolicy;
     private readonly CongestionMetricsCollector? _metricsCollector;
     
     // 使用 ConcurrentDictionary 实现线程安全 / Use ConcurrentDictionary for thread safety
@@ -65,7 +64,6 @@ public class SimulationRunner
         ILogger<SimulationRunner> logger,
         IParcelLifecycleLogger? lifecycleLogger = null,
         ICongestionDetector? congestionDetector = null,
-        IReleaseThrottlePolicy? throttlePolicy = null,
         ReleaseThrottleConfiguration? throttleConfig = null)
     {
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
@@ -78,16 +76,15 @@ public class SimulationRunner
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _lifecycleLogger = lifecycleLogger;
         _congestionDetector = congestionDetector;
-        _throttlePolicy = throttlePolicy;
 
-        // 初始化指标收集器（如果启用了节流功能）
-        if (_congestionDetector != null && _throttlePolicy != null && throttleConfig != null)
+        // 策略相关代码已删除
+        if (_congestionDetector != null && throttleConfig != null)
         {
             _metricsCollector = new CongestionMetricsCollector(
                 TimeSpan.FromSeconds(throttleConfig.MetricsTimeWindowSeconds));
             _currentReleaseIntervalMs = throttleConfig.NormalReleaseIntervalMs;
             
-            _logger.LogInformation("拥堵检测与节流功能已启用");
+            _logger.LogInformation("拥堵检测功能已启用");
         }
 
         // 订阅格口分配事件
