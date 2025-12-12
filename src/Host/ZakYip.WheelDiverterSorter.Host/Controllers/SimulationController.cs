@@ -42,7 +42,6 @@ public class SimulationController : ControllerBase
     private readonly ISystemStateManager _stateManager;
     private readonly ISystemClock _clock;
     private readonly IPanelInputReader _panelInputReader;
-    private readonly ISignalTowerOutput _signalTowerOutput;
     private readonly ISimulationModeProvider _simulationModeProvider;
     private readonly ISimulationScenarioRunner? _scenarioRunner;
     private readonly IDebugSortService? _debugSortService;
@@ -56,7 +55,6 @@ public class SimulationController : ControllerBase
         ISystemStateManager stateManager,
         ISystemClock clock,
         IPanelInputReader panelInputReader,
-        ISignalTowerOutput signalTowerOutput,
         ISimulationModeProvider simulationModeProvider,
         IWebHostEnvironment environment,
         ILogger<SimulationController> logger,
@@ -66,7 +64,6 @@ public class SimulationController : ControllerBase
         _stateManager = stateManager;
         _clock = clock;
         _panelInputReader = panelInputReader;
-        _signalTowerOutput = signalTowerOutput;
         _simulationModeProvider = simulationModeProvider;
         _environment = environment;
         _scenarioRunner = scenarioRunner;
@@ -660,7 +657,7 @@ public class SimulationController : ControllerBase
         try
         {
             var buttonStates = await _panelInputReader.ReadAllButtonStatesAsync();
-            var signalStates = await _signalTowerOutput.GetAllChannelStatesAsync();
+            // TD-071: 信号塔功能已移除，由IO联动替代
 
             return Ok(new
             {
@@ -672,13 +669,6 @@ public class SimulationController : ControllerBase
                     isPressed = kvp.Value.IsPressed,
                     lastChangedAt = kvp.Value.LastChangedAt,
                     pressedDurationMs = kvp.Value.PressedDurationMs
-                }),
-                signalTower = signalStates.Select(kvp => new
-                {
-                    channel = kvp.Key.ToString(),
-                    isActive = kvp.Value.IsActive,
-                    isBlinking = kvp.Value.IsBlinking,
-                    blinkIntervalMs = kvp.Value.BlinkIntervalMs
                 })
             });
         }
@@ -728,58 +718,6 @@ public class SimulationController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "重置按钮状态失败");
-            return BadRequest(new { error = "操作失败" });
-        }
-    }
-
-    /// <summary>
-    /// 获取信号塔状态变更历史（仅在仿真模式下可用）
-    /// </summary>
-    /// <returns>状态变更历史</returns>
-    /// <response code="200">返回状态变更历史</response>
-    /// <response code="400">未启用仿真模式</response>
-    [HttpGet("panel/signal-tower-history")]
-    [SwaggerOperation(
-        Summary = "获取信号塔状态变更历史",
-        Description = "仅在仿真模式下可用，返回信号塔状态变化的历史记录",
-        OperationId = "GetSignalTowerHistory",
-        Tags = new[] { "面板仿真" }
-    )]
-    [SwaggerResponse(200, "返回状态变更历史")]
-    [SwaggerResponse(400, "未启用仿真模式")]
-    [ProducesResponseType(typeof(object), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    public IActionResult GetSignalTowerHistory()
-    {
-        try
-        {
-            if (!_simulationModeProvider.IsSimulationMode())
-            {
-                _logger.LogWarning("非仿真模式下尝试调用 GetSignalTowerHistory 接口");
-                return BadRequest(new { error = "仅在仿真模式下可调用该接口" });
-            }
-
-            if (_signalTowerOutput is SimulatedSignalTowerOutput simulatedOutput)
-            {
-                var history = simulatedOutput.GetStateChangeHistory();
-                return Ok(new
-                {
-                    count = history.Count,
-                    changes = history.Select(change => new
-                    {
-                        channel = change.State.Channel.ToString(),
-                        isActive = change.State.IsActive,
-                        isBlinking = change.State.IsBlinking,
-                        changedAt = change.ChangedAt
-                    })
-                });
-            }
-
-            return BadRequest(new { error = "仿真模式未启用或不支持此操作" });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取信号塔历史失败");
             return BadRequest(new { error = "操作失败" });
         }
     }

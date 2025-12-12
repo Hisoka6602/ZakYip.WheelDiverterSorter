@@ -18,14 +18,13 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 /// 定期检查所有摆轮的连接状态和心跳。
 /// 当检测到摆轮心跳异常时：
 /// 1. 更新NodeHealthRegistry中的健康状态
-/// 2. 触发红灯闪烁和蜂鸣器告警3秒
+/// 2. (TD-071已移除告警功能 - 由IO联动替代)
 /// </remarks>
 public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
 {
     private readonly IWheelDiverterDriverManager _driverManager;
     private readonly IWheelDiverterConfigurationRepository _configRepository;
     private readonly INodeHealthRegistry _healthRegistry;
-    private readonly IAlarmOutputController? _alarmController;
     private readonly ISystemClock _clock;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<WheelDiverterHeartbeatMonitor> _logger;
@@ -47,8 +46,6 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
     private readonly Dictionary<string, DateTimeOffset> _lastSuccessfulCheck = new();
     private readonly Dictionary<string, bool> _lastHealthStatus = new();
     private readonly ConcurrentDictionary<string, DateTimeOffset> _lastLogTime = new();
-    private bool _isAlarming = false;
-    private DateTimeOffset? _alarmStartTime = null;
     
     /// <summary>
     /// 日志输出最小间隔（秒）- 防止日志洪水
@@ -61,8 +58,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         INodeHealthRegistry healthRegistry,
         ISystemClock clock,
         ISafeExecutionService safeExecutor,
-        ILogger<WheelDiverterHeartbeatMonitor> logger,
-        IAlarmOutputController? alarmController = null)
+        ILogger<WheelDiverterHeartbeatMonitor> logger)
     {
         _driverManager = driverManager ?? throw new ArgumentNullException(nameof(driverManager));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
@@ -70,7 +66,6 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _alarmController = alarmController;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -86,7 +81,6 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                 async () =>
                 {
                     await CheckAllWheelDivertersHeartbeatAsync(stoppingToken);
-                    await UpdateAlarmStateAsync(stoppingToken);
                     await Task.Delay(HeartbeatCheckInterval, stoppingToken);
                 },
                 operationName: "WheelDiverterHeartbeatCheck",
@@ -110,7 +104,6 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         }
 
         var now = new DateTimeOffset(_clock.LocalNow);
-        var anyUnhealthy = false;
 
         foreach (var kvp in activeDrivers)
         {
@@ -121,79 +114,35 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
             {
                 bool isAlive;
                 
-                // 检查驱动是否支持心跳协议
-                if (driver is IHeartbeatCapable heartbeatDriver)
+                // TD-071: IHeartbeatCapable 接口已移除，统一使用Ping检查
+                var host = GetHostForDiverter(diverterId);
+                if (!string.IsNullOrEmpty(host))
                 {
-                    // 使用驱动提供的心跳机制（如TCP连接状态检查）
-                    isAlive = await heartbeatDriver.CheckHeartbeatAsync(cancellationToken);
+                    isAlive = await PingHostAsync(host, cancellationToken);
                     
-                    // 只在状态转换或达到最小日志间隔时才记录日志
-                    var shouldLog = false;
+                    // 只在状态转换时记录日志
                     var wasHealthy = _lastHealthStatus.GetValueOrDefault(diverterId, true);
-                    
                     if (wasHealthy != isAlive)
                     {
-                        // 状态转换，必须记录
-                        shouldLog = true;
-                    }
-                    else if (_lastLogTime.TryGetValue(diverterId, out var lastLog))
-                    {
-                        // 检查是否达到最小日志间隔
-                        if ((now - lastLog) >= MinLogInterval)
+                        if (isAlive)
                         {
-                            shouldLog = true;
+                            _logger.LogInformation("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果=可达", 
+                                diverterId, host);
                         }
-                    }
-                    else
-                    {
-                        // 首次检查
-                        shouldLog = true;
-                    }
-                    
-                    if (shouldLog)
-                    {
-                        if (!isAlive)
+                        else
                         {
-                            // 只记录心跳异常，心跳正常不记录日志
-                            _logger.LogWarning("摆轮 {DiverterId} 使用协议心跳检查，结果=离线", diverterId);
+                            _logger.LogWarning("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果=不可达", 
+                                diverterId, host);
                         }
-                        // 即使心跳正常未记录日志，也要更新时间戳，以避免后续频繁触发 shouldLog 条件。
-                        // 这样可确保首次检查和日志间隔逻辑一致，防止误判为需要记录日志。
                         _lastLogTime[diverterId] = now;
                     }
                 }
                 else
                 {
-                    // 驱动不支持心跳协议，使用Ping作为后备
-                    var host = GetHostForDiverter(diverterId);
-                    if (!string.IsNullOrEmpty(host))
-                    {
-                        isAlive = await PingHostAsync(host, cancellationToken);
-                        
-                        // 只在状态转换时记录日志
-                        var wasHealthy = _lastHealthStatus.GetValueOrDefault(diverterId, true);
-                        if (wasHealthy != isAlive)
-                        {
-                            if (isAlive)
-                            {
-                                _logger.LogInformation("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果=可达", 
-                                    diverterId, host);
-                            }
-                            else
-                            {
-                                _logger.LogWarning("摆轮 {DiverterId} 使用Ping检查 (主机={Host})，结果=不可达", 
-                                    diverterId, host);
-                            }
-                            _lastLogTime[diverterId] = now;
-                        }
-                    }
-                    else
-                    {
-                        // 无法获取主机信息，尝试使用GetStatusAsync作为后备
-                        await driver.GetStatusAsync();
-                        isAlive = true;
-                        // 心跳正常不记录日志
-                    }
+                    // 无法获取主机信息，尝试使用GetStatusAsync作为后备
+                    await driver.GetStatusAsync();
+                    isAlive = true;
+                    // 心跳正常不记录日志
                 }
                 
                 if (isAlive)
@@ -257,7 +206,6 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                         }
                         
                         _lastHealthStatus[diverterId] = false;
-                        anyUnhealthy = true;
                         
                         // 更新健康状态为不健康
                         UpdateWheelDiverterHealth(diverterId, false, 
@@ -273,11 +221,7 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
             }
         }
 
-        // 如果有不健康的摆轮且当前未在告警，开始告警
-        if (anyUnhealthy && !_isAlarming)
-        {
-            await StartAlarmAsync(cancellationToken);
-        }
+        // TD-071: 告警功能已移除，健康状态通过 UpdateWheelDiverterHealth 更新到 NodeHealthRegistry
     }
 
     /// <summary>
@@ -304,81 +248,6 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
         _healthRegistry.UpdateNodeHealth(healthStatus);
     }
 
-    /// <summary>
-    /// 开始告警（红灯闪烁 + 蜂鸣3秒）
-    /// </summary>
-    private async Task StartAlarmAsync(CancellationToken cancellationToken)
-    {
-        if (_alarmController == null)
-        {
-            _logger.LogWarning("IAlarmOutputController未注入，无法执行告警");
-            return;
-        }
-
-        _isAlarming = true;
-        _alarmStartTime = new DateTimeOffset(_clock.LocalNow);
-        
-        _logger.LogWarning("⚠️ 摆轮心跳异常！开始告警：红灯闪烁 + 蜂鸣3秒");
-
-        try
-        {
-            // 打开红灯
-            await _alarmController.SetRedLightAsync(true, cancellationToken);
-            
-            // 打开蜂鸣器
-            await _alarmController.SetBuzzerAsync(true, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "启动告警失败");
-        }
-    }
-
-    /// <summary>
-    /// 更新告警状态（处理3秒后自动停止）
-    /// </summary>
-    private async Task UpdateAlarmStateAsync(CancellationToken cancellationToken)
-    {
-        if (!_isAlarming || _alarmStartTime == null || _alarmController == null)
-        {
-            return;
-        }
-
-        var now = new DateTimeOffset(_clock.LocalNow);
-        var elapsed = now - _alarmStartTime.Value;
-
-        // 检查是否已经过了3秒
-        if (elapsed >= AlarmDuration)
-        {
-            _logger.LogInformation("告警持续时间已达3秒，停止告警");
-            
-            try
-            {
-                // 关闭蜂鸣器
-                await _alarmController.SetBuzzerAsync(false, cancellationToken);
-                
-                // 红灯保持闪烁直到所有摆轮恢复健康
-                var unhealthyDrivers = _lastHealthStatus.Where(kvp => !kvp.Value).ToList();
-                if (unhealthyDrivers.Count == 0)
-                {
-                    // 所有摆轮都健康了，关闭红灯
-                    await _alarmController.SetRedLightAsync(false, cancellationToken);
-                    _logger.LogInformation("所有摆轮恢复健康，关闭红灯");
-                }
-                else
-                {
-                    _logger.LogWarning("仍有 {Count} 个摆轮不健康，红灯保持闪烁", unhealthyDrivers.Count);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "停止告警失败");
-            }
-            
-            _isAlarming = false;
-            _alarmStartTime = null;
-        }
-    }
 
     /// <summary>
     /// Ping主机检查是否可达
