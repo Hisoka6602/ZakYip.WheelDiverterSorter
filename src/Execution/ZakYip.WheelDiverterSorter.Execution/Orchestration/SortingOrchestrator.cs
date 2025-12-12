@@ -1473,7 +1473,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     "超时包裹 {ParcelId} 已成功路由到异常格口 {ChuteId}",
                     parcelId, exceptionChuteId);
 
-                // TODO: 从executionResult获取实际执行时间而非传入0
+                // 记录成功指标（执行时间待 PathExecutionResult 扩展后再传入）
                 _metrics?.RecordSortingSuccess(0);
                 
                 // 发送落格完成通知到上游系统
