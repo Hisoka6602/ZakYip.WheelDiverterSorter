@@ -75,8 +75,8 @@ public class TcpRuleEngineClientTests : IDisposable
         };
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
-        // Act
-        var result = // Connection is automatic - await client.PingAsync();
+        // Act - Connection is automatic, use PingAsync to verify
+        var result = await client.PingAsync();
 
         // Assert
         Assert.True(result);
@@ -93,8 +93,8 @@ public class TcpRuleEngineClientTests : IDisposable
             TimeoutMs = 1000
         };
 
-        // Act
-        var result = // Connection is automatic - await client.PingAsync();
+        // Act - Connection is automatic, use PingAsync to verify failure
+        var result = await client.PingAsync();
 
         // Assert
         Assert.False(result);
@@ -106,10 +106,8 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        // Connection is automatic - await client.PingAsync();
-
-        // Act
-        var result = // Connection is automatic - await client.PingAsync();
+        // Act - Connection is automatic, use PingAsync to verify
+        var result = await client.PingAsync();
 
         // Assert
         Assert.True(result);

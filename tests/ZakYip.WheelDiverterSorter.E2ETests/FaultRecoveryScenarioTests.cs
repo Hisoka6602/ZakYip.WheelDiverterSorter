@@ -126,7 +126,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act - Start notification but don't wait for completion
-        var notificationTask = Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
+        _ = Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId });
 
         // Wait a short time then verify system is still responsive
         await Task.Delay(500);

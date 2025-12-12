@@ -117,8 +117,8 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         };
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
-        // Act
-        var result = // Connection is automatic - await client.PingAsync();
+        // Act - Connection is automatic, use PingAsync to verify failure
+        var result = await client.PingAsync();
 
         // Assert
         Assert.False(result);
