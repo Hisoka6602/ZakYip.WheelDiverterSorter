@@ -72,7 +72,8 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
             // 确保连接已建立
             if (!_client.IsConnected)
             {
-                var connected = await _client.ConnectAsync(cancellationToken);
+                var connected = // 连接由SendAsync自动管理
+                // await _client.ConnectAsync(cancellationToken);
                 if (!connected)
                 {
                     throw new UpstreamUnavailableException("无法连接到上游 TCP 服务器");

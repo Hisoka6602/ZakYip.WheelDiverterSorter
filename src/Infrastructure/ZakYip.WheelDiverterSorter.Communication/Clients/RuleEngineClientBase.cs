@@ -203,18 +203,16 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     }
 
     /// <summary>
-    /// 确保已连接，如果未连接则尝试连接
+    /// 确保已连接（子类实现自动重连逻辑）
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否已连接</returns>
-    protected async Task<bool> EnsureConnectedAsync(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 移除ConnectAsync调用，连接管理由子类内部实现
+    /// </remarks>
+    protected Task<bool> EnsureConnectedAsync(CancellationToken cancellationToken = default)
     {
-        if (IsConnected)
-        {
-            return true;
-        }
-
-        return await ConnectAsync(cancellationToken);
+        return Task.FromResult(IsConnected);
     }
 
     /// <summary>
@@ -249,12 +247,12 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// 释放托管和非托管资源
     /// </summary>
     /// <param name="disposing">是否正在释放托管资源</param>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 移除DisconnectAsync调用，连接管理由子类内部实现
+    /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
+        // 子类应在其Dispose实现中处理连接关闭
     }
 
     /// <summary>
@@ -269,53 +267,4 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
         }
     }
 
-    /// <summary>
-    /// 发送消息到上游系统（统一发送接口）
-    /// </summary>
-    /// <param name="message">上游消息</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>是否成功发送</returns>
-    /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增统一发送接口，内部路由到具体方法
-    /// </remarks>
-    public virtual Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
-    {
-        ThrowIfDisposed();
-        return message switch
-        {
-            ParcelDetectedMessage detected => NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
-            SortingCompletedMessage completed => NotifySortingCompletedAsync(completed.Notification, cancellationToken),
-            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
-        };
-    }
-
-    /// <summary>
-    /// Ping上游系统进行健康检查
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>是否Ping成功</returns>
-    /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增Ping接口，默认实现检查连接状态
-    /// </remarks>
-    public virtual Task<bool> PingAsync(CancellationToken cancellationToken = default)
-    {
-        ThrowIfDisposed();
-        // 默认实现：返回当前连接状态
-        return Task.FromResult(IsConnected);
-    }
-
-    /// <summary>
-    /// 热更新连接参数
-    /// </summary>
-    /// <param name="options">新的连接选项</param>
-    /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增热更新接口，子类可以override实现具体逻辑。
-    /// 基类默认实现：记录警告日志，不执行实际操作。
-    /// </remarks>
-    public virtual Task UpdateOptionsAsync(UpstreamConnectionOptions options)
-    {
-        ThrowIfDisposed();
-        Logger.LogWarning("当前实现不支持热更新连接参数，请在子类中override此方法。Options={Options}", options);
-        return Task.CompletedTask;
-    }
 }

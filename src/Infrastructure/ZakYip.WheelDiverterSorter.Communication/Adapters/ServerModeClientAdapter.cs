@@ -115,6 +115,19 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     /// <summary>
     /// 通知包裹检测（广播给所有连接的客户端）
     /// </summary>
+    /// <summary>
+    /// 发送消息到上游系统（统一发送接口）
+    /// </summary>
+    public async Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
+    {
+        return message switch
+        {
+            ParcelDetectedMessage detected => await NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
+            SortingCompletedMessage completed => await NotifySortingCompletedAsync(completed.Notification, cancellationToken),
+            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
+        };
+    }
+
     public async Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
@@ -179,20 +192,6 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
                 notification.ParcelId);
             return false;
         }
-    }
-
-    /// <summary>
-    /// 发送消息到上游系统（统一发送接口）
-    /// </summary>
-    public Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
-    {
-        ThrowIfDisposed();
-        return message switch
-        {
-            ParcelDetectedMessage detected => NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
-            SortingCompletedMessage completed => NotifySortingCompletedAsync(completed.Notification, cancellationToken),
-            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
-        };
     }
 
     /// <summary>

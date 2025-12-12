@@ -84,7 +84,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 连接到RuleEngine
     /// </summary>
-    public override async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    private async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
         {
@@ -131,7 +131,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 断开与RuleEngine的连接
     /// </summary>
-    public override async Task DisconnectAsync()
+    private async Task DisconnectAsync()
     {
         try
         {
@@ -150,7 +150,26 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 通知RuleEngine包裹已到达
     /// </summary>
-    public override async Task<bool> NotifyParcelDetectedAsync(
+    /// <summary>
+    /// 发送消息到上游系统（统一发送接口）
+    /// </summary>
+    public override async Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        if (!IsConnected)
+        {
+            var connected = await ConnectAsync(cancellationToken);
+            if (!connected) { Logger.LogWarning("SendAsync失败：无法连接"); return false; }
+        }
+        return message switch
+        {
+            ParcelDetectedMessage detected => await NotifyParcelDetectedInternalAsync(detected.ParcelId, cancellationToken),
+            SortingCompletedMessage completed => await NotifySortingCompletedInternalAsync(completed.Notification, cancellationToken),
+            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
+        };
+    }
+
+    private async Task<bool> NotifyParcelDetectedInternalAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
     {
@@ -221,7 +240,7 @@ public class MqttRuleEngineClient : RuleEngineClientBase
     /// <remarks>
     /// PR-UPSTREAM02: 新增方法，发送落格完成通知（fire-and-forget）
     /// </remarks>
-    public override async Task<bool> NotifySortingCompletedAsync(
+    private async Task<bool> NotifySortingCompletedInternalAsync(
         SortingCompletedNotification notification,
         CancellationToken cancellationToken = default)
     {

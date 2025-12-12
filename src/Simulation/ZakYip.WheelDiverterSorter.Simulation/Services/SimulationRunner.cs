@@ -107,7 +107,8 @@ public class SimulationRunner
         var startTime = DateTimeOffset.Now;
 
         // 连接到RuleEngine
-        var connected = await _upstreamClient.ConnectAsync(cancellationToken);
+        var connected = // 连接由SendAsync自动处理
+        // await _upstreamClient.ConnectAsync(cancellationToken);
         if (!connected)
         {
             _logger.LogError("无法连接到RuleEngine，仿真终止");
@@ -135,7 +136,8 @@ public class SimulationRunner
         _reportPrinter.PrintStatisticsReport(summary);
 
         // 断开连接
-        await _upstreamClient.DisconnectAsync();
+        // 连接由Client自动管理
+        // await _upstreamClient.DisconnectAsync();
 
         _logger.LogInformation("仿真完成");
 
@@ -489,7 +491,7 @@ public class SimulationRunner
         try
         {
             // 通知RuleEngine包裹到达
-            var notified = await _upstreamClient.NotifyParcelDetectedAsync(parcelId, cancellationToken);
+            var notified = await _upstreamClient.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, DetectedAt = DateTimeOffset.Now }, cancellationToken);
             
             if (!notified)
             {

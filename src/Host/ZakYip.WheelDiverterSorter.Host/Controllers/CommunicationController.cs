@@ -150,7 +150,8 @@ public class CommunicationController : ControllerBase {
             }
 
             // Client 模式：尝试实际连接
-            var connected = await _upstreamClient.ConnectAsync(cancellationToken);
+            var connected = // 连接测试改用PingAsync
+                var connected = await _upstreamClient.PingAsync(cancellationToken);
             sw.Stop();
 
             if (connected) {
@@ -898,7 +899,7 @@ public class CommunicationController : ControllerBase {
             else
             {
                 // Client模式：发送测试包裹请求到上游
-                success = await _upstreamClient.NotifyParcelDetectedAsync(parcelIdLong, cancellationToken);
+                success = await _upstreamClient.SendAsync(new ParcelDetectedMessage { ParcelId = parcelIdLong, DetectedAt = DateTimeOffset.Now }, cancellationToken);
                 sw.Stop();
 
                 if (success) {

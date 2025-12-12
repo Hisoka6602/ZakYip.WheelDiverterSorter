@@ -105,7 +105,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
-    private bool _isConnected;
 
     /// <summary>
     /// 包裹创建事件 - 当通过IO检测到包裹并在本地创建后触发
@@ -200,16 +199,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _logger.LogInformation("传感器事件监听已启动");
 
         // 连接到上游系统
-        _isConnected = await _upstreamClient.ConnectAsync(cancellationToken);
-
-        if (_isConnected)
-        {
-            _logger.LogInformation("成功连接到上游系统，分拣编排服务已启动");
-        }
-        else
-        {
-            _logger.LogWarning("无法连接到上游系统，将在包裹检测时尝试重新连接");
-        }
+        // 连接管理由SendAsync内部处理，无需手动连接
+        _logger.LogInformation("分拣编排服务已启动（上游连接由SendAsync自动管理）");
     }
 
     /// <summary>
@@ -233,8 +224,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _logger.LogInformation("传感器事件监听已停止");
 
         // 断开与上游系统的连接
-        await _upstreamClient.DisconnectAsync();
-        _isConnected = false;
+        // 连接由Client内部管理
 
         _logger.LogInformation("分拣编排服务已停止");
     }
@@ -738,7 +728,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _upstreamClient.GetType().FullName,
             _upstreamClient.IsConnected);
         
-        var notificationSent = await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
+        var notificationSent = await _upstreamClient.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, DetectedAt = _clock.LocalNowOffset }, CancellationToken.None);
         
         if (!notificationSent)
         {
@@ -796,7 +786,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 isSuccess,
                 _upstreamClient.GetType().Name);
 
-            var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+            var notificationSent = await _upstreamClient.SendAsync(new SortingCompletedMessage { Notification = notification }, CancellationToken.None);
 
             if (!notificationSent)
             {
@@ -1012,7 +1002,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             FailureReason = isOverloadException ? "超载重定向到异常格口" : result.FailureReason
         };
 
-        var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, CancellationToken.None);
+        var notificationSent = await _upstreamClient.SendAsync(new SortingCompletedMessage { Notification = notification }, CancellationToken.None);
         
         if (!notificationSent)
         {
@@ -1315,7 +1305,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
             // 通知上游包裹重复触发异常（不等待响应）
-            await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
+            await _upstreamClient.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, DetectedAt = _clock.LocalNowOffset }, CancellationToken.None);
 
             // 使用新的队列系统将包裹发送到异常格口
             if (_queueManager != null)
@@ -1490,7 +1480,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     FailureReason = "包裹等待超时未到达摆轮"
                 };
 
-                var notificationSent = await _upstreamClient.NotifySortingCompletedAsync(notification, cancellationToken);
+                var notificationSent = await _upstreamClient.SendAsync(new SortingCompletedMessage { Notification = notification }, cancellationToken);
                 
                 if (!notificationSent)
                 {
@@ -1526,7 +1516,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     FailureReason = $"超时后路由到异常格口失败: {executionResult.FailureReason}"
                 };
 
-                await _upstreamClient.NotifySortingCompletedAsync(notification, cancellationToken);
+                await _upstreamClient.SendAsync(new SortingCompletedMessage { Notification = notification }, cancellationToken);
             }
 
             // 记录拥堵数据（如果启用）
