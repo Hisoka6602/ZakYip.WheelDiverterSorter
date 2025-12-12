@@ -1,3 +1,6 @@
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+
 namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
@@ -27,8 +30,7 @@ using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 /// <para><b>实现层</b>：</para>
 /// Communication 项目实现此接口。
 /// PR-U1: 合并 IRuleEngineClient 语义到此接口，删除中间适配层。
-/// PR-UPSTREAM02: 移除格口分配请求模式，改为检测通知 + 异步推送 + 落格通知。
-/// PR-UPSTREAM-UNIFIED: 添加统一发送接口和Ping/热更新方法，逐步迁移到1事件+2方法模式。
+/// PR-UPSTREAM-UNIFIED: 统一上游接口为1事件+2方法，删除所有旧方法实现彻底重构。
 /// </remarks>
 public interface IUpstreamRoutingClient : IDisposable
 {
@@ -38,75 +40,36 @@ public interface IUpstreamRoutingClient : IDisposable
     bool IsConnected { get; }
 
     /// <summary>
-    /// 格口分配接收事件
+    /// 格口分配接收事件（1个事件）
     /// </summary>
     /// <remarks>
     /// 当上游系统主动推送格口分配时触发此事件。
     /// 事件参数包含包裹ID、分配的格口ID和DWS数据。
-    /// PR-UPSTREAM02: 重命名为 ChuteAssigned（从 ChuteAssignmentReceived）
     /// </remarks>
     event EventHandler<ChuteAssignmentEventArgs>? ChuteAssigned;
 
     /// <summary>
-    /// 连接到上游系统
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>是否连接成功</returns>
-    Task<bool> ConnectAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 断开与上游系统的连接
-    /// </summary>
-    /// <returns>异步任务</returns>
-    Task DisconnectAsync();
-
-    /// <summary>
-    /// 通知上游系统包裹已到达（fire-and-forget）
-    /// </summary>
-    /// <param name="parcelId">包裹ID</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>是否成功发送通知</returns>
-    /// <remarks>
-    /// 此方法仅发送检测通知，不等待格口分配响应。
-    /// 发送即忘记模式：发送失败只记录日志，不重试。
-    /// 格口分配将通过 ChuteAssigned 事件异步推送。
-    /// </remarks>
-    Task<bool> NotifyParcelDetectedAsync(long parcelId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 通知上游系统包裹已完成落格（fire-and-forget）
-    /// </summary>
-    /// <param name="notification">落格完成通知</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>是否成功发送通知</returns>
-    /// <remarks>
-    /// PR-UPSTREAM02: 新增方法，在包裹实际落格（正常或异常口）时调用。
-    /// 发送即忘记模式：发送失败只记录日志，不重试。
-    /// </remarks>
-    Task<bool> NotifySortingCompletedAsync(SortingCompletedNotification notification, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 发送消息到上游系统（统一发送接口）
+    /// 发送消息到上游系统（方法1/2：统一发送接口）
     /// </summary>
     /// <param name="message">上游消息（包裹检测通知或落格完成通知）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否成功发送</returns>
     /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增统一发送接口，支持：
+    /// 统一发送接口，支持：
     /// - ParcelDetectedMessage - 包裹检测通知
     /// - SortingCompletedMessage - 落格完成通知
     /// 发送即忘记模式：发送失败只记录日志，不重试。
-    /// 建议新代码使用此方法替代NotifyParcelDetectedAsync和NotifySortingCompletedAsync。
+    /// 连接管理（包括自动重连）由实现类内部处理，调用方无需关心连接状态。
     /// </remarks>
     Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Ping上游系统进行健康检查
+    /// Ping上游系统进行健康检查（方法2/2）
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否Ping成功</returns>
     /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增Ping接口，用于主动健康检查。
+    /// 用于主动健康检查，验证上游连接状态。
     /// 内部自动重连逻辑独立处理，此方法仅用于按需检查。
     /// </remarks>
     Task<bool> PingAsync(CancellationToken cancellationToken = default);
@@ -116,8 +79,8 @@ public interface IUpstreamRoutingClient : IDisposable
     /// </summary>
     /// <param name="options">新的连接选项</param>
     /// <remarks>
-    /// PR-UPSTREAM-UNIFIED: 新增热更新接口，支持运行时更新连接参数。
-    /// 内部会断开当前连接并使用新参数重新连接。
+    /// 支持运行时更新连接参数，内部会断开当前连接并使用新参数重新连接。
+    /// 支持Client/Server模式切换、地址/端口更新等。
     /// </remarks>
     Task UpdateOptionsAsync(UpstreamConnectionOptions options);
 }
@@ -269,22 +232,6 @@ public interface IUpstreamMessage
     /// 消息类型
     /// </summary>
     UpstreamMessageType MessageType { get; }
-}
-
-/// <summary>
-/// 上游消息类型枚举
-/// </summary>
-public enum UpstreamMessageType
-{
-    /// <summary>
-    /// 包裹检测通知
-    /// </summary>
-    ParcelDetected = 1,
-
-    /// <summary>
-    /// 落格完成通知
-    /// </summary>
-    SortingCompleted = 2
 }
 
 /// <summary>
