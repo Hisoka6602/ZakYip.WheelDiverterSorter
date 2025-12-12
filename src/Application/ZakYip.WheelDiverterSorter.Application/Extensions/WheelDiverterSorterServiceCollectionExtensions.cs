@@ -39,7 +39,6 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Execution.BackgroundServices;
 using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
@@ -406,11 +405,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
 
-        // 注册待执行包裹队列（拓扑驱动分拣流程 - TD-062）
-        services.AddSingleton<IPendingParcelQueue, PendingParcelQueue>();
-
-        // 注册待执行包裹超时监控服务（拓扑驱动分拣流程 - TD-062）
-        services.AddHostedService<PendingParcelTimeoutMonitor>();
+        // 注册 Position-Index 队列管理器（新的队列系统）
+        services.AddSingleton<IPositionIndexQueueManager, PositionIndexQueueManager>();
 
         // 注册格口路径拓扑服务
         services.AddSingleton<IChutePathTopologyService, ChutePathTopologyService>();
@@ -442,8 +438,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var timeoutCalculator = sp.GetService<IChuteAssignmentTimeoutCalculator>();
             var chuteSelectionService = sp.GetService<IChuteSelectionService>();
             
-            // TD-062: 拓扑驱动分拣流程依赖（可选）
-            var pendingQueue = sp.GetService<IPendingParcelQueue>();
+            // 新的 Position-Index 队列系统依赖
+            var queueManager = sp.GetService<IPositionIndexQueueManager>();
             var topologyRepository = sp.GetService<IChutePathTopologyRepository>();
             var segmentRepository = sp.GetService<IConveyorSegmentRepository>();
             var sensorConfigRepository = sp.GetService<ISensorConfigurationRepository>();
@@ -468,7 +464,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pathHealthChecker,
                 timeoutCalculator,
                 chuteSelectionService,
-                pendingQueue,
+                queueManager,
                 topologyRepository,
                 segmentRepository,
                 sensorConfigRepository,

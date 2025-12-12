@@ -14,6 +14,9 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// - 厂商相关的硬件配置（如雷赛、西门子等）已移至 IO驱动器配置（/api/config/io-driver）
 /// - 本配置仅包含感应IO的逻辑定义和业务类型配置
 /// - 感应IO类型按业务功能分类：ParcelCreation（创建包裹）、WheelFront（摆轮前）、ChuteLock（锁格）
+/// - **绑定关系通过拓扑配置管理**：
+///   - WheelFront 传感器通过 DiverterPathNode.FrontSensorId 绑定到摆轮
+///   - 不需要在此配置中指定 boundWheelDiverterId 或 boundChuteId
 /// </remarks>
 public class SensorConfiguration
 {
@@ -70,7 +73,6 @@ public class SensorConfiguration
                     SensorName = "摆轮1前感应IO", 
                     IoType = SensorIoType.WheelFront, 
                     BitNumber = 1, 
-                    BoundWheelDiverterId = 1,  // 绑定到摆轮ID=1（long类型）
                     IsEnabled = true 
                 },
                 new() 
@@ -79,7 +81,6 @@ public class SensorConfiguration
                     SensorName = "格口1锁格感应IO", 
                     IoType = SensorIoType.ChuteLock, 
                     BitNumber = 2, 
-                    BoundChuteId = 1,  // 绑定到格口ID=1（long类型）
                     IsEnabled = true 
                 }
             },
@@ -117,25 +118,9 @@ public class SensorConfiguration
                 return (false, $"只能有一个激活的创建包裹感应IO，当前有 {activeParcelCreationSensors.Count} 个: {string.Join(", ", activeParcelCreationSensors.Select(s => s.SensorName ?? s.SensorId.ToString()))}");
             }
 
-            // 检查 WheelFront 类型必须绑定摆轮节点
-            var wheelFrontWithoutBinding = Sensors
-                .Where(s => s.IoType == SensorIoType.WheelFront && s.IsEnabled && !s.BoundWheelDiverterId.HasValue)
-                .ToList();
-
-            if (wheelFrontWithoutBinding.Any())
-            {
-                return (false, $"摆轮前感应IO必须绑定摆轮节点: {string.Join(", ", wheelFrontWithoutBinding.Select(s => s.SensorName ?? s.SensorId.ToString()))}");
-            }
-
-            // 检查 ChuteLock 类型必须绑定格口
-            var chuteLockWithoutBinding = Sensors
-                .Where(s => s.IoType == SensorIoType.ChuteLock && s.IsEnabled && !s.BoundChuteId.HasValue)
-                .ToList();
-
-            if (chuteLockWithoutBinding.Any())
-            {
-                return (false, $"锁格感应IO必须绑定格口: {string.Join(", ", chuteLockWithoutBinding.Select(s => s.SensorName ?? s.SensorId.ToString()))}");
-            }
+            // Note: WheelFront and ChuteLock binding is now managed via topology configuration
+            // WheelFront sensors are bound via DiverterPathNode.FrontSensorId
+            // ChuteLock sensors can be configured separately if needed
         }
 
         return (true, null);
@@ -148,6 +133,10 @@ public class SensorConfiguration
 /// <remarks>
 /// 定义单个感应IO的逻辑配置，包括业务类型和关联的IO点位。
 /// IO点位的具体硬件映射由 IO驱动器配置（/api/config/io-driver）定义。
+/// 
+/// **绑定关系**：
+/// - WheelFront 传感器与摆轮的绑定通过拓扑配置的 DiverterPathNode.FrontSensorId 定义
+/// - 不需要在此配置中指定 boundWheelDiverterId 或 boundChuteId
 /// </remarks>
 public class SensorIoEntry
 {
@@ -170,7 +159,7 @@ public class SensorIoEntry
     /// <remarks>
     /// 按业务功能分为三种类型：
     /// - ParcelCreation: 创建包裹感应IO（只能同时存在一个激活的）
-    /// - WheelFront: 摆轮前感应IO（与摆轮 frontIoId 关联）
+    /// - WheelFront: 摆轮前感应IO（通过拓扑配置的 frontSensorId 关联到摆轮）
     /// - ChuteLock: 锁格感应IO
     /// </remarks>
     public required SensorIoType IoType { get; set; }
@@ -186,26 +175,6 @@ public class SensorIoEntry
     [Required(ErrorMessage = "IO端口编号不能为空")]
     [Range(0, 1023, ErrorMessage = "IO端口编号必须在 0-1023 之间")]
     public required int BitNumber { get; set; }
-
-    /// <summary>
-    /// 绑定的摆轮节点ID（仅当 IoType 为 WheelFront 时使用）
-    /// </summary>
-    /// <remarks>
-    /// WheelFront 类型的感应IO必须绑定一个摆轮节点，
-    /// 用于在包裹到达摆轮前触发摆轮提前动作。
-    /// 使用 long 类型的 DiverterId 进行匹配，符合项目ID匹配规范。
-    /// </remarks>
-    public long? BoundWheelDiverterId { get; set; }
-
-    /// <summary>
-    /// 绑定的格口ID（仅当 IoType 为 ChuteLock 时使用）
-    /// </summary>
-    /// <remarks>
-    /// ChuteLock 类型的感应IO必须绑定一个格口，
-    /// 用于确认包裹已成功落入目标格口。
-    /// 使用 long 类型的 ChuteId 进行匹配，符合项目ID匹配规范。
-    /// </remarks>
-    public long? BoundChuteId { get; set; }
 
     /// <summary>
     /// IO触发电平配置（高电平有效/低电平有效）
@@ -231,22 +200,6 @@ public class SensorIoEntry
     /// </remarks>
     /// <example>10</example>
     public int? PollingIntervalMs { get; set; }
-
-    /// <summary>
-    /// 防抖/去重时间窗口（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// <para>在此时间窗口内，同一传感器的重复触发将被检测并标记为异常。</para>
-    /// <para>如果为 null，则使用全局默认值 (1000ms)。</para>
-    /// <para>**建议范围**：500ms - 3000ms</para>
-    /// <list type="bullet">
-    /// <item>500-1000ms: 快速响应，适用于高速分拣场景</item>
-    /// <item>1000-2000ms: 标准防抖，平衡误触发和响应速度（推荐）</item>
-    /// <item>2000-3000ms: 强防抖，适用于传感器不稳定的场景</item>
-    /// </list>
-    /// </remarks>
-    /// <example>1000</example>
-    public int? DeduplicationWindowMs { get; set; }
 
     /// <summary>
     /// 是否启用

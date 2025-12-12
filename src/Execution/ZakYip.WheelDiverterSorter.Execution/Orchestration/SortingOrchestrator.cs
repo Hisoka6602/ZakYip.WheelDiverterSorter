@@ -83,8 +83,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
     
-    // TD-062: 拓扑驱动分拣流程依赖
-    private readonly IPendingParcelQueue? _pendingQueue;
+    // 新的 Position-Index 队列系统依赖
+    private readonly IPositionIndexQueueManager? _queueManager;
     private readonly IChutePathTopologyRepository? _topologyRepository;
     private readonly IConveyorSegmentRepository? _segmentRepository;
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
@@ -134,7 +134,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
         IChuteSelectionService? chuteSelectionService = null,
-        IPendingParcelQueue? pendingQueue = null, // TD-062: 拓扑驱动分拣队列
+        IPositionIndexQueueManager? queueManager = null, // 新的 Position-Index 队列管理器
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
         ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
@@ -159,8 +159,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _timeoutCalculator = timeoutCalculator;
         _chuteSelectionService = chuteSelectionService;
         
-        // TD-062: 拓扑驱动分拣流程依赖（可选）
-        _pendingQueue = pendingQueue;
+        // 新的 Position-Index 队列系统依赖（可选）
+        _queueManager = queueManager;
         _topologyRepository = topologyRepository;
         _segmentRepository = segmentRepository;
         _sensorConfigRepository = sensorConfigRepository;
@@ -282,12 +282,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var exceptionChuteId = systemConfig.ExceptionChuteId;
             
             // 检查拓扑服务是否可用
-            if (_pendingQueue == null || _topologyRepository == null || _segmentRepository == null)
+            if (_queueManager == null || _topologyRepository == null || _segmentRepository == null)
             {
-                // TD-068: 缺少必需的拓扑服务，生成异常格口路径并加入队列
+                // TD-068: 缺少必需的拓扑服务，生成异常格口路径
                 _logger.LogError(
-                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（PendingQueue={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），生成异常格口路径",
-                    parcelId, _pendingQueue != null, _topologyRepository != null, _segmentRepository != null);
+                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（QueueManager={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），生成异常格口路径",
+                    parcelId, _queueManager != null, _topologyRepository != null, _segmentRepository != null);
                 
                 // 尝试生成异常格口路径（所有摆轮直行）
                 var exceptionPath = _exceptionHandler.GenerateExceptionPath(
@@ -295,7 +295,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId,
                     "拓扑服务未配置");
                 
-                if (exceptionPath == null || _pendingQueue == null)
+                if (exceptionPath == null || _queueManager == null)
                 {
                     // 连异常格口路径都无法生成，或队列服务不可用，只能记录失败
                     stopwatch.Stop();
@@ -310,20 +310,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     );
                 }
                 
-                // 使用异常格口路径的第一个摆轮ID作为队列键
-                var firstDiverterId = exceptionPath.Segments.FirstOrDefault()?.DiverterId ?? 1;
-                _pendingQueue.Enqueue(
-                    parcelId,
-                    exceptionChuteId,
-                    firstDiverterId,
-                    DefaultTimeoutSeconds,
-                    exceptionPath);
-                
-                _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 已加入待执行队列（异常格口路径），目标格口: {ExceptionChuteId}, 摆轮ID: {DiverterId}",
-                    parcelId,
-                    exceptionChuteId,
-                    firstDiverterId);
+                // TODO: 实现新的队列入队逻辑
+                _logger.LogWarning(
+                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列，但完整实现尚未完成",
+                    parcelId);
                 
                 stopwatch.Stop();
                 return new SortingResult(
@@ -367,20 +357,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     );
                 }
                 
-                // 使用拓扑的第一个摆轮ID作为队列键（异常格口路径需要等待第一个摆轮前的传感器触发）
-                var firstDiverterId = topology.DiverterNodes.FirstOrDefault()?.DiverterId ?? 1;
-                _pendingQueue.Enqueue(
+                // TODO: 实现新的 Position-Index 队列入队逻辑
+                _logger.LogWarning(
+                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列（异常格口路径），目标格口: {ExceptionChuteId}",
                     parcelId,
-                    exceptionChuteId,
-                    firstDiverterId,
-                    DefaultTimeoutSeconds,
-                    exceptionPath);
+                    exceptionChuteId);
                 
                 _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 已加入待执行队列（异常格口路径），目标格口: {ExceptionChuteId}, 摆轮ID: {DiverterId}",
+                    "[完成] 包裹 {ParcelId} 异常格口路径生成完成，目标格口: {ExceptionChuteId}",
                     parcelId,
-                    exceptionChuteId,
-                    firstDiverterId);
+                    exceptionChuteId);
                 
                 stopwatch.Stop();
                 return new SortingResult(
@@ -434,20 +420,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     );
                 }
                 
-                // 使用拓扑的第一个摆轮ID作为队列键
-                var firstDiverterId = topology.DiverterNodes.FirstOrDefault()?.DiverterId ?? 1;
-                _pendingQueue.Enqueue(
+                // TODO: 实现新的 Position-Index 队列入队逻辑
+                _logger.LogWarning(
+                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列（异常格口路径），目标格口: {ExceptionChuteId}",
                     parcelId,
-                    exceptionChuteId,
-                    firstDiverterId,
-                    timeoutSeconds,
-                    exceptionPath);
+                    exceptionChuteId);
                 
                 _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 已加入待执行队列（异常格口路径），目标格口: {ExceptionChuteId}, 摆轮ID: {DiverterId}",
+                    "[完成] 包裹 {ParcelId} 异常格口路径生成完成，目标格口: {ExceptionChuteId}",
                     parcelId,
-                    exceptionChuteId,
-                    firstDiverterId);
+                    exceptionChuteId);
                 
                 stopwatch.Stop();
                 return new SortingResult(
@@ -467,21 +449,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 targetChuteId,
                 diverterNode.DiverterId);
             
-            // 将包裹和预生成的路径一起加入待执行队列，等待 WheelFront 传感器触发
-            // 使用摆轮ID（long类型）作为队列键，与传感器配置的 BoundWheelDiverterId 必须一致
-            _pendingQueue.Enqueue(
-                parcelId, 
-                targetChuteId, 
-                diverterNode.DiverterId, 
-                timeoutSeconds,
-                path);
+            // TODO: 实现新的 Position-Index 队列入队逻辑
+            _logger.LogWarning(
+                "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列，目标格口: {TargetChuteId}, 摆轮ID: {DiverterId}",
+                parcelId,
+                targetChuteId,
+                diverterNode.DiverterId);
             
             _logger.LogInformation(
-                "[完成] 包裹已加入待执行队列: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, TimeoutSeconds={TimeoutSeconds}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
+                "[完成] 包裹路径生成完成: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
                 parcelId,
                 targetChuteId,
                 diverterNode.DiverterId,
-                timeoutSeconds,
                 path.Segments.Count,
                 stopwatch.Elapsed.TotalMilliseconds);
             
@@ -1441,44 +1420,43 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 e.SensorId,
                 e.DetectedAt);
 
-            // TD-062: 检查是否为 WheelFront 传感器触发
-            if (_sensorConfigRepository != null && _pendingQueue != null && _topologyRepository != null)
+            // 检查是否为 WheelFront 传感器触发
+            if (_sensorConfigRepository != null && _queueManager != null && _topologyRepository != null)
             {
                 var sensorConfig = _sensorConfigRepository.Get();
                 var sensor = sensorConfig.Sensors.FirstOrDefault(s => s.SensorId == e.SensorId);
                 
-                _logger.LogDebug(
-                    "[传感器类型检查] SensorId={SensorId}, IoType={IoType}, BoundWheelDiverterId={BoundWheelDiverterId}",
-                    e.SensorId,
-                    sensor?.IoType,
-                    sensor?.BoundWheelDiverterId);
-                
                 if (sensor?.IoType == SensorIoType.WheelFront)
                 {
-                    if (!sensor.BoundWheelDiverterId.HasValue)
+                    // 从拓扑配置中找到对应的摆轮节点
+                    var topology = _topologyRepository.Get();
+                    var node = topology?.DiverterNodes.FirstOrDefault(n => n.FrontSensorId == e.SensorId);
+                    
+                    if (node == null)
                     {
                         _logger.LogError(
-                            "[配置错误] WheelFront传感器 {SensorId} 未绑定摆轮ID",
+                            "[配置错误] WheelFront传感器 {SensorId} 在拓扑配置中未找到对应的摆轮节点",
                             e.SensorId);
                         return;
                     }
                     
                     _logger.LogInformation(
-                        "[WheelFront触发] 检测到摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}",
+                        "[WheelFront触发] 检测到摆轮前传感器触发: SensorId={SensorId}, DiverterId={DiverterId}, PositionIndex={PositionIndex}",
                         e.SensorId,
-                        sensor.BoundWheelDiverterId.Value);
+                        node.DiverterId,
+                        node.PositionIndex);
                     
                     // 这是摆轮前传感器触发，处理待执行队列中的包裹
-                    await HandleWheelFrontSensorAsync(e.SensorId, sensor.BoundWheelDiverterId.Value);
+                    await HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex);
                     return;
                 }
             }
             else
             {
                 _logger.LogWarning(
-                    "[配置缺失] 拓扑驱动组件未完全配置: SensorConfigRepo={HasSensorConfig}, PendingQueue={HasQueue}, TopologyRepo={HasTopo}",
+                    "[配置缺失] Position-Index 队列系统组件未完全配置: SensorConfigRepo={HasSensorConfig}, QueueManager={HasQueue}, TopologyRepo={HasTopo}",
                     _sensorConfigRepository != null,
-                    _pendingQueue != null,
+                    _queueManager != null,
                     _topologyRepository != null);
             }
             
@@ -1505,19 +1483,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
-    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId)
+    /// <param name="positionIndex">Position Index</param>
+    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId, int positionIndex)
     {
         _logger.LogDebug(
-            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}",
+            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}, PositionIndex={PositionIndex}",
             sensorId,
-            boundWheelDiverterId);
+            boundWheelDiverterId,
+            positionIndex);
 
         if (_safeExecutor != null)
         {
             _logger.LogDebug("使用 SafeExecutionService 执行摆轮前传感器处理");
             // 使用 SafeExecutionService 包裹异步操作
             await _safeExecutor.ExecuteAsync(
-                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId),
+                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
                 operationName: $"WheelFrontTriggered_Sensor{sensorId}",
                 cancellationToken: default);
         }
@@ -1525,76 +1505,109 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _logger.LogDebug("直接执行摆轮前传感器处理（无 SafeExecutor）");
             // Fallback: 没有 SafeExecutor 时直接执行
-            await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId);
+            await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
         }
     }
 
     /// <summary>
-    /// 执行摆轮前传感器触发的分拣逻辑（TD-062）
+    /// 执行摆轮前传感器触发的分拣逻辑（Position-Index 队列系统）
     /// </summary>
     /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
     /// <param name="sensorId">传感器ID</param>
-    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId)
+    /// <param name="positionIndex">Position Index</param>
+    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex)
     {
         _logger.LogDebug(
-            "从队列中查找摆轮 {WheelDiverterId} 的待执行包裹",
-            boundWheelDiverterId);
+            "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
+            positionIndex, sensorId);
 
-        // 从队列取出该摆轮的第一个包裹
-        var parcel = _pendingQueue!.DequeueByWheelDiverterId(boundWheelDiverterId);
+        // 从 Position-Index 队列取出任务
+        var task = _queueManager!.DequeueTask(positionIndex);
         
-        if (parcel == null)
+        if (task == null)
         {
             _logger.LogWarning(
-                "摆轮 {WheelDiverterId} 前传感器 {SensorId} 触发，但队列中无等待包裹",
-                boundWheelDiverterId, sensorId);
+                "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId})",
+                positionIndex, sensorId, boundWheelDiverterId);
+            
+            _metrics?.RecordSortingFailure(0);
             return;
         }
         
-        _logger.LogInformation(
-            "摆轮前传感器触发：包裹 {ParcelId} 到达摆轮 {WheelDiverterId}，开始执行预生成的分拣路径到格口 {TargetChuteId}",
-            parcel.ParcelId, boundWheelDiverterId, parcel.TargetChuteId);
+        // 检查超时
+        var currentTime = _clock.LocalNow;
+        var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
         
-        // TD-062: 路径预生成优化 - 直接执行队列中预生成的路径，无需重新生成
-        _logger.LogDebug(
-            "开始执行包裹 {ParcelId} 的预生成路径: 段数={SegmentCount}",
-            parcel.ParcelId,
-            parcel.PreGeneratedPath.Segments.Count);
-
-        var executionResult = await _pathExecutor.ExecuteAsync(parcel.PreGeneratedPath, CancellationToken.None);
+        DiverterDirection actionToExecute;
         
-        if (executionResult.IsSuccess)
+        if (isTimeout)
         {
-            _logger.LogInformation(
-                "包裹 {ParcelId} 分拣成功：实际格口={ActualChuteId}，目标格口={TargetChuteId}",
-                parcel.ParcelId,
-                executionResult.ActualChuteId,
-                parcel.TargetChuteId);
-            // TODO: 从executionResult获取实际执行时间而非传入0
-            _metrics?.RecordSortingSuccess(0);
+            var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+            _logger.LogWarning(
+                "包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，使用回退动作 {FallbackAction}",
+                task.ParcelId, positionIndex, delayMs, task.FallbackAction);
             
-            // 通知上游系统包裹已完成落格
-            await NotifyUpstreamSortingCompletedAsync(
-                parcel.ParcelId,
-                executionResult.ActualChuteId,
-                isSuccess: true,
-                failureReason: null);
+            actionToExecute = task.FallbackAction;
+            
+            // 超时包裹需要在后续所有 position 插入 Straight 任务到队列头部
+            // 因为超时包裹虽然超时，但仍排在后续包裹前面
+            if (_topologyRepository != null)
+            {
+                var topology = _topologyRepository.Get();
+                if (topology != null)
+                {
+                    // 找到所有比当前 position 大的节点
+                    var subsequentNodes = topology.DiverterNodes
+                        .Where(n => n.PositionIndex > positionIndex)
+                        .OrderBy(n => n.PositionIndex)
+                        .ToList();
+                    
+                    if (subsequentNodes.Any())
+                    {
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
+                            task.ParcelId,
+                            subsequentNodes.Count,
+                            string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
+                        
+                        foreach (var node in subsequentNodes)
+                        {
+                            var straightTask = new PositionQueueItem
+                            {
+                                ParcelId = task.ParcelId,
+                                DiverterId = node.DiverterId,
+                                DiverterAction = DiverterDirection.Straight,
+                                ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                                TimeoutThresholdMs = task.TimeoutThresholdMs,
+                                FallbackAction = DiverterDirection.Straight,
+                                PositionIndex = node.PositionIndex,
+                                CreatedAt = _clock.LocalNow
+                            };
+                            
+                            // 使用优先入队，插入到队列头部
+                            _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
+                        }
+                    }
+                }
+            }
+            
+            _metrics?.RecordSortingFailure(0);
         }
         else
         {
-            _logger.LogError(
-                "包裹 {ParcelId} 分拣失败：失败原因={FailureReason}，实际到达格口={ActualChuteId}",
-                parcel.ParcelId,
-                executionResult.FailureReason,
-                executionResult.ActualChuteId);
-            _metrics?.RecordSortingFailure(0);
-            
-            // 通知上游系统包裹分拣失败
-            await NotifyUpstreamSortingCompletedAsync(
-                parcel.ParcelId,
-                executionResult.ActualChuteId,
-                isSuccess: false,
-                failureReason: executionResult.FailureReason);
+            actionToExecute = task.DiverterAction;
+        }
+        
+        _logger.LogInformation(
+            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
+            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
+        
+        // TODO: 实现摆轮动作执行
+        // 当前暂时只记录日志，完整实现需要调用 IWheelDiverterDevice
+        
+        if (!isTimeout)
+        {
+            _metrics?.RecordSortingSuccess(0);
         }
     }
 
