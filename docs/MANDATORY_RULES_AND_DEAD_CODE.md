@@ -8,6 +8,105 @@
 
 ## 一、强制性架构规则
 
+> **重要**: 以下规则为强制性约束，违反任何一条规则将导致 PR 自动失败。
+
+### 规则0: PR 完整性约束（新增）
+
+**规则**: 
+- 评估工作量 **< 24小时** 的 PR 必须在单个 PR 中完成所有工作
+- 评估工作量 **≥ 24小时** 的 PR 允许分阶段完成，但未完成部分必须记录到技术债务
+
+**违规后果**: ❌ **PR自动失败**
+
+#### 0.1 规则详细说明
+
+**小型PR（< 24小时）强制完整性**:
+- 不允许提交半完成状态（如：只删除接口但不修复引用）
+- 不允许留下编译错误或测试失败
+- 不允许使用"后续PR修复"作为理由
+- 必须保证代码可编译、测试通过、功能完整
+
+**大型PR（≥ 24小时）分阶段处理**:
+- 允许分多个 PR 逐步完成
+- 每个阶段 PR 必须独立可编译、测试通过
+- 未完成部分必须登记到 `TechnicalDebtLog.md`：
+  - 创建技术债条目（TD-XXX）
+  - 说明已完成和未完成的工作
+  - 提供详细的下一步指引（文件清单、修改建议、注意事项）
+  - 估算剩余工作量和风险等级
+
+#### 0.2 技术债登记模板
+
+```markdown
+## [TD-XXX] <任务名称>（⏳ 进行中）
+
+### 问题描述
+<简要描述要解决的问题>
+
+### 已完成工作（本PR）
+- [x] 子任务1
+- [x] 子任务2
+
+### 未完成工作（需后续PR）
+- [ ] 子任务3 - 原因：依赖外部服务未就绪
+- [ ] 子任务4 - 原因：需要重构影响范围过大
+
+### 下一步指引
+
+**受影响文件清单**:
+- `path/to/file1.cs` - 需要移除 XXX 引用
+- `path/to/file2.cs` - 需要重构 YYY 方法
+
+**修改建议**:
+1. 首先备份现有测试
+2. 修改 XXX 接口调用为 YYY
+3. 运行完整测试套件验证
+
+**注意事项**:
+- ⚠️ 不要修改 ZZZ 配置，会影响生产环境
+- ⚠️ 确保向后兼容性
+
+**预估工作量**: 4-6小时  
+**风险等级**: 中等  
+**优先级**: P1（高优先级）
+```
+
+#### 0.3 实施检查
+
+**PR审查检查点**:
+1. 评估PR工作量（通过文件修改数量、复杂度估算）
+2. 如果 < 24小时：
+   - ✅ 检查是否所有文件可编译
+   - ✅ 检查是否所有测试通过
+   - ✅ 检查是否有"TODO"或"待后续PR"注释
+   - ❌ 如有未完成工作 → PR失败
+3. 如果 ≥ 24小时：
+   - ✅ 检查 TechnicalDebtLog.md 是否有对应条目
+   - ✅ 检查技术债条目是否包含完整指引
+   - ✅ 检查当前阶段是否独立可用
+   - ❌ 如无技术债记录 → PR失败
+
+**ArchTests 自动验证**:
+```csharp
+// tests/ZakYip.WheelDiverterSorter.ArchTests/MandatoryArchitectureRulesTests.cs
+[Fact]
+public void SmallPR_MustBeCompletelyFinished_NoHalfDoneWork()
+{
+    // 检查是否存在编译错误
+    // 检查是否存在失败的测试
+    // 检查是否存在"TODO: 后续PR"等标记
+}
+
+[Fact]
+public void LargePR_IncompleteParts_MustBeDocumentedInTechnicalDebt()
+{
+    // 检查是否有技术债条目记录未完成工作
+    // 检查技术债条目是否包含必要的下一步指引
+}
+```
+
+---
+
 ### 规则1: 枚举位置强制约束
 
 **规则**: 所有枚举必须定义在 `ZakYip.WheelDiverterSorter.Core.Enums` 的子目录中（按类型分类）
@@ -47,6 +146,17 @@ Core/Enums/
 ```
 
 #### 1.2 实施检查
+
+**ArchTests 自动验证**:
+```csharp
+// tests/ZakYip.WheelDiverterSorter.ArchTests/MandatoryArchitectureRulesTests.cs
+[Fact]
+public void AllEnums_MustBeDefinedIn_CoreEnumsDirectory()
+{
+    // 自动扫描所有枚举，确保位于 Core/Enums 目录
+    // 违反规则立即失败
+}
+```
 
 **CI/CD集成**:
 ```yaml
