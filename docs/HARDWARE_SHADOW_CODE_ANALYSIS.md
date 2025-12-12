@@ -72,7 +72,7 @@
 
 所有厂商实现统一位于 `Drivers/Vendors/<VendorName>/` 目录：
 
-#### Leadshine (雷赛)
+#### Leadshine (雷赛) - 16个文件
 - `LeadshineWheelDiverterDriver` - 实现 `IWheelDiverterDriver`
 - `LeadshineEmcController` - 实现 `IEmcController`
 - `CoordinatedEmcController` - 装饰器模式（**非影分身**）
@@ -82,31 +82,70 @@
 - `LeadshineIoMapper` - 实现 `IVendorIoMapper`
 - `LeadshineSensorInputReader` - 实现 `ISensorInputReader`
 - `LeadshinePanelInputReader` - 实现面板输入读取
+- `LeadshineDiscreteIoAdapter` - 离散IO适配器
+- `LeadshineVendorDriverFactory` - 厂商工厂
+- `LeadshineIoServiceCollectionExtensions` - DI扩展
+- `EmcNamedMutexLock` - 命名互斥锁
+- `IEmcResourceLock` - 资源锁接口（厂商专用）
+- `LTDMC.cs` - 雷赛C库P/Invoke封装
+- `LeadshineDiverterConfig.cs` - 运行时配置
 
-#### ShuDiNiao (数递鸟)
+#### ShuDiNiao (数递鸟) - 8个文件
 - `ShuDiNiaoWheelDiverterDriver` - 实现 `IWheelDiverterDriver`
 - `ShuDiNiaoWheelDiverterDeviceAdapter` - 适配器（**有价值，非影分身**）
 - `ShuDiNiaoWheelDiverterDriverManager` - 实现 `IWheelDiverterDriverManager`
 - `ShuDiNiaoWheelProtocolMapper` - 实现 `IWheelProtocolMapper`
 - `ShuDiNiaoWheelServer` - TCP服务器实现
+- `ShuDiNiaoProtocol.cs` - 协议解析
+- `ShuDiNiaoSpeedConverter.cs` - 速度转换工具
+- `ShuDiNiaoWheelServiceCollectionExtensions.cs` - DI扩展
 
-#### Siemens (西门子)
+#### Siemens (西门子) - 5个文件
 - `S7InputPort` - 实现 `IInputPort`
 - `S7OutputPort` - 实现 `IOutputPort`
 - `S7IoLinkageDriver` - 实现 `IIoLinkageDriver`
+- `S7Connection.cs` - S7连接封装
+- `SiemensS7ServiceCollectionExtensions.cs` - DI扩展
 
-#### Simulated (仿真)
+#### Simulated (仿真) - 10个文件
 - `SimulatedOutputPort` - 实现 `IOutputPort`
 - `SimulatedIoLinkageDriver` - 实现 `IIoLinkageDriver`
 - `SimulatedWheelDiverterDevice` - 实现 `IWheelDiverterDevice`
 - `SimulatedSensorInputReader` - 实现 `ISensorInputReader`
 - `SimulatedPanelInputReader` - 实现面板输入读取
+- `SimulatedDiscreteIo.cs` - 离散IO仿真
+- `SimulatedSignalTowerOutput.cs` - 信号塔输出仿真
+- `SimulatedIoMapper.cs` - IO映射器
+- `SimulatedVendorDriverFactory.cs` - 厂商工厂
+- `SimulatedDriverServiceCollectionExtensions.cs` - DI扩展
 
-### 2.2 验证结果
+### 2.2 实现数量说明
+
+**为什么4个厂商有39个文件（不是19个）？**
+
+每个厂商不仅实现HAL核心接口，还包含：
+1. **核心驱动实现**：实现HAL接口（Driver、Port、IoLinkage等）
+2. **厂商专用工具**：协议解析、速度转换、连接管理等
+3. **DI扩展**：ServiceCollectionExtensions
+4. **厂商工厂**：VendorDriverFactory
+5. **适配器/装饰器**：协议适配、功能增强
+6. **P/Invoke封装**：如Leadshine的LTDMC.cs
+7. **运行时配置**：厂商特定配置类
+
+**统计**：
+- Leadshine: 16个文件（最复杂，包含EMC控制器、多种IO端口）
+- ShuDiNiao: 8个文件（TCP通信、协议解析）
+- Simulated: 10个文件（完整仿真实现）
+- Siemens: 5个文件（S7 PLC通信）
+
+**总计**: 16 + 8 + 10 + 5 = **39个文件**（不包括Configuration/Events子目录）
+
+### 2.3 验证结果
 
 ✅ **每个接口每个厂商只有一个实现**  
 ✅ **无跨厂商重复实现**  
-✅ **所有实现位于正确的 Vendors 目录**
+✅ **所有实现位于正确的 Vendors 目录**  
+✅ **实现数量合理**：包含厂商专用工具、配置、扩展等
 
 ---
 
@@ -285,7 +324,138 @@ public class LeadshineDiverterConfig
 
 ---
 
-## 六、架构合规性验证
+## 六、Application层服务分析（IWheelDiverterConnectionService）
+
+### 6.1 IWheelDiverterConnectionService 定义
+
+**位置**: `Application/Services/WheelDiverter/IWheelDiverterConnectionService.cs`
+
+**职责**: 应用层服务，编排摆轮连接和健康管理
+
+### 6.2 与HAL接口的关系
+
+**不是影分身的原因**:
+
+#### 职责层次不同
+
+**IWheelDiverterDriverManager** (HAL层 - Core/Hardware/):
+```csharp
+public interface IWheelDiverterDriverManager
+{
+    IReadOnlyDictionary<string, IWheelDiverterDriver> GetActiveDrivers();
+    IWheelDiverterDriver? GetDriver(string diverterId);
+    Task<WheelDiverterConfigApplyResult> ApplyConfigurationAsync(...);
+    Task DisconnectAllAsync(CancellationToken cancellationToken);
+    Task<WheelDiverterReconnectResult> ReconnectAllAsync(CancellationToken cancellationToken);
+}
+```
+
+**职责**:
+- 管理摆轮驱动器实例的生命周期
+- 热更新摆轮配置
+- 直接操作驱动器（连接、断开、重连）
+
+**IWheelDiverterConnectionService** (应用层 - Application/Services/):
+```csharp
+public interface IWheelDiverterConnectionService
+{
+    Task<WheelDiverterConnectionResult> ConnectAllAsync(CancellationToken cancellationToken);
+    Task<WheelDiverterOperationResult> RunAllAsync(CancellationToken cancellationToken);
+    Task<WheelDiverterOperationResult> StopAllAsync(CancellationToken cancellationToken);
+    Task<WheelDiverterOperationResult> PassThroughAllAsync(CancellationToken cancellationToken);
+    Task<IReadOnlyList<WheelDiverterHealthInfo>> GetHealthStatusesAsync();
+}
+```
+
+**职责**:
+- 编排多个服务（DriverManager + HealthRegistry + ConfigRepository）
+- 提供系统启动时的初始化流程
+- 集成健康状态管理
+- 提供业务级别的操作封装（Run/Stop/PassThrough）
+
+### 6.3 实现分析
+
+**WheelDiverterConnectionService** 内部使用：
+```csharp
+public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionService
+{
+    private readonly IWheelDiverterConfigurationRepository _configRepository;
+    private readonly IWheelDiverterDriverManager _driverManager;  // 使用HAL接口
+    private readonly INodeHealthRegistry _healthRegistry;
+    private readonly ISystemClock _clock;
+    private readonly ISafeExecutionService _safeExecutor;
+    
+    public async Task<WheelDiverterConnectionResult> ConnectAllAsync(...)
+    {
+        // 1. 从仓储获取配置
+        var config = _configRepository.Get();
+        
+        // 2. 调用HAL层的DriverManager
+        var result = await _driverManager.ApplyConfigurationAsync(config, ...);
+        
+        // 3. 更新健康状态
+        await UpdateHealthStatusAsync(...);
+        
+        // 4. 返回应用层结果
+        return new WheelDiverterConnectionResult { ... };
+    }
+}
+```
+
+### 6.4 为什么不在Core层定义？
+
+**设计原则**:
+
+1. **分层职责**:
+   - Core层：定义领域模型和HAL接口（硬件抽象）
+   - Application层：定义应用服务和用例编排
+
+2. **依赖方向**:
+   - `IWheelDiverterConnectionService` 依赖多个Core接口：
+     - `IWheelDiverterDriverManager`（HAL）
+     - `IWheelDiverterConfigurationRepository`（仓储）
+     - `INodeHealthRegistry`（健康检查）
+   - 如果放在Core层，会违反"Core不依赖Application"的原则
+
+3. **业务编排**:
+   - 连接摆轮 + 更新健康状态 + 记录日志 = **业务用例**
+   - 用例编排属于Application层职责
+
+4. **使用场景**:
+   - `IWheelDiverterConnectionService` 主要用于：
+     - Host层的启动服务（`WheelDiverterInitHostedService`）
+     - 系统状态协调器（`SystemStateWheelDiverterCoordinator`）
+   - 这些都是应用层关注点
+
+### 6.5 对比总结
+
+| 维度 | IWheelDiverterDriverManager (HAL) | IWheelDiverterConnectionService (应用层) |
+|------|----------------------------------|----------------------------------------|
+| **位置** | Core/Hardware/Devices/ | Application/Services/WheelDiverter/ |
+| **层级** | 硬件抽象层 (HAL) | 应用服务层 |
+| **职责** | 管理驱动器实例生命周期 | 编排业务用例（连接+健康+日志） |
+| **依赖** | 仅依赖Core内部类型 | 依赖多个Core接口和服务 |
+| **使用方** | Application/Execution层 | Host层（BackgroundService） |
+| **是否影分身** | ❌ 否 | ❌ 否 |
+
+### 6.6 判定结论
+
+✅ **IWheelDiverterConnectionService 不是影分身**
+
+**原因**:
+1. **职责不同**：HAL层管理驱动器 vs 应用层编排用例
+2. **层级不同**：Core vs Application
+3. **依赖不同**：单一关注点 vs 多服务编排
+4. **使用场景不同**：Execution层使用 vs Host层启动流程
+
+**设计合理性**:
+- 符合DDD和Clean Architecture分层原则
+- HAL保持纯粹的硬件抽象
+- Application层负责业务用例编排
+
+---
+
+## 七、架构合规性验证
 
 ### 6.1 HAL收敛规则（PR-C6）
 
