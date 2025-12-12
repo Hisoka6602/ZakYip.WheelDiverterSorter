@@ -6,7 +6,12 @@
 
 ---
 
-## 零、强制性架构规则（最高优先级）
+## 零、强制性架构规则（最高优先级）🔴
+
+> **所有规则通过 ArchTests 自动验证，违反任何规则将导致 PR 自动失败**
+> 
+> **详细文档**: `docs/MANDATORY_RULES_AND_DEAD_CODE.md`  
+> **ArchTests**: `tests/ZakYip.WheelDiverterSorter.ArchTests/MandatoryArchitectureRulesTests.cs`
 
 ### 规则0: PR完整性约束 🔴
 
@@ -32,7 +37,115 @@
   - 详细的下一步指引（文件清单、修改建议、注意事项）
   - 预估工作量和风险等级
 
-**文档**: `docs/MANDATORY_RULES_AND_DEAD_CODE.md` - 规则0
+**ArchTests 验证**:
+```csharp
+[Fact] SmallPR_MustBeCompletelyFinished_NoCompilationErrors()
+[Fact] SmallPR_MustBeCompletelyFinished_NoFailingTests()
+[Fact] SmallPR_MustBeCompletelyFinished_NoTodoForNextPR()
+[Fact] LargePR_IncompleteParts_MustBeDocumentedInTechnicalDebt()
+```
+
+---
+
+### 规则1: 枚举位置强制约束 🔴
+
+**规则**: 所有枚举必须定义在 `ZakYip.WheelDiverterSorter.Core/Enums/` 的子目录中（按类型分类）
+
+**违规后果**: ❌ **PR自动失败**
+
+**允许的枚举位置**:
+```
+src/Core/ZakYip.WheelDiverterSorter.Core/Enums/
+├── Hardware/      # 硬件相关（DiverterDirection, IoLevel, SensorType等）
+├── Parcel/        # 包裹相关（ParcelFinalStatus等）
+├── System/        # 系统相关（SystemState, RuntimeMode等）
+├── Communication/ # 通信相关（ConnectionMode, CommunicationMode等）
+├── Sorting/       # 分拣相关（PathFailureReason, SortingMode等）
+├── Simulation/    # 仿真相关（SimulationStepType等）
+└── Monitoring/    # 监控相关（OverloadReason等）
+```
+
+**禁止行为**:
+- ❌ 在 Drivers、Host、Execution、Communication 等项目中定义枚举
+- ❌ 在任何非 Core/Enums 目录定义枚举
+
+**ArchTests 验证**:
+```csharp
+[Fact] AllEnums_MustBeDefinedIn_CoreEnumsDirectory()
+```
+
+---
+
+### 规则2: 事件载荷位置强制约束 🔴
+
+**规则**: 所有事件载荷（EventArgs/Event）必须定义在 `ZakYip.WheelDiverterSorter.Core/Events/` 的子目录中（按类型分类）
+
+**违规后果**: ❌ **PR自动失败**
+
+**允许的事件位置**:
+```
+src/Core/ZakYip.WheelDiverterSorter.Core/Events/
+├── Alarm/         # 报警事件（AlarmEvent等）
+├── Hardware/      # 硬件事件（DeviceConnectionEventArgs等）
+├── Sensor/        # 传感器事件（ParcelDetectedEventArgs, SensorFaultEventArgs等）
+├── Sorting/       # 分拣事件（ParcelDivertedEventArgs, RoutePlannedEventArgs等）
+├── Communication/ # 通信事件（EmcLockEventArgs等）
+├── Simulation/    # 仿真事件（SimulatedSensorEvent等）
+└── Monitoring/    # 监控事件（AlertRaisedEventArgs等）
+```
+
+**白名单例外**（特殊情况允许在其他位置）:
+- Communication.Abstractions 中的接口定义事件（ClientConnectionEventArgs等）
+- Execution 中的路径重规划事件（ReroutingSucceededEventArgs等）
+- 仿真项目特有事件（SimulatedParcelResultEventArgs）
+
+**禁止行为**:
+- ❌ 在 Drivers、Host、Observability、Simulation/Models 等目录定义事件
+- ❌ 在任何非 Core/Events 目录定义新事件（白名单除外）
+
+**ArchTests 验证**:
+```csharp
+[Fact] AllEventArgs_MustBeDefinedIn_CoreEventsDirectory()
+```
+
+---
+
+### 规则3: 文档清理规则 🔴
+
+**规则**: 文档文件必须及时清理或更新，不同类型文档有不同的生命周期限制
+
+**违规后果**: ❌ **PR自动失败**
+
+**文档生命周期规则**:
+| 文档类型 | 最大保留时间 | 示例 |
+|---------|-------------|------|
+| PR总结文档 | 30天 | `PR_*_SUMMARY.md` |
+| 任务清单 | 30天 | `*_TASKS.md`, `NEXT_*.md` |
+| 修复记录 | 60天 | `FIX_*.md`, `fixes/*.md` |
+| 实施计划 | 90天 | `*_IMPLEMENTATION.md`, `*_PLAN.md` |
+| 一般文档 | 180天 | 其他未分类文档 |
+
+**永久保留文档**（白名单）:
+- 核心规范: `README.md`, `ARCHITECTURE_PRINCIPLES.md`, `CODING_GUIDELINES.md`, `RepositoryStructure.md`, `TechnicalDebtLog.md`, `CORE_ROUTING_LOGIC.md`, `MANDATORY_RULES_AND_DEAD_CODE.md`
+- 使用指南: `guides/` 目录下所有文档
+- 技术评估: `TOPOLOGY_LINEAR_N_DIVERTERS.md`, `S7_Driver_Enhancement.md`, `TouchSocket_Migration_Assessment.md`等
+
+**处理建议**:
+1. 删除已完成/过时的文档
+2. 将历史记录整合到 `TechnicalDebtLog.md`
+3. 将重要信息迁移到永久文档
+4. 更新文档内容使其保持最新
+
+**禁止行为**:
+- ❌ 保留超过生命周期限制的过时文档
+- ❌ 使用 `PR_*_SUMMARY.md` 等临时文档作为长期参考
+- ❌ 创建 `TODO_*.md`, `REMAINING_*.md` 等待办文档（应使用 GitHub Issues）
+
+**ArchTests 验证**:
+```csharp
+[Fact] Documentation_ShouldBeKeptUpToDate_NoOutdatedFiles()
+[Fact] Documentation_ShouldFollowNamingConventions()
+```
 
 ---
 
