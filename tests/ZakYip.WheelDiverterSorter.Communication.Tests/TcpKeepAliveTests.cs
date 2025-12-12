@@ -20,7 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 public class TcpKeepAliveTests : IDisposable
 {
     private readonly Mock<ILogger<TcpRuleEngineClient>> _clientLoggerMock;
-    private readonly Mock<ILogger<TcpRuleEngineServer>> _serverLoggerMock;
+    private readonly Mock<ILogger<TouchSocketTcpRuleEngineServer>> _serverLoggerMock;
     private readonly Mock<ISystemClock> _systemClockMock;
     private readonly DateTime _testTime = new(2025, 12, 2, 12, 0, 0);
     private readonly List<IDisposable> _disposables = new();
@@ -28,7 +28,7 @@ public class TcpKeepAliveTests : IDisposable
     public TcpKeepAliveTests()
     {
         _clientLoggerMock = new Mock<ILogger<TcpRuleEngineClient>>();
-        _serverLoggerMock = new Mock<ILogger<TcpRuleEngineServer>>();
+        _serverLoggerMock = new Mock<ILogger<TouchSocketTcpRuleEngineServer>>();
         _systemClockMock = new Mock<ISystemClock>();
         _systemClockMock.Setup(x => x.LocalNow).Returns(_testTime);
         _systemClockMock.Setup(x => x.LocalNowOffset).Returns(new DateTimeOffset(_testTime));
@@ -98,7 +98,7 @@ public class TcpKeepAliveTests : IDisposable
             }
         };
 
-        var server = new TcpRuleEngineServer(
+        var server = new TouchSocketTcpRuleEngineServer(
             _serverLoggerMock.Object,
             serverOptions,
             _systemClockMock.Object);
@@ -155,7 +155,7 @@ public class TcpKeepAliveTests : IDisposable
             }
         };
 
-        var server = new TcpRuleEngineServer(
+        var server = new TouchSocketTcpRuleEngineServer(
             _serverLoggerMock.Object,
             serverOptions,
             _systemClockMock.Object);

@@ -20,7 +20,8 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 4. **[4. 跨项目的关键类型与职责](#4-跨项目的关键类型与职责)** - 定位核心接口和服务
 5. **[5. 技术债索引](#5-技术债索引)** - 仅作索引，详细描述见 `TechnicalDebtLog.md`
 6. **[6. 单一权威实现 & 禁止影分身](#6-单一权威实现--禁止影分身)** - 防止重复抽象的权威实现表
-7. **[文档文件总览 (Markdown Index)](#文档文件总览-markdown-index)** - 仓库所有 Markdown 文件索引
+7. **[7. 完整源代码文件清单](#7-完整源代码文件清单-complete-source-code-inventory)** - 所有源代码文件及其用途描述（按项目组织）
+8. **[文档文件总览 (Markdown Index)](#文档文件总览-markdown-index)** - 仓库所有 Markdown 文件索引
 
 > **注意**：第 5 章节仅保留技术债 ID、状态和简短摘要。如需了解某个技术债的详细过程（PR 号、文件迁移列表、测试更新说明等），请点击索引表中的"详情"链接跳转到 **[TechnicalDebtLog.md](./TechnicalDebtLog.md)**。
 
@@ -1447,19 +1448,22 @@ tools/Profiling/
 | TD-063 | ✅ 已解决 | 清理旧分拣逻辑和影分身代码 → 经审计确认无遗留代码，防线测试完整（当前 PR）| [详情](./TechnicalDebtLog.md#td-063-清理旧分拣逻辑和影分身代码) |
 | TD-064 | ✅ 已解决 | 系统状态转换到 Running 时初始化所有摆轮为直行 → 已通过现有架构实现，无需额外代码（当前 PR）| [详情](./TechnicalDebtLog.md#td-064-系统状态转换到-running-时初始化所有摆轮为直行) |
 | TD-065 | ✅ 已解决 | 强制执行 long 类型 ID 匹配规范 + 修复包裹超时问题 → 修复传感器ID类型不匹配、移除重复上游通知、建立 LongIdMatchingEnforcementTests 防线（当前 PR）| [详情](./TechnicalDebtLog.md#td-065-强制执行-long-类型-id-匹配规范) |
+| TD-066 | ❌ 未开始 | 合并 UpstreamServerBackgroundService 和 IUpstreamRoutingClient 为统一接口 IUpstreamConnectionManager → 统一上游连接管理，支持 Client/Server 模式 | [详情](./TechnicalDebtLog.md#td-066-合并-upstreamserverbackgroundservice-和-iupstreamroutingclient-为统一接口) |
+| TD-067 | ❌ 未开始 | 全面影分身代码检测 → 对整个代码库进行全面影分身扫描和清理 | [详情](./TechnicalDebtLog.md#td-067-全面影分身代码检测) |
+| TD-068 | ❌ 未开始 | 异常格口包裹队列机制修复 → 异常格口包裹应等待传感器触发而非立即执行 | [详情](./TechnicalDebtLog.md#td-068-异常格口包裹队列机制修复) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 64 |
+| ✅ 已解决 | 65 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 0 |
-| **总计** | **64** |
+| ❌ 未开始 | 3 |
+| **总计** | **68** |
 
-**完成率**：64/64 = 100%
+**完成率**：65/68 = 95.6%
 
-**最近更新**：TD-063和TD-064已完成验证，所有64项技术债务已全部解决
+**最近更新**：TD-066/067/068 为当前 PR 遗留的未完成工作，需在后续 PR 中处理
 
 ---
 
@@ -1604,4 +1608,682 @@ grep -r "ProjectReference" src/**/*.csproj
 
 **文档版本**：3.8 (PR-PANEL-IO01)  
 **最后更新**：2025-12-08  
+**维护团队**：ZakYip Development Team
+
+---
+
+## 7. 完整源代码文件清单 (Complete Source Code Inventory)
+
+> 本章节列出仓库中所有源代码文件及其用途描述，按项目组织。
+> 
+> **生成时间**: 2025-12-11
+> **文件总数**: 864+ C# 源文件和项目文件
+> **维护说明**: 当添加、删除或移动文件时，应更新本清单
+
+### 7.1 文件命名约定说明
+
+本清单使用以下命名约定自动推断文件用途：
+
+| 后缀模式 | 说明 | 示例 |
+|---------|------|------|
+| `*Controller` | API 控制器 - 处理 HTTP 请求 | `ConfigurationController.cs` |
+| `*Service` | 服务层 - 业务逻辑实现 | `SystemConfigService.cs` |
+| `*Repository` | 仓储层 - 数据访问 | `SystemConfigurationRepository.cs` |
+| `*Manager` | 管理器 - 协调多个服务 | `UpstreamConnectionManager.cs` |
+| `*Worker` | 后台工作服务 | `PanelButtonMonitorWorker.cs` |
+| `*Handler` | 处理器 - 处理特定事件或请求 | `SortingExceptionHandler.cs` |
+| `*Factory` | 工厂类 - 创建对象实例 | `UpstreamRoutingClientFactory.cs` |
+| `*Provider` | 提供者 - 提供特定功能或数据 | `SensorVendorConfigProvider.cs` |
+| `*Client` | 客户端 - 外部服务连接 | `TcpRuleEngineClient.cs` |
+| `*Server` | 服务器 - 接受外部连接 | `TouchSocketTcpRuleEngineServer.cs` |
+| `*Driver` | 驱动程序 - 硬件设备控制 | `LeadshineWheelDiverterDriver.cs` |
+| `*Adapter` | 适配器 - 接口转换 | `ServerModeClientAdapter.cs` |
+| `*Mapper` | 映射器 - 对象转换 | `VendorIoMapper.cs` |
+| `*Validator` | 验证器 - 数据验证 | `ConfigurationValidator.cs` |
+| `*Options` | 配置选项类 | `UpstreamConnectionOptions.cs` |
+| `*Configuration` | 配置模型 | `SystemConfiguration.cs` |
+| `*Dto` / `*DTO` | 数据传输对象 | `SystemConfigDto.cs` |
+| `*Request` | 请求模型 | `UpdateSystemConfigRequest.cs` |
+| `*Response` | 响应模型 | `ApiResponse.cs` |
+| `*Event` | 事件类 | `EmcLockEvent.cs` |
+| `*EventArgs` | 事件参数 | `ParcelDetectedEventArgs.cs` |
+| `*Exception` | 自定义异常类 | `ConfigurationException.cs` |
+| `*Extensions` | 扩展方法类 | `ServiceCollectionExtensions.cs` |
+| `*Helper` | 辅助工具类 | `LoggingHelper.cs` |
+| `*Utility` / `*Utilities` | 实用工具类 | `SystemClockUtilities.cs` |
+| `*Constants` | 常量定义 | `ErrorCodes.cs` |
+| `I*` (接口) | 接口定义 | `ISystemConfigService.cs` |
+| `Program` | 程序入口点 | `Program.cs` |
+
+### 7.2 按项目分类的文件清单
+
+# 完整文件清单 (Complete File Inventory)
+
+> 本章节列出仓库中所有源代码文件及其用途描述。
+> 
+> **生成时间**: 2025-12-11
+
+---
+
+## Application
+
+- `ZakYip.WheelDiverterSorter.Application/ApplicationServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Application/Extensions/WheelDiverterSorterServiceCollectionExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Application/Services/Caching/CachedSwitchingPathGenerator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Application/Services/Caching/ISlidingConfigCache.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Application/Services/Caching/SlidingConfigCache.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/CommunicationConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/ConveyorSegmentService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/ICommunicationConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/IConveyorSegmentService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/IIoLinkageConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/ILoggingConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/ISystemConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/IVendorConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/IoLinkageConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/LoggingConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/SystemConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Config/VendorConfigService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Debug/DebugSortService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Debug/IDebugSortService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Health/IPreRunHealthCheckService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Health/PreRunHealthCheckService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Metrics/CommunicationStatsService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Metrics/CongestionDataCollector.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Application/Services/Metrics/SorterMetrics.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Application/Services/Simulation/ISimulationOrchestratorService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Simulation/SimulationModeProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Application/Services/Sorting/ChangeParcelChuteService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Sorting/IChangeParcelChuteService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Sorting/OptimizedSortingService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Topology/ChutePathTopologyService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/Topology/IChutePathTopologyService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/WheelDiverter/IWheelDiverterConnectionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Application/Services/WheelDiverter/WheelDiverterConnectionService.cs` - 服务层 - 业务逻辑实现
+
+## Core
+
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Execution/ICongestionDataCollector.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Execution/ISwitchingPathExecutor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Execution/IWheelCommandExecutor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Execution/PathExecutionResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Execution/WheelCommand.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Ingress/ISensorEventProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/IUpstreamContractMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/IUpstreamRoutingClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Core/Chaos/ChaosInjectionOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Core/Chaos/ChaosInjectionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Core/Chaos/IChaosInjector.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Communication/CircuitState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Communication/CommunicationMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Communication/ConnectionMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Communication/EmcLockNotificationType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Communication/UpstreamProtocolType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/ActuatorBindingType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/DiverterDirection.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/DiverterSide.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/DriverCategory.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/DriverVendorType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/IoBehaviorMode.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/IoLevel.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/IoPointType.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/IoType.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/PanelButtonType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/S7CpuType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/SensorBindingType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/SensorFaultType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/SensorIoType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/SensorType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/SensorVendorType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/SignalTowerChannel.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/TriggerLevel.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/VendorId.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/Vendors/ShuDiNiaoControlCommand.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/Vendors/ShuDiNiaoDeviceState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/Vendors/ShuDiNiaoMessageType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/Vendors/ShuDiNiaoMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/Vendors/ShuDiNiaoResponseCode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/WheelCommandResultType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/WheelDeviceState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/WheelDiverterCommand.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/WheelDiverterState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Hardware/WheelDiverterVendorType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/AlarmLevel.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/AlarmType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/AlertSeverity.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/CongestionLevel.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/DiagnosticsLevel.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/HealthStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Monitoring/OverloadReason.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Parcel/DenseParcelStrategy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Parcel/ParcelFinalStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Parcel/ParcelGenerationMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Parcel/ParcelSimulationStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Simulation/SimulationStepType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Simulation/StepStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Sorting/ChuteChangeOutcome.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Sorting/ExceptionType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Sorting/PathFailureReason.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Sorting/RoutePlanStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Sorting/SortingMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/Sorting/TopologyNodeType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/System/BootstrapStage.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/System/DegradationMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/System/EnvironmentMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/System/RuntimeMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/System/SystemState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Enums/System/SystemStateExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Core/Events/Chute/ChuteAssignmentNotificationEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Chute/ChuteChangeAcceptedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Chute/ChuteChangeIgnoredEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Chute/ChuteChangeRequestedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Communication/EmcLockEvent.cs` - 事件类
+- `ZakYip.WheelDiverterSorter.Core/Events/Communication/EmcLockEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/EventArgsFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Core/Events/Hardware/DiverterDirectionChangedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Hardware/HardwareEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Monitoring/AlertRaisedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Monitoring/ParcelTraceEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Path/PathExecutionFailedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Path/PathSegmentExecutionFailedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Path/PathSegmentFailedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Path/PathSwitchedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Queue/ParcelTimedOutEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sensor/DuplicateTriggerEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sensor/ParcelDetectedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sensor/ParcelScannedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sensor/SensorErrorEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sensor/SensorFaultEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sensor/SensorRecoveryEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/EjectIssuedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/EjectPlannedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/OverloadEvaluatedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/ParcelCreatedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/ParcelDivertedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/ParcelDivertedToExceptionEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/RoutePlannedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/SortOrderCreatedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Events/Sorting/UpstreamAssignedEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Connectivity/INetworkConnectivityChecker.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/DiverterOperationResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/IEmcController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/IEmcResourceLockManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/IHeartbeatCapable.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/IWheelDiverterDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/IWheelDiverterDriverManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Devices/IWheelProtocolMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Core/Hardware/IAlarmOutputController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Core/Hardware/IDiscreteIoGroup.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/IDiscreteIoPort.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/ISensorInputReader.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/IWheelDiverterDevice.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/IoLinkage/IIoLinkageDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Mappings/IVendorIoMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Ports/IInputPort.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Ports/IOutputPort.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Hardware/Providers/ISensorVendorConfigProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Core/Hardware/VendorCapabilities.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/IoBinding/ActuatorBinding.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/IoBinding/IoBindingProfile.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/IoBinding/IoPointDescriptor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/IoBinding/SensorBinding.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/DefaultIoLinkageCoordinator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/DefaultPanelIoCoordinator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/IIoLinkageCoordinator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/IIoLinkageExecutor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/IPanelInputReader.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/IPanelIoCoordinator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/ISignalTowerOutput.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/PanelButtonState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Bindings/SignalTowerState.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Chutes/ChuteChangeDecision.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Chutes/WellKnownChuteIds.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ChuteAssignmentTimeoutOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ChutePathTopologyConfig.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ChuteRouteConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ChuteSensorConfig.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/CommunicationConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ConfigurationDefaults.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ConveyorSegmentConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/DiverterConfigurationEntry.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/DriverConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/IoLinkageConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/IoLinkageOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/IoLinkagePoint.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/LoggingConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/PanelConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/SensorConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/SystemConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/WheelDiverterConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IChutePathTopologyRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/ICommunicationConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IConveyorSegmentRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IDriverConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IIoLinkageConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/ILoggingConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IPanelConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IRouteConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/ISensorConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/ISystemConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Repositories/Interfaces/IWheelDiverterConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Validation/IoEndpointValidator.cs` - 验证器 - 数据验证
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Validation/ValidateCollectionItemsAttribute.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Orchestration/IRouteTopologyConsistencyChecker.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Orchestration/RouteTopologyConsistencyChecker.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Routing/IRoutePlanRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Routing/RouteComputationResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Routing/RoutePlan.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Routing/SortOrder.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/BootstrapStageInfo.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/ConfigHealthStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/DriverHealthStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/IDriverSelfTest.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/INodeHealthRegistry.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/IUpstreamHealthChecker.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/NodeHealthStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/SystemSelfTestReport.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/Health/UpstreamHealthStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Runtime/IRuntimeProfile.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Services/IAlertSink.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Services/IChuteAssignmentTimeoutCalculator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Services/ISystemStateManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/DefaultSorterTopologyProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/DefaultSwitchingPathGenerator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/DiverterNode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/ISwitchingPathGenerator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/SorterTopology.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/SwitchingPath.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Topology/SwitchingPathSegment.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Tracing/IParcelTraceSink.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Utilities/ChuteIdHelper.cs` - 辅助工具类
+- `ZakYip.WheelDiverterSorter.Core/LineModel/Utilities/LoggingHelper.cs` - 辅助工具类
+- `ZakYip.WheelDiverterSorter.Core/Results/ErrorCodes.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Results/OperationResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Contracts/AssignChuteContracts.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Contracts/CreateParcelContracts.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Contracts/SortingRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Contracts/SortingResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Exceptions/InvalidResponseException.cs` - 自定义异常类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Exceptions/UpstreamUnavailableException.cs` - 自定义异常类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Interfaces/ICongestionDetector.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Interfaces/IReleaseThrottlePolicy.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Interfaces/ISortingContextProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Interfaces/ISortingDecisionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Interfaces/ISortingExceptionPolicy.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Interfaces/IUpstreamSortingGateway.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Models/ChuteAssignment.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Models/CongestionMetrics.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Models/ExceptionRoutingPolicy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Models/ParcelDescriptor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Models/ParcelDescriptorExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Models/ReleaseThrottleConfiguration.cs` - 配置模型
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Orchestration/ISortingExceptionHandler.cs` - 处理器 - 处理特定事件或请求
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Orchestration/ISortingOrchestrator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Overload/DefaultOverloadHandlingPolicy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Overload/IOverloadHandlingPolicy.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Overload/IStrategyFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Overload/OverloadContext.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Overload/OverloadDecision.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Overload/StrategyProfile.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Pipeline/ISortingPipelineMiddleware.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Pipeline/SortingPipelineContext.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/DefaultReleaseThrottlePolicy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/DefaultSortingExceptionPolicy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/RoutingOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/SimpleCapacityEstimator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/SortingSystemOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/ThresholdCongestionDetector.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Policies/UpstreamConnectionOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Runtime/CapacityEstimationResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Runtime/CapacityHistory.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Runtime/CongestionSnapshot.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Runtime/ICapacityEstimator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/SortingOptionsServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Strategy/ChuteSelectionResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Strategy/IChuteSelectionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Strategy/IChuteSelectionStrategy.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Sorting/Strategy/SortingContext.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Core/Utilities/ISystemClock.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Core/Utilities/LocalSystemClock.cs` - 类定义
+
+## Drivers
+
+- `ZakYip.WheelDiverterSorter.Drivers/Diagnostics/RelayWheelDiverterSelfTest.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/DriverOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Drivers/FactoryBasedDriverManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Drivers/HardwareSwitchingPathExecutor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/IVendorDriverFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Drivers/InputPortBase.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Drivers/IoLinkageExecutor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Drivers/MockSwitchingPathExecutor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/OutputPortBase.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/Configuration/DatabaseBackedLeadshineSensorVendorConfigProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/Configuration/LeadshineDiverterConfigDto.cs` - 数据传输对象
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/Configuration/LeadshineOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/Configuration/LeadshineSensorConfigDto.cs` - 数据传输对象
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/Configuration/LeadshineSensorOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/Configuration/LeadshineSensorVendorConfigProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/CoordinatedEmcController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/EmcNamedMutexLock.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/IEmcResourceLock.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/IoMapping/LeadshineIoMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LTDMC.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineDiscreteIoAdapter.cs` - 适配器 - 接口转换
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineDiverterConfig.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineEmcController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineInputPort.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineIoLinkageDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineIoServiceCollectionExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineOutputPort.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshinePanelInputReader.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineSensorInputReader.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineVendorDriverFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Leadshine/LeadshineWheelDiverterDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/Configuration/ShuDiNiaoOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/Events/DeviceConnectionEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/Events/DeviceStatusEventArgs.cs` - 事件参数
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoProtocol.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoSpeedConverter.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelDiverterDeviceAdapter.cs` - 适配器 - 接口转换
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelDiverterDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelDiverterDriverManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelProtocolMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelServer.cs` - 服务器 - 接受外部连接
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelServiceCollectionExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/Configuration/S7Options.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/S7Connection.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/S7InputPort.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/S7IoLinkageDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/S7OutputPort.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Siemens/SiemensS7ServiceCollectionExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/Configuration/SimulatedOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/IoMapping/SimulatedIoMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedDiscreteIo.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedDriverServiceCollectionExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedIoLinkageDriver.cs` - 驱动程序 - 硬件设备控制
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedOutputPort.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedPanelInputReader.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedSensorInputReader.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedSignalTowerOutput.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedVendorDriverFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Drivers/Vendors/Simulated/SimulatedWheelDiverterDevice.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/WheelCommandExecutor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Drivers/WheelDriverException.cs` - 自定义异常类
+
+## Execution
+
+- `ZakYip.WheelDiverterSorter.Execution/BackgroundServices/PendingParcelTimeoutMonitor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/ConcurrencyOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/ConcurrencyServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/ConcurrentSwitchingPathExecutor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/DiverterResourceLock.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/DiverterResourceLockManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/IDiverterResourceLock.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/IParcelQueue.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/MonitoredParcelQueue.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/ParcelQueueItem.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Concurrency/PriorityParcelQueue.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Diagnostics/AnomalyDetector.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Diagnostics/DiagnosticsOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Execution/Diagnostics/IAnomalyDetector.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Execution/Extensions/NodeHealthServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Execution/Health/NodeHealthMonitorService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Execution/Health/NodeHealthRegistry.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Health/PathHealthChecker.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Infrastructure/DefaultStrategyFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Execution/Infrastructure/SystemStateManagerAdapter.cs` - 适配器 - 接口转换
+- `ZakYip.WheelDiverterSorter.Execution/Orchestration/SortingExceptionHandler.cs` - 处理器 - 处理特定事件或请求
+- `ZakYip.WheelDiverterSorter.Execution/Orchestration/SortingOrchestrator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/PathExecution/IPathExecutionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Execution/PathExecution/IPathFailureHandler.cs` - 处理器 - 处理特定事件或请求
+- `ZakYip.WheelDiverterSorter.Execution/PathExecution/PathExecutionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Execution/PathExecution/PathExecutionServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Execution/PathExecution/PathFailureHandler.cs` - 处理器 - 处理特定事件或请求
+- `ZakYip.WheelDiverterSorter.Execution/Pipeline/Middlewares/OverloadEvaluationMiddleware.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Pipeline/Middlewares/PathExecutionMiddleware.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Pipeline/Middlewares/RoutePlanningMiddleware.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Pipeline/Middlewares/TracingMiddleware.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Pipeline/Middlewares/UpstreamAssignmentMiddleware.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Pipeline/SortingPipeline.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Queues/PendingParcelQueue.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Routing/IRouteReplanner.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Execution/Routing/RouteReplanner.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/SelfTest/DefaultConfigValidator.cs` - 验证器 - 数据验证
+- `ZakYip.WheelDiverterSorter.Execution/SelfTest/IConfigValidator.cs` - 验证器 - 数据验证
+- `ZakYip.WheelDiverterSorter.Execution/SelfTest/ISelfTestCoordinator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Execution/SelfTest/SystemSelfTestCoordinator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Strategy/CompositeChuteSelectionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Execution/Strategy/FixedChuteSelectionStrategy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Strategy/FormalChuteSelectionStrategy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Execution/Strategy/RoundRobinChuteSelectionStrategy.cs` - 类定义
+
+## Host
+
+- `ZakYip.WheelDiverterSorter.Host/Controllers/AlarmsController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/ApiControllerBase.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Host/Controllers/ChuteAssignmentTimeoutController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/ChutePathTopologyController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/CommunicationController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/ConveyorSegmentController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/DivertsController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/HardwareConfigController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/HealthController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/IoLinkageController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/LoggingConfigController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/PanelConfigController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/PolicyController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/SimulationConfigController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/SimulationController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/SystemConfigController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Controllers/SystemOperationsController.cs` - API 控制器 - 处理 HTTP 请求
+- `ZakYip.WheelDiverterSorter.Host/Health/HostHealthStatusProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Host/Models/ApiResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/ChuteChangeRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/ChuteChangeResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/CommunicationConfigurationRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/CommunicationConfigurationResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/CommunicationStatusResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/ConnectionTestResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/StateValidationErrorResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/TestParcelRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Communication/TestParcelResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/ChuteAssignmentTimeoutRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/ChuteAssignmentTimeoutResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/ChutePathTopologyDto.cs` - 数据传输对象
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/ChuteSensorConfigRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/ConveyorSegmentDto.cs` - 数据传输对象
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/DiverterConfigRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/IoLinkageConfigRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/IoLinkageConfigResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/IoLinkagePointRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/LoggingConfigRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/LoggingConfigResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SetBatchIoPointsRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SetIoPointRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SimulationConfigRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SimulationConfigResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SortingModeRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SortingModeResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SystemConfigRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Config/SystemConfigResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/DebugSortRequest.cs` - 请求模型
+- `ZakYip.WheelDiverterSorter.Host/Models/DebugSortResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Models/Panel/PanelConfigModels.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Host/Models/ReleaseThrottleConfigDto.cs` - 数据传输对象
+- `ZakYip.WheelDiverterSorter.Host/Models/SystemStatusResponse.cs` - 响应模型
+- `ZakYip.WheelDiverterSorter.Host/Program.cs` - 程序入口点
+- `ZakYip.WheelDiverterSorter.Host/Services/Extensions/HealthCheckServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Host/Services/Extensions/SystemStateServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Host/Services/Extensions/WheelDiverterSorterHostServiceCollectionExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/AlarmMonitoringWorker.cs` - 后台工作服务
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/BootHostedService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/PanelButtonMonitorWorker.cs` - 后台工作服务
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/RouteTopologyConsistencyCheckWorker.cs` - 后台工作服务
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/SortingServicesInitHostedService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/SystemStateWheelDiverterCoordinator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/WheelDiverterHeartbeatMonitor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Host/Services/Workers/WheelDiverterInitHostedService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Host/StateMachine/ISystemStateManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Host/StateMachine/SystemStateManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Host/StateMachine/SystemStateManagerWithBoot.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Host/Swagger/IoDriverConfigurationSchemaFilter.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Host/Swagger/WheelDiverterConfigurationSchemaFilter.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Host/Swagger/WheelDiverterControllerDocumentFilter.cs` - 类定义
+
+## Infrastructure
+
+- `ZakYip.WheelDiverterSorter.Communication/Abstractions/ICommunicationInfrastructure.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Communication/Abstractions/IRuleEngineHandler.cs` - 处理器 - 处理特定事件或请求
+- `ZakYip.WheelDiverterSorter.Communication/Abstractions/IRuleEngineServer.cs` - 服务器 - 接受外部连接
+- `ZakYip.WheelDiverterSorter.Communication/Abstractions/IUpstreamConnectionManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Communication/Abstractions/IUpstreamRoutingClientFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Communication/Adapters/DefaultUpstreamContractMapper.cs` - 映射器 - 对象转换
+- `ZakYip.WheelDiverterSorter.Communication/Adapters/ServerModeClientAdapter.cs` - 适配器 - 接口转换
+- `ZakYip.WheelDiverterSorter.Communication/Clients/EmcResourceLockManagerBase.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Clients/EmcResourceLockManagerFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Communication/Clients/MqttEmcResourceLockManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Communication/Clients/MqttRuleEngineClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Communication/Clients/RuleEngineClientBase.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Clients/SignalREmcResourceLockManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Communication/Clients/SignalRRuleEngineClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Communication/Clients/TcpEmcResourceLockManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Communication/Clients/TcpRuleEngineClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Communication/Clients/TouchSocketTcpRuleEngineClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Communication/CommunicationServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Communication/Configuration/CommunicationMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Configuration/ConnectionMode.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Configuration/EmcLockOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Communication/Gateways/SignalRUpstreamSortingGateway.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Gateways/TcpUpstreamSortingGateway.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Gateways/UpstreamSortingGatewayFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Communication/Health/RuleEngineUpstreamHealthChecker.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/DefaultCommunicationInfrastructure.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/ExponentialBackoffRetryPolicy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/JsonMessageSerializer.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/SimpleCircuitBreaker.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/UpstreamConnectionBackgroundService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/UpstreamConnectionManager.cs` - 管理器 - 协调多个服务
+- `ZakYip.WheelDiverterSorter.Communication/Infrastructure/UpstreamServerBackgroundService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Communication/Models/ChuteAssignmentNotification.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Models/ParcelDetectionNotification.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/Models/SortingCompletedNotification.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Communication/RuleEngineServerFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Communication/Servers/MqttRuleEngineServer.cs` - 服务器 - 接受外部连接
+- `ZakYip.WheelDiverterSorter.Communication/Servers/SignalRRuleEngineServer.cs` - 服务器 - 接受外部连接
+- `ZakYip.WheelDiverterSorter.Communication/Servers/TouchSocketTcpRuleEngineServer.cs` - 服务器 - 接受外部连接
+- `ZakYip.WheelDiverterSorter.Communication/UpstreamRoutingClientFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbChutePathTopologyRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbCommunicationConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbConveyorSegmentRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbDriverConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbIoLinkageConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbLoggingConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbMapperConfig.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbPanelConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbRouteConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbRoutePlanRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbSensorConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbSystemConfigurationRepository.cs` - 仓储层 - 数据访问
+- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbWheelDiverterConfigurationRepository.cs` - 仓储层 - 数据访问
+
+## Ingress
+
+- `ZakYip.WheelDiverterSorter.Ingress/Adapters/SensorEventProviderAdapter.cs` - 适配器 - 接口转换
+- `ZakYip.WheelDiverterSorter.Ingress/Configuration/MockSensorConfigDto.cs` - 数据传输对象
+- `ZakYip.WheelDiverterSorter.Ingress/Configuration/ParcelDetectionOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Ingress/Configuration/SensorOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Ingress/IParcelDetectionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Ingress/ISensor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Ingress/ISensorFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Ingress/Models/SensorEvent.cs` - 事件类
+- `ZakYip.WheelDiverterSorter.Ingress/Models/SensorFaultType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Ingress/Models/SensorHealthStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Ingress/SensorServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Ingress/SensorType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Ingress/SensorVendorType.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Ingress/Sensors/LeadshineSensor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Ingress/Sensors/LeadshineSensorFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Ingress/Sensors/MockSensor.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Ingress/Sensors/MockSensorFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Ingress/Services/ISensorHealthMonitor.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Ingress/Services/ParcelDetectionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Ingress/Services/SensorHealthMonitor.cs` - 类定义
+
+## Observability
+
+- `ZakYip.WheelDiverterSorter.Observability/AlarmEvent.cs` - 事件类
+- `ZakYip.WheelDiverterSorter.Observability/AlarmService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Observability/AlertHistoryService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Observability/ConfigurationAudit/ConfigurationAuditLogger.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/ConfigurationAudit/IConfigurationAuditLogger.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Observability/FileAlertSink.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/IParcelLifecycleLogger.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Observability/ISimulationReportWriter.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Observability/Infrastructure/NetworkConnectivityChecker.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/LogAlertSink.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/MarkdownReportWriter.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/ObservabilityServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Observability/ParcelLifecycleContext.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/ParcelLifecycleLogger.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/ParcelTimelineCollector.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/ParcelTimelineSnapshot.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/PrometheusMetrics.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/Runtime/Health/IHealthStatusProvider.cs` - 提供者 - 提供特定功能或数据
+- `ZakYip.WheelDiverterSorter.Observability/Runtime/Health/LineHealthSnapshot.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/Runtime/RuntimePerformanceCollector.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/Tracing/DefaultLogCleanupPolicy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/Tracing/FileBasedParcelTraceSink.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/Tracing/ILogCleanupPolicy.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Observability/Tracing/LogCleanupHostedService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Observability/Tracing/LogCleanupOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/DeduplicatedLoggerExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/EventHandlerExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/ILogDeduplicator.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/ISafeExecutionService.cs` - 服务层 - 业务逻辑实现
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/InfrastructureServiceExtensions.cs` - 扩展方法类
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/LogDeduplicator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Observability/Utilities/SafeExecutionService.cs` - 服务层 - 业务逻辑实现
+
+## Simulation
+
+- `ZakYip.WheelDiverterSorter.Simulation.Cli/Clients/SimulatedUpstreamRoutingClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Simulation.Cli/Program.cs` - 程序入口点
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/ChaosScenarioDefinitions.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/Configuration/DropoutModelOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/Configuration/FrictionModelOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/Configuration/SensorFaultOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/Configuration/SimulationOptions.cs` - 配置选项类
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/ParcelExpectation.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/ScenarioDefinitions.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation.Scenarios/SimulationScenario.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Configuration/DenseParcelStrategy.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Models/SimulatedSensorEvent.cs` - 事件类
+- `ZakYip.WheelDiverterSorter.Simulation/Results/ParcelSimulationResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Results/ParcelSimulationStatus.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Results/SimulationSummary.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Scenarios/SimulationScenarioSerializer.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Services/CapacityTestingRunner.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Services/CongestionMetricsCollector.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Services/ISimulationScenarioRunner.cs` - 接口定义
+- `ZakYip.WheelDiverterSorter.Simulation/Services/ParcelTimelineFactory.cs` - 工厂类 - 创建对象实例
+- `ZakYip.WheelDiverterSorter.Simulation/Services/SimulationReportPrinter.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Services/SimulationRunner.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Services/SimulationScenarioRunner.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Strategies/Reports/StrategyExperimentReportWriter.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Strategies/StrategyExperimentConfig.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Strategies/StrategyExperimentResult.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Simulation/Strategies/StrategyExperimentRunner.cs` - 类定义
+
+## ZakYip.WheelDiverterSorter.Analyzers
+
+- `ApiControllerResponseTypeAnalyzer.cs` - 类定义
+- `BackgroundServiceSafeExecutionAnalyzer.cs` - 类定义
+- `DateTimeNowUsageAnalyzer.cs` - 类定义
+- `UtcTimeUsageAnalyzer.cs` - 类定义
+
+
+---
+
+**文档版本**：4.0 (完整文件清单更新)
+**最后更新**：2025-12-11
 **维护团队**：ZakYip Development Team
