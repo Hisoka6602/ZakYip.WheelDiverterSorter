@@ -382,26 +382,11 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <returns>防抖时间窗口（毫秒）</returns>
+    /// <remarks>
+    /// v2.0: 统一使用全局默认值，不再支持单独配置
+    /// </remarks>
     private int GetDeduplicationWindowForSensor(long sensorId)
     {
-        // 尝试从传感器配置读取
-        if (_sensorConfigRepository != null)
-        {
-            try
-            {
-                var config = _sensorConfigRepository.Get();
-                var sensor = config?.Sensors?.FirstOrDefault(s => s.SensorId == sensorId);
-                if (sensor?.DeduplicationWindowMs.HasValue == true)
-                {
-                    return sensor.DeduplicationWindowMs.Value;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger?.LogWarning(ex, "读取传感器 {SensorId} 的防抖配置失败，使用全局默认值", sensorId);
-            }
-        }
-
         // 使用全局默认值
         return _options.DeduplicationWindowMs;
     }

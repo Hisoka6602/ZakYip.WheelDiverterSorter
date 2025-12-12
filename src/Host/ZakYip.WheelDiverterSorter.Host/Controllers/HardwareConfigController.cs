@@ -289,6 +289,12 @@ public class HardwareConfigController : ControllerBase
     /// - 建议范围：5-50ms，推荐10-20ms
     /// - 支持为每个传感器单独配置不同的轮询间隔
     /// 
+    /// **重要变更（v2.0）**：
+    /// - 移除了 `boundWheelDiverterId` 和 `boundChuteId` 字段
+    /// - 传感器与摆轮/格口的绑定关系现在通过**拓扑配置 (topology configuration)** 管理
+    /// - WheelFront 传感器通过 `DiverterPathNode.FrontSensorId` 绑定到摆轮
+    /// - 这样可以更灵活地配置拓扑结构，无需修改传感器硬件配置
+    /// 
     /// **示例响应：**
     /// ```json
     /// {
@@ -354,6 +360,11 @@ public class HardwareConfigController : ControllerBase
     ///   - 10-20ms: 标准速度（推荐，平衡性能）
     ///   - 20-50ms: 低速场景（低CPU占用，较低精度）
     /// 
+    /// **重要变更（v2.0）**：
+    /// - 不再需要配置 `boundWheelDiverterId` 和 `boundChuteId`
+    /// - 绑定关系由拓扑配置管理（参见 `/api/config/chute-path-topology`）
+    /// - `deduplicationWindowMs` 移至全局配置，不再支持单独设置
+    /// 
     /// **示例请求：**
     /// ```json
     /// {
@@ -372,7 +383,6 @@ public class HardwareConfigController : ControllerBase
     ///       "sensorName": "摆轮1前感应IO",
     ///       "ioType": "WheelFront",
     ///       "bitNumber": 1,
-    ///       "boundWheelNodeId": "WHEEL-1",
     ///       "pollingIntervalMs": null,
     ///       "triggerLevel": "ActiveHigh",
     ///       "isEnabled": true
@@ -384,6 +394,7 @@ public class HardwareConfigController : ControllerBase
     /// **注意事项：**
     /// - 必须包含所有传感器的完整配置（替换式更新）
     /// - 配置立即生效，无需重启服务
+    /// - WheelFront 传感器与摆轮的绑定通过拓扑配置的 `frontSensorId` 字段管理
     /// 
     /// 详细配置指南：[docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md](https://github.com/Hisoka6602/ZakYip.WheelDiverterSorter/blob/main/docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md)
     /// </remarks>
