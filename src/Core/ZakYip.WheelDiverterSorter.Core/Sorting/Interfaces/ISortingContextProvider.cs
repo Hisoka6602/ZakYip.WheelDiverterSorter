@@ -1,4 +1,3 @@
-using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
@@ -35,10 +34,4 @@ public interface ISortingContextProvider
     /// </summary>
     /// <returns>可用格口ID列表</returns>
     IReadOnlyList<long> GetAvailableChuteIds();
-
-    /// <summary>
-    /// 获取异常路由策略
-    /// </summary>
-    /// <returns>异常路由策略</returns>
-    ExceptionRoutingPolicy GetExceptionRoutingPolicy();
 }

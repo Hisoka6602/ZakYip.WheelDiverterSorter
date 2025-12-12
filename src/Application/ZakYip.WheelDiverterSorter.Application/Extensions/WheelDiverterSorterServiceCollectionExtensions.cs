@@ -355,7 +355,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var routeRepo = sp.GetRequiredService<IRouteConfigurationRepository>();
             var topologyRepo = sp.GetRequiredService<IChutePathTopologyRepository>();
             var clock = sp.GetRequiredService<ISystemClock>();
-            return new DefaultSwitchingPathGenerator(routeRepo, topologyRepo, clock);
+            var conveyorSegmentRepo = sp.GetService<IConveyorSegmentRepository>(); // 可选，用于动态TTL计算
+            var logger = sp.GetService<ILogger<DefaultSwitchingPathGenerator>>();
+            return new DefaultSwitchingPathGenerator(routeRepo, topologyRepo, clock, conveyorSegmentRepo, logger);
         });
 
         // 使用装饰器模式添加缓存功能（可选，通过配置启用）
@@ -433,7 +435,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             // 可选依赖
             var pathFailureHandler = sp.GetService<IPathFailureHandler>();
             var congestionDetector = sp.GetService<ICongestionDetector>();
-            var overloadPolicy = sp.GetService<IOverloadHandlingPolicy>();
             var congestionCollector = sp.GetService<ICongestionDataCollector>();
             var metrics = sp.GetService<PrometheusMetrics>();
             var traceSink = sp.GetService<IParcelTraceSink>();
@@ -461,7 +462,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 systemStateManager, // 必需参数
                 pathFailureHandler,
                 congestionDetector,
-                overloadPolicy,
                 congestionCollector,
                 metrics,
                 traceSink,

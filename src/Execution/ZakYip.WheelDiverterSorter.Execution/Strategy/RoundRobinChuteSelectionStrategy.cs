@@ -25,18 +25,7 @@ public class RoundRobinChuteSelectionStrategy : IChuteSelectionStrategy
     /// <inheritdoc />
     public Task<ChuteSelectionResult> SelectChuteAsync(SortingContext context, CancellationToken cancellationToken)
     {
-        // 如果因超载强制路由到异常格口
-        if (context.IsOverloadForced)
-        {
-            _logger.LogDebug(
-                "包裹 {ParcelId} 因超载强制路由到异常格口 {ExceptionChuteId}",
-                context.ParcelId,
-                context.ExceptionChuteId);
-
-            return Task.FromResult(ChuteSelectionResult.Exception(
-                context.ExceptionChuteId,
-                "超载强制路由到异常格口"));
-        }
+        // 超载策略相关代码已删除
 
         // 验证可用格口列表配置
         if (context.AvailableChuteIds == null || context.AvailableChuteIds.Count == 0)

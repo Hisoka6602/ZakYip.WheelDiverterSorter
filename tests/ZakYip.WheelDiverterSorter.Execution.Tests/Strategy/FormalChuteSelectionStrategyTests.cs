@@ -58,28 +58,6 @@ public class FormalChuteSelectionStrategyTests : IDisposable
     }
 
     [Fact]
-    public async Task SelectChuteAsync_WithOverloadForced_ReturnsExceptionChute()
-    {
-        // Arrange
-        var context = new SortingContext
-        {
-            ParcelId = 1001,
-            SortingMode = SortingMode.Formal,
-            ExceptionChuteId = 999,
-            IsOverloadForced = true
-        };
-
-        // Act
-        var result = await _strategy.SelectChuteAsync(context, CancellationToken.None);
-
-        // Assert
-        Assert.True(result.IsSuccess);
-        Assert.Equal(999, result.TargetChuteId);
-        Assert.True(result.IsException);
-        Assert.Contains("超载", result.ExceptionReason);
-    }
-
-    [Fact]
     public async Task SelectChuteAsync_WhenNotConnected_ReturnsExceptionChute()
     {
         // Arrange
@@ -134,12 +112,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
         {
             ParcelId = 1001,
             SortingMode = SortingMode.Formal,
-            ExceptionChuteId = 999,
-            ExceptionRoutingPolicy = new ExceptionRoutingPolicy
-            {
-                ExceptionChuteId = 999,
-                UpstreamTimeoutMs = 5000
-            }
+            ExceptionChuteId = 999
         };
 
         // 创建一个不订阅事件的新策略实例，以便我们可以手动控制
@@ -177,12 +150,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
         {
             ParcelId = 1001,
             SortingMode = SortingMode.Formal,
-            ExceptionChuteId = 999,
-            ExceptionRoutingPolicy = new ExceptionRoutingPolicy
-            {
-                ExceptionChuteId = 999,
-                UpstreamTimeoutMs = 100 // 非常短的超时
-            }
+            ExceptionChuteId = 999
         };
 
         // 上游不响应
@@ -205,12 +173,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
         {
             ParcelId = 1001,
             SortingMode = SortingMode.Formal,
-            ExceptionChuteId = 999,
-            ExceptionRoutingPolicy = new ExceptionRoutingPolicy
-            {
-                ExceptionChuteId = 999,
-                UpstreamTimeoutMs = 10000
-            }
+            ExceptionChuteId = 999
         };
 
         using var cts = new CancellationTokenSource(50); // 短时间后取消
@@ -240,12 +203,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
         {
             ParcelId = 1001,
             SortingMode = SortingMode.Formal,
-            ExceptionChuteId = 999,
-            ExceptionRoutingPolicy = new ExceptionRoutingPolicy
-            {
-                ExceptionChuteId = 999,
-                UpstreamTimeoutMs = 5000
-            }
+            ExceptionChuteId = 999
         };
 
         // 启动选择任务

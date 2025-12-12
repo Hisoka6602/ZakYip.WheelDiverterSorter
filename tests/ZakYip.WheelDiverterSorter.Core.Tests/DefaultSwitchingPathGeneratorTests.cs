@@ -571,13 +571,13 @@ public class DefaultSwitchingPathGeneratorTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(3, result.TargetChuteId);
-        Assert.Equal(3, result.Segments.Count);
+        // 修复：只生成到目标摆轮的段，不生成后续摆轮的段（避免干扰后续包裹）
+        Assert.Equal(2, result.Segments.Count);
         // D1: 直通
         Assert.Equal(DiverterDirection.Straight, result.Segments[0].TargetDirection);
         // D2: 左
         Assert.Equal(DiverterDirection.Left, result.Segments[1].TargetDirection);
-        // D3: 直通（包裹已经被分走了）
-        Assert.Equal(DiverterDirection.Straight, result.Segments[2].TargetDirection);
+        // D3: 不再生成（包裹已经在D2被分走，不需要D3的指令）
     }
 
     [Fact]

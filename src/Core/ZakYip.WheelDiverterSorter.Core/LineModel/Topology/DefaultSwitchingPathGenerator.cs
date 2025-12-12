@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using Microsoft.Extensions.Logging;
 
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
@@ -56,7 +57,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 
     private readonly IRouteConfigurationRepository? _routeRepository;
     private readonly IChutePathTopologyRepository? _topologyRepository;
+    private readonly IConveyorSegmentRepository? _conveyorSegmentRepository;
     private readonly ISystemClock? _systemClock;
+    private readonly ILogger? _logger;
     private bool _topologyConfigLogged = false;  // 用于记录是否已输出拓扑配置日志
 
     /// <summary>
@@ -73,12 +76,18 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </summary>
     /// <param name="topologyRepository">拓扑配置仓储</param>
     /// <param name="systemClock">系统时钟</param>
+    /// <param name="conveyorSegmentRepository">输送线段配置仓储（可选，用于动态TTL计算）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     public DefaultSwitchingPathGenerator(
         IChutePathTopologyRepository topologyRepository,
-        ISystemClock systemClock)
+        ISystemClock systemClock,
+        IConveyorSegmentRepository? conveyorSegmentRepository = null,
+        ILogger<DefaultSwitchingPathGenerator>? logger = null)
     {
         _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _conveyorSegmentRepository = conveyorSegmentRepository;
+        _logger = logger;
     }
 
     /// <summary>
@@ -87,17 +96,23 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <param name="routeRepository">路由配置仓储</param>
     /// <param name="topologyRepository">拓扑配置仓储</param>
     /// <param name="systemClock">系统时钟</param>
+    /// <param name="conveyorSegmentRepository">输送线段配置仓储（可选，用于动态TTL计算）</param>
+    /// <param name="logger">日志记录器（可选）</param>
     /// <remarks>
     /// 当同时提供两种仓储时，优先使用拓扑配置仓储（支持 N 摆轮模型）
     /// </remarks>
     public DefaultSwitchingPathGenerator(
         IRouteConfigurationRepository routeRepository,
         IChutePathTopologyRepository topologyRepository,
-        ISystemClock systemClock)
+        ISystemClock systemClock,
+        IConveyorSegmentRepository? conveyorSegmentRepository = null,
+        ILogger<DefaultSwitchingPathGenerator>? logger = null)
     {
         _routeRepository = routeRepository;
         _topologyRepository = topologyRepository;
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _conveyorSegmentRepository = conveyorSegmentRepository;
+        _logger = logger;
     }
 
     /// <summary>
@@ -130,6 +145,11 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </summary>
     /// <param name="targetChuteId">目标格口ID</param>
     /// <returns>生成的摆轮路径</returns>
+    /// <remarks>
+    /// 修复问题：
+    /// 1. TTL 计算从硬编码改为基于 ConveyorSegmentConfiguration 的动态计算
+    /// 2. 路径只生成到目标摆轮，不生成后续摆轮的段（避免干扰后续包裹）
+    /// </remarks>
     private SwitchingPath? GeneratePathFromTopology(long targetChuteId)
     {
         var topologyConfig = _topologyRepository!.Get();
@@ -159,6 +179,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         if (targetNode == null)
         {
             // 无法找到目标格口，返回 null，由调用方处理（走异常口）
+            _logger?.LogWarning(
+                "[路径生成失败] 目标格口 {TargetChuteId} 在拓扑配置中不存在",
+                targetChuteId);
             return null;
         }
 
@@ -166,14 +189,25 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         var direction = topologyConfig.GetChuteDirection(targetChuteId);
         if (direction == null)
         {
+            _logger?.LogWarning(
+                "[路径生成失败] 无法确定格口 {TargetChuteId} 的分拣方向",
+                targetChuteId);
             return null;
         }
 
-        // 生成路径段
+        // 生成路径段：只生成到目标摆轮的段，不包含后续摆轮
         var segments = new List<SwitchingPathSegment>();
         var sortedNodes = topologyConfig.DiverterNodes
             .OrderBy(n => n.PositionIndex)
+            .Where(n => n.PositionIndex <= targetNode.PositionIndex) // 只生成到目标摆轮
             .ToList();
+
+        _logger?.LogDebug(
+            "[路径生成] 目标格口 {TargetChuteId} 位于摆轮 {DiverterId} (PositionIndex={PositionIndex})，将生成 {SegmentCount} 个路径段",
+            targetChuteId,
+            targetNode.DiverterId,
+            targetNode.PositionIndex,
+            sortedNodes.Count);
 
         for (int i = 0; i < sortedNodes.Count; i++)
         {
@@ -192,18 +226,28 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             }
             else
             {
-                // 在目标节点之后的节点：直通（包裹已经被分拣走）
+                // 这个分支理论上不应该到达，因为我们已经过滤了 PositionIndex > targetNode.PositionIndex 的节点
+                // 但为了代码健壮性，仍然处理这种情况
                 targetDirection = DiverterDirection.Straight;
             }
+
+            // 计算该段的 TTL
+            var ttlMs = CalculateSegmentTtl(node.SegmentId);
 
             segments.Add(new SwitchingPathSegment
             {
                 SequenceNumber = i + 1,
                 DiverterId = node.DiverterId,
                 TargetDirection = targetDirection,
-                TtlMilliseconds = DefaultSegmentTtlMs
+                TtlMilliseconds = ttlMs
             });
         }
+
+        _logger?.LogInformation(
+            "[路径生成成功] 目标格口={TargetChuteId}, 路径段数={SegmentCount}, 总预计TTL={TotalTtlMs}ms",
+            targetChuteId,
+            segments.Count,
+            segments.Sum(s => s.TtlMilliseconds));
 
         return new SwitchingPath
         {
@@ -230,14 +274,21 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         for (int i = 0; i < sortedNodes.Count; i++)
         {
             var node = sortedNodes[i];
+            var ttlMs = CalculateSegmentTtl(node.SegmentId);
+            
             segments.Add(new SwitchingPathSegment
             {
                 SequenceNumber = i + 1,
                 DiverterId = node.DiverterId,
                 TargetDirection = DiverterDirection.Straight,
-                TtlMilliseconds = DefaultSegmentTtlMs
+                TtlMilliseconds = ttlMs
             });
         }
+
+        _logger?.LogInformation(
+            "[异常格口路径生成] 路径段数={SegmentCount}, 总预计TTL={TotalTtlMs}ms",
+            segments.Count,
+            segments.Sum(s => s.TtlMilliseconds));
 
         return new SwitchingPath
         {
@@ -246,6 +297,59 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             GeneratedAt = _systemClock!.LocalNowOffset,
             FallbackChuteId = topologyConfig.ExceptionChuteId
         };
+    }
+
+    /// <summary>
+    /// 计算路径段的 TTL（基于输送线段配置）
+    /// </summary>
+    /// <param name="segmentId">线段ID</param>
+    /// <returns>TTL（毫秒）</returns>
+    /// <remarks>
+    /// 修复问题：TTL从硬编码5000ms改为根据线体配置动态计算
+    /// 计算公式：TTL = (线段长度 / 线速) + 时间容差
+    /// </remarks>
+    private int CalculateSegmentTtl(long segmentId)
+    {
+        // 如果没有配置输送线段仓储，使用默认值
+        if (_conveyorSegmentRepository == null)
+        {
+            _logger?.LogWarning(
+                "[TTL计算] 未配置ConveyorSegmentRepository，使用默认TTL={DefaultTtlMs}ms（SegmentId={SegmentId}）",
+                DefaultSegmentTtlMs,
+                segmentId);
+            return DefaultSegmentTtlMs;
+        }
+
+        // 从仓储获取线段配置
+        var segmentConfig = _conveyorSegmentRepository.GetById(segmentId);
+        if (segmentConfig == null)
+        {
+            _logger?.LogWarning(
+                "[TTL计算] 线段配置不存在 (SegmentId={SegmentId})，使用默认TTL={DefaultTtlMs}ms",
+                segmentId,
+                DefaultSegmentTtlMs);
+            return DefaultSegmentTtlMs;
+        }
+
+        // 计算超时阈值：理论传输时间 + 时间容差
+        var calculatedTtlMs = (int)Math.Ceiling(segmentConfig.CalculateTimeoutThresholdMs());
+        
+        // 确保TTL不小于最小值（1秒）
+        const int MinTtlMs = 1000;
+        var finalTtl = Math.Max(calculatedTtlMs, MinTtlMs);
+
+        _logger?.LogDebug(
+            "[TTL计算] SegmentId={SegmentId}, 长度={LengthMm}mm, 速度={SpeedMmps}mm/s, " +
+            "容差={ToleranceMs}ms, 理论时间={TransitTimeMs:F0}ms, 计算TTL={CalculatedTtl}ms, 最终TTL={FinalTtl}ms",
+            segmentId,
+            segmentConfig.LengthMm,
+            segmentConfig.SpeedMmps,
+            segmentConfig.TimeToleranceMs,
+            segmentConfig.CalculateTransitTimeMs(),
+            calculatedTtlMs,
+            finalTtl);
+
+        return finalTtl;
     }
 
     /// <summary>

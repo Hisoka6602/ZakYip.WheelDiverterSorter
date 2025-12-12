@@ -75,7 +75,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly ISystemStateManager _systemStateManager; // 必需：用于状态验证
     private readonly ICongestionDetector? _congestionDetector;
-    private readonly IOverloadHandlingPolicy? _overloadPolicy;
     private readonly ICongestionDataCollector? _congestionCollector;
     private readonly PrometheusMetrics? _metrics;
     private readonly IParcelTraceSink? _traceSink;
@@ -129,7 +128,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISystemStateManager systemStateManager, // 必需：用于状态验证
         IPathFailureHandler? pathFailureHandler = null,
         ICongestionDetector? congestionDetector = null,
-        IOverloadHandlingPolicy? overloadPolicy = null,
         ICongestionDataCollector? congestionCollector = null,
         PrometheusMetrics? metrics = null,
         IParcelTraceSink? traceSink = null,
@@ -154,7 +152,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _systemStateManager = systemStateManager ?? throw new ArgumentNullException(nameof(systemStateManager)); // 必需
         _pathFailureHandler = pathFailureHandler;
         _congestionDetector = congestionDetector;
-        _overloadPolicy = overloadPolicy;
         _congestionCollector = congestionCollector;
         _metrics = metrics;
         _traceSink = traceSink;
@@ -700,67 +697,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 步骤 3: 拥堵检测与超载评估
     /// </summary>
+    /// <summary>
+    /// 步骤 3: 拥堵检测与超载评估
+    /// </summary>
     private Task<OverloadDecision> DetectCongestionAndOverloadAsync(long parcelId)
     {
-        // 如果没有配置拥堵检测和超载策略，返回正常决策
-        if (_congestionDetector == null || _overloadPolicy == null || _congestionCollector == null)
+        // 策略相关代码已删除，始终返回正常决策
+        return Task.FromResult(new OverloadDecision
         {
-            return Task.FromResult(new OverloadDecision
-            {
-                ShouldForceException = false,
-                ShouldMarkAsOverflow = false,
-                Reason = null
-            });
-        }
-
-        // 收集当前拥堵快照
-        var snapshot = _congestionCollector.CollectSnapshot();
-        
-        // 检测拥堵等级
-        var congestionLevel = _congestionDetector.Detect(in snapshot);
-        
-        // 更新拥堵等级指标
-        _metrics?.SetCongestionLevel((int)congestionLevel);
-        _metrics?.SetInFlightParcels(snapshot.InFlightParcels);
-        _metrics?.SetAverageLatency(snapshot.AverageLatencyMs);
-
-        // 构造超载上下文
-        var overloadContext = new OverloadContext
-        {
-            ParcelId = parcelId.ToString(),
-            TargetChuteId = 0, // 尚未分配目标格口
-            CurrentLineSpeed = DefaultLineSpeedMmps,
-            CurrentPosition = "Entry",
-            EstimatedArrivalWindowMs = EstimatedArrivalWindowMs,
-            CurrentCongestionLevel = congestionLevel,
-            RemainingTtlMs = EstimatedTotalTtlMs,
-            InFlightParcels = snapshot.InFlightParcels
-        };
-
-        // 评估是否需要超载处置
-        var overloadDecision = _overloadPolicy.Evaluate(in overloadContext);
-
-        if (overloadDecision.ShouldForceException)
-        {
-            _logger.LogWarning(
-                "包裹 {ParcelId} 触发超载策略，将路由到异常格口。原因：{Reason}，拥堵等级：{CongestionLevel}",
-                parcelId,
-                overloadDecision.Reason,
-                congestionLevel);
-
-            // 记录超载包裹指标
-            var reason = DetermineOverloadReason(overloadDecision.Reason);
-            _metrics?.RecordOverloadParcel(reason);
-        }
-        else if (overloadDecision.ShouldMarkAsOverflow)
-        {
-            _logger.LogInformation(
-                "包裹 {ParcelId} 标记为潜在超载风险。原因：{Reason}",
-                parcelId,
-                overloadDecision.Reason);
-        }
-
-        return Task.FromResult(overloadDecision);
+            ShouldForceException = false,
+            ShouldMarkAsOverflow = false,
+            Reason = null
+        });
     }
 
     /// <summary>
@@ -819,13 +767,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             SortingMode = systemConfig.SortingMode,
             ExceptionChuteId = systemConfig.ExceptionChuteId,
             FixedChuteId = systemConfig.FixedChuteId,
-            AvailableChuteIds = availableChuteIds,
-            IsOverloadForced = overloadDecision.ShouldForceException,
-            ExceptionRoutingPolicy = new ExceptionRoutingPolicy
-            {
-                ExceptionChuteId = systemConfig.ExceptionChuteId,
-                UpstreamTimeoutMs = (int)(CalculateChuteAssignmentTimeout(systemConfig) * 1000)
-            }
+            AvailableChuteIds = availableChuteIds
         };
 
         var result = await _chuteSelectionService!.SelectChuteAsync(context, CancellationToken.None);
@@ -1201,30 +1143,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 }
             }
 
-            // 5.3: 二次超载检查（路径规划阶段，PR-08C）
-            if (!isOverloadException && _overloadPolicy != null && _congestionCollector != null)
-            {
-                var secondaryCheck = await CheckSecondaryOverloadAsync(parcelId, path, targetChuteId, exceptionChuteId);
-                if (secondaryCheck.ShouldRouteToException)
-                {
-                    if (secondaryCheck.AlternativePath == null)
-                    {
-                        // 连异常格口路径都无法生成
-                        _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
-                        return new SortingResult(
-                            IsSuccess: false,
-                            ParcelId: parcelId.ToString(),
-                            ActualChuteId: 0,
-                            TargetChuteId: targetChuteId,
-                            ExecutionTimeMs: 0,
-                            FailureReason: "路由超载：连异常格口路径都无法生成"
-                        );
-                    }
-                    path = secondaryCheck.AlternativePath;
-                    targetChuteId = exceptionChuteId;
-                    isOverloadException = true;
-                }
-            }
+            // 5.3: 二次超载检查已删除（策略相关代码移除）
 
             // 5.4: 执行路径
             var executionResult = await ExecutePathWithTrackingAsync(parcelId, path, targetChuteId, isOverloadException, cancellationToken);
@@ -1365,82 +1284,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         return (true, null);
-    }
-
-    /// <summary>
-    /// 5.3: 二次超载检查（路径规划阶段，PR-08C）
-    /// </summary>
-    private async Task<(bool ShouldRouteToException, SwitchingPath? AlternativePath)> CheckSecondaryOverloadAsync(
-        long parcelId, 
-        SwitchingPath path, 
-        long targetChuteId, 
-        long exceptionChuteId)
-    {
-        // PR-5: Optimize - use simple loop instead of LINQ Sum
-        double totalRouteTimeMs = 0;
-        for (int i = 0; i < path.Segments.Count; i++)
-        {
-            totalRouteTimeMs += path.Segments[i].TtlMilliseconds;
-        }
-        double remainingTtlMs = EstimatedTotalTtlMs - EstimatedElapsedMs;
-
-        // 检查路径是否能在剩余时间内完成
-        if (totalRouteTimeMs <= remainingTtlMs)
-        {
-            return (false, null);
-        }
-
-        // 路由时间预算不足，调用超载策略
-        var snapshot = _congestionCollector!.CollectSnapshot();
-        var congestionLevel = _congestionDetector?.Detect(in snapshot) ?? CongestionLevel.Normal;
-        
-        var routeOverloadContext = new OverloadContext
-        {
-            ParcelId = parcelId.ToString(),
-            TargetChuteId = targetChuteId,
-            CurrentLineSpeed = DefaultLineSpeedMmps,
-            CurrentPosition = "PathPlanning",
-            EstimatedArrivalWindowMs = remainingTtlMs,
-            CurrentCongestionLevel = congestionLevel,
-            RemainingTtlMs = remainingTtlMs,
-            InFlightParcels = snapshot.InFlightParcels
-        };
-
-        var routeDecision = _overloadPolicy!.Evaluate(in routeOverloadContext);
-        
-        if (routeDecision.ShouldForceException)
-        {
-            _logger.LogWarning(
-                "包裹 {ParcelId} 路径规划阶段检测到超载：路径需要 {RequiredMs}ms，但剩余时间仅 {RemainingMs}ms，决策：{Decision}",
-                parcelId,
-                totalRouteTimeMs,
-                remainingTtlMs,
-                routeDecision.Reason);
-
-            // PR-10: 记录路由超载决策事件
-            await WriteTraceAsync(new ParcelTraceEventArgs
-            {
-                ItemId = parcelId,
-                BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                Stage = "OverloadDecision",
-                Source = "OverloadPolicy",
-                Details = $"Reason=RouteOverload, CongestionLevel={congestionLevel}, RequiredMs={totalRouteTimeMs:F0}, RemainingMs={remainingTtlMs:F0}"
-            });
-
-            // 记录路由超载指标
-            _metrics?.RecordOverloadParcel("RouteOverload");
-
-            // 使用统一的异常处理器生成到异常格口的路径
-            var alternativePath = _exceptionHandler.GenerateExceptionPath(
-                exceptionChuteId, 
-                parcelId, 
-                $"路径规划阶段超载: 需要{totalRouteTimeMs:F0}ms，剩余{remainingTtlMs:F0}ms");
-            
-            return (true, alternativePath);
-        }
-
-        return (false, null);
     }
 
     /// <summary>
@@ -1850,39 +1693,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     #endregion
 
     #region Helper Methods - 辅助方法
-
-    /// <summary>
-    /// 根据超载决策原因确定指标原因标签
-    /// </summary>
-    private string DetermineOverloadReason(string? decisionReason)
-    {
-        if (string.IsNullOrEmpty(decisionReason))
-        {
-            return "Unknown";
-        }
-
-        if (decisionReason.Contains("TTL") || decisionReason.Contains("超时") || decisionReason.Contains("Timeout"))
-        {
-            return "Timeout";
-        }
-
-        if (decisionReason.Contains("窗口") || decisionReason.Contains("Window"))
-        {
-            return "WindowMiss";
-        }
-
-        if (decisionReason.Contains("在途") || decisionReason.Contains("InFlight") || decisionReason.Contains("Capacity"))
-        {
-            return "CapacityExceeded";
-        }
-
-        if (decisionReason.Contains("拥堵") || decisionReason.Contains("Congestion"))
-        {
-            return "Congestion";
-        }
-
-        return "Other";
-    }
 
     /// <summary>
     /// 写入包裹追踪日志
