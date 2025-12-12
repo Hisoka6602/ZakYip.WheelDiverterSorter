@@ -355,7 +355,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var routeRepo = sp.GetRequiredService<IRouteConfigurationRepository>();
             var topologyRepo = sp.GetRequiredService<IChutePathTopologyRepository>();
             var clock = sp.GetRequiredService<ISystemClock>();
-            return new DefaultSwitchingPathGenerator(routeRepo, topologyRepo, clock);
+            var conveyorSegmentRepo = sp.GetService<IConveyorSegmentRepository>(); // 可选，用于动态TTL计算
+            var logger = sp.GetService<ILogger<DefaultSwitchingPathGenerator>>();
+            return new DefaultSwitchingPathGenerator(routeRepo, topologyRepo, clock, conveyorSegmentRepo, logger);
         });
 
         // 使用装饰器模式添加缓存功能（可选，通过配置启用）
