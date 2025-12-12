@@ -71,6 +71,111 @@
 - [TD-066] 合并 UpstreamServerBackgroundService 和 IUpstreamRoutingClient 为统一接口
 - [TD-067] 全面影分身代码检测
 - [TD-068] 异常格口包裹队列机制修复
+- [TD-069] 上游通信影分身清理与接口统一化
+- [TD-070] 硬件区域影分身代码检测
+- [TD-071] 冗余接口清理（信号塔、离散IO、报警控制）
+
+---
+
+## [TD-069] 上游通信影分身清理与接口统一化
+
+**状态**：⏳ 进行中 (PR-NOSHADOW-ALL)
+
+**问题描述**：
+- 上游通信接口分散：存在4个职责重叠的接口
+  - `IUpstreamRoutingClient` (Core/Abstractions/Upstream/) - 权威接口
+  - `IUpstreamSortingGateway` (Core/Sorting/Interfaces/) - 影分身，使用过时的请求-响应模式
+  - `IRuleEngineHandler` (Communication/Abstractions/) - 内部实现细节（Server模式）
+  - `IUpstreamConnectionManager` (Communication/Abstractions/) - 连接管理辅助
+- `IUpstreamSortingGateway` 及其3个实现类（TcpUpstreamSortingGateway, SignalRUpstreamSortingGateway, Factory）为纯转发包装器
+- 违反单一权威原则
+
+**解决方案**：
+1. 保留 `IUpstreamRoutingClient` 作为唯一对外接口
+2. 保留 `IRuleEngineHandler` 和 `IUpstreamConnectionManager`（内部实现细节）
+3. 删除 `IUpstreamSortingGateway` + 3个实现类 + factory
+4. 更新所有引用，统一使用 `IUpstreamRoutingClient`
+5. 更新文档和架构测试
+
+**影响范围**：
+- 删除的类型：4个（1接口 + 3实现类）
+- 受影响项目：Core, Communication, Execution, Tests
+- 风险级别：高（需要完整测试覆盖）
+
+**参考文档**：
+- `docs/PR_SHADOW_CLEANUP_AND_UPSTREAM_UNIFICATION.md` - 详细实施计划
+- `docs/guides/UPSTREAM_CONNECTION_GUIDE.md` - 上游协议权威文档
+
+---
+
+## [TD-070] 硬件区域影分身代码检测
+
+**状态**：✅ 已解决 (PR-NOSHADOW-ALL)
+
+**问题描述**：
+- 需要全面检测硬件相关区域是否存在影分身代码
+- 检测范围：Core/Hardware/, Drivers/Vendors/, 配置结构, 适配器模式
+
+**分析结果**：
+- ✅ **无影分身问题**：16个HAL接口统一位于 Core/Hardware/
+- ✅ **厂商实现正确隔离**：39个厂商实现文件正确位于 Drivers/Vendors/
+  - Leadshine: 16个文件（含EMC、IO端口、P/Invoke封装）
+  - ShuDiNiao: 8个文件（含TCP通信、协议解析）
+  - Simulated: 10个文件（完整仿真实现）
+  - Siemens: 5个文件（S7 PLC通信）
+- ✅ **适配器合理**：CoordinatedEmcController（装饰器模式，增加分布式锁）和 ShuDiNiaoWheelDiverterDeviceAdapter（适配器模式，协议转换）均提供实质业务逻辑
+- ✅ **配置分离正确**：Core配置模型（持久化、跨厂商）vs Drivers配置选项（运行时、厂商特定）职责清晰
+- ✅ **Application层服务合理**：IWheelDiverterConnectionService 和 IIoLinkageConfigService 为Application层业务编排服务，非影分身
+
+**结论**：
+- 硬件区域架构设计合理，无需清理
+- 所有接口遵循"单一权威"原则
+
+**参考文档**：
+- `docs/HARDWARE_SHADOW_CODE_ANALYSIS.md` - 详细分析报告（已归档）
+
+---
+
+## [TD-071] 冗余接口清理（信号塔、离散IO、报警控制）
+
+**状态**：✅ 已解决 (PR-NOSHADOW-ALL Phase 1)
+
+**问题描述**：
+- 信号塔相关接口已废弃（功能由IO联动替代）
+- 离散IO接口有实现但无调用方
+- 报警控制接口功能重复
+
+**已删除的接口/类** (9个):
+1. `IAlarmOutputController` - 功能已由IO联动替代
+2. `IDiscreteIoGroup` - 有实现但无调用方
+3. `IDiscreteIoPort` - 有实现但无调用方
+4. `ISignalTowerOutput` - 信号塔概念已废弃
+5. `SignalTowerState` - 信号塔状态模型
+6. `SignalTowerChannel` - 信号塔枚举
+7. `LeadshineDiscreteIoAdapter` - 离散IO实现类
+8. `SimulatedDiscreteIo` - 仿真离散IO
+9. `SimulatedSignalTowerOutput` - 仿真信号塔
+
+**已删除的死代码** (15个文件):
+- 5个完全未使用接口：IHeartbeatCapable, ISortingContextProvider, ISortingDecisionService 等
+- 3个完全未使用EventArgs：ParcelTimedOutEventArgs, HardwareEventArgs, PathSegmentFailedEventArgs
+- 2个模型/工厂：EventArgsFactory
+- 2个测试文件：DefaultPanelIoCoordinatorTests, SimulatedSignalTowerOutputTests
+
+**已迁移的事件** (4个文件):
+- `AlarmEvent` → Core/Events/Alarm/
+- `DeviceConnectionEventArgs` → Core/Events/Hardware/
+- `DeviceStatusEventArgs` → Core/Events/Hardware/
+- `SimulatedSensorEvent` → Core/Events/Simulation/
+
+**成果**：
+- HAL接口从16个减少到13个（移除3个未使用/冗余接口）
+- 满足强制性架构规则（所有事件位于 Core/Events）
+- 清理约1500行死代码
+
+**参考文档**：
+- `docs/INTERFACE_CLEANUP_ANALYSIS.md` - 详细分析报告（已归档）
+- `docs/MANDATORY_RULES_AND_DEAD_CODE.md` - 强制性规则
 
 ---
 

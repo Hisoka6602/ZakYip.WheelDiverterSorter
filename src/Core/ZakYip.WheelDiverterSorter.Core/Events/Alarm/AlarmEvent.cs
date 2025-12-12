@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 
-namespace ZakYip.WheelDiverterSorter.Observability;
+namespace ZakYip.WheelDiverterSorter.Core.Events.Alarm;
 
 /// <summary>
 /// 告警事件 / Alarm Event

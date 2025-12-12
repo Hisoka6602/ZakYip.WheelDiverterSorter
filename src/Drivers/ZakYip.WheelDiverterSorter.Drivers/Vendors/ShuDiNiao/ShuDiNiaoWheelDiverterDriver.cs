@@ -18,7 +18,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 /// - 自动处理连接失败和通信异常
 /// - 所有异常不向外冒泡，通过日志记录和返回值反馈
 /// </remarks>
-public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IHeartbeatCapable, IDisposable
+public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDisposable
 {
     /// <summary>
     /// 数递鸟摆轮指令写入最小间隔（毫秒）

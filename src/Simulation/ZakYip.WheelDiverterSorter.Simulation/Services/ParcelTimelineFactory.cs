@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Simulation.Scenarios.Configuration;
-using ZakYip.WheelDiverterSorter.Simulation.Models;
+using ZakYip.WheelDiverterSorter.Core.Events.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 

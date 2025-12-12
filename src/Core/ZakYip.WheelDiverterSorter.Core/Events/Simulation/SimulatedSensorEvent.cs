@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Simulation.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Events.Simulation;
 
 /// <summary>
 /// 仿真层传感器事件模型
