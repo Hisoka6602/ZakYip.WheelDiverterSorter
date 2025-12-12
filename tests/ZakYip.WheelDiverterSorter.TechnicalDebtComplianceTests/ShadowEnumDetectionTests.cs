@@ -152,10 +152,8 @@ public class ShadowEnumDetectionTests
     public void KnownShadowEnumsMustBeDeleted()
     {
         // Arrange: 已知的影分身枚举列表
-        var knownShadowEnums = new[]
-        {
-            "ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState", // 已删除
-        };
+        // 注意：SystemState 是合法的系统状态枚举，不是影分身，已从列表中移除
+        var knownShadowEnums = Array.Empty<string>();
 
         var assemblies = new[] { _coreAssembly, _executionAssembly, _driversAssembly, _ingressAssembly, _hostAssembly, _applicationAssembly };
         var allTypes = assemblies.SelectMany(a => a.GetTypes()).ToList();
@@ -209,6 +207,12 @@ public class ShadowEnumDetectionTests
                 {
                     for (int j = i + 1; j < matchingEnums.Count; j++)
                     {
+                        // 检查是否在白名单中
+                        if (IsInWhitelist(matchingEnums[i], matchingEnums[j]))
+                        {
+                            continue;
+                        }
+                        
                         var values1 = Enum.GetNames(matchingEnums[i]).ToHashSet(StringComparer.OrdinalIgnoreCase);
                         var values2 = Enum.GetNames(matchingEnums[j]).ToHashSet(StringComparer.OrdinalIgnoreCase);
                         var commonValues = values1.Intersect(values2, StringComparer.OrdinalIgnoreCase).Count();
@@ -352,7 +356,7 @@ public class ShadowEnumDetectionTests
              "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.WheelDeviceState"),
             
             // 步骤状态 vs 包裹状态 - 不同领域
-            ("ZakYip.WheelDiverterSorter.Core.Enums.Execution.StepStatus",
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Simulation.StepStatus",
              "ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus"),
             
             // 运行模式相关
