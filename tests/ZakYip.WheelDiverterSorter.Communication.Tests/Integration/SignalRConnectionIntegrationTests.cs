@@ -91,11 +91,10 @@ public class SignalRConnectionIntegrationTests : IDisposable
             _systemClockMock.Object);
         _disposables.Add(client);
 
-        // Act
-        var connected = await client.ConnectAsync();
+        // Act - Connection is automatic, just check status
+        await Task.Delay(100); // Brief delay for connection attempt
 
         // Assert
-        Assert.False(connected, "Client should fail to connect");
         Assert.False(client.IsConnected, "Client IsConnected should be false");
     }
 

@@ -224,8 +224,8 @@ public class CommunicationConfigService : ICommunicationConfigService
                 };
             }
 
-            // Client 模式：尝试实际连接
-            var connected = await _upstreamClient.ConnectAsync(cancellationToken);
+            // Client 模式：尝试实际连接（连接测试改用PingAsync）
+            var connected = await _upstreamClient.PingAsync(cancellationToken);
             sw.Stop();
 
             if (connected)

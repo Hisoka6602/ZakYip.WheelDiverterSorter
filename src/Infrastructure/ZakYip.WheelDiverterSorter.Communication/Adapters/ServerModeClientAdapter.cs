@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 namespace ZakYip.WheelDiverterSorter.Communication.Adapters;
 
@@ -114,6 +115,19 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     /// <summary>
     /// 通知包裹检测（广播给所有连接的客户端）
     /// </summary>
+    /// <summary>
+    /// 发送消息到上游系统（统一发送接口）
+    /// </summary>
+    public async Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
+    {
+        return message switch
+        {
+            ParcelDetectedMessage detected => await NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
+            SortingCompletedMessage completed => await NotifySortingCompletedAsync(completed.Notification, cancellationToken),
+            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
+        };
+    }
+
     public async Task<bool> NotifyParcelDetectedAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
@@ -178,6 +192,26 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
                 notification.ParcelId);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Ping上游系统进行健康检查
+    /// </summary>
+    public Task<bool> PingAsync(CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        // Server模式：始终返回true（服务器自身总是"连接"的）
+        return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// 热更新连接参数
+    /// </summary>
+    public Task UpdateOptionsAsync(UpstreamConnectionOptions options)
+    {
+        ThrowIfDisposed();
+        _logger.LogWarning("Server模式不支持热更新连接参数");
+        return Task.CompletedTask;
     }
 
     public void Dispose()

@@ -127,14 +127,14 @@ public class TcpKeepAliveTests : IDisposable
         // Act
         await server.StartAsync();
         await Task.Delay(500);
-        var connected = await client.ConnectAsync();
+        var connected = await client.PingAsync();
 
         // Assert
         Assert.True(connected, "Client should connect successfully with KeepAlive enabled");
         Assert.True(client.IsConnected);
 
         // Cleanup
-        await client.DisconnectAsync();
+        client.Dispose();
         await server.StopAsync();
     }
 
@@ -182,14 +182,14 @@ public class TcpKeepAliveTests : IDisposable
         // Act
         await server.StartAsync();
         await Task.Delay(500);
-        var connected = await client.ConnectAsync();
+        var connected = await client.PingAsync();
 
         // Assert
         Assert.True(connected, "Client should connect successfully with KeepAlive disabled");
         Assert.True(client.IsConnected);
 
         // Cleanup
-        await client.DisconnectAsync();
+        client.Dispose();
         await server.StopAsync();
     }
 

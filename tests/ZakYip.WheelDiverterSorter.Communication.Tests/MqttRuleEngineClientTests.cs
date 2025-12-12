@@ -44,13 +44,13 @@ public class MqttRuleEngineClientTests
         Assert.False(result);
     public async Task DisconnectAsync_WhenNotConnected_CompletesSuccessfully()
         // Act & Assert (should not throw)
-        await client.DisconnectAsync();
+        client.Dispose();
     public async Task NotifyParcelDetectedAsync_WithInvalidParcelId_ThrowsArgumentException()
-        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyParcelDetectedAsync(0));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyParcelDetectedAsync(-1));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SendAsync(new ParcelDetectedMessage { ParcelId = 0));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SendAsync(new ParcelDetectedMessage { ParcelId = -1));
     public async Task NotifyParcelDetectedAsync_WhenNotConnected_ReturnsFalse()
         var parcelId = 123456789L;
-        var result = await client.NotifyParcelDetectedAsync(parcelId, new CancellationTokenSource(1000).Token);
+        var result = await client.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, new CancellationTokenSource(1000).Token);
     public void ChuteAssigned_EventCanBeSubscribed()
         var eventRaised = false;
         client.ChuteAssigned += (sender, args) =>

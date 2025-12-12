@@ -85,7 +85,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -95,12 +95,12 @@ public class RuleEngineIntegrationTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act
-        var result = await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        var result = await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Assert
         result.Should().BeTrue();
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
+            x => x.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, It.IsAny<CancellationToken>()),
             Times.Once);
 
         await _orchestrator.StopAsync();
@@ -181,7 +181,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         Factory.MockRuleEngineClient
@@ -191,7 +191,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act
-        var result = await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        var result = await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Assert
         result.Should().BeFalse();
@@ -211,7 +211,7 @@ public class RuleEngineIntegrationTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -221,14 +221,14 @@ public class RuleEngineIntegrationTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act - Don't send assignment (simulate timeout)
-        await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Allow time for timeout to occur
         await Task.Delay(2000);
 
         // Assert - Should handle timeout gracefully
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
+            x => x.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, It.IsAny<CancellationToken>()),
             Times.Once);
 
         await _orchestrator.StopAsync();

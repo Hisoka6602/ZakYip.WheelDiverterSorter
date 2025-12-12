@@ -35,7 +35,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
         // Arrange
         // 设置模拟RuleEngine返回目标格口
         Factory.MockRuleEngineClient!
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -119,7 +119,7 @@ public class ParcelSortingWorkflowTests : E2ETestBase
 
         // 设置模拟来模拟路径生成失败场景
         Factory.MockRuleEngineClient!
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient

@@ -12,8 +12,8 @@ namespace ZakYip.WheelDiverterSorter.Communication.Clients;
 /// 上游路由客户端基类，提供公共的连接管理、重试和日志记录功能
 /// </summary>
 /// <remarks>
-/// PR-U1: 合并 IRuleEngineClient 到 IUpstreamRoutingClient，删除中间适配层
-/// PR-UPSTREAM02: 添加 NotifySortingCompletedAsync 方法，将事件重命名为 ChuteAssigned
+/// PR-UPSTREAM-UNIFIED: 彻底重构为1事件+2方法模式，删除所有旧方法。
+/// 连接管理（包括自动重连）由子类内部实现，对外透明。
 /// </remarks>
 public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
 {
@@ -30,9 +30,6 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// <summary>
     /// 格口分配事件
     /// </summary>
-    /// <remarks>
-    /// PR-UPSTREAM02: 从 ChuteAssignmentReceived 重命名为 ChuteAssigned
-    /// </remarks>
     public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssigned;
 
     /// <summary>
@@ -49,27 +46,44 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     }
 
     /// <summary>
-    /// 连接到RuleEngine
+    /// 发送消息到上游系统（统一发送接口）
     /// </summary>
-    public abstract Task<bool> ConnectAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 断开与RuleEngine的连接
-    /// </summary>
-    public abstract Task DisconnectAsync();
-
-    /// <summary>
-    /// 通知RuleEngine包裹已到达
-    /// </summary>
-    public abstract Task<bool> NotifyParcelDetectedAsync(long parcelId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// 通知RuleEngine包裹已完成落格
-    /// </summary>
+    /// <param name="message">上游消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功发送</returns>
     /// <remarks>
-    /// PR-UPSTREAM02: 新增方法
+    /// 子类必须实现具体的发送逻辑。
+    /// 连接管理（包括自动重连）应在子类内部处理。
     /// </remarks>
-    public abstract Task<bool> NotifySortingCompletedAsync(SortingCompletedNotification notification, CancellationToken cancellationToken = default);
+    public abstract Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Ping上游系统进行健康检查
+    /// </summary>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否Ping成功</returns>
+    /// <remarks>
+    /// 默认实现：返回当前连接状态。子类可以override实现更复杂的健康检查逻辑。
+    /// </remarks>
+    public virtual Task<bool> PingAsync(CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        return Task.FromResult(IsConnected);
+    }
+
+    /// <summary>
+    /// 热更新连接参数
+    /// </summary>
+    /// <param name="options">新的连接选项</param>
+    /// <remarks>
+    /// 默认实现：记录警告日志。子类应override实现具体的热更新逻辑。
+    /// </remarks>
+    public virtual Task UpdateOptionsAsync(UpstreamConnectionOptions options)
+    {
+        ThrowIfDisposed();
+        Logger.LogWarning("当前实现不支持热更新连接参数，请在子类中override此方法。Options={Options}", options);
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// 触发格口分配事件
@@ -189,18 +203,16 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     }
 
     /// <summary>
-    /// 确保已连接，如果未连接则尝试连接
+    /// 确保已连接（子类实现自动重连逻辑）
     /// </summary>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>是否已连接</returns>
-    protected async Task<bool> EnsureConnectedAsync(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 移除ConnectAsync调用，连接管理由子类内部实现
+    /// </remarks>
+    protected Task<bool> EnsureConnectedAsync(CancellationToken cancellationToken = default)
     {
-        if (IsConnected)
-        {
-            return true;
-        }
-
-        return await ConnectAsync(cancellationToken);
+        return Task.FromResult(IsConnected);
     }
 
     /// <summary>
@@ -235,12 +247,12 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// 释放托管和非托管资源
     /// </summary>
     /// <param name="disposing">是否正在释放托管资源</param>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 移除DisconnectAsync调用，连接管理由子类内部实现
+    /// </remarks>
     protected virtual void Dispose(bool disposing)
     {
-        if (disposing)
-        {
-            DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
+        // 子类应在其Dispose实现中处理连接关闭
     }
 
     /// <summary>
@@ -254,4 +266,5 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
             throw new ObjectDisposedException(GetType().Name);
         }
     }
+
 }

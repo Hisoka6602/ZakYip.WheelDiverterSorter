@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
+using ZakYip.WheelDiverterSorter.Core.Events.Alarm;
 
 namespace ZakYip.WheelDiverterSorter.Observability.Tests;
 

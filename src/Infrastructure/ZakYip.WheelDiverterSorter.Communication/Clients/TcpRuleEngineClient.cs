@@ -78,7 +78,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 连接到RuleEngine
     /// </summary>
-    public override async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    private async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
@@ -146,7 +146,7 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     /// <summary>
     /// 断开与RuleEngine的连接
     /// </summary>
-    public override Task DisconnectAsync()
+    private Task DisconnectAsync()
     {
         ThrowIfDisposed();
 
@@ -169,13 +169,47 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     }
 
     /// <summary>
-    /// 通知RuleEngine包裹已到达
+    /// 发送消息到上游系统（统一发送接口）
+    /// </summary>
+    /// <param name="message">上游消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>是否成功发送</returns>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 实现统一发送接口，内部路由到具体方法。
+    /// 自动处理连接（如果未连接则先连接）。
+    /// </remarks>
+    public override async Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        
+        // 确保已连接（自动连接）
+        if (!IsConnected)
+        {
+            var connected = await ConnectAsync(cancellationToken);
+            if (!connected)
+            {
+                Logger.LogWarning("SendAsync失败：无法连接到上游服务器");
+                return false;
+            }
+        }
+        
+        return message switch
+        {
+            ParcelDetectedMessage detected => await NotifyParcelDetectedInternalAsync(detected.ParcelId, cancellationToken),
+            SortingCompletedMessage completed => await NotifySortingCompletedInternalAsync(completed.Notification, cancellationToken),
+            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
+        };
+    }
+
+    /// <summary>
+    /// 通知RuleEngine包裹已到达（内部方法）
     /// </summary>
     /// <remarks>
     /// TCP客户端发送通知后不等待响应，响应通过服务器推送接收（如果启用了服务器模式）
     /// 根据系统规则：发送失败只记录日志，不进行重试
+    /// PR-UPSTREAM-UNIFIED: 重命名为Internal，由SendAsync调用
     /// </remarks>
-    public override async Task<bool> NotifyParcelDetectedAsync(
+    private async Task<bool> NotifyParcelDetectedInternalAsync(
         long parcelId,
         CancellationToken cancellationToken = default)
     {
@@ -238,12 +272,13 @@ public class TcpRuleEngineClient : RuleEngineClientBase
     }
 
     /// <summary>
-    /// 通知RuleEngine包裹已完成落格
+    /// 通知RuleEngine包裹已完成落格（内部方法）
     /// </summary>
     /// <remarks>
     /// PR-UPSTREAM02: 新增方法，发送落格完成通知（fire-and-forget）
+    /// PR-UPSTREAM-UNIFIED: 重命名为Internal，由SendAsync调用
     /// </remarks>
-    public override async Task<bool> NotifySortingCompletedAsync(
+    private async Task<bool> NotifySortingCompletedInternalAsync(
         SortingCompletedNotification notification,
         CancellationToken cancellationToken = default)
     {

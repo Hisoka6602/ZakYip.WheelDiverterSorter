@@ -136,7 +136,8 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
                     // 断开当前连接
                     if (_client != null)
                     {
-                        await _client.DisconnectAsync().ConfigureAwait(false);
+                        // 连接由Client自动管理
+                        // await _client.DisconnectAsync().ConfigureAwait(false);
                         
                         // 如果客户端实现了 IDisposable，释放资源
                         if (_client is IDisposable disposableClient)
@@ -290,9 +291,9 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
             }
         }
         
-        // 实际调用客户端的连接方法
+        // 实际调用客户端的连接方法（连接测试改用PingAsync）
         // Actually call the client's connect method
-        var connected = await _client.ConnectAsync(cancellationToken).ConfigureAwait(false);
+        var connected = await _client.PingAsync(cancellationToken).ConfigureAwait(false);
         
         if (!connected)
         {

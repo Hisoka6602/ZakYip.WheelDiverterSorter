@@ -160,9 +160,9 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游返回格口分配
         _mockUpstreamClient
-            .Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
-            .Callback<long, CancellationToken>((pid, ct) =>
+            .Callback<IUpstreamMessage, CancellationToken>((msg, ct) =>
             {
                 // 模拟上游异步推送格口分配 - 使用 Task.Run 确保异步执行
                 Task.Run(async () =>
@@ -189,7 +189,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Null(result.FailureReason);
 
         // 验证调用顺序：先通知上游，再生成路径，再执行
-        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUpstreamClient.Verify(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()), Times.Once);
         _mockPathGenerator.Verify(g => g.GeneratePath(targetChuteId), Times.Once);
         _mockPathExecutor.Verify(e => e.ExecuteAsync(expectedPath, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -244,7 +244,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Equal(fixedChuteId, result.ActualChuteId);
 
         // 验证不应调用上游
-        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUpstreamClient.Verify(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage), It.IsAny<CancellationToken>()), Times.Never);
         _mockPathGenerator.Verify(g => g.GeneratePath(fixedChuteId), Times.Once);
     }
 
@@ -314,7 +314,7 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游不返回响应（超时）
         _mockUpstreamClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         // 注意：不触发 ChuteAssigned 事件，模拟超时
 
@@ -359,7 +359,7 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游返回格口分配
         _mockUpstreamClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
@@ -418,7 +418,7 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游返回格口分配
         _mockUpstreamClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
@@ -476,7 +476,7 @@ public class SortingOrchestratorTests : IDisposable
 
         // 模拟上游返回格口分配
         _mockUpstreamClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
@@ -546,7 +546,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.Equal(targetChuteId, result.ActualChuteId);
 
         // 验证不应调用上游
-        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUpstreamClient.Verify(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage), It.IsAny<CancellationToken>()), Times.Never);
         _mockPathGenerator.Verify(g => g.GeneratePath(targetChuteId), Times.Once);
     }
 
@@ -644,7 +644,7 @@ public class SortingOrchestratorTests : IDisposable
 
         // 监控调用顺序
         _mockUpstreamClient
-            .Setup(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()))
+            .Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true)
             .Callback(() =>
             {
@@ -687,7 +687,7 @@ public class SortingOrchestratorTests : IDisposable
         Assert.True(parcelCreatedBeforeNotification, "包裹应该在发送通知前创建");
 
         // 验证调用顺序
-        _mockUpstreamClient.Verify(c => c.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()), Times.Once);
+        _mockUpstreamClient.Verify(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage && ((ParcelDetectedMessage)m).ParcelId == parcelId), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     #endregion

@@ -126,7 +126,7 @@ src/Core/ZakYip.WheelDiverterSorter.Core/Events/
 | 一般文档 | 180天 | 其他未分类文档 |
 
 **永久保留文档**（白名单）:
-- 核心规范: `README.md`, `ARCHITECTURE_PRINCIPLES.md`, `CODING_GUIDELINES.md`, `RepositoryStructure.md`, `TechnicalDebtLog.md`, `CORE_ROUTING_LOGIC.md`, `MANDATORY_RULES_AND_DEAD_CODE.md`
+- 核心规范: `README.md`, `ARCHITECTURE_PRINCIPLES.md`, `CODING_GUIDELINES.md`, `RepositoryStructure.md`, `TechnicalDebtLog.md`, `CORE_ROUTING_LOGIC.md`, `MANDATORY_RULES_AND_DEAD_CODE.md`, `UPSTREAM_INTERFACE_UNIQUENESS.md`
 - 使用指南: `guides/` 目录下所有文档
 - 技术评估: `TOPOLOGY_LINEAR_N_DIVERTERS.md`, `S7_Driver_Enhancement.md`, `TouchSocket_Migration_Assessment.md`等
 
@@ -145,6 +145,99 @@ src/Core/ZakYip.WheelDiverterSorter.Core/Events/
 ```csharp
 [Fact] Documentation_ShouldBeKeptUpToDate_NoOutdatedFiles()
 [Fact] Documentation_ShouldFollowNamingConventions()
+```
+
+---
+
+### 规则4: 上游通信接口唯一性约束 🔴
+
+**规则**: 系统必须仅通过**一个统一的上游通信接口** `IUpstreamRoutingClient` 与上游系统通信，禁止创建并行接口或绕过唯一接口。
+
+**违规后果**: ❌ **PR自动失败**
+
+**接口唯一性要求**:
+- ✅ **唯一接口**: `IUpstreamRoutingClient`（位于 `Core/Abstractions/Upstream/`）
+- ✅ **唯一工厂**: `UpstreamRoutingClientFactory`（位于 `Communication/`）
+- ✅ **唯一DI注册点**: `CommunicationServiceExtensions.AddRuleEngineCommunication()`
+- ✅ **接口设计**: 1个事件（`ChuteAssigned`）+ 2个核心方法（`SendAsync`、`PingAsync`）+ 1个扩展方法（`UpdateOptionsAsync`）
+
+**禁止行为**:
+- ❌ 创建并行的上游通信接口（如 `IUpstreamConnectionManager`、`IUpstreamSortingGateway`）
+- ❌ 在业务代码中直接实例化客户端实现类（必须通过工厂或DI）
+- ❌ 绕过 `IUpstreamRoutingClient` 直接与上游通信
+- ❌ 在多处进行DI注册
+- ❌ 创建不使用工厂的客户端实例
+
+**架构约束强制执行**:
+1. **单一接口定义** - `IUpstreamRoutingClient` 是系统中唯一的上游通信接口
+2. **统一创建入口** - 所有客户端通过 `UpstreamRoutingClientFactory` 创建
+3. **统一DI注册** - 仅在 `CommunicationServiceExtensions` 一处注册
+4. **实现类封装** - 所有实现类（TcpRuleEngineClient、SignalRRuleEngineClient等）不对外暴露
+5. **业务代码依赖接口** - 所有业务代码仅依赖 `IUpstreamRoutingClient` 接口
+
+**实施要求**:
+```csharp
+// ✅ 正确：通过接口访问上游通信
+public class SortingOrchestrator
+{
+    private readonly IUpstreamRoutingClient _upstreamClient;
+    
+    public SortingOrchestrator(IUpstreamRoutingClient upstreamClient)
+    {
+        _upstreamClient = upstreamClient;
+    }
+    
+    public async Task ProcessAsync()
+    {
+        // 使用统一的SendAsync方法
+        await _upstreamClient.SendAsync(new ParcelDetectedMessage { ... });
+        
+        // 订阅统一的ChuteAssigned事件
+        _upstreamClient.ChuteAssigned += OnChuteAssigned;
+    }
+}
+
+// ❌ 错误：创建并行接口
+public interface IUpstreamConnectionManager  // ❌ 禁止
+{
+    Task ConnectAsync();
+}
+
+// ❌ 错误：直接实例化客户端
+public class MyService
+{
+    public async Task ProcessAsync()
+    {
+        var client = new TcpRuleEngineClient(...);  // ❌ 禁止
+        await client.SendAsync(...);
+    }
+}
+
+// ❌ 错误：绕过接口直接通信
+public class MyService
+{
+    public async Task SendToUpstream()
+    {
+        using var httpClient = new HttpClient();
+        await httpClient.PostAsync("http://upstream/api", ...);  // ❌ 禁止
+    }
+}
+```
+
+**验证检查清单**:
+- [ ] 系统中仅存在 `IUpstreamRoutingClient` 一个上游通信接口
+- [ ] 所有上游通信都通过 `IUpstreamRoutingClient` 进行
+- [ ] 无直接实例化客户端实现类的代码
+- [ ] 无绕过工厂的客户端创建
+- [ ] 无多处DI注册
+
+**相关文档**: `docs/UPSTREAM_INTERFACE_UNIQUENESS.md`
+
+**ArchTests 验证**:
+```csharp
+[Fact] UpstreamCommunication_MustUseOnlyOneInterface()
+[Fact] UpstreamCommunication_MustNotDirectlyInstantiateClients()
+[Fact] UpstreamCommunication_MustNotBypassFactory()
 ```
 
 ---
