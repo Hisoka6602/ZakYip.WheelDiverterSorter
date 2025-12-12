@@ -48,7 +48,6 @@ public class SimulationShadowTests
         ["SimulationStep"] = new[] { "Host/" },
         // Application 中允许的服务
         ["SimulationModeProvider"] = new[] { "Application/" },
-        ["ISimulationOrchestratorService"] = new[] { "Application/" },
         // Observability 中允许的接口
         ["ISimulationReportWriter"] = new[] { "Observability/" },
         // Drivers/Simulated 中允许的仿真驱动
