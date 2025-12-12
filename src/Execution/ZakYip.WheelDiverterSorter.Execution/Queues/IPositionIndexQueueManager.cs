@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+
 namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 
 /// <summary>

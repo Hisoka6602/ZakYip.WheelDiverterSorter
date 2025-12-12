@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+
 namespace ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 
 /// <summary>
@@ -34,7 +36,7 @@ public interface ISwitchingPathGenerator
     ///   <item>回退动作（默认 Straight）</item>
     /// </list>
     /// </remarks>
-    List<Execution.Queues.PositionQueueItem> GenerateQueueTasks(
+    List<PositionQueueItem> GenerateQueueTasks(
         string parcelId,
         long targetChuteId,
         DateTime createdAt);

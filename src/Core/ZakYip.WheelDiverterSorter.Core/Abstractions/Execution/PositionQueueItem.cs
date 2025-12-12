@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Execution.Queues;
+namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 /// <summary>
 /// Position-Index 队列中的任务项

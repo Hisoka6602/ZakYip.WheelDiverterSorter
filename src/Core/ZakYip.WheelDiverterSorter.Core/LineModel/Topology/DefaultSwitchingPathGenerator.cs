@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -506,5 +507,203 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 
         // 判断可用时间是否足够
         return totalRequiredTimeMs <= availableTimeBudgetMs;
+    }
+
+    /// <summary>
+    /// 根据目标格口生成位置索引队列任务列表（Phase 4）
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="targetChuteId">目标格口标识（数字ID）</param>
+    /// <param name="createdAt">包裹创建时间</param>
+    /// <returns>队列任务列表，如果无法生成路径则返回空列表</returns>
+    /// <remarks>
+    /// <para>此方法为 Position-Index 队列系统生成任务列表。</para>
+    /// <para><b>计算逻辑：</b></para>
+    /// <list type="bullet">
+    ///   <item>从拓扑配置读取路径节点</item>
+    ///   <item>计算理论到达时间（createdAt + 累加前序线段传输时间）</item>
+    ///   <item>从 ConveyorSegmentConfiguration 读取超时容差</item>
+    ///   <item>确定摆轮动作（Left/Right/Straight）</item>
+    ///   <item>设置回退动作为 Straight</item>
+    /// </list>
+    /// <para><b>示例：</b></para>
+    /// <para>包裹P1目标格口3（位于D2左侧），生成任务：</para>
+    /// <list type="bullet">
+    ///   <item>Task1: positionIndex=1, action=Straight, expectedTime=创建时间+segment1传输时间</item>
+    ///   <item>Task2: positionIndex=2, action=Left, expectedTime=创建时间+segment1+segment2传输时间</item>
+    /// </list>
+    /// </remarks>
+    public List<PositionQueueItem> GenerateQueueTasks(
+        string parcelId,
+        long targetChuteId,
+        DateTime createdAt)
+    {
+        var tasks = new List<PositionQueueItem>();
+
+        // 优先使用拓扑配置仓储
+        if (_topologyRepository == null)
+        {
+            _logger?.LogWarning(
+                "[队列任务生成失败] 未配置拓扑仓储，无法生成队列任务 (ParcelId={ParcelId}, TargetChuteId={TargetChuteId})",
+                parcelId, targetChuteId);
+            return tasks;
+        }
+
+        var topologyConfig = _topologyRepository.Get();
+
+        // 如果目标是异常口，生成全直通任务
+        if (targetChuteId == topologyConfig.ExceptionChuteId)
+        {
+            return GenerateExceptionQueueTasks(parcelId, topologyConfig, createdAt);
+        }
+
+        // 查找目标格口所在的摆轮节点
+        var targetNode = topologyConfig.FindNodeByChuteId(targetChuteId);
+        if (targetNode == null)
+        {
+            _logger?.LogWarning(
+                "[队列任务生成失败] 目标格口 {TargetChuteId} 在拓扑配置中不存在 (ParcelId={ParcelId})",
+                targetChuteId, parcelId);
+            return tasks;
+        }
+
+        // 确定目标格口的方向（左/右）
+        var direction = topologyConfig.GetChuteDirection(targetChuteId);
+        if (direction == null)
+        {
+            _logger?.LogWarning(
+                "[队列任务生成失败] 无法确定格口 {TargetChuteId} 的分拣方向 (ParcelId={ParcelId})",
+                targetChuteId, parcelId);
+            return tasks;
+        }
+
+        // 生成任务：只生成到目标摆轮的任务
+        var sortedNodes = topologyConfig.DiverterNodes
+            .OrderBy(n => n.PositionIndex)
+            .Where(n => n.PositionIndex <= targetNode.PositionIndex)
+            .ToList();
+
+        _logger?.LogDebug(
+            "[队列任务生成] ParcelId={ParcelId}, 目标格口={TargetChuteId}, 摆轮={DiverterId} (Position={PositionIndex}), 将生成 {TaskCount} 个任务",
+            parcelId, targetChuteId, targetNode.DiverterId, targetNode.PositionIndex, sortedNodes.Count);
+
+        // 累加计算理论到达时间
+        var currentTime = createdAt;
+
+        for (int i = 0; i < sortedNodes.Count; i++)
+        {
+            var node = sortedNodes[i];
+            
+            // 从输送线段配置读取传输时间和超时容差
+            var segmentConfig = _conveyorSegmentRepository?.GetById(node.SegmentId);
+            if (segmentConfig == null)
+            {
+                _logger?.LogWarning(
+                    "[队列任务生成] 线段配置不存在 (SegmentId={SegmentId})，跳过该任务",
+                    node.SegmentId);
+                continue;
+            }
+
+            // 计算理论传输时间并累加到当前时间
+            var transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+            currentTime = currentTime.AddMilliseconds(transitTimeMs);
+
+            // 确定摆轮动作
+            DiverterDirection targetDirection;
+            if (node.PositionIndex < targetNode.PositionIndex)
+            {
+                // 在目标节点之前：直通
+                targetDirection = DiverterDirection.Straight;
+            }
+            else if (node.PositionIndex == targetNode.PositionIndex)
+            {
+                // 目标节点：根据格口位置设置左/右
+                targetDirection = direction.Value;
+            }
+            else
+            {
+                // 理论上不应到达（已过滤），但保持健壮性
+                targetDirection = DiverterDirection.Straight;
+            }
+
+            // 创建队列任务
+            var task = new PositionQueueItem
+            {
+                ParcelId = parcelId,
+                DiverterId = node.DiverterId,
+                PositionIndex = node.PositionIndex,
+                DiverterAction = targetDirection,
+                ExpectedArrivalTime = currentTime,
+                TimeoutThresholdMs = segmentConfig.TimeToleranceMs,
+                FallbackAction = DiverterDirection.Straight,
+                CreatedAt = _systemClock!.LocalNow
+            };
+
+            tasks.Add(task);
+
+            _logger?.LogDebug(
+                "[队列任务创建] ParcelId={ParcelId}, Position={PositionIndex}, Action={Action}, " +
+                "ExpectedArrival={ExpectedTime:HH:mm:ss.fff}, Timeout={TimeoutMs}ms",
+                parcelId, node.PositionIndex, targetDirection,
+                currentTime, segmentConfig.TimeToleranceMs);
+        }
+
+        _logger?.LogInformation(
+            "[队列任务生成成功] ParcelId={ParcelId}, 目标格口={TargetChuteId}, 任务数={TaskCount}",
+            parcelId, targetChuteId, tasks.Count);
+
+        return tasks;
+    }
+
+    /// <summary>
+    /// 生成到异常口的全直通队列任务
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="topologyConfig">拓扑配置</param>
+    /// <param name="createdAt">包裹创建时间</param>
+    /// <returns>全直通任务列表</returns>
+    private List<PositionQueueItem> GenerateExceptionQueueTasks(
+        string parcelId,
+        ChutePathTopologyConfig topologyConfig,
+        DateTime createdAt)
+    {
+        var tasks = new List<PositionQueueItem>();
+        var sortedNodes = topologyConfig.DiverterNodes
+            .OrderBy(n => n.PositionIndex)
+            .ToList();
+
+        var currentTime = createdAt;
+
+        for (int i = 0; i < sortedNodes.Count; i++)
+        {
+            var node = sortedNodes[i];
+            var segmentConfig = _conveyorSegmentRepository?.GetById(node.SegmentId);
+            
+            if (segmentConfig != null)
+            {
+                var transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+                currentTime = currentTime.AddMilliseconds(transitTimeMs);
+            }
+
+            var task = new PositionQueueItem
+            {
+                ParcelId = parcelId,
+                DiverterId = node.DiverterId,
+                PositionIndex = node.PositionIndex,
+                DiverterAction = DiverterDirection.Straight,
+                ExpectedArrivalTime = currentTime,
+                TimeoutThresholdMs = segmentConfig?.TimeToleranceMs ?? 2000,
+                FallbackAction = DiverterDirection.Straight,
+                CreatedAt = _systemClock!.LocalNow
+            };
+
+            tasks.Add(task);
+        }
+
+        _logger?.LogInformation(
+            "[异常格口队列任务生成] ParcelId={ParcelId}, 任务数={TaskCount} (全直通)",
+            parcelId, tasks.Count);
+
+        return tasks;
     }
 }
