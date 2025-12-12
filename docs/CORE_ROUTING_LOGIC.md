@@ -400,20 +400,19 @@ public async Task OnSensorTriggered(int sensorId)
 
 ### 5.3 清空队列时机
 
-⚠️ **强制约束**: 当面板IO按下停止、急停、复位时，必须清空所有队列和任务。
+⚠️ **强制约束**: 当系统状态更改时（例如：停止、急停、复位等状态变更），必须清空所有队列和任务。
 
 **实施**:
 ```csharp
-public async Task OnPanelButtonPressed(PanelButtonType buttonType)
+public async Task OnSystemStateChanged(SystemState newState, SystemState oldState)
 {
-    if (buttonType == PanelButtonType.Stop || 
-        buttonType == PanelButtonType.EmergencyStop ||
-        buttonType == PanelButtonType.Reset)
+    // 当系统状态从运行状态变更为停止/故障/复位等状态时清空队列
+    if (ShouldClearQueuesOnStateChange(oldState, newState))
     {
         // 清空所有 positionIndex 队列
         ClearAllQueues();
         
-        _logger.LogWarning($"面板按钮 {buttonType} 被按下，所有位置索引队列已清空");
+        _logger.LogWarning($"系统状态从 {oldState} 变更为 {newState}，所有位置索引队列已清空");
     }
 }
 ```
@@ -588,7 +587,7 @@ public record PositionIndexTask
    - 验证异常动作和补偿逻辑
 
 3. **队列清空测试**:
-   - 模拟面板按钮按下
+   - 模拟系统状态变更
    - 验证所有队列被清空
 
 ---

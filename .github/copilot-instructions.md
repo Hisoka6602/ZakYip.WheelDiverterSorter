@@ -174,7 +174,7 @@ src/Core/ZakYip.WheelDiverterSorter.Core/Events/
 - ❌ 禁止定时扫描包裹并主动执行动作
 - ❌ 禁止破坏FIFO队列顺序（除超时补偿外）
 - ✅ 必须仅在IO点触发时才执行动作
-- ✅ 必须在面板按钮按下时清空队列
+- ✅ 必须在系统状态变更时清空队列
 
 ---
 
