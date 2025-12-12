@@ -56,6 +56,15 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </remarks>
     private const int DefaultSegmentTtlMs = 5000;
 
+    /// <summary>
+    /// 默认的超时阈值（毫秒）- 2秒
+    /// </summary>
+    /// <remarks>
+    /// <para>当线段配置中未提供 TimeToleranceMs 时使用的回退值。</para>
+    /// <para>2000ms 作为保守默认值，适用于大多数场景的时间容差。</para>
+    /// </remarks>
+    private const int DefaultTimeoutThresholdMs = 2000;
+
     private readonly IRouteConfigurationRepository? _routeRepository;
     private readonly IChutePathTopologyRepository? _topologyRepository;
     private readonly IConveyorSegmentRepository? _conveyorSegmentRepository;
@@ -76,7 +85,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// 初始化路径生成器（使用拓扑配置仓储，支持 N 摆轮模型）
     /// </summary>
     /// <param name="topologyRepository">拓扑配置仓储</param>
-    /// <param name="systemClock">系统时钟</param>
+    /// <param name="systemClock">系统时钟（必需，用于队列任务时间计算）</param>
     /// <param name="conveyorSegmentRepository">输送线段配置仓储（可选，用于动态TTL计算）</param>
     /// <param name="logger">日志记录器（可选）</param>
     public DefaultSwitchingPathGenerator(
@@ -89,6 +98,12 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _conveyorSegmentRepository = conveyorSegmentRepository;
         _logger = logger;
+        
+        // Validate that systemClock is not null for queue operations
+        if (_systemClock == null)
+        {
+            throw new InvalidOperationException("SystemClock is required for queue task generation");
+        }
     }
 
     /// <summary>
@@ -534,11 +549,17 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </list>
     /// </remarks>
     public List<PositionQueueItem> GenerateQueueTasks(
-        string parcelId,
+        long parcelId,
         long targetChuteId,
         DateTime createdAt)
     {
         var tasks = new List<PositionQueueItem>();
+
+        // 验证必需的依赖项
+        if (_systemClock == null)
+        {
+            throw new InvalidOperationException("SystemClock is required for queue task generation");
+        }
 
         // 优先使用拓扑配置仓储
         if (_topologyRepository == null)
@@ -636,7 +657,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 ExpectedArrivalTime = currentTime,
                 TimeoutThresholdMs = segmentConfig.TimeToleranceMs,
                 FallbackAction = DiverterDirection.Straight,
-                CreatedAt = _systemClock!.LocalNow
+                CreatedAt = _systemClock.LocalNow
             };
 
             tasks.Add(task);
@@ -663,10 +684,16 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <param name="createdAt">包裹创建时间</param>
     /// <returns>全直通任务列表</returns>
     private List<PositionQueueItem> GenerateExceptionQueueTasks(
-        string parcelId,
+        long parcelId,
         ChutePathTopologyConfig topologyConfig,
         DateTime createdAt)
     {
+        // _systemClock is validated in the calling method
+        if (_systemClock == null)
+        {
+            throw new InvalidOperationException("SystemClock is required for queue task generation");
+        }
+
         var tasks = new List<PositionQueueItem>();
         var sortedNodes = topologyConfig.DiverterNodes
             .OrderBy(n => n.PositionIndex)
@@ -692,9 +719,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 PositionIndex = node.PositionIndex,
                 DiverterAction = DiverterDirection.Straight,
                 ExpectedArrivalTime = currentTime,
-                TimeoutThresholdMs = segmentConfig?.TimeToleranceMs ?? 2000,
+                TimeoutThresholdMs = segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs,
                 FallbackAction = DiverterDirection.Straight,
-                CreatedAt = _systemClock!.LocalNow
+                CreatedAt = _systemClock.LocalNow
             };
 
             tasks.Add(task);

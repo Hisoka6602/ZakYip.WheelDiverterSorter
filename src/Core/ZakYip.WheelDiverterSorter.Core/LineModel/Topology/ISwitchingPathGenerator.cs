@@ -20,7 +20,7 @@ public interface ISwitchingPathGenerator
     /// <summary>
     /// 根据目标格口生成位置索引队列任务列表（Phase 4）
     /// </summary>
-    /// <param name="parcelId">包裹ID</param>
+    /// <param name="parcelId">包裹ID（长整型）</param>
     /// <param name="targetChuteId">目标格口标识（数字ID）</param>
     /// <param name="createdAt">包裹创建时间</param>
     /// <returns>
@@ -37,7 +37,7 @@ public interface ISwitchingPathGenerator
     /// </list>
     /// </remarks>
     List<PositionQueueItem> GenerateQueueTasks(
-        string parcelId,
+        long parcelId,
         long targetChuteId,
         DateTime createdAt);
 }

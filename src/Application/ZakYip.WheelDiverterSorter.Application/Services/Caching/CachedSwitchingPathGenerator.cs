@@ -133,7 +133,7 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheM
     /// 直接委托给底层生成器。
     /// </remarks>
     public List<Core.Abstractions.Execution.PositionQueueItem> GenerateQueueTasks(
-        string parcelId,
+        long parcelId,
         long targetChuteId,
         DateTime createdAt)
     {

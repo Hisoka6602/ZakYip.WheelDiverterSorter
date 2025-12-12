@@ -60,6 +60,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     
     // TD-062: 拓扑驱动分拣流程常量
     private const int DefaultTimeoutSeconds = 10; // 默认超时时间（秒）
+    
+    /// <summary>
+    /// 单个摆轮动作执行超时时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于 IO 触发执行时单段摆轮动作的超时设置。
+    /// 5000ms 作为保守默认值，覆盖大多数摆轮动作场景。
+    /// </remarks>
+    private const int DefaultSingleActionTimeoutMs = 5000;
 
     // 空的可用格口列表（静态共享实例）
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
@@ -315,7 +324,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 targetChuteId);
             
             var queueTasks = _pathGenerator.GenerateQueueTasks(
-                parcelId.ToString(),
+                parcelId,
                 targetChuteId,
                 _clock.LocalNow);
             
@@ -327,7 +336,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId, targetChuteId);
                 
                 queueTasks = _pathGenerator.GenerateQueueTasks(
-                    parcelId.ToString(),
+                    parcelId,
                     exceptionChuteId,
                     _clock.LocalNow);
                 
@@ -1232,7 +1241,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
         var singleSegmentPath = new SwitchingPath
         {
-            TargetChuteId = 0, // 单段执行时不关心目标格口
+            // In single-segment (single-action) execution, the target chute is determined by the diverter action itself,
+            // not by a multi-segment path. Therefore, TargetChuteId is set to 0 as a placeholder and is not used.
+            TargetChuteId = 0,
             Segments = new List<SwitchingPathSegment>
             {
                 new SwitchingPathSegment
@@ -1240,7 +1251,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     SequenceNumber = 1,
                     DiverterId = task.DiverterId,
                     TargetDirection = actionToExecute,
-                    TtlMilliseconds = 5000 // 单个动作执行超时5秒
+                    TtlMilliseconds = DefaultSingleActionTimeoutMs
                 }
             }.AsReadOnly(),
             GeneratedAt = _clock.LocalNowOffset,
@@ -1310,7 +1321,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (_queueManager != null)
             {
                 var queueTasks = _pathGenerator.GenerateQueueTasks(
-                    parcelId.ToString(),
+                    parcelId,
                     exceptionChuteId,
                     _clock.LocalNow);
                 
