@@ -1,6 +1,6 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Execution.Queues;
+namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 /// <summary>
 /// Position-Index 队列中的任务项
@@ -12,10 +12,10 @@ namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 public record class PositionQueueItem
 {
     /// <summary>
-    /// 包裹ID
+    /// 包裹ID（长整型）
     /// </summary>
-    /// <example>PKG-20251212-001</example>
-    public required string ParcelId { get; init; }
+    /// <example>20251212001</example>
+    public required long ParcelId { get; init; }
     
     /// <summary>
     /// 摆轮ID

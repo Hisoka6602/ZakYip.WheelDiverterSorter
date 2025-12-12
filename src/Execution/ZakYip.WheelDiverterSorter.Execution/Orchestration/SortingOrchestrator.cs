@@ -60,6 +60,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     
     // TD-062: 拓扑驱动分拣流程常量
     private const int DefaultTimeoutSeconds = 10; // 默认超时时间（秒）
+    
+    /// <summary>
+    /// 单个摆轮动作执行超时时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于 IO 触发执行时单段摆轮动作的超时设置。
+    /// 5000ms 作为保守默认值，覆盖大多数摆轮动作场景。
+    /// </remarks>
+    private const int DefaultSingleActionTimeoutMs = 5000;
 
     // 空的可用格口列表（静态共享实例）
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
@@ -210,6 +219,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         _logger.LogInformation("正在停止分拣编排服务...");
 
+        // Phase 6: 清空所有队列（停止/急停/复位时）
+        if (_queueManager != null)
+        {
+            _logger.LogInformation("正在清空所有 Position-Index 队列...");
+            _queueManager.ClearAllQueues();
+            _logger.LogInformation("所有队列已清空");
+        }
+
         // 停止传感器事件监听
         _logger.LogInformation("正在停止传感器事件监听...");
         await _sensorEventProvider.StopAsync();
@@ -274,201 +291,105 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 parcelId,
                 targetChuteId);
 
-            // 步骤 5: 拓扑驱动分拣流程（TD-062）- 必须使用拓扑配置
-            _logger.LogDebug("[步骤 5/5] 拓扑驱动分拣流程");
+            // 步骤 5: 生成队列任务并入队（Phase 4 完整实现）
+            _logger.LogDebug("[步骤 5/5] 生成队列任务并入队");
             
             // 获取系统配置和异常格口ID
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
             
-            // 检查拓扑服务是否可用
-            if (_queueManager == null || _topologyRepository == null || _segmentRepository == null)
+            // 检查队列服务是否可用
+            if (_queueManager == null)
             {
-                // TD-068: 缺少必需的拓扑服务，生成异常格口路径
                 _logger.LogError(
-                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（QueueManager={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），生成异常格口路径",
-                    parcelId, _queueManager != null, _topologyRepository != null, _segmentRepository != null);
-                
-                // 尝试生成异常格口路径（所有摆轮直行）
-                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
-                    exceptionChuteId,
-                    parcelId,
-                    "拓扑服务未配置");
-                
-                if (exceptionPath == null || _queueManager == null)
-                {
-                    // 连异常格口路径都无法生成，或队列服务不可用，只能记录失败
-                    stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("TopologyServiceMissing");
-                    return new SortingResult(
-                        IsSuccess: false,
-                        ParcelId: parcelId.ToString(),
-                        ActualChuteId: 0,
-                        TargetChuteId: targetChuteId,
-                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "拓扑服务未配置，且无法生成异常格口路径"
-                    );
-                }
-                
-                // TODO: 实现新的队列入队逻辑
-                _logger.LogWarning(
-                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列，但完整实现尚未完成",
+                    "[队列服务缺失] 包裹 {ParcelId} 分拣失败：队列管理器未配置",
                     parcelId);
                 
                 stopwatch.Stop();
+                _metrics?.RecordSortingFailedParcel("QueueManagerMissing");
                 return new SortingResult(
-                    IsSuccess: true,
+                    IsSuccess: false,
                     ParcelId: parcelId.ToString(),
-                    ActualChuteId: exceptionChuteId,
-                    TargetChuteId: exceptionChuteId,
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
                     ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: null
-                );
-            }
-
-            var topology = _topologyRepository.Get();
-            var diverterNode = topology.FindNodeByChuteId(targetChuteId);
-            
-            if (diverterNode == null)
-            {
-                // TD-068: 拓扑中未找到对应的摆轮节点，生成异常格口路径并加入队列
-                _logger.LogWarning(
-                    "[拓扑节点未找到] 包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，生成异常格口路径",
-                    parcelId, targetChuteId);
-                
-                // 生成异常格口路径（所有摆轮直行）
-                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
-                    exceptionChuteId,
-                    parcelId,
-                    "目标格口在拓扑中不存在");
-                
-                if (exceptionPath == null)
-                {
-                    // 连异常格口路径都无法生成
-                    stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("NodeNotFoundAndPathFailed");
-                    return new SortingResult(
-                        IsSuccess: false,
-                        ParcelId: parcelId.ToString(),
-                        ActualChuteId: 0,
-                        TargetChuteId: targetChuteId,
-                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "目标格口在拓扑中不存在，且无法生成异常格口路径"
-                    );
-                }
-                
-                // TODO: 实现新的 Position-Index 队列入队逻辑
-                _logger.LogWarning(
-                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列（异常格口路径），目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
-                
-                _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 异常格口路径生成完成，目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
-                
-                stopwatch.Stop();
-                return new SortingResult(
-                    IsSuccess: true,
-                    ParcelId: parcelId.ToString(),
-                    ActualChuteId: exceptionChuteId,
-                    TargetChuteId: exceptionChuteId,
-                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: null
+                    FailureReason: "队列管理器未配置"
                 );
             }
             
-            // 查询线体段配置获取超时时间
-            var segment = _segmentRepository.GetById(diverterNode.SegmentId);
-            var timeoutSeconds = segment != null 
-                ? (int)(segment.CalculateTimeoutThresholdMs() / 1000) 
-                : DefaultTimeoutSeconds;
-            
-            // TD-062: 路径预生成优化 - 在入队前生成路径，WheelFront触发时直接执行
+            // 使用 GenerateQueueTasks 生成队列任务列表
             _logger.LogDebug(
-                "[路径生成] 开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的分拣路径",
+                "[队列任务生成] 开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的队列任务",
                 parcelId,
                 targetChuteId);
-            var path = _pathGenerator.GeneratePath(targetChuteId);
             
-            if (path == null)
+            var queueTasks = _pathGenerator.GenerateQueueTasks(
+                parcelId,
+                targetChuteId,
+                _clock.LocalNow);
+            
+            // 如果生成失败或为空，生成异常格口任务
+            if (queueTasks == null || queueTasks.Count == 0)
             {
-                // TD-068: 路径生成失败，生成异常格口路径并加入队列
-                _logger.LogError(
-                    "[路径生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，生成异常格口路径",
+                _logger.LogWarning(
+                    "[队列任务生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的任务，生成异常格口任务",
                     parcelId, targetChuteId);
                 
-                // 生成异常格口路径
-                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
-                    exceptionChuteId,
+                queueTasks = _pathGenerator.GenerateQueueTasks(
                     parcelId,
-                    "无法生成到目标格口的路径");
+                    exceptionChuteId,
+                    _clock.LocalNow);
                 
-                if (exceptionPath == null)
+                if (queueTasks == null || queueTasks.Count == 0)
                 {
-                    // 连异常格口路径都无法生成
+                    // 连异常格口任务都无法生成
                     stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("PathGenerationFailed");
+                    _metrics?.RecordSortingFailedParcel("QueueTaskGenerationFailed");
                     return new SortingResult(
                         IsSuccess: false,
                         ParcelId: parcelId.ToString(),
                         ActualChuteId: 0,
                         TargetChuteId: targetChuteId,
                         ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "无法生成分拣路径，且无法生成异常格口路径"
+                        FailureReason: "无法生成队列任务（包括异常格口任务）"
                     );
                 }
                 
-                // TODO: 实现新的 Position-Index 队列入队逻辑
-                _logger.LogWarning(
-                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列（异常格口路径），目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
+                targetChuteId = exceptionChuteId; // 更新为异常格口
+            }
+            
+            // 将所有任务加入对应的 positionIndex 队列
+            _logger.LogDebug(
+                "[任务入队] 开始将 {TaskCount} 个任务加入队列",
+                queueTasks.Count);
+            
+            foreach (var task in queueTasks)
+            {
+                _queueManager.EnqueueTask(task.PositionIndex, task);
                 
-                _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 异常格口路径生成完成，目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
-                
-                stopwatch.Stop();
-                return new SortingResult(
-                    IsSuccess: true,
-                    ParcelId: parcelId.ToString(),
-                    ActualChuteId: exceptionChuteId,
-                    TargetChuteId: exceptionChuteId,
-                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: null
-                );
+                _logger.LogDebug(
+                    "[任务入队] ParcelId={ParcelId}, Position={Position}, DiverterId={DiverterId}, " +
+                    "Action={Action}, ExpectedArrival={ExpectedTime:HH:mm:ss.fff}, Timeout={TimeoutMs}ms",
+                    task.ParcelId,
+                    task.PositionIndex,
+                    task.DiverterId,
+                    task.DiverterAction,
+                    task.ExpectedArrivalTime,
+                    task.TimeoutThresholdMs);
             }
             
             _logger.LogInformation(
-                "[路径生成成功] 包裹 {ParcelId}: 段数={SegmentCount}, 目标格口={TargetChuteId}, 摆轮={DiverterId}",
+                "[入队完成] 包裹 {ParcelId} 的 {TaskCount} 个任务已加入队列，目标格口={TargetChuteId}, ElapsedMs={ElapsedMs:F0}",
                 parcelId,
-                path.Segments.Count,
+                queueTasks.Count,
                 targetChuteId,
-                diverterNode.DiverterId);
-            
-            // TODO: 实现新的 Position-Index 队列入队逻辑
-            _logger.LogWarning(
-                "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列，目标格口: {TargetChuteId}, 摆轮ID: {DiverterId}",
-                parcelId,
-                targetChuteId,
-                diverterNode.DiverterId);
-            
-            _logger.LogInformation(
-                "[完成] 包裹路径生成完成: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
-                parcelId,
-                targetChuteId,
-                diverterNode.DiverterId,
-                path.Segments.Count,
                 stopwatch.Elapsed.TotalMilliseconds);
             
             stopwatch.Stop();
             return new SortingResult(
                 IsSuccess: true,
                 ParcelId: parcelId.ToString(),
-                ActualChuteId: targetChuteId,
+                ActualChuteId: targetChuteId,  // 实际格口要等IO触发执行后才能最终确定
                 TargetChuteId: targetChuteId,
                 ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
                 FailureReason: null
@@ -1064,293 +985,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         return systemConfig.ExceptionChuteId;
     }
 
-    /// <summary>
-    /// 步骤 5: 执行分拣工作流
-    /// </summary>
-    private async Task<SortingResult> ExecuteSortingWorkflowAsync(
-        long parcelId, 
-        long targetChuteId, 
-        bool isOverloadException,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var systemConfig = _systemConfigRepository.Get();
-            var exceptionChuteId = systemConfig.ExceptionChuteId;
 
-            // 5.1: 生成摆轮路径
-            var pathResult = await GeneratePathOrExceptionAsync(parcelId, targetChuteId, exceptionChuteId);
-            if (pathResult.Path == null)
-            {
-                _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
-                return new SortingResult(
-                    IsSuccess: false,
-                    ParcelId: parcelId.ToString(),
-                    ActualChuteId: 0,
-                    TargetChuteId: targetChuteId,
-                    ExecutionTimeMs: 0,
-                    FailureReason: "路径生成失败"
-                );
-            }
-
-            var path = pathResult.Path;
-            targetChuteId = pathResult.ActualTargetChuteId;
-            isOverloadException = isOverloadException || pathResult.IsException;
-
-            // 5.2: 路径健康检查（PR-14）
-            if (!isOverloadException)
-            {
-                var healthResult = await ValidatePathHealthAsync(parcelId, path, exceptionChuteId);
-                if (!healthResult.IsHealthy)
-                {
-                    if (healthResult.AlternativePath == null)
-                    {
-                        // 连异常格口路径都无法生成
-                        _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
-                        return new SortingResult(
-                            IsSuccess: false,
-                            ParcelId: parcelId.ToString(),
-                            ActualChuteId: 0,
-                            TargetChuteId: targetChuteId,
-                            ExecutionTimeMs: 0,
-                            FailureReason: "节点降级：连异常格口路径都无法生成"
-                        );
-                    }
-                    path = healthResult.AlternativePath;
-                    targetChuteId = exceptionChuteId;
-                    isOverloadException = true;
-                }
-            }
-
-            // 5.3: 二次超载检查已删除（策略相关代码移除）
-
-            // 5.4: 执行路径
-            var executionResult = await ExecutePathWithTrackingAsync(parcelId, path, targetChuteId, isOverloadException, cancellationToken);
-
-            // 5.5: 记录分拣结果
-            await RecordSortingResultAsync(parcelId, executionResult, isOverloadException);
-
-            // 清理
-            CleanupParcelRecord(parcelId);
-
-            return executionResult;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "执行包裹 {ParcelId} 分拣时发生异常", parcelId);
-            _congestionCollector?.RecordParcelCompletion(parcelId, _clock.LocalNow, false);
-            CleanupParcelRecord(parcelId);
-
-            return new SortingResult(
-                IsSuccess: false,
-                ParcelId: parcelId.ToString(),
-                ActualChuteId: 0,
-                TargetChuteId: targetChuteId,
-                ExecutionTimeMs: 0,
-                FailureReason: $"执行异常: {ex.Message}"
-            );
-        }
-    }
-
-    /// <summary>
-    /// 5.1: 生成路径（含异常处理）
-    /// </summary>
-    private async Task<(SwitchingPath? Path, long ActualTargetChuteId, bool IsException)> GeneratePathOrExceptionAsync(
-        long parcelId, 
-        long targetChuteId, 
-        long exceptionChuteId)
-    {
-        var path = _pathGenerator.GeneratePath(targetChuteId);
-
-        if (path == null)
-        {
-            // 路由返回的 ChuteId 在拓扑中不存在，执行兜底逻辑
-            var localTime = _clock.LocalNow;
-            
-            _logger.LogWarning(
-                "【路由-拓扑不一致兜底】路由返回的 ChuteId 在线体拓扑中不存在，已分拣至异常口。" +
-                "包裹ID={ParcelId}, 原始ChuteId={OriginalChuteId}, 异常口ChuteId={ExceptionChuteId}, " +
-                "发生时间={OccurredAt:yyyy-MM-dd HH:mm:ss.fff}",
-                parcelId,
-                targetChuteId,
-                exceptionChuteId,
-                localTime);
-
-            // 使用统一的异常处理器生成到异常格口的路径
-            path = _exceptionHandler.GenerateExceptionPath(
-                exceptionChuteId, 
-                parcelId, 
-                $"路由返回的格口 {targetChuteId} 在拓扑中不存在");
-
-            if (path == null)
-            {
-                return (null, exceptionChuteId, true);
-            }
-
-            return (path, exceptionChuteId, true);
-        }
-
-        // PR-10: 记录路径规划完成事件
-        // PR-5: Optimize - use simple loop instead of LINQ Sum
-        double totalRouteTimeMs = 0;
-        for (int i = 0; i < path.Segments.Count; i++)
-        {
-            totalRouteTimeMs += path.Segments[i].TtlMilliseconds;
-        }
-        
-        await WriteTraceAsync(new ParcelTraceEventArgs
-        {
-            ItemId = parcelId,
-            BarCode = null,
-            OccurredAt = new DateTimeOffset(_clock.LocalNow),
-            Stage = "RoutePlanned",
-            Source = "Execution",
-            Details = $"TargetChuteId={targetChuteId}, SegmentCount={path.Segments.Count}, EstimatedTimeMs={totalRouteTimeMs:F0}"
-        });
-
-        // 记录路径到字典，用于失败处理
-        // PR-44: ConcurrentDictionary 索引器赋值是线程安全的
-        _parcelPaths[parcelId] = path;
-
-        return (path, targetChuteId, false);
-    }
-
-    /// <summary>
-    /// 5.2: 验证路径健康（PR-14）
-    /// </summary>
-    private async Task<(bool IsHealthy, SwitchingPath? AlternativePath)> ValidatePathHealthAsync(
-        long parcelId, 
-        SwitchingPath path, 
-        long exceptionChuteId)
-    {
-        if (_pathHealthChecker == null)
-        {
-            return (true, null);
-        }
-
-        var pathHealthResult = _pathHealthChecker.ValidatePath(path);
-        
-        if (!pathHealthResult.IsHealthy)
-        {
-            var unhealthyNodeList = string.Join(", ", pathHealthResult.UnhealthyNodeIds);
-            
-            _logger.LogWarning(
-                "包裹 {ParcelId} 的路径经过不健康节点 [{UnhealthyNodes}]，将重定向到异常格口",
-                parcelId,
-                unhealthyNodeList);
-
-            // PR-10: 记录节点降级决策事件
-            await WriteTraceAsync(new ParcelTraceEventArgs
-            {
-                ItemId = parcelId,
-                BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                Stage = "OverloadDecision",
-                Source = "NodeHealthCheck",
-                Details = $"Reason=NodeDegraded, UnhealthyNodes=[{unhealthyNodeList}], OriginalTargetChute={path.TargetChuteId}"
-            });
-
-            // 记录节点降级指标
-            _metrics?.RecordOverloadParcel("NodeDegraded");
-
-            // 使用统一的异常处理器生成到异常格口的路径
-            var alternativePath = _exceptionHandler.GenerateExceptionPath(
-                exceptionChuteId, 
-                parcelId, 
-                $"路径经过不健康节点: {unhealthyNodeList}");
-            
-            return (false, alternativePath);
-        }
-
-        return (true, null);
-    }
-
-    /// <summary>
-    /// 5.4: 执行路径并追踪
-    /// </summary>
-    private async Task<SortingResult> ExecutePathWithTrackingAsync(
-        long parcelId, 
-        SwitchingPath path, 
-        long targetChuteId, 
-        bool isOverloadException,
-        CancellationToken cancellationToken)
-    {
-        var executionResult = await _pathExecutor.ExecuteAsync(path, cancellationToken);
-
-        if (executionResult.IsSuccess)
-        {
-            _logger.LogInformation(
-                "包裹 {ParcelId} 成功分拣到格口 {ActualChuteId}{OverloadFlag}",
-                parcelId,
-                executionResult.ActualChuteId,
-                isOverloadException ? " [超载异常]" : "");
-
-            // PR-10: 记录成功落格事件
-            if (isOverloadException)
-            {
-                await WriteTraceAsync(new ParcelTraceEventArgs
-                {
-                    ItemId = parcelId,
-                    BarCode = null,
-                    OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                    Stage = "ExceptionDiverted",
-                    Source = "Execution",
-                    Details = $"ChuteId={executionResult.ActualChuteId}, Reason=Overload"
-                });
-            }
-            else
-            {
-                await WriteTraceAsync(new ParcelTraceEventArgs
-                {
-                    ItemId = parcelId,
-                    BarCode = null,
-                    OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                    Stage = "Diverted",
-                    Source = "Execution",
-                    Details = $"ChuteId={executionResult.ActualChuteId}, TargetChuteId={targetChuteId}"
-                });
-            }
-        }
-        else
-        {
-            _logger.LogError(
-                "包裹 {ParcelId} 分拣失败: {FailureReason}，实际到达格口: {ActualChuteId}",
-                parcelId,
-                executionResult.FailureReason,
-                executionResult.ActualChuteId);
-
-            // PR-10: 记录异常落格事件
-            await WriteTraceAsync(new ParcelTraceEventArgs
-            {
-                ItemId = parcelId,
-                BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                Stage = "ExceptionDiverted",
-                Source = "Execution",
-                Details = $"ChuteId={executionResult.ActualChuteId}, Reason={executionResult.FailureReason}"
-            });
-
-            // 处理路径执行失败
-            if (_pathFailureHandler != null)
-            {
-                _pathFailureHandler.HandlePathFailure(
-                    parcelId,
-                    path,
-                    executionResult.FailureReason ?? "未知错误",
-                    executionResult.FailedSegment);
-            }
-        }
-
-        return new SortingResult(
-            IsSuccess: executionResult.IsSuccess,
-            ParcelId: parcelId.ToString(),
-            ActualChuteId: executionResult.ActualChuteId,
-            TargetChuteId: targetChuteId,
-            ExecutionTimeMs: 0, // Will be set by caller
-            FailureReason: executionResult.FailureReason,
-            IsOverloadException: isOverloadException
-        );
-    }
 
     /// <summary>
     /// 5.5: 记录分拣结果
@@ -1602,8 +1237,53 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
             task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
         
-        // TODO: 实现摆轮动作执行
-        // 当前暂时只记录日志，完整实现需要调用 IWheelDiverterDevice
+        // 执行摆轮动作（Phase 5 完整实现）
+        // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
+        var singleSegmentPath = new SwitchingPath
+        {
+            // In single-segment (single-action) execution, the target chute is determined by the diverter action itself,
+            // not by a multi-segment path. Therefore, TargetChuteId is set to 0 as a placeholder and is not used.
+            TargetChuteId = 0,
+            Segments = new List<SwitchingPathSegment>
+            {
+                new SwitchingPathSegment
+                {
+                    SequenceNumber = 1,
+                    DiverterId = task.DiverterId,
+                    TargetDirection = actionToExecute,
+                    TtlMilliseconds = DefaultSingleActionTimeoutMs
+                }
+            }.AsReadOnly(),
+            GeneratedAt = _clock.LocalNowOffset,
+            FallbackChuteId = 0
+        };
+        
+        try
+        {
+            var executionResult = await _pathExecutor.ExecuteAsync(singleSegmentPath, default);
+            
+            if (!executionResult.IsSuccess)
+            {
+                _logger.LogError(
+                    "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作失败: {ErrorMessage}",
+                    task.ParcelId, positionIndex, executionResult.FailureReason);
+                _metrics?.RecordSortingFailure(0);
+                return;
+            }
+            
+            _logger.LogDebug(
+                "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功",
+                task.ParcelId, positionIndex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常",
+                task.ParcelId, positionIndex);
+            _metrics?.RecordSortingFailure(0);
+            return;
+        }
         
         if (!isTimeout)
         {
@@ -1637,8 +1317,40 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 通知上游包裹重复触发异常（不等待响应）
             await _upstreamClient.NotifyParcelDetectedAsync(parcelId, CancellationToken.None);
 
-            // 直接将包裹发送到异常格口
-            await ExecuteSortingWorkflowAsync(parcelId, exceptionChuteId, isOverloadException: true, CancellationToken.None);
+            // 使用新的队列系统将包裹发送到异常格口
+            if (_queueManager != null)
+            {
+                var queueTasks = _pathGenerator.GenerateQueueTasks(
+                    parcelId,
+                    exceptionChuteId,
+                    _clock.LocalNow);
+                
+                if (queueTasks != null && queueTasks.Count > 0)
+                {
+                    foreach (var task in queueTasks)
+                    {
+                        _queueManager.EnqueueTask(task.PositionIndex, task);
+                    }
+                    
+                    _logger.LogInformation(
+                        "重复触发异常包裹 {ParcelId} 已加入队列，目标异常格口={ExceptionChuteId}",
+                        parcelId, exceptionChuteId);
+                }
+                else
+                {
+                    _logger.LogError(
+                        "重复触发异常包裹 {ParcelId} 无法生成到异常格口的队列任务",
+                        parcelId);
+                }
+            }
+            else
+            {
+                _logger.LogError(
+                    "重复触发异常包裹 {ParcelId} 处理失败：队列管理器未配置",
+                    parcelId);
+            }
+            
+            CleanupParcelRecord(parcelId);
         }
         catch (Exception ex)
         {

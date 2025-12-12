@@ -120,4 +120,24 @@ public class CachedSwitchingPathGenerator : ISwitchingPathGenerator, IPathCacheM
             _logger.LogWarning("InvalidateAllCache 被调用但未提供格口ID列表，无法清除缓存");
         }
     }
+
+    /// <summary>
+    /// 生成队列任务列表（直接委托给底层生成器，不缓存）
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <param name="createdAt">创建时间</param>
+    /// <returns>队列任务列表</returns>
+    /// <remarks>
+    /// 队列任务包含时间戳，每次都不同，因此不适合缓存。
+    /// 直接委托给底层生成器。
+    /// </remarks>
+    public List<Core.Abstractions.Execution.PositionQueueItem> GenerateQueueTasks(
+        long parcelId,
+        long targetChuteId,
+        DateTime createdAt)
+    {
+        // 队列任务包含时间戳，不适合缓存，直接委托
+        return _innerGenerator.GenerateQueueTasks(parcelId, targetChuteId, createdAt);
+    }
 }
