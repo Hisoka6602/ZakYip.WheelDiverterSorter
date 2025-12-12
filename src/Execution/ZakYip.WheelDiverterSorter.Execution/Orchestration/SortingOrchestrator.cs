@@ -210,6 +210,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     {
         _logger.LogInformation("正在停止分拣编排服务...");
 
+        // Phase 6: 清空所有队列（停止/急停/复位时）
+        if (_queueManager != null)
+        {
+            _logger.LogInformation("正在清空所有 Position-Index 队列...");
+            _queueManager.ClearAllQueues();
+            _logger.LogInformation("所有队列已清空");
+        }
+
         // 停止传感器事件监听
         _logger.LogInformation("正在停止传感器事件监听...");
         await _sensorEventProvider.StopAsync();
@@ -274,201 +282,105 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 parcelId,
                 targetChuteId);
 
-            // 步骤 5: 拓扑驱动分拣流程（TD-062）- 必须使用拓扑配置
-            _logger.LogDebug("[步骤 5/5] 拓扑驱动分拣流程");
+            // 步骤 5: 生成队列任务并入队（Phase 4 完整实现）
+            _logger.LogDebug("[步骤 5/5] 生成队列任务并入队");
             
             // 获取系统配置和异常格口ID
             var systemConfig = _systemConfigRepository.Get();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
             
-            // 检查拓扑服务是否可用
-            if (_queueManager == null || _topologyRepository == null || _segmentRepository == null)
+            // 检查队列服务是否可用
+            if (_queueManager == null)
             {
-                // TD-068: 缺少必需的拓扑服务，生成异常格口路径
                 _logger.LogError(
-                    "[拓扑服务缺失] 包裹 {ParcelId} 分拣失败：拓扑服务未配置（QueueManager={HasQueue}, TopologyRepo={HasTopo}, SegmentRepo={HasSegment}），生成异常格口路径",
-                    parcelId, _queueManager != null, _topologyRepository != null, _segmentRepository != null);
-                
-                // 尝试生成异常格口路径（所有摆轮直行）
-                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
-                    exceptionChuteId,
-                    parcelId,
-                    "拓扑服务未配置");
-                
-                if (exceptionPath == null || _queueManager == null)
-                {
-                    // 连异常格口路径都无法生成，或队列服务不可用，只能记录失败
-                    stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("TopologyServiceMissing");
-                    return new SortingResult(
-                        IsSuccess: false,
-                        ParcelId: parcelId.ToString(),
-                        ActualChuteId: 0,
-                        TargetChuteId: targetChuteId,
-                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "拓扑服务未配置，且无法生成异常格口路径"
-                    );
-                }
-                
-                // TODO: 实现新的队列入队逻辑
-                _logger.LogWarning(
-                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列，但完整实现尚未完成",
+                    "[队列服务缺失] 包裹 {ParcelId} 分拣失败：队列管理器未配置",
                     parcelId);
                 
                 stopwatch.Stop();
+                _metrics?.RecordSortingFailedParcel("QueueManagerMissing");
                 return new SortingResult(
-                    IsSuccess: true,
+                    IsSuccess: false,
                     ParcelId: parcelId.ToString(),
-                    ActualChuteId: exceptionChuteId,
-                    TargetChuteId: exceptionChuteId,
+                    ActualChuteId: 0,
+                    TargetChuteId: targetChuteId,
                     ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: null
-                );
-            }
-
-            var topology = _topologyRepository.Get();
-            var diverterNode = topology.FindNodeByChuteId(targetChuteId);
-            
-            if (diverterNode == null)
-            {
-                // TD-068: 拓扑中未找到对应的摆轮节点，生成异常格口路径并加入队列
-                _logger.LogWarning(
-                    "[拓扑节点未找到] 包裹 {ParcelId} 的目标格口 {TargetChuteId} 在拓扑中未找到对应的摆轮节点，生成异常格口路径",
-                    parcelId, targetChuteId);
-                
-                // 生成异常格口路径（所有摆轮直行）
-                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
-                    exceptionChuteId,
-                    parcelId,
-                    "目标格口在拓扑中不存在");
-                
-                if (exceptionPath == null)
-                {
-                    // 连异常格口路径都无法生成
-                    stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("NodeNotFoundAndPathFailed");
-                    return new SortingResult(
-                        IsSuccess: false,
-                        ParcelId: parcelId.ToString(),
-                        ActualChuteId: 0,
-                        TargetChuteId: targetChuteId,
-                        ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "目标格口在拓扑中不存在，且无法生成异常格口路径"
-                    );
-                }
-                
-                // TODO: 实现新的 Position-Index 队列入队逻辑
-                _logger.LogWarning(
-                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列（异常格口路径），目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
-                
-                _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 异常格口路径生成完成，目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
-                
-                stopwatch.Stop();
-                return new SortingResult(
-                    IsSuccess: true,
-                    ParcelId: parcelId.ToString(),
-                    ActualChuteId: exceptionChuteId,
-                    TargetChuteId: exceptionChuteId,
-                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: null
+                    FailureReason: "队列管理器未配置"
                 );
             }
             
-            // 查询线体段配置获取超时时间
-            var segment = _segmentRepository.GetById(diverterNode.SegmentId);
-            var timeoutSeconds = segment != null 
-                ? (int)(segment.CalculateTimeoutThresholdMs() / 1000) 
-                : DefaultTimeoutSeconds;
-            
-            // TD-062: 路径预生成优化 - 在入队前生成路径，WheelFront触发时直接执行
+            // 使用 GenerateQueueTasks 生成队列任务列表
             _logger.LogDebug(
-                "[路径生成] 开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的分拣路径",
+                "[队列任务生成] 开始为包裹 {ParcelId} 生成到格口 {TargetChuteId} 的队列任务",
                 parcelId,
                 targetChuteId);
-            var path = _pathGenerator.GeneratePath(targetChuteId);
             
-            if (path == null)
+            var queueTasks = _pathGenerator.GenerateQueueTasks(
+                parcelId.ToString(),
+                targetChuteId,
+                _clock.LocalNow);
+            
+            // 如果生成失败或为空，生成异常格口任务
+            if (queueTasks == null || queueTasks.Count == 0)
             {
-                // TD-068: 路径生成失败，生成异常格口路径并加入队列
-                _logger.LogError(
-                    "[路径生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的路径，生成异常格口路径",
+                _logger.LogWarning(
+                    "[队列任务生成失败] 包裹 {ParcelId} 无法生成到目标格口 {TargetChuteId} 的任务，生成异常格口任务",
                     parcelId, targetChuteId);
                 
-                // 生成异常格口路径
-                var exceptionPath = _exceptionHandler.GenerateExceptionPath(
+                queueTasks = _pathGenerator.GenerateQueueTasks(
+                    parcelId.ToString(),
                     exceptionChuteId,
-                    parcelId,
-                    "无法生成到目标格口的路径");
+                    _clock.LocalNow);
                 
-                if (exceptionPath == null)
+                if (queueTasks == null || queueTasks.Count == 0)
                 {
-                    // 连异常格口路径都无法生成
+                    // 连异常格口任务都无法生成
                     stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("PathGenerationFailed");
+                    _metrics?.RecordSortingFailedParcel("QueueTaskGenerationFailed");
                     return new SortingResult(
                         IsSuccess: false,
                         ParcelId: parcelId.ToString(),
                         ActualChuteId: 0,
                         TargetChuteId: targetChuteId,
                         ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                        FailureReason: "无法生成分拣路径，且无法生成异常格口路径"
+                        FailureReason: "无法生成队列任务（包括异常格口任务）"
                     );
                 }
                 
-                // TODO: 实现新的 Position-Index 队列入队逻辑
-                _logger.LogWarning(
-                    "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列（异常格口路径），目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
+                targetChuteId = exceptionChuteId; // 更新为异常格口
+            }
+            
+            // 将所有任务加入对应的 positionIndex 队列
+            _logger.LogDebug(
+                "[任务入队] 开始将 {TaskCount} 个任务加入队列",
+                queueTasks.Count);
+            
+            foreach (var task in queueTasks)
+            {
+                _queueManager.EnqueueTask(task.PositionIndex, task);
                 
-                _logger.LogInformation(
-                    "[完成] 包裹 {ParcelId} 异常格口路径生成完成，目标格口: {ExceptionChuteId}",
-                    parcelId,
-                    exceptionChuteId);
-                
-                stopwatch.Stop();
-                return new SortingResult(
-                    IsSuccess: true,
-                    ParcelId: parcelId.ToString(),
-                    ActualChuteId: exceptionChuteId,
-                    TargetChuteId: exceptionChuteId,
-                    ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
-                    FailureReason: null
-                );
+                _logger.LogDebug(
+                    "[任务入队] ParcelId={ParcelId}, Position={Position}, DiverterId={DiverterId}, " +
+                    "Action={Action}, ExpectedArrival={ExpectedTime:HH:mm:ss.fff}, Timeout={TimeoutMs}ms",
+                    task.ParcelId,
+                    task.PositionIndex,
+                    task.DiverterId,
+                    task.DiverterAction,
+                    task.ExpectedArrivalTime,
+                    task.TimeoutThresholdMs);
             }
             
             _logger.LogInformation(
-                "[路径生成成功] 包裹 {ParcelId}: 段数={SegmentCount}, 目标格口={TargetChuteId}, 摆轮={DiverterId}",
+                "[入队完成] 包裹 {ParcelId} 的 {TaskCount} 个任务已加入队列，目标格口={TargetChuteId}, ElapsedMs={ElapsedMs:F0}",
                 parcelId,
-                path.Segments.Count,
+                queueTasks.Count,
                 targetChuteId,
-                diverterNode.DiverterId);
-            
-            // TODO: 实现新的 Position-Index 队列入队逻辑
-            _logger.LogWarning(
-                "[TODO] 包裹 {ParcelId} 需要加入 Position-Index 队列，目标格口: {TargetChuteId}, 摆轮ID: {DiverterId}",
-                parcelId,
-                targetChuteId,
-                diverterNode.DiverterId);
-            
-            _logger.LogInformation(
-                "[完成] 包裹路径生成完成: ParcelId={ParcelId}, TargetChuteId={TargetChuteId}, DiverterId={DiverterId}, SegmentCount={SegmentCount}, ElapsedMs={ElapsedMs:F0}",
-                parcelId,
-                targetChuteId,
-                diverterNode.DiverterId,
-                path.Segments.Count,
                 stopwatch.Elapsed.TotalMilliseconds);
             
             stopwatch.Stop();
             return new SortingResult(
                 IsSuccess: true,
                 ParcelId: parcelId.ToString(),
-                ActualChuteId: targetChuteId,
+                ActualChuteId: targetChuteId,  // 实际格口要等IO触发执行后才能最终确定
                 TargetChuteId: targetChuteId,
                 ExecutionTimeMs: stopwatch.Elapsed.TotalMilliseconds,
                 FailureReason: null
@@ -1602,12 +1514,72 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
             task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
         
-        // TODO: 实现摆轮动作执行
-        // 当前暂时只记录日志，完整实现需要调用 IWheelDiverterDevice
+        // 执行摆轮动作（Phase 5 完整实现）
+        // 复用现有的 PathExecutor，创建单段路径执行
+        await ExecuteSingleDiverterActionAsync(task.DiverterId, actionToExecute, task.ParcelId, positionIndex);
         
         if (!isTimeout)
         {
             _metrics?.RecordSortingSuccess(0);
+        }
+    }
+
+    /// <summary>
+    /// 执行单个摆轮动作
+    /// </summary>
+    /// <param name="diverterId">摆轮ID</param>
+    /// <param name="direction">摆轮方向</param>
+    /// <param name="parcelId">包裹ID（用于日志）</param>
+    /// <param name="positionIndex">位置索引（用于日志）</param>
+    private async Task ExecuteSingleDiverterActionAsync(
+        long diverterId,
+        DiverterDirection direction,
+        string parcelId,
+        int positionIndex)
+    {
+        // 使用现有的 PathExecutor 执行单段路径
+        // 这会内部调用 IWheelCommandExecutor 来执行实际的硬件动作
+        var singleSegmentPath = new SwitchingPath
+        {
+            TargetChuteId = 0, // 单段执行时不关心目标格口
+            Segments = new List<SwitchingPathSegment>
+            {
+                new SwitchingPathSegment
+                {
+                    SequenceNumber = 1,
+                    DiverterId = diverterId,
+                    TargetDirection = direction,
+                    TtlMilliseconds = 5000 // 单个动作执行超时5秒
+                }
+            }.AsReadOnly(),
+            GeneratedAt = _clock.LocalNowOffset,
+            FallbackChuteId = 0
+        };
+        
+        try
+        {
+            var executionResult = await _pathExecutor.ExecuteAsync(singleSegmentPath, default);
+            
+            if (!executionResult.IsSuccess)
+            {
+                _logger.LogError(
+                    "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮 {DiverterId} 动作 {Direction} 失败: {ErrorMessage}",
+                    parcelId, positionIndex, diverterId, direction, executionResult.FailureReason);
+                _metrics?.RecordSortingFailure(0);
+                return;
+            }
+            
+            _logger.LogDebug(
+                "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功: Diverter={DiverterId}, Direction={Direction}",
+                parcelId, positionIndex, diverterId, direction);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常: Diverter={DiverterId}, Direction={Direction}",
+                parcelId, positionIndex, diverterId, direction);
+            _metrics?.RecordSortingFailure(0);
         }
     }
 
