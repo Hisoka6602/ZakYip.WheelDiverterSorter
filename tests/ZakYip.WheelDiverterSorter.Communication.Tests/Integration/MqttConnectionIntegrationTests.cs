@@ -76,7 +76,7 @@ public class MqttConnectionIntegrationTests : IDisposable
         await server.StartAsync();
         await Task.Delay(1000); // Give server more time to start
 
-        var connected = await client.ConnectAsync();
+        var connected = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.True(server.IsRunning, "Server should be running");
@@ -88,7 +88,7 @@ public class MqttConnectionIntegrationTests : IDisposable
         Assert.True(server.ConnectedClientsCount >= 1, "Server should have at least 1 connected client");
 
         // Cleanup
-        await client.DisconnectAsync();
+        client.Dispose();
         await server.StopAsync();
     }
 
@@ -118,7 +118,7 @@ public class MqttConnectionIntegrationTests : IDisposable
         _disposables.Add(client);
 
         // Act
-        var connected = await client.ConnectAsync();
+        var connected = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.False(connected, "Client should fail to connect");
@@ -201,7 +201,7 @@ public class MqttConnectionIntegrationTests : IDisposable
         await server.StartAsync();
         await Task.Delay(1000);
 
-        var connected = await client.ConnectAsync();
+        var connected = // Connection is automatic - await client.PingAsync();
         await Task.Delay(1000);
 
         // Assert
@@ -211,7 +211,7 @@ public class MqttConnectionIntegrationTests : IDisposable
         Assert.True(server.ConnectedClientsCount >= 1, "Server should have at least 1 connected client");
 
         // Cleanup
-        await client.DisconnectAsync();
+        client.Dispose();
         await server.StopAsync();
     }
 

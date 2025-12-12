@@ -39,7 +39,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
             .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .Setup(x => x.IsConnected)
             .Returns(true);
         await _orchestrator.StartAsync();
@@ -59,7 +59,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         await Task.Delay(1000); // Allow all processing to complete
         // Assert
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.AtLeast(0)); // May vary based on actual invocations
         await _orchestrator.StopAsync();
     [SimulationScenario("Concurrent_PathGeneration_NoRaceConditions")]
@@ -136,7 +136,7 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         // Act - Process parcels in sequence
         for (int i = 0; i < parcelCount; i++)
             var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds() + i;
-            await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+            await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
             await Task.Delay(10); // Small delay between parcels
         await Task.Delay(500); // Allow processing
         processedParcels.Should().HaveCount(parcelCount);

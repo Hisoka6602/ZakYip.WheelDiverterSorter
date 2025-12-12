@@ -92,7 +92,7 @@ public class SignalRConnectionIntegrationTests : IDisposable
         _disposables.Add(client);
 
         // Act
-        var connected = await client.ConnectAsync();
+        var connected = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.False(connected, "Client should fail to connect");

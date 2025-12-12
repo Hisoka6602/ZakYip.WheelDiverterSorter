@@ -76,7 +76,7 @@ public class TcpRuleEngineClientTests : IDisposable
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options);
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.True(result);
@@ -94,7 +94,7 @@ public class TcpRuleEngineClientTests : IDisposable
         };
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.False(result);
@@ -106,10 +106,10 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.True(result);
@@ -121,10 +121,10 @@ public class TcpRuleEngineClientTests : IDisposable
     {
         // Arrange
         StartTestServer();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         // Act
-        await client.DisconnectAsync();
+        client.Dispose();
 
         // Assert
         Assert.False(client.IsConnected);
@@ -137,7 +137,7 @@ public class TcpRuleEngineClientTests : IDisposable
         // (client is not connected)
 
         // Act & Assert (should not throw)
-        await client.DisconnectAsync();
+        client.Dispose();
         Assert.False(client.IsConnected);
     }
 
@@ -160,7 +160,7 @@ public class TcpRuleEngineClientTests : IDisposable
         };
 
         // Act
-        var result = await client.NotifyParcelDetectedAsync(parcelId);
+        var result = await client.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Assert
         Assert.True(result);

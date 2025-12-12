@@ -69,7 +69,7 @@ public class TcpConnectionIntegrationTests : IDisposable
         await server.StartAsync();
         await Task.Delay(500); // Give server time to start
 
-        var connected = await client.ConnectAsync();
+        var connected = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.True(server.IsRunning, "Server should be running");
@@ -81,7 +81,7 @@ public class TcpConnectionIntegrationTests : IDisposable
         Assert.Equal(1, server.ConnectedClientsCount);
 
         // Cleanup
-        await client.DisconnectAsync();
+        client.Dispose();
         await server.StopAsync();
     }
 
@@ -105,7 +105,7 @@ public class TcpConnectionIntegrationTests : IDisposable
         _disposables.Add(client);
 
         // Act
-        var connected = await client.ConnectAsync();
+        var connected = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.False(connected, "Client should fail to connect");

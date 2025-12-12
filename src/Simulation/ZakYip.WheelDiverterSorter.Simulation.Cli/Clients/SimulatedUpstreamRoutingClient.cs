@@ -157,16 +157,6 @@ public sealed class SimulatedUpstreamRoutingClient : IUpstreamRoutingClient, IDi
         return Task.FromResult(true);
     }
 
-    public Task<bool> SendAsync(IUpstreamMessage message, CancellationToken cancellationToken = default)
-    {
-        return message switch
-        {
-            ParcelDetectedMessage detected => NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
-            SortingCompletedMessage completed => NotifySortingCompletedAsync(completed.Notification, cancellationToken),
-            _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
-        };
-    }
-
     public Task<bool> PingAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(IsConnected);

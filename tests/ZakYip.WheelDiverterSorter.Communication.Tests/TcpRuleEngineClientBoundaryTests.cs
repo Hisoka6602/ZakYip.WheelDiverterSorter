@@ -118,7 +118,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.False(result);
@@ -138,7 +138,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert - Connection may succeed initially even if server closes immediately
         // TCP connection establishment is separate from application-level handshake
@@ -157,7 +157,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TimeoutMs = 5000
         };
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         // Create a large payload (1MB)
         var largeData = new string('X', 1024 * 1024);
@@ -200,7 +200,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
             TcpServer = $"localhost:{_testPort}"
         };
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         // Act - Try to disconnect concurrently
         var tasks = Enumerable.Range(0, 10)
@@ -257,7 +257,7 @@ public class TcpRuleEngineClientBoundaryTests : IDisposable
         using var client = new TcpRuleEngineClient(_loggerMock.Object, options, _clockMock);
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert - Connection may fail due to no server, but should not throw exception
         // The client should handle connection failure gracefully

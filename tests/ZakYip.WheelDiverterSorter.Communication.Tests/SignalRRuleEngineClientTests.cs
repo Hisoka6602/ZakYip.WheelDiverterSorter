@@ -44,17 +44,17 @@ public class SignalRRuleEngineClientTests
                 HandshakeTimeout = 1
             }
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
         Assert.False(result);
     public async Task DisconnectAsync_WhenNotConnected_CompletesSuccessfully()
         // Act & Assert (should not throw)
-        await client.DisconnectAsync();
+        client.Dispose();
     public async Task NotifyParcelDetectedAsync_WithInvalidParcelId_ThrowsArgumentException()
-        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyParcelDetectedAsync(0));
-        await Assert.ThrowsAsync<ArgumentException>(() => client.NotifyParcelDetectedAsync(-1));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SendAsync(new ParcelDetectedMessage { ParcelId = 0));
+        await Assert.ThrowsAsync<ArgumentException>(() => client.SendAsync(new ParcelDetectedMessage { ParcelId = -1));
     public async Task NotifyParcelDetectedAsync_WhenNotConnected_ReturnsFalse()
         var parcelId = 123456789L;
-        var result = await client.NotifyParcelDetectedAsync(parcelId);
+        var result = await client.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
     public void ChuteAssigned_EventCanBeSubscribed()
         var eventRaised = false;
         client.ChuteAssigned += (sender, args) =>

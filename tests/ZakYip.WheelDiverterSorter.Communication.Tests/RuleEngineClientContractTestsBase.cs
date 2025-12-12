@@ -43,7 +43,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         using var client = CreateClient();
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.True(result);
@@ -58,7 +58,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         using var client = CreateClient();
 
         // Act
-        var result = await client.ConnectAsync();
+        var result = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.False(result);
@@ -73,7 +73,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await ConfigureMockServerBehaviorAsync(MockServerBehavior.PushNormally);
         
         using var client = CreateClient();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         var tcs = new TaskCompletionSource<ChuteAssignmentEventArgs>();
         client.ChuteAssigned += (sender, args) =>
@@ -84,7 +84,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         const long testParcelId = 1234567890L;
 
         // Act
-        var notified = await client.NotifyParcelDetectedAsync(testParcelId);
+        var notified = await client.SendAsync(new ParcelDetectedMessage { ParcelId = testParcelId);
         
         // Wait for push with timeout
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
@@ -105,7 +105,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await ConfigureMockServerBehaviorAsync(MockServerBehavior.NeverPush);
         
         using var client = CreateClient();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         var tcs = new TaskCompletionSource<ChuteAssignmentEventArgs>();
         client.ChuteAssigned += (sender, args) =>
@@ -121,7 +121,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         bool notified = false;
         try
         {
-            notified = await client.NotifyParcelDetectedAsync(testParcelId);
+            notified = await client.SendAsync(new ParcelDetectedMessage { ParcelId = testParcelId);
         }
         catch (OperationCanceledException)
         {
@@ -147,7 +147,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         // Arrange
         await StartMockServerAsync();
         using var client = CreateClient();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         // Act - Simulate connection loss
         await StopMockServerAsync();
@@ -155,7 +155,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         
         // Restart server and reconnect
         await StartMockServerAsync();
-        var reconnected = await client.ConnectAsync();
+        var reconnected = // Connection is automatic - await client.PingAsync();
 
         // Assert
         Assert.True(reconnected);
@@ -168,10 +168,10 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         // Arrange
         await StartMockServerAsync();
         using var client = CreateClient();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         // Act
-        await client.DisconnectAsync();
+        client.Dispose();
 
         // Assert
         Assert.False(client.IsConnected);
@@ -185,7 +185,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         await ConfigureMockServerBehaviorAsync(MockServerBehavior.PushNormally);
         
         using var client = CreateClient();
-        await client.ConnectAsync();
+        // Connection is automatic - await client.PingAsync();
 
         var notifications = new List<ChuteAssignmentEventArgs>();
         client.ChuteAssigned += (sender, args) =>
@@ -199,7 +199,7 @@ public abstract class RuleEngineClientContractTestsBase : IDisposable
         for (int i = 0; i < notificationCount; i++)
         {
             var parcelId = 1000L + i;
-            await client.NotifyParcelDetectedAsync(parcelId);
+            await client.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
         }
 
         // Wait for all notifications

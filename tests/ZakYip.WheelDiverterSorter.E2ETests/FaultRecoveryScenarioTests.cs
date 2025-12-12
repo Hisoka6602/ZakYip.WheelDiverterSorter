@@ -68,7 +68,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false); // Simulate connection failure
 
         Factory.MockRuleEngineClient
@@ -78,7 +78,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act - Simulate parcel detection when connection is lost
-        var notificationResult = await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        var notificationResult = await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Assert
         notificationResult.Should().BeFalse();
@@ -112,7 +112,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 await Task.Delay(10000); // Simulate timeout
@@ -126,7 +126,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act - Start notification but don't wait for completion
-        var notificationTask = Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        var notificationTask = Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Wait a short time then verify system is still responsive
         await Task.Delay(500);
@@ -183,7 +183,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false); // Always fail
 
         Factory.MockRuleEngineClient
@@ -196,12 +196,12 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         for (int i = 0; i < attemptCount; i++)
         {
             var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds() + i;
-            await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+            await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
         }
 
         // Assert - System should still be running
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()),
+            x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()),
             Times.Exactly(attemptCount));
 
         await _orchestrator.StopAsync();
@@ -263,7 +263,7 @@ public class FaultRecoveryScenarioTests : E2ETestBase
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
-            .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         Factory.MockRuleEngineClient
@@ -273,13 +273,13 @@ public class FaultRecoveryScenarioTests : E2ETestBase
         await _orchestrator.StartAsync();
 
         // Act - Send same parcel multiple times (simulate duplicate trigger)
-        await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
         await Task.Delay(100);
-        await Factory.MockRuleEngineClient.Object.NotifyParcelDetectedAsync(parcelId);
+        await Factory.MockRuleEngineClient.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId);
 
         // Assert - Both should be processed
         Factory.MockRuleEngineClient.Verify(
-            x => x.NotifyParcelDetectedAsync(parcelId, It.IsAny<CancellationToken>()),
+            x => x.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, It.IsAny<CancellationToken>()),
             Times.Exactly(2));
 
         await _orchestrator.StopAsync();
