@@ -69,15 +69,10 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
                 "通过 TCP 网关请求分拣决策: ParcelId={ParcelId}",
                 request.ParcelId);
 
-            // 确保连接已建立
+            // 确保连接已建立（连接由SendAsync自动管理）
             if (!_client.IsConnected)
             {
-                var connected = // 连接由SendAsync自动管理
-                // await _client.ConnectAsync(cancellationToken);
-                if (!connected)
-                {
-                    throw new UpstreamUnavailableException("无法连接到上游 TCP 服务器");
-                }
+                throw new UpstreamUnavailableException("无法连接到上游 TCP 服务器");
             }
 
             // 使用 TaskCompletionSource 等待事件响应
@@ -110,10 +105,14 @@ public class TcpUpstreamSortingGateway : IUpstreamSortingGateway
 
             try
             {
-                // 发送通知
-                var notified = await _client.NotifyParcelDetectedAsync(
-                    request.ParcelId,
-                    cancellationToken);
+                // 发送包裹检测通知
+                var message = new ParcelDetectedMessage
+                {
+                    ParcelId = request.ParcelId,
+                    DetectedAt = DateTimeOffset.Now
+                };
+                
+                var notified = await _client.SendAsync(message, cancellationToken);
 
                 if (!notified)
                 {

@@ -106,9 +106,9 @@ public class SimulationRunner
 
         var startTime = DateTimeOffset.Now;
 
-        // 连接到RuleEngine
-        var connected = // 连接由SendAsync自动处理
-        // await _upstreamClient.ConnectAsync(cancellationToken);
+        // 连接到RuleEngine（连接由SendAsync自动处理）
+        // 验证连接状态
+        var connected = await _upstreamClient.PingAsync(cancellationToken);
         if (!connected)
         {
             _logger.LogError("无法连接到RuleEngine，仿真终止");

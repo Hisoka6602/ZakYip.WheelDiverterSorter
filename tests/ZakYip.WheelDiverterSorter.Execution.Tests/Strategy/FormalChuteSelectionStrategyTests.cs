@@ -40,7 +40,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
 
         // 默认设置：已连接
         _mockUpstreamClient.Setup(c => c.IsConnected).Returns(true);
-        _mockUpstreamClient.Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+        _mockUpstreamClient.Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // 使用 subscribeToEvents = true 以便策略可以自己处理事件
@@ -84,7 +84,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
     public async Task SelectChuteAsync_WhenNotificationFails_ReturnsExceptionChute()
     {
         // Arrange
-        _mockUpstreamClient.Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+        _mockUpstreamClient.Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         var context = new SortingContext
@@ -123,7 +123,7 @@ public class FormalChuteSelectionStrategyTests : IDisposable
             subscribeToEvents: false);
 
         // 模拟上游通知成功，并在后台线程中触发分配
-        _mockUpstreamClient.Setup(c => c.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+        _mockUpstreamClient.Setup(c => c.SendAsync(It.Is<IUpstreamMessage>(m => m is ParcelDetectedMessage), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         // 在后台触发格口分配

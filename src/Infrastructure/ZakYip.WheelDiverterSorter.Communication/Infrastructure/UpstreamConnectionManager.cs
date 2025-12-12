@@ -291,9 +291,8 @@ public sealed class UpstreamConnectionManager : IUpstreamConnectionManager, IDis
             }
         }
         
-        // 实际调用客户端的连接方法
+        // 实际调用客户端的连接方法（连接测试改用PingAsync）
         // Actually call the client's connect method
-        var connected = // 连接测试改用PingAsync
         var connected = await _client.PingAsync(cancellationToken).ConfigureAwait(false);
         
         if (!connected)
