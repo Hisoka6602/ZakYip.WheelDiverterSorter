@@ -435,7 +435,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             // 可选依赖
             var pathFailureHandler = sp.GetService<IPathFailureHandler>();
             var congestionDetector = sp.GetService<ICongestionDetector>();
-            var overloadPolicy = sp.GetService<IOverloadHandlingPolicy>();
             var congestionCollector = sp.GetService<ICongestionDataCollector>();
             var metrics = sp.GetService<PrometheusMetrics>();
             var traceSink = sp.GetService<IParcelTraceSink>();
@@ -463,7 +462,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 systemStateManager, // 必需参数
                 pathFailureHandler,
                 congestionDetector,
-                overloadPolicy,
                 congestionCollector,
                 metrics,
                 traceSink,

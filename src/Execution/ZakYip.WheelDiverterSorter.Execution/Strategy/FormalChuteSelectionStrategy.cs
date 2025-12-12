@@ -70,18 +70,7 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
     /// <inheritdoc />
     public async Task<ChuteSelectionResult> SelectChuteAsync(SortingContext context, CancellationToken cancellationToken)
     {
-        // 如果因超载强制路由到异常格口
-        if (context.IsOverloadForced)
-        {
-            _logger.LogDebug(
-                "包裹 {ParcelId} 因超载强制路由到异常格口 {ExceptionChuteId}",
-                context.ParcelId,
-                context.ExceptionChuteId);
-
-            return ChuteSelectionResult.Exception(
-                context.ExceptionChuteId,
-                "超载强制路由到异常格口");
-        }
+        // 超载策略相关代码已删除
 
         // 检查上游连接状态
         if (!_upstreamClient.IsConnected)
@@ -172,20 +161,13 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
         {
             var timeoutContext = new ChuteAssignmentTimeoutContext(
                 LineId: 1, // TD-042: 支持多线时从上下文获取
-                SafetyFactor: context.ExceptionRoutingPolicy?.UpstreamTimeoutMs > 0
-                    ? 0.9m
-                    : 0.9m
+                SafetyFactor: 0.9m
             );
 
             return _timeoutCalculator.CalculateTimeoutSeconds(timeoutContext);
         }
 
-        // 降级：使用配置的超时时间或默认值
-        if (context.ExceptionRoutingPolicy?.UpstreamTimeoutMs > 0)
-        {
-            return context.ExceptionRoutingPolicy.UpstreamTimeoutMs / 1000m;
-        }
-
+        // 降级：使用默认值
         return DefaultFallbackTimeoutSeconds;
     }
 

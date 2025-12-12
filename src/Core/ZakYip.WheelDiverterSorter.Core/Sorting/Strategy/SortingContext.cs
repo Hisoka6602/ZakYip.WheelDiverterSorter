@@ -1,5 +1,4 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Core.Sorting.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Core.Sorting.Strategy;
@@ -47,14 +46,4 @@ public record SortingContext
     /// 空的可用格口列表（静态共享实例）
     /// </summary>
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
-
-    /// <summary>
-    /// 异常路由策略
-    /// </summary>
-    public ExceptionRoutingPolicy? ExceptionRoutingPolicy { get; init; }
-
-    /// <summary>
-    /// 是否因超载强制路由到异常格口
-    /// </summary>
-    public bool IsOverloadForced { get; init; }
 }
