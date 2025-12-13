@@ -1298,18 +1298,29 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     // 需要确定实际的目标格口ID
                     long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
                     
-                    _logger.LogInformation(
-                        "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
-                        task.ParcelId, actualChuteId);
-                    
-                    await NotifyUpstreamSortingCompletedAsync(
-                        task.ParcelId,
-                        actualChuteId,
-                        isSuccess: !isTimeout,
-                        failureReason: isTimeout ? "Timeout" : null);
-                    
-                    // 发送通知后清理目标格口记录，防止内存泄漏
-                    _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                    // 检查是否已经发送过通知（防止重复触发时重复发送）
+                    // 只在 actualChuteId > 0 时发送通知并清理
+                    if (actualChuteId > 0)
+                    {
+                        _logger.LogInformation(
+                            "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                            task.ParcelId, actualChuteId);
+                        
+                        await NotifyUpstreamSortingCompletedAsync(
+                            task.ParcelId,
+                            actualChuteId,
+                            isSuccess: !isTimeout,
+                            failureReason: isTimeout ? "Timeout" : null);
+                        
+                        // 发送通知后清理目标格口记录，防止内存泄漏
+                        _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 摆轮执行成功，但无法确定目标格口ID（可能已发送过通知），跳过重复发送",
+                            task.ParcelId);
+                    }
                 }
                 else
                 {
