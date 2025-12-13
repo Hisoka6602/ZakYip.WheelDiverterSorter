@@ -105,6 +105,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
     private readonly ConcurrentDictionary<long, SwitchingPath> _parcelPaths;
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
+    private readonly ConcurrentDictionary<long, long> _parcelTargetChutes; // Track target chute for each parcel (for Position-Index queue system)
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
 
@@ -183,6 +184,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
         _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
+        _parcelTargetChutes = new ConcurrentDictionary<long, long>();
 
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
@@ -358,6 +360,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogDebug(
                 "[任务入队] 开始将 {TaskCount} 个任务加入队列",
                 queueTasks.Count);
+            
+            // 记录包裹的目标格口，用于后续回调
+            _parcelTargetChutes[parcelId] = targetChuteId;
             
             foreach (var task in queueTasks)
             {
@@ -1342,28 +1347,22 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <returns>实际格口ID</returns>
     private async Task<long> DetermineActualChuteIdAsync(long parcelId, DiverterDirection action, long diverterId)
     {
-        // 尝试从包裹路径中获取目标格口
-        if (_parcelPaths.TryGetValue(parcelId, out var path))
+        // 首先尝试从目标格口字典中获取（Position-Index 队列系统）
+        if (_parcelTargetChutes.TryGetValue(parcelId, out var targetChuteId))
         {
-            return path.TargetChuteId;
+            _logger.LogDebug(
+                "从目标格口字典获取包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                parcelId, targetChuteId);
+            return targetChuteId;
         }
         
-        // 如果没有路径信息，尝试根据拓扑和动作推断
-        if (_topologyRepository != null)
+        // 尝试从包裹路径中获取目标格口（旧的路径系统）
+        if (_parcelPaths.TryGetValue(parcelId, out var path))
         {
-            var topology = _topologyRepository.Get();
-            if (topology != null)
-            {
-                var node = topology.DiverterNodes.FirstOrDefault(n => n.DiverterId == diverterId);
-                if (node != null)
-                {
-                    // 根据动作方向推断格口
-                    // 这是一个简化的逻辑，实际可能需要更复杂的拓扑计算
-                    // 对于最后一个摆轮，直接关联到格口
-                    // 对于中间摆轮，返回0表示未到达最终格口
-                    return 0; // 简化实现：中间位置返回0
-                }
-            }
+            _logger.LogDebug(
+                "从路径字典获取包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                parcelId, path.TargetChuteId);
+            return path.TargetChuteId;
         }
         
         // 无法确定，返回0
@@ -1409,6 +1408,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 
                 if (queueTasks != null && queueTasks.Count > 0)
                 {
+                    // 记录包裹的目标格口
+                    _parcelTargetChutes[parcelId] = exceptionChuteId;
+                    
                     foreach (var task in queueTasks)
                     {
                         _queueManager.EnqueueTask(task.PositionIndex, task);
