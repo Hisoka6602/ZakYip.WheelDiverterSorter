@@ -118,11 +118,13 @@ public static class CommunicationServiceExtensions
 
         // PR-U1: 注册上游路由客户端工厂（替代原 IRuleEngineClientFactory）
         // PR-HOTRELOAD: 工厂使用 Func 获取最新配置，支持热更新
+        // PR-DUAL-INSTANCE-FIX: 注入 UpstreamServerBackgroundService，用于 Server 模式下引用统一的服务器实例
         services.AddSingleton<IUpstreamRoutingClientFactory>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var systemClock = sp.GetRequiredService<ISystemClock>();
             var configRepository = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ICommunicationConfigurationRepository>();
+            var serverBackgroundService = sp.GetService<UpstreamServerBackgroundService>();
             
             // 提供一个 Func 用于动态获取最新配置
             // Provide a Func to dynamically get the latest configuration
@@ -133,7 +135,7 @@ public static class CommunicationServiceExtensions
                 return ValidateOptions(options);
             };
             
-            return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock);
+            return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock, serverBackgroundService);
         });
 
         // PR-U1: 直接注册 IUpstreamRoutingClient（使用工厂创建，不再需要 Adapter）

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 using ZakYip.WheelDiverterSorter.Communication.Clients;
 using ZakYip.WheelDiverterSorter.Communication.Configuration;
+using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
@@ -32,6 +33,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     private readonly ILoggerFactory _loggerFactory;
     private readonly Func<UpstreamConnectionOptions> _optionsProvider;
     private readonly ISystemClock _systemClock;
+    private readonly UpstreamServerBackgroundService? _serverBackgroundService;
 
     /// <summary>
     /// 构造函数
@@ -39,14 +41,20 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// <param name="loggerFactory">日志工厂</param>
     /// <param name="optionsProvider">配置提供者（支持动态获取最新配置）</param>
     /// <param name="systemClock">系统时钟</param>
+    /// <param name="serverBackgroundService">服务器后台服务（Server模式下使用）</param>
+    /// <remarks>
+    /// PR-DUAL-INSTANCE-FIX: 添加 serverBackgroundService 参数，用于 Server 模式下引用统一的服务器实例
+    /// </remarks>
     public UpstreamRoutingClientFactory(
         ILoggerFactory loggerFactory,
         Func<UpstreamConnectionOptions> optionsProvider,
-        ISystemClock systemClock)
+        ISystemClock systemClock,
+        UpstreamServerBackgroundService? serverBackgroundService = null)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _optionsProvider = optionsProvider ?? throw new ArgumentNullException(nameof(optionsProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _serverBackgroundService = serverBackgroundService;
     }
 
     /// <summary>
@@ -146,19 +154,25 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// <remarks>
     /// PR-SERVER-ADAPTER: 在Server模式下，创建ServerModeClientAdapter包装IRuleEngineServer。
     /// 适配器将IUpstreamRoutingClient接口调用转换为IRuleEngineServer的广播调用。
+    /// 
+    /// PR-DUAL-INSTANCE-FIX: 不再创建新的服务器实例，而是引用 UpstreamServerBackgroundService.CurrentServer
+    /// 这确保整个系统只有一个服务器实例在运行。
     /// </remarks>
     private IUpstreamRoutingClient CreateServerModeAdapter(UpstreamConnectionOptions options)
     {
         var logger = _loggerFactory.CreateLogger<UpstreamRoutingClientFactory>();
         logger.LogInformation("创建服务端模式适配器，通信模式: {Mode}", options.Mode);
 
-        // 创建RuleEngine服务器实例
-        var serverFactory = new RuleEngineServerFactory(_loggerFactory, _systemClock);
-        var server = serverFactory.CreateServer(options);
+        if (_serverBackgroundService == null)
+        {
+            throw new InvalidOperationException(
+                "Server 模式下需要 UpstreamServerBackgroundService，但未提供。" +
+                "请确保在 DI 容器中正确注册了 UpstreamServerBackgroundService。");
+        }
 
-        // 使用适配器包装服务器，实现IUpstreamRoutingClient接口
+        // PR-DUAL-INSTANCE-FIX: 使用 UpstreamServerBackgroundService，不再创建新的服务器实例
         return new Adapters.ServerModeClientAdapter(
-            server,
+            _serverBackgroundService,
             _loggerFactory.CreateLogger<Adapters.ServerModeClientAdapter>(),
             _systemClock);
     }

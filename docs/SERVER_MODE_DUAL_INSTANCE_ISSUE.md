@@ -288,25 +288,71 @@ BroadcastChuteAssignmentAsync() → 广播到 N 个客户端
 **缺点**：
 - ⚠️ 需要处理 `CurrentServer` 为 null 的情况
 
-## 推荐方案
+## 修复方案
 
-**推荐方案 3**，理由：
-1. 代码变更最小
-2. 不破坏现有架构
-3. 统一使用 `UpstreamServerBackgroundService.CurrentServer`
-4. 所有使用方（`SortingOrchestrator` 和 `CommunicationController`）都通过同一个服务器实例访问客户端连接
+### ✅ 已实施：方案 3 - 统一使用 UpstreamServerBackgroundService
 
-## 验证方法
+**实施内容**：
 
-修复后，检查以下日志：
+1. **修改 `ServerModeClientAdapter` 构造函数**：
+   ```csharp
+   public ServerModeClientAdapter(
+       UpstreamServerBackgroundService serverBackgroundService,  // ⬅️ 引用后台服务
+       ILogger<ServerModeClientAdapter> logger,
+       ISystemClock systemClock)
+   ```
+
+2. **通过属性访问服务器实例**：
+   ```csharp
+   private IRuleEngineServer Server => _serverBackgroundService.CurrentServer 
+       ?? throw new InvalidOperationException("服务器实例不可用");
+   ```
+
+3. **修改 `UpstreamRoutingClientFactory`**：
+   - 添加 `UpstreamServerBackgroundService` 参数
+   - 在 Server 模式下传递后台服务给适配器
+
+4. **修改 DI 注册**：
+   ```csharp
+   services.AddSingleton<IUpstreamRoutingClientFactory>(sp =>
+   {
+       var serverBackgroundService = sp.GetService<UpstreamServerBackgroundService>();
+       return new UpstreamRoutingClientFactory(
+           loggerFactory, 
+           optionsProvider, 
+           systemClock, 
+           serverBackgroundService);  // ⬅️ 传递后台服务
+   });
+   ```
+
+**结果**：
+- ✅ 整个系统只有**一个** `IRuleEngineServer` 实例
+- ✅ 包裹创建和 test-parcel 使用**同一个**服务器实例
+- ✅ 客户端连接列表**完全一致**
+- ✅ `ConnectedClientsCount` 在所有地方都是相同的值
+
+**验证方法**：
+
+修复后，包裹创建时的日志应该显示正确的客户端数量：
 
 ```
-[信息] [PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId=xxx, ClientType=ServerModeClientAdapter, IsConnected=True
-[信息] [服务端模式-适配器] 转换NotifyParcelDetectedAsync为BroadcastParcelDetectedAsync: ParcelId=xxx, ServerIsRunning=True, ConnectedClientsCount=2  ⬅️ 应该 > 0
+[信息] [PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId=xxx
+[信息] [服务端模式-适配器] 转换NotifyParcelDetectedAsync为BroadcastParcelDetectedAsync: 
+       ParcelId=xxx, ServerIsRunning=True, ConnectedClientsCount=2  ⬅️ 现在应该 > 0
 [信息] [服务端模式-广播-成功] 已向客户端 xxx 广播包裹检测通知: ParcelId=xxx
 ```
 
-如果 `ConnectedClientsCount > 0` 且有广播成功日志，说明修复成功。
+---
+
+## 推荐方案
+
+~~**推荐方案 3**，理由：~~
+~~1. 代码变更最小~~
+~~2. 不破坏现有架构~~
+~~3. 统一使用 `UpstreamServerBackgroundService.CurrentServer`~~
+~~4. 所有使用方（`SortingOrchestrator` 和 `CommunicationController`）都通过同一个服务器实例访问客户端连接~~
+
+**✅ 已实施完成（PR-DUAL-INSTANCE-FIX）**
 
 ---
 
