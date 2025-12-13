@@ -1294,22 +1294,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var callbackConfig = _callbackConfigRepository.Get();
                 if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
                 {
-                    // OnWheelExecution 模式：摆轮执行成功后立即发送分拣完成通知
-                    // 需要确定实际的目标格口ID
-                    long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
+                    // OnWheelExecution 模式：不在摆轮执行时发送通知，等待落格传感器触发
+                    // 但需要确保 _parcelTargetChutes 中有正确的目标格口ID供后续使用
+                    _logger.LogDebug(
+                        "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式等待落格传感器触发",
+                        task.ParcelId);
                     
-                    _logger.LogInformation(
-                        "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
-                        task.ParcelId, actualChuteId);
-                    
-                    await NotifyUpstreamSortingCompletedAsync(
-                        task.ParcelId,
-                        actualChuteId,
-                        isSuccess: !isTimeout,
-                        failureReason: isTimeout ? "Timeout" : null);
-                    
-                    // 发送通知后清理目标格口记录，防止内存泄漏
-                    _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                    // 不发送通知，不清理 _parcelTargetChutes，等待落格传感器事件
                 }
                 else
                 {
@@ -1487,13 +1478,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             var callbackConfig = _callbackConfigRepository.Get();
-            if (callbackConfig.CallbackMode != ChuteDropoffCallbackMode.OnSensorTrigger)
-            {
-                _logger.LogDebug(
-                    "当前落格回调模式为 {Mode}，不处理落格传感器事件",
-                    callbackConfig.CallbackMode);
-                return;
-            }
+            // OnWheelExecution 和 OnSensorTrigger 模式都需要处理落格传感器事件
+            // 两种模式都在传感器触发时发送通知，确保时间准确
+            _logger.LogDebug(
+                "当前落格回调模式为 {Mode}，处理落格传感器事件",
+                callbackConfig.CallbackMode);
 
             // 在 OnSensorTrigger 模式下，需要找到落入该格口的包裹ID
             // 从 _parcelTargetChutes 中查找目标格口为该格口的包裹
@@ -1508,7 +1497,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             _logger.LogInformation(
-                "[落格事件] OnSensorTrigger 模式：包裹 {ParcelId} 落入格口 {ChuteId}，发送分拣完成通知",
+                "[落格事件] {Mode} 模式：包裹 {ParcelId} 落入格口 {ChuteId}，发送分拣完成通知",
+                callbackConfig.CallbackMode,
                 parcelId.Value,
                 e.ChuteId);
 
