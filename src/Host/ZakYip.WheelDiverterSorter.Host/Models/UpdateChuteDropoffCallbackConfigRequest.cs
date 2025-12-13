@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.Host.Models;
 
@@ -12,7 +13,7 @@ public record UpdateChuteDropoffCallbackConfigRequest
     /// </summary>
     /// <example>OnSensorTrigger</example>
     [Required(ErrorMessage = "TriggerMode is required")]
-    public required string TriggerMode { get; init; }
+    public required ChuteDropoffCallbackMode TriggerMode { get; init; }
 
     /// <summary>
     /// 是否启用

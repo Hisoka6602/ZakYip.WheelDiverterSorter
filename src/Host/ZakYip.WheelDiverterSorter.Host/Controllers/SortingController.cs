@@ -45,6 +45,7 @@ public class SortingController : ApiControllerBase
     private readonly ISystemClock _clock;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SortingController> _logger;
+    private readonly Execution.Tracking.IPositionIntervalTracker? _intervalTracker;
 
     public SortingController(
         IChangeParcelChuteService changeParcelChuteService,
@@ -53,7 +54,8 @@ public class SortingController : ApiControllerBase
         ISystemClock clock,
         IWebHostEnvironment environment,
         ILogger<SortingController> logger,
-        IDebugSortService? debugSortService = null)
+        IDebugSortService? debugSortService = null,
+        Execution.Tracking.IPositionIntervalTracker? intervalTracker = null)
     {
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
@@ -62,6 +64,7 @@ public class SortingController : ApiControllerBase
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _debugSortService = debugSortService;
+        _intervalTracker = intervalTracker;
     }
 
     #region 分拣改口
@@ -379,29 +382,61 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            // TODO: 实现Position间隔追踪服务后，从服务获取数据
-            // 当前返回模拟数据结构
-            var intervals = new List<PositionIntervalDto>();
-            
-            // 获取所有队列状态，推断有哪些position
-            var queueStatuses = _queueManager.GetAllQueueStatuses();
-            
-            foreach (var kvp in queueStatuses.OrderBy(x => x.Key))
+            // 如果间隔追踪器可用，返回实际数据
+            if (_intervalTracker != null)
             {
-                intervals.Add(new PositionIntervalDto
+                var statistics = _intervalTracker.GetAllStatistics();
+                
+                var intervals = statistics.Select(stat => new PositionIntervalDto
                 {
-                    PositionIndex = kvp.Key,
-                    MedianIntervalMs = null, // TODO: 从追踪服务获取
-                    SampleCount = 0,
-                    MinIntervalMs = null,
-                    MaxIntervalMs = null,
-                    LastUpdatedAt = null
+                    PositionIndex = stat.PositionIndex,
+                    MedianIntervalMs = stat.MedianIntervalMs,
+                    SampleCount = stat.SampleCount,
+                    MinIntervalMs = stat.MinIntervalMs,
+                    MaxIntervalMs = stat.MaxIntervalMs,
+                    LastUpdatedAt = stat.LastUpdatedAt
+                }).ToList();
+                
+                // 如果追踪器中没有数据，从队列管理器获取所有position并返回空统计
+                if (!intervals.Any())
+                {
+                    var queueStatuses = _queueManager.GetAllQueueStatuses();
+                    intervals = queueStatuses.Keys.OrderBy(k => k).Select(positionIndex => new PositionIntervalDto
+                    {
+                        PositionIndex = positionIndex,
+                        MedianIntervalMs = null,
+                        SampleCount = 0,
+                        MinIntervalMs = null,
+                        MaxIntervalMs = null,
+                        LastUpdatedAt = null
+                    }).ToList();
+                }
+
+                return Ok(new
+                {
+                    intervals = intervals,
+                    timestamp = _clock.LocalNow,
+                    note = intervals.Any(i => i.MedianIntervalMs.HasValue) 
+                        ? "实时间隔统计数据" 
+                        : "等待包裹触发以收集间隔数据"
                 });
             }
+            
+            // 间隔追踪器不可用，返回默认空数据结构
+            var queueStatusesDefault = _queueManager.GetAllQueueStatuses();
+            var intervalsDefault = queueStatusesDefault.Keys.OrderBy(k => k).Select(positionIndex => new PositionIntervalDto
+            {
+                PositionIndex = positionIndex,
+                MedianIntervalMs = null,
+                SampleCount = 0,
+                MinIntervalMs = null,
+                MaxIntervalMs = null,
+                LastUpdatedAt = null
+            }).ToList();
 
             return Ok(new
             {
-                intervals = intervals,
+                intervals = intervalsDefault,
                 timestamp = _clock.LocalNow,
                 note = "Position间隔追踪功能待实施"
             });
@@ -467,7 +502,7 @@ public class SortingController : ApiControllerBase
 
             var response = new ChuteDropoffCallbackConfigDto
             {
-                TriggerMode = config.CallbackMode.ToString(),
+                TriggerMode = config.CallbackMode,
                 IsEnabled = true,  // 当前总是启用
                 UpdatedAt = config.UpdatedAt
             };
@@ -530,40 +565,30 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.TriggerMode))
+            if (request == null)
             {
-                return BadRequest(new { message = "TriggerMode 不能为空" });
-            }
-
-            // 解析枚举
-            if (!Enum.TryParse<Core.Enums.Sorting.ChuteDropoffCallbackMode>(request.TriggerMode, true, out var mode))
-            {
-                return BadRequest(new 
-                { 
-                    message = "无效的 TriggerMode",
-                    hint = "支持的值: OnWheelExecution, OnSensorTrigger"
-                });
+                return BadRequest(new { message = "请求体不能为空" });
             }
 
             // 创建或更新配置
             var config = new ChuteDropoffCallbackConfiguration
             {
                 ConfigName = "chute-dropoff-callback",  // 设置required属性
-                CallbackMode = mode
+                CallbackMode = request.TriggerMode
             };
 
             _callbackConfigRepository.Update(config);
 
             _logger.LogInformation(
                 "落格回调配置已更新: {CallbackMode}",
-                mode);
+                request.TriggerMode);
 
             // 重新获取config以确保有UpdatedAt
             var updatedConfig = _callbackConfigRepository.Get();
             
             var response = new ChuteDropoffCallbackConfigDto
             {
-                TriggerMode = updatedConfig.CallbackMode.ToString(),
+                TriggerMode = updatedConfig.CallbackMode,
                 IsEnabled = true,  // 当前总是启用
                 UpdatedAt = updatedConfig.UpdatedAt
             };

@@ -91,6 +91,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
+    private readonly IChuteDropoffCallbackConfigurationRepository? _callbackConfigRepository;
     
     // 新的 Position-Index 队列系统依赖
     private readonly IPositionIndexQueueManager? _queueManager;
@@ -98,11 +99,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IConveyorSegmentRepository? _segmentRepository;
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     private readonly ISafeExecutionService? _safeExecutor;
+    private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
     private readonly ConcurrentDictionary<long, SwitchingPath> _parcelPaths;
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
+    private readonly ConcurrentDictionary<long, long> _parcelTargetChutes; // Track target chute for each parcel (for Position-Index queue system)
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
 
@@ -146,7 +149,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
         ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
-        ISafeExecutionService? safeExecutor = null) // TD-062: 安全执行服务
+        ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
+        Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
+        IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null) // 落格回调配置仓储
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -173,10 +178,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _segmentRepository = segmentRepository;
         _sensorConfigRepository = sensorConfigRepository;
         _safeExecutor = safeExecutor;
+        _intervalTracker = intervalTracker;
+        _callbackConfigRepository = callbackConfigRepository;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
         _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
+        _parcelTargetChutes = new ConcurrentDictionary<long, long>();
 
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
@@ -352,6 +360,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogDebug(
                 "[任务入队] 开始将 {TaskCount} 个任务加入队列",
                 queueTasks.Count);
+            
+            // 记录包裹的目标格口，用于后续回调
+            _parcelTargetChutes[parcelId] = targetChuteId;
             
             foreach (var task in queueTasks)
             {
@@ -1142,9 +1153,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="positionIndex">Position Index</param>
     private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex)
     {
+        var currentTime = _clock.LocalNow;
+        
         _logger.LogDebug(
             "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
             positionIndex, sensorId);
+
+        // 记录触发事件到间隔追踪器
+        _intervalTracker?.RecordTrigger(positionIndex, currentTime);
 
         // 从 Position-Index 队列取出任务
         var task = _queueManager!.DequeueTask(positionIndex);
@@ -1160,7 +1176,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         // 检查超时
-        var currentTime = _clock.LocalNow;
         var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
         
         DiverterDirection actionToExecute;
@@ -1258,12 +1273,69 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作失败: {ErrorMessage}",
                     task.ParcelId, positionIndex, executionResult.FailureReason);
                 _metrics?.RecordSortingFailure(0);
+                
+                // 摆轮动作失败，通知上游
+                await NotifyUpstreamSortingCompletedAsync(
+                    task.ParcelId, 
+                    0, // 未知格口
+                    isSuccess: false, 
+                    failureReason: executionResult.FailureReason);
                 return;
             }
             
             _logger.LogDebug(
                 "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功",
                 task.ParcelId, positionIndex);
+            
+            // 检查是否需要在摆轮执行时触发回调
+            if (_callbackConfigRepository != null)
+            {
+                var callbackConfig = _callbackConfigRepository.Get();
+                if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
+                {
+                    // OnWheelExecution 模式：摆轮执行成功后立即发送分拣完成通知
+                    // 需要确定实际的目标格口ID
+                    long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
+                    
+                    _logger.LogInformation(
+                        "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                        task.ParcelId, actualChuteId);
+                    
+                    await NotifyUpstreamSortingCompletedAsync(
+                        task.ParcelId,
+                        actualChuteId,
+                        isSuccess: !isTimeout,
+                        failureReason: isTimeout ? "Timeout" : null);
+                    
+                    // 发送通知后清理目标格口记录，防止内存泄漏
+                    _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                }
+                else
+                {
+                    // OnSensorTrigger 模式：超时时也需要通知上游分拣失败
+                    if (isTimeout)
+                    {
+                        long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 摆轮执行超时，OnSensorTrigger 模式触发分拣失败通知 (ActualChuteId={ActualChuteId})",
+                            task.ParcelId, actualChuteId);
+                        await NotifyUpstreamSortingCompletedAsync(
+                            task.ParcelId,
+                            actualChuteId,
+                            isSuccess: false,
+                            failureReason: "Timeout");
+                        
+                        // 发送通知后清理目标格口记录
+                        _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "包裹 {ParcelId} 摆轮执行成功，OnSensorTrigger 模式等待落格传感器触发",
+                            task.ParcelId);
+                    }
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1272,6 +1344,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常",
                 task.ParcelId, positionIndex);
             _metrics?.RecordSortingFailure(0);
+            
+            // 异常情况，通知上游
+            await NotifyUpstreamSortingCompletedAsync(
+                task.ParcelId, 
+                0, 
+                isSuccess: false, 
+                failureReason: ex.Message);
             return;
         }
         
@@ -1279,6 +1358,40 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _metrics?.RecordSortingSuccess(0);
         }
+    }
+
+    /// <summary>
+    /// 确定包裹的实际落格格口ID
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="action">执行的摆轮动作</param>
+    /// <param name="diverterId">摆轮ID</param>
+    /// <returns>实际格口ID</returns>
+    private Task<long> DetermineActualChuteIdAsync(long parcelId, DiverterDirection action, long diverterId)
+    {
+        // 首先尝试从目标格口字典中获取（Position-Index 队列系统）
+        if (_parcelTargetChutes.TryGetValue(parcelId, out var targetChuteId))
+        {
+            _logger.LogDebug(
+                "从目标格口字典获取包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                parcelId, targetChuteId);
+            return Task.FromResult(targetChuteId);
+        }
+        
+        // 尝试从包裹路径中获取目标格口（旧的路径系统）
+        if (_parcelPaths.TryGetValue(parcelId, out var path))
+        {
+            _logger.LogDebug(
+                "从路径字典获取包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                parcelId, path.TargetChuteId);
+            return Task.FromResult(path.TargetChuteId);
+        }
+        
+        // 无法确定，返回0
+        _logger.LogWarning(
+            "无法确定包裹 {ParcelId} 的实际格口ID，DiverterId={DiverterId}, Action={Action}",
+            parcelId, diverterId, action);
+        return Task.FromResult(0L);
     }
 
     /// <summary>
@@ -1317,6 +1430,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 
                 if (queueTasks != null && queueTasks.Count > 0)
                 {
+                    // 记录包裹的目标格口
+                    _parcelTargetChutes[parcelId] = exceptionChuteId;
+                    
                     foreach (var task in queueTasks)
                     {
                         _queueManager.EnqueueTask(task.PositionIndex, task);
