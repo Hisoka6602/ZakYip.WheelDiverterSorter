@@ -79,18 +79,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // Add mock RuleEngine client
             MockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
             
-            // Set up default behaviors
+            // Set up default behaviors for new API
             MockRuleEngineClient
-                .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
+                .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             
             MockRuleEngineClient
-                .Setup(x => x.NotifyParcelDetectedAsync(It.IsAny<long>(), It.IsAny<CancellationToken>()))
+                .Setup(x => x.PingAsync(It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
-            
-            MockRuleEngineClient
-                .Setup(x => x.DisconnectAsync())
-                .Returns(Task.CompletedTask);
             
             MockRuleEngineClient
                 .Setup(x => x.IsConnected)

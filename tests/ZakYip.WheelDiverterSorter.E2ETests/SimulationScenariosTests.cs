@@ -47,30 +47,15 @@ public class SimulationScenariosTests : IDisposable
     {
         // 创建模拟 RuleEngine 客户端
         _mockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
-        _mockRuleEngineClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
+        _mockRuleEngineClient.Setup(x => x.PingAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        _mockRuleEngineClient.Setup(x => x.DisconnectAsync())
-            .Returns(Task.CompletedTask);
         _mockRuleEngineClient.Setup(x => x.IsConnected)
             .Returns(true);
 
         // 设置包裹检测通知的默认行为
         _mockRuleEngineClient
-            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((long parcelId, CancellationToken ct) =>
-            {
-                // 同步触发格口分配事件（避免竞态条件）
-                var chuteId = GetNextChuteId();
-                // 使用 Task.Run 确保事件在回调后触发
-                _ = Task.Run(() =>
-                {
-                    _mockRuleEngineClient.Raise(
-                        x => x.ChuteAssigned += null,
-                        new ChuteAssignmentNotificationEventArgs { ParcelId = parcelId, ChuteId = chuteId , AssignedAt = DateTimeOffset.Now }
-                    );
-                });
-                return true;
-            });
+            .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         // 配置服务集合
         var services = new ServiceCollection();
