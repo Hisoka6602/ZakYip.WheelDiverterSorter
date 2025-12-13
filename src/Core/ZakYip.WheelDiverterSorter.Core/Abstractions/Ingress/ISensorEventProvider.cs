@@ -13,6 +13,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 /// <list type="bullet">
 ///   <item>提供包裹检测事件订阅</item>
 ///   <item>提供重复触发异常事件订阅</item>
+///   <item>提供落格传感器事件订阅</item>
 ///   <item>启动/停止传感器监听</item>
 /// </list>
 /// 
@@ -41,6 +42,16 @@ public interface ISensorEventProvider
     /// 使用 <see cref="DuplicateTriggerEventArgs"/> 作为事件参数。
     /// </remarks>
     event EventHandler<DuplicateTriggerEventArgs>? DuplicateTriggerDetected;
+
+    /// <summary>
+    /// 落格传感器检测事件
+    /// </summary>
+    /// <remarks>
+    /// 当落格传感器检测到包裹落入格口时触发此事件。
+    /// 用于 OnSensorTrigger 模式下的落格完成通知。
+    /// 使用 <see cref="ChuteDropoffDetectedEventArgs"/> 作为事件参数。
+    /// </remarks>
+    event EventHandler<ChuteDropoffDetectedEventArgs>? ChuteDropoffDetected;
 
     /// <summary>
     /// 启动传感器事件监听

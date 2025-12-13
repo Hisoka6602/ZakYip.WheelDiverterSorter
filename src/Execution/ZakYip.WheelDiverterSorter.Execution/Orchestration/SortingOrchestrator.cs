@@ -189,6 +189,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
         _sensorEventProvider.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
+        _sensorEventProvider.ChuteDropoffDetected += OnChuteDropoffDetected;
         
         // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
@@ -1466,6 +1467,91 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
+    /// 处理落格传感器检测事件
+    /// </summary>
+    private async void OnChuteDropoffDetected(object? sender, ChuteDropoffDetectedEventArgs e)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "[落格事件] 落格传感器检测到包裹落入格口: ChuteId={ChuteId}, SensorId={SensorId}, DetectedAt={DetectedAt:o}",
+                e.ChuteId,
+                e.SensorId,
+                e.DetectedAt);
+
+            // 检查是否为 OnSensorTrigger 模式
+            if (_callbackConfigRepository == null)
+            {
+                _logger.LogDebug("未注入落格回调配置仓储，跳过处理");
+                return;
+            }
+
+            var callbackConfig = _callbackConfigRepository.Get();
+            if (callbackConfig.CallbackMode != ChuteDropoffCallbackMode.OnSensorTrigger)
+            {
+                _logger.LogDebug(
+                    "当前落格回调模式为 {Mode}，不处理落格传感器事件",
+                    callbackConfig.CallbackMode);
+                return;
+            }
+
+            // 在 OnSensorTrigger 模式下，需要找到落入该格口的包裹ID
+            // 从 _parcelTargetChutes 中查找目标格口为该格口的包裹
+            long? parcelId = FindParcelByTargetChute(e.ChuteId);
+
+            if (parcelId == null)
+            {
+                _logger.LogWarning(
+                    "[落格事件] 无法找到目标格口为 {ChuteId} 的包裹，可能已经完成或超时",
+                    e.ChuteId);
+                return;
+            }
+
+            _logger.LogInformation(
+                "[落格事件] OnSensorTrigger 模式：包裹 {ParcelId} 落入格口 {ChuteId}，发送分拣完成通知",
+                parcelId.Value,
+                e.ChuteId);
+
+            // 发送分拣完成通知
+            await NotifyUpstreamSortingCompletedAsync(
+                parcelId.Value,
+                e.ChuteId,
+                isSuccess: true,
+                failureReason: null);
+
+            // 清理目标格口记录
+            _parcelTargetChutes.TryRemove(parcelId.Value, out _);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[落格事件异常] 处理落格传感器事件时发生异常: ChuteId={ChuteId}, SensorId={SensorId}",
+                e.ChuteId,
+                e.SensorId);
+        }
+    }
+
+    /// <summary>
+    /// 根据目标格口查找包裹ID
+    /// </summary>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <returns>包裹ID，如果未找到则返回null</returns>
+    private long? FindParcelByTargetChute(long targetChuteId)
+    {
+        // 从 _parcelTargetChutes 中查找目标格口匹配的包裹
+        var matchingParcel = _parcelTargetChutes
+            .FirstOrDefault(kvp => kvp.Value == targetChuteId);
+
+        if (matchingParcel.Key == 0)
+        {
+            return null; // 未找到（ConcurrentDictionary.FirstOrDefault 返回 default(KeyValuePair) 时 Key=0）
+        }
+
+        return matchingParcel.Key;
+    }
+
+    /// <summary>
     /// 处理格口分配通知
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
@@ -1653,6 +1739,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 取消订阅事件
         _sensorEventProvider.ParcelDetected -= OnParcelDetected;
         _sensorEventProvider.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
+        _sensorEventProvider.ChuteDropoffDetected -= OnChuteDropoffDetected;
         // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
 
