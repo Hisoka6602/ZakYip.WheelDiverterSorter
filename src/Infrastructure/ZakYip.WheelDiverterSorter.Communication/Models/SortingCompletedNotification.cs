@@ -10,6 +10,14 @@ namespace ZakYip.WheelDiverterSorter.Communication.Models;
 public sealed record SortingCompletedNotificationDto
 {
     /// <summary>
+    /// 消息类型
+    /// </summary>
+    /// <remarks>
+    /// 固定值 "SortingCompleted"，用于上游系统识别消息类型
+    /// </remarks>
+    public string Type { get; init; } = "SortingCompleted";
+
+    /// <summary>
     /// 包裹ID
     /// </summary>
     public required long ParcelId { get; init; }

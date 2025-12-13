@@ -9,6 +9,14 @@ namespace ZakYip.WheelDiverterSorter.Communication.Models;
 public record ParcelDetectionNotification
 {
     /// <summary>
+    /// 消息类型
+    /// </summary>
+    /// <remarks>
+    /// 固定值 "ParcelDetected"，用于上游系统识别消息类型
+    /// </remarks>
+    public string Type { get; init; } = "ParcelDetected";
+
+    /// <summary>
     /// 包裹ID (毫秒时间戳)
     /// </summary>
     public required long ParcelId { get; init; }
