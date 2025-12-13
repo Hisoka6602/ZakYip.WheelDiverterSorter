@@ -1294,32 +1294,43 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var callbackConfig = _callbackConfigRepository.Get();
                 if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
                 {
-                    // OnWheelExecution 模式：摆轮执行成功后立即发送分拣完成通知
-                    // 需要确定实际的目标格口ID
-                    long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
-                    
-                    // 检查是否已经发送过通知（防止重复触发时重复发送）
-                    // 只在 actualChuteId > 0 时发送通知并清理
-                    if (actualChuteId > 0)
+                    // OnWheelExecution 模式：仅在摆轮实际转向（非直行）时发送分拣完成通知
+                    // 如果摆轮动作是 Straight（直行），说明包裹还要经过后续摆轮，不是最终落格点
+                    // 只有当摆轮转向（Left 或 Right）时，包裹才真正完成分拣
+                    if (actionToExecute != DiverterDirection.Straight)
                     {
-                        _logger.LogInformation(
-                            "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
-                            task.ParcelId, actualChuteId);
+                        // 需要确定实际的目标格口ID
+                        long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
                         
-                        await NotifyUpstreamSortingCompletedAsync(
-                            task.ParcelId,
-                            actualChuteId,
-                            isSuccess: !isTimeout,
-                            failureReason: isTimeout ? "Timeout" : null);
-                        
-                        // 发送通知后清理目标格口记录，防止内存泄漏
-                        _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                        // 检查是否已经发送过通知（防止重复触发时重复发送）
+                        // 只在 actualChuteId > 0 时发送通知并清理
+                        if (actualChuteId > 0)
+                        {
+                            _logger.LogInformation(
+                                "包裹 {ParcelId} 摆轮 {DiverterId} 转向 {Direction}，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                                task.ParcelId, task.DiverterId, actionToExecute, actualChuteId);
+                            
+                            await NotifyUpstreamSortingCompletedAsync(
+                                task.ParcelId,
+                                actualChuteId,
+                                isSuccess: !isTimeout,
+                                failureReason: isTimeout ? "Timeout" : null);
+                            
+                            // 发送通知后清理目标格口记录，防止内存泄漏
+                            _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "包裹 {ParcelId} 摆轮转向成功，但无法确定目标格口ID（可能已发送过通知），跳过重复发送",
+                                task.ParcelId);
+                        }
                     }
                     else
                     {
-                        _logger.LogWarning(
-                            "包裹 {ParcelId} 摆轮执行成功，但无法确定目标格口ID（可能已发送过通知），跳过重复发送",
-                            task.ParcelId);
+                        _logger.LogDebug(
+                            "包裹 {ParcelId} 在摆轮 {DiverterId} 直行通过，OnWheelExecution 模式不发送通知（包裹未完成分拣）",
+                            task.ParcelId, task.DiverterId);
                     }
                 }
                 else
