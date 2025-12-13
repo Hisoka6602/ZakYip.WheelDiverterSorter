@@ -391,9 +391,11 @@ public class SortingController : ApiControllerBase
                 intervals.Add(new PositionIntervalDto
                 {
                     PositionIndex = kvp.Key,
-                    MedianIntervalMs = 0, // TODO: 从追踪服务获取
+                    MedianIntervalMs = null, // TODO: 从追踪服务获取
                     SampleCount = 0,
-                    LastTriggerTime = null
+                    MinIntervalMs = null,
+                    MaxIntervalMs = null,
+                    LastUpdatedAt = null
                 });
             }
 
@@ -465,8 +467,8 @@ public class SortingController : ApiControllerBase
 
             var response = new ChuteDropoffCallbackConfigDto
             {
-                CallbackMode = config.CallbackMode.ToString(),
-                Description = GetCallbackModeDescription(config.CallbackMode),
+                TriggerMode = config.CallbackMode.ToString(),
+                IsEnabled = true,  // 当前总是启用
                 UpdatedAt = config.UpdatedAt
             };
 
@@ -528,17 +530,17 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            if (request == null || string.IsNullOrWhiteSpace(request.CallbackMode))
+            if (request == null || string.IsNullOrWhiteSpace(request.TriggerMode))
             {
-                return BadRequest(new { message = "CallbackMode 不能为空" });
+                return BadRequest(new { message = "TriggerMode 不能为空" });
             }
 
             // 解析枚举
-            if (!Enum.TryParse<Core.Enums.Sorting.ChuteDropoffCallbackMode>(request.CallbackMode, true, out var mode))
+            if (!Enum.TryParse<Core.Enums.Sorting.ChuteDropoffCallbackMode>(request.TriggerMode, true, out var mode))
             {
                 return BadRequest(new 
                 { 
-                    message = "无效的 CallbackMode",
+                    message = "无效的 TriggerMode",
                     hint = "支持的值: OnWheelExecution, OnSensorTrigger"
                 });
             }
@@ -546,6 +548,7 @@ public class SortingController : ApiControllerBase
             // 创建或更新配置
             var config = new ChuteDropoffCallbackConfiguration
             {
+                ConfigName = "chute-dropoff-callback",  // 设置required属性
                 CallbackMode = mode
             };
 
@@ -555,11 +558,14 @@ public class SortingController : ApiControllerBase
                 "落格回调配置已更新: {CallbackMode}",
                 mode);
 
+            // 重新获取config以确保有UpdatedAt
+            var updatedConfig = _callbackConfigRepository.Get();
+            
             var response = new ChuteDropoffCallbackConfigDto
             {
-                CallbackMode = config.CallbackMode.ToString(),
-                Description = GetCallbackModeDescription(config.CallbackMode),
-                UpdatedAt = config.UpdatedAt
+                TriggerMode = updatedConfig.CallbackMode.ToString(),
+                IsEnabled = true,  // 当前总是启用
+                UpdatedAt = updatedConfig.UpdatedAt
             };
 
             return Ok(response);
@@ -569,20 +575,6 @@ public class SortingController : ApiControllerBase
             _logger.LogError(ex, "更新落格回调配置失败");
             return StatusCode(500, new { message = "更新落格回调配置失败" });
         }
-    }
-
-    #endregion
-
-    #region 私有辅助方法
-
-    private static string GetCallbackModeDescription(Core.Enums.Sorting.ChuteDropoffCallbackMode mode)
-    {
-        return mode switch
-        {
-            Core.Enums.Sorting.ChuteDropoffCallbackMode.OnWheelExecution => "执行摆轮时发送",
-            Core.Enums.Sorting.ChuteDropoffCallbackMode.OnSensorTrigger => "落格传感器触发时发送",
-            _ => "未知模式"
-        };
     }
 
     #endregion
