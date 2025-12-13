@@ -1306,12 +1306,34 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         actualChuteId,
                         isSuccess: !isTimeout,
                         failureReason: isTimeout ? "Timeout" : null);
+                    
+                    // 发送通知后清理目标格口记录，防止内存泄漏
+                    _parcelTargetChutes.TryRemove(task.ParcelId, out _);
                 }
                 else
                 {
-                    _logger.LogDebug(
-                        "包裹 {ParcelId} 摆轮执行成功，OnSensorTrigger 模式等待落格传感器触发",
-                        task.ParcelId);
+                    // OnSensorTrigger 模式：超时时也需要通知上游分拣失败
+                    if (isTimeout)
+                    {
+                        long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 摆轮执行超时，OnSensorTrigger 模式触发分拣失败通知 (ActualChuteId={ActualChuteId})",
+                            task.ParcelId, actualChuteId);
+                        await NotifyUpstreamSortingCompletedAsync(
+                            task.ParcelId,
+                            actualChuteId,
+                            isSuccess: false,
+                            failureReason: "Timeout");
+                        
+                        // 发送通知后清理目标格口记录
+                        _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "包裹 {ParcelId} 摆轮执行成功，OnSensorTrigger 模式等待落格传感器触发",
+                            task.ParcelId);
+                    }
                 }
             }
         }
@@ -1345,7 +1367,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="action">执行的摆轮动作</param>
     /// <param name="diverterId">摆轮ID</param>
     /// <returns>实际格口ID</returns>
-    private async Task<long> DetermineActualChuteIdAsync(long parcelId, DiverterDirection action, long diverterId)
+    private Task<long> DetermineActualChuteIdAsync(long parcelId, DiverterDirection action, long diverterId)
     {
         // 首先尝试从目标格口字典中获取（Position-Index 队列系统）
         if (_parcelTargetChutes.TryGetValue(parcelId, out var targetChuteId))
@@ -1353,7 +1375,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogDebug(
                 "从目标格口字典获取包裹 {ParcelId} 的目标格口: {TargetChuteId}",
                 parcelId, targetChuteId);
-            return targetChuteId;
+            return Task.FromResult(targetChuteId);
         }
         
         // 尝试从包裹路径中获取目标格口（旧的路径系统）
@@ -1362,14 +1384,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogDebug(
                 "从路径字典获取包裹 {ParcelId} 的目标格口: {TargetChuteId}",
                 parcelId, path.TargetChuteId);
-            return path.TargetChuteId;
+            return Task.FromResult(path.TargetChuteId);
         }
         
         // 无法确定，返回0
         _logger.LogWarning(
             "无法确定包裹 {ParcelId} 的实际格口ID，DiverterId={DiverterId}, Action={Action}",
             parcelId, diverterId, action);
-        return 0;
+        return Task.FromResult(0L);
     }
 
     /// <summary>

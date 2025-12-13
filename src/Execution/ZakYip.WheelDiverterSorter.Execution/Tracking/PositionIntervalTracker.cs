@@ -119,18 +119,12 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     /// <inheritdoc/>
     public IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics()
     {
-        var statistics = new List<(int, double?, int, double?, double?, DateTime?)>();
-        
-        foreach (var positionIndex in _intervalHistory.Keys.OrderBy(k => k))
-        {
-            var stat = GetStatistics(positionIndex);
-            if (stat != null)
-            {
-                statistics.Add(stat.Value);
-            }
-        }
-        
-        return statistics;
+        return _intervalHistory.Keys
+            .OrderBy(k => k)
+            .Select(GetStatistics)
+            .Where(stat => stat != null)
+            .Select(stat => stat!.Value)
+            .ToList();
     }
 
     /// <inheritdoc/>
@@ -188,14 +182,9 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         var sorted = values.OrderBy(v => v).ToArray();
         int n = sorted.Length;
         
-        if (n % 2 == 0)
-        {
-            return (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0;
-        }
-        else
-        {
-            return sorted[n / 2];
-        }
+        return n % 2 == 0
+            ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+            : sorted[n / 2];
     }
 }
 
