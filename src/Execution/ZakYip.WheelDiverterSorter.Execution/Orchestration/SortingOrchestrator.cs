@@ -98,6 +98,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IConveyorSegmentRepository? _segmentRepository;
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     private readonly ISafeExecutionService? _safeExecutor;
+    private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -146,7 +147,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
         ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
-        ISafeExecutionService? safeExecutor = null) // TD-062: 安全执行服务
+        ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
+        Tracking.IPositionIntervalTracker? intervalTracker = null) // Position 间隔追踪器
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -173,6 +175,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _segmentRepository = segmentRepository;
         _sensorConfigRepository = sensorConfigRepository;
         _safeExecutor = safeExecutor;
+        _intervalTracker = intervalTracker;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -1142,9 +1145,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="positionIndex">Position Index</param>
     private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex)
     {
+        var currentTime = _clock.LocalNow;
+        
         _logger.LogDebug(
             "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
             positionIndex, sensorId);
+
+        // 记录触发事件到间隔追踪器
+        _intervalTracker?.RecordTrigger(positionIndex, currentTime);
 
         // 从 Position-Index 队列取出任务
         var task = _queueManager!.DequeueTask(positionIndex);
