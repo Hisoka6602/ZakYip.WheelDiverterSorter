@@ -53,7 +53,7 @@ public class SensorFaultSimulationTests : IDisposable
 
         // 设置包裹检测通知的默认行为
         _mockRuleEngineClient
-            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((long parcelId, CancellationToken ct) =>
             {
                 var chuteId = GetNextChuteId();

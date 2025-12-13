@@ -50,7 +50,7 @@ public class PerformanceBaselineTests : IDisposable
             .Returns(true);
 
         _mockRuleEngineClient
-            .Setup(x => x.SendAsync(new ParcelDetectedMessage { ParcelId = It.IsAny<long>(), It.IsAny<CancellationToken>()))
+            .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((long parcelId, CancellationToken ct) =>
             {
                 var chuteId = _targetChuteRandom.Next(1, 21);
