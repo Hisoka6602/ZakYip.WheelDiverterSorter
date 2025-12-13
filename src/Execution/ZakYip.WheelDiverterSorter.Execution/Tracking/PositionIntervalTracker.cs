@@ -25,10 +25,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     // 每个 position 的间隔历史记录
     private readonly ConcurrentDictionary<int, CircularBuffer<double>> _intervalHistory;
     
-    // 每个 position 的最后触发时间（旧方法使用）
-    private readonly ConcurrentDictionary<int, DateTime> _lastTriggerTimes;
-    
-    // 每个包裹在各个position的时间戳（新方法使用）
+    // 每个包裹在各个position的时间戳
     // Key: parcelId, Value: Dictionary<positionIndex, arrivedAt>
     private readonly ConcurrentDictionary<long, ConcurrentDictionary<int, DateTime>> _parcelPositionTimes;
     
@@ -45,7 +42,6 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
         
         _intervalHistory = new ConcurrentDictionary<int, CircularBuffer<double>>();
-        _lastTriggerTimes = new ConcurrentDictionary<int, DateTime>();
         _parcelPositionTimes = new ConcurrentDictionary<long, ConcurrentDictionary<int, DateTime>>();
         _lastUpdatedTimes = new ConcurrentDictionary<int, DateTime>();
     }
@@ -71,30 +67,6 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         _logger.LogDebug(
             "记录 Position {PositionIndex} 触发间隔: {IntervalMs}ms",
             positionIndex, intervalMs);
-    }
-
-    /// <inheritdoc/>
-    [Obsolete("Use RecordParcelPosition instead for tracking parcel movement between positions")]
-    public void RecordTrigger(int positionIndex, DateTime triggeredAt)
-    {
-        if (_lastTriggerTimes.TryGetValue(positionIndex, out var lastTime))
-        {
-            var intervalMs = (triggeredAt - lastTime).TotalMilliseconds;
-            
-            // 只记录有效的间隔（避免异常值）
-            if (intervalMs > 0 && intervalMs < _options.MaxReasonableIntervalMs)
-            {
-                RecordInterval(positionIndex, intervalMs);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "忽略异常间隔: PositionIndex={PositionIndex}, IntervalMs={IntervalMs}ms",
-                    positionIndex, intervalMs);
-            }
-        }
-        
-        _lastTriggerTimes[positionIndex] = triggeredAt;
     }
 
     /// <inheritdoc/>
@@ -220,7 +192,6 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     public void ClearStatistics(int positionIndex)
     {
         _intervalHistory.TryRemove(positionIndex, out _);
-        _lastTriggerTimes.TryRemove(positionIndex, out _);
         _lastUpdatedTimes.TryRemove(positionIndex, out _);
         
         _logger.LogInformation("已清空 Position {PositionIndex} 的统计数据", positionIndex);
@@ -230,7 +201,6 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     public void ClearAllStatistics()
     {
         _intervalHistory.Clear();
-        _lastTriggerTimes.Clear();
         _lastUpdatedTimes.Clear();
         
         _logger.LogInformation("已清空所有 Position 的统计数据");
