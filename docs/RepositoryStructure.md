@@ -880,13 +880,14 @@ ZakYip.WheelDiverterSorter.Communication/
 ├── Adapters/                        # 适配器
 │   └── DefaultUpstreamContractMapper.cs
 ├── Clients/                         # 客户端实现（实现 Core 层的 IUpstreamRoutingClient）
-│   ├── TcpRuleEngineClient.cs
+│   ├── TouchSocketTcpRuleEngineClient.cs
 │   ├── SignalRRuleEngineClient.cs
 │   ├── MqttRuleEngineClient.cs
 │   ├── InMemoryRuleEngineClient.cs
 │   ├── RuleEngineClientBase.cs
 │   └── EmcResourceLockManager*.cs   # 实现 Core/Hardware/Devices/IEmcResourceLockManager
 # PR-UPSTREAM01: HttpRuleEngineClient.cs 已删除
+# PR-TOUCHSOCKET-ONLY: TcpRuleEngineClient.cs 已删除，统一使用 TouchSocketTcpRuleEngineClient.cs
 ├── Configuration/                   # 通信配置
 │   ├── RuleEngineConnectionOptions.cs
 │   ├── TcpOptions.cs
@@ -921,7 +922,7 @@ ZakYip.WheelDiverterSorter.Communication/
 > 所有客户端实现现在直接实现 IUpstreamRoutingClient 接口。
 
 - `IUpstreamRoutingClient`（位于 Core/Abstractions/Upstream/）：上游路由客户端统一接口，定义连接、断开、通知包裹到达等操作
-- `TcpRuleEngineClient`（位于 Clients/）：TCP 协议客户端实现，实现 IUpstreamRoutingClient
+- `TouchSocketTcpRuleEngineClient`（位于 Clients/）：基于 TouchSocket 的 TCP 协议客户端实现，实现 IUpstreamRoutingClient
 - `SignalRRuleEngineClient`（位于 Clients/）：SignalR 协议客户端实现，实现 IUpstreamRoutingClient
 - `MqttRuleEngineClient`（位于 Clients/）：MQTT 协议客户端实现，实现 IUpstreamRoutingClient
 - `UpstreamRoutingClientFactory`：根据配置创建对应协议的 IUpstreamRoutingClient 实例
@@ -1242,7 +1243,7 @@ tools/Profiling/
 |-----|------|-----|
 | `IUpstreamRoutingClient` | Core/Abstractions/Upstream/ | **唯一**上游路由客户端接口，定义连接、断开、通知包裹到达等操作 |
 | `ChuteAssignmentEventArgs` | Core/Abstractions/Upstream/ | 格口分配事件参数，用于上游推送格口分配 |
-| `TcpRuleEngineClient` | Communication/Clients/ | TCP 协议客户端实现（默认），实现 IUpstreamRoutingClient |
+| `TouchSocketTcpRuleEngineClient` | Communication/Clients/ | 基于 TouchSocket 的 TCP 协议客户端实现（默认），实现 IUpstreamRoutingClient |
 | `SignalRRuleEngineClient` | Communication/Clients/ | SignalR 协议客户端实现，实现 IUpstreamRoutingClient |
 | `MqttRuleEngineClient` | Communication/Clients/ | MQTT 协议客户端实现，实现 IUpstreamRoutingClient |
 | `UpstreamRoutingClientFactory` | Communication/ | 根据配置创建对应协议的 IUpstreamRoutingClient 实例 |
@@ -1646,7 +1647,7 @@ grep -r "ProjectReference" src/**/*.csproj
 | `*Handler` | 处理器 - 处理特定事件或请求 | `SortingExceptionHandler.cs` |
 | `*Factory` | 工厂类 - 创建对象实例 | `UpstreamRoutingClientFactory.cs` |
 | `*Provider` | 提供者 - 提供特定功能或数据 | `SensorVendorConfigProvider.cs` |
-| `*Client` | 客户端 - 外部服务连接 | `TcpRuleEngineClient.cs` |
+| `*Client` | 客户端 - 外部服务连接 | `TouchSocketTcpRuleEngineClient.cs` |
 | `*Server` | 服务器 - 接受外部连接 | `TouchSocketTcpRuleEngineServer.cs` |
 | `*Driver` | 驱动程序 - 硬件设备控制 | `LeadshineWheelDiverterDriver.cs` |
 | `*Adapter` | 适配器 - 接口转换 | `ServerModeClientAdapter.cs` |
@@ -2159,8 +2160,7 @@ grep -r "ProjectReference" src/**/*.csproj
 - `ZakYip.WheelDiverterSorter.Communication/Clients/SignalREmcResourceLockManager.cs` - 管理器 - 协调多个服务
 - `ZakYip.WheelDiverterSorter.Communication/Clients/SignalRRuleEngineClient.cs` - 客户端 - 外部服务连接
 - `ZakYip.WheelDiverterSorter.Communication/Clients/TcpEmcResourceLockManager.cs` - 管理器 - 协调多个服务
-- `ZakYip.WheelDiverterSorter.Communication/Clients/TcpRuleEngineClient.cs` - 客户端 - 外部服务连接
-- `ZakYip.WheelDiverterSorter.Communication/Clients/TouchSocketTcpRuleEngineClient.cs` - 客户端 - 外部服务连接
+- `ZakYip.WheelDiverterSorter.Communication/Clients/TouchSocketTcpRuleEngineClient.cs` - 客户端 - 外部服务连接（基于 TouchSocket 库）
 - `ZakYip.WheelDiverterSorter.Communication/CommunicationServiceExtensions.cs` - 扩展方法类
 - `ZakYip.WheelDiverterSorter.Communication/Configuration/CommunicationMode.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Communication/Configuration/ConnectionMode.cs` - 类定义
