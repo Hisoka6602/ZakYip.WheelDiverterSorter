@@ -226,7 +226,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     /// 清理旧的包裹位置记录
     /// </summary>
     /// <remarks>
-    /// 当包裹记录超过1000个时，删除最旧的记录以防止内存泄漏
+    /// 当包裹记录超过配置阈值时，删除最旧的记录以防止内存泄漏
     /// </remarks>
     private void CleanupOldParcelRecords()
     {
@@ -236,7 +236,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
             var parcelIds = _parcelPositionTimes.Keys.OrderByDescending(id => id).ToList();
             
             // 删除超过限制的旧记录
-            var toRemove = parcelIds.Skip(800).ToList(); // 保留800个，给新包裹留空间
+            var toRemove = parcelIds.Skip(_options.ParcelRecordRetentionCount).ToList(); // 保留配置数量，给新包裹留空间
             
             foreach (var parcelId in toRemove)
             {
@@ -289,6 +289,25 @@ public sealed class PositionIntervalTrackerOptions
     /// 默认值：1000ms (1秒)
     /// </remarks>
     public double MinThresholdMs { get; set; } = 1000;
+    
+    /// <summary>
+    /// 包裹记录清理阈值（当包裹记录数超过此值时触发清理）
+    /// </summary>
+    /// <remarks>
+    /// 默认值：1000
+    /// 推荐范围：800-1500
+    /// </remarks>
+    public int ParcelRecordCleanupThreshold { get; set; } = 1000;
+    
+    /// <summary>
+    /// 包裹记录保留数量（清理时保留最近的记录数）
+    /// </summary>
+    /// <remarks>
+    /// 默认值：800
+    /// 推荐范围：600-1000
+    /// 清理时会删除超过此数量的旧记录，给新包裹留空间
+    /// </remarks>
+    public int ParcelRecordRetentionCount { get; set; } = 800;
     
     /// <summary>
     /// 最大阈值（毫秒）

@@ -531,7 +531,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private long GetChuteIdFromSensor(long sensorId)
     {
         // 简化实现：直接使用传感器ID作为格口ID
-        // TODO: 未来可以通过配置建立传感器到格口的映射
+        // TODO (TD-072): 未来可以通过配置建立传感器到格口的映射
         _logger?.LogDebug(
             "使用传感器ID {SensorId} 作为格口ID（简化实现）",
             sensorId);

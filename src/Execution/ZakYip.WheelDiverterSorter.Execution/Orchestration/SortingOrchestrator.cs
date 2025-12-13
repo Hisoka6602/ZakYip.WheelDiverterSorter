@@ -1559,6 +1559,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     /// <param name="targetChuteId">目标格口ID</param>
     /// <returns>包裹ID，如果未找到则返回null</returns>
+    /// <remarks>
+    /// TODO (TD-073): 当多个包裹同时分拣到同一格口时，FirstOrDefault 只会返回第一个匹配的包裹ID。
+    /// 可能的优化方案：
+    /// 1. 添加时序验证：只匹配最近完成摆轮动作的包裹
+    /// 2. 使用 FIFO 队列：按摆轮执行顺序记录预期落格的包裹
+    /// 3. 添加超时清理：清理长时间未落格的包裹记录，避免误匹配
+    /// </remarks>
     private long? FindParcelByTargetChute(long targetChuteId)
     {
         // 从 _parcelTargetChutes 中查找目标格口匹配的包裹

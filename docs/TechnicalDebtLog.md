@@ -3675,3 +3675,228 @@ _pendingQueue.Enqueue(parcelId, exceptionChuteId, firstDiverterId, timeoutSecond
 - ✅ 符合"包裹必须经过摆轮前传感器触发才能出队执行"的设计原则
 
 ---
+
+
+---
+
+## [TD-072] ChuteDropoff传感器到格口映射配置
+
+**状态**: ❌ 未开始  
+**分类**: 功能增强  
+**优先级**: 低  
+**预估工作量**: 2-3小时
+
+### 问题描述
+
+当前在 `ParcelDetectionService.GetChuteIdFromSensor()` 中，使用传感器ID直接作为格口ID（简化实现）。这在传感器ID与格口ID一致时可以工作，但缺乏灵活性。
+
+**当前实现**:
+```csharp
+private long GetChuteIdFromSensor(long sensorId)
+{
+    // 简化实现：直接使用传感器ID作为格口ID
+    // TODO (TD-072): 未来可以通过配置建立传感器到格口的映射
+    return sensorId;
+}
+```
+
+**问题**:
+- 传感器ID与格口ID强绑定，缺乏配置灵活性
+- 无法处理一个传感器对应多个格口的场景
+- 无法处理传感器ID与格口ID编号不一致的情况
+
+### 影响范围
+
+- `src/Ingress/ZakYip.WheelDiverterSorter.Ingress/Services/ParcelDetectionService.cs`
+- `src/Core/ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/ChuteSensorConfig.cs` (可能需要扩展)
+
+### 解决方案建议
+
+**方案1**: 在ChuteSensorConfig中添加映射字段
+```csharp
+public record ChuteSensorConfig
+{
+    public long SensorId { get; init; }
+    public long ChuteId { get; init; }  // 新增：映射的格口ID
+    public SensorIoType SensorType { get; init; }
+    // ... 其他字段
+}
+```
+
+**方案2**: 创建独立的传感器-格口映射配置
+```csharp
+public record SensorChuteMapping
+{
+    public long SensorId { get; init; }
+    public long ChuteId { get; init; }
+}
+```
+
+**实施步骤**:
+1. 扩展配置模型添加映射字段
+2. 修改 `GetChuteIdFromSensor()` 使用配置映射
+3. 提供默认值：如果未配置映射，回退到当前行为（sensorId = chuteId）
+4. 添加配置验证：确保映射的格口ID存在
+5. 更新API端点支持映射配置
+6. 添加测试覆盖
+
+**向后兼容**:
+- 默认情况下，sensorId = chuteId，保持当前行为
+- 只有显式配置映射时才使用新逻辑
+
+### 相关文档
+
+- PR代码审查评论 (comment_id: 2616471880)
+
+---
+
+## [TD-073] 多包裹同时落格同一格口的识别优化
+
+**状态**: ❌ 未开始  
+**分类**: 潜在问题/优化  
+**优先级**: 中  
+**预估工作量**: 4-6小时
+
+### 问题描述
+
+在 `SortingOrchestrator.FindParcelByTargetChute()` 中，使用 `FirstOrDefault` 查找落格包裹。当多个包裹同时分拣到同一格口时，只会返回第一个匹配的包裹ID，可能导致其他包裹的落格事件无法正确关联。
+
+**当前实现**:
+```csharp
+private long? FindParcelByTargetChute(long targetChuteId)
+{
+    // 从 _parcelTargetChutes 中查找目标格口匹配的包裹
+    var matchingParcel = _parcelTargetChutes
+        .FirstOrDefault(kvp => kvp.Value == targetChuteId);  // ❌ 只返回第一个
+
+    if (matchingParcel.Key == 0)
+    {
+        return null;
+    }
+
+    return matchingParcel.Key;
+}
+```
+
+**问题场景**:
+- 包裹 A 和包裹 B 都路由到格口 4
+- 包裹 A 先到达摆轮，包裹 B 紧随其后
+- 当格口 4 的落格传感器触发时，无法确定是哪个包裹落格
+- 可能返回包裹 A 的ID，但实际落格的是包裹 B
+
+### 影响范围
+
+- `src/Execution/ZakYip.WheelDiverterSorter.Execution/Orchestration/SortingOrchestrator.cs`
+- 可能影响落格通知的准确性和顺序
+
+### 解决方案建议
+
+**方案1**: 添加时序验证（推荐）
+```csharp
+// 记录每个包裹完成摆轮动作的时间
+private readonly ConcurrentDictionary<long, DateTime> _parcelWheelCompletionTimes = new();
+
+private long? FindParcelByTargetChute(long targetChuteId)
+{
+    // 查找所有匹配的包裹
+    var matchingParcels = _parcelTargetChutes
+        .Where(kvp => kvp.Value == targetChuteId)
+        .Select(kvp => kvp.Key)
+        .ToList();
+    
+    if (matchingParcels.Count == 0) return null;
+    
+    // 返回最近完成摆轮动作的包裹（最有可能刚落格）
+    return matchingParcels
+        .OrderByDescending(parcelId => _parcelWheelCompletionTimes.GetValueOrDefault(parcelId))
+        .FirstOrDefault();
+}
+```
+
+**方案2**: 使用FIFO队列机制
+```csharp
+// 为每个格口维护FIFO队列
+private readonly ConcurrentDictionary<long, ConcurrentQueue<long>> _chuteParcelQueues = new();
+
+// 摆轮执行完成后加入队列
+private void OnWheelExecutionCompleted(long parcelId, long targetChuteId)
+{
+    var queue = _chuteParcelQueues.GetOrAdd(targetChuteId, _ => new ConcurrentQueue<long>());
+    queue.Enqueue(parcelId);
+}
+
+// 落格传感器触发时从队列取出
+private long? FindParcelByTargetChute(long targetChuteId)
+{
+    if (_chuteParcelQueues.TryGetValue(targetChuteId, out var queue) && 
+        queue.TryDequeue(out var parcelId))
+    {
+        return parcelId;
+    }
+    return null;
+}
+```
+
+**方案3**: 添加超时清理机制
+```csharp
+// 记录包裹的摆轮完成时间
+private readonly ConcurrentDictionary<long, DateTime> _parcelWheelCompletionTimes = new();
+
+// 定期清理长时间未落格的包裹（可能卡住或异常）
+private void CleanupStaleParcelRecords()
+{
+    var staleThreshold = _clock.LocalNow.AddSeconds(-30);  // 30秒超时
+    
+    var staleParcels = _parcelWheelCompletionTimes
+        .Where(kvp => kvp.Value < staleThreshold)
+        .Select(kvp => kvp.Key)
+        .ToList();
+    
+    foreach (var parcelId in staleParcels)
+    {
+        _parcelTargetChutes.TryRemove(parcelId, out _);
+        _parcelWheelCompletionTimes.TryRemove(parcelId, out _);
+        _logger.LogWarning("包裹 {ParcelId} 长时间未落格，清理记录", parcelId);
+    }
+}
+```
+
+### 实施步骤
+
+1. 选择合适的方案（推荐方案1或方案2的组合）
+2. 扩展 `_parcelTargetChutes` 的跟踪逻辑，记录时序信息
+3. 修改 `FindParcelByTargetChute()` 使用新逻辑
+4. 添加超时清理机制（方案3）
+5. 添加日志记录多包裹匹配情况
+6. 添加单元测试覆盖多包裹场景
+7. 添加集成测试验证实际行为
+
+### 测试场景
+
+**场景1**: 两个包裹快速连续到达同一格口
+- 包裹A @ T1, 包裹B @ T2 (T2-T1 < 1秒)
+- 验证落格传感器能正确识别各自的落格事件
+
+**场景2**: 包裹卡住导致延迟落格
+- 包裹A @ T1 完成摆轮，但卡住未落格
+- 包裹B @ T2 完成摆轮并正常落格
+- 验证不会误将包裹B的落格识别为包裹A
+
+**场景3**: 包裹超时清理
+- 包裹A完成摆轮后30秒未落格
+- 验证自动清理记录并记录警告日志
+
+### 优先级说明
+
+虽然当前简单的 `FirstOrDefault` 实现在大多数情况下工作正常（包裹间隔通常足够大），但在高吞吐量或异常场景下可能出现问题。建议在以下情况下优先实施：
+1. 系统需要支持高吞吐量（多包裹快速连续）
+2. 发现日志中有落格通知错配的情况
+3. 需要更精确的包裹追踪和监控
+
+### 相关文档
+
+- PR代码审查评论 (comment_id: 2616471881)
+- copilot-instructions.md 第四节（线程安全与并发控制）
+
+---
+
