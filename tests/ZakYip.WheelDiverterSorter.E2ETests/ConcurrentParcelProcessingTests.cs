@@ -42,9 +42,11 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         Factory.MockRuleEngineClient!
             .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
+        
         Factory.MockRuleEngineClient
             .Setup(x => x.IsConnected)
             .Returns(true);
+        
         await _orchestrator.StartAsync();
         // Act - Send multiple chute assignments concurrently
         var tasks = parcels.Select(async parcelId =>
@@ -198,7 +200,9 @@ public class ConcurrentParcelProcessingTests : E2ETestBase
         for (int i = 0; i < parcelCount; i++)
         {
             var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds() + i;
-            await Factory.MockRuleEngineClient!.Object.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, DetectedAt = DateTimeOffset.Now });
+            await Factory.MockRuleEngineClient!.Object.SendAsync(
+                new ParcelDetectedMessage { ParcelId = parcelId, DetectedAt = DateTimeOffset.Now }, 
+                CancellationToken.None);
             await Task.Delay(10); // Small delay between parcels
         }
         await Task.Delay(500); // Allow processing
