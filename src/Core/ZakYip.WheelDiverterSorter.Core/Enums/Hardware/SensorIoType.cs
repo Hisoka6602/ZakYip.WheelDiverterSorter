@@ -42,5 +42,15 @@ public enum SensorIoType
     /// 用于确认包裹已成功分拣到目标格口
     /// </remarks>
     [Description("锁格感应IO")]
-    ChuteLock = 2
+    ChuteLock = 2,
+
+    /// <summary>
+    /// 落格感应IO - 检测包裹落入格口
+    /// </summary>
+    /// <remarks>
+    /// 用于在包裹落入格口时触发落格回调，向上游发送分拣完成通知。
+    /// 与ChuteLock的区别：ChuteDropoff专注于触发落格回调，ChuteLock专注于锁格功能。
+    /// </remarks>
+    [Description("落格感应IO")]
+    ChuteDropoff = 3
 }

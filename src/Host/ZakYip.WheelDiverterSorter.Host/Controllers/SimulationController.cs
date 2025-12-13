@@ -2,14 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Simulation.Services;
 using Swashbuckle.AspNetCore.Annotations;
-using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
-using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
@@ -24,13 +20,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 提供所有仿真相关功能的统一入口，包括：
 /// - 场景仿真（长跑测试）
 /// - 面板仿真（按钮和信号塔模拟）
-/// - 包裹分拣测试（手动触发分拣）
 /// - 系统状态控制（启动、停止、急停等）
 /// 
 /// **生产环境保护**：
 /// - 在生产环境中调用这些接口可能会干扰真实分拣数据和系统状态
 /// - 部分端点会在生产环境下返回 403 Forbidden 错误
 /// - 建议生产环境通过配置禁用此控制器或使用 API Gateway 过滤
+/// 
+/// **分拣测试功能已迁移**：
+/// - 手动触发包裹分拣功能已迁移至 `/api/sorting/test-sort` 端点
+/// - 请使用 SortingController 进行分拣测试
 /// 
 /// 所有仿真相关操作统一在本控制器下，避免端点分散。
 /// </remarks>
@@ -44,8 +43,6 @@ public class SimulationController : ControllerBase
     private readonly IPanelInputReader _panelInputReader;
     private readonly ISimulationModeProvider _simulationModeProvider;
     private readonly ISimulationScenarioRunner? _scenarioRunner;
-    private readonly IDebugSortService? _debugSortService;
-    private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SimulationController> _logger;
     private static CancellationTokenSource? _simulationCts;
     private static Task? _runningSimulation;
@@ -56,18 +53,14 @@ public class SimulationController : ControllerBase
         ISystemClock clock,
         IPanelInputReader panelInputReader,
         ISimulationModeProvider simulationModeProvider,
-        IWebHostEnvironment environment,
         ILogger<SimulationController> logger,
-        ISimulationScenarioRunner? scenarioRunner = null,
-        IDebugSortService? debugSortService = null)
+        ISimulationScenarioRunner? scenarioRunner = null)
     {
         _stateManager = stateManager;
         _clock = clock;
         _panelInputReader = panelInputReader;
         _simulationModeProvider = simulationModeProvider;
-        _environment = environment;
         _scenarioRunner = scenarioRunner;
-        _debugSortService = debugSortService;
         _logger = logger;
     }
 
@@ -724,166 +717,7 @@ public class SimulationController : ControllerBase
 
     #endregion 面板仿真
 
-    #region 分拣测试
 
-    /// <summary>
-    /// 手动触发包裹分拣（仅供测试/仿真环境）
-    /// </summary>
-    /// <param name="request">分拣请求，包含包裹ID和目标格口ID</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>分拣执行结果</returns>
-    /// <response code="200">分拣执行成功</response>
-    /// <response code="400">请求参数无效</response>
-    /// <response code="403">生产环境禁止调用</response>
-    /// <response code="503">服务未配置或不可用</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// **⚠️ 重要警告：仅供测试/仿真环境使用，生产环境禁止调用**
-    /// 
-    /// **功能说明**：
-    /// 
-    /// 接收包裹ID和目标格口ID，生成摆轮切换路径并执行分拣操作。
-    /// 
-    /// **环境限制**：
-    /// - **仅在测试和仿真环境中可用**
-    /// - 在生产环境（Production）中调用将返回 403 错误
-    /// - 生产环境下应通过扫码或供包台触发分拣，而非此接口
-    /// 
-    /// **示例请求**：
-    /// ```json
-    /// {
-    ///   "parcelId": "PKG-20231201-001",
-    ///   "targetChuteId": 5
-    /// }
-    /// ```
-    /// 
-    /// **示例响应**：
-    /// ```json
-    /// {
-    ///   "parcelId": "PKG-20231201-001",
-    ///   "targetChuteId": 5,
-    ///   "actualChuteId": 5,
-    ///   "isSuccess": true,
-    ///   "message": "分拣执行成功",
-    ///   "pathSegmentCount": 3
-    /// }
-    /// ```
-    /// 
-    /// **注意事项**：
-    /// - 包裹ID必须唯一，避免与真实包裹冲突
-    /// - 目标格口ID必须在系统路由配置中存在
-    /// - 此接口会实际触发摆轮动作（在硬件环境下）
-    /// </remarks>
-    [HttpPost("sort")]
-    [SwaggerOperation(
-        Summary = "手动触发包裹分拣（仅供测试/仿真环境）",
-        Description = "接收包裹ID和目标格口ID，生成并执行摆轮分拣路径。**仅在测试/仿真环境可用，生产环境禁止调用**",
-        OperationId = "TriggerTestSort",
-        Tags = new[] { "分拣测试" }
-    )]
-    [SwaggerResponse(200, "分拣执行成功", typeof(DebugSortResponse))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(403, "生产环境禁止调用")]
-    [SwaggerResponse(503, "服务未配置或不可用")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DebugSortResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 403)]
-    [ProducesResponseType(typeof(object), 503)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<IActionResult> TriggerTestSort(
-        [FromBody] DebugSortRequest request,
-        CancellationToken cancellationToken)
-    {
-        // 检查环境：生产环境禁止调用
-        if (_environment.IsProduction())
-        {
-            _logger.LogWarning(
-                "生产环境下尝试调用仿真测试接口 /api/simulation/sort，已拒绝。ParcelId: {ParcelId}",
-                request.ParcelId);
-            
-            return StatusCode(403, new
-            {
-                message = "生产环境下禁止调用仿真测试接口",
-                errorCode = "FORBIDDEN_IN_PRODUCTION",
-                hint = "此接口仅供开发、测试和仿真环境使用。生产环境下应通过扫码或供包台触发分拣。"
-            });
-        }
-
-        // 参数验证
-        if (string.IsNullOrWhiteSpace(request.ParcelId))
-        {
-            return BadRequest(new { message = "包裹ID不能为空" });
-        }
-
-        if (request.TargetChuteId <= 0)
-        {
-            return BadRequest(new { message = "目标格口ID必须大于0" });
-        }
-
-        // 检查是否注入了 DebugSortService
-        if (_debugSortService == null)
-        {
-            _logger.LogError("DebugSortService 未注册，无法执行调试分拣");
-            return StatusCode(503, new 
-            { 
-                message = "调试分拣服务未配置或不可用",
-                hint = "请确保在测试/仿真环境中正确注册 DebugSortService"
-            });
-        }
-
-        try
-        {
-            _logger.LogInformation(
-                "仿真测试：手动触发分拣，ParcelId: {ParcelId}, TargetChuteId: {TargetChuteId}",
-                request.ParcelId,
-                request.TargetChuteId);
-
-            var result = await _debugSortService.ExecuteDebugSortAsync(
-                request.ParcelId,
-                request.TargetChuteId,
-                cancellationToken);
-
-            // Map Application layer result to Host layer response
-            var response = new DebugSortResponse
-            {
-                ParcelId = result.ParcelId,
-                TargetChuteId = result.TargetChuteId,
-                IsSuccess = result.IsSuccess,
-                ActualChuteId = result.ActualChuteId,
-                Message = result.Message,
-                FailureReason = result.FailureReason,
-                PathSegmentCount = result.PathSegmentCount
-            };
-
-            if (response.IsSuccess)
-            {
-                _logger.LogInformation(
-                    "仿真测试：分拣执行成功，ParcelId: {ParcelId}",
-                    request.ParcelId);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "仿真测试：分拣执行失败，ParcelId: {ParcelId}, Message: {Message}",
-                    request.ParcelId,
-                    response.Message);
-            }
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "仿真测试：分拣执行异常，ParcelId: {ParcelId}", request.ParcelId);
-            return StatusCode(500, new
-            {
-                message = "分拣执行失败",
-                error = ex.Message
-            });
-        }
-    }
-
-    #endregion 分拣测试
 }
 
 /// <summary>
