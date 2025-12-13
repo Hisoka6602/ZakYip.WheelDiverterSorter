@@ -1,3 +1,5 @@
+using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+
 namespace ZakYip.WheelDiverterSorter.Host.Models;
 
 /// <summary>
@@ -9,7 +11,7 @@ public record ChuteDropoffCallbackConfigDto
     /// 触发模式
     /// </summary>
     /// <example>OnSensorTrigger</example>
-    public required string TriggerMode { get; init; }
+    public required ChuteDropoffCallbackMode TriggerMode { get; init; }
 
     /// <summary>
     /// 是否启用

@@ -91,6 +91,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
+    private readonly IChuteDropoffCallbackConfigurationRepository? _callbackConfigRepository;
     
     // 新的 Position-Index 队列系统依赖
     private readonly IPositionIndexQueueManager? _queueManager;
@@ -148,7 +149,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
         ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
-        Tracking.IPositionIntervalTracker? intervalTracker = null) // Position 间隔追踪器
+        Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
+        IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null) // 落格回调配置仓储
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -176,6 +178,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _sensorConfigRepository = sensorConfigRepository;
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
+        _callbackConfigRepository = callbackConfigRepository;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -1168,7 +1171,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         // 检查超时
-        var currentTime = _clock.LocalNow;
         var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
         
         DiverterDirection actionToExecute;
@@ -1266,12 +1268,47 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作失败: {ErrorMessage}",
                     task.ParcelId, positionIndex, executionResult.FailureReason);
                 _metrics?.RecordSortingFailure(0);
+                
+                // 摆轮动作失败，通知上游
+                await NotifyUpstreamSortingCompletedAsync(
+                    task.ParcelId, 
+                    0, // 未知格口
+                    isSuccess: false, 
+                    failureReason: executionResult.FailureReason);
                 return;
             }
             
             _logger.LogDebug(
                 "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功",
                 task.ParcelId, positionIndex);
+            
+            // 检查是否需要在摆轮执行时触发回调
+            if (_callbackConfigRepository != null)
+            {
+                var callbackConfig = _callbackConfigRepository.Get();
+                if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
+                {
+                    // OnWheelExecution 模式：摆轮执行成功后立即发送分拣完成通知
+                    // 需要确定实际的目标格口ID
+                    long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
+                    
+                    _logger.LogInformation(
+                        "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                        task.ParcelId, actualChuteId);
+                    
+                    await NotifyUpstreamSortingCompletedAsync(
+                        task.ParcelId,
+                        actualChuteId,
+                        isSuccess: !isTimeout,
+                        failureReason: isTimeout ? "Timeout" : null);
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "包裹 {ParcelId} 摆轮执行成功，OnSensorTrigger 模式等待落格传感器触发",
+                        task.ParcelId);
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -1280,6 +1317,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常",
                 task.ParcelId, positionIndex);
             _metrics?.RecordSortingFailure(0);
+            
+            // 异常情况，通知上游
+            await NotifyUpstreamSortingCompletedAsync(
+                task.ParcelId, 
+                0, 
+                isSuccess: false, 
+                failureReason: ex.Message);
             return;
         }
         
@@ -1287,6 +1331,46 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _metrics?.RecordSortingSuccess(0);
         }
+    }
+
+    /// <summary>
+    /// 确定包裹的实际落格格口ID
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="action">执行的摆轮动作</param>
+    /// <param name="diverterId">摆轮ID</param>
+    /// <returns>实际格口ID</returns>
+    private async Task<long> DetermineActualChuteIdAsync(long parcelId, DiverterDirection action, long diverterId)
+    {
+        // 尝试从包裹路径中获取目标格口
+        if (_parcelPaths.TryGetValue(parcelId, out var path))
+        {
+            return path.TargetChuteId;
+        }
+        
+        // 如果没有路径信息，尝试根据拓扑和动作推断
+        if (_topologyRepository != null)
+        {
+            var topology = _topologyRepository.Get();
+            if (topology != null)
+            {
+                var node = topology.DiverterNodes.FirstOrDefault(n => n.DiverterId == diverterId);
+                if (node != null)
+                {
+                    // 根据动作方向推断格口
+                    // 这是一个简化的逻辑，实际可能需要更复杂的拓扑计算
+                    // 对于最后一个摆轮，直接关联到格口
+                    // 对于中间摆轮，返回0表示未到达最终格口
+                    return 0; // 简化实现：中间位置返回0
+                }
+            }
+        }
+        
+        // 无法确定，返回0
+        _logger.LogWarning(
+            "无法确定包裹 {ParcelId} 的实际格口ID，DiverterId={DiverterId}, Action={Action}",
+            parcelId, diverterId, action);
+        return 0;
     }
 
     /// <summary>

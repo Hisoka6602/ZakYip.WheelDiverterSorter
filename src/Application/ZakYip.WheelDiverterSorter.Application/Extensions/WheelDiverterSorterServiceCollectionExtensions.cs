@@ -416,6 +416,19 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 注册 Position-Index 队列管理器（新的队列系统）
         services.AddSingleton<IPositionIndexQueueManager, PositionIndexQueueManager>();
+        
+        // Position 间隔追踪器（单例）
+        services.Configure<Execution.Tracking.PositionIntervalTrackerOptions>(options =>
+        {
+            // 使用默认配置，也可以从 appsettings.json 读取
+            options.WindowSize = 10;
+            options.TimeoutMultiplier = 3.0;
+            options.MinThresholdMs = 1000;
+            options.MaxThresholdMs = 10000;
+            options.MinSamplesForThreshold = 3;
+            options.MaxReasonableIntervalMs = 60000;
+        });
+        services.AddSingleton<Execution.Tracking.IPositionIntervalTracker, Execution.Tracking.PositionIntervalTracker>();
 
         // 注册格口路径拓扑服务
         services.AddSingleton<IChutePathTopologyService, ChutePathTopologyService>();
@@ -453,6 +466,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var segmentRepository = sp.GetService<IConveyorSegmentRepository>();
             var sensorConfigRepository = sp.GetService<ISensorConfigurationRepository>();
             var safeExecutor = sp.GetService<ISafeExecutionService>();
+            var intervalTracker = sp.GetService<Execution.Tracking.IPositionIntervalTracker>();
+            var callbackConfigRepository = sp.GetService<IChuteDropoffCallbackConfigurationRepository>();
             
             return new SortingOrchestrator(
                 sensorEventProvider,
@@ -477,7 +492,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 topologyRepository,
                 segmentRepository,
                 sensorConfigRepository,
-                safeExecutor);
+                safeExecutor,
+                intervalTracker,
+                callbackConfigRepository);
         });
 
         // 注册路由-拓扑一致性检查器
