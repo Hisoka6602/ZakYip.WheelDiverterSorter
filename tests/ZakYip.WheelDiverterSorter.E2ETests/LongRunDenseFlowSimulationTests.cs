@@ -60,10 +60,7 @@ public class LongRunDenseFlowSimulationTests : IDisposable
 
         // 创建模拟 RuleEngine 客户端
         _mockRuleEngineClient = new Mock<IUpstreamRoutingClient>(MockBehavior.Loose);
-        _mockRuleEngineClient.Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-        _mockRuleEngineClient.Setup(x => x.DisconnectAsync())
-            .Returns(Task.CompletedTask);
+        // PR-FIX: 移除 ConnectAsync/DisconnectAsync mock（接口已重构，连接管理由实现类内部处理）
         _mockRuleEngineClient.Setup(x => x.IsConnected)
             .Returns(true);
 

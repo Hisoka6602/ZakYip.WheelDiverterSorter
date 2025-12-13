@@ -66,17 +66,14 @@ public class E2ETestFactory : WebApplicationFactory<Program>
             
             // 为具有可选参数的方法设置默认行为
             // 这确保在未显式传递CancellationToken时方法也能正常工作
-            MockRuleEngineClient
-                .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-                .ReturnsAsync(true);
-            
+            // PR-FIX: 移除 ConnectAsync/DisconnectAsync mock（接口已重构，连接管理由实现类内部处理）
             MockRuleEngineClient
                 .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(true);
             
             MockRuleEngineClient
-                .Setup(x => x.DisconnectAsync())
-                .Returns(Task.CompletedTask);
+                .Setup(x => x.PingAsync(It.IsAny<CancellationToken>()))
+                .ReturnsAsync(true);
             
             MockRuleEngineClient
                 .Setup(x => x.IsConnected)

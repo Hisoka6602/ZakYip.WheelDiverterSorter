@@ -28,23 +28,16 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task RuleEngineConnection_ShouldEstablishSuccessfully()
     {
         // Arrange
+        // PR-FIX: 移除 ConnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.IsConnected)
             .Returns(true);
 
         // Act
         await _orchestrator.StartAsync();
 
-        // Assert - 验证至少调用一次连接
-        Factory.MockRuleEngineClient.Verify(
-            x => x.ConnectAsync(It.IsAny<CancellationToken>()),
-            Times.AtLeastOnce);
-
-        Factory.MockRuleEngineClient.Object.IsConnected.Should().BeTrue();
+        // Assert - 验证连接状态（连接由实现类内部管理）
+        Factory.MockRuleEngineClient!.Object.IsConnected.Should().BeTrue();
 
         await _orchestrator.StopAsync();
     }
@@ -54,23 +47,18 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task RuleEngineDisconnect_ShouldDisconnectCleanly()
     {
         // Arrange
+        // PR-FIX: 移除 ConnectAsync/DisconnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
-            .Setup(x => x.DisconnectAsync())
-            .Returns(Task.CompletedTask);
+            .Setup(x => x.IsConnected)
+            .Returns(true);
 
         await _orchestrator.StartAsync();
 
         // Act
         await _orchestrator.StopAsync();
 
-        // Assert - 验证至少调用一次断开连接
-        Factory.MockRuleEngineClient.Verify(
-            x => x.DisconnectAsync(),
-            Times.AtLeastOnce);
+        // PR-FIX: 断开连接由实现类内部管理，测试只验证停止操作不抛出异常
+        // 连接状态的管理完全由实现类决定
     }
 
     [Fact]
@@ -80,11 +68,8 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Arrange
         var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
+        // PR-FIX: 移除 ConnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.SendAsync(It.Is<ParcelDetectedMessage>(m => m.ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -114,11 +99,8 @@ public class RuleEngineIntegrationTests : E2ETestBase
         var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
         var targetChuteId = 1;
 
+        // PR-FIX: 移除 ConnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.IsConnected)
             .Returns(true);
 
@@ -152,11 +134,8 @@ public class RuleEngineIntegrationTests : E2ETestBase
     public async Task ConnectionFailure_ShouldBeHandledGracefully()
     {
         // Arrange
+        // PR-FIX: 移除 ConnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.IsConnected)
             .Returns(false);
 
@@ -176,11 +155,8 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Arrange
         var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
+        // PR-FIX: 移除 ConnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.SendAsync(It.Is<ParcelDetectedMessage>(m => m.ParcelId == parcelId), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
@@ -206,11 +182,8 @@ public class RuleEngineIntegrationTests : E2ETestBase
         // Arrange
         var parcelId = DateTimeOffset.Now.ToUnixTimeMilliseconds();
 
+        // PR-FIX: 移除 ConnectAsync mock（接口已重构，连接管理由实现类内部处理）
         Factory.MockRuleEngineClient!
-            .Setup(x => x.ConnectAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
-
-        Factory.MockRuleEngineClient
             .Setup(x => x.SendAsync(It.IsAny<IUpstreamMessage>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
