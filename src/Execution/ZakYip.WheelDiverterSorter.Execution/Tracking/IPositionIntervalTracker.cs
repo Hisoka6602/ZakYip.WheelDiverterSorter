@@ -16,14 +16,29 @@ public interface IPositionIntervalTracker
     void RecordInterval(int positionIndex, double intervalMs);
     
     /// <summary>
-    /// 记录传感器触发事件
+    /// 记录传感器触发事件（旧方法，已弃用）
     /// </summary>
     /// <param name="positionIndex">Position 索引</param>
     /// <param name="triggeredAt">触发时间</param>
     /// <remarks>
-    /// 此方法会自动计算与上次触发的间隔并记录
+    /// 此方法会自动计算与上次触发的间隔并记录。
+    /// 注意：此方法计算的是同一position的重复触发间隔，不是包裹在相邻position间的间隔。
+    /// 推荐使用 RecordParcelPosition 方法来跟踪包裹在position间的移动。
     /// </remarks>
+    [Obsolete("Use RecordParcelPosition instead for tracking parcel movement between positions")]
     void RecordTrigger(int positionIndex, DateTime triggeredAt);
+    
+    /// <summary>
+    /// 记录包裹到达某个Position
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="positionIndex">Position 索引</param>
+    /// <param name="arrivedAt">到达时间</param>
+    /// <remarks>
+    /// 此方法会跟踪包裹在各个position的时间，并计算相邻position间的间隔。
+    /// 例如：包裹从 position 1 → position 2 的间隔 = position2触发时间 - position1触发时间
+    /// </remarks>
+    void RecordParcelPosition(long parcelId, int positionIndex, DateTime arrivedAt);
     
     /// <summary>
     /// 获取指定 Position 的统计信息

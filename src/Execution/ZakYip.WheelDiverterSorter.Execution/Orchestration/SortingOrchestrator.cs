@@ -1159,9 +1159,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
             positionIndex, sensorId);
 
-        // 记录触发事件到间隔追踪器
-        _intervalTracker?.RecordTrigger(positionIndex, currentTime);
-
         // 从 Position-Index 队列取出任务
         var task = _queueManager!.DequeueTask(positionIndex);
         
@@ -1174,6 +1171,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _metrics?.RecordSortingFailure(0);
             return;
         }
+        
+        // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
+        _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
         
         // 检查超时
         var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);

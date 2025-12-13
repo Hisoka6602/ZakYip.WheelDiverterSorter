@@ -25,8 +25,12 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     // 每个 position 的间隔历史记录
     private readonly ConcurrentDictionary<int, CircularBuffer<double>> _intervalHistory;
     
-    // 每个 position 的最后触发时间
+    // 每个 position 的最后触发时间（旧方法使用）
     private readonly ConcurrentDictionary<int, DateTime> _lastTriggerTimes;
+    
+    // 每个包裹在各个position的时间戳（新方法使用）
+    // Key: parcelId, Value: Dictionary<positionIndex, arrivedAt>
+    private readonly ConcurrentDictionary<long, ConcurrentDictionary<int, DateTime>> _parcelPositionTimes;
     
     // 每个 position 的最后更新时间
     private readonly ConcurrentDictionary<int, DateTime> _lastUpdatedTimes;
@@ -42,6 +46,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         
         _intervalHistory = new ConcurrentDictionary<int, CircularBuffer<double>>();
         _lastTriggerTimes = new ConcurrentDictionary<int, DateTime>();
+        _parcelPositionTimes = new ConcurrentDictionary<long, ConcurrentDictionary<int, DateTime>>();
         _lastUpdatedTimes = new ConcurrentDictionary<int, DateTime>();
     }
 
@@ -69,6 +74,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     }
 
     /// <inheritdoc/>
+    [Obsolete("Use RecordParcelPosition instead for tracking parcel movement between positions")]
     public void RecordTrigger(int positionIndex, DateTime triggeredAt)
     {
         if (_lastTriggerTimes.TryGetValue(positionIndex, out var lastTime))
@@ -89,6 +95,64 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         }
         
         _lastTriggerTimes[positionIndex] = triggeredAt;
+    }
+
+    /// <inheritdoc/>
+    public void RecordParcelPosition(long parcelId, int positionIndex, DateTime arrivedAt)
+    {
+        // 获取或创建该包裹的位置时间记录
+        var positionTimes = _parcelPositionTimes.GetOrAdd(
+            parcelId,
+            _ => new ConcurrentDictionary<int, DateTime>());
+        
+        // 记录当前位置的到达时间
+        positionTimes[positionIndex] = arrivedAt;
+        
+        // 如果不是起点(position 1)，计算与前一个position的间隔
+        if (positionIndex > 1)
+        {
+            int previousPosition = positionIndex - 1;
+            
+            // 尝试获取前一个position的时间
+            if (positionTimes.TryGetValue(previousPosition, out var previousTime))
+            {
+                var intervalMs = (arrivedAt - previousTime).TotalMilliseconds;
+                
+                // 只记录有效的间隔
+                if (intervalMs > 0 && intervalMs < _options.MaxReasonableIntervalMs)
+                {
+                    RecordInterval(positionIndex, intervalMs);
+                    
+                    _logger.LogDebug(
+                        "包裹 {ParcelId} 从 Position {PrevPos} 到 Position {CurrPos} 间隔: {IntervalMs}ms",
+                        parcelId, previousPosition, positionIndex, intervalMs);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "包裹 {ParcelId} 从 Position {PrevPos} 到 Position {CurrPos} 间隔异常: {IntervalMs}ms",
+                        parcelId, previousPosition, positionIndex, intervalMs);
+                }
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "包裹 {ParcelId} Position {PosIndex}: 未找到前一位置时间，跳过间隔计算",
+                    parcelId, positionIndex);
+            }
+        }
+        else
+        {
+            _logger.LogDebug(
+                "包裹 {ParcelId} 到达起点 Position {PosIndex}，不计算间隔",
+                parcelId, positionIndex);
+        }
+        
+        // 定期清理过期的包裹记录（保留最近1000个包裹）
+        if (_parcelPositionTimes.Count > 1000)
+        {
+            CleanupOldParcelRecords();
+        }
     }
 
     /// <inheritdoc/>
@@ -120,6 +184,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     public IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics()
     {
         return _intervalHistory.Keys
+            .Where(k => k > 1) // 排除 positionIndex = 1 (起点没有间隔数据)
             .OrderBy(k => k)
             .Select(GetStatistics)
             .Where(stat => stat != null)
@@ -185,6 +250,40 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         return n % 2 == 0
             ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
             : sorted[n / 2];
+    }
+
+    /// <summary>
+    /// 清理旧的包裹位置记录
+    /// </summary>
+    /// <remarks>
+    /// 当包裹记录超过1000个时，删除最旧的记录以防止内存泄漏
+    /// </remarks>
+    private void CleanupOldParcelRecords()
+    {
+        try
+        {
+            // 只保留最近的包裹记录（按包裹ID降序，假设ID是时间戳）
+            var parcelIds = _parcelPositionTimes.Keys.OrderByDescending(id => id).ToList();
+            
+            // 删除超过限制的旧记录
+            var toRemove = parcelIds.Skip(800).ToList(); // 保留800个，给新包裹留空间
+            
+            foreach (var parcelId in toRemove)
+            {
+                _parcelPositionTimes.TryRemove(parcelId, out _);
+            }
+            
+            if (toRemove.Count > 0)
+            {
+                _logger.LogDebug(
+                    "清理了 {Count} 个旧包裹的位置记录",
+                    toRemove.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "清理旧包裹记录时发生异常");
+        }
     }
 }
 
