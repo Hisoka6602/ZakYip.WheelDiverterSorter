@@ -23,12 +23,7 @@ public record ChuteDropoffCallbackConfiguration
     /// <summary>
     /// 落格回调触发模式
     /// </summary>
-    public ChuteDropoffCallbackMode TriggerMode { get; init; }
-
-    /// <summary>
-    /// 是否启用落格回调
-    /// </summary>
-    public bool IsEnabled { get; init; }
+    public ChuteDropoffCallbackMode CallbackMode { get; init; }
 
     /// <summary>
     /// 创建时间
@@ -41,11 +36,6 @@ public record ChuteDropoffCallbackConfiguration
     public DateTime UpdatedAt { get; init; }
 
     /// <summary>
-    /// 版本号（用于并发控制）
-    /// </summary>
-    public int Version { get; init; }
-
-    /// <summary>
     /// 获取默认配置
     /// </summary>
     public static ChuteDropoffCallbackConfiguration GetDefault()
@@ -55,11 +45,9 @@ public record ChuteDropoffCallbackConfiguration
         {
             Id = 1,
             ConfigName = "chute-dropoff-callback",
-            TriggerMode = ChuteDropoffCallbackMode.OnSensorTrigger,  // 默认使用传感器触发
-            IsEnabled = true,
+            CallbackMode = ChuteDropoffCallbackMode.OnSensorTrigger,  // 默认使用传感器触发
             CreatedAt = now,
-            UpdatedAt = now,
-            Version = 1
+            UpdatedAt = now
         };
     }
 }

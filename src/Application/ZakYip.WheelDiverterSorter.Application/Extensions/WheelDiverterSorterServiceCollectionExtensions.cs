@@ -331,6 +331,15 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             return repository;
         });
 
+        // 注册落格回调配置仓储为单例
+        services.AddSingleton<IChuteDropoffCallbackConfigurationRepository>(serviceProvider =>
+        {
+            var clock = serviceProvider.GetRequiredService<ISystemClock>();
+            var repository = new LiteDbChuteDropoffCallbackConfigurationRepository(fullDatabasePath, clock);
+            repository.InitializeDefault(clock.LocalNow);
+            return repository;
+        });
+
         return services;
     }
 
