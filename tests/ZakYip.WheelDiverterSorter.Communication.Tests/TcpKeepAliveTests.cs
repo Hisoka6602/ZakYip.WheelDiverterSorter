@@ -19,7 +19,7 @@ namespace ZakYip.WheelDiverterSorter.Communication.Tests;
 /// </remarks>
 public class TcpKeepAliveTests : IDisposable
 {
-    private readonly Mock<ILogger<TcpRuleEngineClient>> _clientLoggerMock;
+    private readonly Mock<ILogger<TouchSocketTcpRuleEngineClient>> _clientLoggerMock;
     private readonly Mock<ILogger<TouchSocketTcpRuleEngineServer>> _serverLoggerMock;
     private readonly Mock<ISystemClock> _systemClockMock;
     private readonly DateTime _testTime = new(2025, 12, 2, 12, 0, 0);
@@ -27,7 +27,7 @@ public class TcpKeepAliveTests : IDisposable
 
     public TcpKeepAliveTests()
     {
-        _clientLoggerMock = new Mock<ILogger<TcpRuleEngineClient>>();
+        _clientLoggerMock = new Mock<ILogger<TouchSocketTcpRuleEngineClient>>();
         _serverLoggerMock = new Mock<ILogger<TouchSocketTcpRuleEngineServer>>();
         _systemClockMock = new Mock<ISystemClock>();
         _systemClockMock.Setup(x => x.LocalNow).Returns(_testTime);
@@ -118,7 +118,7 @@ public class TcpKeepAliveTests : IDisposable
             }
         };
 
-        var client = new TcpRuleEngineClient(
+        var client = new TouchSocketTcpRuleEngineClient(
             _clientLoggerMock.Object,
             clientOptions,
             _systemClockMock.Object);
@@ -173,7 +173,7 @@ public class TcpKeepAliveTests : IDisposable
             }
         };
 
-        var client = new TcpRuleEngineClient(
+        var client = new TouchSocketTcpRuleEngineClient(
             _clientLoggerMock.Object,
             clientOptions,
             _systemClockMock.Object);

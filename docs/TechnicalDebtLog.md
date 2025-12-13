@@ -1179,8 +1179,7 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 
 | 协议类型 | 实现类 | 状态 | 说明 |
 |---------|-------|------|------|
-| TCP (原生) | `TcpRuleEngineClient` | ⚠️ 已弃用 | 使用 .NET Socket 原生实现，已被 TouchSocket 替代 |
-| TCP (TouchSocket) | `TouchSocketTcpRuleEngineClient` | ✅ 可用（默认） | 使用 TouchSocket 库，支持更好的性能和稳定性 |
+| TCP (TouchSocket) | `TouchSocketTcpRuleEngineClient` | ✅ 使用中（唯一） | 使用 TouchSocket 库，支持自动重连、指数退避 |
 | SignalR | `SignalRRuleEngineClient` | ✅ 可用 | 支持实时双向通信，适合 Web 集成场景 |
 | MQTT | `MqttRuleEngineClient` | ✅ 可用 | 轻量级发布/订阅模式，适合物联网场景 |
 | InMemory | `InMemoryRuleEngineClient` | ✅ 可用 | 内存模拟客户端，用于测试 |
@@ -1193,8 +1192,8 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 - 无效配置 → 降级到 TCP (TouchSocket) 模式
 
 **发现的问题**：
-1. 存在两个 TCP 客户端实现（`TcpRuleEngineClient` 和 `TouchSocketTcpRuleEngineClient`），但工厂只使用 TouchSocket 版本
-2. 原生 `TcpRuleEngineClient` 已事实上被弃用但未标记 `[Obsolete]`
+1. ~~存在两个 TCP 客户端实现（`TcpRuleEngineClient` 和 `TouchSocketTcpRuleEngineClient`），但工厂只使用 TouchSocket 版本~~ ✅ 已解决：`TcpRuleEngineClient` 已删除
+2. ~~原生 `TcpRuleEngineClient` 已事实上被弃用但未标记 `[Obsolete]`~~ ✅ 已解决：已删除旧实现
 3. 测试失败表明 Communication API 验证存在问题（18个测试失败）
 
 ### 驱动厂商审计结果
@@ -1224,7 +1223,7 @@ public void Configuration_Persistence_Should_Not_Have_Cache_Fields()
 #### 1. 上游通信协议清理与文档
 - ✅ 确认 TouchSocket TCP 为默认实现
 - ✅ 在 README.md 中添加协议切换方法说明
-- ⚠️ 建议标记 `TcpRuleEngineClient` 为 `[Obsolete]` 或删除（后续 PR）
+- ✅ 已删除 `TcpRuleEngineClient`，统一使用 `TouchSocketTcpRuleEngineClient`（本次 PR）
 - ⚠️ 修复 Communication API 验证测试失败（后续 PR）
 
 #### 2. 驱动厂商文档更新

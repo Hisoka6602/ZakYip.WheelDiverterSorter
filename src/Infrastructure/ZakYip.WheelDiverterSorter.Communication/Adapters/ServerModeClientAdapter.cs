@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Communication.Abstractions;
+using ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
@@ -13,10 +14,13 @@ namespace ZakYip.WheelDiverterSorter.Communication.Adapters;
 /// 当系统运行在Server模式时，将IUpstreamRoutingClient接口调用转换为IRuleEngineServer的广播调用。
 /// 这确保在服务端模式下，NotifyParcelDetectedAsync 和 NotifySortingCompletedAsync 
 /// 会正确地广播给所有连接的上游客户端。
+/// 
+/// PR-DUAL-INSTANCE-FIX: 不再持有独立的服务器实例，而是引用 UpstreamServerBackgroundService.CurrentServer
+/// 这确保整个系统只有一个服务器实例在运行。
 /// </remarks>
 public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
 {
-    private readonly IRuleEngineServer _server;
+    private readonly UpstreamServerBackgroundService _serverBackgroundService;
     private readonly ILogger<ServerModeClientAdapter> _logger;
     private readonly ISystemClock _systemClock;
     private bool _disposed;
@@ -24,23 +28,33 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="server">RuleEngine服务器实例</param>
+    /// <param name="serverBackgroundService">服务器后台服务（提供服务器实例）</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="systemClock">系统时钟</param>
     public ServerModeClientAdapter(
-        IRuleEngineServer server,
+        UpstreamServerBackgroundService serverBackgroundService,
         ILogger<ServerModeClientAdapter> logger,
         ISystemClock systemClock)
     {
-        _server = server ?? throw new ArgumentNullException(nameof(server));
+        _serverBackgroundService = serverBackgroundService ?? throw new ArgumentNullException(nameof(serverBackgroundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
     /// <summary>
+    /// 获取当前服务器实例
+    /// </summary>
+    /// <remarks>
+    /// PR-DUAL-INSTANCE-FIX: 从 UpstreamServerBackgroundService 获取统一的服务器实例
+    /// </remarks>
+    private IRuleEngineServer Server => _serverBackgroundService.CurrentServer 
+        ?? throw new InvalidOperationException(
+            "服务器实例不可用。请确保 Server 模式下 UpstreamServerBackgroundService 已启动。");
+
+    /// <summary>
     /// 服务器是否正在运行（等同于IsConnected）
     /// </summary>
-    public bool IsConnected => _server.IsRunning;
+    public bool IsConnected => _serverBackgroundService.CurrentServer?.IsRunning ?? false;
 
     /// <summary>
     /// 格口分配事件（服务端模式下不使用）
@@ -56,60 +70,44 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     /// <summary>
     /// 连接到RuleEngine（启动服务器）
     /// </summary>
-    public async Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// PR-DUAL-INSTANCE-FIX: Server由UpstreamServerBackgroundService管理，此处仅检查状态
+    /// </remarks>
+    public Task<bool> ConnectAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
 
-        if (_server.IsRunning)
+        if (_serverBackgroundService.CurrentServer?.IsRunning == true)
         {
-            return true;
+            _logger.LogDebug(
+                "[{LocalTime}] [服务端模式-适配器] 服务器已运行，当前连接客户端数: {ClientCount}",
+                _systemClock.LocalNow,
+                Server.ConnectedClientsCount);
+            return Task.FromResult(true);
         }
 
-        try
-        {
-            await _server.StartAsync(cancellationToken);
-            _logger.LogInformation(
-                "[{LocalTime}] [服务端模式-适配器] TCP服务器已启动，当前连接客户端数: {ClientCount}",
-                _systemClock.LocalNow,
-                _server.ConnectedClientsCount);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "[{LocalTime}] [服务端模式-适配器] 启动TCP服务器失败",
-                _systemClock.LocalNow);
-            return false;
-        }
+        _logger.LogWarning(
+            "[{LocalTime}] [服务端模式-适配器] 服务器未运行。服务器由 UpstreamServerBackgroundService 管理，请等待其启动。",
+            _systemClock.LocalNow);
+        
+        return Task.FromResult(false);
     }
 
     /// <summary>
     /// 断开连接（停止服务器）
     /// </summary>
-    public async Task DisconnectAsync()
+    /// <remarks>
+    /// PR-DUAL-INSTANCE-FIX: Server由UpstreamServerBackgroundService管理，此处不执行停止操作
+    /// </remarks>
+    public Task DisconnectAsync()
     {
         ThrowIfDisposed();
-
-        if (!_server.IsRunning)
-        {
-            return;
-        }
-
-        try
-        {
-            await _server.StopAsync();
-            _logger.LogInformation(
-                "[{LocalTime}] [服务端模式-适配器] TCP服务器已停止",
-                _systemClock.LocalNow);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(
-                ex,
-                "[{LocalTime}] [服务端模式-适配器] 停止TCP服务器失败",
-                _systemClock.LocalNow);
-        }
+        
+        _logger.LogWarning(
+            "[{LocalTime}] [服务端模式-适配器] 服务器由 UpstreamServerBackgroundService 管理，不能通过适配器停止。",
+            _systemClock.LocalNow);
+        
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -140,10 +138,10 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
                 "[{LocalTime}] [服务端模式-适配器] 转换NotifyParcelDetectedAsync为BroadcastParcelDetectedAsync: ParcelId={ParcelId}, ServerIsRunning={IsRunning}, ConnectedClientsCount={ClientCount}",
                 _systemClock.LocalNow,
                 parcelId,
-                _server.IsRunning,
-                _server.ConnectedClientsCount);
+                Server.IsRunning,
+                Server.ConnectedClientsCount);
 
-            await _server.BroadcastParcelDetectedAsync(parcelId, cancellationToken);
+            await Server.BroadcastParcelDetectedAsync(parcelId, cancellationToken);
             
             _logger.LogInformation(
                 "[{LocalTime}] [服务端模式-适配器] BroadcastParcelDetectedAsync调用完成: ParcelId={ParcelId}",
@@ -180,7 +178,7 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
                 _systemClock.LocalNow,
                 notification.ParcelId);
 
-            await _server.BroadcastSortingCompletedAsync(notification, cancellationToken);
+            await Server.BroadcastSortingCompletedAsync(notification, cancellationToken);
             return true;
         }
         catch (Exception ex)
@@ -221,7 +219,8 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
             return;
         }
 
-        _server.Dispose();
+        // PR-DUAL-INSTANCE-FIX: 不再持有服务器实例，无需 Dispose
+        // 服务器由 UpstreamServerBackgroundService 管理
         _disposed = true;
     }
 
