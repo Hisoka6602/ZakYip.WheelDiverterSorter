@@ -29,14 +29,14 @@ public interface IPositionIntervalTracker
     /// 获取指定 Position 的统计信息
     /// </summary>
     /// <param name="positionIndex">Position 索引</param>
-    /// <returns>统计信息，如果该 Position 没有数据则返回 null</returns>
-    PositionIntervalStatistics? GetStatistics(int positionIndex);
+    /// <returns>统计信息(positionIndex, medianMs, sampleCount, minMs, maxMs, lastUpdated)，如果该 Position 没有数据则返回 null</returns>
+    (int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)? GetStatistics(int positionIndex);
     
     /// <summary>
     /// 获取所有 Position 的统计信息
     /// </summary>
     /// <returns>所有 Position 的统计信息列表</returns>
-    IReadOnlyList<PositionIntervalStatistics> GetAllStatistics();
+    IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics();
     
     /// <summary>
     /// 获取当前 Position 的动态超时阈值（用于包裹丢失检测）

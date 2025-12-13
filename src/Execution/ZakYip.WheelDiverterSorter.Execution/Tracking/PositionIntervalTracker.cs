@@ -92,7 +92,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     }
 
     /// <inheritdoc/>
-    public PositionIntervalStatistics? GetStatistics(int positionIndex)
+    public (int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)? GetStatistics(int positionIndex)
     {
         if (!_intervalHistory.TryGetValue(positionIndex, out var buffer) || buffer.Count == 0)
         {
@@ -106,28 +106,27 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         
         _lastUpdatedTimes.TryGetValue(positionIndex, out var lastUpdated);
         
-        return new PositionIntervalStatistics
-        {
-            PositionIndex = positionIndex,
-            MedianIntervalMs = median,
-            SampleCount = intervals.Length,
-            MinIntervalMs = min,
-            MaxIntervalMs = max,
-            LastUpdatedAt = lastUpdated == default ? null : lastUpdated
-        };
+        return (
+            positionIndex,
+            median,
+            intervals.Length,
+            min,
+            max,
+            lastUpdated == default ? null : lastUpdated
+        );
     }
 
     /// <inheritdoc/>
-    public IReadOnlyList<PositionIntervalStatistics> GetAllStatistics()
+    public IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics()
     {
-        var statistics = new List<PositionIntervalStatistics>();
+        var statistics = new List<(int, double?, int, double?, double?, DateTime?)>();
         
         foreach (var positionIndex in _intervalHistory.Keys.OrderBy(k => k))
         {
             var stat = GetStatistics(positionIndex);
             if (stat != null)
             {
-                statistics.Add(stat);
+                statistics.Add(stat.Value);
             }
         }
         
