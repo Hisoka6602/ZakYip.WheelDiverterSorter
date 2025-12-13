@@ -51,6 +51,11 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     public event EventHandler<DuplicateTriggerEventArgs>? DuplicateTriggerDetected;
 
     /// <summary>
+    /// 落格传感器检测事件
+    /// </summary>
+    public event EventHandler<ChuteDropoffDetectedEventArgs>? ChuteDropoffDetected;
+
+    /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="sensors">传感器集合</param>
@@ -199,6 +204,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 sensorEvent.SensorId,
                 sensorType);
             RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate, sensorType);
+        }
+        else if (sensorType == SensorIoType.ChuteDropoff)
+        {
+            // ChuteDropoff 传感器：触发落格检测事件
+            _logger?.LogDebug(
+                "传感器 {SensorId} 类型为 {SensorType}，触发落格检测事件",
+                sensorEvent.SensorId,
+                sensorType);
+            
+            // 根据传感器ID确定格口ID（需要配置映射）
+            // 这里假设传感器配置中有 ChuteId 信息
+            var chuteId = GetChuteIdFromSensor(sensorEvent.SensorId);
+            RaiseChuteDropoffDetectedEvent(chuteId, sensorEvent, sensorType);
         }
         else
         {
@@ -469,6 +487,55 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             sensorType);
 
         ParcelDetected.SafeInvoke(this, eventArgs, _logger, nameof(ParcelDetected));
+    }
+
+    /// <summary>
+    /// 触发落格传感器检测事件
+    /// </summary>
+    /// <param name="chuteId">格口ID</param>
+    /// <param name="sensorEvent">传感器事件</param>
+    /// <param name="sensorType">传感器类型</param>
+    private void RaiseChuteDropoffDetectedEvent(long chuteId, SensorEvent sensorEvent, SensorIoType sensorType)
+    {
+        _logger?.LogInformation(
+            "落格传感器 {SensorId} 检测到包裹落入格口 {ChuteId}",
+            sensorEvent.SensorId,
+            chuteId);
+
+        var eventArgs = new ChuteDropoffDetectedEventArgs
+        {
+            ParcelId = null, // 包裹ID需要由Orchestrator根据格口映射确定
+            ChuteId = chuteId,
+            DetectedAt = sensorEvent.TriggerTime,
+            SensorId = sensorEvent.SensorId,
+            SensorType = sensorEvent.SensorType // 使用SensorEvent中的SensorType而非SensorIoType
+        };
+
+        _logger?.LogTrace(
+            "触发 ChuteDropoffDetected 事件: ChuteId={ChuteId}, SensorId={SensorId}",
+            chuteId,
+            sensorEvent.SensorId);
+
+        ChuteDropoffDetected.SafeInvoke(this, eventArgs, _logger, nameof(ChuteDropoffDetected));
+    }
+
+    /// <summary>
+    /// 根据传感器ID获取格口ID
+    /// </summary>
+    /// <param name="sensorId">传感器ID</param>
+    /// <returns>格口ID</returns>
+    /// <remarks>
+    /// 当前实现：使用传感器ID作为格口ID（简化实现）。
+    /// 未来可以通过拓扑配置或ChuteSensorConfig来建立传感器到格口的映射关系。
+    /// </remarks>
+    private long GetChuteIdFromSensor(long sensorId)
+    {
+        // 简化实现：直接使用传感器ID作为格口ID
+        // TODO (TD-072): 未来可以通过配置建立传感器到格口的映射
+        _logger?.LogDebug(
+            "使用传感器ID {SensorId} 作为格口ID（简化实现）",
+            sensorId);
+        return sensorId;
     }
 
     /// <summary>

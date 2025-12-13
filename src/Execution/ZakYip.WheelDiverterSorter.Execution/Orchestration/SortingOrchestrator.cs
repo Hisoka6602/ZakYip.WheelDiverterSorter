@@ -189,6 +189,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
         _sensorEventProvider.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
+        _sensorEventProvider.ChuteDropoffDetected += OnChuteDropoffDetected;
         
         // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
@@ -1159,9 +1160,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
             positionIndex, sensorId);
 
-        // 记录触发事件到间隔追踪器
-        _intervalTracker?.RecordTrigger(positionIndex, currentTime);
-
         // 从 Position-Index 队列取出任务
         var task = _queueManager!.DequeueTask(positionIndex);
         
@@ -1174,6 +1172,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _metrics?.RecordSortingFailure(0);
             return;
         }
+        
+        // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
+        _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
         
         // 检查超时
         var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
@@ -1293,22 +1294,44 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var callbackConfig = _callbackConfigRepository.Get();
                 if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
                 {
-                    // OnWheelExecution 模式：摆轮执行成功后立即发送分拣完成通知
-                    // 需要确定实际的目标格口ID
-                    long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
-                    
-                    _logger.LogInformation(
-                        "包裹 {ParcelId} 摆轮执行成功，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
-                        task.ParcelId, actualChuteId);
-                    
-                    await NotifyUpstreamSortingCompletedAsync(
-                        task.ParcelId,
-                        actualChuteId,
-                        isSuccess: !isTimeout,
-                        failureReason: isTimeout ? "Timeout" : null);
-                    
-                    // 发送通知后清理目标格口记录，防止内存泄漏
-                    _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                    // OnWheelExecution 模式：仅在摆轮实际转向（非直行）时发送分拣完成通知
+                    // 如果摆轮动作是 Straight（直行），说明包裹还要经过后续摆轮，不是最终落格点
+                    // 只有当摆轮转向（Left 或 Right）时，包裹才真正完成分拣
+                    if (actionToExecute != DiverterDirection.Straight)
+                    {
+                        // 需要确定实际的目标格口ID
+                        long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
+                        
+                        // 检查是否已经发送过通知（防止重复触发时重复发送）
+                        // 只在 actualChuteId > 0 时发送通知并清理
+                        if (actualChuteId > 0)
+                        {
+                            _logger.LogInformation(
+                                "包裹 {ParcelId} 摆轮 {DiverterId} 转向 {Direction}，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                                task.ParcelId, task.DiverterId, actionToExecute, actualChuteId);
+                            
+                            await NotifyUpstreamSortingCompletedAsync(
+                                task.ParcelId,
+                                actualChuteId,
+                                isSuccess: !isTimeout,
+                                failureReason: isTimeout ? "Timeout" : null);
+                            
+                            // 发送通知后清理目标格口记录，防止内存泄漏
+                            _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                        }
+                        else
+                        {
+                            _logger.LogWarning(
+                                "包裹 {ParcelId} 摆轮转向成功，但无法确定目标格口ID（可能已发送过通知），跳过重复发送",
+                                task.ParcelId);
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogDebug(
+                            "包裹 {ParcelId} 在摆轮 {DiverterId} 直行通过，OnWheelExecution 模式不发送通知（包裹未完成分拣）",
+                            task.ParcelId, task.DiverterId);
+                    }
                 }
                 else
                 {
@@ -1463,6 +1486,98 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogError(ex, "处理重复触发异常包裹 {ParcelId} 时发生错误", parcelId);
             CleanupParcelRecord(parcelId);
         }
+    }
+
+    /// <summary>
+    /// 处理落格传感器检测事件
+    /// </summary>
+    private async void OnChuteDropoffDetected(object? sender, ChuteDropoffDetectedEventArgs e)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "[落格事件] 落格传感器检测到包裹落入格口: ChuteId={ChuteId}, SensorId={SensorId}, DetectedAt={DetectedAt:o}",
+                e.ChuteId,
+                e.SensorId,
+                e.DetectedAt);
+
+            // 检查是否为 OnSensorTrigger 模式
+            if (_callbackConfigRepository == null)
+            {
+                _logger.LogDebug("未注入落格回调配置仓储，跳过处理");
+                return;
+            }
+
+            var callbackConfig = _callbackConfigRepository.Get();
+            if (callbackConfig.CallbackMode != ChuteDropoffCallbackMode.OnSensorTrigger)
+            {
+                _logger.LogDebug(
+                    "当前落格回调模式为 {Mode}，不处理落格传感器事件",
+                    callbackConfig.CallbackMode);
+                return;
+            }
+
+            // 在 OnSensorTrigger 模式下，需要找到落入该格口的包裹ID
+            // 从 _parcelTargetChutes 中查找目标格口为该格口的包裹
+            long? parcelId = FindParcelByTargetChute(e.ChuteId);
+
+            if (parcelId == null)
+            {
+                _logger.LogWarning(
+                    "[落格事件] 无法找到目标格口为 {ChuteId} 的包裹，可能已经完成或超时",
+                    e.ChuteId);
+                return;
+            }
+
+            _logger.LogInformation(
+                "[落格事件] OnSensorTrigger 模式：包裹 {ParcelId} 落入格口 {ChuteId}，发送分拣完成通知",
+                parcelId.Value,
+                e.ChuteId);
+
+            // 发送分拣完成通知
+            await NotifyUpstreamSortingCompletedAsync(
+                parcelId.Value,
+                e.ChuteId,
+                isSuccess: true,
+                failureReason: null);
+
+            // 清理目标格口记录
+            _parcelTargetChutes.TryRemove(parcelId.Value, out _);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[落格事件异常] 处理落格传感器事件时发生异常: ChuteId={ChuteId}, SensorId={SensorId}",
+                e.ChuteId,
+                e.SensorId);
+        }
+    }
+
+    /// <summary>
+    /// 根据目标格口查找包裹ID
+    /// </summary>
+    /// <param name="targetChuteId">目标格口ID</param>
+    /// <returns>包裹ID，如果未找到则返回null</returns>
+    /// <remarks>
+    /// TODO (TD-073): 当多个包裹同时分拣到同一格口时，FirstOrDefault 只会返回第一个匹配的包裹ID。
+    /// 可能的优化方案：
+    /// 1. 添加时序验证：只匹配最近完成摆轮动作的包裹
+    /// 2. 使用 FIFO 队列：按摆轮执行顺序记录预期落格的包裹
+    /// 3. 添加超时清理：清理长时间未落格的包裹记录，避免误匹配
+    /// </remarks>
+    private long? FindParcelByTargetChute(long targetChuteId)
+    {
+        // 从 _parcelTargetChutes 中查找目标格口匹配的包裹
+        var matchingParcel = _parcelTargetChutes
+            .FirstOrDefault(kvp => kvp.Value == targetChuteId);
+
+        if (matchingParcel.Key == 0)
+        {
+            return null; // 未找到（ConcurrentDictionary.FirstOrDefault 返回 default(KeyValuePair) 时 Key=0）
+        }
+
+        return matchingParcel.Key;
     }
 
     /// <summary>
@@ -1653,6 +1768,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 取消订阅事件
         _sensorEventProvider.ParcelDetected -= OnParcelDetected;
         _sensorEventProvider.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
+        _sensorEventProvider.ChuteDropoffDetected -= OnChuteDropoffDetected;
         // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
 

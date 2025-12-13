@@ -45,6 +45,7 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
         // 订阅底层服务的事件并转发
         _parcelDetectionService.ParcelDetected += OnUnderlyingParcelDetected;
         _parcelDetectionService.DuplicateTriggerDetected += OnUnderlyingDuplicateTriggerDetected;
+        _parcelDetectionService.ChuteDropoffDetected += OnUnderlyingChuteDropoffDetected;
         
         _logger.LogDebug("SensorEventProviderAdapter 已创建并订阅底层服务事件");
     }
@@ -54,6 +55,9 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
 
     /// <inheritdoc />
     public event EventHandler<DuplicateTriggerEventArgs>? DuplicateTriggerDetected;
+
+    /// <inheritdoc />
+    public event EventHandler<ChuteDropoffDetectedEventArgs>? ChuteDropoffDetected;
 
     /// <inheritdoc />
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -96,5 +100,17 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
 
         // 直接触发 Execution 层的事件（无需类型转换，统一使用 DuplicateTriggerEventArgs）
         DuplicateTriggerDetected.SafeInvoke(this, e, _logger, nameof(DuplicateTriggerDetected));
+    }
+
+    /// <summary>
+    /// 处理底层服务的落格传感器检测事件并转发到 Execution 层
+    /// </summary>
+    private void OnUnderlyingChuteDropoffDetected(object? sender, ChuteDropoffDetectedEventArgs e)
+    {
+        _logger.LogDebug("适配器收到底层落格检测事件: ChuteId={ChuteId}, SensorId={SensorId}", 
+            e.ChuteId, e.SensorId);
+
+        // 直接触发 Execution 层的事件（无需类型转换，统一使用 ChuteDropoffDetectedEventArgs）
+        ChuteDropoffDetected.SafeInvoke(this, e, _logger, nameof(ChuteDropoffDetected));
     }
 }
