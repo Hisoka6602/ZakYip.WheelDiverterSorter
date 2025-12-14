@@ -142,7 +142,23 @@ public static class CommunicationServiceExtensions
         services.AddSingleton<IUpstreamRoutingClient>(sp =>
         {
             var factory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
-            return factory.CreateClient();
+            var client = factory.CreateClient();
+            
+            // 设置通信统计回调（如果客户端是RuleEngineClientBase且统计回调服务已注册）
+            if (client is Clients.RuleEngineClientBase baseClient)
+            {
+                // 使用明确的接口依赖，避免反射和字符串查找
+                var statsCallback = sp.GetService<IMessageStatsCallback>();
+                if (statsCallback != null)
+                {
+                    baseClient.SetStatsCallbacks(
+                        onMessageSent: statsCallback.IncrementSent,
+                        onMessageReceived: statsCallback.IncrementReceived
+                    );
+                }
+            }
+            
+            return client;
         });
 
         return services;

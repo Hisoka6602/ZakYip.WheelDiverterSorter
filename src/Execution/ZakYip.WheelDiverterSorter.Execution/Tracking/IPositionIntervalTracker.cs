@@ -48,6 +48,17 @@ public interface IPositionIntervalTracker
     double? GetDynamicThreshold(int positionIndex);
     
     /// <summary>
+    /// 获取当前 Position 的丢失判定阈值
+    /// </summary>
+    /// <param name="positionIndex">Position 索引</param>
+    /// <returns>丢失判定阈值（毫秒），如果数据不足则返回 null</returns>
+    /// <remarks>
+    /// 丢失判定阈值 = 中位数间隔 * LostDetectionMultiplier
+    /// 当包裹延迟超过此阈值时，判定为物理丢失（不在分拣设备上），需要从队列删除
+    /// </remarks>
+    double? GetLostDetectionThreshold(int positionIndex);
+    
+    /// <summary>
     /// 清空指定 Position 的统计数据
     /// </summary>
     /// <param name="positionIndex">Position 索引</param>

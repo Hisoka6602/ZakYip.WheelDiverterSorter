@@ -193,4 +193,62 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
 
         return queue.IsEmpty;
     }
+    
+    /// <inheritdoc/>
+    public int RemoveAllTasksForParcel(long parcelId)
+    {
+        int totalRemoved = 0;
+        var affectedPositions = new List<int>();
+
+        foreach (var (positionIndex, queue) in _queues)
+        {
+            // 临时存储不属于该包裹的任务
+            var remainingTasks = new List<PositionQueueItem>();
+            int removedFromThisQueue = 0;
+
+            // 遍历队列，过滤掉指定包裹的任务
+            while (queue.TryDequeue(out var task))
+            {
+                if (task.ParcelId == parcelId)
+                {
+                    removedFromThisQueue++;
+                    totalRemoved++;
+                }
+                else
+                {
+                    remainingTasks.Add(task);
+                }
+            }
+
+            // 将保留的任务放回队列
+            foreach (var task in remainingTasks)
+            {
+                queue.Enqueue(task);
+            }
+
+            if (removedFromThisQueue > 0)
+            {
+                affectedPositions.Add(positionIndex);
+                _logger.LogDebug(
+                    "[包裹丢失清理] Position {PositionIndex} 移除了包裹 {ParcelId} 的 {Count} 个任务",
+                    positionIndex, parcelId, removedFromThisQueue);
+            }
+        }
+
+        if (totalRemoved > 0)
+        {
+            _logger.LogWarning(
+                "[包裹丢失清理] 已从所有队列移除包裹 {ParcelId} 的共 {TotalCount} 个任务，" +
+                "涉及 {PositionCount} 个 Position: [{Positions}]",
+                parcelId, totalRemoved, affectedPositions.Count, string.Join(", ", affectedPositions));
+        }
+        else
+        {
+            _logger.LogDebug(
+                "[包裹丢失清理] 未找到包裹 {ParcelId} 的任务（可能已执行完成）",
+                parcelId);
+        }
+
+        return totalRemoved;
+    }
 }

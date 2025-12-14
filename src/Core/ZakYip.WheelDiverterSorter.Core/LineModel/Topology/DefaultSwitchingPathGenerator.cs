@@ -657,7 +657,10 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 ExpectedArrivalTime = currentTime,
                 TimeoutThresholdMs = segmentConfig.TimeToleranceMs,
                 FallbackAction = DiverterDirection.Straight,
-                CreatedAt = _systemClock.LocalNow
+                CreatedAt = _systemClock.LocalNow,
+                // 丢失判定超时 = TimeoutThreshold * 1.5 (默认系数)
+                LostDetectionTimeoutMs = (long)(segmentConfig.TimeToleranceMs * 1.5),
+                LostDetectionDeadline = currentTime.AddMilliseconds(segmentConfig.TimeToleranceMs * 1.5)
             };
 
             tasks.Add(task);
@@ -721,7 +724,10 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 ExpectedArrivalTime = currentTime,
                 TimeoutThresholdMs = segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs,
                 FallbackAction = DiverterDirection.Straight,
-                CreatedAt = _systemClock.LocalNow
+                CreatedAt = _systemClock.LocalNow,
+                // 丢失判定超时 = TimeoutThreshold * 1.5
+                LostDetectionTimeoutMs = (long)((segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs) * 1.5),
+                LostDetectionDeadline = currentTime.AddMilliseconds((segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs) * 1.5)
             };
 
             tasks.Add(task);
