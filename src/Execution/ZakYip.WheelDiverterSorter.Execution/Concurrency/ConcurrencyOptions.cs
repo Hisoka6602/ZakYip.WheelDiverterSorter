@@ -20,16 +20,6 @@ public class ConcurrencyOptions
     public int MaxConcurrentParcels { get; set; } = 10;
 
     /// <summary>
-    /// 包裹队列容量
-    /// </summary>
-    /// <remarks>
-    /// 包裹队列的最大容量，超过此容量会阻塞入队操作。
-    /// -1表示无限制。
-    /// 默认值：100
-    /// </remarks>
-    public int ParcelQueueCapacity { get; set; } = 100;
-
-    /// <summary>
     /// 批量处理的最大批次大小
     /// </summary>
     /// <remarks>

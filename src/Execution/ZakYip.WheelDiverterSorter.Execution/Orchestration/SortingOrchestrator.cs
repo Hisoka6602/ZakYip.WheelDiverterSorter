@@ -1835,13 +1835,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 
     /// 处理流程：
     /// 1. 从所有队列删除丢失包裹的任务
-    /// 2. 上报丢失包裹到上游
-    /// 3. 清理丢失包裹的本地记录
+    /// 2. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
+    /// 3. 上报丢失包裹到上游（包含受影响包裹信息）
+    /// 4. 清理丢失包裹的本地记录
     /// 
-    /// <b>重要说明：</b>
-    /// - 包裹丢失后，只删除该包裹的任务，不影响其他包裹的正常分拣
-    /// - 队列中的其他包裹会继续按照原计划执行
-    /// - IO触发时会自动跳过丢失包裹（因为其任务已被删除），取出下一个包裹的任务
+    /// <b>受影响包裹的判定规则：</b>
+    /// - 包裹创建时间 > 丢失包裹创建时间
+    /// - 包裹创建时间 < 丢失检测时间
+    /// - 这些包裹的任务方向会被改为直行（Straight），以导向异常格口
+    /// 
+    /// <b>不受影响的包裹：</b>
+    /// - 在丢失包裹创建之前创建的包裹（保持原方向）
+    /// - 在丢失检测之后创建的包裹（保持原方向）
     /// 
     /// <b>关于 async void 的使用说明：</b>
     /// 此方法使用 async void 是因为它是一个事件处理器，必须匹配 EventHandler 委托签名。
@@ -1875,27 +1880,46 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 {
                     removedTasks = _queueManager.RemoveAllTasksForParcel(e.LostParcelId);
                     _logger.LogInformation(
-                        "[包裹丢失] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务，其他包裹不受影响",
+                        "[包裹丢失] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务",
                         e.LostParcelId, removedTasks);
                 }
                 
-                // 2. 上报丢失包裹到上游
-                await NotifyUpstreamParcelLostAsync(e);
+                // 2. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
+                List<long> affectedParcelIds = new List<long>();
+                if (_queueManager != null && e.ParcelCreatedAt.HasValue)
+                {
+                    affectedParcelIds = _queueManager.UpdateAffectedParcelsToStraight(
+                        e.ParcelCreatedAt.Value, 
+                        e.DetectedAt);
+                    
+                    if (affectedParcelIds.Count > 0)
+                    {
+                        _logger.LogWarning(
+                            "[包裹丢失影响] 包裹 {LostParcelId} 丢失影响了 {Count} 个包裹: [{AffectedIds}]，" +
+                            "这些包裹的任务已改为直行",
+                            e.LostParcelId,
+                            affectedParcelIds.Count,
+                            string.Join(", ", affectedParcelIds));
+                    }
+                }
                 
-                // 3. 记录指标
+                // 3. 上报丢失包裹到上游（包含受影响包裹信息）
+                await NotifyUpstreamParcelLostAsync(e, affectedParcelIds);
+                
+                // 4. 记录指标
                 if (_metrics != null)
                 {
                     // 记录丢失包裹
                     _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
                 }
                 
-                // 4. 清理丢失包裹的本地记录
+                // 5. 清理丢失包裹的本地记录
                 _createdParcels.TryRemove(e.LostParcelId, out _);
                 _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
                 _parcelPaths.TryRemove(e.LostParcelId, out _);
                 _pendingAssignments.TryRemove(e.LostParcelId, out _);
                 
-                // 5. 清理丢失包裹的位置追踪记录（防止影响后续包裹）
+                // 6. 清理丢失包裹的位置追踪记录（防止影响后续包裹）
                 _intervalTracker?.ClearParcelTracking(e.LostParcelId);
             },
             operationName: "HandleParcelLost",
@@ -1906,11 +1930,23 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 通知上游系统包裹丢失
     /// </summary>
     /// <param name="e">包裹丢失事件参数</param>
-    private async Task NotifyUpstreamParcelLostAsync(Core.Events.Queue.ParcelLostEventArgs e)
+    /// <param name="affectedParcelIds">受影响的包裹ID列表</param>
+    private async Task NotifyUpstreamParcelLostAsync(
+        Core.Events.Queue.ParcelLostEventArgs e, 
+        List<long> affectedParcelIds)
     {
         try
         {
             var systemConfig = _systemConfigRepository.Get();
+            
+            // 构建失败原因，包含受影响包裹信息
+            var failureReason = $"包裹在 Position {e.DetectedAtPositionIndex} 丢失 " +
+                               $"(延迟={e.DelayMs:F0}ms, 阈值={e.LostThresholdMs:F0}ms)";
+            
+            if (affectedParcelIds.Count > 0)
+            {
+                failureReason += $"，影响了 {affectedParcelIds.Count} 个包裹: [{string.Join(", ", affectedParcelIds)}]";
+            }
             
             var notification = new SortingCompletedNotification
             {
@@ -1919,16 +1955,25 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 CompletedAt = new DateTimeOffset(e.DetectedAt),
                 IsSuccess = false,
                 FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Lost,
-                FailureReason = $"包裹在 Position {e.DetectedAtPositionIndex} 丢失 " +
-                               $"(延迟={e.DelayMs:F0}ms, 阈值={e.LostThresholdMs:F0}ms)"
+                FailureReason = failureReason
             };
             
             await _upstreamClient.SendAsync(
                 new SortingCompletedMessage { Notification = notification });
             
-            _logger.LogInformation(
-                "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)",
-                e.LostParcelId);
+            if (affectedParcelIds.Count > 0)
+            {
+                _logger.LogInformation(
+                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)，影响了 {Count} 个包裹",
+                    e.LostParcelId,
+                    affectedParcelIds.Count);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)",
+                    e.LostParcelId);
+            }
         }
         catch (Exception ex)
         {
