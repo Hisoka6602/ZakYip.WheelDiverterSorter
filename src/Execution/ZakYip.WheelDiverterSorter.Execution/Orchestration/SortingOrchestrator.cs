@@ -1192,8 +1192,22 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
         
-        // 检查超时
-        var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
+        // 优先级规则：包裹丢失的严重性大于包裹超时
+        // 判断顺序：
+        // 1. 先检查是否丢失 (delay > LostDetectionThreshold)
+        // 2. 再检查是否超时 (delay > TimeoutThreshold)
+        // 3. 否则正常执行
+        // 如果同时满足丢失和超时条件，按丢失处理
+        
+        // 检查是否丢失（丢失判定优先级最高）
+        var isLost = false;
+        if (task.LostDetectionDeadline.HasValue)
+        {
+            isLost = currentTime > task.LostDetectionDeadline.Value;
+        }
+        
+        // 检查超时（仅在未丢失时考虑超时）
+        var isTimeout = !isLost && currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
         
         DiverterDirection actionToExecute;
         

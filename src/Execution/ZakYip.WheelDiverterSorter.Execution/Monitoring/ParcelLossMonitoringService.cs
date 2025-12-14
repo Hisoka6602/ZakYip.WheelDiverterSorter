@@ -13,6 +13,9 @@ namespace ZakYip.WheelDiverterSorter.Execution.Monitoring;
 /// <remarks>
 /// 定期扫描队列中的任务，检测是否有包裹超过丢失判定截止时间仍未到达。
 /// 这是主动检测机制，用于发现那些永远不会到达传感器的丢失包裹。
+/// 
+/// 优先级规则：包裹丢失的严重性大于包裹超时。
+/// 如果一个包裹同时满足丢失和超时条件，将按丢失处理。
 /// </remarks>
 public class ParcelLossMonitoringService : BackgroundService
 {
