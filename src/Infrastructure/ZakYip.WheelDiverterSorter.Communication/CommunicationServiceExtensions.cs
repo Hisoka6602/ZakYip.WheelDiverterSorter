@@ -142,7 +142,37 @@ public static class CommunicationServiceExtensions
         services.AddSingleton<IUpstreamRoutingClient>(sp =>
         {
             var factory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
-            return factory.CreateClient();
+            var client = factory.CreateClient();
+            
+            // 设置通信统计回调（如果客户端是RuleEngineClientBase且统计服务已注册）
+            if (client is Clients.RuleEngineClientBase baseClient)
+            {
+                try
+                {
+                    // 通过类型名动态获取统计服务（避免Communication层依赖Application层）
+                    var statsServiceType = Type.GetType("ZakYip.WheelDiverterSorter.Application.Services.Metrics.ICommunicationStatsService, ZakYip.WheelDiverterSorter.Application");
+                    if (statsServiceType != null)
+                    {
+                        var statsService = sp.GetService(statsServiceType);
+                        if (statsService != null)
+                        {
+                            var incrementSent = statsServiceType.GetMethod("IncrementSent");
+                            var incrementReceived = statsServiceType.GetMethod("IncrementReceived");
+                            
+                            baseClient.SetStatsCallbacks(
+                                onMessageSent: () => incrementSent?.Invoke(statsService, null),
+                                onMessageReceived: () => incrementReceived?.Invoke(statsService, null)
+                            );
+                        }
+                    }
+                }
+                catch
+                {
+                    // 统计服务可能未注册（如测试环境），忽略错误
+                }
+            }
+            
+            return client;
         });
 
         return services;
