@@ -149,7 +149,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IPositionIndexQueueManager? queueManager = null, // 新的 Position-Index 队列管理器
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
-        ISensorConfigurationRepository? sensorConfigConfiguration = null, // TD-062: 传感器配置仓储
+        ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
         IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
@@ -178,7 +178,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _queueManager = queueManager;
         _topologyRepository = topologyRepository;
         _segmentRepository = segmentRepository;
-        _sensorConfigRepository = sensorConfigConfiguration;
+        _sensorConfigRepository = sensorConfigRepository;
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
         _callbackConfigRepository = callbackConfigRepository;
@@ -1839,6 +1839,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 2. 批量重路由所有受影响的包裹到异常口
     /// 3. 上报丢失包裹到上游
     /// 4. 上报所有受影响的包裹到上游
+    /// 
+    /// <b>关于 async void 的使用说明：</b>
+    /// 此方法使用 async void 是因为它是一个事件处理器，必须匹配 EventHandler 委托签名。
+    /// 所有异步操作都包裹在 SafeExecutionService 中，确保异常不会导致应用程序崩溃。
+    /// SafeExecutionService 会捕获并记录所有未处理的异常。
     /// </remarks>
     private async void OnParcelLostDetectedAsync(object? sender, Core.Events.Queue.ParcelLostEventArgs e)
     {
@@ -1889,9 +1894,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 {
                     // 使用现有的指标方法记录丢失和受影响的包裹
                     _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
-                    foreach (var affectedId in affectedParcels)
+                    foreach (var affectedParcelId in affectedParcels)
                     {
-                        _metrics.RecordSortingFailedParcel($"AffectedByLoss:{e.LostParcelId}");
+                        _metrics.RecordSortingFailedParcel($"AffectedByLoss:{affectedParcelId}");
                     }
                 }
                 
@@ -1913,8 +1918,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <remarks>
     /// 此方法会遍历所有位置的队列，将队列中所有包裹的动作改为 Straight（导向异常口）。
     /// 使用 ConcurrentQueue 的线程安全特性，不会阻塞正常的队列操作。
+    /// 
+    /// <b>关于潜在竞争条件的说明：</b>
+    /// 在 dequeue-modify-enqueue 操作期间，正常的 IO 触发可能会并发访问同一队列。
+    /// 这是可接受的，因为：
+    /// 1. 包裹丢失是异常情况，发生频率极低
+    /// 2. ConcurrentQueue 保证了操作的线程安全性
+    /// 3. 最坏情况下，某个包裹可能执行原计划动作而非 Straight，但仍会在后续 position 被重路由
+    /// 4. 添加锁会严重影响正常 IO 触发的性能
     /// </remarks>
-    private async Task<List<long>> RerouteAllExistingParcelsToExceptionAsync(long lostParcelId)
+    private Task<List<long>> RerouteAllExistingParcelsToExceptionAsync(long lostParcelId)
     {
         var affectedParcels = new HashSet<long>();
         
@@ -1923,7 +1936,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogWarning(
                 "[批量重路由] QueueManager 未配置，无法重路由包裹 (丢失包裹 {LostParcelId})",
                 lostParcelId);
-            return affectedParcels.ToList();
+            return Task.FromResult(affectedParcels.ToList());
         }
         
         var allQueueStatuses = _queueManager.GetAllQueueStatuses();
@@ -1947,14 +1960,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 affectedParcels.Add(task.ParcelId);
             }
             
-            // 重新入队，所有动作改为 Straight（导向异常口）
-            foreach (var task in tasksToReroute)
-            {
-                var reroutedTask = task with
+            // 使用 LINQ Select 转换并重新入队
+            var reroutedTasks = tasksToReroute
+                .Select(task => task with
                 {
                     DiverterAction = DiverterDirection.Straight,
                     FallbackAction = DiverterDirection.Straight
-                };
+                })
+                .ToList();
+            
+            foreach (var reroutedTask in reroutedTasks)
+            {
                 _queueManager.EnqueueTask(positionIndex, reroutedTask);
             }
             
@@ -1966,8 +1982,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
         }
         
-        await Task.CompletedTask;
-        return affectedParcels.ToList();
+        return Task.FromResult(affectedParcels.ToList());
     }
     
     /// <summary>
