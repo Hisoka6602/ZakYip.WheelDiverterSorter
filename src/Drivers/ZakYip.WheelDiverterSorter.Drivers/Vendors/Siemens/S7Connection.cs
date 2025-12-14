@@ -36,6 +36,11 @@ public class S7Connection : IDisposable
     public bool IsConnected => _plc?.IsConnected ?? false;
 
     /// <summary>
+    /// 获取当前 S7 配置的 IP 地址
+    /// </summary>
+    public string IpAddress => _options.IpAddress;
+
+    /// <summary>
     /// 初始化S7连接管理器
     /// </summary>
     /// <param name="logger">日志记录器</param>
