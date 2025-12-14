@@ -53,36 +53,6 @@ public class AlarmsController : ControllerBase
     }
 
     /// <summary>
-    /// 获取当前分拣失败率
-    /// </summary>
-    /// <returns>分拣失败率统计信息</returns>
-    /// <response code="200">成功返回失败率</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 返回当前时间窗口内的分拣失败率，包括小数值和百分比形式
-    /// </remarks>
-    [HttpGet("sorting-failure-rate")]
-    [SwaggerOperation(
-        Summary = "获取当前分拣失败率",
-        Description = "返回系统当前的分拣失败率统计，包括失败率小数值和百分比表示",
-        OperationId = "GetSortingFailureRate",
-        Tags = new[] { "告警管理" }
-    )]
-    [SwaggerResponse(200, "成功返回失败率", typeof(object))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(object), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<object> GetSortingFailureRate()
-    {
-        var failureRate = _alarmService.GetSortingFailureRate();
-        return Ok(new
-        {
-            failureRate,
-            percentage = $"{failureRate * 100:F2}%"
-        });
-    }
-
-    /// <summary>
     /// 确认告警
     /// </summary>
     /// <param name="alarmType">告警类型（必需），支持的告警类型包括：HighFailureRate（高失败率）、UpstreamTimeout（上游超时）等</param>
@@ -130,32 +100,5 @@ public class AlarmsController : ControllerBase
             alarm.Level);
 
         return Ok(new { message = "告警已确认 / Alarm acknowledged", alarm });
-    }
-
-    /// <summary>
-    /// 重置分拣统计计数器
-    /// </summary>
-    /// <returns>操作结果</returns>
-    /// <response code="200">成功重置统计计数器</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 重置分拣成功/失败计数器，用于开始新的统计周期或测试场景
-    /// </remarks>
-    [HttpPost("reset-statistics")]
-    [SwaggerOperation(
-        Summary = "重置分拣统计计数器",
-        Description = "清除当前的分拣统计数据，包括成功和失败计数器，通常用于开始新的统计周期",
-        OperationId = "ResetStatistics",
-        Tags = new[] { "告警管理" }
-    )]
-    [SwaggerResponse(200, "成功重置统计计数器", typeof(object))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(object), 200)]
-    [ProducesResponseType(typeof(object), 500)]
-    public ActionResult ResetStatistics()
-    {
-        _alarmService.ResetSortingStatistics();
-        _logger.LogInformation("分拣统计计数器已重置 / Sorting statistics reset");
-        return Ok(new { message = "统计计数器已重置 / Statistics reset" });
     }
 }

@@ -68,6 +68,9 @@ public static class ApplicationServiceExtensions
         // 注册通信统计服务
         services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
         
+        // 注册分拣统计服务（单例模式，确保计数器全局唯一）
+        services.AddSingleton<ISortingStatisticsService, SortingStatisticsService>();
+        
         // 注册拓扑相关服务（单例模式）
         services.AddSingleton<IChutePathTopologyService, ChutePathTopologyService>();
         

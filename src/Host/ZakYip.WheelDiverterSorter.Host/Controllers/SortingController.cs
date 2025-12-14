@@ -3,6 +3,7 @@ using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
+using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
@@ -11,6 +12,7 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
+using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -46,6 +48,8 @@ public class SortingController : ApiControllerBase
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SortingController> _logger;
     private readonly Execution.Tracking.IPositionIntervalTracker? _intervalTracker;
+    private readonly AlarmService _alarmService;
+    private readonly ISortingStatisticsService _statisticsService;
 
     public SortingController(
         IChangeParcelChuteService changeParcelChuteService,
@@ -54,6 +58,8 @@ public class SortingController : ApiControllerBase
         ISystemClock clock,
         IWebHostEnvironment environment,
         ILogger<SortingController> logger,
+        AlarmService alarmService,
+        ISortingStatisticsService statisticsService,
         IDebugSortService? debugSortService = null,
         Execution.Tracking.IPositionIntervalTracker? intervalTracker = null)
     {
@@ -63,6 +69,8 @@ public class SortingController : ApiControllerBase
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _alarmService = alarmService ?? throw new ArgumentNullException(nameof(alarmService));
+        _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
         _debugSortService = debugSortService;
         _intervalTracker = intervalTracker;
     }
@@ -599,6 +607,147 @@ public class SortingController : ApiControllerBase
         {
             _logger.LogError(ex, "更新落格回调配置失败");
             return StatusCode(500, new { message = "更新落格回调配置失败" });
+        }
+    }
+
+    #endregion
+
+    #region 分拣统计
+
+    /// <summary>
+    /// 获取当前分拣失败率
+    /// </summary>
+    /// <returns>分拣失败率统计信息</returns>
+    /// <response code="200">成功返回失败率</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回当前时间窗口内的分拣失败率，包括小数值和百分比形式
+    /// </remarks>
+    [HttpGet("failure-rate")]
+    [SwaggerOperation(
+        Summary = "获取当前分拣失败率",
+        Description = "返回系统当前的分拣失败率统计，包括失败率小数值和百分比表示",
+        OperationId = "GetSortingFailureRate",
+        Tags = new[] { "分拣管理" }
+    )]
+    [SwaggerResponse(200, "成功返回失败率", typeof(object))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<object> GetFailureRate()
+    {
+        try
+        {
+            var failureRate = _alarmService.GetSortingFailureRate();
+            return Ok(new
+            {
+                failureRate,
+                percentage = $"{failureRate * 100:F2}%"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取分拣失败率失败");
+            return StatusCode(500, new { message = "获取分拣失败率失败" });
+        }
+    }
+
+    /// <summary>
+    /// 获取分拣统计数据
+    /// </summary>
+    /// <returns>分拣统计信息</returns>
+    /// <response code="200">成功返回统计数据</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回分拣系统的实时统计数据，包括：
+    /// - successCount: 分拣成功数量
+    /// - timeoutCount: 分拣超时数量（包裹延迟但仍被导向异常口）
+    /// - lostCount: 包裹丢失数量（包裹物理丢失，从队列删除）
+    /// - affectedCount: 受影响包裹数量（因其他包裹丢失而被重路由到异常口）
+    /// 
+    /// 统计数据：
+    /// - 永久存储在内存中，不过期
+    /// - 使用原子操作保证线程安全
+    /// - 支持超高并发查询（无锁设计）
+    /// - 可通过 POST /api/sorting/reset-statistics 重置
+    /// 
+    /// 示例响应：
+    /// ```json
+    /// {
+    ///   "successCount": 12345,
+    ///   "timeoutCount": 23,
+    ///   "lostCount": 5,
+    ///   "affectedCount": 8,
+    ///   "timestamp": "2025-12-14T12:00:00Z"
+    /// }
+    /// ```
+    /// </remarks>
+    [HttpGet("statistics")]
+    [SwaggerOperation(
+        Summary = "获取分拣统计数据",
+        Description = "返回分拣系统的实时统计数据（成功/超时/丢失/受影响），支持超高并发查询",
+        OperationId = "GetSortingStatistics",
+        Tags = new[] { "分拣管理" }
+    )]
+    [SwaggerResponse(200, "成功返回统计数据", typeof(SortingStatisticsDto))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(SortingStatisticsDto), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<SortingStatisticsDto> GetStatistics()
+    {
+        try
+        {
+            var stats = new SortingStatisticsDto
+            {
+                SuccessCount = _statisticsService.SuccessCount,
+                TimeoutCount = _statisticsService.TimeoutCount,
+                LostCount = _statisticsService.LostCount,
+                AffectedCount = _statisticsService.AffectedCount,
+                Timestamp = _clock.LocalNow
+            };
+            
+            return Ok(stats);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取分拣统计数据失败");
+            return StatusCode(500, new { message = "获取分拣统计数据失败" });
+        }
+    }
+
+    /// <summary>
+    /// 重置分拣统计计数器
+    /// </summary>
+    /// <returns>操作结果</returns>
+    /// <response code="200">成功重置统计计数器</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 重置分拣成功/失败计数器和详细统计计数器，用于开始新的统计周期或测试场景
+    /// </remarks>
+    [HttpPost("reset-statistics")]
+    [SwaggerOperation(
+        Summary = "重置分拣统计计数器",
+        Description = "清除当前的分拣统计数据，包括失败率和详细统计计数器，通常用于开始新的统计周期",
+        OperationId = "ResetSortingStatistics",
+        Tags = new[] { "分拣管理" }
+    )]
+    [SwaggerResponse(200, "成功重置统计计数器", typeof(object))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(object), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult ResetStatistics()
+    {
+        try
+        {
+            _alarmService.ResetSortingStatistics();
+            _statisticsService.Reset();
+            _logger.LogInformation("分拣统计计数器已重置（包含失败率和详细统计） / Sorting statistics reset (including failure rate and detailed statistics)");
+            return Ok(new { message = "统计计数器已重置 / Statistics reset" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "重置统计失败");
+            return StatusCode(500, new { message = "重置统计失败" });
         }
     }
 
