@@ -770,6 +770,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="actualChuteId">实际落格格口ID</param>
     /// <param name="isSuccess">是否成功</param>
     /// <param name="failureReason">失败原因（如果失败）</param>
+    /// <param name="finalStatus">包裹最终状态（可选，默认根据isSuccess推断）</param>
     /// <remarks>
     /// 在所有分拣模式下都向上游发送分拣完成通知。
     /// 通知失败时记录错误日志，但不阻止后续流程。
@@ -778,7 +779,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         long parcelId, 
         long actualChuteId, 
         bool isSuccess, 
-        string? failureReason)
+        string? failureReason,
+        Core.Enums.Parcel.ParcelFinalStatus? finalStatus = null)
     {
         try
         {
@@ -789,9 +791,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 CompletedAt = new DateTimeOffset(_clock.LocalNow),
                 IsSuccess = isSuccess,
                 FailureReason = failureReason,
-                FinalStatus = isSuccess 
+                FinalStatus = finalStatus ?? (isSuccess 
                     ? Core.Enums.Parcel.ParcelFinalStatus.Success 
-                    : Core.Enums.Parcel.ParcelFinalStatus.ExecutionError
+                    : Core.Enums.Parcel.ParcelFinalStatus.ExecutionError)
             };
 
             _logger.LogTrace(
@@ -943,6 +945,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             Source = "Upstream",
             Details = $"TimeoutMs={timeoutMs}, Status={status}, RoutedToException={exceptionChuteId}"
         });
+        
+        // 立即发送超时通知到上游系统
+        await NotifyUpstreamSortingCompletedAsync(
+            parcelId,
+            exceptionChuteId,
+            isSuccess: false,
+            failureReason: $"AssignmentTimeout: {status}",
+            finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
+        
+        // 清理目标格口记录，防止后续IO触发时重复发送通知
+        _parcelTargetChutes.TryRemove(parcelId, out _);
         
         return exceptionChuteId;
     }
@@ -1317,7 +1330,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                 task.ParcelId,
                                 actualChuteId,
                                 isSuccess: !isTimeout,
-                                failureReason: isTimeout ? "Timeout" : null);
+                                failureReason: isTimeout ? "SortingTimeout" : null,
+                                finalStatus: isTimeout ? Core.Enums.Parcel.ParcelFinalStatus.Timeout : null);
                             
                             // 发送通知后清理目标格口记录，防止内存泄漏
                             _parcelTargetChutes.TryRemove(task.ParcelId, out _);
@@ -1349,7 +1363,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             task.ParcelId,
                             actualChuteId,
                             isSuccess: false,
-                            failureReason: "Timeout");
+                            failureReason: "SortingTimeout",
+                            finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
                         
                         // 发送通知后清理目标格口记录
                         _parcelTargetChutes.TryRemove(task.ParcelId, out _);
