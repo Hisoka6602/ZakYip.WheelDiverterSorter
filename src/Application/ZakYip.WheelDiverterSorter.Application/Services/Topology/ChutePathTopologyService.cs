@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -21,6 +22,7 @@ public class ChutePathTopologyService : IChutePathTopologyService
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISlidingConfigCache _configCache;
     private readonly IPathCacheManager? _pathCacheManager;
+    private readonly ILogger<ChutePathTopologyService> _logger;
 
     private static readonly object TopologyCacheKey = new();
 
@@ -31,18 +33,21 @@ public class ChutePathTopologyService : IChutePathTopologyService
     /// <param name="sensorRepository">传感器配置仓储</param>
     /// <param name="pathGenerator">摆轮路径生成器</param>
     /// <param name="configCache">统一滑动配置缓存</param>
+    /// <param name="logger">日志记录器</param>
     /// <param name="pathCacheManager">路径缓存管理器（可选，用于清除路径缓存）</param>
     public ChutePathTopologyService(
         IChutePathTopologyRepository topologyRepository,
         ISensorConfigurationRepository sensorRepository,
         ISwitchingPathGenerator pathGenerator,
         ISlidingConfigCache configCache,
+        ILogger<ChutePathTopologyService> logger,
         IPathCacheManager? pathCacheManager = null)
     {
         _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
         _sensorRepository = sensorRepository ?? throw new ArgumentNullException(nameof(sensorRepository));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _configCache = configCache ?? throw new ArgumentNullException(nameof(configCache));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _pathCacheManager = pathCacheManager;
     }
 
@@ -55,12 +60,20 @@ public class ChutePathTopologyService : IChutePathTopologyService
     /// <inheritdoc />
     public void UpdateTopology(ChutePathTopologyConfig config)
     {
+        _logger.LogInformation("开始验证拓扑配置: TopologyId={TopologyId}, TopologyName={TopologyName}, DiverterCount={DiverterCount}",
+            config.TopologyId, config.TopologyName, config.DiverterNodes?.Count ?? 0);
+
         // 验证配置
         var validationResult = ChutePathTopologyValidator.Validate(config);
         if (!validationResult.IsValid)
         {
+            _logger.LogError("拓扑配置验证失败: {ErrorMessage}. TopologyId={TopologyId}, TopologyName={TopologyName}",
+                validationResult.ErrorMessage, config.TopologyId, config.TopologyName);
             throw new InvalidOperationException($"拓扑配置验证失败: {validationResult.ErrorMessage}");
         }
+
+        _logger.LogInformation("拓扑配置验证通过: TopologyId={TopologyId}, TopologyName={TopologyName}",
+            config.TopologyId, config.TopologyName);
 
         // 获取旧配置中的所有格口ID，用于清除路径缓存
         var oldConfig = _topologyRepository.Get();
@@ -68,6 +81,8 @@ public class ChutePathTopologyService : IChutePathTopologyService
 
         // 更新配置到持久化
         _topologyRepository.Update(config);
+        
+        _logger.LogInformation("拓扑配置已更新到持久化层: TopologyId={TopologyId}", config.TopologyId);
 
         // 热更新：立即刷新拓扑缓存
         var updatedConfig = _topologyRepository.Get();
@@ -80,7 +95,11 @@ public class ChutePathTopologyService : IChutePathTopologyService
         if (_pathCacheManager != null && allAffectedChuteIds.Count > 0)
         {
             _pathCacheManager.InvalidateAllCache(allAffectedChuteIds);
+            _logger.LogInformation("已清除{Count}个格口的路径缓存", allAffectedChuteIds.Count);
         }
+        
+        _logger.LogInformation("拓扑配置热更新完成: TopologyId={TopologyId}, TopologyName={TopologyName}",
+            updatedConfig.TopologyId, updatedConfig.TopologyName);
     }
 
     /// <summary>
