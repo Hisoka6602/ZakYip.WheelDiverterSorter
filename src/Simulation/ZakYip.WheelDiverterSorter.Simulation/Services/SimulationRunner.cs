@@ -585,7 +585,10 @@ public class SimulationRunner : IDisposable
             // 如果掉包，直接返回掉包结果
             if (timeline.IsDropped)
             {
-                var travelTime = timeline.SensorEvents.Last().TriggerTime - entryTime;
+                var lastEvent = timeline.SensorEvents.LastOrDefault();
+                var travelTime = lastEvent != null 
+                    ? lastEvent.TriggerTime - entryTime 
+                    : TimeSpan.Zero;
                 
                 var result = new SimulatedParcelResultEventArgs
                 {
