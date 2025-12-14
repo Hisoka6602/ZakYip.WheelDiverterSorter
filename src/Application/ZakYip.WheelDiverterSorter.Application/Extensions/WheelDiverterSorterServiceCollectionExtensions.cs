@@ -186,6 +186,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 12. 注册节点健康服务
         services.AddNodeHealthServices();
+        
+        // 12.1 注册包裹丢失监控服务
+        services.AddParcelLossMonitoring();
 
         // 13. 注册传感器服务
         services.AddSensorServices(configuration);

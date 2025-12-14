@@ -64,5 +64,15 @@ public enum ParcelFinalStatus
     /// 与 Timeout 的区别：Lost 表示包裹已不在输送线上，无法导向异常口，需从缓存清除。
     /// </remarks>
     [Description("包裹丢失")]
-    Lost
+    Lost,
+    
+    /// <summary>
+    /// 受其他包裹丢失影响
+    /// </summary>
+    /// <remarks>
+    /// TD-LOSS-ORCHESTRATOR-001: 当包裹物理丢失时，队列中所有后续包裹会被重路由到异常口。
+    /// 这些包裹本身没有问题，但因为前面的包裹丢失而无法正常分拣。
+    /// </remarks>
+    [Description("受丢失影响")]
+    AffectedByLoss
 }
