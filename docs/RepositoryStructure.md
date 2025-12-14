@@ -56,6 +56,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | WINDOWS_SERVICE_DEPLOYMENT.md | `./docs/WINDOWS_SERVICE_DEPLOYMENT.md` | **Windows Service 部署指南（服务安装、管理、配置、故障排查）** | 🔴 高 |
 | UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md | `./docs/UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md` | 上游通知故障排查指南（传感器触发vs测试端点对比） | 🔴 高 |
 | SERVER_MODE_DUAL_INSTANCE_ISSUE.md | `./docs/SERVER_MODE_DUAL_INSTANCE_ISSUE.md` | **Server模式双实例问题分析与修复（根本原因诊断）** | 🔴 高 |
+| POSITION_INTERVAL_FIX.md | `./docs/POSITION_INTERVAL_FIX.md` | Position间隔追踪修复文档（问题诊断、解决方案、位置映射表、间隔计算逻辑） | 🟢 低 |
 
 ### docs/guides/ 使用指南
 
