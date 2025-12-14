@@ -1129,6 +1129,34 @@ public Order CreateOrder(string customerId)
 - 避免时区转换错误
 - 支持时间旅行测试场景
 
+**LocalNow vs UtcNow 选择指南**:
+- **推荐使用 `LocalNow`**：大多数业务场景（日志、记录、显示、业务逻辑）
+- **仅在特定场景使用 `UtcNow`**：
+  - 与外部系统通信时，协议明确要求 UTC 时间
+  - 跨时区的分布式系统需要统一时间基准
+  - 存储到数据库时需要 UTC（但显示时转换为本地时间）
+
+**示例**:
+```csharp
+// ✅ 业务逻辑使用 LocalNow
+public void ProcessOrder(Order order)
+{
+    order.ProcessedAt = _clock.LocalNow;  // 业务时间
+    _logger.LogInformation($"订单处理时间: {order.ProcessedAt}");
+}
+
+// ✅ 外部系统协议要求时使用 UtcNow
+public async Task SendToExternalSystemAsync(Order order)
+{
+    var request = new ExternalApiRequest
+    {
+        OrderId = order.OrderId,
+        Timestamp = _clock.UtcNow  // 外部系统要求 UTC
+    };
+    await _externalClient.SendAsync(request);
+}
+```
+
 ---
 
 ## 并发安全规范
@@ -1338,13 +1366,13 @@ public record ApiResponse<T>
     public List<string>? Errors { get; init; }
     public DateTime Timestamp { get; init; }
 
-    // ⚠️ 注意：实际项目中应通过 ISystemClock 获取时间，而不是直接使用 DateTime.UtcNow
+    // ⚠️ 注意：实际项目中应通过 ISystemClock 获取时间，而不是直接使用 DateTime.Now
     // 这里为了示例简化，使用了 DateTime 参数由调用方传入
     public static ApiResponse<T> Ok(T data, string message = "操作成功", DateTime? timestamp = null)
-        => new() { Success = true, Data = data, Message = message, Timestamp = timestamp ?? DateTime.UtcNow };
+        => new() { Success = true, Data = data, Message = message, Timestamp = timestamp ?? DateTime.Now };
 
     public static ApiResponse<T> Error(string message, List<string>? errors = null, DateTime? timestamp = null)
-        => new() { Success = false, Message = message, Errors = errors, Timestamp = timestamp ?? DateTime.UtcNow };
+        => new() { Success = false, Message = message, Errors = errors, Timestamp = timestamp ?? DateTime.Now };
 }
 
 // ✅ 更好的实现：通过依赖注入使用 ISystemClock
@@ -1377,17 +1405,17 @@ public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
     {
         return BadRequest(ApiResponse<UserDto>.Error(
             "请求参数验证失败",
-            _clock.UtcNow,  // ✅ 使用 ISystemClock
+            _clock.LocalNow,  // ✅ 使用 ISystemClock.LocalNow
             ModelState.SelectMany(x => x.Value?.Errors ?? [])
                       .Select(e => e.ErrorMessage)
                       .ToList()));
     }
     
     var user = await _service.CreateUserAsync(request);
-    return Ok(ApiResponse<UserDto>.Ok(user, _clock.UtcNow, "用户创建成功"));  // ✅ 使用 ISystemClock
+    return Ok(ApiResponse<UserDto>.Ok(user, _clock.LocalNow, "用户创建成功"));  // ✅ 使用 ISystemClock.LocalNow
 }
 
-// ❌ 错误：直接使用 DateTime.UtcNow
+// ❌ 错误：直接使用 DateTime.Now
 [HttpPost]
 public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
     [FromBody] CreateUserRequest request)
@@ -1397,7 +1425,7 @@ public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
     { 
         Success = true, 
         Data = user, 
-        Timestamp = DateTime.UtcNow  // ❌ 违反时间处理规范
+        Timestamp = DateTime.Now  // ❌ 违反时间处理规范
     });
 }
 ```
