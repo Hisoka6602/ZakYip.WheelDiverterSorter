@@ -482,7 +482,17 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
         {
             _reconnectCts?.Cancel();
             _reconnectCts?.Dispose();
-            _client?.Dispose();
+            
+            if (_client != null)
+            {
+                // 取消事件订阅（防止内存泄漏）
+                _client.Received -= OnMessageReceived;
+                _client.Closed -= OnDisconnected;
+                _client.Connected -= OnConnected;
+                
+                _client.Dispose();
+            }
+            
             _connectionLock.Dispose();
         }
         base.Dispose(disposing);

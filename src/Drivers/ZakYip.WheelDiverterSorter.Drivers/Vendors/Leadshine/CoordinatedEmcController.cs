@@ -14,7 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// 具有分布式锁协调能力的EMC控制器
 /// 在执行重置操作前通知其他实例，确保多实例安全
 /// </summary>
-public class CoordinatedEmcController : IEmcController
+public class CoordinatedEmcController : IEmcController, IDisposable
 {
     private readonly ILogger<CoordinatedEmcController> _logger;
     private readonly IEmcController _emcController;
@@ -22,6 +22,7 @@ public class CoordinatedEmcController : IEmcController
     private readonly IEmcResourceLock? _resourceLock;
     private readonly bool _lockEnabled;
     private readonly LockType _lockType;
+    private bool _disposed;
 
     /// <inheritdoc/>
     public ushort CardNo => _emcController.CardNo;
@@ -513,5 +514,25 @@ public class CoordinatedEmcController : IEmcController
         {
             _logger.LogError(ex, "处理EMC锁事件时发生异常");
         }
+    }
+
+    /// <summary>
+    /// 释放资源并取消事件订阅（防止内存泄漏）
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // 取消订阅EMC锁事件
+        if (_lockManager != null)
+        {
+            _lockManager.EmcLockEventReceived -= OnEmcLockEventReceived;
+        }
+
+        _disposed = true;
+        _logger.LogDebug("CoordinatedEmcController 已释放并取消订阅事件");
     }
 }

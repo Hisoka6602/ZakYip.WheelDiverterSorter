@@ -206,6 +206,12 @@ public class MqttEmcResourceLockManager : EmcResourceLockManagerBase
             return;
         }
 
+        // 取消事件订阅（防止内存泄漏）
+        if (_mqttClient != null)
+        {
+            _mqttClient.ApplicationMessageReceivedAsync -= OnMessageReceivedAsync;
+        }
+
         _mqttClient?.DisconnectAsync().GetAwaiter().GetResult();
         _mqttClient?.Dispose();
 

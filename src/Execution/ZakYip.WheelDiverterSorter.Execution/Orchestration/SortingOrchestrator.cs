@@ -1028,6 +1028,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 清理路径记录
         // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
         _parcelPaths.TryRemove(parcelId, out _);
+        
+        // 清理位置追踪记录（防止内存泄漏和混淆后续包裹）
+        _intervalTracker?.ClearParcelTracking(parcelId);
 
         // PR-UPSTREAM02: 发送落格完成通知给上游系统
         var notification = new SortingCompletedNotification
@@ -1905,6 +1908,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
                 _parcelPaths.TryRemove(e.LostParcelId, out _);
                 _pendingAssignments.TryRemove(e.LostParcelId, out _);
+                
+                // 7. 清理丢失包裹的位置追踪记录（防止影响后续包裹）
+                _intervalTracker?.ClearParcelTracking(e.LostParcelId);
             },
             operationName: "HandleParcelLost",
             cancellationToken: CancellationToken.None);

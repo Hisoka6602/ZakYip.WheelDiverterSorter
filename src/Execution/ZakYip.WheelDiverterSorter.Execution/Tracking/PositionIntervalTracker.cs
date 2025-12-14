@@ -120,8 +120,8 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
                 parcelId, positionIndex);
         }
         
-        // 定期清理过期的包裹记录（保留最近1000个包裹）
-        if (_parcelPositionTimes.Count > 1000)
+        // 定期清理过期的包裹记录（当记录数超过阈值时触发）
+        if (_parcelPositionTimes.Count > _options.ParcelRecordCleanupThreshold)
         {
             CleanupOldParcelRecords();
         }
@@ -181,11 +181,10 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         var intervals = buffer.ToArray();
         var median = CalculateMedian(intervals);
         
-        // 应用系数计算动态阈值
+        // 应用系数计算动态阈值（直接使用中位数×系数，不做限幅）
         var threshold = median * _options.TimeoutMultiplier;
         
-        // 限制在合理范围内
-        return Math.Clamp(threshold, _options.MinThresholdMs, _options.MaxThresholdMs);
+        return threshold;
     }
     
     /// <inheritdoc/>
@@ -231,6 +230,17 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         _lastUpdatedTimes.Clear();
         
         _logger.LogInformation("已清空所有 Position 的统计数据");
+    }
+
+    /// <inheritdoc/>
+    public void ClearParcelTracking(long parcelId)
+    {
+        if (_parcelPositionTimes.TryRemove(parcelId, out _))
+        {
+            _logger.LogInformation(
+                "[位置追踪清理] 已清除包裹 {ParcelId} 的所有位置追踪记录",
+                parcelId);
+        }
     }
 
     /// <summary>
@@ -290,6 +300,17 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
 public sealed class PositionIntervalTrackerOptions
 {
     /// <summary>
+    /// 监控间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 包裹丢失监控服务扫描队列的时间间隔
+    /// 默认值：60ms
+    /// 推荐范围：50-500ms
+    /// 值越小检测越及时，但CPU占用越高
+    /// </remarks>
+    public int MonitoringIntervalMs { get; set; } = 60;
+    
+    /// <summary>
     /// 历史窗口大小（保留最近 N 个间隔样本）
     /// </summary>
     /// <remarks>
@@ -309,15 +330,6 @@ public sealed class PositionIntervalTrackerOptions
     public double TimeoutMultiplier { get; set; } = 3.0;
     
     /// <summary>
-    /// 最小阈值（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 防止阈值过低导致误判
-    /// 默认值：1000ms (1秒)
-    /// </remarks>
-    public double MinThresholdMs { get; set; } = 1000;
-    
-    /// <summary>
     /// 包裹记录清理阈值（当包裹记录数超过此值时触发清理）
     /// </summary>
     /// <remarks>
@@ -335,15 +347,6 @@ public sealed class PositionIntervalTrackerOptions
     /// 清理时会删除超过此数量的旧记录，给新包裹留空间
     /// </remarks>
     public int ParcelRecordRetentionCount { get; set; } = 800;
-    
-    /// <summary>
-    /// 最大阈值（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 防止阈值过高导致检测延迟过长
-    /// 默认值：10000ms (10秒)
-    /// </remarks>
-    public double MaxThresholdMs { get; set; } = 10000;
     
     /// <summary>
     /// 计算动态阈值所需的最小样本数

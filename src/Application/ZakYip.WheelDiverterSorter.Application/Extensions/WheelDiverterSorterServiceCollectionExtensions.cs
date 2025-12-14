@@ -288,6 +288,14 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             return repository;
         });
 
+        // 注册包裹丢失检测配置仓储为单例
+        services.AddSingleton<IParcelLossDetectionConfigurationRepository>(serviceProvider =>
+        {
+            var repository = new LiteDbParcelLossDetectionConfigurationRepository(fullDatabasePath);
+            repository.InitializeDefault();
+            return repository;
+        });
+
         // 注册面板配置仓储为单例
         services.AddSingleton<IPanelConfigurationRepository>(serviceProvider =>
         {
@@ -426,10 +434,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             // 使用默认配置，也可以从 appsettings.json 读取
             options.WindowSize = 10;
             options.TimeoutMultiplier = 3.0;
-            options.MinThresholdMs = 1000;
-            options.MaxThresholdMs = 10000;
+            options.LostDetectionMultiplier = 1.5;
             options.MinSamplesForThreshold = 3;
             options.MaxReasonableIntervalMs = 60000;
+            options.MonitoringIntervalMs = 60;
+            options.ParcelRecordCleanupThreshold = 1000;
+            options.ParcelRecordRetentionCount = 800;
         });
         services.AddSingleton<Execution.Tracking.IPositionIntervalTracker, Execution.Tracking.PositionIntervalTracker>();
 

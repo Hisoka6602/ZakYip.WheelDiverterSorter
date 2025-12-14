@@ -68,4 +68,13 @@ public interface IPositionIntervalTracker
     /// 清空所有统计数据
     /// </summary>
     void ClearAllStatistics();
+    
+    /// <summary>
+    /// 清除指定包裹的位置追踪记录
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <remarks>
+    /// 当包裹完成分拣或检测到丢失时调用，防止残留数据影响后续包裹
+    /// </remarks>
+    void ClearParcelTracking(long parcelId);
 }
