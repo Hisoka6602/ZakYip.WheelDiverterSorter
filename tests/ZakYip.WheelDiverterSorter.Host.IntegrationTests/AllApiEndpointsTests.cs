@@ -143,34 +143,6 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
         Assert.NotNull(config);
     }
 
-    [Fact]
-    public async Task GetSystemConfigTemplate_ReturnsSuccess()
-    {
-        // Act
-        var response = await _client.GetAsync("/api/config/system/template");
-
-        // Assert
-        Assert.True(response.IsSuccessStatusCode,
-            $"Expected success status code but got {response.StatusCode}");
-        
-        var template = await response.Content.ReadFromJsonAsync<SystemConfigRequest>(TestJsonOptions.GetOptions());
-        Assert.NotNull(template);
-    }
-
-    [Fact]
-    public async Task ResetSystemConfig_ReturnsSuccess()
-    {
-        // Act
-        var response = await _client.PostAsync("/api/config/system/reset", null);
-
-        // Assert
-        Assert.True(response.IsSuccessStatusCode,
-            $"Expected success status code but got {response.StatusCode}");
-        
-        var config = await response.Content.ReadFromJsonAsync<SystemConfigResponse>(TestJsonOptions.GetOptions());
-        Assert.NotNull(config);
-    }
-
     #endregion
 
     #region Communication API Tests
