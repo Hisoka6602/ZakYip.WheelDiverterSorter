@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Communication.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 
@@ -7,8 +8,9 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 /// </summary>
 /// <remarks>
 /// 定义跟踪通信消息发送和接收次数的接口
+/// 实现 IMessageStatsCallback 以便 Communication 层可以直接使用，无需适配器
 /// </remarks>
-public interface ICommunicationStatsService
+public interface ICommunicationStatsService : IMessageStatsCallback
 {
     /// <summary>
     /// 发送消息计数 - Messages sent count
@@ -40,15 +42,7 @@ public interface ICommunicationStatsService
     /// </summary>
     long? ConnectionDurationSeconds { get; }
 
-    /// <summary>
-    /// 增加发送消息计数 - Increment sent messages count
-    /// </summary>
-    void IncrementSent();
-
-    /// <summary>
-    /// 增加接收消息计数 - Increment received messages count
-    /// </summary>
-    void IncrementReceived();
+    // IncrementSent() 和 IncrementReceived() 继承自 IMessageStatsCallback
 
     /// <summary>
     /// 记录连接 - Record connection

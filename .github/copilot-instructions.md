@@ -1886,9 +1886,14 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
 
 ### 1. 技术债务文档结构（PR-RS13 更新）
 
+**⚠️ 单一文档原则（强制）**：
+- **技术债务只能有一个文档**：`docs/TechnicalDebtLog.md`
+- **严格禁止**创建多个技术债务文件（如 `TODO.md`、`REMAINING.md`、`TD_*.md` 等）
+- **原因**：多个技术债务文件会导致后续 PR 不知道应该读取哪个，造成信息分散和遗漏
+
 **文档分工**：
 - **`docs/RepositoryStructure.md` 第 5 章节**：技术债索引表（ID + 状态 + 简短摘要）
-- **`docs/TechnicalDebtLog.md`**：技术债详细日志（PR 号、文件迁移列表、测试更新说明等）
+- **`docs/TechnicalDebtLog.md`**：**唯一的**技术债详细日志（PR 号、文件迁移列表、测试更新说明等）
 
 **规则**：
 
@@ -1897,21 +1902,29 @@ public static class LoggingHelper { }  // ❌ 与 LineModel/Utilities/LoggingHel
    - 不再在 RepositoryStructure.md 中保留完整的过程描述
    - 禁止出现"代码中有 TODO / FIXME，但在索引表中没有对应记录"的情况
 
-2. 技术债的详细描述（PR 过程、文件列表、测试变更等）统一存放在 `docs/TechnicalDebtLog.md` 中：
+2. 技术债的详细描述（PR 过程、文件列表、测试变更等）**统一且仅**存放在 `docs/TechnicalDebtLog.md` 中：
    - 按 TD-xxx 编号组织
    - 包含完整的问题描述、解决方案、影响范围
    - 索引表中的详情链接指向此文件的对应章节
+   - **禁止**在其他任何 markdown 文件中记录技术债务详情
 
 3. 当在代码中使用 `TODO` / `FIXME` 等注释时：
    - 必须在 RepositoryStructure.md 索引表中新增条目
    - 在代码注释中标明关联标识（例如 `TD-030`）
    - 在 TechnicalDebtLog.md 中添加详细描述
 
+4. 发现多个技术债务文档时的处理流程：
+   - 立即将其他技术债务文档的内容合并到 `TechnicalDebtLog.md`
+   - 删除其他技术债务文档
+   - 确保没有信息丢失
+
 **禁止行为**：
 
-- 仅在代码中写 TODO / FIXME，而不在索引表中记录对应技术债
-- 仅在 PR 描述中提到"这里有技术债务"，但不更新文档
-- 在 RepositoryStructure.md 中保留大段过程性描述（应移至 TechnicalDebtLog.md）
+- ❌ 创建任何名称包含 "debt"、"TODO"、"REMAINING"、"TASKS" 等的新 markdown 文件（`TechnicalDebtLog.md` 除外）
+- ❌ 仅在代码中写 TODO / FIXME，而不在索引表中记录对应技术债
+- ❌ 仅在 PR 描述中提到"这里有技术债务"，但不更新文档
+- ❌ 在 RepositoryStructure.md 中保留大段过程性描述（应移至 TechnicalDebtLog.md）
+- ❌ 保留多个技术债务文档并存（即使是临时的）
 
 ---
 

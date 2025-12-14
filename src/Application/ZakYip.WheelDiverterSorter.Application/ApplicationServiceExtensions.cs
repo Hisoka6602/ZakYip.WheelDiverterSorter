@@ -65,11 +65,11 @@ public static class ApplicationServiceExtensions
         // 注册性能指标服务
         services.AddSingleton<SorterMetrics>();
         
-        // 注册通信统计服务
+        // 注册通信统计服务（单例模式，确保计数器全局唯一）
+        // 同时注册为 IMessageStatsCallback 以供 Communication 层使用（无需适配器）
         services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
-        
-        // 注册通信统计回调适配器（用于Communication层与Application层解耦）
-        services.AddSingleton<ZakYip.WheelDiverterSorter.Communication.Abstractions.IMessageStatsCallback, CommunicationStatsCallbackAdapter>();
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Communication.Abstractions.IMessageStatsCallback>(
+            sp => sp.GetRequiredService<ICommunicationStatsService>());
         
         // 注册分拣统计服务（单例模式，确保计数器全局唯一）
         services.AddSingleton<ISortingStatisticsService, SortingStatisticsService>();

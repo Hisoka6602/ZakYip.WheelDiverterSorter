@@ -1,7 +1,7 @@
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
-namespace ZakYip.WheelDiverterSorter.Ingress.Models;
+namespace ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 
 /// <summary>
 /// 传感器事件

@@ -1,6 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using ZakYip.WheelDiverterSorter.Core.Enums;
-using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Ingress;

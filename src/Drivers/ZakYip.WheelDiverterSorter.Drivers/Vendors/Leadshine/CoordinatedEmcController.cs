@@ -7,6 +7,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
@@ -26,13 +27,6 @@ public class CoordinatedEmcController : IEmcController, IDisposable
 
     /// <inheritdoc/>
     public ushort CardNo => _emcController.CardNo;
-
-    private enum LockType
-    {
-        None,
-        TcpBased,    // 使用 IEmcResourceLockManager (旧实现)
-        NamedMutex   // 使用 IEmcResourceLock (新实现)
-    }
 
     /// <summary>
     /// 构造函数（不使用分布式锁）
