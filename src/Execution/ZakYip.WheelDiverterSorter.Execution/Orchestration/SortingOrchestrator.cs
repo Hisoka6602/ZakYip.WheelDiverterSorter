@@ -1223,7 +1223,26 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         DiverterDirection actionToExecute;
         
-        if (isTimeout)
+        // 处理丢失包裹（优先级最高）
+        if (isLost)
+        {
+            var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+            _logger.LogError(
+                "[IO触发检测到丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 丢失 " +
+                "(延迟={DelayMs}ms, 丢失阈值={ThresholdMs}ms, 截止时间={Deadline:HH:mm:ss.fff})，" +
+                "跳过执行摆轮动作",
+                task.ParcelId, 
+                positionIndex, 
+                delayMs,
+                task.LostDetectionTimeoutMs ?? 0,
+                task.LostDetectionDeadline);
+            
+            // 丢失包裹不执行摆轮动作，直接返回
+            // 所有队列清理和上游通知已由 OnParcelLostDetectedAsync 处理
+            _metrics?.RecordSortingFailure(0);
+            return;
+        }
+        else if (isTimeout)
         {
             var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
             _logger.LogWarning(
