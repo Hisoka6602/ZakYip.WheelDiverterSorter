@@ -73,6 +73,11 @@ public record UpdateLoggingConfigCommand
     public bool EnableCommunicationLog { get; init; } = true;
 
     /// <summary>
+    /// 是否启用上游通信日志
+    /// </summary>
+    public bool EnableUpstreamCommunicationLog { get; init; } = true;
+
+    /// <summary>
     /// 是否启用硬件驱动日志
     /// </summary>
     public bool EnableDriverLog { get; init; } = true;

@@ -78,11 +78,12 @@ public class LoggingConfigService : ILoggingConfigService
                 afterConfig: updatedConfig);
 
             _logger.LogInformation(
-                "日志配置已更新（热更新生效）: ParcelLifecycle={ParcelLifecycle}, ParcelTrace={ParcelTrace}, PathExecution={PathExecution}, Communication={Communication}, Driver={Driver}, Performance={Performance}, Alarm={Alarm}, Debug={Debug}, Version={Version}",
+                "日志配置已更新（热更新生效）: ParcelLifecycle={ParcelLifecycle}, ParcelTrace={ParcelTrace}, PathExecution={PathExecution}, Communication={Communication}, UpstreamCommunication={UpstreamCommunication}, Driver={Driver}, Performance={Performance}, Alarm={Alarm}, Debug={Debug}, Version={Version}",
                 updatedConfig.EnableParcelLifecycleLog,
                 updatedConfig.EnableParcelTraceLog,
                 updatedConfig.EnablePathExecutionLog,
                 updatedConfig.EnableCommunicationLog,
+                updatedConfig.EnableUpstreamCommunicationLog,
                 updatedConfig.EnableDriverLog,
                 updatedConfig.EnablePerformanceLog,
                 updatedConfig.EnableAlarmLog,
@@ -137,6 +138,7 @@ public class LoggingConfigService : ILoggingConfigService
             EnableParcelTraceLog = request.EnableParcelTraceLog,
             EnablePathExecutionLog = request.EnablePathExecutionLog,
             EnableCommunicationLog = request.EnableCommunicationLog,
+            EnableUpstreamCommunicationLog = request.EnableUpstreamCommunicationLog,
             EnableDriverLog = request.EnableDriverLog,
             EnablePerformanceLog = request.EnablePerformanceLog,
             EnableAlarmLog = request.EnableAlarmLog,

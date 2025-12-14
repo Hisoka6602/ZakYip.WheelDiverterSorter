@@ -14,6 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 /// | EnableParcelTraceLog | parcel-trace-{date}.log | 包裹追踪日志 |
 /// | EnablePathExecutionLog | path-execution-{date}.log | 路径执行日志 |
 /// | EnableCommunicationLog | communication-{date}.log | 通信日志 |
+/// | EnableUpstreamCommunicationLog | upstream-communication-{date}.log | 上游通信日志（消息收发详情） |
 /// | EnableDriverLog | driver-{date}.log | 硬件驱动日志 |
 /// | EnablePerformanceLog | performance-{date}.log | 性能监控日志 |
 /// | EnableAlarmLog | alarm-{date}.log | 告警日志 |
@@ -72,6 +73,16 @@ public class LoggingConfiguration
     /// 对应日志文件: communication-{date}.log
     /// </remarks>
     public bool EnableCommunicationLog { get; set; } = true;
+
+    /// <summary>
+    /// 是否启用上游通信日志
+    /// </summary>
+    /// <remarks>
+    /// 记录与上游系统的详细消息收发内容（ParcelDetectionNotification、ChuteAssignmentNotification、SortingCompletedNotification）。
+    /// 对应日志文件: upstream-communication-{date}.log
+    /// 此日志文件专门记录上游通信的消息内容，便于排查上游通信问题。
+    /// </remarks>
+    public bool EnableUpstreamCommunicationLog { get; set; } = true;
 
     /// <summary>
     /// 是否启用硬件驱动日志
@@ -156,6 +167,7 @@ public class LoggingConfiguration
             EnableParcelTraceLog = true,
             EnablePathExecutionLog = true,
             EnableCommunicationLog = true,
+            EnableUpstreamCommunicationLog = true,
             EnableDriverLog = true,
             EnablePerformanceLog = true,
             EnableAlarmLog = true,
