@@ -48,24 +48,4 @@ public record ParcelLossDetectionConfigDto
     /// </remarks>
     /// <example>10</example>
     public required int WindowSize { get; init; }
-    
-    /// <summary>
-    /// 最小阈值（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 防止阈值过低导致误判
-    /// 默认值：1000ms (1秒)
-    /// </remarks>
-    /// <example>1000</example>
-    public required double MinThresholdMs { get; init; }
-    
-    /// <summary>
-    /// 最大阈值（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 防止阈值过高导致检测延迟过长
-    /// 默认值：10000ms (10秒)
-    /// </remarks>
-    /// <example>10000</example>
-    public required double MaxThresholdMs { get; init; }
 }

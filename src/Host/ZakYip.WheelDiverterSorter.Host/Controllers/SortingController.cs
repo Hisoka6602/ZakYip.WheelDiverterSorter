@@ -46,36 +46,36 @@ public class SortingController : ApiControllerBase
     private readonly IDebugSortService? _debugSortService;
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
+    private readonly IParcelLossDetectionConfigurationRepository _lossDetectionConfigRepository;
     private readonly ISystemClock _clock;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SortingController> _logger;
     private readonly Execution.Tracking.IPositionIntervalTracker? _intervalTracker;
     private readonly AlarmService _alarmService;
     private readonly ISortingStatisticsService _statisticsService;
-    private readonly IOptionsMonitor<PositionIntervalTrackerOptions> _trackerOptionsMonitor;
 
     public SortingController(
         IChangeParcelChuteService changeParcelChuteService,
         IPositionIndexQueueManager queueManager,
         IChuteDropoffCallbackConfigurationRepository callbackConfigRepository,
+        IParcelLossDetectionConfigurationRepository lossDetectionConfigRepository,
         ISystemClock clock,
         IWebHostEnvironment environment,
         ILogger<SortingController> logger,
         AlarmService alarmService,
         ISortingStatisticsService statisticsService,
-        IOptionsMonitor<PositionIntervalTrackerOptions> trackerOptionsMonitor,
         IDebugSortService? debugSortService = null,
         Execution.Tracking.IPositionIntervalTracker? intervalTracker = null)
     {
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _callbackConfigRepository = callbackConfigRepository ?? throw new ArgumentNullException(nameof(callbackConfigRepository));
+        _lossDetectionConfigRepository = lossDetectionConfigRepository ?? throw new ArgumentNullException(nameof(lossDetectionConfigRepository));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _alarmService = alarmService ?? throw new ArgumentNullException(nameof(alarmService));
         _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
-        _trackerOptionsMonitor = trackerOptionsMonitor ?? throw new ArgumentNullException(nameof(trackerOptionsMonitor));
         _debugSortService = debugSortService;
         _intervalTracker = intervalTracker;
     }
@@ -838,16 +838,14 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            var options = _trackerOptionsMonitor.CurrentValue;
+            var config = _lossDetectionConfigRepository.Get();
             
             var response = new ParcelLossDetectionConfigDto
             {
-                MonitoringIntervalMs = options.MonitoringIntervalMs,
-                LostDetectionMultiplier = options.LostDetectionMultiplier,
-                TimeoutMultiplier = options.TimeoutMultiplier,
-                WindowSize = options.WindowSize,
-                MinThresholdMs = options.MinThresholdMs,
-                MaxThresholdMs = options.MaxThresholdMs
+                MonitoringIntervalMs = config.MonitoringIntervalMs,
+                LostDetectionMultiplier = config.LostDetectionMultiplier,
+                TimeoutMultiplier = config.TimeoutMultiplier,
+                WindowSize = config.WindowSize
             };
             
             return Ok(response);

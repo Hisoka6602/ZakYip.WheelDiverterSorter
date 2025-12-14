@@ -181,11 +181,10 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         var intervals = buffer.ToArray();
         var median = CalculateMedian(intervals);
         
-        // 应用系数计算动态阈值
+        // 应用系数计算动态阈值（直接使用中位数×系数，不做限幅）
         var threshold = median * _options.TimeoutMultiplier;
         
-        // 限制在合理范围内
-        return Math.Clamp(threshold, _options.MinThresholdMs, _options.MaxThresholdMs);
+        return threshold;
     }
     
     /// <inheritdoc/>
@@ -320,15 +319,6 @@ public sealed class PositionIntervalTrackerOptions
     public double TimeoutMultiplier { get; set; } = 3.0;
     
     /// <summary>
-    /// 最小阈值（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 防止阈值过低导致误判
-    /// 默认值：1000ms (1秒)
-    /// </remarks>
-    public double MinThresholdMs { get; set; } = 1000;
-    
-    /// <summary>
     /// 包裹记录清理阈值（当包裹记录数超过此值时触发清理）
     /// </summary>
     /// <remarks>
@@ -346,15 +336,6 @@ public sealed class PositionIntervalTrackerOptions
     /// 清理时会删除超过此数量的旧记录，给新包裹留空间
     /// </remarks>
     public int ParcelRecordRetentionCount { get; set; } = 800;
-    
-    /// <summary>
-    /// 最大阈值（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 防止阈值过高导致检测延迟过长
-    /// 默认值：10000ms (10秒)
-    /// </remarks>
-    public double MaxThresholdMs { get; set; } = 10000;
     
     /// <summary>
     /// 计算动态阈值所需的最小样本数
