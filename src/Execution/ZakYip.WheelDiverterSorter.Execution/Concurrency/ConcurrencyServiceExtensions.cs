@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Concurrency;
@@ -28,24 +27,6 @@ public static class ConcurrencyServiceExtensions
 
         // 注册摆轮资源锁管理器（单例）
         services.TryAddSingleton<IDiverterResourceLockManager, DiverterResourceLockManager>();
-
-        // 注册包裹队列（单例）
-        services.TryAddSingleton<IParcelQueue>(sp =>
-        {
-            var options = new ConcurrencyOptions();
-            configuration.GetSection(ConcurrencyOptions.SectionName).Bind(options);
-
-            var innerQueue = new PriorityParcelQueue(options.ParcelQueueCapacity);
-            
-            // Try to get AlarmService and wrap with monitoring if available
-            var alarmService = sp.GetService<AlarmService>();
-            if (alarmService != null)
-            {
-                return new MonitoredParcelQueue(innerQueue, alarmService);
-            }
-            
-            return innerQueue;
-        });
 
         return services;
     }
