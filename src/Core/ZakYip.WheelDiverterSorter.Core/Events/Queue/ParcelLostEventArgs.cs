@@ -6,8 +6,9 @@ namespace ZakYip.WheelDiverterSorter.Core.Events.Queue;
 /// <remarks>
 /// 当包裹在传输过程中物理丢失（不在分拣设备上）时触发。
 /// 与超时不同，丢失的包裹无法导向异常口，需要从队列中删除以避免影响后续包裹分拣。
+/// PR-CODING-STANDARDS: 转换为 sealed record class（事件载荷统一使用 record）
 /// </remarks>
-public class ParcelLostEventArgs : EventArgs
+public sealed record class ParcelLostEventArgs
 {
     /// <summary>
     /// 丢失的包裹ID

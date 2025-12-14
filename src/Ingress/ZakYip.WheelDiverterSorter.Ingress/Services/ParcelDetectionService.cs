@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
-using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;

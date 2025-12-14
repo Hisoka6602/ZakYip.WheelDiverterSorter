@@ -8,7 +8,6 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
-using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 

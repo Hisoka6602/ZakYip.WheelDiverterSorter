@@ -27,6 +27,9 @@ public class CoordinatedEmcController : IEmcController, IDisposable
     /// <inheritdoc/>
     public ushort CardNo => _emcController.CardNo;
 
+    /// <summary>
+    /// EMC锁类型（内部使用）
+    /// </summary>
     private enum LockType
     {
         None,
