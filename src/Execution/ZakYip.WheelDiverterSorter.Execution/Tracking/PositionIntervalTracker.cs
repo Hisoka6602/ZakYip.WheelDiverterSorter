@@ -187,6 +187,33 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         // 限制在合理范围内
         return Math.Clamp(threshold, _options.MinThresholdMs, _options.MaxThresholdMs);
     }
+    
+    /// <inheritdoc/>
+    public double? GetLostDetectionThreshold(int positionIndex)
+    {
+        if (!_intervalHistory.TryGetValue(positionIndex, out var buffer))
+        {
+            return null;
+        }
+        
+        // 数据不足，返回 null
+        if (buffer.Count < _options.MinSamplesForThreshold)
+        {
+            return null;
+        }
+        
+        var intervals = buffer.ToArray();
+        var median = CalculateMedian(intervals);
+        
+        // 应用丢失判定系数计算阈值
+        var lostThreshold = median * _options.LostDetectionMultiplier;
+        
+        _logger.LogDebug(
+            "[丢失检测阈值] Position {PositionIndex}: 中位数={MedianMs}ms, 系数={Factor}, 阈值={ThresholdMs}ms",
+            positionIndex, median, _options.LostDetectionMultiplier, lostThreshold);
+        
+        return lostThreshold;
+    }
 
     /// <inheritdoc/>
     public void ClearStatistics(int positionIndex)
@@ -326,6 +353,18 @@ public sealed class PositionIntervalTrackerOptions
     /// 默认值：3
     /// </remarks>
     public int MinSamplesForThreshold { get; set; } = 3;
+    
+    /// <summary>
+    /// 丢失判定系数（应用于中位数）
+    /// </summary>
+    /// <remarks>
+    /// 丢失阈值 = 中位数 * 丢失判定系数
+    /// 用于判断包裹是否物理丢失（不在分拣设备上）
+    /// 默认值：1.5
+    /// 推荐范围：1.5-2.5
+    /// 超过此阈值判定为包裹丢失，需要从队列删除
+    /// </remarks>
+    public double LostDetectionMultiplier { get; set; } = 1.5;
     
     /// <summary>
     /// 最大合理间隔（毫秒）

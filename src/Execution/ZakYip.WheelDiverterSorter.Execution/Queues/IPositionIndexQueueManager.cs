@@ -77,4 +77,14 @@ public interface IPositionIndexQueueManager
     /// <param name="positionIndex">Position Index</param>
     /// <returns>如果队列为空或不存在则返回 true</returns>
     bool IsQueueEmpty(int positionIndex);
+    
+    /// <summary>
+    /// 从所有 position 队列中移除指定包裹的所有任务
+    /// </summary>
+    /// <param name="parcelId">要移除的包裹ID</param>
+    /// <returns>移除的任务数量</returns>
+    /// <remarks>
+    /// 用于包裹丢失场景：当包裹物理丢失时，需要从所有队列中清理该包裹的任务，避免影响后续包裹分拣。
+    /// </remarks>
+    int RemoveAllTasksForParcel(long parcelId);
 }
