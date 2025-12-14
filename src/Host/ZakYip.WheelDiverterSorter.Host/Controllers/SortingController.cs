@@ -814,6 +814,7 @@ public class SortingController : ApiControllerBase
     /// **示例响应**：
     /// ```json
     /// {
+    ///   "monitoringIntervalMs": 60,
     ///   "lostDetectionMultiplier": 1.5,
     ///   "timeoutMultiplier": 3.0,
     ///   "windowSize": 10,
@@ -825,7 +826,7 @@ public class SortingController : ApiControllerBase
     [HttpGet("loss-detection-config")]
     [SwaggerOperation(
         Summary = "获取包裹丢失检测配置",
-        Description = "返回当前包裹丢失检测的配置参数，包括丢失检测系数、超时检测系数等",
+        Description = "返回当前包裹丢失检测的配置参数，包括监控间隔、丢失检测系数、超时检测系数等",
         OperationId = "GetParcelLossDetectionConfig",
         Tags = new[] { "分拣管理" }
     )]
@@ -841,6 +842,7 @@ public class SortingController : ApiControllerBase
             
             var response = new ParcelLossDetectionConfigDto
             {
+                MonitoringIntervalMs = options.MonitoringIntervalMs,
                 LostDetectionMultiplier = options.LostDetectionMultiplier,
                 TimeoutMultiplier = options.TimeoutMultiplier,
                 WindowSize = options.WindowSize,
@@ -868,6 +870,12 @@ public class SortingController : ApiControllerBase
     /// <remarks>
     /// 更新包裹丢失检测的配置参数。修改后立即生效。
     /// 
+    /// **监控间隔 (MonitoringIntervalMs)**：
+    /// - 可选参数
+    /// - 取值范围：50-1000ms
+    /// - 包裹丢失监控服务扫描队列的时间间隔
+    /// - 默认值：60ms
+    /// 
     /// **丢失检测系数 (LostDetectionMultiplier)**：
     /// - 必填参数
     /// - 取值范围：1.0-5.0
@@ -882,6 +890,7 @@ public class SortingController : ApiControllerBase
     /// **示例请求**：
     /// ```json
     /// {
+    ///   "monitoringIntervalMs": 60,
     ///   "lostDetectionMultiplier": 2.0,
     ///   "timeoutMultiplier": 3.5
     /// }
@@ -890,6 +899,7 @@ public class SortingController : ApiControllerBase
     /// **示例响应**：
     /// ```json
     /// {
+    ///   "monitoringIntervalMs": 60,
     ///   "lostDetectionMultiplier": 2.0,
     ///   "timeoutMultiplier": 3.5,
     ///   "windowSize": 10,
@@ -938,14 +948,21 @@ public class SortingController : ApiControllerBase
                 return BadRequest(new { message = "超时检测系数必须在1.5-10.0之间" });
             }
 
+            if (request.MonitoringIntervalMs.HasValue &&
+                (request.MonitoringIntervalMs.Value < 50 || request.MonitoringIntervalMs.Value > 1000))
+            {
+                return BadRequest(new { message = "监控间隔必须在50-1000ms之间" });
+            }
+
             // 注意：IOptionsMonitor 本身不支持运行时修改配置
             // 这里我们需要通过配置文件或配置提供者来更新
             // 为了简化实现，我们记录日志并返回当前配置
             // 实际的配置更新需要通过 appsettings.json 或配置中心
             
             _logger.LogWarning(
-                "收到更新包裹丢失检测配置请求: LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}。" +
+                "收到更新包裹丢失检测配置请求: MonitoringIntervalMs={MonitoringInterval}, LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}。" +
                 "注意：当前实现需要通过修改 appsettings.json 中的 PositionIntervalTrackerOptions 配置并重启服务才能生效。",
+                request.MonitoringIntervalMs,
                 request.LostDetectionMultiplier,
                 request.TimeoutMultiplier);
             
@@ -953,6 +970,7 @@ public class SortingController : ApiControllerBase
             
             var response = new ParcelLossDetectionConfigDto
             {
+                MonitoringIntervalMs = currentOptions.MonitoringIntervalMs,
                 LostDetectionMultiplier = currentOptions.LostDetectionMultiplier,
                 TimeoutMultiplier = currentOptions.TimeoutMultiplier,
                 WindowSize = currentOptions.WindowSize,
@@ -965,6 +983,7 @@ public class SortingController : ApiControllerBase
                 message = "配置更新请求已记录。当前实现需要修改 appsettings.json 配置并重启服务。",
                 requestedConfig = new
                 {
+                    monitoringIntervalMs = request.MonitoringIntervalMs,
                     lostDetectionMultiplier = request.LostDetectionMultiplier,
                     timeoutMultiplier = request.TimeoutMultiplier
                 },

@@ -290,6 +290,17 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
 public sealed class PositionIntervalTrackerOptions
 {
     /// <summary>
+    /// 监控间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 包裹丢失监控服务扫描队列的时间间隔
+    /// 默认值：60ms
+    /// 推荐范围：50-500ms
+    /// 值越小检测越及时，但CPU占用越高
+    /// </remarks>
+    public int MonitoringIntervalMs { get; set; } = 60;
+    
+    /// <summary>
     /// 历史窗口大小（保留最近 N 个间隔样本）
     /// </summary>
     /// <remarks>

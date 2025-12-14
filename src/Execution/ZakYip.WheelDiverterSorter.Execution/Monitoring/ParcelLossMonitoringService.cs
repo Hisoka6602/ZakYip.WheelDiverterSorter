@@ -29,9 +29,6 @@ public class ParcelLossMonitoringService : BackgroundService
     private readonly ISafeExecutionService _safeExecutor;
     private readonly PositionIntervalTrackerOptions _trackerOptions;
     
-    // 监控间隔：每500ms扫描一次
-    private const int MonitoringIntervalMs = 500;
-    
     // 已报告丢失的包裹集合（防止重复日志）
     private readonly ConcurrentDictionary<long, DateTime> _reportedLostParcels = new();
     
@@ -58,7 +55,8 @@ public class ParcelLossMonitoringService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("包裹丢失监控服务已启动，监控间隔: {IntervalMs}ms", MonitoringIntervalMs);
+        var monitoringIntervalMs = _trackerOptions.MonitoringIntervalMs;
+        _logger.LogInformation("包裹丢失监控服务已启动，监控间隔: {IntervalMs}ms", monitoringIntervalMs);
         
         await _safeExecutor.ExecuteAsync(
             async () =>
@@ -66,7 +64,7 @@ public class ParcelLossMonitoringService : BackgroundService
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     await MonitorQueuesForLostParcels();
-                    await Task.Delay(MonitoringIntervalMs, stoppingToken);
+                    await Task.Delay(monitoringIntervalMs, stoppingToken);
                 }
             },
             operationName: "ParcelLossMonitoring",

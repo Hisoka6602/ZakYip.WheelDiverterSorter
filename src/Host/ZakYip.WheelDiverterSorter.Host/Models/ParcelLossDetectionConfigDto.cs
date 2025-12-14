@@ -6,6 +6,18 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 public record ParcelLossDetectionConfigDto
 {
     /// <summary>
+    /// 监控间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 包裹丢失监控服务扫描队列的时间间隔
+    /// 默认值：60ms
+    /// 推荐范围：50-500ms
+    /// 值越小检测越及时，但CPU占用越高
+    /// </remarks>
+    /// <example>60</example>
+    public required int MonitoringIntervalMs { get; init; }
+    
+    /// <summary>
     /// 丢失检测系数
     /// </summary>
     /// <remarks>
