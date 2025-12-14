@@ -80,8 +80,8 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         // 记录当前位置的到达时间
         positionTimes[positionIndex] = arrivedAt;
         
-        // 如果不是起点(position 1)，计算与前一个position的间隔
-        if (positionIndex > 1)
+        // 如果不是入口位置(position 0)，计算与前一个position的间隔
+        if (positionIndex > 0)
         {
             int previousPosition = positionIndex - 1;
             
@@ -116,7 +116,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         else
         {
             _logger.LogDebug(
-                "包裹 {ParcelId} 到达起点 Position {PosIndex}，不计算间隔",
+                "包裹 {ParcelId} 到达入口位置 Position {PosIndex}（起点），不计算间隔",
                 parcelId, positionIndex);
         }
         
@@ -156,7 +156,7 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     public IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics()
     {
         return _intervalHistory.Keys
-            .Where(k => k > 1) // 排除 positionIndex = 1 (起点没有间隔数据)
+            .Where(k => k > 0) // 排除 positionIndex = 0 (入口位置没有间隔数据)
             .OrderBy(k => k)
             .Select(GetStatistics)
             .Where(stat => stat != null)

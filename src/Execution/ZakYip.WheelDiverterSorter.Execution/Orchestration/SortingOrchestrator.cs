@@ -564,6 +564,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // PR-08B: 记录包裹进入系统
         _congestionCollector?.RecordParcelEntry(parcelId, _clock.LocalNow);
 
+        // 记录包裹在入口位置（position 0）的时间，用于跟踪入口到第一个摆轮的间隔
+        _intervalTracker?.RecordParcelPosition(parcelId, 0, _clock.LocalNow);
+
         // 触发包裹创建事件，通知其他逻辑代码
         var parcelCreatedArgs = new ParcelCreatedEventArgs
         {
