@@ -1208,45 +1208,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
         
-        // 优先级规则：包裹丢失的严重性大于包裹超时
-        // 判断顺序：
-        // 1. 先检查是否丢失 (delay > LostDetectionThreshold)
-        // 2. 再检查是否超时 (delay > TimeoutThreshold)
-        // 3. 否则正常执行
-        // 如果同时满足丢失和超时条件，按丢失处理
+        // IO触发逻辑说明：
+        // 1. 包裹物理丢失的情况由 ParcelLossMonitoringService 主动检测并处理
+        // 2. 既然IO被触发，说明包裹物理上已经到达传感器，不可能是"丢失"
+        // 3. IO触发时只需要判断"超时"（延迟到达）或"正常到达"
+        // 4. 即使包裹延迟很大（如前面包裹丢失导致），也应该正常执行摆轮动作
         
-        // 检查是否丢失（丢失判定优先级最高）
-        var isLost = false;
-        if (task.LostDetectionDeadline.HasValue)
-        {
-            isLost = currentTime > task.LostDetectionDeadline.Value;
-        }
-        
-        // 检查超时（仅在未丢失时考虑超时）
-        var isTimeout = !isLost && currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
+        // 检查是否超时（延迟到达）
+        var isTimeout = currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
         
         DiverterDirection actionToExecute;
         
-        // 处理丢失包裹（优先级最高）
-        if (isLost)
-        {
-            var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
-            _logger.LogError(
-                "[IO触发检测到丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 丢失 " +
-                "(延迟={DelayMs:F0}ms, 丢失阈值={ThresholdMs}ms, 截止时间={Deadline:HH:mm:ss.fff})，跳过执行摆轮动作",
-                task.ParcelId, 
-                positionIndex, 
-                delayMs,
-                task.LostDetectionTimeoutMs ?? 0,
-                task.LostDetectionDeadline);
-            
-            // 丢失包裹不执行摆轮动作，直接返回
-            // 所有队列清理和上游通知已由 OnParcelLostDetectedAsync 处理
-            // 下一个包裹触发传感器时，会从队列取出它自己的任务（不同的ParcelId）
-            _metrics?.RecordSortingFailure(0);
-            return;
-        }
-        else if (isTimeout)
+        if (isTimeout)
         {
             var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
             _logger.LogWarning(
