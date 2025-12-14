@@ -30,6 +30,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// | EnableParcelTraceLog | parcel-trace-{date}.log | 包裹追踪日志 |
 /// | EnablePathExecutionLog | path-execution-{date}.log | 路径执行日志 |
 /// | EnableCommunicationLog | communication-{date}.log | 通信日志 |
+/// | EnableUpstreamCommunicationLog | upstream-communication-{date}.log | 上游通信日志（消息收发详情） |
 /// | EnableDriverLog | driver-{date}.log | 硬件驱动日志 |
 /// | EnablePerformanceLog | performance-{date}.log | 性能监控日志 |
 /// | EnableAlarmLog | alarm-{date}.log | 告警日志 |
@@ -112,6 +113,7 @@ public class LoggingConfigController : ApiControllerBase
             EnableParcelTraceLog = defaultConfig.EnableParcelTraceLog,
             EnablePathExecutionLog = defaultConfig.EnablePathExecutionLog,
             EnableCommunicationLog = defaultConfig.EnableCommunicationLog,
+            EnableUpstreamCommunicationLog = defaultConfig.EnableUpstreamCommunicationLog,
             EnableDriverLog = defaultConfig.EnableDriverLog,
             EnablePerformanceLog = defaultConfig.EnablePerformanceLog,
             EnableAlarmLog = defaultConfig.EnableAlarmLog,
@@ -158,6 +160,7 @@ public class LoggingConfigController : ApiControllerBase
                 EnableParcelTraceLog = request.EnableParcelTraceLog,
                 EnablePathExecutionLog = request.EnablePathExecutionLog,
                 EnableCommunicationLog = request.EnableCommunicationLog,
+                EnableUpstreamCommunicationLog = request.EnableUpstreamCommunicationLog,
                 EnableDriverLog = request.EnableDriverLog,
                 EnablePerformanceLog = request.EnablePerformanceLog,
                 EnableAlarmLog = request.EnableAlarmLog,
@@ -221,6 +224,7 @@ public class LoggingConfigController : ApiControllerBase
             EnableParcelTraceLog = config.EnableParcelTraceLog,
             EnablePathExecutionLog = config.EnablePathExecutionLog,
             EnableCommunicationLog = config.EnableCommunicationLog,
+            EnableUpstreamCommunicationLog = config.EnableUpstreamCommunicationLog,
             EnableDriverLog = config.EnableDriverLog,
             EnablePerformanceLog = config.EnablePerformanceLog,
             EnableAlarmLog = config.EnableAlarmLog,

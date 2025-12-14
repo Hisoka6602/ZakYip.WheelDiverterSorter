@@ -40,6 +40,13 @@ public record LoggingConfigRequest
     public bool EnableCommunicationLog { get; init; } = true;
 
     /// <summary>
+    /// 是否启用上游通信日志
+    /// </summary>
+    /// <example>true</example>
+    [SwaggerSchema(Description = "记录上游通信的详细消息收发内容（ParcelDetectionNotification、ChuteAssignmentNotification、SortingCompletedNotification），便于排查上游通信问题")]
+    public bool EnableUpstreamCommunicationLog { get; init; } = true;
+
+    /// <summary>
     /// 是否启用硬件驱动日志
     /// </summary>
     /// <example>true</example>
