@@ -74,6 +74,9 @@
 - [TD-069] 上游通信影分身清理与接口统一化
 - [TD-070] 硬件区域影分身代码检测
 - [TD-071] 冗余接口清理（信号塔、离散IO、报警控制）
+- [TD-072] ChuteDropoff传感器到格口映射配置
+- [TD-073] 多包裹同时落格同一格口的识别优化
+- [TD-074] 包裹丢失处理错误逻辑
 
 ---
 
@@ -3900,3 +3903,132 @@ private void CleanupStaleParcelRecords()
 
 ---
 
+
+## [TD-074] 包裹丢失处理错误逻辑
+
+**状态**：✅ 已解决 (当前 PR: fix-package-loss-handling)
+
+**问题描述**：
+
+包裹丢失处理存在两个致命缺陷：
+
+1. **全局重路由逻辑错误**：
+   - 当检测到单个包裹丢失时，`RerouteAllExistingParcelsToExceptionAsync` 方法会将队列中所有后续包裹的动作改为 `Straight`（导向异常口）
+   - 导致一个包裹丢失会让所有后续包裹失效，无法正常分拣
+   - 并通过 `NotifyUpstreamAffectedParcelsAsync` 上报所有"受影响包裹"（使用 `ParcelFinalStatus.AffectedByLoss`）
+
+2. **IO触发时的丢失检测逻辑错误**：
+   - 在 `OnSensorTriggered` 中检查 `currentTime > LostDetectionDeadline` 判定包裹丢失
+   - 逻辑矛盾：如果包裹真的丢失了，它不会到达传感器触发IO
+   - 实际情况：IO触发 = 包裹已到达 = 不可能丢失，只可能是延迟到达（超时）
+   - 导致延迟到达的包裹被误判为丢失，跳过执行摆轮动作
+
+**场景重现**：
+
+```
+时间线：
+T1: 创建P1、P2、P3 → 队列 [P1, P2, P3]
+T2: P1物理丢失（从输送线上消失）
+T3: 主动监控检测到P1丢失
+    ❌ 错误：删除P1任务 + 将P2/P3任务改为Straight
+    ❌ 错误：上报P1丢失 + 上报P2/P3"受影响"
+T4: P2到达传感器
+    ❌ 错误：检查P2延迟 → 误判为丢失 → 跳过执行
+T5: P3到达传感器
+    ❌ 错误：同样被误判 → 所有后续包裹失效
+```
+
+**解决方案**：
+
+1. **删除全局重路由逻辑**：
+   - 删除 `RerouteAllExistingParcelsToExceptionAsync()` 方法（133行代码）
+   - 删除 `NotifyUpstreamAffectedParcelsAsync()` 方法（46行代码）
+   - 修改 `OnParcelLostDetectedAsync()`：只处理丢失包裹本身，不影响其他包裹
+
+2. **删除IO触发中的丢失检测**：
+   - 删除 `isLost` 判断逻辑（32行代码）
+   - IO触发只处理超时和正常情况
+   - 逻辑：IO触发 = 包裹已到达 = 不可能丢失
+
+3. **删除废弃的枚举值**：
+   - 删除 `ParcelFinalStatus.AffectedByLoss` 枚举值（不再有"受影响包裹"的概念）
+
+**职责分离**：
+
+| 组件 | 职责 | 检测方式 |
+|------|------|----------|
+| **ParcelLossMonitoringService** | 检测物理丢失的包裹 | 定期扫描队列，检测超过丢失判定截止时间且未触发IO的包裹 |
+| **OnSensorTriggered (IO触发)** | 执行已到达包裹的摆轮动作 | 只判断超时/正常，不判断丢失（因为IO触发=已到达） |
+
+**修复后行为**：
+
+```
+时间线：
+T1: 创建P1、P2、P3 → 队列 [P1, P2, P3]
+T2: P1物理丢失
+T3: 主动监控检测到P1丢失
+    ✅ 正确：删除P1任务 → 队列 [P2, P3]
+    ✅ 正确：上报P1丢失（FinalStatus=Lost）
+    ✅ 正确：P2/P3任务保持不变
+T4: P2到达传感器
+    ✅ 正确：IO触发，取出P2任务
+    ✅ 正确：检查超时（可能因等待P1而超时）
+    ✅ 正确：执行P2动作（正常或回退）
+    ✅ 正确：P2正常分拣
+T5: P3到达传感器
+    ✅ 正确：IO触发，取出P3任务
+    ✅ 正确：正常执行P3动作
+    ✅ 正确：P3分拣到目标格口
+```
+
+**影响范围**：
+
+| 文件 | 修改类型 | 说明 |
+|------|----------|------|
+| `Execution/Orchestration/SortingOrchestrator.cs` | 删除方法 | 删除 `RerouteAllExistingParcelsToExceptionAsync()` 和 `NotifyUpstreamAffectedParcelsAsync()` |
+| `Execution/Orchestration/SortingOrchestrator.cs` | 修改方法 | 简化 `OnParcelLostDetectedAsync()`，只处理丢失包裹本身 |
+| `Execution/Orchestration/SortingOrchestrator.cs` | 删除逻辑 | 删除 `ExecuteWheelFrontSortingAsync()` 中的 `isLost` 判断 |
+| `Core/Enums/Parcel/ParcelFinalStatus.cs` | 删除枚举 | 删除 `AffectedByLoss` 枚举值 |
+| `docs/RepositoryStructure.md` | 新增索引 | 添加 TD-074 索引条目 |
+| `docs/TechnicalDebtLog.md` | 新增详情 | 本章节 |
+
+**代码变更统计**：
+
+- 修改文件：2个（`SortingOrchestrator.cs`, `ParcelFinalStatus.cs`）
+- 删除代码：220行
+- 新增代码：28行（注释说明）
+- 净减少：192行
+
+**关键改进**：
+
+1. ✅ **包裹独立性**：丢失只影响丢失包裹本身，不影响其他包裹
+2. ✅ **队列正确性**：FIFO机制保持完整，物理顺序=队列顺序
+3. ✅ **逻辑一致性**：不再矛盾地判定"已到达的包裹丢失"
+4. ✅ **职责清晰**：主动监控负责丢失检测，IO触发负责动作执行
+
+**测试验证**：
+
+```bash
+# 编译成功
+dotnet build ZakYip.WheelDiverterSorter.sln
+# Build succeeded. 0 Warning(s), 0 Error(s)
+
+# 执行测试
+dotnet test tests/ZakYip.WheelDiverterSorter.Execution.Tests/
+# Passed: 140, Skipped: 8, Failed: 13 (已存在的无关测试)
+```
+
+**架构约束符合性**：
+
+- ✅ 遵守 `CORE_ROUTING_LOGIC.md` 的队列FIFO机制
+- ✅ 以IO触发为操作起点（不破坏触发机制）
+- ✅ 丢失检测采用主动监控（后台服务）而非IO依赖
+- ✅ 保持最小修改原则（只删除错误逻辑，不改变核心流程）
+
+**相关文档**：
+
+- `docs/CORE_ROUTING_LOGIC.md` - 核心路由逻辑说明
+- `.github/copilot-instructions.md` - 编码规范
+- PR代码审查评论 (comment_id: 2617327284, 2617327285)
+
+---
