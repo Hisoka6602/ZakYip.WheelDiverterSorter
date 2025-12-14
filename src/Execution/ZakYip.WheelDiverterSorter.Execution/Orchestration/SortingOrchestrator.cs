@@ -1233,8 +1233,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
             _logger.LogError(
                 "[IO触发检测到丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 丢失 " +
-                "(延迟={DelayMs}ms, 丢失阈值={ThresholdMs}ms, 截止时间={Deadline:HH:mm:ss.fff})，" +
-                "跳过执行摆轮动作。此包裹不会被误认为下一个包裹，因为每个任务都有唯一的ParcelId标识。",
+                "(延迟={DelayMs:F0}ms, 丢失阈值={ThresholdMs}ms, 截止时间={Deadline:HH:mm:ss.fff})，跳过执行摆轮动作",
                 task.ParcelId, 
                 positionIndex, 
                 delayMs,
