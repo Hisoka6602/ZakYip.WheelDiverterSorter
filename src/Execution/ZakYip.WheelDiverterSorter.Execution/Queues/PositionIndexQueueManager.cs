@@ -256,7 +256,8 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <inheritdoc/>
     public List<long> UpdateAffectedParcelsToStraight(DateTime lostParcelCreatedAt, DateTime detectionTime)
     {
-        var affectedParcelIds = new List<long>();
+        // 使用 HashSet 提高去重性能 O(1) vs O(n)
+        var affectedParcelIdsSet = new HashSet<long>();
         var affectedPositions = new Dictionary<int, int>(); // positionIndex -> 修改数量
 
         foreach (var (positionIndex, queue) in _queues)
@@ -280,11 +281,8 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
                         var modifiedTask = task with { DiverterAction = DiverterDirection.Straight };
                         tempTasks.Add(modifiedTask);
                         
-                        // 记录受影响的包裹ID（去重）
-                        if (!affectedParcelIds.Contains(task.ParcelId))
-                        {
-                            affectedParcelIds.Add(task.ParcelId);
-                        }
+                        // 记录受影响的包裹ID（去重）- O(1) 性能
+                        affectedParcelIdsSet.Add(task.ParcelId);
                         
                         modifiedCount++;
                         
@@ -317,13 +315,13 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             }
         }
 
-        if (affectedParcelIds.Count > 0)
+        if (affectedParcelIdsSet.Count > 0)
         {
             _logger.LogWarning(
                 "[包裹丢失影响] 共 {ParcelCount} 个包裹受影响，任务方向已改为直行: [{ParcelIds}]，" +
                 "涉及 {PositionCount} 个 Position: {Positions}",
-                affectedParcelIds.Count,
-                string.Join(", ", affectedParcelIds),
+                affectedParcelIdsSet.Count,
+                string.Join(", ", affectedParcelIdsSet),
                 affectedPositions.Count,
                 string.Join(", ", affectedPositions.Select(kvp => $"P{kvp.Key}({kvp.Value}个任务)")));
         }
@@ -332,6 +330,7 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             _logger.LogDebug("[包裹丢失影响] 无其他包裹受影响");
         }
 
-        return affectedParcelIds;
+        // 转换为 List 返回
+        return affectedParcelIdsSet.ToList();
     }
 }
