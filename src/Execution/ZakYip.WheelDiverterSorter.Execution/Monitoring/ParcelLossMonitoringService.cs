@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -30,6 +31,9 @@ public class ParcelLossMonitoringService : BackgroundService
     
     // 监控间隔：每500ms扫描一次
     private const int MonitoringIntervalMs = 500;
+    
+    // 已报告丢失的包裹集合（防止重复日志）
+    private readonly ConcurrentDictionary<long, DateTime> _reportedLostParcels = new();
     
     /// <summary>
     /// 包裹丢失事件
@@ -87,9 +91,16 @@ public class ParcelLossMonitoringService : BackgroundService
             if (!headTask.LostDetectionDeadline.HasValue)
                 continue;
             
+            // 检查是否已报告过该包裹丢失（防止重复日志）
+            if (_reportedLostParcels.ContainsKey(headTask.ParcelId))
+                continue;
+            
             // 检查是否超过丢失判定截止时间
             if (currentTime > headTask.LostDetectionDeadline.Value)
             {
+                // 标记为已报告（在日志之前，防止重复）
+                _reportedLostParcels.TryAdd(headTask.ParcelId, currentTime);
+                
                 var delayMs = (currentTime - headTask.ExpectedArrivalTime).TotalMilliseconds;
                 var thresholdMs = headTask.LostDetectionTimeoutMs ?? 0;
                 
@@ -102,9 +113,32 @@ public class ParcelLossMonitoringService : BackgroundService
                     thresholdMs,
                     headTask.LostDetectionDeadline.Value);
                 
-                // 触发丢失事件
+                // 触发丢失事件（事件处理器会从队列移除该包裹的所有任务）
                 await OnParcelLostDetectedAsync(headTask, currentTime, positionIndex);
             }
+        }
+        
+        // 定期清理过期的已报告记录（保留最近1小时内的记录）
+        CleanupExpiredReportedParcels(currentTime);
+    }
+    
+    /// <summary>
+    /// 清理过期的已报告包裹记录
+    /// </summary>
+    /// <remarks>
+    /// 保留最近1小时内报告的记录，防止内存无限增长
+    /// </remarks>
+    private void CleanupExpiredReportedParcels(DateTime currentTime)
+    {
+        var expirationThreshold = currentTime.AddHours(-1);
+        var expiredKeys = _reportedLostParcels
+            .Where(kvp => kvp.Value < expirationThreshold)
+            .Select(kvp => kvp.Key)
+            .ToList();
+        
+        foreach (var key in expiredKeys)
+        {
+            _reportedLostParcels.TryRemove(key, out _);
         }
     }
 

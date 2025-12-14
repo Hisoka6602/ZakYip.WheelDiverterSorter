@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
@@ -12,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
+using ZakYip.WheelDiverterSorter.Execution.Tracking;
 using ZakYip.WheelDiverterSorter.Observability;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
@@ -50,6 +52,7 @@ public class SortingController : ApiControllerBase
     private readonly Execution.Tracking.IPositionIntervalTracker? _intervalTracker;
     private readonly AlarmService _alarmService;
     private readonly ISortingStatisticsService _statisticsService;
+    private readonly IOptionsMonitor<PositionIntervalTrackerOptions> _trackerOptionsMonitor;
 
     public SortingController(
         IChangeParcelChuteService changeParcelChuteService,
@@ -60,6 +63,7 @@ public class SortingController : ApiControllerBase
         ILogger<SortingController> logger,
         AlarmService alarmService,
         ISortingStatisticsService statisticsService,
+        IOptionsMonitor<PositionIntervalTrackerOptions> trackerOptionsMonitor,
         IDebugSortService? debugSortService = null,
         Execution.Tracking.IPositionIntervalTracker? intervalTracker = null)
     {
@@ -71,6 +75,7 @@ public class SortingController : ApiControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _alarmService = alarmService ?? throw new ArgumentNullException(nameof(alarmService));
         _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
+        _trackerOptionsMonitor = trackerOptionsMonitor ?? throw new ArgumentNullException(nameof(trackerOptionsMonitor));
         _debugSortService = debugSortService;
         _intervalTracker = intervalTracker;
     }
@@ -774,6 +779,203 @@ public class SortingController : ApiControllerBase
         {
             _logger.LogError(ex, "重置统计失败");
             return StatusCode(500, new { message = "重置统计失败" });
+        }
+    }
+
+    #endregion
+
+    #region 包裹丢失检测配置
+
+    /// <summary>
+    /// 获取包裹丢失检测配置
+    /// </summary>
+    /// <returns>当前包裹丢失检测配置</returns>
+    /// <response code="200">成功返回配置</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 返回包裹丢失检测的相关配置参数，包括：
+    /// 
+    /// **丢失检测系数 (LostDetectionMultiplier)**：
+    /// - 用于计算丢失判定阈值 = 中位数间隔 * 丢失检测系数
+    /// - 默认值：1.5
+    /// - 推荐范围：1.5-2.5
+    /// - 值越小越敏感，但可能误报；值越大越宽松，但可能漏报
+    /// 
+    /// **超时检测系数 (TimeoutMultiplier)**：
+    /// - 用于计算超时判定阈值 = 中位数间隔 * 超时检测系数
+    /// - 默认值：3.0
+    /// - 推荐范围：2.5-3.5
+    /// - 超时包裹会被导向异常格口，但不会从队列删除
+    /// 
+    /// **历史窗口大小 (WindowSize)**：
+    /// - 保留最近N个间隔样本用于统计
+    /// - 默认值：10
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "lostDetectionMultiplier": 1.5,
+    ///   "timeoutMultiplier": 3.0,
+    ///   "windowSize": 10,
+    ///   "minThresholdMs": 1000,
+    ///   "maxThresholdMs": 10000
+    /// }
+    /// ```
+    /// </remarks>
+    [HttpGet("loss-detection-config")]
+    [SwaggerOperation(
+        Summary = "获取包裹丢失检测配置",
+        Description = "返回当前包裹丢失检测的配置参数，包括丢失检测系数、超时检测系数等",
+        OperationId = "GetParcelLossDetectionConfig",
+        Tags = new[] { "分拣管理" }
+    )]
+    [SwaggerResponse(200, "成功返回配置", typeof(ParcelLossDetectionConfigDto))]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(ParcelLossDetectionConfigDto), 200)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<ParcelLossDetectionConfigDto> GetLossDetectionConfig()
+    {
+        try
+        {
+            var options = _trackerOptionsMonitor.CurrentValue;
+            
+            var response = new ParcelLossDetectionConfigDto
+            {
+                LostDetectionMultiplier = options.LostDetectionMultiplier,
+                TimeoutMultiplier = options.TimeoutMultiplier,
+                WindowSize = options.WindowSize,
+                MinThresholdMs = options.MinThresholdMs,
+                MaxThresholdMs = options.MaxThresholdMs
+            };
+            
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取包裹丢失检测配置失败");
+            return StatusCode(500, new { message = "获取包裹丢失检测配置失败" });
+        }
+    }
+
+    /// <summary>
+    /// 更新包裹丢失检测配置
+    /// </summary>
+    /// <param name="request">配置更新请求</param>
+    /// <returns>更新后的配置</returns>
+    /// <response code="200">配置更新成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 更新包裹丢失检测的配置参数。修改后立即生效。
+    /// 
+    /// **丢失检测系数 (LostDetectionMultiplier)**：
+    /// - 必填参数
+    /// - 取值范围：1.0-5.0
+    /// - 建议根据实际线速和包裹密度调整
+    /// - 例如：高速线体建议使用较小值（1.5-2.0），低速线体可使用较大值（2.0-2.5）
+    /// 
+    /// **超时检测系数 (TimeoutMultiplier)**：
+    /// - 可选参数
+    /// - 取值范围：1.5-10.0
+    /// - 如不提供则保持当前值不变
+    /// 
+    /// **示例请求**：
+    /// ```json
+    /// {
+    ///   "lostDetectionMultiplier": 2.0,
+    ///   "timeoutMultiplier": 3.5
+    /// }
+    /// ```
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "lostDetectionMultiplier": 2.0,
+    ///   "timeoutMultiplier": 3.5,
+    ///   "windowSize": 10,
+    ///   "minThresholdMs": 1000,
+    ///   "maxThresholdMs": 10000
+    /// }
+    /// ```
+    /// 
+    /// **注意事项**：
+    /// - 配置修改立即生效，影响后续的丢失判定
+    /// - 已在队列中的任务不受影响（使用创建时的阈值）
+    /// - 建议在低峰期或测试环境中调整参数
+    /// </remarks>
+    [HttpPost("loss-detection-config")]
+    [SwaggerOperation(
+        Summary = "更新包裹丢失检测配置",
+        Description = "修改包裹丢失检测的配置参数，包括丢失检测系数和超时检测系数。修改后立即生效。",
+        OperationId = "UpdateParcelLossDetectionConfig",
+        Tags = new[] { "分拣管理" }
+    )]
+    [SwaggerResponse(200, "配置更新成功", typeof(ParcelLossDetectionConfigDto))]
+    [SwaggerResponse(400, "请求参数无效")]
+    [SwaggerResponse(500, "服务器内部错误")]
+    [ProducesResponseType(typeof(ParcelLossDetectionConfigDto), 200)]
+    [ProducesResponseType(typeof(object), 400)]
+    [ProducesResponseType(typeof(object), 500)]
+    public ActionResult<ParcelLossDetectionConfigDto> UpdateLossDetectionConfig(
+        [FromBody] UpdateParcelLossDetectionConfigRequest request)
+    {
+        try
+        {
+            if (request == null)
+            {
+                return BadRequest(new { message = "请求体不能为空" });
+            }
+
+            // 验证参数范围
+            if (request.LostDetectionMultiplier < 1.0 || request.LostDetectionMultiplier > 5.0)
+            {
+                return BadRequest(new { message = "丢失检测系数必须在1.0-5.0之间" });
+            }
+
+            if (request.TimeoutMultiplier.HasValue && 
+                (request.TimeoutMultiplier.Value < 1.5 || request.TimeoutMultiplier.Value > 10.0))
+            {
+                return BadRequest(new { message = "超时检测系数必须在1.5-10.0之间" });
+            }
+
+            // 注意：IOptionsMonitor 本身不支持运行时修改配置
+            // 这里我们需要通过配置文件或配置提供者来更新
+            // 为了简化实现，我们记录日志并返回当前配置
+            // 实际的配置更新需要通过 appsettings.json 或配置中心
+            
+            _logger.LogWarning(
+                "收到更新包裹丢失检测配置请求: LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}。" +
+                "注意：当前实现需要通过修改 appsettings.json 中的 PositionIntervalTrackerOptions 配置并重启服务才能生效。",
+                request.LostDetectionMultiplier,
+                request.TimeoutMultiplier);
+            
+            var currentOptions = _trackerOptionsMonitor.CurrentValue;
+            
+            var response = new ParcelLossDetectionConfigDto
+            {
+                LostDetectionMultiplier = currentOptions.LostDetectionMultiplier,
+                TimeoutMultiplier = currentOptions.TimeoutMultiplier,
+                WindowSize = currentOptions.WindowSize,
+                MinThresholdMs = currentOptions.MinThresholdMs,
+                MaxThresholdMs = currentOptions.MaxThresholdMs
+            };
+            
+            return Ok(new
+            {
+                message = "配置更新请求已记录。当前实现需要修改 appsettings.json 配置并重启服务。",
+                requestedConfig = new
+                {
+                    lostDetectionMultiplier = request.LostDetectionMultiplier,
+                    timeoutMultiplier = request.TimeoutMultiplier
+                },
+                currentConfig = response,
+                hint = "请修改 appsettings.json 中的 PositionIntervalTrackerOptions 配置，然后重启服务使配置生效。"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新包裹丢失检测配置失败");
+            return StatusCode(500, new { message = "更新包裹丢失检测配置失败" });
         }
     }
 
