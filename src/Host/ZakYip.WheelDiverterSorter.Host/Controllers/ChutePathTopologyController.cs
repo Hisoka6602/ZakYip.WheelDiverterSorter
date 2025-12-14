@@ -441,7 +441,8 @@ public class ChutePathTopologyController : ControllerBase
                 var isUsingDefault = segment == null;
                 
                 // Add tolerance for variation
-                if (request.SimulateTimeout && node.DiverterId == pathNodes.Last().DiverterId)
+                var lastNode = pathNodes.LastOrDefault();
+                if (request.SimulateTimeout && lastNode != null && node.DiverterId == lastNode.DiverterId)
                 {
                     transitTimeMs += request.TimeoutExtraDelayMs;
                 }
@@ -488,7 +489,8 @@ public class ChutePathTopologyController : ControllerBase
                 }
 
                 // Check for timeout
-                if (request.SimulateTimeout && node.DiverterId == pathNodes.Last().DiverterId)
+                var lastNodeForTimeout = pathNodes.LastOrDefault();
+                if (request.SimulateTimeout && lastNodeForTimeout != null && node.DiverterId == lastNodeForTimeout.DiverterId)
                 {
                     transitStep.Status = StepStatus.Timeout;
                     transitStep.Description = $"[模拟超时] 包裹到达摆轮 {node.DiverterName ?? $"D{node.DiverterId}"} 超时 - [Simulated] Parcel arrival timeout";
