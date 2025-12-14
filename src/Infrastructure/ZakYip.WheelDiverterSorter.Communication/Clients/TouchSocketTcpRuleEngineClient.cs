@@ -373,6 +373,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
         try
         {
             await SendNotificationAsync(parcelId, cancellationToken);
+            RecordMessageSent(true);  // 记录发送成功
             return true;
         }
         catch (Exception ex)
@@ -460,6 +461,7 @@ public class TouchSocketTcpRuleEngineClient : RuleEngineClientBase
                 SystemClock.LocalNow,
                 notification.ParcelId);
 
+            RecordMessageSent(true);  // 记录发送成功
             return true;
         }
         catch (Exception ex)

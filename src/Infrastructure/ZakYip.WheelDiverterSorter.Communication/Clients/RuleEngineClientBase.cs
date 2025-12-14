@@ -21,6 +21,8 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     protected readonly UpstreamConnectionOptions Options;
     protected readonly ISystemClock SystemClock;
     private bool _disposed;
+    private Action? _onMessageSent;
+    private Action? _onMessageReceived;
 
     /// <summary>
     /// 客户端是否已连接
@@ -38,11 +40,25 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
     /// <param name="logger">日志记录器</param>
     /// <param name="options">连接配置</param>
     /// <param name="systemClock">系统时钟</param>
-    protected RuleEngineClientBase(ILogger logger, UpstreamConnectionOptions options, ISystemClock systemClock)
+    protected RuleEngineClientBase(
+        ILogger logger, 
+        UpstreamConnectionOptions options, 
+        ISystemClock systemClock)
     {
         Logger = logger ?? throw new ArgumentNullException(nameof(logger));
         Options = options ?? throw new ArgumentNullException(nameof(options));
         SystemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+    }
+
+    /// <summary>
+    /// 设置消息统计回调
+    /// </summary>
+    /// <param name="onMessageSent">消息发送回调</param>
+    /// <param name="onMessageReceived">消息接收回调</param>
+    public void SetStatsCallbacks(Action? onMessageSent, Action? onMessageReceived)
+    {
+        _onMessageSent = onMessageSent;
+        _onMessageReceived = onMessageReceived;
     }
 
     /// <summary>
@@ -103,6 +119,9 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
         DwsMeasurement? dwsPayload = null,
         Dictionary<string, string>? metadata = null)
     {
+        // 记录接收消息统计
+        _onMessageReceived?.Invoke();
+        
         var notification = new ChuteAssignmentEventArgs
         {
             ParcelId = parcelId,
@@ -112,6 +131,18 @@ public abstract class RuleEngineClientBase : IUpstreamRoutingClient, IDisposable
             Metadata = metadata
         };
         ChuteAssigned.SafeInvoke(this, notification, Logger, nameof(ChuteAssigned));
+    }
+
+    /// <summary>
+    /// 记录消息发送统计
+    /// </summary>
+    /// <param name="success">是否成功发送</param>
+    protected void RecordMessageSent(bool success)
+    {
+        if (success)
+        {
+            _onMessageSent?.Invoke();
+        }
     }
 
     /// <summary>
