@@ -25,10 +25,11 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Adapters;
 /// 作为桥梁连接 Execution 层和 Ingress 层，
 /// 使得 SortingOrchestrator 不需要直接依赖 Ingress 项目。
 /// </remarks>
-public sealed class SensorEventProviderAdapter : ISensorEventProvider
+public sealed class SensorEventProviderAdapter : ISensorEventProvider, IDisposable
 {
     private readonly IParcelDetectionService _parcelDetectionService;
     private readonly ILogger<SensorEventProviderAdapter> _logger;
+    private bool _disposed;
 
     /// <summary>
     /// 初始化传感器事件提供者适配器
@@ -112,5 +113,24 @@ public sealed class SensorEventProviderAdapter : ISensorEventProvider
 
         // 直接触发 Execution 层的事件（无需类型转换，统一使用 ChuteDropoffDetectedEventArgs）
         ChuteDropoffDetected.SafeInvoke(this, e, _logger, nameof(ChuteDropoffDetected));
+    }
+
+    /// <summary>
+    /// 释放资源并取消事件订阅（防止内存泄漏）
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // 取消订阅底层服务的事件
+        _parcelDetectionService.ParcelDetected -= OnUnderlyingParcelDetected;
+        _parcelDetectionService.DuplicateTriggerDetected -= OnUnderlyingDuplicateTriggerDetected;
+        _parcelDetectionService.ChuteDropoffDetected -= OnUnderlyingChuteDropoffDetected;
+
+        _disposed = true;
+        _logger.LogDebug("SensorEventProviderAdapter 已释放并取消订阅底层服务事件");
     }
 }

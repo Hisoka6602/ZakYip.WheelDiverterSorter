@@ -25,7 +25,7 @@ namespace ZakYip.WheelDiverterSorter.Simulation.Services;
 /// 负责协调整个仿真流程：生成虚拟包裹、触发检测事件、执行分拣、收集结果
 /// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </remarks>
-public class SimulationRunner
+public class SimulationRunner : IDisposable
 {
     private readonly SimulationOptions _options;
     private readonly IUpstreamRoutingClient _upstreamClient;
@@ -38,6 +38,7 @@ public class SimulationRunner
     private readonly IParcelLifecycleLogger? _lifecycleLogger;
     private readonly ICongestionDetector? _congestionDetector;
     private readonly CongestionMetricsCollector? _metricsCollector;
+    private bool _disposed;
     
     // 使用 ConcurrentDictionary 实现线程安全 / Use ConcurrentDictionary for thread safety
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments = new();
@@ -988,5 +989,22 @@ public class SimulationRunner
         _metrics.SetCongestionLevel((int)newLevel);
         
         _logger.LogInformation("拥堵级别变化: {OldLevel} -> {NewLevel}", oldLevel, newLevel);
+    }
+
+    /// <summary>
+    /// 释放资源并取消事件订阅（防止内存泄漏）
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        // 取消订阅格口分配事件
+        _upstreamClient.ChuteAssigned -= OnChuteAssigned;
+
+        _disposed = true;
+        _logger.LogDebug("SimulationRunner 已释放并取消订阅事件");
     }
 }
