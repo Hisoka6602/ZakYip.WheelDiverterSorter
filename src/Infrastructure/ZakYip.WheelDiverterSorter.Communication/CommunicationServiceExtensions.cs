@@ -144,31 +144,17 @@ public static class CommunicationServiceExtensions
             var factory = sp.GetRequiredService<IUpstreamRoutingClientFactory>();
             var client = factory.CreateClient();
             
-            // 设置通信统计回调（如果客户端是RuleEngineClientBase且统计服务已注册）
+            // 设置通信统计回调（如果客户端是RuleEngineClientBase且统计回调服务已注册）
             if (client is Clients.RuleEngineClientBase baseClient)
             {
-                try
+                // 使用明确的接口依赖，避免反射和字符串查找
+                var statsCallback = sp.GetService<IMessageStatsCallback>();
+                if (statsCallback != null)
                 {
-                    // 通过类型名动态获取统计服务（避免Communication层依赖Application层）
-                    var statsServiceType = Type.GetType("ZakYip.WheelDiverterSorter.Application.Services.Metrics.ICommunicationStatsService, ZakYip.WheelDiverterSorter.Application");
-                    if (statsServiceType != null)
-                    {
-                        var statsService = sp.GetService(statsServiceType);
-                        if (statsService != null)
-                        {
-                            var incrementSent = statsServiceType.GetMethod("IncrementSent");
-                            var incrementReceived = statsServiceType.GetMethod("IncrementReceived");
-                            
-                            baseClient.SetStatsCallbacks(
-                                onMessageSent: () => incrementSent?.Invoke(statsService, null),
-                                onMessageReceived: () => incrementReceived?.Invoke(statsService, null)
-                            );
-                        }
-                    }
-                }
-                catch
-                {
-                    // 统计服务可能未注册（如测试环境），忽略错误
+                    baseClient.SetStatsCallbacks(
+                        onMessageSent: statsCallback.IncrementSent,
+                        onMessageReceived: statsCallback.IncrementReceived
+                    );
                 }
             }
             

@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Events.Queue;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
 using ZakYip.WheelDiverterSorter.Execution.Tracking;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Monitoring;
 
@@ -23,6 +25,8 @@ public class ParcelLossMonitoringService : BackgroundService
     private readonly IPositionIntervalTracker? _intervalTracker;
     private readonly ISystemClock _clock;
     private readonly ILogger<ParcelLossMonitoringService> _logger;
+    private readonly ISafeExecutionService _safeExecutor;
+    private readonly PositionIntervalTrackerOptions _trackerOptions;
     
     // 监控间隔：每500ms扫描一次
     private const int MonitoringIntervalMs = 500;
@@ -36,11 +40,15 @@ public class ParcelLossMonitoringService : BackgroundService
         IPositionIndexQueueManager queueManager,
         ISystemClock clock,
         ILogger<ParcelLossMonitoringService> logger,
+        ISafeExecutionService safeExecutor,
+        IOptions<PositionIntervalTrackerOptions> trackerOptions,
         IPositionIntervalTracker? intervalTracker = null)
     {
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
+        _trackerOptions = trackerOptions?.Value ?? new PositionIntervalTrackerOptions();
         _intervalTracker = intervalTracker;
     }
 
@@ -48,24 +56,17 @@ public class ParcelLossMonitoringService : BackgroundService
     {
         _logger.LogInformation("包裹丢失监控服务已启动，监控间隔: {IntervalMs}ms", MonitoringIntervalMs);
         
-        while (!stoppingToken.IsCancellationRequested)
-        {
-            try
+        await _safeExecutor.ExecuteAsync(
+            async () =>
             {
-                await MonitorQueuesForLostParcels();
-                await Task.Delay(MonitoringIntervalMs, stoppingToken);
-            }
-            catch (OperationCanceledException)
-            {
-                // 正常停止
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "包裹丢失监控服务执行异常");
-                // 继续运行，不中断监控
-            }
-        }
+                while (!stoppingToken.IsCancellationRequested)
+                {
+                    await MonitorQueuesForLostParcels();
+                    await Task.Delay(MonitoringIntervalMs, stoppingToken);
+                }
+            },
+            operationName: "ParcelLossMonitoring",
+            cancellationToken: stoppingToken);
         
         _logger.LogInformation("包裹丢失监控服务已停止");
     }
@@ -117,6 +118,9 @@ public class ParcelLossMonitoringService : BackgroundService
         // 获取中位数间隔（用于统计）
         var medianIntervalMs = _intervalTracker?.GetStatistics(positionIndex)?.MedianIntervalMs;
         
+        // 从配置获取丢失检测系数
+        var lostDetectionFactor = _trackerOptions.LostDetectionMultiplier;
+        
         // 构建事件参数
         var eventArgs = new ParcelLostEventArgs
         {
@@ -130,7 +134,7 @@ public class ParcelLossMonitoringService : BackgroundService
             TotalTasksRemoved = 0, // 将由处理器填充
             LostThresholdMs = lostTask.LostDetectionTimeoutMs ?? 0,
             MedianIntervalMs = medianIntervalMs,
-            LostDetectionFactor = 1.5m // 从配置获取
+            LostDetectionFactor = (decimal)lostDetectionFactor // 从配置获取
         };
         
         // 触发事件

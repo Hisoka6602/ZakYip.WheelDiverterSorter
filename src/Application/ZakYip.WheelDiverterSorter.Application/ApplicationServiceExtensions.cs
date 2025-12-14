@@ -68,6 +68,9 @@ public static class ApplicationServiceExtensions
         // 注册通信统计服务
         services.AddSingleton<ICommunicationStatsService, CommunicationStatsService>();
         
+        // 注册通信统计回调适配器（用于Communication层与Application层解耦）
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Communication.Abstractions.IMessageStatsCallback, CommunicationStatsCallbackAdapter>();
+        
         // 注册分拣统计服务（单例模式，确保计数器全局唯一）
         services.AddSingleton<ISortingStatisticsService, SortingStatisticsService>();
         

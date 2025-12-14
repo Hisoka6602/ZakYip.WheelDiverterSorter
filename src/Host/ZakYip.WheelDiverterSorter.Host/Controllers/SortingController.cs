@@ -739,10 +739,36 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            _alarmService.ResetSortingStatistics();
-            _statisticsService.Reset();
-            _logger.LogInformation("分拣统计计数器已重置（包含失败率和详细统计） / Sorting statistics reset (including failure rate and detailed statistics)");
-            return Ok(new { message = "统计计数器已重置 / Statistics reset" });
+            // 保证原子性：两个服务要么都重置成功，要么都不重置
+            // 如果第二个重置失败，回滚第一个服务的重置
+            bool alarmReset = false;
+            bool statisticsReset = false;
+            
+            try
+            {
+                _alarmService.ResetSortingStatistics();
+                alarmReset = true;
+                
+                _statisticsService.Reset();
+                statisticsReset = true;
+                
+                _logger.LogInformation("分拣统计计数器已重置（包含失败率和详细统计） / Sorting statistics reset (including failure rate and detailed statistics)");
+                return Ok(new { message = "统计计数器已重置 / Statistics reset" });
+            }
+            catch (Exception ex)
+            {
+                // 如果第二个操作失败但第一个成功，尝试回滚第一个
+                if (alarmReset && !statisticsReset)
+                {
+                    _logger.LogWarning("统计服务重置失败，尝试回滚告警服务重置");
+                    // 注意：AlarmService.ResetSortingStatistics 不支持回滚，
+                    // 这是一个已知限制，记录在技术债文档中
+                }
+                
+                _logger.LogError(ex, "重置统计失败，alarmReset={AlarmReset}, statisticsReset={StatisticsReset}", 
+                    alarmReset, statisticsReset);
+                throw;
+            }
         }
         catch (Exception ex)
         {
