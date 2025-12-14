@@ -24,12 +24,11 @@ public class PositionIntervalTrackerTests
         {
             WindowSize = 10,
             TimeoutMultiplier = 3.0,
-            MinThresholdMs = 1000,
-            MaxThresholdMs = 10000,
             MinSamplesForThreshold = 3,
             MaxReasonableIntervalMs = 60000,
             ParcelRecordCleanupThreshold = 1000,
-            ParcelRecordRetentionCount = 800
+            ParcelRecordRetentionCount = 800,
+            LostDetectionMultiplier = 1.5
         };
 
         _tracker = new PositionIntervalTracker(

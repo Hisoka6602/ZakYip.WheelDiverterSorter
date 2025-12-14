@@ -150,6 +150,11 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
         // 停止服务
         if (_service != null)
         {
+            // 取消事件订阅（防止内存泄漏）
+            _service.Connected -= OnClientConnected;
+            _service.Closed -= OnClientDisconnected;
+            _service.Received -= OnMessageReceived;
+            
             await _service.StopAsync(cancellationToken);
             _service.Dispose();
             _service = null;
