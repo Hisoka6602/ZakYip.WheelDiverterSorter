@@ -120,8 +120,8 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
                 parcelId, positionIndex);
         }
         
-        // 定期清理过期的包裹记录（保留最近1000个包裹）
-        if (_parcelPositionTimes.Count > 1000)
+        // 定期清理过期的包裹记录（当记录数超过阈值时触发）
+        if (_parcelPositionTimes.Count > _options.ParcelRecordCleanupThreshold)
         {
             CleanupOldParcelRecords();
         }
@@ -230,6 +230,17 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         _lastUpdatedTimes.Clear();
         
         _logger.LogInformation("已清空所有 Position 的统计数据");
+    }
+
+    /// <inheritdoc/>
+    public void ClearParcelTracking(long parcelId)
+    {
+        if (_parcelPositionTimes.TryRemove(parcelId, out _))
+        {
+            _logger.LogInformation(
+                "[位置追踪清理] 已清除包裹 {ParcelId} 的所有位置追踪记录",
+                parcelId);
+        }
     }
 
     /// <summary>
