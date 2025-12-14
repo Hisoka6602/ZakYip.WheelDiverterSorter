@@ -493,7 +493,26 @@ dotnet test
 
 详细说明请参考：[**自包含部署指南 (SELF_CONTAINED_DEPLOYMENT.md)**](SELF_CONTAINED_DEPLOYMENT.md)
 
-#### 方式二：框架依赖部署
+#### 方式二：Windows Service 部署
+
+**将系统作为 Windows Service 运行**（适用于生产环境 Windows Server）：
+
+Release 模式下，系统自动支持 Windows Service 模式。安装步骤：
+
+```powershell
+# 1. 发布应用程序
+.\publish-win-x64.ps1
+
+# 2. 安装为 Windows Service
+.\install-windows-service.ps1
+
+# 3. 启动服务
+Start-Service -Name WheelDiverterSorter
+```
+
+详细说明请参考：[**Windows Service 部署指南 (docs/WINDOWS_SERVICE_DEPLOYMENT.md)**](docs/WINDOWS_SERVICE_DEPLOYMENT.md)
+
+#### 方式三：框架依赖部署
 
 **需要预先安装 .NET 8.0 Runtime**：
 

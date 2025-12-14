@@ -53,6 +53,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | TouchSocket_Migration_Assessment.md | `./docs/TouchSocket_Migration_Assessment.md` | TouchSocket迁移评估报告 | 🟡 中 |
 | S7_Driver_Enhancement.md | `./docs/S7_Driver_Enhancement.md` | S7 IO驱动功能增强文档 | 🟡 中 |
 | PRODUCTION_SERVICE_STARTUP.md | `./docs/PRODUCTION_SERVICE_STARTUP.md` | **生产环境服务启动说明（服务启动流程、配置加载、日志验证、故障排查）** | 🔴 高 |
+| WINDOWS_SERVICE_DEPLOYMENT.md | `./docs/WINDOWS_SERVICE_DEPLOYMENT.md` | **Windows Service 部署指南（服务安装、管理、配置、故障排查）** | 🔴 高 |
 | UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md | `./docs/UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md` | 上游通知故障排查指南（传感器触发vs测试端点对比） | 🔴 高 |
 | SERVER_MODE_DUAL_INSTANCE_ISSUE.md | `./docs/SERVER_MODE_DUAL_INSTANCE_ISSUE.md` | **Server模式双实例问题分析与修复（根本原因诊断）** | 🔴 高 |
 

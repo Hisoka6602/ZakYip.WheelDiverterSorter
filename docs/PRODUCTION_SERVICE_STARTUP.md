@@ -2,6 +2,8 @@
 
 本文档说明系统在生产环境中的服务启动流程和配置加载机制。
 
+> **Windows Service 部署**: 如需将系统部署为 Windows Service，请参阅 [Windows Service 部署指南](./WINDOWS_SERVICE_DEPLOYMENT.md)
+
 ## 目录
 
 1. [服务启动流程](#服务启动流程)
