@@ -100,6 +100,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     private readonly ISafeExecutionService? _safeExecutor;
     private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
+    private readonly Monitoring.ParcelLossMonitoringService? _lossMonitoringService;
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -148,10 +149,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IPositionIndexQueueManager? queueManager = null, // 新的 Position-Index 队列管理器
         IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
-        ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
+        ISensorConfigurationRepository? sensorConfigConfiguration = null, // TD-062: 传感器配置仓储
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
-        IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null) // 落格回调配置仓储
+        IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
+        Monitoring.ParcelLossMonitoringService? lossMonitoringService = null) // 包裹丢失监控服务
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -176,10 +178,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _queueManager = queueManager;
         _topologyRepository = topologyRepository;
         _segmentRepository = segmentRepository;
-        _sensorConfigRepository = sensorConfigRepository;
+        _sensorConfigRepository = sensorConfigConfiguration;
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
         _callbackConfigRepository = callbackConfigRepository;
+        _lossMonitoringService = lossMonitoringService;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -193,6 +196,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
+        
+        // TD-LOSS-ORCHESTRATOR-001: 订阅包裹丢失事件
+        if (_lossMonitoringService != null)
+        {
+            _lossMonitoringService.ParcelLostDetected += OnParcelLostDetectedAsync;
+        }
     }
 
     /// <summary>
@@ -1806,8 +1815,244 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _sensorEventProvider.ChuteDropoffDetected -= OnChuteDropoffDetected;
         // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
+        
+        // TD-LOSS-ORCHESTRATOR-001: 取消订阅包裹丢失事件
+        if (_lossMonitoringService != null)
+        {
+            _lossMonitoringService.ParcelLostDetected -= OnParcelLostDetectedAsync;
+        }
 
         // 断开连接
         StopAsync().GetAwaiter().GetResult();
     }
+    
+    #region 包裹丢失处理 (TD-LOSS-ORCHESTRATOR-001)
+    
+    /// <summary>
+    /// 处理包裹丢失事件
+    /// </summary>
+    /// <remarks>
+    /// 当 ParcelLossMonitoringService 检测到包裹丢失时触发此方法。
+    /// 
+    /// 处理流程：
+    /// 1. 从所有队列删除丢失包裹的任务
+    /// 2. 批量重路由所有受影响的包裹到异常口
+    /// 3. 上报丢失包裹到上游
+    /// 4. 上报所有受影响的包裹到上游
+    /// </remarks>
+    private async void OnParcelLostDetectedAsync(object? sender, Core.Events.Queue.ParcelLostEventArgs e)
+    {
+        if (_safeExecutor == null)
+        {
+            _logger.LogWarning(
+                "[包裹丢失] 未配置 SafeExecutionService，无法安全处理丢失事件 (ParcelId={ParcelId})",
+                e.LostParcelId);
+            return;
+        }
+        
+        await _safeExecutor.ExecuteAsync(
+            async () =>
+            {
+                _logger.LogError(
+                    "[包裹丢失] 检测到包裹 {ParcelId} 在 Position {Position} 丢失 " +
+                    "(延迟={DelayMs}ms, 丢失阈值={ThresholdMs}ms)",
+                    e.LostParcelId, 
+                    e.DetectedAtPositionIndex,
+                    e.DelayMs,
+                    e.LostThresholdMs);
+                
+                // 1. 从所有队列删除丢失包裹的任务
+                int removedTasks = 0;
+                if (_queueManager != null)
+                {
+                    removedTasks = _queueManager.RemoveAllTasksForParcel(e.LostParcelId);
+                    _logger.LogInformation(
+                        "[包裹丢失] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务",
+                        e.LostParcelId, removedTasks);
+                }
+                
+                // 2. 批量重路由所有受影响的包裹
+                var affectedParcels = await RerouteAllExistingParcelsToExceptionAsync(e.LostParcelId);
+                
+                _logger.LogWarning(
+                    "[包裹丢失] 共有 {Count} 个包裹受到影响，已重路由到异常口",
+                    affectedParcels.Count);
+                
+                // 3. 上报丢失包裹
+                await NotifyUpstreamParcelLostAsync(e);
+                
+                // 4. 上报所有受影响的包裹
+                await NotifyUpstreamAffectedParcelsAsync(affectedParcels, e.LostParcelId);
+                
+                // 5. 记录指标
+                if (_metrics != null)
+                {
+                    // 使用现有的指标方法记录丢失和受影响的包裹
+                    _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
+                    foreach (var affectedId in affectedParcels)
+                    {
+                        _metrics.RecordSortingFailedParcel($"AffectedByLoss:{e.LostParcelId}");
+                    }
+                }
+                
+                // 6. 清理丢失包裹的本地记录
+                _createdParcels.TryRemove(e.LostParcelId, out _);
+                _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
+                _parcelPaths.TryRemove(e.LostParcelId, out _);
+                _pendingAssignments.TryRemove(e.LostParcelId, out _);
+            },
+            operationName: "HandleParcelLost",
+            cancellationToken: CancellationToken.None);
+    }
+    
+    /// <summary>
+    /// 将所有队列中的现存包裹重路由到异常口
+    /// </summary>
+    /// <param name="lostParcelId">丢失的包裹ID（用于日志）</param>
+    /// <returns>受影响的包裹ID列表</returns>
+    /// <remarks>
+    /// 此方法会遍历所有位置的队列，将队列中所有包裹的动作改为 Straight（导向异常口）。
+    /// 使用 ConcurrentQueue 的线程安全特性，不会阻塞正常的队列操作。
+    /// </remarks>
+    private async Task<List<long>> RerouteAllExistingParcelsToExceptionAsync(long lostParcelId)
+    {
+        var affectedParcels = new HashSet<long>();
+        
+        if (_queueManager == null)
+        {
+            _logger.LogWarning(
+                "[批量重路由] QueueManager 未配置，无法重路由包裹 (丢失包裹 {LostParcelId})",
+                lostParcelId);
+            return affectedParcels.ToList();
+        }
+        
+        var allQueueStatuses = _queueManager.GetAllQueueStatuses();
+        
+        foreach (var (positionIndex, status) in allQueueStatuses)
+        {
+            if (status.TaskCount == 0)
+                continue;
+            
+            // 临时存储当前队列的所有任务
+            var tasksToReroute = new List<PositionQueueItem>();
+            
+            // 清空队列并收集所有任务
+            while (true)
+            {
+                var task = _queueManager.DequeueTask(positionIndex);
+                if (task == null)
+                    break;
+                    
+                tasksToReroute.Add(task);
+                affectedParcels.Add(task.ParcelId);
+            }
+            
+            // 重新入队，所有动作改为 Straight（导向异常口）
+            foreach (var task in tasksToReroute)
+            {
+                var reroutedTask = task with
+                {
+                    DiverterAction = DiverterDirection.Straight,
+                    FallbackAction = DiverterDirection.Straight
+                };
+                _queueManager.EnqueueTask(positionIndex, reroutedTask);
+            }
+            
+            if (tasksToReroute.Count > 0)
+            {
+                _logger.LogWarning(
+                    "[批量重路由] Position {Position}: 重路由 {Count} 个任务到异常口 (受包裹 {LostParcelId} 丢失影响)",
+                    positionIndex, tasksToReroute.Count, lostParcelId);
+            }
+        }
+        
+        await Task.CompletedTask;
+        return affectedParcels.ToList();
+    }
+    
+    /// <summary>
+    /// 通知上游系统包裹丢失
+    /// </summary>
+    /// <param name="e">包裹丢失事件参数</param>
+    private async Task NotifyUpstreamParcelLostAsync(Core.Events.Queue.ParcelLostEventArgs e)
+    {
+        try
+        {
+            var systemConfig = _systemConfigRepository.Get();
+            
+            var notification = new SortingCompletedNotification
+            {
+                ParcelId = e.LostParcelId,
+                ActualChuteId = systemConfig.ExceptionChuteId, // 丢失包裹标记为异常口
+                CompletedAt = new DateTimeOffset(e.DetectedAt),
+                IsSuccess = false,
+                FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Lost,
+                FailureReason = $"包裹在 Position {e.DetectedAtPositionIndex} 丢失 " +
+                               $"(延迟={e.DelayMs:F0}ms, 阈值={e.LostThresholdMs:F0}ms)"
+            };
+            
+            await _upstreamClient.SendAsync(
+                new SortingCompletedMessage { Notification = notification });
+            
+            _logger.LogInformation(
+                "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)",
+                e.LostParcelId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "[上游通知失败] 无法上报丢失包裹 {ParcelId}",
+                e.LostParcelId);
+        }
+    }
+    
+    /// <summary>
+    /// 通知上游系统所有受影响的包裹
+    /// </summary>
+    /// <param name="affectedParcelIds">受影响的包裹ID列表</param>
+    /// <param name="lostParcelId">丢失的包裹ID</param>
+    /// <remarks>
+    /// 这些包裹原本可能有正常的路径，但因为前面的包裹丢失，被重路由到异常口。
+    /// 使用 FinalStatus.AffectedByLoss 标识这些包裹。
+    /// </remarks>
+    private async Task NotifyUpstreamAffectedParcelsAsync(
+        List<long> affectedParcelIds,
+        long lostParcelId)
+    {
+        if (affectedParcelIds.Count == 0)
+            return;
+        
+        var systemConfig = _systemConfigRepository.Get();
+        
+        foreach (var parcelId in affectedParcelIds)
+        {
+            try
+            {
+                var notification = new SortingCompletedNotification
+                {
+                    ParcelId = parcelId,
+                    ActualChuteId = systemConfig.ExceptionChuteId,
+                    CompletedAt = new DateTimeOffset(_clock.LocalNow),
+                    IsSuccess = false,
+                    FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.AffectedByLoss,
+                    FailureReason = $"受包裹 {lostParcelId} 丢失影响，重路由到异常口"
+                };
+                
+                await _upstreamClient.SendAsync(
+                    new SortingCompletedMessage { Notification = notification });
+                
+                _logger.LogInformation(
+                    "[上游通知] 已上报受影响包裹 {ParcelId} (Status=AffectedByLoss, 原因=受 {LostParcelId} 丢失影响)",
+                    parcelId, lostParcelId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "[上游通知失败] 无法上报受影响包裹 {ParcelId}",
+                    parcelId);
+            }
+        }
+    }
+    
+    #endregion
 }
