@@ -67,4 +67,23 @@ public record class PositionQueueItem
     /// 对应 DiverterPathNode.PositionIndex
     /// </remarks>
     public required int PositionIndex { get; init; }
+    
+    /// <summary>
+    /// 丢失判定超时时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 用于主动检测包裹丢失。如果包裹在此时间内未到达检查点（传感器），判定为丢失。
+    /// 计算公式：LostDetectionTimeoutMs = 中位数间隔 * 丢失判定系数（默认1.5）
+    /// 此值大于 TimeoutThresholdMs，用于区分"超时"和"丢失"两种情况。
+    /// </remarks>
+    public long? LostDetectionTimeoutMs { get; init; }
+    
+    /// <summary>
+    /// 丢失判定截止时间
+    /// </summary>
+    /// <remarks>
+    /// = ExpectedArrivalTime + LostDetectionTimeoutMs
+    /// 后台监控服务使用此字段判断包裹是否丢失
+    /// </remarks>
+    public DateTime? LostDetectionDeadline { get; init; }
 }

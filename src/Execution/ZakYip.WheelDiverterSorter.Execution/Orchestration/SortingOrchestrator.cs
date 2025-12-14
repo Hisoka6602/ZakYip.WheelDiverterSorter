@@ -1238,7 +1238,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                 TimeoutThresholdMs = task.TimeoutThresholdMs,
                                 FallbackAction = DiverterDirection.Straight,
                                 PositionIndex = node.PositionIndex,
-                                CreatedAt = _clock.LocalNow
+                                CreatedAt = _clock.LocalNow,
+                                // 丢失判定超时 = TimeoutThreshold * 1.5
+                                LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
+                                LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
                             };
                             
                             // 使用优先入队，插入到队列头部
