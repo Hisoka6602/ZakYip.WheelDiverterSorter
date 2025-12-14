@@ -744,7 +744,9 @@ public record UserDto(
 );
 
 // 使用 with 表达式创建修改后的副本
-var user = new UserDto("U001", "John", "john@example.com", DateTime.Now);
+// 注意：实际应用中，时间应通过 ISystemClock 获取
+var now = DateTime.Parse("2024-01-15T10:30:00");  // 示例用固定时间
+var user = new UserDto("U001", "John", "john@example.com", now);
 var updatedUser = user with { UserName = "John Doe" };
 
 // ❌ 错误：使用 class 且未实现值语义
@@ -1336,18 +1338,37 @@ public record ApiResponse<T>
     public List<string>? Errors { get; init; }
     public DateTime Timestamp { get; init; }
 
-    public static ApiResponse<T> Ok(T data, string message = "操作成功")
-        => new() { Success = true, Data = data, Message = message, Timestamp = DateTime.UtcNow };
+    // ⚠️ 注意：实际项目中应通过 ISystemClock 获取时间，而不是直接使用 DateTime.UtcNow
+    // 这里为了示例简化，使用了 DateTime 参数由调用方传入
+    public static ApiResponse<T> Ok(T data, string message = "操作成功", DateTime? timestamp = null)
+        => new() { Success = true, Data = data, Message = message, Timestamp = timestamp ?? DateTime.UtcNow };
 
-    public static ApiResponse<T> Error(string message, List<string>? errors = null)
-        => new() { Success = false, Message = message, Errors = errors, Timestamp = DateTime.UtcNow };
+    public static ApiResponse<T> Error(string message, List<string>? errors = null, DateTime? timestamp = null)
+        => new() { Success = false, Message = message, Errors = errors, Timestamp = timestamp ?? DateTime.UtcNow };
+}
+
+// ✅ 更好的实现：通过依赖注入使用 ISystemClock
+public record ApiResponse<T>
+{
+    public bool Success { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public T? Data { get; init; }
+    public List<string>? Errors { get; init; }
+    public DateTime Timestamp { get; init; }
+
+    // 不提供静态方法，强制调用方传入时间戳
+    public static ApiResponse<T> Ok(T data, DateTime timestamp, string message = "操作成功")
+        => new() { Success = true, Data = data, Message = message, Timestamp = timestamp };
+
+    public static ApiResponse<T> Error(string message, DateTime timestamp, List<string>? errors = null)
+        => new() { Success = false, Message = message, Errors = errors, Timestamp = timestamp };
 }
 ```
 
 **使用示例**:
 
 ```csharp
-// ✅ 正确
+// ✅ 正确：通过 ISystemClock 获取时间
 [HttpPost]
 public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
     [FromBody] CreateUserRequest request)
@@ -1356,13 +1377,28 @@ public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
     {
         return BadRequest(ApiResponse<UserDto>.Error(
             "请求参数验证失败",
+            _clock.UtcNow,  // ✅ 使用 ISystemClock
             ModelState.SelectMany(x => x.Value?.Errors ?? [])
                       .Select(e => e.ErrorMessage)
                       .ToList()));
     }
     
     var user = await _service.CreateUserAsync(request);
-    return Ok(ApiResponse<UserDto>.Ok(user, "用户创建成功"));
+    return Ok(ApiResponse<UserDto>.Ok(user, _clock.UtcNow, "用户创建成功"));  // ✅ 使用 ISystemClock
+}
+
+// ❌ 错误：直接使用 DateTime.UtcNow
+[HttpPost]
+public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
+    [FromBody] CreateUserRequest request)
+{
+    var user = await _service.CreateUserAsync(request);
+    return Ok(new ApiResponse<UserDto> 
+    { 
+        Success = true, 
+        Data = user, 
+        Timestamp = DateTime.UtcNow  // ❌ 违反时间处理规范
+    });
 }
 ```
 
