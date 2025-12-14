@@ -10,19 +10,21 @@
 
 1. [PR 完整性约束](#pr-完整性约束)
 2. [影分身零容忍策略（最重要）](#影分身零容忍策略最重要)
-3. [类型使用规范](#类型使用规范)
-4. [可空引用类型](#可空引用类型)
-5. [时间处理规范](#时间处理规范)
-6. [并发安全规范](#并发安全规范)
-7. [异常处理规范](#异常处理规范)
-8. [API 设计规范](#api-设计规范)
-9. [方法设计原则](#方法设计原则)
-10. [命名约定](#命名约定)
-11. [分层架构原则](#分层架构原则)
-12. [通讯与重试原则](#通讯与重试原则)
-13. [测试与质量保证](#测试与质量保证)
-14. [代码清理规范](#代码清理规范)
-15. [代码审查清单](#代码审查清单)
+3. [冗余代码零容忍策略](#冗余代码零容忍策略)
+4. [类型使用规范](#类型使用规范)
+5. [Id 类型统一规范](#id-类型统一规范)
+6. [可空引用类型](#可空引用类型)
+7. [时间处理规范](#时间处理规范)
+8. [并发安全规范](#并发安全规范)
+9. [异常处理规范](#异常处理规范)
+10. [API 设计规范](#api-设计规范)
+11. [方法设计原则](#方法设计原则)
+12. [命名约定](#命名约定)
+13. [分层架构原则](#分层架构原则)
+14. [通讯与重试原则](#通讯与重试原则)
+15. [测试与质量保证](#测试与质量保证)
+16. [代码清理规范](#代码清理规范)
+17. [代码审查清单](#代码审查清单)
 
 ---
 
@@ -419,6 +421,304 @@ public class PaymentService
 
 ---
 
+## 冗余代码零容忍策略
+
+> **⚠️ 危险警告**: 冗余代码（Dead Code）是项目的隐形负担，会导致：
+> - 维护成本增加：需要维护实际上从未使用的代码
+> - 代码库膨胀：增加理解难度，降低开发效率
+> - 误导开发者：可能被误用或误认为是活跃代码
+> - 增加测试负担：需要为从未使用的代码编写测试
+
+### 什么是"冗余代码"？
+
+**冗余代码**是指已经定义但从未被实际使用的代码，表现形式包括：
+
+1. **未在 DI 注册的服务**：定义了接口和实现，但从未在依赖注入容器中注册
+2. **已注册但从未被注入的服务**：在 DI 容器中注册，但没有任何地方通过构造函数注入使用
+3. **已注入但从未调用的服务**：通过构造函数注入，但从未调用其任何方法或属性
+4. **未使用的方法和属性**：在类中定义，但在整个解决方案中从未被调用
+5. **未使用的类型**：定义的类、接口、枚举等，从未被引用
+
+### 零容忍策略
+
+**规则**:
+
+1. **新增冗余代码 = PR 不合规**
+   - 所有新增的类型、方法、属性必须有实际使用场景
+   - 在提交 PR 前必须检查代码是否被实际使用
+
+2. **历史冗余代码必须优先清理**
+   - 若在当前 PR 涉及相关模块，发现冗余代码应一并清理
+   - 清理冗余代码时必须确保不影响其他功能
+
+3. **禁止行为**
+   - ❌ "先实现，以后可能会用到"的提前设计
+   - ❌ 保留"可能有用"的代码
+   - ❌ 注释掉代码而不删除（使用版本控制系统）
+
+### 冗余代码检测方法
+
+#### 1. 未在 DI 注册的服务
+
+**检测方法**:
+```bash
+# 搜索所有 AddScoped/AddSingleton/AddTransient 注册
+grep -r "AddScoped\|AddSingleton\|AddTransient" --include="*.cs"
+
+# 检查接口实现是否被注册
+```
+
+**示例**:
+
+```csharp
+// ❌ 错误：定义了服务但从未注册
+// 文件：Services/IEmailService.cs
+public interface IEmailService
+{
+    Task SendEmailAsync(string to, string subject, string body);
+}
+
+// 文件：Services/EmailService.cs
+public class EmailService : IEmailService
+{
+    public async Task SendEmailAsync(string to, string subject, string body)
+    {
+        // 实现...
+    }
+}
+
+// 文件：Program.cs 或 Startup.cs
+public void ConfigureServices(IServiceCollection services)
+{
+    // ❌ 从未注册 IEmailService
+    services.AddScoped<IUserService, UserService>();
+}
+
+// ✅ 正确：删除未使用的服务，或者添加注册
+public void ConfigureServices(IServiceCollection services)
+{
+    services.AddScoped<IUserService, UserService>();
+    services.AddScoped<IEmailService, EmailService>();  // ✅ 添加注册
+}
+```
+
+#### 2. 已注册但从未被注入的服务
+
+**检测方法**:
+- 搜索类型在构造函数中的注入使用
+- 使用 IDE 的"查找所有引用"功能
+
+**示例**:
+
+```csharp
+// ❌ 错误：已注册但从未被任何地方注入使用
+// 文件：Program.cs
+services.AddScoped<INotificationService, NotificationService>();
+
+// 在整个解决方案中，没有任何构造函数注入 INotificationService
+// 没有：
+// public MyService(INotificationService notificationService) { }
+
+// ✅ 正确：删除未使用的注册
+// 或者确保在需要的地方注入使用
+public class OrderService
+{
+    private readonly INotificationService _notificationService;
+    
+    public OrderService(INotificationService notificationService)
+    {
+        _notificationService = notificationService;
+    }
+    
+    public async Task CreateOrderAsync(Order order)
+    {
+        // ✅ 实际使用服务
+        await _notificationService.NotifyAsync(order.CustomerId, "Order created");
+    }
+}
+```
+
+#### 3. 已注入但从未调用的服务
+
+**检测方法**:
+- 搜索字段/属性的使用位置
+- 检查是否只是注入但从未调用其方法
+
+**示例**:
+
+```csharp
+// ❌ 错误：注入了但从未使用
+public class UserService
+{
+    private readonly ILogger _logger;
+    private readonly IEmailService _emailService;  // ❌ 注入但从未使用
+    
+    public UserService(ILogger logger, IEmailService emailService)
+    {
+        _logger = logger;
+        _emailService = emailService;  // ❌ 只是赋值，从未调用其方法
+    }
+    
+    public async Task<User> CreateUserAsync(string username)
+    {
+        _logger.LogInformation($"Creating user: {username}");
+        // ❌ _emailService 从未被使用
+        return new User { UserName = username };
+    }
+}
+
+// ✅ 正确：删除未使用的依赖
+public class UserService
+{
+    private readonly ILogger _logger;
+    
+    public UserService(ILogger logger)
+    {
+        _logger = logger;
+    }
+    
+    public async Task<User> CreateUserAsync(string username)
+    {
+        _logger.LogInformation($"Creating user: {username}");
+        return new User { UserName = username };
+    }
+}
+
+// 或者如果确实需要，就使用它
+public class UserService
+{
+    private readonly ILogger _logger;
+    private readonly IEmailService _emailService;
+    
+    public UserService(ILogger logger, IEmailService emailService)
+    {
+        _logger = logger;
+        _emailService = emailService;
+    }
+    
+    public async Task<User> CreateUserAsync(string username)
+    {
+        _logger.LogInformation($"Creating user: {username}");
+        var user = new User { UserName = username };
+        
+        // ✅ 实际使用服务
+        await _emailService.SendWelcomeEmailAsync(user.Email);
+        
+        return user;
+    }
+}
+```
+
+#### 4. 未使用的方法和属性
+
+**检测方法**:
+- 使用 IDE 的"查找所有引用"功能
+- 使用静态分析工具（如 ReSharper、Rider、SonarQube）
+
+**示例**:
+
+```csharp
+// ❌ 错误：定义了从未使用的方法
+public class MathHelper
+{
+    public static int Add(int a, int b) => a + b;  // ✅ 被使用
+    
+    public static int Subtract(int a, int b) => a - b;  // ❌ 从未被调用
+    
+    public static int Multiply(int a, int b) => a * b;  // ❌ 从未被调用
+}
+
+// 在整个解决方案中
+var result = MathHelper.Add(1, 2);  // ✅ 只使用了 Add 方法
+
+// ✅ 正确：删除未使用的方法
+public class MathHelper
+{
+    public static int Add(int a, int b) => a + b;
+}
+```
+
+#### 5. 未使用的类型
+
+**检测方法**:
+- 搜索类型名称在整个解决方案中的使用
+- 检查是否只在定义处出现
+
+**示例**:
+
+```csharp
+// ❌ 错误：定义了从未使用的类型
+// 文件：Models/OrderStatus.cs
+public enum OrderStatus  // ❌ 整个解决方案中从未使用此枚举
+{
+    Pending,
+    Confirmed,
+    Shipped,
+    Delivered
+}
+
+// 文件：Models/Order.cs
+public class Order
+{
+    public string OrderId { get; set; }
+    public string Status { get; set; }  // ❌ 使用 string 而不是 OrderStatus 枚举
+}
+
+// ✅ 正确：删除未使用的枚举，或者实际使用它
+public class Order
+{
+    public string OrderId { get; set; }
+    public OrderStatus Status { get; set; }  // ✅ 使用枚举
+}
+```
+
+### 冗余代码检测工具
+
+**推荐工具**:
+
+1. **IDE 内置工具**:
+   - Visual Studio: Code Analysis
+   - Rider: Solution-Wide Analysis
+   - VS Code: C# extension with "Find All References"
+
+2. **静态分析工具**:
+   - SonarQube/SonarLint
+   - ReSharper
+   - NDepend
+
+3. **自定义脚本**:
+   ```bash
+   # 查找未在 DI 中注册的接口实现
+   # 查找注册但未注入的服务
+   # 查找注入但未使用的字段
+   ```
+
+### 清理流程
+
+**清理步骤**:
+1. 使用工具或手动检测冗余代码
+2. 确认代码确实未被使用（检查所有引用）
+3. 删除冗余代码
+4. 运行完整测试套件确保没有破坏功能
+5. 提交 PR 时在描述中说明删除的冗余代码
+
+**PR 描述模板**:
+```markdown
+### 冗余代码清理
+
+**删除的冗余代码**:
+- `IEmailService` 和 `EmailService` - 已定义但从未在 DI 中注册，也无任何使用
+- `MathHelper.Subtract()` 和 `MathHelper.Multiply()` - 方法从未被调用
+- `OrderStatus` 枚举 - 从未被使用
+
+**验证**:
+- ✅ 使用"查找所有引用"确认未被使用
+- ✅ 完整测试套件通过
+- ✅ 代码编译成功
+```
+
+---
+
 ## 类型使用规范
 
 ### 1. 优先使用 record 处理不可变数据
@@ -524,6 +824,180 @@ var config = new Configuration
     ConnectionString = "Server=localhost;Database=mydb",
     MaxRetries = 3
 };
+```
+
+---
+
+## Id 类型统一规范
+
+> **规则**: 统一 Id 类型可以避免类型不一致导致的转换错误和混淆。
+
+### 1. Id 必须使用 long 类型
+
+**规则**:
+
+1. 除数据库自增主键（如 EF Core 中的自增列）或外部系统强制使用特定类型的 Key 以外，所有内部定义的 Id 均必须使用 `long` 类型：
+   - 领域模型中的 Id（如用户 Id、订单 Id、产品 Id 等）
+   - DTO、命令对象、事件载荷中的 Id 字段
+   - 配置模型中的 Id 字段
+
+2. 禁止在同一语义下混用 `int` 与 `long`，例如某处使用 `int OrderId`，另一处使用 `long OrderId`
+
+**允许的例外**:
+- 数据库表中已有历史字段为 `int` 且暂时无法迁移时，可以在数据访问层做类型转换，但领域层/应用层应尽量统一为 `long`
+- 外部系统接口明确要求使用 `int`、`Guid` 或其他类型时
+
+**禁止行为**:
+- ❌ 新增任何非数据库自增/非外部依赖的 Id 字段使用 `int` / `Guid` 等类型，且未经过架构确认
+- ❌ 相同语义的 Id 在不同层使用不同类型
+
+**示例**:
+
+```csharp
+// ✅ 正确：统一使用 long 类型
+// 领域模型
+public class User
+{
+    public long UserId { get; set; }
+    public string UserName { get; set; }
+}
+
+// DTO
+public record UserDto(
+    long UserId,
+    string UserName,
+    string Email
+);
+
+// API 请求
+public record CreateOrderRequest
+{
+    public required long CustomerId { get; init; }
+    public required long ProductId { get; init; }
+}
+
+// ❌ 错误：混用 int 和 long
+// 领域模型
+public class User
+{
+    public int UserId { get; set; }  // ❌ 使用 int
+    public string UserName { get; set; }
+}
+
+// DTO
+public record UserDto(
+    long UserId,  // ❌ 这里使用 long，与领域模型不一致
+    string UserName,
+    string Email
+);
+
+// ❌ 错误：新增 Id 使用 int
+public class Order
+{
+    public int OrderId { get; set; }  // ❌ 应使用 long
+    public string OrderNumber { get; set; }
+}
+
+// ❌ 错误：无必要使用 Guid
+public class Product
+{
+    public Guid ProductId { get; set; }  // ❌ 除非有特殊需求，应使用 long
+    public string ProductName { get; set; }
+}
+
+// ✅ 正确：外部系统接口例外
+public class ExternalApiRequest
+{
+    // ✅ 外部系统要求使用 string 类型的 ID
+    public string ExternalOrderId { get; set; }
+    
+    // 内部系统使用 long
+    public long InternalOrderId { get; set; }
+}
+```
+
+### 2. Id 类型选择指南
+
+**使用 `long` 的场景**（推荐默认选择）:
+- 大部分业务实体的主键
+- 自增 Id
+- 数值型业务编号
+
+**使用 `Guid` 的场景**（特殊需求）:
+- 分布式系统需要全局唯一 Id
+- 需要在客户端生成 Id
+- 安全性要求高，不希望暴露顺序 Id
+
+**使用 `string` 的场景**（外部系统）:
+- 外部系统提供的 Id
+- 业务编号（如订单号、物流单号）
+- 需要包含前缀或特殊格式的标识符
+
+**示例**:
+
+```csharp
+// ✅ 使用 long - 标准业务实体
+public class Order
+{
+    public long OrderId { get; set; }  // ✅ 自增 Id
+    public long CustomerId { get; set; }
+    public long ProductId { get; set; }
+}
+
+// ✅ 使用 Guid - 分布式场景
+public class DistributedEvent
+{
+    public Guid EventId { get; set; }  // ✅ 需要跨系统唯一
+    public DateTime Timestamp { get; set; }
+}
+
+// ✅ 使用 string - 业务编号
+public class Order
+{
+    public long OrderId { get; set; }  // 内部 Id
+    public string OrderNumber { get; set; }  // ✅ 业务单号，如 "ORD-2024-001"
+}
+```
+
+### 3. Id 类型转换
+
+**规则**: 当必须进行类型转换时，应在边界层（Repository、API Controller）进行，保持领域层类型纯净。
+
+**示例**:
+
+```csharp
+// ✅ 正确：在 Repository 层进行类型转换
+public class UserRepository : IUserRepository
+{
+    private readonly DbContext _context;
+    
+    public async Task<User> GetByIdAsync(long userId)
+    {
+        // 数据库中是 int，但对外暴露 long
+        var entity = await _context.Users
+            .Where(u => u.Id == (int)userId)  // ✅ 在数据访问层转换
+            .FirstOrDefaultAsync();
+            
+        if (entity == null) return null;
+        
+        return new User
+        {
+            UserId = entity.Id,  // int 自动转换为 long
+            UserName = entity.UserName
+        };
+    }
+}
+
+// 领域层始终使用 long
+public class UserService
+{
+    private readonly IUserRepository _repository;
+    
+    public async Task<User> GetUserAsync(long userId)
+    {
+        return await _repository.GetByIdAsync(userId);  // ✅ 统一使用 long
+    }
+}
 ```
 
 ---
@@ -892,36 +1366,205 @@ public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
 }
 ```
 
-### 3. Swagger 文档注释规范
+### 3. Swagger 文档注释规范（强制要求）
 
-**规则**: 所有 API 端点必须具有完整的 Swagger 注释。
+**规则**: 所有 API 端点必须具有完整的 Swagger 注释，确保 API 文档清晰、准确、易于理解。
 
-**要求**:
-- 每个 Controller 类必须有 `/// <summary>` 注释
-- 每个 Action 方法必须使用 `[SwaggerOperation]` 特性
-- 每个 Action 方法必须使用 `[SwaggerResponse]` 特性标注所有可能的响应码
-- DTO 属性必须有 `/// <summary>` 注释
+**强制要求**:
+1. **Controller 类注释**:
+   - 每个 Controller 类必须有完整的 `/// <summary>` 注释
+   - 可选：使用 `/// <remarks>` 提供详细说明
 
-**示例**:
+2. **Action 方法注释**:
+   - 每个 Action 方法必须使用 `[SwaggerOperation]` 特性
+   - 必须包含：`Summary`、`Description`、`OperationId`、`Tags`
+   - 每个 Action 方法必须使用 `[SwaggerResponse]` 特性标注**所有可能的响应码**
+   - 包括成功响应（200、201、204）和错误响应（400、401、403、404、500）
+
+3. **DTO 属性注释**:
+   - 请求/响应 DTO 的所有属性必须有 `/// <summary>` 注释
+   - 复杂字段应使用 `/// <remarks>` 提供详细说明
+   - 使用 `/// <example>` 提供示例值
+
+4. **参数注释**:
+   - 路径参数、查询参数必须有清晰的说明
+   - 使用 `[FromRoute]`、`[FromQuery]`、`[FromBody]` 等特性明确参数来源
+
+**禁止行为**:
+- ❌ 新增没有任何注释的 API 端点
+- ❌ 使用占位描述（如 "TODO"、"Test"）
+- ❌ 只标注成功响应，不标注错误响应
+- ❌ DTO 属性没有 `<summary>` 注释
+
+**完整示例**:
 
 ```csharp
 /// <summary>
-/// 获取用户信息
+/// 用户管理 API
 /// </summary>
-[HttpGet("{id}")]
-[SwaggerOperation(
-    Summary = "获取用户信息",
-    Description = "根据用户ID获取用户详细信息",
-    OperationId = "GetUser",
-    Tags = new[] { "用户管理" }
-)]
-[SwaggerResponse(200, "成功返回用户信息", typeof(ApiResponse<UserDto>))]
-[SwaggerResponse(404, "用户不存在", typeof(ApiResponse<object>))]
-public ActionResult<ApiResponse<UserDto>> GetUser(string id)
+/// <remarks>
+/// 提供用户的增删改查功能，包括用户信息管理、权限管理等
+/// </remarks>
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase
 {
-    // ...
+    private readonly IUserService _userService;
+    
+    public UsersController(IUserService userService)
+    {
+        _userService = userService;
+    }
+    
+    /// <summary>
+    /// 获取用户信息
+    /// </summary>
+    /// <param name="id">用户 ID</param>
+    /// <returns>用户详细信息</returns>
+    /// <response code="200">成功返回用户信息</response>
+    /// <response code="404">用户不存在</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpGet("{id}")]
+    [SwaggerOperation(
+        Summary = "获取用户信息",
+        Description = "根据用户 ID 获取用户详细信息，包括基本信息和权限",
+        OperationId = "GetUser",
+        Tags = new[] { "用户管理" }
+    )]
+    [SwaggerResponse(200, "成功返回用户信息", typeof(ApiResponse<UserDto>))]
+    [SwaggerResponse(404, "用户不存在", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(
+        [FromRoute] long id)
+    {
+        var user = await _userService.GetUserByIdAsync(id);
+        if (user == null)
+        {
+            return NotFound(ApiResponse<UserDto>.Error("用户不存在"));
+        }
+        return Ok(ApiResponse<UserDto>.Ok(user));
+    }
+    
+    /// <summary>
+    /// 创建新用户
+    /// </summary>
+    /// <param name="request">用户创建请求</param>
+    /// <returns>创建的用户信息</returns>
+    /// <response code="201">用户创建成功</response>
+    /// <response code="400">请求参数验证失败</response>
+    /// <response code="409">用户名已存在</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost]
+    [SwaggerOperation(
+        Summary = "创建新用户",
+        Description = "创建新用户账号，需要提供用户名、邮箱等基本信息",
+        OperationId = "CreateUser",
+        Tags = new[] { "用户管理" }
+    )]
+    [SwaggerResponse(201, "用户创建成功", typeof(ApiResponse<UserDto>))]
+    [SwaggerResponse(400, "请求参数验证失败", typeof(ApiResponse<object>))]
+    [SwaggerResponse(409, "用户名已存在", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser(
+        [FromBody] CreateUserRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(ApiResponse<UserDto>.Error(
+                "请求参数验证失败",
+                ModelState.SelectMany(x => x.Value?.Errors ?? [])
+                          .Select(e => e.ErrorMessage)
+                          .ToList()));
+        }
+        
+        var user = await _userService.CreateUserAsync(request);
+        return CreatedAtAction(
+            nameof(GetUser),
+            new { id = user.UserId },
+            ApiResponse<UserDto>.Ok(user, "用户创建成功"));
+    }
+}
+
+/// <summary>
+/// 用户数据传输对象
+/// </summary>
+public record UserDto
+{
+    /// <summary>
+    /// 用户唯一标识
+    /// </summary>
+    /// <example>1001</example>
+    public long UserId { get; init; }
+    
+    /// <summary>
+    /// 用户名
+    /// </summary>
+    /// <remarks>
+    /// 用户名必须唯一，长度 3-50 个字符
+    /// </remarks>
+    /// <example>john_doe</example>
+    public string UserName { get; init; } = string.Empty;
+    
+    /// <summary>
+    /// 电子邮箱地址
+    /// </summary>
+    /// <example>john@example.com</example>
+    public string Email { get; init; } = string.Empty;
+    
+    /// <summary>
+    /// 账号创建时间
+    /// </summary>
+    /// <example>2024-01-15T10:30:00</example>
+    public DateTime CreatedAt { get; init; }
+    
+    /// <summary>
+    /// 账号是否激活
+    /// </summary>
+    /// <example>true</example>
+    public bool IsActive { get; init; }
+}
+
+/// <summary>
+/// 创建用户请求
+/// </summary>
+public record CreateUserRequest
+{
+    /// <summary>
+    /// 用户名（必填）
+    /// </summary>
+    /// <example>john_doe</example>
+    [Required(ErrorMessage = "用户名不能为空")]
+    [StringLength(50, MinimumLength = 3, ErrorMessage = "用户名长度必须在 3-50 个字符之间")]
+    public required string UserName { get; init; }
+    
+    /// <summary>
+    /// 电子邮箱（必填）
+    /// </summary>
+    /// <example>john@example.com</example>
+    [Required(ErrorMessage = "邮箱不能为空")]
+    [EmailAddress(ErrorMessage = "邮箱格式不正确")]
+    public required string Email { get; init; }
+    
+    /// <summary>
+    /// 初始密码（必填）
+    /// </summary>
+    /// <remarks>
+    /// 密码必须至少包含 8 个字符，包括大小写字母、数字和特殊字符
+    /// </remarks>
+    /// <example>P@ssw0rd123</example>
+    [Required(ErrorMessage = "密码不能为空")]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "密码长度必须在 8-100 个字符之间")]
+    public required string Password { get; init; }
 }
 ```
+
+**Code Review 检查点**:
+- [ ] 所有 Controller 类有 `<summary>` 注释
+- [ ] 所有 Action 方法有 `[SwaggerOperation]` 特性
+- [ ] 所有 Action 方法标注了所有可能的响应码
+- [ ] 所有 DTO 属性有 `<summary>` 注释
+- [ ] 复杂字段有 `<remarks>` 详细说明
+- [ ] 关键字段有 `<example>` 示例值
 
 ---
 
@@ -1277,11 +1920,25 @@ public async Task Should_Return_Error_When_Invalid_Input()
 - [ ] 未在多处定义相同的常量
 - [ ] 已清理历史影分身（如果涉及相关模块）
 
+### 冗余代码检查（新增）
+- [ ] 未定义从未在 DI 中注册的服务
+- [ ] 未注册从未被注入使用的服务
+- [ ] 未注入从未调用的服务
+- [ ] 未定义从未使用的方法和属性
+- [ ] 未定义从未使用的类型
+- [ ] 已清理发现的冗余代码
+
 ### 类型使用
 - [ ] DTO 和只读数据使用 `record` / `record struct`
 - [ ] 小型值类型使用 `readonly struct`
 - [ ] 工具类使用 `file` 作用域类型
 - [ ] 必填属性使用 `required + init`
+
+### Id 类型规范（新增）
+- [ ] 所有内部 Id 统一使用 `long` 类型
+- [ ] 未混用 `int` 和 `long` 作为同一语义的 Id
+- [ ] 外部系统 Id 类型有明确说明
+- [ ] Id 类型转换在边界层进行
 
 ### 可空引用类型
 - [ ] 启用可空引用类型（`Nullable=enable`）
@@ -1303,7 +1960,12 @@ public async Task Should_Return_Error_When_Invalid_Input()
 ### API 设计
 - [ ] 请求模型使用 `record + required + 验证`
 - [ ] 响应使用统一的包装类型
-- [ ] 具有完整的 Swagger 注释
+- [ ] **所有 API 端点有完整的 Swagger 注释**
+- [ ] Controller 类有 `<summary>` 注释
+- [ ] Action 方法有 `[SwaggerOperation]` 特性
+- [ ] Action 方法标注了所有可能的响应码（200、400、404、500等）
+- [ ] DTO 属性有 `<summary>` 注释
+- [ ] 复杂字段有 `<remarks>` 和 `<example>`
 
 ### 方法设计
 - [ ] 方法短小（< 30 行）
@@ -1337,25 +1999,29 @@ public async Task Should_Return_Error_When_Invalid_Input()
 
 ## 总结
 
-本文档提供了适用于各类 C# 项目的通用编码标准，特别强调了**影分身零容忍策略**。
+本文档提供了适用于各类 C# 项目的通用编码标准，特别强调了**影分身零容忍策略**和**冗余代码零容忍策略**。
 
 **最关键的原则**:
 
 1. **零容忍影分身**：重复代码是最危险的技术债务
-2. **PR 完整性**：小型 PR 必须完整，大型 PR 必须登记技术债
-3. **使用现代 C# 特性**：record, readonly struct, file class, required, init
-4. **启用可空引用类型**：明确表达可空性
-5. **通过抽象接口访问系统资源**：时间、基础设施
-6. **确保线程安全和并发正确性**
-7. **保持方法短小精悍**：单一职责
-8. **遵循清晰的命名约定**
-9. **遵守分层架构原则**
-10. **充分的测试覆盖**
+2. **零容忍冗余代码**：未使用的代码是隐形负担
+3. **PR 完整性**：小型 PR 必须完整，大型 PR 必须登记技术债
+4. **Id 类型统一**：所有内部 Id 使用 `long` 类型
+5. **完整的 Swagger 注释**：所有 API 端点必须有详细文档
+6. **使用现代 C# 特性**：record, readonly struct, file class, required, init
+7. **启用可空引用类型**：明确表达可空性
+8. **通过抽象接口访问系统资源**：时间、基础设施
+9. **确保线程安全和并发正确性**
+10. **保持方法短小精悍**：单一职责
+11. **遵循清晰的命名约定**
+12. **遵守分层架构原则**
+13. **充分的测试覆盖**
 
 **违规后果**: 任何违反本文档规则的修改，均视为**无效修改**，不得合并到主分支。
 
 ---
 
-**文档版本**: 1.0  
+**文档版本**: 1.1  
 **最后更新**: 2025-12-14  
 **适用范围**: 通用 C# 项目（Copilot 驱动开发）
+**变更说明**: 新增冗余代码检测、Id 类型统一规范、增强 Swagger 注释要求
