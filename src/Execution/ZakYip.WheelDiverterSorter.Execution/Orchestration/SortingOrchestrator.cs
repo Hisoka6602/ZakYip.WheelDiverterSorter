@@ -1201,6 +1201,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return;
         }
         
+        _logger.LogDebug(
+            "[队列任务匹配] Position {PositionIndex} 传感器触发，取出包裹 {ParcelId} 的任务",
+            positionIndex, task.ParcelId);
+        
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
         
@@ -1230,7 +1234,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogError(
                 "[IO触发检测到丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 丢失 " +
                 "(延迟={DelayMs}ms, 丢失阈值={ThresholdMs}ms, 截止时间={Deadline:HH:mm:ss.fff})，" +
-                "跳过执行摆轮动作",
+                "跳过执行摆轮动作。此包裹不会被误认为下一个包裹，因为每个任务都有唯一的ParcelId标识。",
                 task.ParcelId, 
                 positionIndex, 
                 delayMs,
@@ -1239,6 +1243,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             // 丢失包裹不执行摆轮动作，直接返回
             // 所有队列清理和上游通知已由 OnParcelLostDetectedAsync 处理
+            // 下一个包裹触发传感器时，会从队列取出它自己的任务（不同的ParcelId）
             _metrics?.RecordSortingFailure(0);
             return;
         }
