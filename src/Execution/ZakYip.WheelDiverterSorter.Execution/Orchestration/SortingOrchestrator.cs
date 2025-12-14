@@ -1201,6 +1201,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return;
         }
         
+        _logger.LogDebug(
+            "[队列任务匹配] Position {PositionIndex} 传感器触发，取出包裹 {ParcelId} 的任务",
+            positionIndex, task.ParcelId);
+        
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
         
@@ -1223,7 +1227,26 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         DiverterDirection actionToExecute;
         
-        if (isTimeout)
+        // 处理丢失包裹（优先级最高）
+        if (isLost)
+        {
+            var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+            _logger.LogError(
+                "[IO触发检测到丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 丢失 " +
+                "(延迟={DelayMs:F0}ms, 丢失阈值={ThresholdMs}ms, 截止时间={Deadline:HH:mm:ss.fff})，跳过执行摆轮动作",
+                task.ParcelId, 
+                positionIndex, 
+                delayMs,
+                task.LostDetectionTimeoutMs ?? 0,
+                task.LostDetectionDeadline);
+            
+            // 丢失包裹不执行摆轮动作，直接返回
+            // 所有队列清理和上游通知已由 OnParcelLostDetectedAsync 处理
+            // 下一个包裹触发传感器时，会从队列取出它自己的任务（不同的ParcelId）
+            _metrics?.RecordSortingFailure(0);
+            return;
+        }
+        else if (isTimeout)
         {
             var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
             _logger.LogWarning(
