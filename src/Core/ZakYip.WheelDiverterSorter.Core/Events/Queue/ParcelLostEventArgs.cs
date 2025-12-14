@@ -75,4 +75,12 @@ public class ParcelLostEventArgs : EventArgs
     /// LostThresholdMs = MedianIntervalMs * LostDetectionFactor
     /// </remarks>
     public decimal LostDetectionFactor { get; init; }
+    
+    /// <summary>
+    /// 受丢失包裹影响的其他包裹ID列表
+    /// </summary>
+    /// <remarks>
+    /// 这些包裹在丢失包裹创建之后、丢失检测之前创建，其任务方向已被改为直行以导向异常格口
+    /// </remarks>
+    public List<long> AffectedParcelIds { get; set; } = new List<long>();
 }

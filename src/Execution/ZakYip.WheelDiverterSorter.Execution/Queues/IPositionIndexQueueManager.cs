@@ -87,4 +87,16 @@ public interface IPositionIndexQueueManager
     /// 用于包裹丢失场景：当包裹物理丢失时，需要从所有队列中清理该包裹的任务，避免影响后续包裹分拣。
     /// </remarks>
     int RemoveAllTasksForParcel(long parcelId);
+    
+    /// <summary>
+    /// 将受影响包裹的所有任务方向改为直行（异常处理）
+    /// </summary>
+    /// <param name="lostParcelCreatedAt">丢失包裹的创建时间</param>
+    /// <param name="detectionTime">丢失检测时间</param>
+    /// <returns>受影响的包裹ID列表</returns>
+    /// <remarks>
+    /// 用于包裹丢失场景：当包裹丢失时，需要将"在丢失包裹创建之后、丢失检测之前创建的包裹"的所有任务方向改为直行。
+    /// 这样可以确保这些包裹走向异常格口，而不影响在丢失包裹创建之前或丢失检测之后创建的包裹。
+    /// </remarks>
+    List<long> UpdateAffectedParcelsToStraight(DateTime lostParcelCreatedAt, DateTime detectionTime);
 }

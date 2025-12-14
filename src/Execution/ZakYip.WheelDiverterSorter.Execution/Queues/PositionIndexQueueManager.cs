@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 
@@ -250,5 +251,87 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         }
 
         return totalRemoved;
+    }
+    
+    /// <inheritdoc/>
+    public List<long> UpdateAffectedParcelsToStraight(DateTime lostParcelCreatedAt, DateTime detectionTime)
+    {
+        var affectedParcelIds = new List<long>();
+        var affectedPositions = new Dictionary<int, int>(); // positionIndex -> 修改数量
+
+        foreach (var (positionIndex, queue) in _queues)
+        {
+            // 临时存储队列中的任务
+            var tempTasks = new List<PositionQueueItem>();
+            int modifiedCount = 0;
+
+            // 遍历队列，识别并修改受影响的包裹任务
+            while (queue.TryDequeue(out var task))
+            {
+                // 判断该包裹是否受影响：
+                // 1. 包裹创建时间在丢失包裹创建时间之后
+                // 2. 包裹创建时间在丢失检测时间之前
+                if (task.CreatedAt > lostParcelCreatedAt && task.CreatedAt < detectionTime)
+                {
+                    // 如果任务方向不是直行，则修改为直行
+                    if (task.DiverterAction != DiverterDirection.Straight)
+                    {
+                        // 创建新任务，方向改为直行
+                        var modifiedTask = task with { DiverterAction = DiverterDirection.Straight };
+                        tempTasks.Add(modifiedTask);
+                        
+                        // 记录受影响的包裹ID（去重）
+                        if (!affectedParcelIds.Contains(task.ParcelId))
+                        {
+                            affectedParcelIds.Add(task.ParcelId);
+                        }
+                        
+                        modifiedCount++;
+                        
+                        _logger.LogDebug(
+                            "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 的任务方向从 {OldAction} 改为 Straight",
+                            positionIndex, task.ParcelId, task.DiverterAction);
+                    }
+                    else
+                    {
+                        // 已经是直行，保持不变
+                        tempTasks.Add(task);
+                    }
+                }
+                else
+                {
+                    // 不受影响的任务保持原样
+                    tempTasks.Add(task);
+                }
+            }
+
+            // 将所有任务放回队列（保持原顺序）
+            foreach (var task in tempTasks)
+            {
+                queue.Enqueue(task);
+            }
+
+            if (modifiedCount > 0)
+            {
+                affectedPositions[positionIndex] = modifiedCount;
+            }
+        }
+
+        if (affectedParcelIds.Count > 0)
+        {
+            _logger.LogWarning(
+                "[包裹丢失影响] 共 {ParcelCount} 个包裹受影响，任务方向已改为直行: [{ParcelIds}]，" +
+                "涉及 {PositionCount} 个 Position: {Positions}",
+                affectedParcelIds.Count,
+                string.Join(", ", affectedParcelIds),
+                affectedPositions.Count,
+                string.Join(", ", affectedPositions.Select(kvp => $"P{kvp.Key}({kvp.Value}个任务)")));
+        }
+        else
+        {
+            _logger.LogDebug("[包裹丢失影响] 无其他包裹受影响");
+        }
+
+        return affectedParcelIds;
     }
 }
