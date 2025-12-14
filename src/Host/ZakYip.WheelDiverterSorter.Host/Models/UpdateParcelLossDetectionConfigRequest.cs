@@ -20,7 +20,7 @@ public record UpdateParcelLossDetectionConfigRequest
     public int? MonitoringIntervalMs { get; init; }
     
     /// <summary>
-    /// 丢失检测系数
+    /// 丢失检测系数（可选）
     /// </summary>
     /// <remarks>
     /// 丢失阈值 = 中位数间隔 * 丢失检测系数
@@ -29,7 +29,7 @@ public record UpdateParcelLossDetectionConfigRequest
     /// </remarks>
     /// <example>1.5</example>
     [Range(1.0, 5.0, ErrorMessage = "丢失检测系数必须在1.0-5.0之间")]
-    public required double LostDetectionMultiplier { get; init; }
+    public double? LostDetectionMultiplier { get; init; }
     
     /// <summary>
     /// 超时检测系数（可选）

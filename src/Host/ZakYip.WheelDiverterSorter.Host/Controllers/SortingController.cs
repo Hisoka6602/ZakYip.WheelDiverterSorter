@@ -817,9 +817,7 @@ public class SortingController : ApiControllerBase
     ///   "monitoringIntervalMs": 60,
     ///   "lostDetectionMultiplier": 1.5,
     ///   "timeoutMultiplier": 3.0,
-    ///   "windowSize": 10,
-    ///   "minThresholdMs": 1000,
-    ///   "maxThresholdMs": 10000
+    ///   "windowSize": 10
     /// }
     /// ```
     /// </remarks>
@@ -873,17 +871,24 @@ public class SortingController : ApiControllerBase
     /// - 取值范围：50-1000ms
     /// - 包裹丢失监控服务扫描队列的时间间隔
     /// - 默认值：60ms
+    /// - 如不提供则保持当前值不变
     /// 
     /// **丢失检测系数 (LostDetectionMultiplier)**：
-    /// - 必填参数
+    /// - 可选参数
     /// - 取值范围：1.0-5.0
     /// - 建议根据实际线速和包裹密度调整
     /// - 例如：高速线体建议使用较小值（1.5-2.0），低速线体可使用较大值（2.0-2.5）
+    /// - 如不提供则保持当前值不变
     /// 
     /// **超时检测系数 (TimeoutMultiplier)**：
     /// - 可选参数
     /// - 取值范围：1.5-10.0
     /// - 如不提供则保持当前值不变
+    /// 
+    /// **部分更新支持**：
+    /// - 所有字段均为可选，仅更新提供的字段
+    /// - 未提供的字段保持当前值不变
+    /// - 支持单独更新任意字段组合
     /// 
     /// **示例请求**：
     /// ```json
@@ -900,9 +905,7 @@ public class SortingController : ApiControllerBase
     ///   "monitoringIntervalMs": 60,
     ///   "lostDetectionMultiplier": 2.0,
     ///   "timeoutMultiplier": 3.5,
-    ///   "windowSize": 10,
-    ///   "minThresholdMs": 1000,
-    ///   "maxThresholdMs": 10000
+    ///   "windowSize": 10
     /// }
     /// ```
     /// 
@@ -935,7 +938,8 @@ public class SortingController : ApiControllerBase
             }
 
             // 验证参数范围
-            if (request.LostDetectionMultiplier < 1.0 || request.LostDetectionMultiplier > 5.0)
+            if (request.LostDetectionMultiplier.HasValue &&
+                (request.LostDetectionMultiplier.Value < 1.0 || request.LostDetectionMultiplier.Value > 5.0))
             {
                 return BadRequest(new { message = "丢失检测系数必须在1.0-5.0之间" });
             }
@@ -955,8 +959,11 @@ public class SortingController : ApiControllerBase
             // 获取当前配置
             var config = _lossDetectionConfigRepository.Get();
             
-            // 更新配置值
-            config.LostDetectionMultiplier = request.LostDetectionMultiplier;
+            // 更新配置值（仅更新提供的字段）
+            if (request.LostDetectionMultiplier.HasValue)
+            {
+                config.LostDetectionMultiplier = request.LostDetectionMultiplier.Value;
+            }
             
             if (request.TimeoutMultiplier.HasValue)
             {
