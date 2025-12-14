@@ -952,42 +952,44 @@ public class SortingController : ApiControllerBase
                 return BadRequest(new { message = "监控间隔必须在50-1000ms之间" });
             }
 
-            // 注意：IOptionsMonitor 本身不支持运行时修改配置
-            // 这里我们需要通过配置文件或配置提供者来更新
-            // 为了简化实现，我们记录日志并返回当前配置
-            // 实际的配置更新需要通过 appsettings.json 或配置中心
+            // 获取当前配置
+            var config = _lossDetectionConfigRepository.Get();
             
-            _logger.LogWarning(
-                "收到更新包裹丢失检测配置请求: MonitoringIntervalMs={MonitoringInterval}, LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}。" +
-                "注意：当前实现需要通过修改 appsettings.json 中的 PositionIntervalTrackerOptions 配置并重启服务才能生效。",
-                request.MonitoringIntervalMs,
-                request.LostDetectionMultiplier,
-                request.TimeoutMultiplier);
+            // 更新配置值
+            config.LostDetectionMultiplier = request.LostDetectionMultiplier;
             
-            var currentOptions = _trackerOptionsMonitor.CurrentValue;
+            if (request.TimeoutMultiplier.HasValue)
+            {
+                config.TimeoutMultiplier = request.TimeoutMultiplier.Value;
+            }
             
+            if (request.MonitoringIntervalMs.HasValue)
+            {
+                config.MonitoringIntervalMs = request.MonitoringIntervalMs.Value;
+            }
+            
+            // 设置更新时间
+            config.UpdatedAt = _clock.LocalNow;
+            
+            // 保存到数据库
+            _lossDetectionConfigRepository.Update(config);
+            
+            _logger.LogInformation(
+                "包裹丢失检测配置已更新: MonitoringIntervalMs={MonitoringInterval}ms, LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}",
+                config.MonitoringIntervalMs,
+                config.LostDetectionMultiplier,
+                config.TimeoutMultiplier);
+            
+            // 返回更新后的配置
             var response = new ParcelLossDetectionConfigDto
             {
-                MonitoringIntervalMs = currentOptions.MonitoringIntervalMs,
-                LostDetectionMultiplier = currentOptions.LostDetectionMultiplier,
-                TimeoutMultiplier = currentOptions.TimeoutMultiplier,
-                WindowSize = currentOptions.WindowSize,
-                MinThresholdMs = currentOptions.MinThresholdMs,
-                MaxThresholdMs = currentOptions.MaxThresholdMs
+                MonitoringIntervalMs = config.MonitoringIntervalMs,
+                LostDetectionMultiplier = config.LostDetectionMultiplier,
+                TimeoutMultiplier = config.TimeoutMultiplier,
+                WindowSize = config.WindowSize
             };
             
-            return Ok(new
-            {
-                message = "配置更新请求已记录。当前实现需要修改 appsettings.json 配置并重启服务。",
-                requestedConfig = new
-                {
-                    monitoringIntervalMs = request.MonitoringIntervalMs,
-                    lostDetectionMultiplier = request.LostDetectionMultiplier,
-                    timeoutMultiplier = request.TimeoutMultiplier
-                },
-                currentConfig = response,
-                hint = "请修改 appsettings.json 中的 PositionIntervalTrackerOptions 配置，然后重启服务使配置生效。"
-            });
+            return Ok(response);
         }
         catch (Exception ex)
         {
