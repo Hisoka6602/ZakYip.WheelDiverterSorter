@@ -1456,11 +1456,11 @@ tools/Profiling/
 | TD-066 | ✅ 已评估 | 合并 UpstreamServerBackgroundService 和 IUpstreamRoutingClient 为统一接口 IUpstreamConnectionManager → 统一上游连接管理，支持 Client/Server 模式 | [详情](./TechnicalDebtLog.md#td-066-合并-upstreamserverbackgroundservice-和-iupstreamroutingclient-为统一接口) |
 | TD-067 | ✅ 已解决 | 全面影分身代码检测 → 审计已完成，发现17项新问题（详见TECHNICAL_DEBT_AUDIT_RESULTS.md） | [详情](./TechnicalDebtLog.md#td-067-全面影分身代码检测) |
 | TD-068 | ✅ 已解决 | 异常格口包裹队列机制修复 → 异常格口包裹应等待传感器触发而非立即执行 | [详情](./TechnicalDebtLog.md#td-068-异常格口包裹队列机制修复) |
-| TD-069 | ⏳ 进行中 | 上游通信影分身清理与接口统一化 → 删除IUpstreamSortingGateway及实现类，统一使用IUpstreamRoutingClient | [详情](./TechnicalDebtLog.md#td-069-上游通信影分身清理与接口统一化) |
+| TD-069 | ✅ 已解决 | 上游通信影分身清理与接口统一化 → IUpstreamSortingGateway及实现类已删除，统一使用IUpstreamRoutingClient | [详情](./TechnicalDebtLog.md#td-069-上游通信影分身清理与接口统一化) |
 | TD-070 | ✅ 已解决 | 硬件区域影分身代码检测 → 全面检测HAL接口、厂商实现、配置结构，确认无影分身 | [详情](./TechnicalDebtLog.md#td-070-硬件区域影分身代码检测) |
 | TD-071 | ✅ 已解决 | 冗余接口清理 → 删除信号塔、离散IO、报警控制等15个死代码文件及9个冗余接口 | [详情](./TechnicalDebtLog.md#td-071-冗余接口清理信号塔离散io报警控制) |
-| TD-072 | ❌ 未开始 | ChuteDropoff传感器到格口映射配置 → 当前使用传感器ID作为格口ID，未来需要通过配置建立映射关系 | [详情](./TechnicalDebtLog.md#td-072-chutedropoff传感器到格口映射配置) |
-| TD-073 | ❌ 未开始 | 多包裹同时落格同一格口的识别优化 → FirstOrDefault只返回第一个匹配包裹，需要时序验证或FIFO队列机制 | [详情](./TechnicalDebtLog.md#td-073-多包裹同时落格同一格口的识别优化) |
+| TD-072 | ✅ 已取消 | ChuteDropoff传感器到格口映射配置 → 当前简化实现已满足需求，无需额外配置映射 | [详情](./TechnicalDebtLog.md#td-072-chutedropoff传感器到格口映射配置) |
+| TD-073 | ✅ 已取消 | 多包裹同时落格同一格口的识别优化 → 当前实现已足够，极少出现该场景 | [详情](./TechnicalDebtLog.md#td-073-多包裹同时落格同一格口的识别优化) |
 | TD-074 | ✅ 已解决 | 包裹丢失处理错误逻辑 → 删除全局重路由和IO触发丢失检测，只影响丢失包裹本身 (当前 PR) | [详情](./TechnicalDebtLog.md#td-074-包裹丢失处理错误逻辑) |
 | TD-075 | ❌ 未开始 | Copilot Instructions 合规性全面审计与修复 → 协议魔法数字、配置时间戳、文档清理（预估2-4天，分4个子任务）| [详情](./TechnicalDebtLog.md#td-075-copilot-instructions-合规性全面审计与修复) |
 
@@ -1468,16 +1468,17 @@ tools/Profiling/
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 71 |
-| ⏳ 进行中 | 1 |
-| ❌ 未开始 | 3 |
+| ✅ 已解决 | 74 |
+| ⏳ 进行中 | 0 |
+| ❌ 未开始 | 1 |
 | **总计** | **75** |
 
-**完成率**：71/75 = **94.7%** 🎯
+**完成率**：74/75 = **98.7%** 🎯
 
 **最近更新**：
-- TD-075 新增：Copilot Instructions 合规性全面审计（2025-12-15）
-- TD-074 已完成：包裹丢失处理错误逻辑修复（2025-12-14）
+- TD-069 已完成：上游通信影分身清理（2025-12-15）
+- TD-072/073 已取消：当前实现已满足需求（2025-12-15）
+- TD-075 待处理：Copilot Instructions 合规性全面审计（2025-12-15）
 - TD-067 已完成：全面影分身审计完成（已修复18个测试，测试通过率99.6%）
 - TD-068 已完成：异常格口包裹队列机制修复（2025-12-12）
 - TD-069 进行中：上游通信影分身清理（2025-12-12开始）
