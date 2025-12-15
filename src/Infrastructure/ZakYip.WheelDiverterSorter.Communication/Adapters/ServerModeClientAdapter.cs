@@ -122,8 +122,34 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
         {
             ParcelDetectedMessage detected => await NotifyParcelDetectedAsync(detected.ParcelId, cancellationToken),
             SortingCompletedMessage completed => await NotifySortingCompletedAsync(completed.Notification, cancellationToken),
+            PanelButtonPressedMessage panelButton => await HandlePanelButtonPressedAsync(panelButton, cancellationToken),
             _ => throw new ArgumentException($"不支持的消息类型: {message.GetType().Name}", nameof(message))
         };
+    }
+
+    /// <summary>
+    /// 处理面板按钮按下消息
+    /// </summary>
+    /// <remarks>
+    /// 在服务端模式下，面板按钮事件是本地操作，不需要广播给上游客户端。
+    /// 此方法记录日志并返回true，表示消息已被处理（虽然不需要实际发送）。
+    /// </remarks>
+    private Task<bool> HandlePanelButtonPressedAsync(
+        PanelButtonPressedMessage message,
+        CancellationToken cancellationToken = default)
+    {
+        ThrowIfDisposed();
+        
+        _logger.LogInformation(
+            "[{LocalTime}] [服务端模式-适配器] 面板按钮按下通知 (本地操作，不广播): Button={ButtonType}, State={Before}->{After}",
+            _systemClock.LocalNow,
+            message.ButtonType,
+            message.SystemStateBefore,
+            message.SystemStateAfter);
+        
+        // 面板按钮操作是本地的系统状态控制，在服务端模式下不需要广播给客户端
+        // 返回true表示消息已被成功处理
+        return Task.FromResult(true);
     }
 
     public async Task<bool> NotifyParcelDetectedAsync(
