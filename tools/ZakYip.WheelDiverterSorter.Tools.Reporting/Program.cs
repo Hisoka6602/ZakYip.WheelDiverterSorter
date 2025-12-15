@@ -1,4 +1,5 @@
 ﻿using ZakYip.WheelDiverterSorter.Tools.Reporting.Analyzers;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Tools.Reporting.Models;
 using ZakYip.WheelDiverterSorter.Tools.Reporting.Writers;
 
@@ -218,7 +219,7 @@ class Program
 
         // 生成报表
         Console.WriteLine("📝 正在生成报表...");
-        var writer = new ReportWriter(config.OutputDirectory);
+        var writer = new ReportWriter(config.OutputDirectory, new LocalSystemClock());
         writer.WriteReports(result, config.FromTime, config.ToTime);
         
         // 如果有告警记录，生成告警报表

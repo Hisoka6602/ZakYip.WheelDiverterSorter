@@ -1,4 +1,5 @@
 using System.Text;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Tools.Reporting.Analyzers;
 using ZakYip.WheelDiverterSorter.Tools.Reporting.Models;
 
@@ -11,16 +12,19 @@ namespace ZakYip.WheelDiverterSorter.Tools.Reporting.Writers;
 public class ReportWriter
 {
     private readonly string _outputDirectory;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 构造函数
     /// Constructor
     /// </summary>
     /// <param name="outputDirectory">输出目录 / Output directory</param>
-    public ReportWriter(string outputDirectory)
+    /// <param name="clock">系统时钟 / System clock</param>
+    public ReportWriter(string outputDirectory, ISystemClock clock)
     {
         _outputDirectory = outputDirectory;
-        
+        _clock = clock;
+
         // 确保输出目录存在
         if (!Directory.Exists(_outputDirectory))
         {
@@ -34,7 +38,8 @@ public class ReportWriter
     /// </summary>
     public void WriteReports(AnalysisResult result, DateTimeOffset? fromTime, DateTimeOffset? toTime)
     {
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+        var now = _clock.LocalNow;
+        var timestamp = now.ToString("yyyy-MM-dd_HH-mm-ss");
         var timeRangeStr = BuildTimeRangeString(fromTime, toTime);
 
         // 写入 CSV 文件
@@ -146,10 +151,11 @@ public class ReportWriter
     {
         var fileName = Path.Combine(_outputDirectory, $"report-{timestamp}.md");
         var sb = new StringBuilder();
+        var generatedAt = _clock.LocalNow;
 
         sb.AppendLine("# 包裹分拣异常统计报告");
         sb.AppendLine();
-        sb.AppendLine($"**生成时间**: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"**生成时间**: {generatedAt:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine();
         sb.AppendLine($"**统计时间范围**: {timeRangeStr}");
         sb.AppendLine();
@@ -277,7 +283,7 @@ public class ReportWriter
     /// </summary>
     public void WriteAlertReport(List<AlertLogRecord> alerts, DateTimeOffset? fromTime, DateTimeOffset? toTime)
     {
-        var timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+        var timestamp = _clock.LocalNow.ToString("yyyy-MM-dd_HH-mm-ss");
         
         // 按严重程度分组统计
         var bySeverity = alerts.GroupBy(a => a.Severity)
@@ -369,7 +375,7 @@ public class ReportWriter
 
         sb.AppendLine("# 告警分析报表");
         sb.AppendLine();
-        sb.AppendLine($"**生成时间**：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"**生成时间**：{_clock.LocalNow:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine();
         sb.AppendLine($"**统计范围**：{BuildTimeRangeString(fromTime, toTime)}");
         sb.AppendLine();
