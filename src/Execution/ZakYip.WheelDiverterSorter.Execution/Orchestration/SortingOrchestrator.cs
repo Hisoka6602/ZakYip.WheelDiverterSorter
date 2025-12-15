@@ -1955,7 +1955,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 CompletedAt = new DateTimeOffset(e.DetectedAt),
                 IsSuccess = false,
                 FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Lost,
-                FailureReason = failureReason
+                FailureReason = failureReason,
+                AffectedParcelIds = affectedParcelIds.Count > 0 ? affectedParcelIds.AsReadOnly() : null // 结构化发送受影响包裹列表
             };
             
             await _upstreamClient.SendAsync(
@@ -1964,14 +1965,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (affectedParcelIds.Count > 0)
             {
                 _logger.LogInformation(
-                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)，影响了 {Count} 个包裹",
+                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)，结构化发送受影响包裹列表: [{AffectedIds}]",
                     e.LostParcelId,
-                    affectedParcelIds.Count);
+                    string.Join(", ", affectedParcelIds));
             }
             else
             {
                 _logger.LogInformation(
-                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)",
+                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)，无其他包裹受影响",
                     e.LostParcelId);
             }
         }

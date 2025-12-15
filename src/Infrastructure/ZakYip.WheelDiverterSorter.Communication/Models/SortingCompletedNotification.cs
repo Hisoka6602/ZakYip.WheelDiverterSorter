@@ -49,4 +49,14 @@ public sealed record SortingCompletedNotificationDto
     /// 使用 ParcelFinalStatus 枚举区分结果类型：Success/Timeout/Lost/ExecutionError
     /// </remarks>
     public ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus FinalStatus { get; init; } = ZakYip.WheelDiverterSorter.Core.Enums.Parcel.ParcelFinalStatus.Success;
+    
+    /// <summary>
+    /// 受影响的包裹ID列表（仅在 FinalStatus = Lost 时有值）
+    /// </summary>
+    /// <remarks>
+    /// 当包裹丢失时，在丢失包裹创建之后、丢失检测之前创建的包裹会受到影响，
+    /// 这些包裹的任务方向已被改为直行以导向异常格口。
+    /// 此字段用于上游系统追踪和处理这些受影响的包裹。
+    /// </remarks>
+    public IReadOnlyList<long>? AffectedParcelIds { get; init; }
 }
