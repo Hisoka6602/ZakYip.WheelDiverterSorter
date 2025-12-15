@@ -1462,7 +1462,7 @@ tools/Profiling/
 | TD-072 | ✅ 已取消 | ChuteDropoff传感器到格口映射配置 → 当前简化实现已满足需求，无需额外配置映射 | [详情](./TechnicalDebtLog.md#td-072-chutedropoff传感器到格口映射配置) |
 | TD-073 | ✅ 已取消 | 多包裹同时落格同一格口的识别优化 → 当前实现已足够，极少出现该场景 | [详情](./TechnicalDebtLog.md#td-073-多包裹同时落格同一格口的识别优化) |
 | TD-074 | ✅ 已解决 | 包裹丢失处理错误逻辑 → 删除全局重路由和IO触发丢失检测，只影响丢失包裹本身 (当前 PR) | [详情](./TechnicalDebtLog.md#td-074-包裹丢失处理错误逻辑) |
-| TD-075 | ✅ 已解决 | Copilot Instructions 合规性全面审计与修复 → 所有4个任务已完成：协议魔法数字审计（已符合规范）、配置时间戳检查、时间戳验证测试、文档清理（当前 PR） | [详情](./TechnicalDebtLog.md#td-075-copilot-instructions-合规性全面审计与修复) |
+| TD-075 | ✅ 已解决 | Copilot Instructions 合规性全面审计与修复 → 任务1+4完成（协议魔法数字审计、文档清理）；任务2+3已在 PR #443 完成（配置时间戳检查、测试验证），本 PR 补充文档记录 | [详情](./TechnicalDebtLog.md#td-075-copilot-instructions-合规性全面审计与修复) |
 
 ### 技术债统计
 
