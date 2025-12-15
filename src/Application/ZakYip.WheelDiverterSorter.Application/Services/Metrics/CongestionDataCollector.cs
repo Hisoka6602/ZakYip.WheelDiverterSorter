@@ -54,25 +54,39 @@ public class CongestionDataCollector : ICongestionDataCollector
     /// </summary>
     public CongestionSnapshot CollectSnapshot()
     {
-        // PR-44: ConcurrentBag 可以安全地迭代和ToList
+        // PR-PERF: Optimize - avoid multiple LINQ materializations
         CleanupOldHistory();
 
         var now = _clock.LocalNow;
-        var recentParcels = _parcelHistory
-            .Where(p => p.EntryTime >= now - _historyWindow)
-            .ToList();
+        var cutoffTime = now - _historyWindow;
+        
+        // Single pass through history to collect all data
+        var recentCount = 0;
+        var completedCount = 0;
+        var totalLatency = 0.0;
+        var maxLatency = 0.0;
+        
+        foreach (var entry in _parcelHistory)
+        {
+            if (entry.EntryTime >= cutoffTime)
+            {
+                recentCount++;
+                
+                if (entry.CompletionTime.HasValue)
+                {
+                    completedCount++;
+                    var latency = (entry.CompletionTime.Value - entry.EntryTime).TotalMilliseconds;
+                    totalLatency += latency;
+                    if (latency > maxLatency)
+                    {
+                        maxLatency = latency;
+                    }
+                }
+            }
+        }
 
-        var completedParcels = recentParcels
-            .Where(p => p.CompletionTime.HasValue)
-            .ToList();
-
-        var latencies = completedParcels
-            .Select(p => (p.CompletionTime!.Value - p.EntryTime).TotalMilliseconds)
-            .ToList();
-
-        var averageLatency = latencies.Any() ? latencies.Average() : 0;
-        var maxLatency = latencies.Any() ? latencies.Max() : 0;
-
+        var averageLatency = completedCount > 0 ? totalLatency / completedCount : 0;
+        
         // 简化的失败率计算（实际应根据具体业务逻辑）
         var failureRatio = 0.0; // 默认为0，实际应由业务逻辑提供
 
@@ -83,7 +97,7 @@ public class CongestionDataCollector : ICongestionDataCollector
             MaxLatencyMs = maxLatency,
             FailureRatio = failureRatio,
             TimeWindowSeconds = (int)_historyWindow.TotalSeconds,
-            TotalSampledParcels = recentParcels.Count
+            TotalSampledParcels = recentCount
         };
     }
 

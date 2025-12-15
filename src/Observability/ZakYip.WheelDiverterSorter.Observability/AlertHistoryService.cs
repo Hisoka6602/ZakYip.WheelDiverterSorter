@@ -48,11 +48,26 @@ public class AlertHistoryService : IAlertSink
     /// </summary>
     public List<AlertRaisedEventArgs> GetRecentCriticalAlerts(int count = 10)
     {
-        return _recentAlerts
-            .Where(a => a.Severity == AlertSeverity.Critical)
-            .OrderByDescending(a => a.RaisedAt)
-            .Take(count)
-            .ToList();
+        // PR-PERF: Optimize - avoid multiple LINQ operations, use single pass
+        var result = new List<AlertRaisedEventArgs>(Math.Min(count, _recentAlerts.Count));
+        
+        // Materialize to array first to avoid multiple enumerations
+        var alertsArray = _recentAlerts.ToArray();
+        Array.Sort(alertsArray, (a, b) => b.RaisedAt.CompareTo(a.RaisedAt));
+        
+        foreach (var alert in alertsArray)
+        {
+            if (alert.Severity == AlertSeverity.Critical)
+            {
+                result.Add(alert);
+                if (result.Count >= count)
+                {
+                    break;
+                }
+            }
+        }
+        
+        return result;
     }
 
     /// <summary>
@@ -60,9 +75,18 @@ public class AlertHistoryService : IAlertSink
     /// </summary>
     public List<AlertRaisedEventArgs> GetRecentAlerts(int count = 20)
     {
-        return _recentAlerts
-            .OrderByDescending(a => a.RaisedAt)
-            .Take(count)
-            .ToList();
+        // PR-PERF: Optimize - single pass with pre-allocated capacity
+        var alertsArray = _recentAlerts.ToArray();
+        Array.Sort(alertsArray, (a, b) => b.RaisedAt.CompareTo(a.RaisedAt));
+        
+        var takeCount = Math.Min(count, alertsArray.Length);
+        var result = new List<AlertRaisedEventArgs>(takeCount);
+        
+        for (int i = 0; i < takeCount; i++)
+        {
+            result.Add(alertsArray[i]);
+        }
+        
+        return result;
     }
 }
