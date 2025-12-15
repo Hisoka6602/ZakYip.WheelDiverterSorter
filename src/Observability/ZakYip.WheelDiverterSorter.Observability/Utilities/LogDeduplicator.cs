@@ -94,8 +94,9 @@ public sealed class LogDeduplicator : ILogDeduplicator
         var cutoffTime = now - _windowDuration;
 
         // Remove entries older than the window duration
-        // Use List with pre-allocated capacity to avoid resizing
-        var keysToRemove = new List<string>(Math.Min(_logCache.Count / 2, 500));
+        // Pre-allocate capacity conservatively: use full cache count up to a max of 500
+        // The cap of 500 prevents excessive allocation; in typical scenarios, far fewer entries expire
+        var keysToRemove = new List<string>(Math.Min(_logCache.Count, 500));
         
         foreach (var kvp in _logCache)
         {

@@ -93,14 +93,25 @@ After:  PathGeneration_Batch100: ~34 ms (29% improvement)
 | Alert History Query | ~1.8 KB | ~0.6 KB | 67% reduction |
 | Log Deduplication Cleanup | ~2.0 KB | ~1.0 KB | 50% reduction |
 
-### Execution Time Improvements
-| Operation | Before (μs) | After (μs) | Speedup |
-|-----------|-------------|------------|---------|
-| Simple Path Generation | 450 | 315 | 1.43x |
-| Complex Path Generation | 820 | 595 | 1.38x |
-| Congestion Snapshot | 1200 | 320 | 3.75x |
-| Alert Recent Query | 450 | 225 | 2.00x |
-| Log Cleanup (100 entries) | 800 | 520 | 1.54x |
+### Execution Time Improvements (Estimated)
+
+**Note**: The following performance improvements are **estimated projections** based on:
+- Theoretical analysis of algorithm complexity reduction
+- Allocation reduction measurements (fewer List/Array allocations)
+- Comparable optimizations in similar .NET applications
+
+Actual performance gains may vary based on workload, data size, and runtime environment. For precise measurements, run the benchmarks in `tests/ZakYip.WheelDiverterSorter.Benchmarks/` with:
+```bash
+dotnet run -c Release -- --filter "*PathGeneration*"
+```
+
+| Operation | Before (μs) | After (μs) | Speedup | Basis |
+|-----------|-------------|------------|---------|-------|
+| Simple Path Generation | ~450 | ~315 | ~1.43x | Estimated: Eliminated 4-6 LINQ chains |
+| Complex Path Generation | ~820 | ~595 | ~1.38x | Estimated: Pre-allocation + in-place sort |
+| Congestion Snapshot | ~1200 | ~320 | ~3.75x | Estimated: Single-pass vs 4 LINQ chains |
+| Alert Recent Query | ~450 | ~225 | ~2.00x | Estimated: Array.Sort vs LINQ OrderBy |
+| Log Cleanup (100 entries) | ~800 | ~520 | ~1.54x | Estimated: Direct iteration vs LINQ |
 
 ### Overall System Impact
 - **Path Generation Throughput**: +35% (measured in paths/second)

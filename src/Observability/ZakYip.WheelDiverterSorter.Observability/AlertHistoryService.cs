@@ -48,26 +48,28 @@ public class AlertHistoryService : IAlertSink
     /// </summary>
     public List<AlertRaisedEventArgs> GetRecentCriticalAlerts(int count = 10)
     {
-        // PR-PERF: Optimize - avoid multiple LINQ operations, use single pass
-        var result = new List<AlertRaisedEventArgs>(Math.Min(count, _recentAlerts.Count));
+        // PR-PERF: Optimize - filter Critical first, then sort only the filtered subset
+        // This avoids sorting non-Critical alerts, which is more efficient when Critical alerts are a minority
+        var criticalAlerts = new List<AlertRaisedEventArgs>();
         
-        // Materialize to array first to avoid multiple enumerations
-        var alertsArray = _recentAlerts.ToArray();
-        Array.Sort(alertsArray, (a, b) => b.RaisedAt.CompareTo(a.RaisedAt));
-        
-        foreach (var alert in alertsArray)
+        foreach (var alert in _recentAlerts)
         {
             if (alert.Severity == AlertSeverity.Critical)
             {
-                result.Add(alert);
-                if (result.Count >= count)
-                {
-                    break;
-                }
+                criticalAlerts.Add(alert);
             }
         }
         
-        return result;
+        // Sort only the Critical alerts by RaisedAt descending
+        criticalAlerts.Sort((a, b) => b.RaisedAt.CompareTo(a.RaisedAt));
+        
+        // Take up to 'count' items
+        if (criticalAlerts.Count > count)
+        {
+            return criticalAlerts.GetRange(0, count);
+        }
+        
+        return criticalAlerts;
     }
 
     /// <summary>
