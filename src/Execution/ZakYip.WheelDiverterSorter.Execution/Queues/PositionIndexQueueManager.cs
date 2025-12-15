@@ -271,14 +271,20 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             {
                 // 判断该包裹是否受影响：
                 // 1. 包裹创建时间在丢失包裹创建时间之后
-                // 2. 包裹创建时间在丢失检测时间之前
-                if (task.CreatedAt > lostParcelCreatedAt && task.CreatedAt < detectionTime)
+                // 2. 包裹创建时间在丢失检测时间之前或等于检测时间
+                if (task.CreatedAt > lostParcelCreatedAt && task.CreatedAt <= detectionTime)
                 {
                     // 如果任务方向不是直行，则修改为直行
                     if (task.DiverterAction != DiverterDirection.Straight)
                     {
                         // 创建新任务，方向改为直行
-                        var modifiedTask = task with { DiverterAction = DiverterDirection.Straight };
+                        // 同时清除丢失检测截止时间，防止误判为丢失
+                        var modifiedTask = task with 
+                        { 
+                            DiverterAction = DiverterDirection.Straight,
+                            LostDetectionDeadline = null,  // 清除丢失检测截止时间
+                            LostDetectionTimeoutMs = null  // 清除丢失检测超时时间
+                        };
                         tempTasks.Add(modifiedTask);
                         
                         // 记录受影响的包裹ID（去重）- O(1) 性能
@@ -287,13 +293,26 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
                         modifiedCount++;
                         
                         _logger.LogDebug(
-                            "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 的任务方向从 {OldAction} 改为 Straight",
+                            "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 的任务方向从 {OldAction} 改为 Straight，已清除丢失检测截止时间",
                             positionIndex, task.ParcelId, task.DiverterAction);
                     }
                     else
                     {
-                        // 已经是直行，保持不变
-                        tempTasks.Add(task);
+                        // 已经是直行，但仍需清除丢失检测截止时间（因为受到影响）
+                        var modifiedTask = task with 
+                        { 
+                            LostDetectionDeadline = null,
+                            LostDetectionTimeoutMs = null
+                        };
+                        tempTasks.Add(modifiedTask);
+                        
+                        // 即使是直行，也要记录为受影响（时间可能需要调整）
+                        affectedParcelIdsSet.Add(task.ParcelId);
+                        modifiedCount++;
+                        
+                        _logger.LogDebug(
+                            "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 已是直行，但清除丢失检测截止时间",
+                            positionIndex, task.ParcelId);
                     }
                 }
                 else

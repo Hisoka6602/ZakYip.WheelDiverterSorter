@@ -107,6 +107,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ConcurrentDictionary<long, SwitchingPath> _parcelPaths;
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
     private readonly ConcurrentDictionary<long, long> _parcelTargetChutes; // Track target chute for each parcel (for Position-Index queue system)
+    private readonly ConcurrentDictionary<long, byte> _timeoutCompensationInserted; // 记录已插入超时补偿任务的包裹ID，防止重复插入（使用byte占位）
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
 
@@ -188,6 +189,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
         _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
         _parcelTargetChutes = new ConcurrentDictionary<long, long>();
+        _timeoutCompensationInserted = new ConcurrentDictionary<long, byte>();
 
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
@@ -257,22 +259,20 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         try
         {
             _logger.LogInformation(
-                "[开始] 开始处理包裹: ParcelId={ParcelId}, SensorId={SensorId}, StartTime={StartTime:o}",
+                "[生命周期-创建] P{ParcelId} 入口传感器{SensorId}触发 T={StartTime:HH:mm:ss.fff}",
                 parcelId,
                 sensorId,
                 _clock.LocalNow);
 
-            // 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
-            _logger.LogDebug("[步骤 1/5] 创建本地包裹实体");
+            // 步骤 1: 创建本地包裹实体（Parcel-First）
             await CreateParcelEntityAsync(parcelId, sensorId);
 
             // 步骤 2: 验证系统状态
-            _logger.LogDebug("[步骤 2/5] 验证系统状态");
             var stateValidation = await ValidateSystemStateAsync(parcelId);
             if (!stateValidation.IsValid)
             {
                 _logger.LogWarning(
-                    "[系统状态验证失败] 包裹 {ParcelId} 被拒绝: {Reason}",
+                    "[生命周期-拒绝] P{ParcelId} 系统验证失败: {Reason}",
                     parcelId,
                     stateValidation.Reason);
                 CleanupParcelRecord(parcelId);
@@ -288,14 +288,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 步骤 3: 拥堵检测与超载评估
-            _logger.LogDebug("[步骤 3/5] 拥堵检测与超载评估");
             var overloadDecision = await DetectCongestionAndOverloadAsync(parcelId);
             
             // 步骤 4: 确定目标格口
-            _logger.LogDebug("[步骤 4/5] 确定目标格口");
             var targetChuteId = await DetermineTargetChuteAsync(parcelId, overloadDecision);
             _logger.LogInformation(
-                "[目标格口确定] 包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                "[生命周期-路由] P{ParcelId} 目标格口={TargetChuteId}",
                 parcelId,
                 targetChuteId);
 
@@ -367,30 +365,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
             
             // 将所有任务加入对应的 positionIndex 队列
-            _logger.LogDebug(
-                "[任务入队] 开始将 {TaskCount} 个任务加入队列",
-                queueTasks.Count);
-            
             // 记录包裹的目标格口，用于后续回调
             _parcelTargetChutes[parcelId] = targetChuteId;
             
             foreach (var task in queueTasks)
             {
                 _queueManager.EnqueueTask(task.PositionIndex, task);
-                
-                _logger.LogDebug(
-                    "[任务入队] ParcelId={ParcelId}, Position={Position}, DiverterId={DiverterId}, " +
-                    "Action={Action}, ExpectedArrival={ExpectedTime:HH:mm:ss.fff}, Timeout={TimeoutMs}ms",
-                    task.ParcelId,
-                    task.PositionIndex,
-                    task.DiverterId,
-                    task.DiverterAction,
-                    task.ExpectedArrivalTime,
-                    task.TimeoutThresholdMs);
             }
             
             _logger.LogInformation(
-                "[入队完成] 包裹 {ParcelId} 的 {TaskCount} 个任务已加入队列，目标格口={TargetChuteId}, ElapsedMs={ElapsedMs:F0}",
+                "[生命周期-入队] P{ParcelId} {TaskCount}任务入队 目标C{TargetChuteId} 耗时{ElapsedMs:F0}ms",
                 parcelId,
                 queueTasks.Count,
                 targetChuteId,
@@ -554,7 +538,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         };
 
         _logger.LogTrace(
-            "[PR-42 Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
+            "[Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
             parcelId,
             createdAt,
             sensorId);
@@ -724,12 +708,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private async Task SendUpstreamNotificationAsync(long parcelId, long exceptionChuteId)
     {
-        // PR-42: Invariant 1 - 上游请求必须引用已存在的本地包裹
-        // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
+        // Invariant 1 - 上游请求必须引用已存在的本地包裹
+        // ConcurrentDictionary.ContainsKey 是线程安全的
         if (!_createdParcels.ContainsKey(parcelId))
         {
             _logger.LogError(
-                "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游通知。" +
+                "[Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游通知。" +
                 "通知已阻止，不发送到上游。",
                 parcelId);
             return;
@@ -738,14 +722,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 发送上游通知
         var upstreamRequestSentAt = new DateTimeOffset(_clock.LocalNow);
         
-        // PR-44: 使用 TryGetValue 是线程安全的
+        // 使用 TryGetValue 是线程安全的
         if (_createdParcels.TryGetValue(parcelId, out var parcel))
         {
             parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
         }
         
         _logger.LogInformation(
-            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, ClientFullName={ClientFullName}, IsConnected={IsConnected}",
+            "[Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, ClientFullName={ClientFullName}, IsConnected={IsConnected}",
             parcelId,
             upstreamRequestSentAt,
             _upstreamClient.GetType().Name,
@@ -1047,7 +1031,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogWarning(
-                "[PR-UPSTREAM02] 落格完成通知发送失败 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess}",
+                "[落格完成通知] 发送失败 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess}",
                 parcelId,
                 result.ActualChuteId,
                 result.IsSuccess);
@@ -1202,8 +1186,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         _logger.LogDebug(
-            "[队列任务匹配] Position {PositionIndex} 传感器触发，取出包裹 {ParcelId} 的任务",
-            positionIndex, task.ParcelId);
+            "[生命周期-传感器] P{ParcelId} Pos{PositionIndex} S{SensorId}触发 取队列任务",
+            task.ParcelId, positionIndex, sensorId);
         
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
@@ -1229,8 +1213,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             actionToExecute = task.FallbackAction;
             
             // 超时包裹需要在后续所有 position 插入 Straight 任务到队列头部
-            // 因为超时包裹虽然超时，但仍排在后续包裹前面
-            if (_topologyRepository != null)
+            // 但只在首次超时时插入一次，避免重复插入导致队列堆积
+            if (_topologyRepository != null && _timeoutCompensationInserted.TryAdd(task.ParcelId, 0))
             {
                 var topology = _topologyRepository.Get();
                 if (topology != null)
@@ -1244,7 +1228,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     if (subsequentNodes.Any())
                     {
                         _logger.LogWarning(
-                            "包裹 {ParcelId} 超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
+                            "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
                             task.ParcelId,
                             subsequentNodes.Count,
                             string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
@@ -1271,6 +1255,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         }
                     }
                 }
+            }
+            else if (!_timeoutCompensationInserted.ContainsKey(task.ParcelId))
+            {
+                _logger.LogDebug(
+                    "包裹 {ParcelId} 在 Position {PositionIndex} 再次超时，已在首次超时时插入补偿任务，本次不重复插入",
+                    task.ParcelId, positionIndex);
             }
             
             _metrics?.RecordSortingFailure(0);
@@ -1312,7 +1302,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (!executionResult.IsSuccess)
             {
                 _logger.LogError(
-                    "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作失败: {ErrorMessage}",
+                    "[生命周期-失败] P{ParcelId} Pos{PositionIndex} 摆轮执行失败: {ErrorMessage}",
                     task.ParcelId, positionIndex, executionResult.FailureReason);
                 _metrics?.RecordSortingFailure(0);
                 
@@ -1325,9 +1315,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 return;
             }
             
-            _logger.LogDebug(
-                "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功",
-                task.ParcelId, positionIndex);
+            _logger.LogTrace(
+                "[生命周期-执行] P{ParcelId} Pos{PositionIndex} 摆轮动作{Action}执行完成",
+                task.ParcelId, positionIndex, actionToExecute);
             
             // 检查是否需要在摆轮执行时触发回调
             if (_callbackConfigRepository != null)
@@ -1348,7 +1338,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         if (actualChuteId > 0)
                         {
                             _logger.LogInformation(
-                                "包裹 {ParcelId} 摆轮 {DiverterId} 转向 {Direction}，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                                "[生命周期-完成] P{ParcelId} D{DiverterId}转向{Direction} 落格C{ActualChuteId} (OnWheelExecution模式)",
                                 task.ParcelId, task.DiverterId, actionToExecute, actualChuteId);
                             
                             await NotifyUpstreamSortingCompletedAsync(
@@ -1358,8 +1348,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                 failureReason: isTimeout ? "SortingTimeout" : null,
                                 finalStatus: isTimeout ? Core.Enums.Parcel.ParcelFinalStatus.Timeout : null);
                             
-                            // 发送通知后清理目标格口记录，防止内存泄漏
-                            _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                            // 发送通知后清理包裹在内存中的所有痕迹，防止内存泄漏
+                            CleanupParcelMemory(task.ParcelId);
                         }
                         else
                         {
@@ -1382,7 +1372,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     {
                         long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
                         _logger.LogWarning(
-                            "包裹 {ParcelId} 摆轮执行超时，OnSensorTrigger 模式触发分拣失败通知 (ActualChuteId={ActualChuteId})",
+                            "[生命周期-超时] P{ParcelId} 超时到达 落格C{ActualChuteId} (OnSensorTrigger模式)",
                             task.ParcelId, actualChuteId);
                         await NotifyUpstreamSortingCompletedAsync(
                             task.ParcelId,
@@ -1391,8 +1381,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             failureReason: "SortingTimeout",
                             finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
                         
-                        // 发送通知后清理目标格口记录
-                        _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                        // 发送通知后清理包裹在内存中的所有痕迹
+                        CleanupParcelMemory(task.ParcelId);
                     }
                     else
                     {
@@ -1573,7 +1563,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             _logger.LogInformation(
-                "[落格事件] OnSensorTrigger 模式：包裹 {ParcelId} 落入格口 {ChuteId}，发送分拣完成通知",
+                "[生命周期-完成] P{ParcelId} 落入格口C{ChuteId} (OnSensorTrigger模式)",
                 parcelId.Value,
                 e.ChuteId);
 
@@ -1584,8 +1574,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 isSuccess: true,
                 failureReason: null);
 
-            // 清理目标格口记录
-            _parcelTargetChutes.TryRemove(parcelId.Value, out _);
+            // 清理包裹在内存中的所有痕迹
+            CleanupParcelMemory(parcelId.Value);
         }
         catch (Exception ex)
         {
@@ -1628,12 +1618,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
     {
-        // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
-        // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
+        // Invariant 2 - 上游响应必须匹配已存在的本地包裹
+        // ConcurrentDictionary.ContainsKey 是线程安全的
         if (!_createdParcels.ContainsKey(e.ParcelId))
         {
             _logger.LogError(
-                "[PR-42 Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
+                "[Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
                 "本地不存在此包裹实体。响应已丢弃，不创建幽灵包裹。",
                 e.ParcelId,
                 e.ChuteId);
@@ -1651,9 +1641,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 记录路由绑定时间
             _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.LocalNow);
             
-            // PR-42: 记录路由绑定完成的 Trace 日志
+            // 记录路由绑定完成的 Trace 日志
             _logger.LogTrace(
-                "[PR-42 Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                "[Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
                 "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
                 e.ParcelId,
                 e.ChuteId,
@@ -1867,8 +1857,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             async () =>
             {
                 _logger.LogError(
-                    "[包裹丢失] 检测到包裹 {ParcelId} 在 Position {Position} 丢失 " +
-                    "(延迟={DelayMs}ms, 丢失阈值={ThresholdMs}ms)",
+                    "[生命周期-丢失] P{ParcelId} Pos{Position}丢失 延迟{DelayMs}ms 阈值{ThresholdMs}ms",
                     e.LostParcelId, 
                     e.DetectedAtPositionIndex,
                     e.DelayMs,
@@ -1913,17 +1902,40 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
                 }
                 
-                // 5. 清理丢失包裹的本地记录
-                _createdParcels.TryRemove(e.LostParcelId, out _);
-                _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
-                _parcelPaths.TryRemove(e.LostParcelId, out _);
-                _pendingAssignments.TryRemove(e.LostParcelId, out _);
-                
-                // 6. 清理丢失包裹的位置追踪记录（防止影响后续包裹）
-                _intervalTracker?.ClearParcelTracking(e.LostParcelId);
+                // 5. 清理丢失包裹的所有内存记录
+                CleanupParcelMemory(e.LostParcelId);
             },
             operationName: "HandleParcelLost",
             cancellationToken: CancellationToken.None);
+    }
+
+    /// <summary>
+    /// 清理包裹在内存中的所有痕迹
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <remarks>
+    /// 在包裹完成分拣或丢失时调用，确保彻底清理包裹的所有内存记录：
+    /// <list type="bullet">
+    ///   <item>创建记录 (_createdParcels)</item>
+    ///   <item>目标格口映射 (_parcelTargetChutes)</item>
+    ///   <item>路径信息 (_parcelPaths)</item>
+    ///   <item>待处理分配 (_pendingAssignments)</item>
+    ///   <item>超时补偿标记 (_timeoutCompensationInserted)</item>
+    ///   <item>位置追踪记录 (_intervalTracker)</item>
+    /// </list>
+    /// </remarks>
+    private void CleanupParcelMemory(long parcelId)
+    {
+        _createdParcels.TryRemove(parcelId, out _);
+        _parcelTargetChutes.TryRemove(parcelId, out _);
+        _parcelPaths.TryRemove(parcelId, out _);
+        _pendingAssignments.TryRemove(parcelId, out _);
+        _timeoutCompensationInserted.TryRemove(parcelId, out _);
+        _intervalTracker?.ClearParcelTracking(parcelId);
+        
+        _logger.LogTrace(
+            "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、位置追踪）",
+            parcelId);
     }
 
     /// <summary>
@@ -1935,6 +1947,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         Core.Events.Queue.ParcelLostEventArgs e, 
         List<long> affectedParcelIds)
     {
+        _logger.LogWarning(
+            "[上游通知-准备] 即将向上游发送包裹 {ParcelId} 丢失通知 (Position={Position}, 受影响包裹数={AffectedCount})",
+            e.LostParcelId,
+            e.DetectedAtPositionIndex,
+            affectedParcelIds.Count);
+        
         try
         {
             var systemConfig = _systemConfigRepository.Get();
@@ -1955,31 +1973,42 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 CompletedAt = new DateTimeOffset(e.DetectedAt),
                 IsSuccess = false,
                 FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Lost,
-                FailureReason = failureReason
+                FailureReason = failureReason,
+                AffectedParcelIds = affectedParcelIds.Count > 0 ? affectedParcelIds.AsReadOnly() : null // 结构化发送受影响包裹列表
             };
+            
+            _logger.LogTrace(
+                "[生命周期-丢失] P{ParcelId} 准备上报上游 (C{ExceptionChuteId})",
+                e.LostParcelId,
+                systemConfig.ExceptionChuteId);
             
             await _upstreamClient.SendAsync(
                 new SortingCompletedMessage { Notification = notification });
             
             if (affectedParcelIds.Count > 0)
             {
-                _logger.LogInformation(
-                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)，影响了 {Count} 个包裹",
+                _logger.LogWarning(
+                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 影响{Count}个包裹 [{AffectedIds}]",
                     e.LostParcelId,
-                    affectedParcelIds.Count);
+                    affectedParcelIds.Count,
+                    string.Join(",", affectedParcelIds));
             }
             else
             {
-                _logger.LogInformation(
-                    "[上游通知] 已上报丢失包裹 {ParcelId} (Status=Lost)",
+                _logger.LogWarning(
+                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 无其他包裹受影响",
                     e.LostParcelId);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "[上游通知失败] 无法上报丢失包裹 {ParcelId}",
-                e.LostParcelId);
+                "[生命周期-丢失] P{ParcelId} 上报上游失败❌: {Message}",
+                e.LostParcelId,
+                ex.Message);
+            
+            // 重要：即使发送失败也要记录，不要静默失败
+            throw; // 重新抛出异常，让 SafeExecutionService 记录
         }
     }
 
