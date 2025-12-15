@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 namespace ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 
 /// <summary>
@@ -11,15 +13,18 @@ public enum UpstreamMessageType
     /// <summary>
     /// 包裹检测通知
     /// </summary>
+    [Description("包裹检测通知")]
     ParcelDetected = 1,
 
     /// <summary>
     /// 落格完成通知
     /// </summary>
+    [Description("落格完成通知")]
     SortingCompleted = 2,
 
     /// <summary>
     /// 面板按钮按下通知
     /// </summary>
+    [Description("面板按钮按下")]
     PanelButtonPressed = 3
 }
