@@ -130,6 +130,9 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     /// <summary>
     /// 处理面板按钮按下消息
     /// </summary>
+    /// <param name="message">面板按钮按下消息</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>始终返回true，表示消息已被处理</returns>
     /// <remarks>
     /// 在服务端模式下，面板按钮事件是本地操作，不需要广播给上游客户端。
     /// 此方法记录日志并返回true，表示消息已被处理（虽然不需要实际发送）。
