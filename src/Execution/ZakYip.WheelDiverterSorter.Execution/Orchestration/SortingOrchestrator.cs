@@ -556,7 +556,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         };
 
         _logger.LogTrace(
-            "[PR-42 Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
+            "[Parcel-First] 本地创建包裹: ParcelId={ParcelId}, CreatedAt={CreatedAt:o}, 来源传感器={SensorId}",
             parcelId,
             createdAt,
             sensorId);
@@ -726,12 +726,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private async Task SendUpstreamNotificationAsync(long parcelId, long exceptionChuteId)
     {
-        // PR-42: Invariant 1 - 上游请求必须引用已存在的本地包裹
-        // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
+        // Invariant 1 - 上游请求必须引用已存在的本地包裹
+        // ConcurrentDictionary.ContainsKey 是线程安全的
         if (!_createdParcels.ContainsKey(parcelId))
         {
             _logger.LogError(
-                "[PR-42 Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游通知。" +
+                "[Invariant Violation] 尝试为不存在的包裹 {ParcelId} 发送上游通知。" +
                 "通知已阻止，不发送到上游。",
                 parcelId);
             return;
@@ -740,14 +740,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 发送上游通知
         var upstreamRequestSentAt = new DateTimeOffset(_clock.LocalNow);
         
-        // PR-44: 使用 TryGetValue 是线程安全的
+        // 使用 TryGetValue 是线程安全的
         if (_createdParcels.TryGetValue(parcelId, out var parcel))
         {
             parcel.UpstreamRequestSentAt = upstreamRequestSentAt;
         }
         
         _logger.LogInformation(
-            "[PR-42 Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, ClientFullName={ClientFullName}, IsConnected={IsConnected}",
+            "[Parcel-First] 发送上游包裹检测通知: ParcelId={ParcelId}, SentAt={SentAt:o}, ClientType={ClientType}, ClientFullName={ClientFullName}, IsConnected={IsConnected}",
             parcelId,
             upstreamRequestSentAt,
             _upstreamClient.GetType().Name,
@@ -1049,7 +1049,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!notificationSent)
         {
             _logger.LogWarning(
-                "[PR-UPSTREAM02] 落格完成通知发送失败 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess}",
+                "[落格完成通知] 发送失败 | ParcelId={ParcelId} | ChuteId={ChuteId} | IsSuccess={IsSuccess}",
                 parcelId,
                 result.ActualChuteId,
                 result.IsSuccess);
@@ -1366,8 +1366,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                 failureReason: isTimeout ? "SortingTimeout" : null,
                                 finalStatus: isTimeout ? Core.Enums.Parcel.ParcelFinalStatus.Timeout : null);
                             
-                            // 发送通知后清理目标格口记录，防止内存泄漏
+                            // 发送通知后清理目标格口记录和超时补偿标记，防止内存泄漏
                             _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                            _timeoutCompensationInserted.TryRemove(task.ParcelId, out _);
                         }
                         else
                         {
@@ -1399,8 +1400,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             failureReason: "SortingTimeout",
                             finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
                         
-                        // 发送通知后清理目标格口记录
+                        // 发送通知后清理目标格口记录和超时补偿标记
                         _parcelTargetChutes.TryRemove(task.ParcelId, out _);
+                        _timeoutCompensationInserted.TryRemove(task.ParcelId, out _);
                     }
                     else
                     {
@@ -1592,8 +1594,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 isSuccess: true,
                 failureReason: null);
 
-            // 清理目标格口记录
+            // 清理目标格口记录和超时补偿标记
             _parcelTargetChutes.TryRemove(parcelId.Value, out _);
+            _timeoutCompensationInserted.TryRemove(parcelId.Value, out _);
         }
         catch (Exception ex)
         {
@@ -1636,12 +1639,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
     {
-        // PR-42: Invariant 2 - 上游响应必须匹配已存在的本地包裹
-        // PR-44: ConcurrentDictionary.ContainsKey 是线程安全的
+        // Invariant 2 - 上游响应必须匹配已存在的本地包裹
+        // ConcurrentDictionary.ContainsKey 是线程安全的
         if (!_createdParcels.ContainsKey(e.ParcelId))
         {
             _logger.LogError(
-                "[PR-42 Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
+                "[Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
                 "本地不存在此包裹实体。响应已丢弃，不创建幽灵包裹。",
                 e.ParcelId,
                 e.ChuteId);
@@ -1659,9 +1662,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 记录路由绑定时间
             _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.LocalNow);
             
-            // PR-42: 记录路由绑定完成的 Trace 日志
+            // 记录路由绑定完成的 Trace 日志
             _logger.LogTrace(
-                "[PR-42 Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                "[Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
                 "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
                 e.ParcelId,
                 e.ChuteId,
