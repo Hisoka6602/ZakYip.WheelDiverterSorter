@@ -4220,8 +4220,8 @@ src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/
 1. **识别魔法数字**：
    ```csharp
    // ❌ 错误：魔法数字
-   if (status & 0x10) != 0)  // 什么是 0x10？
-   if (elapsedMs > 2000)     // 为什么是 2000？
+   if ((status & 0x10) != 0)  // 什么是 0x10？
+   if (elapsedMs > 2000)      // 为什么是 2000？
    ```
 
 2. **使用枚举（推荐）**：
