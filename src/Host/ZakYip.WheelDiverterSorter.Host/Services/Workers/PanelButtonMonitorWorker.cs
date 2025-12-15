@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -31,6 +32,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ISystemClock _systemClock;
     private readonly IOutputPort _outputPort;
+    private readonly IUpstreamRoutingClient? _upstreamClient;
     
     /// <summary>
     /// 默认按钮轮询间隔（毫秒）
@@ -65,7 +67,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         IPanelConfigurationRepository panelConfigRepository,
         ISafeExecutionService safeExecutor,
         ISystemClock systemClock,
-        IOutputPort outputPort)
+        IOutputPort outputPort,
+        IUpstreamRoutingClient? upstreamClient = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _panelInputReader = panelInputReader ?? throw new ArgumentNullException(nameof(panelInputReader));
@@ -75,6 +78,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _outputPort = outputPort ?? throw new ArgumentNullException(nameof(outputPort));
+        _upstreamClient = upstreamClient; // 可选依赖
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -166,6 +170,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// <remarks>
     /// 按钮优先级：急停 > 停止 > 启动
     /// 如果当前正在预警等待期间，高优先级按钮（停止、急停）会立即取消预警等待
+    /// 按钮按下时会通知上游系统（包含按钮类型、时间、状态变化）
     /// </remarks>
     private async Task TriggerIoLinkageAsync(PanelButtonType buttonType, CancellationToken cancellationToken)
     {
@@ -188,25 +193,30 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             
             // 获取当前系统状态
             var currentState = _stateManager.CurrentState;
+            var pressedAt = _systemClock.LocalNow;
             
             _logger.LogInformation(
-                "触发按钮 {ButtonType} 的IO联动，当前系统状态：{SystemState}",
+                "[面板按钮] 用户按下按钮: {ButtonType}, 时间: {PressedAt:HH:mm:ss.fff}, 当前系统状态: {SystemState}",
                 buttonType,
+                pressedAt,
                 currentState);
 
             // 首先处理按钮的主要功能（状态转换）
             await HandleButtonActionAsync(buttonType, currentState, cancellationToken);
 
-            // 状态转换后，获取新的系统状态用于IO联动
+            // 状态转换后，获取新的系统状态用于IO联动和上游通知
             var newState = _stateManager.CurrentState;
             var operatingState = MapToOperatingState(newState);
             
             _logger.LogInformation(
-                "按钮 {ButtonType} 状态已转换: {OldState} -> {NewState}，准备触发 {OperatingState} 状态的IO联动",
+                "[面板按钮] 按钮 {ButtonType} 状态已转换: {OldState} -> {NewState}，准备触发 {OperatingState} 状态的IO联动",
                 buttonType,
                 currentState,
                 newState,
                 operatingState);
+
+            // 通知上游系统按钮按下事件（fire-and-forget）
+            await NotifyUpstreamPanelButtonPressedAsync(buttonType, pressedAt, currentState, newState, cancellationToken);
 
             // 根据新的系统状态触发IO联动
             var result = await _ioLinkageConfigService.TriggerIoLinkageAsync(operatingState);
@@ -599,6 +609,71 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "触发急停蜂鸣器异常");
+        }
+    }
+    
+    /// <summary>
+    /// 通知上游系统面板按钮按下事件
+    /// </summary>
+    /// <param name="buttonType">按钮类型</param>
+    /// <param name="pressedAt">按下时间</param>
+    /// <param name="stateBefore">按下前的系统状态</param>
+    /// <param name="stateAfter">按下后的系统状态</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <remarks>
+    /// Fire-and-forget模式：发送失败只记录日志，不影响按钮功能
+    /// </remarks>
+    private async Task NotifyUpstreamPanelButtonPressedAsync(
+        PanelButtonType buttonType,
+        DateTime pressedAt,
+        SystemState stateBefore,
+        SystemState stateAfter,
+        CancellationToken cancellationToken)
+    {
+        if (_upstreamClient == null)
+        {
+            _logger.LogDebug("[面板按钮] 未配置上游客户端，跳过按钮按下通知");
+            return;
+        }
+
+        try
+        {
+            var message = new PanelButtonPressedMessage
+            {
+                ButtonType = buttonType,
+                PressedAt = new DateTimeOffset(pressedAt),
+                SystemStateBefore = stateBefore,
+                SystemStateAfter = stateAfter
+            };
+
+            _logger.LogInformation(
+                "[面板按钮-上游通知] 发送按钮按下通知: Button={ButtonType}, Time={PressedAt:HH:mm:ss.fff}, State={Before}->{After}",
+                buttonType,
+                pressedAt,
+                stateBefore,
+                stateAfter);
+
+            var success = await _upstreamClient.SendAsync(message, cancellationToken);
+
+            if (success)
+            {
+                _logger.LogInformation(
+                    "[面板按钮-上游通知] 按钮按下通知发送成功: {ButtonType}",
+                    buttonType);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "[面板按钮-上游通知] 按钮按下通知发送失败: {ButtonType}",
+                    buttonType);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[面板按钮-上游通知] 发送按钮按下通知异常: {ButtonType}",
+                buttonType);
         }
     }
     

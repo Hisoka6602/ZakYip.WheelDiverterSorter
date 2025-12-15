@@ -1325,10 +1325,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 var callbackConfig = _callbackConfigRepository.Get();
                 if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
                 {
-                    // OnWheelExecution 模式：仅在摆轮实际转向（非直行）时发送分拣完成通知
-                    // 如果摆轮动作是 Straight（直行），说明包裹还要经过后续摆轮，不是最终落格点
-                    // 只有当摆轮转向（Left 或 Right）时，包裹才真正完成分拣
-                    if (actionToExecute != DiverterDirection.Straight)
+                    // OnWheelExecution 模式：检查是否为终态
+                    // 1. 摆轮实际转向（Left 或 Right）- 包裹已完成分拣，落入格口
+                    // 2. 最后一个摆轮直行通过 - 包裹已到达拓扑末端，必然是终态，落入异常格口
+                    bool isLastDiverter = IsLastDiverterInTopology(positionIndex);
+                    bool isFinalState = (actionToExecute != DiverterDirection.Straight) || isLastDiverter;
+                    
+                    if (isFinalState)
                     {
                         // 需要确定实际的目标格口ID
                         long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
@@ -1337,9 +1340,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         // 只在 actualChuteId > 0 时发送通知并清理
                         if (actualChuteId > 0)
                         {
-                            _logger.LogInformation(
-                                "[生命周期-完成] P{ParcelId} D{DiverterId}转向{Direction} 落格C{ActualChuteId} (OnWheelExecution模式)",
-                                task.ParcelId, task.DiverterId, actionToExecute, actualChuteId);
+                            if (isLastDiverter && actionToExecute == DiverterDirection.Straight)
+                            {
+                                _logger.LogInformation(
+                                    "[生命周期-完成] P{ParcelId} D{DiverterId}最后摆轮直行 落入异常格口C{ActualChuteId} (OnWheelExecution模式)",
+                                    task.ParcelId, task.DiverterId, actualChuteId);
+                            }
+                            else
+                            {
+                                _logger.LogInformation(
+                                    "[生命周期-完成] P{ParcelId} D{DiverterId}转向{Direction} 落格C{ActualChuteId} (OnWheelExecution模式)",
+                                    task.ParcelId, task.DiverterId, actionToExecute, actualChuteId);
+                            }
                             
                             await NotifyUpstreamSortingCompletedAsync(
                                 task.ParcelId,
@@ -1354,14 +1366,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         else
                         {
                             _logger.LogWarning(
-                                "包裹 {ParcelId} 摆轮转向成功，但无法确定目标格口ID（可能已发送过通知），跳过重复发送",
+                                "包裹 {ParcelId} 摆轮执行完成，但无法确定目标格口ID（可能已发送过通知），跳过重复发送",
                                 task.ParcelId);
                         }
                     }
                     else
                     {
                         _logger.LogDebug(
-                            "包裹 {ParcelId} 在摆轮 {DiverterId} 直行通过，OnWheelExecution 模式不发送通知（包裹未完成分拣）",
+                            "包裹 {ParcelId} 在摆轮 {DiverterId} 直行通过，还需经过后续摆轮，OnWheelExecution 模式不发送通知",
                             task.ParcelId, task.DiverterId);
                     }
                 }
@@ -1414,6 +1426,40 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             _metrics?.RecordSortingSuccess(0);
         }
+    }
+
+    /// <summary>
+    /// 判断指定位置索引是否为拓扑中的最后一个摆轮
+    /// </summary>
+    /// <param name="positionIndex">位置索引</param>
+    /// <returns>是否为最后一个摆轮</returns>
+    private bool IsLastDiverterInTopology(int positionIndex)
+    {
+        if (_topologyRepository == null)
+        {
+            // 如果拓扑仓储不可用，保守地返回 false
+            _logger.LogWarning("拓扑仓储不可用，无法判断是否为最后一个摆轮，Position={PositionIndex}", positionIndex);
+            return false;
+        }
+
+        var topology = _topologyRepository.Get();
+        if (topology == null || topology.DiverterNodes == null || topology.DiverterNodes.Count == 0)
+        {
+            _logger.LogWarning("拓扑配置无效或为空，无法判断是否为最后一个摆轮，Position={PositionIndex}", positionIndex);
+            return false;
+        }
+
+        // 获取拓扑中的最大位置索引
+        var maxPositionIndex = topology.DiverterNodes.Max(n => n.PositionIndex);
+        
+        // 如果当前位置索引等于最大位置索引，则为最后一个摆轮
+        bool isLast = positionIndex == maxPositionIndex;
+        
+        _logger.LogDebug(
+            "判断摆轮位置: Position={PositionIndex}, MaxPosition={MaxPosition}, IsLast={IsLast}",
+            positionIndex, maxPositionIndex, isLast);
+        
+        return isLast;
     }
 
     /// <summary>
