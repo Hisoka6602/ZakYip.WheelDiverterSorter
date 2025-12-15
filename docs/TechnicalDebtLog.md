@@ -4159,8 +4159,8 @@ public ActionResult ResetStatistics()
 
 ## [TD-075] Copilot Instructions 合规性全面审计与修复
 
-**状态**：❌ 未开始  
-**相关 PR**: 当前 PR (copilot/fix-non-compliant-code) - 初步扫描完成  
+**状态**：⏳ 进行中
+**相关 PR**: 当前 PR (copilot/fix-non-compliant-code) - 初步扫描完成
 **预估工作量**: 2-4 天（全面扫描 + 修复 + 测试）  
 **优先级**: 🟡 中等（质量保证）
 
@@ -4193,6 +4193,10 @@ public ActionResult ResetStatistics()
    - `ShuDiNiaoWheelProtocolMapper.cs` - 需要检查
    - `LeadshineIoMapper.cs` - 需要检查
    - `SimulatedIoMapper.cs` - 需要检查
+
+**本次更新**：
+
+- ✅ 报表工具的时间戳获取改为通过 `ISystemClock.LocalNow`，消除 `DateTime.Now` 直接调用（`tools/ZakYip.WheelDiverterSorter.Tools.Reporting/Writers/ReportWriter.cs`，提交 `9267e079`）。
 
 ### 未完成任务（需要后续 PR 处理）
 

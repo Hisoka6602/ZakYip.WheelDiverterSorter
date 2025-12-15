@@ -1181,6 +1181,23 @@ Content-Type: application/json
 
 通过 `ASPNETCORE_ENVIRONMENT` 环境变量或 `/api/system/status` 接口可查询当前运行模式。
 
+## 文件树与功能说明（更新相关）
+
+- `tools/ZakYip.WheelDiverterSorter.Tools.Reporting/`
+  - `Program.cs`：命令行入口，解析参数并触发日志解析、统计与报表输出。
+  - `Writers/ReportWriter.cs`：报表生成器，负责生成 CSV 和 Markdown 输出。
+- `docs/TechnicalDebtLog.md`：技术债务记录与每次修复的佐证。
+
+## 本次更新
+
+- 报表工具通过 `ISystemClock` 获取时间戳，符合统一时间抽象规范，避免直接使用 `DateTime.Now`。
+- 同步技术债务记录，标记已完成的时间抽象整改。
+
+## 可继续完善的内容
+
+- 报表工具可增加从配置或命令行选择自定义时区/时钟的能力，覆盖更多运行环境。
+- 在 README 中进一步补充自动化生成的全局文件树，帮助快速索引模块职责。
+
 ---
 
 **文档版本**：2.1 (TD-035)  
