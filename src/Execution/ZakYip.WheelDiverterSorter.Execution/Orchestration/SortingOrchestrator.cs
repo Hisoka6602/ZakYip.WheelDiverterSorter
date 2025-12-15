@@ -259,22 +259,20 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         try
         {
             _logger.LogInformation(
-                "[开始] 开始处理包裹: ParcelId={ParcelId}, SensorId={SensorId}, StartTime={StartTime:o}",
+                "[生命周期-创建] P{ParcelId} 入口传感器{SensorId}触发 T={StartTime:HH:mm:ss.fff}",
                 parcelId,
                 sensorId,
                 _clock.LocalNow);
 
-            // 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
-            _logger.LogDebug("[步骤 1/5] 创建本地包裹实体");
+            // 步骤 1: 创建本地包裹实体（Parcel-First）
             await CreateParcelEntityAsync(parcelId, sensorId);
 
             // 步骤 2: 验证系统状态
-            _logger.LogDebug("[步骤 2/5] 验证系统状态");
             var stateValidation = await ValidateSystemStateAsync(parcelId);
             if (!stateValidation.IsValid)
             {
                 _logger.LogWarning(
-                    "[系统状态验证失败] 包裹 {ParcelId} 被拒绝: {Reason}",
+                    "[生命周期-拒绝] P{ParcelId} 系统验证失败: {Reason}",
                     parcelId,
                     stateValidation.Reason);
                 CleanupParcelRecord(parcelId);
@@ -290,14 +288,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 步骤 3: 拥堵检测与超载评估
-            _logger.LogDebug("[步骤 3/5] 拥堵检测与超载评估");
             var overloadDecision = await DetectCongestionAndOverloadAsync(parcelId);
             
             // 步骤 4: 确定目标格口
-            _logger.LogDebug("[步骤 4/5] 确定目标格口");
             var targetChuteId = await DetermineTargetChuteAsync(parcelId, overloadDecision);
             _logger.LogInformation(
-                "[目标格口确定] 包裹 {ParcelId} 的目标格口: {TargetChuteId}",
+                "[生命周期-路由] P{ParcelId} 目标格口={TargetChuteId}",
                 parcelId,
                 targetChuteId);
 
@@ -369,30 +365,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
             
             // 将所有任务加入对应的 positionIndex 队列
-            _logger.LogDebug(
-                "[任务入队] 开始将 {TaskCount} 个任务加入队列",
-                queueTasks.Count);
-            
             // 记录包裹的目标格口，用于后续回调
             _parcelTargetChutes[parcelId] = targetChuteId;
             
             foreach (var task in queueTasks)
             {
                 _queueManager.EnqueueTask(task.PositionIndex, task);
-                
-                _logger.LogDebug(
-                    "[任务入队] ParcelId={ParcelId}, Position={Position}, DiverterId={DiverterId}, " +
-                    "Action={Action}, ExpectedArrival={ExpectedTime:HH:mm:ss.fff}, Timeout={TimeoutMs}ms",
-                    task.ParcelId,
-                    task.PositionIndex,
-                    task.DiverterId,
-                    task.DiverterAction,
-                    task.ExpectedArrivalTime,
-                    task.TimeoutThresholdMs);
             }
             
             _logger.LogInformation(
-                "[入队完成] 包裹 {ParcelId} 的 {TaskCount} 个任务已加入队列，目标格口={TargetChuteId}, ElapsedMs={ElapsedMs:F0}",
+                "[生命周期-入队] P{ParcelId} {TaskCount}任务入队 目标C{TargetChuteId} 耗时{ElapsedMs:F0}ms",
                 parcelId,
                 queueTasks.Count,
                 targetChuteId,
@@ -1204,8 +1186,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         
         _logger.LogDebug(
-            "[队列任务匹配] Position {PositionIndex} 传感器触发，取出包裹 {ParcelId} 的任务",
-            positionIndex, task.ParcelId);
+            "[生命周期-传感器] P{ParcelId} Pos{PositionIndex} S{SensorId}触发 取队列任务",
+            task.ParcelId, positionIndex, sensorId);
         
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
@@ -1320,7 +1302,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (!executionResult.IsSuccess)
             {
                 _logger.LogError(
-                    "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作失败: {ErrorMessage}",
+                    "[生命周期-失败] P{ParcelId} Pos{PositionIndex} 摆轮执行失败: {ErrorMessage}",
                     task.ParcelId, positionIndex, executionResult.FailureReason);
                 _metrics?.RecordSortingFailure(0);
                 
@@ -1333,9 +1315,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 return;
             }
             
-            _logger.LogDebug(
-                "包裹 {ParcelId} 在 Position {PositionIndex} 摆轮动作执行成功",
-                task.ParcelId, positionIndex);
+            _logger.LogTrace(
+                "[生命周期-执行] P{ParcelId} Pos{PositionIndex} 摆轮动作{Action}执行完成",
+                task.ParcelId, positionIndex, actionToExecute);
             
             // 检查是否需要在摆轮执行时触发回调
             if (_callbackConfigRepository != null)
@@ -1356,7 +1338,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         if (actualChuteId > 0)
                         {
                             _logger.LogInformation(
-                                "包裹 {ParcelId} 摆轮 {DiverterId} 转向 {Direction}，OnWheelExecution 模式触发分拣完成通知 (ActualChuteId={ActualChuteId})",
+                                "[生命周期-完成] P{ParcelId} D{DiverterId}转向{Direction} 落格C{ActualChuteId} (OnWheelExecution模式)",
                                 task.ParcelId, task.DiverterId, actionToExecute, actualChuteId);
                             
                             await NotifyUpstreamSortingCompletedAsync(
@@ -1390,7 +1372,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     {
                         long actualChuteId = await DetermineActualChuteIdAsync(task.ParcelId, actionToExecute, task.DiverterId);
                         _logger.LogWarning(
-                            "包裹 {ParcelId} 摆轮执行超时，OnSensorTrigger 模式触发分拣失败通知 (ActualChuteId={ActualChuteId})",
+                            "[生命周期-超时] P{ParcelId} 超时到达 落格C{ActualChuteId} (OnSensorTrigger模式)",
                             task.ParcelId, actualChuteId);
                         await NotifyUpstreamSortingCompletedAsync(
                             task.ParcelId,
@@ -1581,7 +1563,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             _logger.LogInformation(
-                "[落格事件] OnSensorTrigger 模式：包裹 {ParcelId} 落入格口 {ChuteId}，发送分拣完成通知",
+                "[生命周期-完成] P{ParcelId} 落入格口C{ChuteId} (OnSensorTrigger模式)",
                 parcelId.Value,
                 e.ChuteId);
 
@@ -1875,8 +1857,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             async () =>
             {
                 _logger.LogError(
-                    "[包裹丢失] 检测到包裹 {ParcelId} 在 Position {Position} 丢失 " +
-                    "(延迟={DelayMs}ms, 丢失阈值={ThresholdMs}ms)",
+                    "[生命周期-丢失] P{ParcelId} Pos{Position}丢失 延迟{DelayMs}ms 阈值{ThresholdMs}ms",
                     e.LostParcelId, 
                     e.DetectedAtPositionIndex,
                     e.DelayMs,
@@ -1996,11 +1977,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 AffectedParcelIds = affectedParcelIds.Count > 0 ? affectedParcelIds.AsReadOnly() : null // 结构化发送受影响包裹列表
             };
             
-            _logger.LogWarning(
-                "[上游通知-发送中] 正在发送包裹 {ParcelId} 丢失通知到上游 (ExceptionChuteId={ChuteId}, ClientType={ClientType})",
+            _logger.LogTrace(
+                "[生命周期-丢失] P{ParcelId} 准备上报上游 (C{ExceptionChuteId})",
                 e.LostParcelId,
-                systemConfig.ExceptionChuteId,
-                _upstreamClient.GetType().Name);
+                systemConfig.ExceptionChuteId);
             
             await _upstreamClient.SendAsync(
                 new SortingCompletedMessage { Notification = notification });
@@ -2008,26 +1988,23 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (affectedParcelIds.Count > 0)
             {
                 _logger.LogWarning(
-                    "[上游通知-成功] ✅ 已成功上报丢失包裹 {ParcelId} (Status=Lost, Position={Position})，" +
-                    "结构化发送受影响包裹列表: [{AffectedIds}]",
+                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 影响{Count}个包裹 [{AffectedIds}]",
                     e.LostParcelId,
-                    e.DetectedAtPositionIndex,
-                    string.Join(", ", affectedParcelIds));
+                    affectedParcelIds.Count,
+                    string.Join(",", affectedParcelIds));
             }
             else
             {
                 _logger.LogWarning(
-                    "[上游通知-成功] ✅ 已成功上报丢失包裹 {ParcelId} (Status=Lost, Position={Position})，无其他包裹受影响",
-                    e.LostParcelId,
-                    e.DetectedAtPositionIndex);
+                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 无其他包裹受影响",
+                    e.LostParcelId);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "[上游通知-失败] ❌ 无法上报丢失包裹 {ParcelId} (Position={Position})，异常: {Message}",
+                "[生命周期-丢失] P{ParcelId} 上报上游失败❌: {Message}",
                 e.LostParcelId,
-                e.DetectedAtPositionIndex,
                 ex.Message);
             
             // 重要：即使发送失败也要记录，不要静默失败
