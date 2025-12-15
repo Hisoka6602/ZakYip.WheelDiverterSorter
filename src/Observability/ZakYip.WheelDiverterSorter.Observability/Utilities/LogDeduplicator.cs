@@ -77,21 +77,34 @@ public sealed class LogDeduplicator : ILogDeduplicator
 
     private static string GenerateKey(LogLevel logLevel, string message, string? exceptionType)
     {
-        // Create a unique key based on log level, message, and exception type
-        var exceptionPart = string.IsNullOrEmpty(exceptionType) ? string.Empty : $"|{exceptionType}";
-        return $"{logLevel}|{message}{exceptionPart}";
+        // PR-PERF: Optimize - avoid unnecessary string allocations
+        if (string.IsNullOrEmpty(exceptionType))
+        {
+            // No exception type, simpler concatenation
+            return $"{logLevel}|{message}";
+        }
+        
+        return $"{logLevel}|{message}|{exceptionType}";
     }
 
     private void CleanupOldEntries()
     {
+        // PR-PERF: Optimize - avoid LINQ allocations, use direct enumeration
         var now = _systemClock.LocalNow;
         var cutoffTime = now - _windowDuration;
 
         // Remove entries older than the window duration
-        var keysToRemove = _logCache
-            .Where(kvp => kvp.Value < cutoffTime)
-            .Select(kvp => kvp.Key)
-            .ToList();
+        // Pre-allocate capacity conservatively: use full cache count up to a max of 500
+        // The cap of 500 prevents excessive allocation; in typical scenarios, far fewer entries expire
+        var keysToRemove = new List<string>(Math.Min(_logCache.Count, 500));
+        
+        foreach (var kvp in _logCache)
+        {
+            if (kvp.Value < cutoffTime)
+            {
+                keysToRemove.Add(kvp.Key);
+            }
+        }
 
         foreach (var key in keysToRemove)
         {
