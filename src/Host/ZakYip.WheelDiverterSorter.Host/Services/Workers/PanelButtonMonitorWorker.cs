@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -31,7 +32,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ISystemClock _systemClock;
     private readonly IOutputPort _outputPort;
-    private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream.IUpstreamRoutingClient? _upstreamClient;
+    private readonly IUpstreamRoutingClient? _upstreamClient;
     
     /// <summary>
     /// 默认按钮轮询间隔（毫秒）
@@ -67,7 +68,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         ISafeExecutionService safeExecutor,
         ISystemClock systemClock,
         IOutputPort outputPort,
-        ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream.IUpstreamRoutingClient? upstreamClient = null)
+        IUpstreamRoutingClient? upstreamClient = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _panelInputReader = panelInputReader ?? throw new ArgumentNullException(nameof(panelInputReader));
@@ -637,7 +638,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
 
         try
         {
-            var message = new ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream.PanelButtonPressedMessage
+            var message = new PanelButtonPressedMessage
             {
                 ButtonType = buttonType,
                 PressedAt = new DateTimeOffset(pressedAt),

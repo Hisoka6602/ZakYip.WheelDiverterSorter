@@ -1,9 +1,9 @@
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 
 namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
-
-using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 
 /// <summary>
 /// 上游路由通讯客户端接口
@@ -298,7 +298,7 @@ public sealed record PanelButtonPressedMessage : IUpstreamMessage
     /// <summary>
     /// 按钮类型
     /// </summary>
-    public required ZakYip.WheelDiverterSorter.Core.Enums.Hardware.PanelButtonType ButtonType { get; init; }
+    public required PanelButtonType ButtonType { get; init; }
 
     /// <summary>
     /// 按钮按下时间
@@ -308,12 +308,12 @@ public sealed record PanelButtonPressedMessage : IUpstreamMessage
     /// <summary>
     /// 按钮按下前的系统状态
     /// </summary>
-    public required ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState SystemStateBefore { get; init; }
+    public required SystemState SystemStateBefore { get; init; }
 
     /// <summary>
     /// 按钮按下后的系统状态
     /// </summary>
-    public required ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState SystemStateAfter { get; init; }
+    public required SystemState SystemStateAfter { get; init; }
 
     /// <summary>
     /// 消息类型
