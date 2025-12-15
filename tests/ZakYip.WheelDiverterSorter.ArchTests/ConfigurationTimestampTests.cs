@@ -209,17 +209,8 @@ public class ConfigurationTimestampTests
             var updateMethod = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
                 .FirstOrDefault(m => m.Name == "Update");
 
-            if (updateMethod != null)
-            {
-                // 如果没有 ISystemClock，那么调用者应该负责设置 UpdatedAt
-                // 这是合法的设计模式，所以不认为是问题
-                // 但我们可以记录下来以供参考
-                if (!hasSystemClock)
-                {
-                    // 这是一个信息性记录，不是错误
-                    // timestampHandlingIssues.Add($"{type.Name}: 未注入 ISystemClock（调用者应设置 UpdatedAt）");
-                }
-            }
+            // 如果没有 ISystemClock，那么调用者应该负责设置 UpdatedAt
+            // 这是合法的设计模式，所以不认为是问题
         }
 
         // 此测试主要是信息性的，确保我们知道哪些仓储使用哪种模式
@@ -233,6 +224,7 @@ public class ConfigurationTimestampTests
     public void SystemConfiguration_GetDefault_TimestampsMustBeValid()
     {
         var config = SystemConfiguration.GetDefault();
+        var now = DateTime.UtcNow; // 使用 UTC 时间作为测试基准点
 
         Assert.NotEqual(DateTime.MinValue, config.CreatedAt);
         Assert.NotEqual(DateTime.MaxValue, config.CreatedAt);
@@ -241,7 +233,7 @@ public class ConfigurationTimestampTests
         
         // 默认时间戳应该在合理的范围内（2020年之后，不超过当前时间）
         Assert.True(config.CreatedAt.Year >= 2020, "CreatedAt 应该在 2020 年之后");
-        Assert.True(config.CreatedAt <= DateTime.Now.AddYears(1), "CreatedAt 不应该超过当前时间1年");
+        Assert.True(config.CreatedAt <= now.AddYears(1), "CreatedAt 不应该超过当前时间1年");
         Assert.Equal(config.CreatedAt, config.UpdatedAt);  // 新创建时 UpdatedAt 应该等于 CreatedAt
     }
 
