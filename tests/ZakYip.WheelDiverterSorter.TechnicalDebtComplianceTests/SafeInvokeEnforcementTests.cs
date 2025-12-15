@@ -54,6 +54,10 @@ public class SafeInvokeEnforcementTests
         // ParcelCompletionDelegate: 包裹完成回调委托（单播）
         "_completionDelegate?.Invoke",
         
+        // RuleEngineClientBase: 消息统计回调（单播 Action 委托）
+        "_onMessageReceived?.Invoke",
+        "_onMessageSent?.Invoke",
+        
         // 其他合法的单播委托调用可以添加到这里
     };
 

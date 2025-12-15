@@ -55,6 +55,12 @@ public class UpstreamAssignmentPatternTests
     /// <summary>
     /// 验证 IUpstreamRoutingClient 接口包含正确的方法
     /// </summary>
+    /// <remarks>
+    /// PR-UPSTREAM-UNIFIED: 验证接口设计符合规范4：
+    /// - 1个事件: ChuteAssigned
+    /// - 2个核心方法: SendAsync, PingAsync
+    /// - 1个方法: UpdateOptionsAsync (热更新连接参数)
+    /// </remarks>
     [Fact]
     public void IUpstreamRoutingClient_ShouldHaveCorrectMethods()
     {
@@ -72,25 +78,37 @@ public class UpstreamAssignmentPatternTests
         // Act & Assert - 验证方法存在
         var methods = interfaceType.GetMethods();
 
-        // 验证 NotifyParcelDetectedAsync 存在
-        var notifyParcelMethod = methods.FirstOrDefault(m => m.Name == "NotifyParcelDetectedAsync");
-        Assert.NotNull(notifyParcelMethod);
+        // 验证 SendAsync 存在 (统一发送接口)
+        var sendAsyncMethod = methods.FirstOrDefault(m => m.Name == "SendAsync");
+        Assert.NotNull(sendAsyncMethod);
 
-        // 验证 NotifySortingCompletedAsync 存在
-        var notifySortingMethod = methods.FirstOrDefault(m => m.Name == "NotifySortingCompletedAsync");
-        Assert.NotNull(notifySortingMethod);
+        // 验证 PingAsync 存在 (健康检查)
+        var pingAsyncMethod = methods.FirstOrDefault(m => m.Name == "PingAsync");
+        Assert.NotNull(pingAsyncMethod);
+
+        // 验证 UpdateOptionsAsync 存在 (热更新连接参数)
+        var updateOptionsMethod = methods.FirstOrDefault(m => m.Name == "UpdateOptionsAsync");
+        Assert.NotNull(updateOptionsMethod);
 
         // 验证 ChuteAssigned 事件存在
         var chuteAssignedEvent = interfaceType.GetEvent("ChuteAssigned");
         Assert.NotNull(chuteAssignedEvent);
 
-        // 验证不存在 RequestChuteAssignmentAsync
+        // 验证不存在旧的 RequestChuteAssignmentAsync 方法
         var requestMethod = methods.FirstOrDefault(m => m.Name.Contains("RequestChuteAssignment"));
         Assert.Null(requestMethod);
 
-        // 验证不存在 ChuteAssignmentReceived
+        // 验证不存在旧的 ChuteAssignmentReceived 事件
         var oldEvent = interfaceType.GetEvent("ChuteAssignmentReceived");
         Assert.Null(oldEvent);
+        
+        // 验证不存在旧的 NotifyParcelDetectedAsync 方法 (已统一到SendAsync)
+        var notifyParcelMethod = methods.FirstOrDefault(m => m.Name == "NotifyParcelDetectedAsync");
+        Assert.Null(notifyParcelMethod);
+        
+        // 验证不存在旧的 NotifySortingCompletedAsync 方法 (已统一到SendAsync)
+        var notifySortingMethod = methods.FirstOrDefault(m => m.Name == "NotifySortingCompletedAsync");
+        Assert.Null(notifySortingMethod);
     }
 
     /// <summary>
