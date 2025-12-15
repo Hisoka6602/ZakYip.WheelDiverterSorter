@@ -212,11 +212,29 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         }
 
         // 生成路径段：只生成到目标摆轮的段，不包含后续摆轮
-        var segments = new List<SwitchingPathSegment>();
-        var sortedNodes = topologyConfig.DiverterNodes
-            .OrderBy(n => n.PositionIndex)
-            .Where(n => n.PositionIndex <= targetNode.PositionIndex) // 只生成到目标摆轮
-            .ToList();
+        // PR-PERF: Optimize - pre-allocate list capacity and avoid LINQ overhead
+        var nodeCount = 0;
+        foreach (var node in topologyConfig.DiverterNodes)
+        {
+            if (node.PositionIndex <= targetNode.PositionIndex)
+            {
+                nodeCount++;
+            }
+        }
+        
+        var segments = new List<SwitchingPathSegment>(nodeCount);
+        var sortedNodes = new List<DiverterPathNode>(nodeCount);
+        
+        foreach (var node in topologyConfig.DiverterNodes)
+        {
+            if (node.PositionIndex <= targetNode.PositionIndex)
+            {
+                sortedNodes.Add(node);
+            }
+        }
+        
+        // Sort in-place for better performance
+        sortedNodes.Sort((a, b) => a.PositionIndex.CompareTo(b.PositionIndex));
 
         _logger?.LogDebug(
             "[路径生成] 目标格口 {TargetChuteId} 位于摆轮 {DiverterId} (PositionIndex={PositionIndex})，将生成 {SegmentCount} 个路径段",
@@ -281,9 +299,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <returns>全直通路径</returns>
     private SwitchingPath GenerateExceptionPath(ChutePathTopologyConfig topologyConfig)
     {
-        var sortedNodes = topologyConfig.DiverterNodes
-            .OrderBy(n => n.PositionIndex)
-            .ToList();
+        // PR-PERF: Optimize - avoid LINQ allocations, sort in-place
+        var sortedNodes = new List<DiverterPathNode>(topologyConfig.DiverterNodes);
+        sortedNodes.Sort((a, b) => a.PositionIndex.CompareTo(b.PositionIndex));
 
         var segments = new List<SwitchingPathSegment>(sortedNodes.Count);
         
@@ -599,10 +617,16 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         }
 
         // 生成任务：只生成到目标摆轮的任务
-        var sortedNodes = topologyConfig.DiverterNodes
-            .OrderBy(n => n.PositionIndex)
-            .Where(n => n.PositionIndex <= targetNode.PositionIndex)
-            .ToList();
+        // PR-PERF: Optimize - avoid LINQ allocations
+        var sortedNodes = new List<DiverterPathNode>();
+        foreach (var node in topologyConfig.DiverterNodes)
+        {
+            if (node.PositionIndex <= targetNode.PositionIndex)
+            {
+                sortedNodes.Add(node);
+            }
+        }
+        sortedNodes.Sort((a, b) => a.PositionIndex.CompareTo(b.PositionIndex));
 
         _logger?.LogDebug(
             "[队列任务生成] ParcelId={ParcelId}, 目标格口={TargetChuteId}, 摆轮={DiverterId} (Position={PositionIndex}), 将生成 {TaskCount} 个任务",
@@ -697,10 +721,11 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             throw new InvalidOperationException("SystemClock is required for queue task generation");
         }
 
-        var tasks = new List<PositionQueueItem>();
-        var sortedNodes = topologyConfig.DiverterNodes
-            .OrderBy(n => n.PositionIndex)
-            .ToList();
+        // PR-PERF: Optimize - avoid LINQ allocations
+        var sortedNodes = new List<DiverterPathNode>(topologyConfig.DiverterNodes);
+        sortedNodes.Sort((a, b) => a.PositionIndex.CompareTo(b.PositionIndex));
+        
+        var tasks = new List<PositionQueueItem>(sortedNodes.Count);
 
         var currentTime = createdAt;
 
