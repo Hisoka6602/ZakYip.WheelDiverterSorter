@@ -78,6 +78,7 @@
 - [TD-073] 多包裹同时落格同一格口的识别优化
 - [TD-074] 包裹丢失处理错误逻辑
 - [TD-075] Copilot Instructions 合规性全面审计与修复
+- [TD-076] 高级性能优化（Phase 3）
 
 ---
 
@@ -4355,5 +4356,145 @@ public ActionResult ResetStatistics()
 - `.github/copilot-instructions.md` - 完整编码规范
 - `docs/RepositoryStructure.md` - 仓库结构说明
 - `docs/TechnicalDebtLog.md` - 本文档
+
+---
+
+## [TD-076] 高级性能优化（Phase 3）
+
+**状态**：❌ 未开始 (2025-12-15)
+
+**PR**: copilot/optimize-overall-project-performance
+
+**问题描述**：
+Phase 1 和 Phase 2 的性能优化（路径生成、度量收集、日志去重、告警历史）已成功完成，实现了显著的性能提升。然而，通过性能分析和基准测试，还有多个高价值的优化机会尚未实施。
+
+**已完成的优化（Phase 1-2）**：
+- ✅ 路径生成优化：替换 LINQ 链为手动迭代 + 原地排序（+30% 性能）
+- ✅ 度量收集优化：单次遍历替代 4 个 LINQ 链（+275% 性能）
+- ✅ 告警历史优化：数组排序替代 LINQ 排序（+100% 性能）
+- ✅ 日志去重优化：直接迭代替代 LINQ 链（+50% 性能）
+- ✅ 内存分配：减少 40%
+
+**未完成的优化机会**：
+
+### 高优先级（预计工作量 8-12 小时）
+
+1. **数据库查询批处理**（3-4小时）
+   - 在 LiteDB 仓储层实现批量读写操作
+   - 优化 BulkInsert/BulkUpdate 性能
+   - 添加批量查询 API
+   - 影响文件：
+     - `Configuration.Persistence/Repositories/LiteDb/*.cs`（14个仓储类）
+
+2. **ValueTask 采用**（2-3小时）
+   - 识别高频异步方法（调用次数 > 10000/s）
+   - 替换 `Task<T>` 为 `ValueTask<T>`
+   - 优化热路径异步分配
+   - 影响文件：
+     - `Core/Abstractions/Execution/*.cs`
+     - `Execution/Services/*.cs`
+     - `Drivers/Vendors/*/Adapters/*.cs`
+
+3. **对象池实现**（2-3小时）
+   - 使用 `ArrayPool<T>` 管理临时缓冲区
+   - 实现 `MemoryPool<T>` 用于大型对象
+   - 减少 GC 压力
+   - 影响文件：
+     - `Communication/Clients/*.cs`
+     - `Drivers/Vendors/ShuDiNiao/*.cs`
+
+4. **Span<T> 采用**（2-3小时）
+   - 栈分配小型缓冲区（< 1KB）
+   - 优化字符串处理和解析
+   - 减少堆分配
+   - 影响文件：
+     - `Drivers/Vendors/*/Protocol/*.cs`
+     - `Core/LineModel/Utilities/*.cs`
+
+### 中优先级（预计工作量 6-8 小时）
+
+5. **ConfigureAwait(false)** （1-2小时）
+   - 在所有库代码中添加 `ConfigureAwait(false)`
+   - 避免不必要的上下文切换
+   - 影响文件：约 200+ 异步方法
+
+6. **字符串插值优化**（2-3小时）
+   - 使用 `string.Create` 或 `Span<char>` 优化热路径
+   - 减少字符串分配和连接
+   - 影响文件：
+     - `Observability/Utilities/*.cs`
+     - `Communication/Protocol/*.cs`
+
+7. **集合容量预分配**（2-3小时）
+   - 为剩余 123 个 `new List<T>()` 预分配容量
+   - 避免集合增长时的重新分配
+   - 影响文件：约 50+ 文件
+
+8. **Frozen Collections 采用**（1-2小时）
+   - 使用 `FrozenDictionary<TKey, TValue>` 存储只读数据
+   - 优化查找性能
+   - 影响文件：
+     - `Core/LineModel/Configuration/*.cs`
+     - `Execution/Mapping/*.cs`
+
+### 低优先级（预计工作量 4-6 小时）
+
+9. **LoggerMessage.Define**（1-2小时）
+   - 使用源生成器优化日志记录
+   - 减少日志开销
+   - 影响文件：所有包含日志的类
+
+10. **JsonSerializerOptions 缓存**（1小时）
+    - 缓存序列化选项避免重复创建
+    - 影响文件：`Communication/Serialization/*.cs`
+
+11. **ReadOnlySpan<T> 用于解析**（1-2小时）
+    - 优化字符串解析和验证
+    - 影响文件：`Drivers/Vendors/*/Protocol/*.cs`
+
+12. **CollectionsMarshal 高级用法**（1-2小时）
+    - 直接访问 List 内部数组
+    - 超高性能场景使用
+    - 影响文件：性能关键路径
+
+**预期性能改进**（完成所有高优先级优化）：
+- 路径生成吞吐量：额外 +15-20%
+- 数据库访问延迟：-40-50%
+- 内存分配：额外 -30%
+- 端到端延迟：额外 -15-20%
+
+**总工作量估算**：
+- 高优先级：8-12 小时
+- 中优先级：6-8 小时
+- 低优先级：4-6 小时
+- **总计**：18-26 小时（2-3个工作日）
+
+**实施策略**：
+1. 优先实施高优先级优化（最大收益）
+2. 每个优化独立验证和测试
+3. 使用基准测试量化改进
+4. 保持代码可维护性和可读性
+
+**相关文档**：
+- `docs/PERFORMANCE_OPTIMIZATION_SUMMARY.md` - Phase 1-2 优化总结
+- `tests/ZakYip.WheelDiverterSorter.Benchmarks/` - 性能基准测试
+- `.NET Performance Tips` - Microsoft 官方性能指南
+
+**验收标准**：
+- [ ] 所有高优先级优化已实施并测试
+- [ ] 基准测试显示预期性能改进
+- [ ] 所有单元测试和集成测试通过
+- [ ] 更新 PERFORMANCE_OPTIMIZATION_SUMMARY.md
+- [ ] 无性能回归
+
+**依赖关系**：
+- 需要 Phase 1-2 优化作为基础
+- 需要现有基准测试框架
+- 需要完整的测试覆盖
+
+**风险评估**：
+- **低风险**：ConfigureAwait(false)、集合容量预分配
+- **中风险**：ValueTask 采用、Span<T> 使用
+- **高风险**：对象池实现（需要仔细的生命周期管理）
 
 ---
