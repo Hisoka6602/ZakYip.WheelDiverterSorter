@@ -305,6 +305,10 @@ public class ShadowEnumDetectionTests
             ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DiverterDirection",
              "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DiverterSide"),
             
+            // IO类型 vs EMC锁类型 - 完全不同的业务概念
+            ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.IoType",
+             "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.LockType"),
+            
             // 厂商类型枚举 - 不同设备类型的厂商
             ("ZakYip.WheelDiverterSorter.Core.Enums.Hardware.DriverVendorType",
              "ZakYip.WheelDiverterSorter.Core.Enums.Hardware.SensorVendorType"),

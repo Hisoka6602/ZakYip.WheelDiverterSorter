@@ -170,7 +170,7 @@ public class ParcelLossMonitoringService : BackgroundService
         };
         
         // 触发事件
-        ParcelLostDetected?.Invoke(this, eventArgs);
+        ParcelLostDetected.SafeInvoke(this, eventArgs, _logger, nameof(ParcelLostDetected));
         
         await Task.CompletedTask;
     }
