@@ -286,3 +286,37 @@ public sealed record SortingCompletedMessage : IUpstreamMessage
     /// </summary>
     public UpstreamMessageType MessageType => UpstreamMessageType.SortingCompleted;
 }
+
+/// <summary>
+/// 面板按钮按下通知消息
+/// </summary>
+/// <remarks>
+/// 用于通知上游系统用户按下了哪个面板按钮及系统状态变化
+/// </remarks>
+public sealed record PanelButtonPressedMessage : IUpstreamMessage
+{
+    /// <summary>
+    /// 按钮类型
+    /// </summary>
+    public required ZakYip.WheelDiverterSorter.Core.Enums.Hardware.PanelButtonType ButtonType { get; init; }
+
+    /// <summary>
+    /// 按钮按下时间
+    /// </summary>
+    public required DateTimeOffset PressedAt { get; init; }
+
+    /// <summary>
+    /// 按钮按下前的系统状态
+    /// </summary>
+    public required ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState SystemStateBefore { get; init; }
+
+    /// <summary>
+    /// 按钮按下后的系统状态
+    /// </summary>
+    public required ZakYip.WheelDiverterSorter.Core.Enums.System.SystemState SystemStateAfter { get; init; }
+
+    /// <summary>
+    /// 消息类型
+    /// </summary>
+    public UpstreamMessageType MessageType => UpstreamMessageType.PanelButtonPressed;
+}

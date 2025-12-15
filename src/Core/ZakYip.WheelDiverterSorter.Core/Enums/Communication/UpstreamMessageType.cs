@@ -16,5 +16,10 @@ public enum UpstreamMessageType
     /// <summary>
     /// 落格完成通知
     /// </summary>
-    SortingCompleted = 2
+    SortingCompleted = 2,
+
+    /// <summary>
+    /// 面板按钮按下通知
+    /// </summary>
+    PanelButtonPressed = 3
 }
