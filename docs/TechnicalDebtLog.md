@@ -77,6 +77,7 @@
 - [TD-072] ChuteDropoff传感器到格口映射配置
 - [TD-073] 多包裹同时落格同一格口的识别优化
 - [TD-074] 包裹丢失处理错误逻辑
+- [TD-075] Copilot Instructions 合规性全面审计与修复
 
 ---
 
@@ -4153,5 +4154,330 @@ public ActionResult ResetStatistics()
 - `AlarmService.cs` - 现有失败率实现
 - `CommunicationStatsService.cs` - 现有统计服务模式
 - `SortingController.cs` - 目标控制器
+
+---
+
+## [TD-075] Copilot Instructions 合规性全面审计与修复
+
+**状态**：❌ 未开始  
+**相关 PR**: 当前 PR (copilot/fix-non-compliant-code) - 初步扫描完成  
+**预估工作量**: 2-4 天（全面扫描 + 修复 + 测试）  
+**优先级**: 🟡 中等（质量保证）
+
+### 问题描述
+
+通过全面扫描 `.github/copilot-instructions.md` 中定义的所有编码规范，发现代码库整体合规性较好，但仍存在一些需要改进的地方。
+
+### 已完成扫描
+
+**✅ 合规项**（已验证无违规）：
+
+1. **规则1: 枚举位置约束** - ✅ 所有枚举都在 `Core/Enums/` 的子目录中
+2. **规则2: 事件载荷位置约束** - ✅ 所有 EventArgs 都在 `Core/Events/` 或白名单位置
+3. **规则6: async 方法必须包含 await** - ✅ 扫描显示的 async 方法都有 await 调用
+4. **时间使用规范** - ✅ 未发现直接使用 `DateTime.Now/UtcNow` 的情况（除分析器代码）
+5. **Legacy 目录和命名** - ✅ 无 Legacy 目录，无 Legacy/Deprecated 命名类型
+6. **TODO 标记** - ✅ 代码中未发现 TODO/FIXME/HACK 标记
+7. **global using** - ✅ 只在 obj/ 自动生成文件中存在，源码中无 global using
+
+**⚠️ 需要人工验证的项**：
+
+1. **纯转发适配器检查** - 扫描到4个 Adapter 类，需要验证是否有附加逻辑：
+   - `ServerModeClientAdapter` (Communication) - ✅ 有状态跟踪和事件转发逻辑
+   - `ShuDiNiaoWheelDiverterDeviceAdapter` (Drivers) - ✅ 有协议转换逻辑
+   - `SystemStateManagerAdapter` (Execution) - ✅ 扩展方法类，非纯转发
+   - `SensorEventProviderAdapter` (Ingress) - ✅ 有事件订阅和类型转换
+
+2. **魔法数字检查** - 协议文件中的硬编码值：
+   - `ShuDiNiaoProtocol.cs` - ✅ 已使用常量封装（StartByte1, EndByte 等）
+   - `ShuDiNiaoWheelProtocolMapper.cs` - 需要检查
+   - `LeadshineIoMapper.cs` - 需要检查
+   - `SimulatedIoMapper.cs` - 需要检查
+
+### 未完成任务（需要后续 PR 处理）
+
+#### 任务1: 协议文件魔法数字审计与修复
+
+**目标**：确保所有厂商协议实现符合"禁止魔法数字"规则（copilot-instructions.md 规则8）
+
+**需要检查的文件**：
+```
+src/Drivers/ZakYip.WheelDiverterSorter.Drivers/Vendors/
+├── ShuDiNiao/
+│   ├── ShuDiNiaoWheelProtocolMapper.cs  # 检查状态位和命令码
+│   ├── ShuDiNiaoSpeedConverter.cs       # 检查速度转换常量
+│   └── ShuDiNiaoWheelServer.cs          # 检查端口号和超时值
+├── Leadshine/
+│   ├── IoMapping/LeadshineIoMapper.cs   # 检查IO地址映射
+│   ├── LeadshineEmcController.cs        # 检查EMC状态位
+│   └── LeadshineWheelDiverterDriver.cs  # 检查超时和重试次数
+└── Simulated/
+    └── IoMapping/SimulatedIoMapper.cs   # 检查模拟地址范围
+```
+
+**修复指引**：
+
+1. **识别魔法数字**：
+   ```csharp
+   // ❌ 错误：魔法数字
+   if ((status & 0x10) != 0)  // 什么是 0x10？
+   if (elapsedMs > 2000)      // 为什么是 2000？
+   ```
+
+2. **使用枚举（推荐）**：
+   ```csharp
+   // ✅ 正确：使用带描述的枚举
+   [Flags]
+   public enum ShuDiNiaoStatusFlags
+   {
+       [Description("无错误")]
+       None = 0,
+       
+       [Description("通信错误")]
+       CommunicationError = 0x10,
+       
+       [Description("电机故障")]
+       MotorFault = 0x20
+   }
+   
+   if ((status & (int)ShuDiNiaoStatusFlags.CommunicationError) != 0)
+   ```
+
+3. **使用常量（次选）**：
+   ```csharp
+   // ✅ 正确：使用有意义的常量
+   public static class UpstreamRoutingConstants
+   {
+       public const int MaxRoutingTimeoutMilliseconds = 2000;
+       public const int DefaultRetryCount = 3;
+   }
+   
+   if (elapsedMs > UpstreamRoutingConstants.MaxRoutingTimeoutMilliseconds)
+   ```
+
+4. **协议特定值必须有注释**：
+   ```csharp
+   // ✅ 正确：厂商协议规范值
+   /// <summary>
+   /// 雷赛控制器起始地址（厂商协议规范：section 3.2）
+   /// </summary>
+   private const ushort LeadshineBaseAddress = 0x1000;
+   ```
+
+**验收标准**：
+- [ ] 所有协议文件中的数字字面量都通过枚举或常量定义
+- [ ] 所有魔法数字都有清晰的中文注释说明来源
+- [ ] 枚举值使用 `[Description]` 特性提供中文说明
+- [ ] 无裸的 `0x10`、`2000`、`3` 等数值直接出现在逻辑判断中
+
+**预估工作量**：1-2 天
+
+---
+
+#### 任务2: 配置模型 CreatedAt/UpdatedAt 默认值检查
+
+**目标**：确保所有配置模型的 CreatedAt/UpdatedAt 不是 `"0001-01-01T00:00:00"`（copilot-instructions.md 规则7）
+
+**检查文件列表**：
+```
+src/Core/ZakYip.WheelDiverterSorter.Core/LineModel/Configuration/Models/
+├── SystemConfiguration.cs
+├── ChutePathTopologyConfig.cs
+├── IoLinkageConfiguration.cs
+├── CommunicationConfiguration.cs
+├── LoggingConfiguration.cs
+├── PanelConfiguration.cs
+├── DriverConfiguration.cs
+├── SensorConfiguration.cs
+├── WheelDiverterConfiguration.cs
+├── ChuteRouteConfiguration.cs
+└── ConveyorSegmentConfiguration.cs
+```
+
+**检查步骤**：
+
+1. **检查 GetDefault() 方法**：
+   ```csharp
+   // ✅ 正确：设置默认时间
+   public static SystemConfiguration GetDefault()
+   {
+       var now = ConfigurationDefaults.DefaultTimestamp;
+       return new SystemConfiguration
+       {
+           ConfigName = "system",
+           ExceptionChuteId = 999,
+           CreatedAt = now,
+           UpdatedAt = now  // 未更新时等于 CreatedAt
+       };
+   }
+   
+   // ❌ 错误：未设置时间，将是 "0001-01-01T00:00:00"
+   public static SystemConfiguration GetDefault()
+   {
+       return new SystemConfiguration
+       {
+           ConfigName = "system",
+           ExceptionChuteId = 999
+           // CreatedAt 和 UpdatedAt 未设置
+       };
+   }
+   ```
+
+2. **检查仓储实现**：
+   ```csharp
+   // ✅ 正确：仓储在插入时使用 ISystemClock
+   public void Insert(SystemConfiguration config)
+   {
+       config.CreatedAt = _clock.LocalNow;
+       config.UpdatedAt = _clock.LocalNow;
+       _collection.Insert(config);
+   }
+   
+   // ✅ 正确：仓储在更新时使用 ISystemClock
+   public void Update(SystemConfiguration config)
+   {
+       config.UpdatedAt = _clock.LocalNow;
+       _collection.Update(config);
+   }
+   ```
+
+**修复指引**：
+
+1. 所有 GetDefault() 必须使用 `ConfigurationDefaults.DefaultTimestamp`
+2. 所有仓储的 Insert/Update 必须通过 `ISystemClock.LocalNow` 设置时间
+3. UpdatedAt 在未更新时应等于 CreatedAt
+
+**验收标准**：
+- [ ] 所有配置模型的 GetDefault() 都设置了有效的默认时间
+- [ ] 所有 LiteDB 仓储实现都在 Insert/Update 时设置时间
+- [ ] API 返回的配置数据中 CreatedAt/UpdatedAt 不是 "0001-01-01T00:00:00"
+
+**预估工作量**：0.5 天
+
+---
+
+#### 任务3: CreatedAt/UpdatedAt 字段默认值运行时验证
+
+**目标**：添加 ArchTests 测试，确保配置模型符合时间戳规范
+
+**新增测试文件**：
+```
+tests/ZakYip.WheelDiverterSorter.ArchTests/ConfigurationTimestampTests.cs
+```
+
+**测试用例**：
+
+```csharp
+[Fact]
+public void ConfigurationModels_MustHaveCreatedAtAndUpdatedAt()
+{
+    // 扫描所有配置模型类（*Configuration, *Config）
+    // 验证必须有 CreatedAt 和 UpdatedAt 属性
+}
+
+[Fact]
+public void ConfigurationModels_GetDefaultMethods_MustSetValidTimestamps()
+{
+    // 调用所有配置模型的 GetDefault() 方法
+    // 验证返回的 CreatedAt 和 UpdatedAt 不是 DateTime.MinValue
+}
+
+[Fact]
+public void ConfigurationRepositories_MustUseISystemClock()
+{
+    // 扫描所有 LiteDB 仓储实现
+    // 验证构造函数注入了 ISystemClock
+}
+```
+
+**验收标准**：
+- [ ] 测试覆盖所有 11 个配置模型
+- [ ] 测试覆盖所有 11 个 LiteDB 仓储
+- [ ] 测试在 CI 中自动运行
+
+**预估工作量**：0.5 天
+
+---
+
+#### 任务4: 文档清理（规则3）
+
+**目标**：清理超过生命周期的临时文档
+
+**需要清理的文档类型**（根据 copilot-instructions.md 规则3）：
+
+1. **PR总结文档**（30天） - 扫描 `PR_*_SUMMARY.md`
+2. **任务清单**（30天） - 扫描 `*_TASKS.md`, `NEXT_*.md`
+3. **修复记录**（60天） - 扫描 `FIX_*.md`, `fixes/*.md`
+4. **实施计划**（90天） - 扫描 `*_IMPLEMENTATION.md`, `*_PLAN.md`
+
+**扫描命令**：
+```bash
+# 查找所有临时文档
+find docs -name "PR_*_SUMMARY.md" -o -name "*_TASKS.md" -o -name "NEXT_*.md" \
+  -o -name "FIX_*.md" -o -name "*_IMPLEMENTATION.md" -o -name "*_PLAN.md"
+```
+
+**处理方式**：
+1. 删除已完成/过时的文档
+2. 将历史记录整合到 `TechnicalDebtLog.md`
+3. 将重要信息迁移到永久文档
+
+**验收标准**：
+- [ ] 无超过生命周期的临时文档
+- [ ] 重要信息已迁移到永久文档
+- [ ] TechnicalDebtLog.md 已更新
+
+**预估工作量**：0.5 天
+
+---
+
+### 总结
+
+**已完成**：
+- ✅ 全面扫描 copilot-instructions.md 规则
+- ✅ 验证大部分规则已合规
+- ✅ 识别需要改进的区域
+- ✅ 编写详细修复指引
+
+**剩余工作总预估**：2-4 天
+- 任务1: 协议文件魔法数字审计 (1-2 天)
+- 任务2: 配置时间戳检查 (0.5 天)
+- 任务3: 时间戳验证测试 (0.5 天)
+- 任务4: 文档清理 (0.5 天)
+
+**优先级建议**：
+1. 🔴 高优先级：任务2 + 任务3（配置时间戳，影响数据质量）
+2. 🟡 中优先级：任务1（魔法数字，影响代码可维护性）
+3. 🟢 低优先级：任务4（文档清理，不影响功能）
+
+**下一个 PR 快速开始指引**：
+
+1. **克隆仓库并切换分支**：
+   ```bash
+   git clone <repo-url>
+   cd ZakYip.WheelDiverterSorter
+   git checkout -b copilot/fix-compliance-issues
+   ```
+
+2. **优先处理配置时间戳问题**（任务2+3）：
+   - 阅读本技术债详情中的"任务2"和"任务3"
+   - 按照修复指引逐个检查配置模型
+   - 运行 `dotnet test` 验证修改
+   - 使用 `report_progress` 提交更改
+
+3. **然后处理协议魔法数字**（任务1）：
+   - 阅读本技术债详情中的"任务1"
+   - 使用 grep 扫描协议文件中的数字字面量
+   - 按照修复指引创建枚举或常量
+   - 运行 `dotnet test` 验证修改
+
+4. **最后清理文档**（任务4）：
+   - 执行扫描命令查找临时文档
+   - 按照处理方式清理文档
+
+**参考文档**：
+- `.github/copilot-instructions.md` - 完整编码规范
+- `docs/RepositoryStructure.md` - 仓库结构说明
+- `docs/TechnicalDebtLog.md` - 本文档
 
 ---
