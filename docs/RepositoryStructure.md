@@ -1462,15 +1462,15 @@ tools/Profiling/
 | TD-072 | ❌ 未开始 | ChuteDropoff传感器到格口映射配置 → 当前使用传感器ID作为格口ID，未来需要通过配置建立映射关系 | [详情](./TechnicalDebtLog.md#td-072-chutedropoff传感器到格口映射配置) |
 | TD-073 | ❌ 未开始 | 多包裹同时落格同一格口的识别优化 → FirstOrDefault只返回第一个匹配包裹，需要时序验证或FIFO队列机制 | [详情](./TechnicalDebtLog.md#td-073-多包裹同时落格同一格口的识别优化) |
 | TD-074 | ✅ 已解决 | 包裹丢失处理错误逻辑 → 删除全局重路由和IO触发丢失检测，只影响丢失包裹本身 (当前 PR) | [详情](./TechnicalDebtLog.md#td-074-包裹丢失处理错误逻辑) |
-| TD-075 | ❌ 未开始 | Copilot Instructions 合规性全面审计与修复 → 协议魔法数字、配置时间戳、文档清理（预估2-4天，分4个子任务）| [详情](./TechnicalDebtLog.md#td-075-copilot-instructions-合规性全面审计与修复) |
+| TD-075 | ⏳ 进行中 | Copilot Instructions 合规性全面审计与修复 → 协议魔法数字、配置时间戳、文档清理（预估2-4天，分4个子任务）| [详情](./TechnicalDebtLog.md#td-075-copilot-instructions-合规性全面审计与修复) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
 | ✅ 已解决 | 69 |
-| ⏳ 进行中 | 0 |
-| ❌ 未开始 | 3 |
+| ⏳ 进行中 | 2 |
+| ❌ 未开始 | 2 |
 | **总计** | **72** |
 
 **完成率**：69/72 = **95.8%** 🎯
