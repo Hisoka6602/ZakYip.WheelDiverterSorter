@@ -3,8 +3,8 @@ using NLog.Web;
 using Prometheus;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
-using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 using ZakYip.WheelDiverterSorter.Host.Swagger;
+using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 
 // Early init of NLog to allow startup and shutdown logging
 var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
@@ -95,10 +95,10 @@ try
 
         // 添加IO驱动配置的Schema过滤器，根据当前厂商动态显示配置参数
         options.SchemaFilter<IoDriverConfigurationSchemaFilter>();
-        
+
         // 添加摆轮配置的Schema过滤器，根据当前厂商动态显示配置参数
         options.SchemaFilter<WheelDiverterConfigurationSchemaFilter>();
-        
+
         // 添加摆轮配置的文档过滤器，根据当前厂商动态显示/隐藏API端点
         options.DocumentFilter<WheelDiverterControllerDocumentFilter>();
     });
@@ -137,7 +137,3 @@ finally
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
     LogManager.Shutdown();
 }
-
-// Make Program class accessible to integration tests
-public partial class Program
-{ }
