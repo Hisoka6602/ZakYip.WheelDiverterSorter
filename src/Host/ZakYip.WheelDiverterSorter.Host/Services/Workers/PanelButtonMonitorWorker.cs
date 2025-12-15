@@ -640,7 +640,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             var message = new ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream.PanelButtonPressedMessage
             {
                 ButtonType = buttonType,
-                PressedAt = pressedAt,
+                PressedAt = new DateTimeOffset(pressedAt),
                 SystemStateBefore = stateBefore,
                 SystemStateAfter = stateAfter
             };
