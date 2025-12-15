@@ -1366,9 +1366,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                 failureReason: isTimeout ? "SortingTimeout" : null,
                                 finalStatus: isTimeout ? Core.Enums.Parcel.ParcelFinalStatus.Timeout : null);
                             
-                            // 发送通知后清理目标格口记录和超时补偿标记，防止内存泄漏
-                            _parcelTargetChutes.TryRemove(task.ParcelId, out _);
-                            _timeoutCompensationInserted.TryRemove(task.ParcelId, out _);
+                            // 发送通知后清理包裹在内存中的所有痕迹，防止内存泄漏
+                            CleanupParcelMemory(task.ParcelId);
                         }
                         else
                         {
@@ -1400,9 +1399,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             failureReason: "SortingTimeout",
                             finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
                         
-                        // 发送通知后清理目标格口记录和超时补偿标记
-                        _parcelTargetChutes.TryRemove(task.ParcelId, out _);
-                        _timeoutCompensationInserted.TryRemove(task.ParcelId, out _);
+                        // 发送通知后清理包裹在内存中的所有痕迹
+                        CleanupParcelMemory(task.ParcelId);
                     }
                     else
                     {
@@ -1594,9 +1592,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 isSuccess: true,
                 failureReason: null);
 
-            // 清理目标格口记录和超时补偿标记
-            _parcelTargetChutes.TryRemove(parcelId.Value, out _);
-            _timeoutCompensationInserted.TryRemove(parcelId.Value, out _);
+            // 清理包裹在内存中的所有痕迹
+            CleanupParcelMemory(parcelId.Value);
         }
         catch (Exception ex)
         {
@@ -1924,18 +1921,40 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
                 }
                 
-                // 5. 清理丢失包裹的本地记录
-                _createdParcels.TryRemove(e.LostParcelId, out _);
-                _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
-                _parcelPaths.TryRemove(e.LostParcelId, out _);
-                _pendingAssignments.TryRemove(e.LostParcelId, out _);
-                _timeoutCompensationInserted.TryRemove(e.LostParcelId, out _); // 清理超时补偿标记
-                
-                // 6. 清理丢失包裹的位置追踪记录（防止影响后续包裹）
-                _intervalTracker?.ClearParcelTracking(e.LostParcelId);
+                // 5. 清理丢失包裹的所有内存记录
+                CleanupParcelMemory(e.LostParcelId);
             },
             operationName: "HandleParcelLost",
             cancellationToken: CancellationToken.None);
+    }
+
+    /// <summary>
+    /// 清理包裹在内存中的所有痕迹
+    /// </summary>
+    /// <param name="parcelId">包裹ID</param>
+    /// <remarks>
+    /// 在包裹完成分拣或丢失时调用，确保彻底清理包裹的所有内存记录：
+    /// <list type="bullet">
+    ///   <item>创建记录 (_createdParcels)</item>
+    ///   <item>目标格口映射 (_parcelTargetChutes)</item>
+    ///   <item>路径信息 (_parcelPaths)</item>
+    ///   <item>待处理分配 (_pendingAssignments)</item>
+    ///   <item>超时补偿标记 (_timeoutCompensationInserted)</item>
+    ///   <item>位置追踪记录 (_intervalTracker)</item>
+    /// </list>
+    /// </remarks>
+    private void CleanupParcelMemory(long parcelId)
+    {
+        _createdParcels.TryRemove(parcelId, out _);
+        _parcelTargetChutes.TryRemove(parcelId, out _);
+        _parcelPaths.TryRemove(parcelId, out _);
+        _pendingAssignments.TryRemove(parcelId, out _);
+        _timeoutCompensationInserted.TryRemove(parcelId, out _);
+        _intervalTracker?.ClearParcelTracking(parcelId);
+        
+        _logger.LogTrace(
+            "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、位置追踪）",
+            parcelId);
     }
 
     /// <summary>
