@@ -11,7 +11,6 @@ namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 public class JsonMessageSerializer : IMessageSerializer
 {
     private readonly JsonSerializerOptions _options;
-    private readonly BufferPoolManager _bufferPool;
 
     public JsonMessageSerializer()
     {
@@ -20,13 +19,11 @@ public class JsonMessageSerializer : IMessageSerializer
             PropertyNameCaseInsensitive = true,
             WriteIndented = false
         };
-        _bufferPool = new BufferPoolManager();
     }
 
     public JsonMessageSerializer(JsonSerializerOptions options)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
-        _bufferPool = new BufferPoolManager();
     }
 
     public byte[] Serialize<T>(T obj)
@@ -72,9 +69,10 @@ public class JsonMessageSerializer : IMessageSerializer
     }
 
     /// <summary>
-    /// 高性能序列化到租用的缓冲区（调用方负责归还缓冲区）
+    /// 高性能序列化到 IMemoryOwner（调用方负责释放）
     /// </summary>
-    public (byte[] Buffer, int BytesWritten) SerializeToRentedBuffer<T>(T obj)
+    /// <returns>可释放的内存所有者，使用完毕后必须调用 Dispose()</returns>
+    public RentedBuffer SerializeToRentedBuffer<T>(T obj)
     {
         if (obj == null)
         {
@@ -89,19 +87,10 @@ public class JsonMessageSerializer : IMessageSerializer
         }
 
         var writtenSpan = bufferWriter.WrittenSpan;
-        var buffer = _bufferPool.RentSmallBuffer(writtenSpan.Length);
+        var buffer = BufferPoolManager.Shared.RentSmallBuffer(writtenSpan.Length);
         
-        try
-        {
-            writtenSpan.CopyTo(buffer);
-            return (buffer, writtenSpan.Length);
-        }
-        catch
-        {
-            // 发生异常时归还缓冲区
-            _bufferPool.ReturnSmallBuffer(buffer);
-            throw;
-        }
+        writtenSpan.CopyTo(buffer);
+        return new RentedBuffer(buffer, writtenSpan.Length);
     }
 
     /// <summary>
@@ -115,6 +104,32 @@ public class JsonMessageSerializer : IMessageSerializer
         }
 
         return JsonSerializer.Deserialize<T>(data, _options);
+    }
+}
+
+/// <summary>
+/// 租用的缓冲区包装器，确保使用后正确归还
+/// </summary>
+public readonly struct RentedBuffer : IDisposable
+{
+    private readonly byte[] _buffer;
+    
+    public int BytesWritten { get; }
+    
+    public ReadOnlySpan<byte> Data => new ReadOnlySpan<byte>(_buffer, 0, BytesWritten);
+
+    internal RentedBuffer(byte[] buffer, int bytesWritten)
+    {
+        _buffer = buffer;
+        BytesWritten = bytesWritten;
+    }
+
+    public void Dispose()
+    {
+        if (_buffer != null)
+        {
+            BufferPoolManager.Shared.ReturnSmallBuffer(_buffer);
+        }
     }
 }
 

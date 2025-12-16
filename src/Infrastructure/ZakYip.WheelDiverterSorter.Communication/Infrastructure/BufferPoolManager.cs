@@ -9,11 +9,18 @@ namespace ZakYip.WheelDiverterSorter.Communication.Infrastructure;
 /// 使用 ArrayPool 和 MemoryPool 管理缓冲区：
 /// - 小缓冲区 (≤ 4KB): ArrayPool (栈分配或池化)
 /// - 大缓冲区 (> 4KB): MemoryPool (托管堆池化)
+/// 
+/// 注意：此类使用共享池（ArrayPool.Shared 和 MemoryPool.Shared），
+/// 因此不需要实现 IDisposable，共享池由运行时管理生命周期。
 /// </remarks>
-public sealed class BufferPoolManager : IDisposable
+public sealed class BufferPoolManager
 {
-    private readonly MemoryPool<byte> _memoryPool;
-    private bool _disposed;
+    private static readonly Lazy<BufferPoolManager> _instance = new(() => new BufferPoolManager());
+    
+    /// <summary>
+    /// 获取单例实例
+    /// </summary>
+    public static BufferPoolManager Shared => _instance.Value;
 
     /// <summary>
     /// 大缓冲区阈值（4KB）
@@ -30,9 +37,9 @@ public sealed class BufferPoolManager : IDisposable
     /// </summary>
     public const int DefaultLargeBufferSize = 8192;
 
-    public BufferPoolManager()
+    private BufferPoolManager()
     {
-        _memoryPool = MemoryPool<byte>.Shared;
+        // 私有构造函数，强制使用单例
     }
 
     /// <summary>
@@ -77,47 +84,11 @@ public sealed class BufferPoolManager : IDisposable
     /// <returns>租用的内存块</returns>
     public IMemoryOwner<byte> RentLargeBuffer(int minimumSize = DefaultLargeBufferSize)
     {
-        ThrowIfDisposed();
-
         if (minimumSize <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(minimumSize), "缓冲区大小必须大于0");
         }
 
-        return _memoryPool.Rent(minimumSize);
-    }
-
-    /// <summary>
-    /// 使用 stackalloc 分配固定大小的栈缓冲区（仅用于小型临时缓冲区）
-    /// </summary>
-    /// <param name="size">缓冲区大小（建议 ≤ 512 字节）</param>
-    /// <param name="buffer">输出：栈分配的 Span</param>
-    /// <returns>是否成功分配</returns>
-    /// <remarks>
-    /// 注意：此方法返回的 Span 只在当前作用域有效，不能传递到异步方法或存储到字段中
-    /// stackalloc 只能在方法内部使用，因此此方法已移除。请在调用方直接使用 stackalloc。
-    /// </remarks>
-    [Obsolete("不能将 stackalloc 包装在方法中，请在调用方直接使用 stackalloc")]
-    public static bool TryStackAllocate(int size, out Span<byte> buffer)
-    {
-        buffer = default;
-        return false;
-    }
-
-    private void ThrowIfDisposed()
-    {
-        if (_disposed)
-        {
-            throw new ObjectDisposedException(nameof(BufferPoolManager));
-        }
-    }
-
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            // MemoryPool.Shared 不需要显式释放
-            _disposed = true;
-        }
+        return MemoryPool<byte>.Shared.Rent(minimumSize);
     }
 }

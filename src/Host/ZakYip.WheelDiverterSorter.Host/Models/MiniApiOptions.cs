@@ -5,6 +5,8 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 /// </summary>
 public class MiniApiOptions
 {
+    private string[] _urls = new[] { "http://localhost:5000" };
+    
     /// <summary>
     /// API服务监听地址和端口列表
     /// </summary>
@@ -15,7 +17,11 @@ public class MiniApiOptions
     /// - "http://*:5000" - 绑定所有网络接口
     /// - "https://0.0.0.0:5001" - HTTPS（需要配置证书）
     /// </remarks>
-    public string[] Urls { get; set; } = new[] { "http://localhost:5000" };
+    public string[] Urls 
+    { 
+        get => _urls;
+        set => _urls = value ?? new[] { "http://localhost:5000" };
+    }
 
     /// <summary>
     /// 是否启用Swagger文档
