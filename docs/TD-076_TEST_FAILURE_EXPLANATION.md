@@ -85,7 +85,7 @@ TD-076: ✅ 已解决
 在 `.github/workflows/ci.yml` 中为此 PR 添加环境变量：
 
 ```yaml
-- name: Run Technical Debt Compliance Tests
+- name: 运行技术债合规测试
   run: dotnet test tests/ZakYip.WheelDiverterSorter.TechnicalDebtComplianceTests
   env:
     ALLOW_PENDING_TECHNICAL_DEBT: true  # 允许规划阶段的 PR
@@ -100,6 +100,6 @@ TD-076: ✅ 已解决
 
 ---
 
-**文档版本**: 1.0  
-**创建日期**: 2025-12-16  
-**作者**: ZakYip Development Team
+**文档版本**：1.0  
+**创建日期**：2025-12-16  
+**作者**：ZakYip 开发团队

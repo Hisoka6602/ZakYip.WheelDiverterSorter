@@ -1,23 +1,23 @@
-# TD-076 Phase 3 Performance Optimization - Implementation Plan
+# TD-076 Phase 3 性能优化 - 实施计划
 
-## Status: ⏳ In Progress (Started 2025-12-16)
+## 状态：⏳ 进行中（开始于 2025-12-16）
 
-## Overview
+## 概述
 
-TD-076 represents the final phase of performance optimization for the WheelDiverterSorter system. Phase 1 and Phase 2 have already delivered significant improvements (+30% path generation, +275% metrics collection, -40% memory allocations). Phase 3 focuses on advanced optimizations that require more careful implementation.
+TD-076 代表 WheelDiverterSorter 系统性能优化的最终阶段。Phase 1 和 Phase 2 已经带来了显著改进（+30% 路径生成、+275% 指标收集、-40% 内存分配）。Phase 3 专注于需要更仔细实施的高级优化。
 
-## Phased Approach (Per copilot-instructions.md Rule 0)
+## 分阶段方法（根据 copilot-instructions.md 规则0）
 
-**Total Work Estimate**: 18-26 hours (≥ 24 hours = Large PR)
-**Approach**: Split into 3 separate PRs to maintain PR completeness rules
+**总工作量估算**：18-26 小时（≥ 24 小时 = 大型 PR）
+**方法**：拆分为 4 个独立 PR 以保持 PR 完整性规则
 
-## Phase 3-A: High-Priority Optimizations (8-12 hours)
+## Phase 3-A：高优先级优化（8-12 小时）
 
-### 1. Database Query Batch Processing (3-4 hours)
+### 1. 数据库查询批处理（3-4 小时）
 
-**Objective**: Implement bulk operations in LiteDB repositories to reduce database round-trips.
+**目标**：在 LiteDB 仓储中实现批量操作以减少数据库往返次数。
 
-**Files to Modify** (15 files):
+**需修改的文件**（15 个文件）：
 - `Configuration.Persistence/Repositories/LiteDb/LiteDbSystemConfigurationRepository.cs`
 - `Configuration.Persistence/Repositories/LiteDb/LiteDbCommunicationConfigurationRepository.cs`
 - `Configuration.Persistence/Repositories/LiteDb/LiteDbDriverConfigurationRepository.cs`
@@ -34,35 +34,35 @@ TD-076 represents the final phase of performance optimization for the WheelDiver
 - `Configuration.Persistence/Repositories/LiteDb/LiteDbChuteDropoffCallbackConfigurationRepository.cs`
 - `Configuration.Persistence/Repositories/LiteDb/LiteDbMapperConfig.cs`
 
-**New Methods to Add**:
+**需新增的方法**：
 ```csharp
-// Core interface extension (IRepository<T>)
+// 核心接口扩展 (IRepository<T>)
 Task<int> BulkInsertAsync(IEnumerable<T> entities);
 Task<int> BulkUpdateAsync(IEnumerable<T> entities);
 IEnumerable<T> BulkQuery(Expression<Func<T, bool>> predicate);
 ```
 
-**Implementation Strategy**:
-1. Add interface methods to repository base or create IBulkOperations<T> interface
-2. Implement in each LiteDB repository using `_collection.InsertBulk()` and `_collection.UpdateMany()`
-3. Add unit tests for bulk operations
-4. Benchmark before/after with 100+ entities
+**实施策略**：
+1. 在仓储基类中添加接口方法或创建 IBulkOperations<T> 接口
+2. 在每个 LiteDB 仓储中使用 `_collection.InsertBulk()` 和 `_collection.UpdateMany()` 实现
+3. 为批量操作添加单元测试
+4. 使用 100+ 实体进行优化前后的基准测试
 
-**Expected Performance Gain**: 
-- Batch insert: 10x faster for 100 items (10ms → 1ms)
-- Batch update: 8x faster (80ms → 10ms)
-- Query optimization: 40-50% reduction in query latency
+**预期性能提升**：
+- 批量插入：100 项快 10 倍（10ms → 1ms）
+- 批量更新：100 项快 8 倍（80ms → 10ms）
+- 查询优化：查询延迟减少 40-50%
 
-### 2. ValueTask Adoption (2-3 hours)
+### 2. ValueTask 采用（2-3 小时）
 
-**Objective**: Replace `Task<T>` with `ValueTask<T>` in high-frequency async methods to reduce allocations.
+**目标**：在高频异步方法中用 `ValueTask<T>` 替换 `Task<T>` 以减少分配。
 
-**Criteria for Conversion**:
-- Methods called > 10,000 times/second in hot paths
-- Methods that frequently complete synchronously (cached results, fast paths)
-- Methods in critical sorting/execution pipeline
+**转换条件**：
+- 热路径中每秒调用次数 > 10,000 次的方法
+- 经常同步完成的方法（缓存结果、快速路径）
+- 关键分拣/执行管道中的方法
 
-**Files to Modify**:
+**需修改的文件**：
 - `Core/Abstractions/Execution/ISwitchingPathExecutor.cs`
 - `Core/Abstractions/Execution/IWheelCommandExecutor.cs`
 - `Core/Hardware/Devices/IWheelDiverterDriver.cs`
@@ -70,24 +70,24 @@ IEnumerable<T> BulkQuery(Expression<Func<T, bool>> predicate);
 - `Execution/Orchestration/SortingOrchestrator.cs`
 - `Drivers/Vendors/*/Adapters/*.cs`
 
-**Implementation Pattern**:
+**实施模式**：
 ```csharp
-// Before
+// 修改前
 public async Task<PathExecutionResult> ExecuteAsync(SwitchingPath path)
 {
     if (_cache.TryGet(path.PathId, out var cached))
-        return cached;  // ❌ Allocates Task<T>
+        return cached;  // ❌ 分配 Task<T>
     
     var result = await _driver.ExecuteAsync(path);
     _cache.Add(path.PathId, result);
     return result;
 }
 
-// After
+// 修改后
 public async ValueTask<PathExecutionResult> ExecuteAsync(SwitchingPath path)
 {
     if (_cache.TryGet(path.PathId, out var cached))
-        return cached;  // ✅ No allocation for sync completion
+        return cached;  // ✅ 同步完成无分配
     
     var result = await _driver.ExecuteAsync(path);
     _cache.Add(path.PathId, result);
@@ -95,38 +95,38 @@ public async ValueTask<PathExecutionResult> ExecuteAsync(SwitchingPath path)
 }
 ```
 
-**Expected Performance Gain**:
-- Reduced allocations: 50-70% in hot paths with high cache hit rates
-- Faster execution: 5-10% improvement due to reduced GC pressure
+**预期性能提升**：
+- 减少分配：高缓存命中率热路径中减少 50-70%
+- 执行更快：由于减少 GC 压力提升 5-10%
 
-**Warning**: ValueTask must not be awaited multiple times. Add guards if needed.
+**警告**：ValueTask 不得多次 await。如需要添加保护措施。
 
-### 3. Object Pooling Implementation (2-3 hours)
+### 3. 对象池实现（2-3 小时）
 
-**Objective**: Implement object pools for frequently allocated buffers and objects.
+**目标**：为频繁分配的缓冲区和对象实现对象池。
 
-**Target Files**:
+**目标文件**：
 - `Communication/Clients/TouchSocketTcpRuleEngineClient.cs`
 - `Communication/Clients/SignalRRuleEngineClient.cs`
 - `Communication/Clients/MqttRuleEngineClient.cs`
 - `Drivers/Vendors/ShuDiNiao/ShuDiNiaoProtocol.cs`
 - `Drivers/Vendors/ShuDiNiao/ShuDiNiaoWheelDiverterDriver.cs`
 
-**Implementation Strategy**:
-1. Use `ArrayPool<byte>.Shared` for protocol buffers
-2. Use `MemoryPool<byte>.Shared` for larger buffers (> 4KB)
-3. Add `using` blocks or explicit `Return()` calls to manage lifetime
-4. Add metrics to track pool utilization
+**实施策略**：
+1. 对协议缓冲区使用 `ArrayPool<byte>.Shared`
+2. 对大缓冲区（> 4KB）使用 `MemoryPool<byte>.Shared`
+3. 添加 `using` 块或显式 `Return()` 调用来管理生命周期
+4. 添加度量来跟踪池利用率
 
-**Example**:
+**示例**：
 ```csharp
-// Before
+// 修改前
 byte[] buffer = new byte[1024];
 await stream.ReadAsync(buffer, 0, buffer.Length);
 ProcessMessage(buffer);
-// buffer becomes eligible for GC
+// buffer 变为 GC 候选
 
-// After
+// 修改后
 byte[] buffer = ArrayPool<byte>.Shared.Rent(1024);
 try
 {
@@ -139,32 +139,32 @@ finally
 }
 ```
 
-**Expected Performance Gain**:
-- Reduced GC pressure: 60-80% fewer byte[] allocations
-- Memory reuse: 90% pool hit rate after warmup
-- Throughput: 10-15% improvement in high-message-rate scenarios
+**预期性能提升**：
+- 减少 GC 压力：byte[] 分配减少 60-80%
+- 内存重用：预热后池命中率 90%
+- 吞吐量：高消息速率场景提升 10-15%
 
-**Risk**: Must ensure buffers are returned even on exceptions. Consider using `IDisposable` wrapper.
+**风险**：即使在异常情况下也必须确保缓冲区被归还。考虑使用 IDisposable 包装器。
 
-### 4. Span<T> Adoption (2-3 hours)
+### 4. Span<T> 采用（2-3 小时）
 
-**Objective**: Use `Span<T>` and `stackalloc` for small, short-lived buffers.
+**目标**：对小型、短生命周期的缓冲区使用 `Span<T>` 和 `stackalloc`。
 
-**Target Files**:
-- `Drivers/Vendors/ShuDiNiao/ShuDiNiaoProtocol.cs` (message parsing)
-- `Drivers/Vendors/Leadshine/LeadshineIoMapper.cs` (address calculation)
-- `Core/LineModel/Utilities/ChuteIdHelper.cs` (string parsing)
-- `Core/LineModel/Utilities/LoggingHelper.cs` (string formatting)
+**目标文件**：
+- `Drivers/Vendors/ShuDiNiao/ShuDiNiaoProtocol.cs`（消息解析）
+- `Drivers/Vendors/Leadshine/LeadshineIoMapper.cs`（地址计算）
+- `Core/LineModel/Utilities/ChuteIdHelper.cs`（字符串解析）
+- `Core/LineModel/Utilities/LoggingHelper.cs`（字符串格式化）
 
-**Implementation Strategy**:
-1. Replace `byte[]` with `Span<byte>` for buffers < 1KB
-2. Use `stackalloc` for constant-size buffers
-3. Use `Span<char>` for string manipulation
-4. Convert string parsing to use `ReadOnlySpan<char>`
+**实施策略**：
+1. 对 < 1KB 的缓冲区用 `Span<byte>` 替换 `byte[]`
+2. 对固定大小的缓冲区使用 `stackalloc`
+3. 对字符串操作使用 `Span<char>`
+4. 将字符串解析转换为使用 `ReadOnlySpan<char>`
 
-**Example**:
+**示例**：
 ```csharp
-// Before
+// 修改前
 private byte[] BuildMessage(int commandCode, byte[] payload)
 {
     var buffer = new byte[4 + payload.Length];
@@ -174,128 +174,128 @@ private byte[] BuildMessage(int commandCode, byte[] payload)
     return buffer;
 }
 
-// After
+// 修改后
 private void BuildMessage(Span<byte> destination, int commandCode, ReadOnlySpan<byte> payload)
 {
-    Span<byte> buffer = stackalloc byte[256];  // Or use destination
+    Span<byte> buffer = stackalloc byte[256];  // 或使用 destination
     buffer[0] = 0xAA;
     buffer[1] = (byte)commandCode;
     payload.CopyTo(buffer.Slice(4));
 }
 ```
 
-**Expected Performance Gain**:
-- Zero heap allocations for small buffers
-- Faster execution: 20-30% for buffer-heavy operations
-- Reduced GC pauses
+**预期性能提升**：
+- 小缓冲区零堆分配
+- 执行更快：缓冲区密集操作快 20-30%
+- 减少 GC 暂停
 
-## Phase 3-B: Medium-Priority Optimizations (6-8 hours)
+## Phase 3-B：中优先级优化（6-8 小时）
 
-### 5. ConfigureAwait(false) (1-2 hours)
+### 5. ConfigureAwait(false)（1-2 小时）
 
-**Objective**: Add `ConfigureAwait(false)` to all library code to avoid unnecessary context switches.
+**目标**：向所有库代码添加 `ConfigureAwait(false)` 以避免不必要的上下文切换。
 
-**Scope**: ~574 `await` calls across 115 files
+**范围**：约 574 个 await 调用，涉及 115 个文件
 
-**Implementation Strategy**:
-1. Create Roslyn analyzer to detect missing `ConfigureAwait(false)`
-2. Bulk-add to all library code (non-UI code)
-3. Exclude Host/Controllers (need synchronization context)
-4. Add analyzer rule to prevent regression
+**实施策略**：
+1. 创建 Roslyn 分析器来检测缺少的 `ConfigureAwait(false)`
+2. 批量添加到所有库代码（非 UI 代码）
+3. 排除 Host/Controllers（需要同步上下文）
+4. 添加分析器规则防止回退
 
-**Expected Performance Gain**: 5-10% reduction in async overhead
+**预期性能提升**：异步开销减少 5-10%
 
-### 6. String Interpolation Optimization (2-3 hours)
+### 6. 字符串插值优化（2-3 小时）
 
-**Target**: Replace string interpolation with `string.Create` in hot paths
+**目标**：在热路径中用 `string.Create` 替换字符串插值
 
-**Files**:
+**文件**：
 - `Observability/Utilities/DeduplicatedLoggerExtensions.cs`
 - `Communication/Infrastructure/JsonMessageSerializer.cs`
 
-### 7. Collection Capacity Pre-allocation (2-3 hours)
+### 7. 集合容量预分配（2-3 小时）
 
-**Target**: Add capacity hints to 123 `new List<T>()` calls
+**目标**：为 123 个 `new List<T>()` 调用添加容量提示
 
-### 8. Frozen Collections Adoption (1-2 hours)
+### 8. Frozen Collections 采用（1-2 小时）
 
-**Target**: Use `FrozenDictionary<TKey, TValue>` for read-only lookups
+**目标**：对只读查找使用 `FrozenDictionary<TKey, TValue>`
 
-## Phase 3-C: Low-Priority Optimizations (4-6 hours)
+## Phase 3-C：低优先级优化（4-6 小时）
 
-### 9. LoggerMessage.Define (1-2 hours)
-### 10. JsonSerializerOptions Caching (1 hour)
-### 11. ReadOnlySpan<T> for Parsing (1-2 hours)
-### 12. CollectionsMarshal Advanced Usage (1-2 hours)
+### 9. LoggerMessage.Define（1-2 小时）
+### 10. JsonSerializerOptions 缓存（1 小时）
+### 11. ReadOnlySpan<T> 用于解析（1-2 小时）
+### 12. CollectionsMarshal 高级用法（1-2 小时）
 
-## Implementation Order
+## 实施顺序
 
-**Priority Decision Matrix**:
-| Optimization | Impact | Risk | Effort | Priority |
-|--------------|--------|------|--------|----------|
-| DB Batch Processing | High | Low | Medium | 1 |
-| ValueTask | Medium | Medium | Low | 2 |
-| Object Pooling | High | High | Medium | 3 |
-| Span<T> | Medium | Medium | Medium | 4 |
-| ConfigureAwait | Low | Low | Low | 5 |
+**优先级决策矩阵**：
+| 优化 | 影响 | 风险 | 工作量 | 优先级 |
+|------|------|------|--------|--------|
+| 数据库批处理 | 高 | 低 | 中 | 1 |
+| ValueTask | 中 | 中 | 低 | 2 |
+| 对象池 | 高 | 高 | 中 | 3 |
+| Span<T> | 中 | 中 | 中 | 4 |
+| ConfigureAwait | 低 | 低 | 低 | 5 |
 
-**Recommended PR Sequence**:
-1. **PR #1**: DB Batch Processing + ValueTask (5-7 hours, safest optimizations)
-2. **PR #2**: Object Pooling + Span<T> (4-6 hours, requires careful testing)
-3. **PR #3**: ConfigureAwait + String/Collection optimizations (5-7 hours, broad impact)
-4. **PR #4**: Low-priority optimizations (4-6 hours, polish)
+**推荐的 PR 序列**：
+1. **PR #1**：数据库批处理 + ValueTask（5-7 小时，最安全的优化）
+2. **PR #2**：对象池 + Span<T>（4-6 小时，需要仔细测试）
+3. **PR #3**：ConfigureAwait + 字符串/集合优化（5-7 小时，广泛影响）
+4. **PR #4**：低优先级优化（4-6 小时，收尾）
 
-## Success Criteria
+## 成功标准
 
-After completing Phase 3, the system should achieve:
-- [ ] Path generation throughput: +50% vs baseline (Phase 1+2+3 combined)
-- [ ] Database access latency: -60% vs baseline
-- [ ] Memory allocations: -70% vs baseline
-- [ ] End-to-end sorting latency: -40% vs baseline
-- [ ] All unit tests pass
-- [ ] All integration tests pass
-- [ ] Benchmark tests show expected improvements
-- [ ] No performance regressions in any component
+完成 Phase 3 后，系统应达到：
+- [ ] 路径生成吞吐量：相比基线 +50%（Phase 1+2+3 综合）
+- [ ] 数据库访问延迟：相比基线 -60%
+- [ ] 内存分配：相比基线 -70%
+- [ ] 端到端分拣延迟：相比基线 -40%
+- [ ] 所有单元测试通过
+- [ ] 所有集成测试通过
+- [ ] 基准测试显示预期改进
+- [ ] 任何组件无性能回退
 
-## Benchmark Requirements
+## 基准测试要求
 
-Each optimization PR must include:
-1. **Before benchmarks**: Baseline performance measurements
-2. **After benchmarks**: Post-optimization measurements
-3. **Comparison analysis**: % improvement and absolute values
-4. **Memory profiling**: Allocation reduction verification
-5. **Regression check**: Ensure no slowdowns elsewhere
+每个优化 PR 必须包含：
+1. **优化前基准**：基线性能测量
+2. **优化后基准**：优化后性能测量
+3. **对比分析**：改进百分比和绝对值
+4. **内存分析**：分配减少验证
+5. **回退检查**：确保其他地方无变慢
 
-## Documentation Updates
+## 文档更新
 
-- [ ] Update `PERFORMANCE_OPTIMIZATION_SUMMARY.md` with Phase 3 results
-- [ ] Add Phase 3 benchmark results to Benchmarks project
-- [ ] Update `TechnicalDebtLog.md` - mark TD-076 as ✅ Resolved
-- [ ] Update `RepositoryStructure.md` - update TD-076 status
+- [ ] 使用 Phase 3 结果更新 `PERFORMANCE_OPTIMIZATION_SUMMARY.md`
+- [ ] 将 Phase 3 基准测试结果添加到 Benchmarks 项目
+- [ ] 更新 `TechnicalDebtLog.md` - 标记 TD-076 为 ✅ 已解决
+- [ ] 更新 `RepositoryStructure.md` - 更新 TD-076 状态
 
-## Risk Mitigation
+## 风险缓解
 
-### High-Risk Areas
-1. **Object Pooling**: Buffer lifetime management errors can cause data corruption
-   - **Mitigation**: Extensive unit tests, integration tests, memory leak detection
-2. **ValueTask**: Awaiting multiple times causes undefined behavior
-   - **Mitigation**: Code review, static analysis, runtime guards
-3. **Span<T>**: Stack overflow if stackalloc too large, escape analysis errors
-   - **Mitigation**: Limit stackalloc to 256-512 bytes, careful code review
+### 高风险区域
+1. **对象池**：缓冲区生命周期管理错误可能导致数据损坏
+   - **缓解**：广泛的单元测试、集成测试、内存泄漏检测
+2. **ValueTask**：多次 await 导致未定义行为
+   - **缓解**：代码审查、静态分析、运行时保护
+3. **Span<T>**：stackalloc 过大导致栈溢出，逃逸分析错误
+   - **缓解**：限制 stackalloc 为 256-512 字节，仔细代码审查
 
-### Rollback Plan
-- Each PR is independent and can be reverted individually
-- Feature flags for toggling object pooling if needed
-- Comprehensive test coverage ensures safety net
+### 回滚计划
+- 每个 PR 独立，可单独回退
+- 如需要可使用功能标志切换对象池
+- 全面的测试覆盖确保安全网
 
-## References
-- [.NET Performance Tips](https://learn.microsoft.com/en-us/dotnet/framework/performance/performance-tips)
-- [High-Performance C#](https://learn.microsoft.com/en-us/dotnet/csharp/advanced-topics/performance/)
-- [ValueTask Guidelines](https://devblogs.microsoft.com/dotnet/understanding-the-whys-whats-and-whens-of-valuetask/)
-- [ArrayPool<T> Best Practices](https://learn.microsoft.com/en-us/dotnet/api/system.buffers.arraypool-1)
+## 参考资料
+- [.NET 性能提示](https://learn.microsoft.com/zh-cn/dotnet/framework/performance/performance-tips)
+- [高性能 C#](https://learn.microsoft.com/zh-cn/dotnet/csharp/advanced-topics/performance/)
+- [ValueTask 指南](https://devblogs.microsoft.com/dotnet/understanding-the-whys-whats-and-whens-of-valuetask/)
+- [ArrayPool<T> 最佳实践](https://learn.microsoft.com/zh-cn/dotnet/api/system.buffers.arraypool-1)
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2025-12-16  
-**Author**: ZakYip Development Team
+**文档版本**：1.0  
+**最后更新**：2025-12-16  
+**作者**：ZakYip 开发团队
