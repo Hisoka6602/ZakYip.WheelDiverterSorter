@@ -325,6 +325,48 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
             return _configurations.Remove(chuteId);
         }
     }
+
+    public Task<int> BulkInsertAsync(IEnumerable<ChuteRouteConfiguration> configurations)
+    {
+        lock (_lockObject)
+        {
+            var count = 0;
+            foreach (var config in configurations)
+            {
+                _configurations[config.ChuteId] = config;
+                count++;
+            }
+            return Task.FromResult(count);
+        }
+    }
+
+    public Task<int> BulkUpdateAsync(IEnumerable<ChuteRouteConfiguration> configurations)
+    {
+        lock (_lockObject)
+        {
+            // Explicitly filter to only existing configurations before updating
+            var count = configurations
+                .Where(config => _configurations.ContainsKey(config.ChuteId))
+                .Count(config =>
+                {
+                    _configurations[config.ChuteId] = config;
+                    return true;
+                });
+            return Task.FromResult(count);
+        }
+    }
+
+    public Task<IEnumerable<ChuteRouteConfiguration>> BulkGetAsync(IEnumerable<long> chuteIds)
+    {
+        lock (_lockObject)
+        {
+            var result = chuteIds
+                .Where(id => _configurations.ContainsKey(id))
+                .Select(id => _configurations[id])
+                .ToList();
+            return Task.FromResult<IEnumerable<ChuteRouteConfiguration>>(result);
+        }
+    }
 }
 
 /// <summary>

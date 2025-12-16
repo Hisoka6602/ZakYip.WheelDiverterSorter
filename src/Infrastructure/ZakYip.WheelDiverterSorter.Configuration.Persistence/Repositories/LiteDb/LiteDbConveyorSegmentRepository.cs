@@ -158,6 +158,110 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
     }
 
     /// <summary>
+    /// 批量异步插入线段配置
+    /// </summary>
+    /// <param name="configs">线段配置列表</param>
+    /// <returns>插入的数量</returns>
+    public async Task<int> BulkInsertAsync(IEnumerable<ConveyorSegmentConfiguration> configs)
+    {
+        if (configs == null)
+        {
+            throw new ArgumentNullException(nameof(configs));
+        }
+
+        var configList = configs.ToList();
+        if (configList.Count == 0)
+        {
+            return 0;
+        }
+
+        return await Task.Run(() =>
+        {
+            var now = _systemClock.LocalNow;
+            var configsWithTimestamps = configList.Select(c => c with 
+            { 
+                CreatedAt = now, 
+                UpdatedAt = now 
+            }).ToList();
+
+            var count = _collection.InsertBulk(configsWithTimestamps);
+            return count;
+        });
+    }
+
+    /// <summary>
+    /// 批量异步更新线段配置
+    /// </summary>
+    /// <param name="configs">线段配置列表</param>
+    /// <returns>更新的数量</returns>
+    public async Task<int> BulkUpdateAsync(IEnumerable<ConveyorSegmentConfiguration> configs)
+    {
+        if (configs == null)
+        {
+            throw new ArgumentNullException(nameof(configs));
+        }
+
+        var configList = configs.ToList();
+        if (configList.Count == 0)
+        {
+            return 0;
+        }
+
+        return await Task.Run(() =>
+        {
+            var count = 0;
+            var now = _systemClock.LocalNow;
+            
+            foreach (var config in configList)
+            {
+                var existing = GetById(config.SegmentId);
+                if (existing != null)
+                {
+                    var configWithTimestamps = config with 
+                    { 
+                        CreatedAt = existing.CreatedAt, 
+                        UpdatedAt = now 
+                    };
+                    
+                    if (_collection.Update(configWithTimestamps))
+                    {
+                        count++;
+                    }
+                }
+            }
+            
+            return count;
+        });
+    }
+
+    /// <summary>
+    /// 批量异步获取线段配置
+    /// </summary>
+    /// <param name="segmentIds">线段ID集合</param>
+    /// <returns>线段配置集合</returns>
+    public async Task<IEnumerable<ConveyorSegmentConfiguration>> BulkGetAsync(IEnumerable<long> segmentIds)
+    {
+        if (segmentIds == null)
+        {
+            throw new ArgumentNullException(nameof(segmentIds));
+        }
+
+        var idList = segmentIds.ToList();
+        if (idList.Count == 0)
+        {
+            return Enumerable.Empty<ConveyorSegmentConfiguration>();
+        }
+
+        return await Task.Run(() =>
+        {
+            return _collection
+                .Query()
+                .Where(x => idList.Contains(x.SegmentId))
+                .ToList();
+        });
+    }
+
+    /// <summary>
     /// 释放数据库资源
     /// </summary>
     public void Dispose()

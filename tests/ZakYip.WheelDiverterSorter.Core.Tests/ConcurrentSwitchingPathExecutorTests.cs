@@ -80,8 +80,8 @@ public class ConcurrentSwitchingPathExecutorTests
             NullLogger<ConcurrentSwitchingPathExecutor>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
 
         // Act & Assert
-        await Assert.ThrowsAsync<ArgumentNullException>(() =>
-            executor.ExecuteAsync(null!));
+        await Assert.ThrowsAsync<ArgumentNullException>(async () =>
+            await executor.ExecuteAsync(null!));
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public class ConcurrentSwitchingPathExecutorTests
 
         // Act - try to execute 10 paths concurrently
         var tasks = Enumerable.Range(1, 10).Select(i =>
-            executor.ExecuteAsync(CreateTestPath(i, new[] { i * 10 }))
+            executor.ExecuteAsync(CreateTestPath(i, new[] { i * 10 })).AsTask()
         );
 
         await Task.WhenAll(tasks);
@@ -218,7 +218,7 @@ public class ConcurrentSwitchingPathExecutorTests
 
         // Act - try to execute multiple paths using the same diverter
         var tasks = Enumerable.Range(1, 5).Select(i =>
-            executor.ExecuteAsync(path)
+            executor.ExecuteAsync(path).AsTask()
         );
 
         await Task.WhenAll(tasks);
@@ -253,7 +253,7 @@ public class ConcurrentSwitchingPathExecutorTests
 
         // Act - execute paths with different diverters
         var tasks = Enumerable.Range(1, 5).Select(i =>
-            executor.ExecuteAsync(CreateTestPath(i, new[] { i }))
+            executor.ExecuteAsync(CreateTestPath(i, new[] { i })).AsTask()
         );
 
         await Task.WhenAll(tasks);

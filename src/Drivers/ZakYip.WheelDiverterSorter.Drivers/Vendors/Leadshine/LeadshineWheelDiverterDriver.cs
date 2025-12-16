@@ -54,7 +54,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
-    public async Task<bool> TurnLeftAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> TurnLeftAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "[摆轮通信-发送] 摆轮 {DiverterId} 执行左转 | 目标角度={Angle}度",
@@ -76,7 +76,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
-    public async Task<bool> TurnRightAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> TurnRightAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "[摆轮通信-发送] 摆轮 {DiverterId} 执行右转 | 目标角度={Angle}度",
@@ -98,7 +98,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
-    public async Task<bool> PassThroughAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PassThroughAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "[摆轮通信-发送] 摆轮 {DiverterId} 执行直通 | 目标角度={Angle}度",
@@ -120,7 +120,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
-    public async Task<bool> StopAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> StopAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation(
             "[摆轮通信-发送] 摆轮 {DiverterId} 执行停止 | 目标角度={Angle}度",
@@ -142,7 +142,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
-    public Task<bool> RunAsync(CancellationToken cancellationToken = default)
+    public ValueTask<bool> RunAsync(CancellationToken cancellationToken = default)
     {
         // Leadshine driver doesn't support Run command - this is specific to ShuDiNiao
         _logger.LogWarning(
@@ -152,9 +152,9 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <inheritdoc/>
-    public Task<string> GetStatusAsync()
+    public ValueTask<string> GetStatusAsync()
     {
-        return Task.FromResult(_currentStatus);
+        return ValueTask.FromResult(_currentStatus);
     }
 
     /// <summary>

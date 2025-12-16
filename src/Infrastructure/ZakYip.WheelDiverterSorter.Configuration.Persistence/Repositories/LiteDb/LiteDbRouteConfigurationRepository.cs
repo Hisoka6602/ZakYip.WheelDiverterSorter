@@ -387,6 +387,84 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
     }
 
     /// <summary>
+    /// 批量插入路由配置
+    /// </summary>
+    /// <param name="configurations">路由配置集合</param>
+    /// <returns>插入的数量</returns>
+    public async Task<int> BulkInsertAsync(IEnumerable<ChuteRouteConfiguration> configurations)
+    {
+        if (configurations == null)
+        {
+            throw new ArgumentNullException(nameof(configurations));
+        }
+
+        var configList = configurations.ToList();
+        if (configList.Count == 0)
+        {
+            return 0;
+        }
+
+        return await Task.Run(() =>
+        {
+            var count = _collection.InsertBulk(configList);
+            return count;
+        });
+    }
+
+    /// <summary>
+    /// 批量更新路由配置
+    /// </summary>
+    /// <param name="configurations">路由配置集合</param>
+    /// <returns>更新的数量</returns>
+    public async Task<int> BulkUpdateAsync(IEnumerable<ChuteRouteConfiguration> configurations)
+    {
+        if (configurations == null)
+        {
+            throw new ArgumentNullException(nameof(configurations));
+        }
+
+        var configList = configurations.ToList();
+        if (configList.Count == 0)
+        {
+            return 0;
+        }
+
+        return await Task.Run(() =>
+        {
+            // Explicitly filter to only configs that will be updated
+            var count = configList.Count(config => _collection.Update(config));
+            return count;
+        });
+    }
+
+    /// <summary>
+    /// 批量获取路由配置
+    /// </summary>
+    /// <param name="chuteIds">格口ID集合</param>
+    /// <returns>路由配置集合</returns>
+    public async Task<IEnumerable<ChuteRouteConfiguration>> BulkGetAsync(IEnumerable<long> chuteIds)
+    {
+        if (chuteIds == null)
+        {
+            throw new ArgumentNullException(nameof(chuteIds));
+        }
+
+        var idList = chuteIds.ToList();
+        if (idList.Count == 0)
+        {
+            return Enumerable.Empty<ChuteRouteConfiguration>();
+        }
+
+        return await Task.Run(() =>
+        {
+            return _collection
+                .Query()
+                .Where(x => idList.Contains(x.ChuteId) && x.IsEnabled)
+                .ToList();
+        });
+    }
+
+    /// <summary>
     /// 释放数据库资源
     /// </summary>
     public void Dispose()

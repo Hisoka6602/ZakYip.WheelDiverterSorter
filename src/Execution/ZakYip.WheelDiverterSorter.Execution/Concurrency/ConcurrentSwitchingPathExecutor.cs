@@ -76,7 +76,7 @@ public class ConcurrentSwitchingPathExecutor : ISwitchingPathExecutor
     }
 
     /// <inheritdoc/>
-    public async Task<PathExecutionResult> ExecuteAsync(
+    public async ValueTask<PathExecutionResult> ExecuteAsync(
         SwitchingPath path,
         CancellationToken cancellationToken = default)
     {

@@ -58,7 +58,7 @@ public sealed class WheelCommandExecutor : IWheelCommandExecutor
     }
 
     /// <inheritdoc/>
-    public async Task<OperationResult> ExecuteAsync(
+    public async ValueTask<OperationResult> ExecuteAsync(
         WheelCommand command,
         CancellationToken cancellationToken = default)
     {

@@ -101,7 +101,7 @@ public class DeadlockDetectionTests
 
         // Act - start multiple tasks competing for the same lock
         var tasks = Enumerable.Range(1, 5).Select(_ =>
-            executor.ExecuteAsync(path)
+            executor.ExecuteAsync(path).AsTask()
         ).ToList();
 
         var results = await Task.WhenAll(tasks);
@@ -146,8 +146,8 @@ public class DeadlockDetectionTests
         var path2 = CreateTestPath(2, new[] { 2, 3 });
 
         // Act - execute paths concurrently that share a diverter
-        var task1 = executor.ExecuteAsync(path1);
-        var task2 = executor.ExecuteAsync(path2);
+        var task1 = executor.ExecuteAsync(path1).AsTask();
+        var task2 = executor.ExecuteAsync(path2).AsTask();
 
         var results = await Task.WhenAll(task1, task2);
 
@@ -190,7 +190,7 @@ public class DeadlockDetectionTests
 
         // Act
         var tasks = new[] { path1, path2, path3 }
-            .Select(p => executor.ExecuteAsync(p))
+            .Select(p => executor.ExecuteAsync(p).AsTask())
             .ToList();
 
         var results = await Task.WhenAll(tasks);
@@ -287,7 +287,7 @@ public class DeadlockDetectionTests
                 .Distinct()
                 .ToArray();
             
-            return executor.ExecuteAsync(CreateTestPath(i, diverters));
+            return executor.ExecuteAsync(CreateTestPath(i, diverters)).AsTask();
         }).ToList();
 
         var results = await Task.WhenAll(tasks);

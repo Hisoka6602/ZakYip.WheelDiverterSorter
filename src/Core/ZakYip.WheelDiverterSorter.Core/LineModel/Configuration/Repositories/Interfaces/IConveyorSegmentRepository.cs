@@ -52,4 +52,25 @@ public interface IConveyorSegmentRepository
     /// </summary>
     /// <param name="configs">线段配置列表</param>
     void InsertBatch(IEnumerable<ConveyorSegmentConfiguration> configs);
+
+    /// <summary>
+    /// 批量异步插入线段配置
+    /// </summary>
+    /// <param name="configs">线段配置列表</param>
+    /// <returns>插入的数量</returns>
+    Task<int> BulkInsertAsync(IEnumerable<ConveyorSegmentConfiguration> configs);
+
+    /// <summary>
+    /// 批量异步更新线段配置
+    /// </summary>
+    /// <param name="configs">线段配置列表</param>
+    /// <returns>更新的数量</returns>
+    Task<int> BulkUpdateAsync(IEnumerable<ConveyorSegmentConfiguration> configs);
+
+    /// <summary>
+    /// 批量异步获取线段配置
+    /// </summary>
+    /// <param name="segmentIds">线段ID集合</param>
+    /// <returns>线段配置集合</returns>
+    Task<IEnumerable<ConveyorSegmentConfiguration>> BulkGetAsync(IEnumerable<long> segmentIds);
 }

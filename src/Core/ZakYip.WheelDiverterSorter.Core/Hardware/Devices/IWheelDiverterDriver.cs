@@ -23,7 +23,7 @@ public interface IWheelDiverterDriver
     /// <remarks>
     /// 将摆轮转向左侧，具体的角度和动作由驱动实现内部决定。
     /// </remarks>
-    Task<bool> TurnLeftAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> TurnLeftAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 控制摆轮向右转向
@@ -33,7 +33,7 @@ public interface IWheelDiverterDriver
     /// <remarks>
     /// 将摆轮转向右侧，具体的角度和动作由驱动实现内部决定。
     /// </remarks>
-    Task<bool> TurnRightAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> TurnRightAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 控制摆轮保持直通状态
@@ -43,7 +43,7 @@ public interface IWheelDiverterDriver
     /// <remarks>
     /// 将摆轮设置为直通（不转向）状态，让包裹直行通过。
     /// </remarks>
-    Task<bool> PassThroughAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> PassThroughAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 停止摆轮当前动作
@@ -53,7 +53,7 @@ public interface IWheelDiverterDriver
     /// <remarks>
     /// 立即停止摆轮的任何运动，用于紧急情况或系统停止时。
     /// </remarks>
-    Task<bool> StopAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> StopAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 启动摆轮运行
@@ -64,7 +64,7 @@ public interface IWheelDiverterDriver
     /// 启动摆轮设备运行，具体行为由驱动实现决定。
     /// 对于不支持此命令的驱动器，应抛出 <see cref="NotSupportedException"/>。
     /// </remarks>
-    Task<bool> RunAsync(CancellationToken cancellationToken = default);
+    ValueTask<bool> RunAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 获取摆轮当前状态
@@ -73,5 +73,5 @@ public interface IWheelDiverterDriver
     /// <remarks>
     /// 返回摆轮当前状态的文本描述，用于监控和诊断。
     /// </remarks>
-    Task<string> GetStatusAsync();
+    ValueTask<string> GetStatusAsync();
 }

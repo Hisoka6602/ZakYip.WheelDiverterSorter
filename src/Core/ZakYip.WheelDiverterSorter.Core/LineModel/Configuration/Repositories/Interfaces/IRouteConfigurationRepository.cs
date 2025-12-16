@@ -36,4 +36,25 @@ public interface IRouteConfigurationRepository
     /// 初始化默认配置数据
     /// </summary>
     void InitializeDefaultData();
+
+    /// <summary>
+    /// 批量插入路由配置
+    /// </summary>
+    /// <param name="configurations">路由配置集合</param>
+    /// <returns>插入的数量</returns>
+    Task<int> BulkInsertAsync(IEnumerable<ChuteRouteConfiguration> configurations);
+
+    /// <summary>
+    /// 批量更新路由配置
+    /// </summary>
+    /// <param name="configurations">路由配置集合</param>
+    /// <returns>更新的数量</returns>
+    Task<int> BulkUpdateAsync(IEnumerable<ChuteRouteConfiguration> configurations);
+
+    /// <summary>
+    /// 批量获取路由配置
+    /// </summary>
+    /// <param name="chuteIds">格口ID集合</param>
+    /// <returns>路由配置集合</returns>
+    Task<IEnumerable<ChuteRouteConfiguration>> BulkGetAsync(IEnumerable<long> chuteIds);
 }

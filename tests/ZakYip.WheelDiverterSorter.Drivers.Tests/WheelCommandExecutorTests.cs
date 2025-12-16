@@ -218,7 +218,7 @@ public class WheelCommandExecutorTests
         cts.CancelAfter(TimeSpan.FromMilliseconds(50));
         // TaskCanceledException 继承自 OperationCanceledException
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
-            () => _executor.ExecuteAsync(command, cts.Token));
+            async () => await _executor.ExecuteAsync(command, cts.Token));
     }
 
     #endregion
@@ -230,7 +230,7 @@ public class WheelCommandExecutorTests
     {
         // Act & Assert
         await Assert.ThrowsAsync<ArgumentNullException>(
-            () => _executor.ExecuteAsync(null!));
+            async () => await _executor.ExecuteAsync(null!));
     }
 
     [Fact(DisplayName = "构造函数空driverManager应抛出ArgumentNullException")]

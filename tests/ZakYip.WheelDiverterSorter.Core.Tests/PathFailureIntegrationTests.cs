@@ -184,14 +184,14 @@ public class PathFailureIntegrationTests
     /// </summary>
     private class FailingMockExecutor : ISwitchingPathExecutor
     {
-        public Task<PathExecutionResult> ExecuteAsync(
+        public ValueTask<PathExecutionResult> ExecuteAsync(
             SwitchingPath path,
             CancellationToken cancellationToken = default)
         {
             // 模拟第一段执行失败
             var failedSegment = path.Segments.First();
             
-            return Task.FromResult(new PathExecutionResult
+            return ValueTask.FromResult(new PathExecutionResult
             {
                 IsSuccess = false,
                 ActualChuteId = path.FallbackChuteId,
