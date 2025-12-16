@@ -4500,78 +4500,83 @@ Phase 1 和 Phase 2 的性能优化（路径生成、度量收集、日志去重
 
 **当前 PR 完成状态**（copilot/resolve-technical-debt，2025-12-16）：
 
-本 PR 评估并规划了 TD-076 的实施路径。经过代码审查和工作量评估：
+本 PR 完成了 TD-076 的完整规划和评估工作。根据 copilot-instructions.md 规则0（大型 PR 分阶段实施原则），本 PR 专注于规划阶段，实际优化工作将在后续 4 个独立 PR 中完成。
 
 1. **工作量确认**：
    - TD-076 总工作量：18-26小时（2-3个工作日）
-   - 属于大型 PR（≥24小时），根据 copilot-instructions.md 规则0，需要分阶段完成
+   - 属于大型 PR（≥24小时），必须分阶段完成
 
-2. **当前阶段完成**：
-   - ✅ 完整评估所有优化机会
-   - ✅ 制定详细实施计划（12项优化，按优先级分类）
-   - ✅ 识别影响文件和预期收益
-   - ✅ 评估风险等级
-   - ✅ 更新状态为 ⏳ 进行中
+2. **本 PR 完成内容**（规划阶段）：
+   - ✅ 完整评估所有 12 项优化机会
+   - ✅ 制定详细实施计划（`docs/TD-076_PHASE3_IMPLEMENTATION_PLAN.md`）
+   - ✅ 识别所有影响文件（115 个文件，15 个 LiteDB 仓储）
+   - ✅ 量化预期性能收益（+50% 路径生成，-60% 数据库延迟，-70% 内存分配）
+   - ✅ 评估每项优化的风险等级和优先级
+   - ✅ 制定 4 个 PR 的实施顺序和验收标准
+   - ✅ 更新技术债文档（TechnicalDebtLog.md, RepositoryStructure.md）
 
-3. **下一阶段实施计划**（后续 PR）：
+3. **下一阶段实施计划**（后续 4 个独立 PR）：
 
-**Phase 3-A: 高优先级优化**（预计 8-12小时，PR #1）
-- [ ] 数据库查询批处理（3-4小时）
-  - 文件：`Configuration.Persistence/Repositories/LiteDb/*.cs`（15个文件）
-  - 新增方法：`BulkInsert`, `BulkUpdate`, `BulkQuery`
-  - 测试：验证批量操作性能提升
+**PR #1: 数据库批处理 + ValueTask**（预计 5-7小时，最安全的优化）
+- [ ] LiteDB 批量操作接口设计
+- [ ] 实现 15 个仓储的 BulkInsert/BulkUpdate/BulkQuery 方法
+- [ ] 单元测试（批量操作正确性）
+- [ ] 性能基准测试（100+ 实体批量插入/更新）
+- [ ] ValueTask 转换（高频异步方法）
+- [ ] 验收：数据库延迟 -40-50%，无性能回归
 
-- [ ] ValueTask 采用（2-3小时）
-  - 文件：`Core/Abstractions/Execution/*.cs`, `Execution/Services/*.cs`
-  - 识别高频方法（> 10000 calls/s）
-  - 替换 `Task<T>` → `ValueTask<T>`
+**PR #2: 对象池 + Span<T>**（预计 4-6小时，需要仔细测试）
+- [ ] ArrayPool<byte> 实现（通信层协议缓冲区）
+- [ ] MemoryPool<byte> 实现（大型缓冲区 > 4KB）
+- [ ] Span<byte> 转换（ShuDiNiao 协议解析）
+- [ ] Span<char> 转换（字符串处理工具）
+- [ ] stackalloc 使用（< 1KB 缓冲区）
+- [ ] 内存泄漏测试（池生命周期管理）
+- [ ] 验收：内存分配 -70%，吞吐量 +10-15%
 
-- [ ] 对象池实现（2-3小时）
-  - 文件：`Communication/Clients/*.cs`, `Drivers/Vendors/ShuDiNiao/*.cs`
-  - 使用 `ArrayPool<T>` 和 `MemoryPool<T>`
-  - 注意：需要仔细管理池生命周期
+**PR #3: ConfigureAwait + 字符串/集合优化**（预计 5-7小时，广泛影响）
+- [ ] 批量添加 ConfigureAwait(false)（574 个 await）
+- [ ] 字符串插值优化（string.Create, Span<char>）
+- [ ] 集合容量预分配（123 个 List<T> 调用）
+- [ ] Frozen Collections 实现（只读查找字典）
+- [ ] Roslyn Analyzer（防止遗漏 ConfigureAwait）
+- [ ] 验收：异步开销 -5-10%，集合性能 +20%
 
-- [ ] Span<T> 采用（2-3小时）
-  - 文件：`Drivers/Vendors/*/Protocol/*.cs`, `Core/LineModel/Utilities/*.cs`
-  - 栈分配小型缓冲区
-  - 优化字符串处理
-
-**Phase 3-B: 中优先级优化**（预计 6-8小时，PR #2）
-- [ ] ConfigureAwait(false)（1-2小时）
-  - 影响：约574个 await 调用
-  - 自动化工具：考虑使用 Roslyn Analyzer 辅助
-
-- [ ] 字符串插值优化（2-3小时）
-  - 文件：`Observability/Utilities/*.cs`, `Communication/Protocol/*.cs`
-  - 使用 `string.Create` 或 `Span<char>`
-
-- [ ] 集合容量预分配（2-3小时）
-  - 影响：约123个 `new List<T>()` 调用
-  - 预分配合理容量
-
-- [ ] Frozen Collections 采用（1-2小时）
-  - 文件：`Core/LineModel/Configuration/*.cs`, `Execution/Mapping/*.cs`
-  - 使用 `FrozenDictionary<TKey, TValue>`
-
-**Phase 3-C: 低优先级优化**（预计 4-6小时，PR #3）
-- [ ] LoggerMessage.Define（1-2小时）
-- [ ] JsonSerializerOptions 缓存（1小时）
-- [ ] ReadOnlySpan<T> 用于解析（1-2小时）
-- [ ] CollectionsMarshal 高级用法（1-2小时）
+**PR #4: 低优先级优化**（预计 4-6小时，收尾工作）
+- [ ] LoggerMessage.Define 源生成器
+- [ ] JsonSerializerOptions 单例缓存
+- [ ] ReadOnlySpan<T> 协议解析优化
+- [ ] CollectionsMarshal 高级用法
+- [ ] 完整性能报告（Phase 3 总结）
+- [ ] 验收：日志开销 -30%，所有优化目标达成
 
 4. **实施指引**：
 
-每个阶段 PR 应该：
-- 独立可编译和测试
-- 包含基准测试验证性能提升
-- 更新 PERFORMANCE_OPTIMIZATION_SUMMARY.md
-- 所有测试通过
+每个 PR 必须满足：
+- ✅ 独立可编译和测试
+- ✅ 包含前后基准测试对比
+- ✅ 更新 PERFORMANCE_OPTIMIZATION_SUMMARY.md
+- ✅ 所有单元测试通过（无回归）
+- ✅ 所有集成测试通过
+- ✅ 内存分析验证分配减少
+- ✅ 无性能回归
 
 5. **技术债状态**：
-- 当前状态：⏳ 进行中
-- 完成阶段：规划与评估（当前 PR）
-- 待完成阶段：Phase 3-A → 3-B → 3-C（后续3个PR）
-- 预计完成时间：完成后将状态更新为 ✅ 已解决
+- 当前状态：⏳ 进行中（规划阶段已完成）
+- 已完成阶段：
+  - ✅ 评估与规划（当前 PR，2025-12-16）
+  - ✅ 详细实施计划文档（TD-076_PHASE3_IMPLEMENTATION_PLAN.md）
+- 待完成阶段：
+  - ⏳ PR #1: 数据库批处理 + ValueTask（5-7小时）
+  - ⏳ PR #2: 对象池 + Span<T>（4-6小时）
+  - ⏳ PR #3: ConfigureAwait + 字符串/集合优化（5-7小时）
+  - ⏳ PR #4: 低优先级优化（4-6小时）
+- 预计完成时间：完成所有 4 个 PR 后更新为 ✅ 已解决
+
+6. **相关文档**：
+- 详细实施计划：`docs/TD-076_PHASE3_IMPLEMENTATION_PLAN.md`
+- 性能优化总结：`docs/PERFORMANCE_OPTIMIZATION_SUMMARY.md`
+- 基准测试项目：`tests/ZakYip.WheelDiverterSorter.Benchmarks/`
 
 ---
 
