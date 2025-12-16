@@ -44,30 +44,46 @@
 │  步骤3A：正常路由        │  │  步骤3B：超时兜底处理                │
 ├─────────────────────────┤  ├──────────────────────────────────────┤
 │  1. 使用上游分配的格口ID │  │  1. 记录警告日志                     │
-│  2. 生成队列任务         │  │  2. 写入超时追踪事件                 │
-│  3. 加入positionIndex队列│  │  3. 立即通知上游（FinalStatus=Timeout）│
-│  4. 等待IO触发执行       │  │  4. 返回异常格口ID                   │
+│  2. TargetChuteId =      │  │  2. 写入超时追踪事件                 │
+│     上游分配的格口       │  │  3. 立即通知上游（FinalStatus=Timeout）│
+│                          │  │  4. TargetChuteId = 异常格口ID（999）│
 └─────────────────────────┘  └──────────────────────────────────────┘
               │                             │
               └──────────────┬──────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│  步骤4：路径生成与队列入队                                           │
+│  步骤4：拓扑路径生成与队列任务创建（正常和超时都会执行）             │
 ├─────────────────────────────────────────────────────────────────────┤
-│  1. 使用目标格口ID（正常格口或异常格口）生成队列任务                 │
-│  2. 将任务加入对应的positionIndex队列                               │
+│  1. 调用 _pathGenerator.GenerateQueueTasks(parcelId, TargetChuteId) │
+│  2. 基于拓扑配置计算到目标格口（正常格口或异常格口）的摆轮路径      │
+│  3. 为路径上的每个摆轮节点创建队列任务                              │
+│  4. 任务包含：ParcelId、DiverterAction、PositionIndex、超时容差     │
+└─────────────────────────────────────────────────────────────────────┘
+                              ↓
+┌─────────────────────────────────────────────────────────────────────┐
+│  步骤5：加入Position Index队列（正常和超时都会执行）                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  1. 遍历所有队列任务                                                │
+│  2. 根据任务的PositionIndex加入对应队列（FIFO顺序）                 │
 │  3. 记录目标格口ID到_parcelTargetChutes                             │
 └─────────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────────┐
-│  步骤5：IO触发执行（基于CORE_ROUTING_LOGIC.md机制）                 │
+│  步骤6：IO触发执行（基于CORE_ROUTING_LOGIC.md机制）                 │
 ├─────────────────────────────────────────────────────────────────────┤
 │  1. 传感器IO点触发                                                  │
 │  2. 从positionIndex队列取出任务（FIFO）                             │
-│  3. 执行摆轮动作                                                    │
+│  3. 执行摆轮动作（Left/Right/Straight）                            │
 │  4. 包裹到达目标格口（正常格口或异常格口999）                       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+**关键说明**：
+- ✅ **步骤4-6对超时包裹和正常包裹完全一致**
+- ✅ 超时包裹会生成到异常格口的完整拓扑路径
+- ✅ 超时包裹的任务会加入positionIndex队列
+- ✅ 超时包裹通过相同的IO触发机制执行摆轮动作
+- 🔸 唯一区别：TargetChuteId不同（异常格口 vs 正常格口）
 
 ---
 
@@ -159,6 +175,13 @@ private async Task<long> HandleRoutingTimeoutAsync(
    ```csharp
    return exceptionChuteId;
    ```
+
+**重要说明**：`HandleRoutingTimeoutAsync` 返回异常格口ID后，流程会继续执行：
+- **步骤4**：调用 `_pathGenerator.GenerateQueueTasks(parcelId, exceptionChuteId, _clock.LocalNow)` 生成到异常格口的拓扑路径任务
+- **步骤5**：将生成的任务加入对应的 `positionIndex` 队列
+- **步骤6**：等待IO触发，从队列取出任务，执行摆轮动作，包裹最终到达异常格口
+
+**因此，超时后的包裹与正常包裹一样，都会生成完整的拓扑路径并加入位置索引队列。唯一的区别是目标格口ID不同（异常格口 vs 正常格口）。**
 
 ### 3.3 超时时间计算：CalculateChuteAssignmentTimeout
 
@@ -338,6 +361,15 @@ private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs 
 【路由超时兜底】包裹 1234 等待格口分配超时（超时限制：4500ms）
   异常口ChuteId=999, 发生时间=2024-12-15 20:52:38.625
 [生命周期-路由] P1234 目标格口=999（异常格口）
+
+**拓扑路径生成**（基于拓扑配置）：
+[队列任务生成] 开始为包裹 1234 生成到格口 999 的队列任务
+  拓扑路径: D1(Straight) -> D2(Straight) -> D3(Right) -> 格口999
+  生成任务: 
+    - PositionIndex1: {ParcelId=1234, Action=Straight, DiverterId=D1}
+    - PositionIndex2: {ParcelId=1234, Action=Straight, DiverterId=D2}
+    - PositionIndex3: {ParcelId=1234, Action=Right, DiverterId=D3}
+
 [生命周期-入队] P1234 3任务入队 目标C999 耗时4502ms
 ↓
 立即发送超时通知到上游：
@@ -543,7 +575,38 @@ grep "SortingCompletedNotification" /path/to/logs/*.log
 - `FinalStatus = Lost`
 - 从缓存中清除包裹记录
 
-### Q6：如何测试超时处理机制？
+### Q6：超时分配目标格口是否也会生成拓扑路径和加入position index队列？
+
+**A**：✅ **是的，超时包裹与正常包裹的处理流程完全一致**
+
+**超时后的处理流程**：
+1. `HandleRoutingTimeoutAsync` 返回异常格口ID（默认999）
+2. `ProcessParcelAsync` 继续执行：
+   ```csharp
+   // 步骤4: 使用异常格口ID生成拓扑路径任务
+   var queueTasks = _pathGenerator.GenerateQueueTasks(
+       parcelId, 
+       exceptionChuteId,  // 使用异常格口ID
+       _clock.LocalNow);
+   
+   // 步骤5: 将任务加入positionIndex队列
+   foreach (var task in queueTasks)
+   {
+       _queueManager.EnqueueTask(task.PositionIndex, task);
+   }
+   ```
+3. IO触发时从队列取出任务，执行摆轮动作
+4. 包裹最终到达异常格口
+
+**关键点**：
+- ✅ 生成拓扑路径（基于拓扑配置计算到异常格口的路径）
+- ✅ 创建队列任务（每个positionIndex对应的摆轮动作）
+- ✅ 加入positionIndex队列（FIFO顺序）
+- ✅ IO触发执行（与正常包裹相同的机制）
+
+**唯一区别**：目标格口ID不同（异常格口999 vs 上游分配的正常格口）
+
+### Q7：如何测试超时处理机制？
 
 **A**：测试步骤：
 
