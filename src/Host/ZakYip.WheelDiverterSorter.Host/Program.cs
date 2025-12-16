@@ -5,6 +5,7 @@ using System.Reflection;
 using Microsoft.OpenApi.Models;
 using ZakYip.WheelDiverterSorter.Host.Swagger;
 using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
+using ZakYip.WheelDiverterSorter.Host.Models;
 
 // Early init of NLog to allow startup and shutdown logging
 var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
@@ -12,6 +13,16 @@ var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurr
 try
 {
     var builder = WebApplication.CreateBuilder(args);
+
+    // 读取 MiniApi 配置 - Load MiniApi configuration
+    var miniApiOptions = builder.Configuration.GetSection("MiniApi").Get<MiniApiOptions>() ?? new MiniApiOptions();
+    
+    // 配置服务监听地址 - Configure service listen addresses
+    if (miniApiOptions.Urls.Length > 0)
+    {
+        builder.WebHost.UseUrls(miniApiOptions.Urls);
+        logger.Info($"API服务将监听以下地址 - API service will listen on: {string.Join(", ", miniApiOptions.Urls)}");
+    }
 
     // Configure NLog for ASP.NET Core
     builder.Logging.ClearProviders();
@@ -110,17 +121,27 @@ try
     app.UseHttpMetrics(); // 自动收集HTTP请求指标
     app.MapMetrics(); // 暴露 /metrics 端点
 
-    // 配置Swagger中间件
-    app.UseSwagger();
-    app.UseSwaggerUI(options =>
+    // 根据配置决定是否启用Swagger - Enable Swagger based on configuration
+    if (miniApiOptions.EnableSwagger)
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", "摆轮分拣系统 API v1");
-        options.RoutePrefix = "swagger"; // 设置Swagger UI访问路径为 /swagger
-        options.DocumentTitle = "摆轮分拣系统 API 文档";
-        options.DefaultModelsExpandDepth(2);
-        options.DefaultModelExpandDepth(2);
-        options.DisplayRequestDuration();
-    });
+        logger.Info("Swagger文档已启用 - Swagger documentation enabled");
+        
+        // 配置Swagger中间件
+        app.UseSwagger();
+        app.UseSwaggerUI(options =>
+        {
+            options.SwaggerEndpoint("/swagger/v1/swagger.json", "摆轮分拣系统 API v1");
+            options.RoutePrefix = "swagger"; // 设置Swagger UI访问路径为 /swagger
+            options.DocumentTitle = "摆轮分拣系统 API 文档";
+            options.DefaultModelsExpandDepth(2);
+            options.DefaultModelExpandDepth(2);
+            options.DisplayRequestDuration();
+        });
+    }
+    else
+    {
+        logger.Info("Swagger文档已禁用 - Swagger documentation disabled");
+    }
 
     app.MapControllers();
 
