@@ -42,7 +42,7 @@ public interface IWheelCommandExecutor
     /// <para>此方法保证不会抛出异常（除非 cancellationToken 被触发）。</para>
     /// <para>所有异常都会被捕获并转换为相应的 <see cref="OperationResult"/> 失败结果。</para>
     /// </remarks>
-    Task<OperationResult> ExecuteAsync(
+    ValueTask<OperationResult> ExecuteAsync(
         WheelCommand command,
         CancellationToken cancellationToken = default);
 }

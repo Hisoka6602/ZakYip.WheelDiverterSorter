@@ -60,7 +60,7 @@ public interface ISwitchingPathExecutor
     /// <see cref="SwitchingPath.FallbackChuteId"/>。
     /// 调用方不应需要处理任何异常情况。</para>
     /// </remarks>
-    Task<PathExecutionResult> ExecuteAsync(
+    ValueTask<PathExecutionResult> ExecuteAsync(
         SwitchingPath path,
         CancellationToken cancellationToken = default);
 }
