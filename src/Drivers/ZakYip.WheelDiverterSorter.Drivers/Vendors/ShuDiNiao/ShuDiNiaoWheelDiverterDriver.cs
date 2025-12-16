@@ -91,7 +91,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
-    public async Task<bool> TurnLeftAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> TurnLeftAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -119,7 +119,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
-    public async Task<bool> TurnRightAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> TurnRightAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -147,7 +147,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
-    public async Task<bool> PassThroughAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PassThroughAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -175,7 +175,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
-    public async Task<bool> StopAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> StopAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -203,7 +203,7 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
-    public async Task<bool> RunAsync(CancellationToken cancellationToken = default)
+    public async ValueTask<bool> RunAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -299,9 +299,9 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     }
 
     /// <inheritdoc/>
-    public Task<string> GetStatusAsync()
+    public ValueTask<string> GetStatusAsync()
     {
-        return Task.FromResult(_currentStatus);
+        return ValueTask.FromResult(_currentStatus);
     }
 
     /// <inheritdoc/>

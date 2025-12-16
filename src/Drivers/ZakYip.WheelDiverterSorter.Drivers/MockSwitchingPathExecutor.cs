@@ -27,7 +27,7 @@ public class MockSwitchingPathExecutor : ISwitchingPathExecutor
     /// <param name="path">要执行的完整摆轮路径</param>
     /// <param name="cancellationToken">用于取消操作的令牌</param>
     /// <returns>返回模拟的路径执行结果</returns>
-    public async Task<PathExecutionResult> ExecuteAsync(
+    public async ValueTask<PathExecutionResult> ExecuteAsync(
         SwitchingPath path,
         CancellationToken cancellationToken = default)
     {

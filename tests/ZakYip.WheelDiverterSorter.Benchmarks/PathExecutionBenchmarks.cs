@@ -87,7 +87,7 @@ public class PathExecutionBenchmarks
         for (int i = 0; i < 10; i++)
         {
             var path = i % 2 == 0 ? _singleSegmentPath : _twoSegmentPath;
-            tasks.Add(_executor.ExecuteAsync(path));
+            tasks.Add(_executor.ExecuteAsync(path).AsTask());
         }
         await Task.WhenAll(tasks);
     }

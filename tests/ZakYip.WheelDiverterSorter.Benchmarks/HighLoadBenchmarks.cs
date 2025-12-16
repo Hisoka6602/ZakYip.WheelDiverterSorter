@@ -175,7 +175,7 @@ public class HighLoadBenchmarks
             }
         }
         
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks.Select(t => t.AsTask()));
     }
 
     /// <summary>
@@ -194,7 +194,7 @@ public class HighLoadBenchmarks
             tasks.Add(_executor.ExecuteAsync(path));
         }
         
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks.Select(t => t.AsTask()));
     }
 
     /// <summary>
@@ -261,7 +261,7 @@ public class HighLoadBenchmarks
         
         if (tasks.Any())
         {
-            await Task.WhenAll(tasks);
+            await Task.WhenAll(tasks.Select(t => t.AsTask()));
         }
     }
 

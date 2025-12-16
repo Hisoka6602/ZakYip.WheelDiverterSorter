@@ -232,7 +232,7 @@ public class PerformanceBottleneckBenchmarks
         var tasks = new Task<PathExecutionResult>[10];
         for (int i = 0; i < 10; i++)
         {
-            tasks[i] = _executor.ExecuteAsync(i % 2 == 0 ? _simplePath : _complexPath);
+            tasks[i] = _executor.ExecuteAsync(i % 2 == 0 ? _simplePath : _complexPath).AsTask();
         }
         await Task.WhenAll(tasks);
     }
@@ -354,7 +354,7 @@ public class PerformanceBottleneckBenchmarks
             
             if (path != null)
             {
-                tasks.Add(_executor.ExecuteAsync(path));
+                tasks.Add(_executor.ExecuteAsync(path).AsTask());
             }
         }
         
