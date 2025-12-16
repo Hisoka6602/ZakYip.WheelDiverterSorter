@@ -171,11 +171,11 @@ public class HighLoadBenchmarks
             
             if (path != null)
             {
-                tasks.Add(_executor.ExecuteAsync(path));
+                tasks.Add(_executor.ExecuteAsync(path).AsTask());
             }
         }
         
-        await Task.WhenAll(tasks.Select(t => t.AsTask()));
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>
@@ -191,10 +191,10 @@ public class HighLoadBenchmarks
         for (int i = 0; i < 20; i++)
         {
             var path = _preCachedPaths[i % _preCachedPaths.Count];
-            tasks.Add(_executor.ExecuteAsync(path));
+            tasks.Add(_executor.ExecuteAsync(path).AsTask());
         }
         
-        await Task.WhenAll(tasks.Select(t => t.AsTask()));
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>
@@ -255,13 +255,13 @@ public class HighLoadBenchmarks
             
             if (path != null && i % 3 == 0)
             {
-                tasks.Add(_executor.ExecuteAsync(path));
+                tasks.Add(_executor.ExecuteAsync(path).AsTask());
             }
         }
         
         if (tasks.Any())
         {
-            await Task.WhenAll(tasks.Select(t => t.AsTask()));
+            await Task.WhenAll(tasks);
         }
     }
 
