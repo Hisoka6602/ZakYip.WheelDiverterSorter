@@ -137,3 +137,8 @@ finally
     // Ensure to flush and stop internal timers/threads before application-exit (Avoid segmentation fault on Linux)
     LogManager.Shutdown();
 }
+
+// 使 Program 类对集成测试可见
+// Make Program class accessible to integration tests
+// 参考：https://learn.microsoft.com/en-us/aspnet/core/test/integration-tests
+public partial class Program { }
