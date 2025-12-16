@@ -344,15 +344,14 @@ internal class InMemoryRouteConfigurationRepository : IRouteConfigurationReposit
     {
         lock (_lockObject)
         {
-            var count = 0;
-            foreach (var config in configurations)
-            {
-                if (_configurations.ContainsKey(config.ChuteId))
+            // Explicitly filter to only existing configurations before updating
+            var count = configurations
+                .Where(config => _configurations.ContainsKey(config.ChuteId))
+                .Count(config =>
                 {
                     _configurations[config.ChuteId] = config;
-                    count++;
-                }
-            }
+                    return true;
+                });
             return Task.FromResult(count);
         }
     }

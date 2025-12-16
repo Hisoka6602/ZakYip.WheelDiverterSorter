@@ -431,14 +431,8 @@ public class LiteDbRouteConfigurationRepository : IRouteConfigurationRepository,
 
         return await Task.Run(() =>
         {
-            var count = 0;
-            foreach (var config in configList)
-            {
-                if (_collection.Update(config))
-                {
-                    count++;
-                }
-            }
+            // Explicitly filter to only configs that will be updated
+            var count = configList.Count(config => _collection.Update(config));
             return count;
         });
     }
