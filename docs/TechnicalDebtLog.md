@@ -79,6 +79,7 @@
 - [TD-074] 包裹丢失处理错误逻辑
 - [TD-075] Copilot Instructions 合规性全面审计与修复
 - [TD-076] 高级性能优化（Phase 3）
+- [TD-077] 面板按钮上游通信协议设计
 
 ---
 
@@ -4496,5 +4497,65 @@ Phase 1 和 Phase 2 的性能优化（路径生成、度量收集、日志去重
 - **低风险**：ConfigureAwait(false)、集合容量预分配
 - **中风险**：ValueTask 采用、Span<T> 使用
 - **高风险**：对象池实现（需要仔细的生命周期管理）
+
+---
+
+## [TD-077] 面板按钮上游通信协议设计
+
+**状态**：❌ 未开始 (2025-12-16)
+
+**问题描述**：
+
+当前面板IO按钮（启动、停止、复位、急停）按下后，系统向上游发送的通知可能包含具体的IO点位号。但上游系统并不关心按钮的物理点位号，只关心按下的是**什么性质的按钮**（按钮类型）。
+
+**设计建议**：
+
+1. **上游通知应包含**：
+   - 按钮类型（PanelButtonType枚举：Start/Stop/Reset/EmergencyStop）
+   - 按下时间戳
+   - 可选：操作员ID（如果支持）
+
+2. **上游通知不应包含**：
+   - 具体的IO点位号
+   - 硬件地址
+   - 厂商特定信息
+
+**当前实现位置**：
+- 面板按钮类型枚举：`src/Core/ZakYip.WheelDiverterSorter.Core/Enums/Hardware/PanelButtonType.cs`
+- 面板按钮监控：`src/Host/ZakYip.WheelDiverterSorter.Host/Services/Workers/PanelButtonMonitorWorker.cs`
+- 上游通信接口：`src/Core/ZakYip.WheelDiverterSorter.Core/Abstractions/Upstream/IUpstreamRoutingClient.cs`
+
+**预期工作量**：4-6小时
+
+**实施步骤**：
+1. 定义面板按钮通知消息结构（PanelButtonNotification）
+2. 在 `IUpstreamRoutingClient` 中添加 `SendPanelButtonAsync` 方法或扩展现有 `SendAsync` 支持按钮消息
+3. 在 `PanelButtonMonitorWorker` 中检测到按钮按下时发送通知
+4. 更新上游协议文档（UPSTREAM_CONNECTION_GUIDE.md）添加按钮通知协议说明
+5. 添加集成测试验证按钮通知流程
+
+**相关文件**：
+- `Core/Abstractions/Upstream/IUpstreamRoutingClient.cs` - 可能需要扩展
+- `Communication/Models/` - 新增 PanelButtonNotification.cs
+- `Host/Services/Workers/PanelButtonMonitorWorker.cs` - 发送通知
+- `docs/guides/UPSTREAM_CONNECTION_GUIDE.md` - 文档更新
+
+**验收标准**：
+- [ ] 定义 PanelButtonNotification 消息结构
+- [ ] 上游协议支持按钮通知
+- [ ] 按钮按下时自动发送通知到上游
+- [ ] 通知中只包含按钮类型，不包含IO点位
+- [ ] 更新文档说明按钮通知协议
+- [ ] 添加集成测试覆盖
+
+**优先级**：中等
+
+**依赖关系**：
+- 依赖现有的面板按钮检测机制
+- 依赖上游通信接口（IUpstreamRoutingClient）
+
+**备注**：
+- 本技术债在 PR #450 (超时处理文档) 评论中由 @Hisoka6602 提出
+- 建议作为独立 PR 实施，保持 PR 焦点明确
 
 ---

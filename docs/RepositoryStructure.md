@@ -57,6 +57,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md | `./docs/UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md` | 上游通知故障排查指南（传感器触发vs测试端点对比） | 🔴 高 |
 | SERVER_MODE_DUAL_INSTANCE_ISSUE.md | `./docs/SERVER_MODE_DUAL_INSTANCE_ISSUE.md` | **Server模式双实例问题分析与修复（根本原因诊断）** | 🔴 高 |
 | POSITION_INTERVAL_FIX.md | `./docs/POSITION_INTERVAL_FIX.md` | Position间隔追踪修复文档（问题诊断、解决方案、位置映射表、间隔计算逻辑） | 🟢 低 |
+| TIMEOUT_HANDLING_MECHANISM.md | `./docs/TIMEOUT_HANDLING_MECHANISM.md` | **包裹超时处理机制说明文档（上游无响应时的超时兜底流程、配置参数、日志追踪、故障排查）** | 🔴 高 |
 
 ### docs/guides/ 使用指南
 
@@ -1464,20 +1465,21 @@ tools/Profiling/
 | TD-074 | ✅ 已解决 | 包裹丢失处理错误逻辑 → 删除全局重路由和IO触发丢失检测，只影响丢失包裹本身 (当前 PR) | [详情](./TechnicalDebtLog.md#td-074-包裹丢失处理错误逻辑) |
 | TD-075 | ✅ 已解决 | Copilot Instructions 合规性全面审计与修复 → 任务1+4完成（协议魔法数字审计、文档清理）；任务2+3已在 PR #443 完成（配置时间戳检查、测试验证），本 PR 补充文档记录 | [详情](./TechnicalDebtLog.md#td-075-copilot-instructions-合规性全面审计与修复) |
 | TD-076 | ❌ 未开始 | 高级性能优化（Phase 3）→ 数据库批处理、ValueTask、对象池、Span<T>、ConfigureAwait、字符串优化等12项高级优化（预计18-26小时） | [详情](./TechnicalDebtLog.md#td-076-高级性能优化phase-3) |
+| TD-077 | ❌ 未开始 | 面板按钮上游通信协议设计 → 上游只需知道按钮类型（启动/停止/复位/急停），不关心IO点位号 | [详情](./TechnicalDebtLog.md#td-077-面板按钮上游通信协议设计) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
 | ✅ 已解决 | 75 |
-| ❌ 未开始 | 1 |
+| ❌ 未开始 | 2 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 0 |
-| **总计** | **75** |
+| **总计** | **77** |
 
-**完成率**：75/75 = **100%** 🎉
+**完成率**：75/77 = **97.4%**
 
 **最近更新**：
+- TD-077 新增：面板按钮上游通信协议设计（2025-12-16）
 - TD-075 已完成：Copilot Instructions 合规性全面审计（2025-12-15）
 - TD-069 已完成：上游通信影分身清理（2025-12-15）
 - TD-072/073 已取消：当前实现已满足需求（2025-12-15）
