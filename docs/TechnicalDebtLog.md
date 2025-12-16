@@ -4498,6 +4498,81 @@ Phase 1 和 Phase 2 的性能优化（路径生成、度量收集、日志去重
 - **中风险**：ValueTask 采用、Span<T> 使用
 - **高风险**：对象池实现（需要仔细的生命周期管理）
 
+**当前 PR 完成状态**（copilot/resolve-technical-debt，2025-12-16）：
+
+本 PR 评估并规划了 TD-076 的实施路径。经过代码审查和工作量评估：
+
+1. **工作量确认**：
+   - TD-076 总工作量：18-26小时（2-3个工作日）
+   - 属于大型 PR（≥24小时），根据 copilot-instructions.md 规则0，需要分阶段完成
+
+2. **当前阶段完成**：
+   - ✅ 完整评估所有优化机会
+   - ✅ 制定详细实施计划（12项优化，按优先级分类）
+   - ✅ 识别影响文件和预期收益
+   - ✅ 评估风险等级
+   - ✅ 更新状态为 ⏳ 进行中
+
+3. **下一阶段实施计划**（后续 PR）：
+
+**Phase 3-A: 高优先级优化**（预计 8-12小时，PR #1）
+- [ ] 数据库查询批处理（3-4小时）
+  - 文件：`Configuration.Persistence/Repositories/LiteDb/*.cs`（15个文件）
+  - 新增方法：`BulkInsert`, `BulkUpdate`, `BulkQuery`
+  - 测试：验证批量操作性能提升
+
+- [ ] ValueTask 采用（2-3小时）
+  - 文件：`Core/Abstractions/Execution/*.cs`, `Execution/Services/*.cs`
+  - 识别高频方法（> 10000 calls/s）
+  - 替换 `Task<T>` → `ValueTask<T>`
+
+- [ ] 对象池实现（2-3小时）
+  - 文件：`Communication/Clients/*.cs`, `Drivers/Vendors/ShuDiNiao/*.cs`
+  - 使用 `ArrayPool<T>` 和 `MemoryPool<T>`
+  - 注意：需要仔细管理池生命周期
+
+- [ ] Span<T> 采用（2-3小时）
+  - 文件：`Drivers/Vendors/*/Protocol/*.cs`, `Core/LineModel/Utilities/*.cs`
+  - 栈分配小型缓冲区
+  - 优化字符串处理
+
+**Phase 3-B: 中优先级优化**（预计 6-8小时，PR #2）
+- [ ] ConfigureAwait(false)（1-2小时）
+  - 影响：约574个 await 调用
+  - 自动化工具：考虑使用 Roslyn Analyzer 辅助
+
+- [ ] 字符串插值优化（2-3小时）
+  - 文件：`Observability/Utilities/*.cs`, `Communication/Protocol/*.cs`
+  - 使用 `string.Create` 或 `Span<char>`
+
+- [ ] 集合容量预分配（2-3小时）
+  - 影响：约123个 `new List<T>()` 调用
+  - 预分配合理容量
+
+- [ ] Frozen Collections 采用（1-2小时）
+  - 文件：`Core/LineModel/Configuration/*.cs`, `Execution/Mapping/*.cs`
+  - 使用 `FrozenDictionary<TKey, TValue>`
+
+**Phase 3-C: 低优先级优化**（预计 4-6小时，PR #3）
+- [ ] LoggerMessage.Define（1-2小时）
+- [ ] JsonSerializerOptions 缓存（1小时）
+- [ ] ReadOnlySpan<T> 用于解析（1-2小时）
+- [ ] CollectionsMarshal 高级用法（1-2小时）
+
+4. **实施指引**：
+
+每个阶段 PR 应该：
+- 独立可编译和测试
+- 包含基准测试验证性能提升
+- 更新 PERFORMANCE_OPTIMIZATION_SUMMARY.md
+- 所有测试通过
+
+5. **技术债状态**：
+- 当前状态：⏳ 进行中
+- 完成阶段：规划与评估（当前 PR）
+- 待完成阶段：Phase 3-A → 3-B → 3-C（后续3个PR）
+- 预计完成时间：完成后将状态更新为 ✅ 已解决
+
 ---
 
 ## [TD-077] 面板按钮上游通信协议设计
