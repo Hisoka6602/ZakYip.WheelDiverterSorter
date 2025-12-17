@@ -26,6 +26,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Application.Tests;
 public class WheelDiverterConnectionServiceTests
 {
     private readonly Mock<IWheelDiverterConfigurationRepository> _mockConfigRepository;
+    private readonly Mock<ISystemConfigurationRepository> _mockSystemConfigRepository;
     private readonly Mock<IWheelDiverterDriverManager> _mockDriverManager;
     private readonly Mock<INodeHealthRegistry> _mockHealthRegistry;
     private readonly Mock<ISystemClock> _mockClock;
@@ -35,6 +36,7 @@ public class WheelDiverterConnectionServiceTests
     public WheelDiverterConnectionServiceTests()
     {
         _mockConfigRepository = new Mock<IWheelDiverterConfigurationRepository>();
+        _mockSystemConfigRepository = new Mock<ISystemConfigurationRepository>();
         _mockDriverManager = new Mock<IWheelDiverterDriverManager>();
         _mockHealthRegistry = new Mock<INodeHealthRegistry>();
         _mockClock = new Mock<ISystemClock>();
@@ -48,6 +50,7 @@ public class WheelDiverterConnectionServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new WheelDiverterConnectionService(
             null!,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -61,6 +64,7 @@ public class WheelDiverterConnectionServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             null!,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -74,6 +78,7 @@ public class WheelDiverterConnectionServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             null!,
             _mockClock.Object,
@@ -87,6 +92,7 @@ public class WheelDiverterConnectionServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             null!,
@@ -100,6 +106,7 @@ public class WheelDiverterConnectionServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -113,6 +120,7 @@ public class WheelDiverterConnectionServiceTests
         // Act & Assert
         Assert.Throws<ArgumentNullException>(() => new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -126,6 +134,7 @@ public class WheelDiverterConnectionServiceTests
         // Act
         var service = new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -170,6 +179,7 @@ public class WheelDiverterConnectionServiceTests
 
         var service = new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -227,6 +237,7 @@ public class WheelDiverterConnectionServiceTests
 
         var service = new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -280,6 +291,7 @@ public class WheelDiverterConnectionServiceTests
 
         var service = new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,
@@ -330,6 +342,7 @@ public class WheelDiverterConnectionServiceTests
 
         var service = new WheelDiverterConnectionService(
             _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
             _mockDriverManager.Object,
             _mockHealthRegistry.Object,
             _mockClock.Object,

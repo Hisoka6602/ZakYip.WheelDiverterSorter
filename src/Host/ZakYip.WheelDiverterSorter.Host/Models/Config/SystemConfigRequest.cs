@@ -28,6 +28,14 @@ public record SystemConfigRequest
     public long ExceptionChuteId { get; init; } = 999;
 
     /// <summary>
+    /// 设备初次开机后延迟连接驱动的时间（秒）
+    /// </summary>
+    /// <example>15</example>
+    [Range(0, 300, ErrorMessage = "驱动启动延迟时间必须在0-300秒之间")]
+    [SwaggerSchema(Description = "系统开机后延迟N秒再连接驱动，给硬件设备足够的初始化时间。0表示立即连接")]
+    public int DriverStartupDelaySeconds { get; init; } = 0;
+
+    /// <summary>
     /// 分拣模式
     /// </summary>
     /// <example>Formal</example>
