@@ -11,6 +11,7 @@
 | 参数名称 | 类型 | 默认值 | 范围/说明 |
 |---------|------|--------|----------|
 | `exceptionChuteId` | string | `CHUTE_EXCEPTION` | 异常格口ID，用于处理分拣失败或无法分配格口的包裹 |
+| `driverStartupDelaySeconds` | int | `0` | 设备开机后延迟连接驱动的时间（0-300秒）|
 | `mqttDefaultPort` | int | `1883` | MQTT默认端口（1-65535） |
 | `tcpDefaultPort` | int | `8888` | TCP默认端口（1-65535） |
 | `chuteAssignmentTimeoutMs` | int | `10000` | 格口分配超时时间（1000-60000毫秒） |
@@ -18,6 +19,26 @@
 | `retryCount` | int | `3` | 重试次数（0-10） |
 | `retryDelayMs` | int | `1000` | 重试延迟（100-10000毫秒） |
 | `enableAutoReconnect` | bool | `true` | 是否启用自动重连 |
+
+#### 驱动启动延迟说明
+
+`driverStartupDelaySeconds` 参数用于在设备刚开机时给予硬件设备足够的初始化时间。该延迟应用于所有驱动的连接（摆轮驱动和IO驱动）。
+
+**工作原理：**
+- 系统在启动时会计算当前的运行时间（通过 `Environment.TickCount64`）
+- 如果运行时间小于配置的延迟时间，系统会等待差值时间后再初始化驱动
+- 如果运行时间已经超过配置的延迟时间，则立即连接驱动
+
+**使用场景：**
+- 某些硬件设备（如PLC、IO板卡）在系统启动后需要一定时间才能完全就绪
+- 通过配置延迟可以避免连接失败或不稳定的问题
+
+**示例：**
+```
+配置值：15秒
+场景1：系统启动后10秒时检测到此配置 → 等待5秒后再连接驱动
+场景2：系统启动后20秒时检测到此配置 → 立即连接驱动（无需等待）
+```
 
 ### 配置存储
 
@@ -35,18 +56,14 @@ GET /api/config/system
 **响应示例：**
 ```json
 {
-  "id": 1,
-  "exceptionChuteId": "CHUTE_EXCEPTION",
-  "mqttDefaultPort": 1883,
-  "tcpDefaultPort": 8888,
-  "chuteAssignmentTimeoutMs": 10000,
-  "requestTimeoutMs": 5000,
-  "retryCount": 3,
-  "retryDelayMs": 1000,
-  "enableAutoReconnect": true,
+  "exceptionChuteId": 999,
+  "driverStartupDelaySeconds": 15,
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": [],
   "version": 1,
-  "createdAt": "2025-11-12T18:00:00.000Z",
-  "updatedAt": "2025-11-12T18:00:00.000Z"
+  "createdAt": "2025-11-12T18:00:00",
+  "updatedAt": "2025-11-12T18:00:00"
 }
 ```
 
@@ -62,14 +79,11 @@ GET /api/config/system/template
 **响应示例：**
 ```json
 {
-  "exceptionChuteId": "CHUTE_EXCEPTION",
-  "mqttDefaultPort": 1883,
-  "tcpDefaultPort": 8888,
-  "chuteAssignmentTimeoutMs": 10000,
-  "requestTimeoutMs": 5000,
-  "retryCount": 3,
-  "retryDelayMs": 1000,
-  "enableAutoReconnect": true
+  "exceptionChuteId": 999,
+  "driverStartupDelaySeconds": 0,
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": []
 }
 ```
 
@@ -83,32 +97,25 @@ PUT /api/config/system
 Content-Type: application/json
 
 {
-  "exceptionChuteId": "CUSTOM_EXCEPTION",
-  "mqttDefaultPort": 1884,
-  "tcpDefaultPort": 9999,
-  "chuteAssignmentTimeoutMs": 15000,
-  "requestTimeoutMs": 8000,
-  "retryCount": 5,
-  "retryDelayMs": 2000,
-  "enableAutoReconnect": true
+  "exceptionChuteId": 999,
+  "driverStartupDelaySeconds": 30,
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": []
 }
 ```
 
 **响应示例：**
 ```json
 {
-  "id": 1,
-  "exceptionChuteId": "CUSTOM_EXCEPTION",
-  "mqttDefaultPort": 1884,
-  "tcpDefaultPort": 9999,
-  "chuteAssignmentTimeoutMs": 15000,
-  "requestTimeoutMs": 8000,
-  "retryCount": 5,
-  "retryDelayMs": 2000,
-  "enableAutoReconnect": true,
+  "exceptionChuteId": 999,
+  "driverStartupDelaySeconds": 30,
+  "sortingMode": "Formal",
+  "fixedChuteId": null,
+  "availableChuteIds": [],
   "version": 2,
-  "createdAt": "2025-11-12T18:00:00.000Z",
-  "updatedAt": "2025-11-12T18:05:00.000Z"
+  "createdAt": "2025-11-12T18:00:00",
+  "updatedAt": "2025-11-12T18:05:00"
 }
 ```
 
@@ -138,14 +145,11 @@ curl http://localhost:5000/api/config/system
 curl -X PUT http://localhost:5000/api/config/system \
   -H "Content-Type: application/json" \
   -d '{
-    "exceptionChuteId": "CUSTOM_EXCEPTION",
-    "mqttDefaultPort": 1884,
-    "tcpDefaultPort": 9999,
-    "chuteAssignmentTimeoutMs": 15000,
-    "requestTimeoutMs": 8000,
-    "retryCount": 5,
-    "retryDelayMs": 2000,
-    "enableAutoReconnect": true
+    "exceptionChuteId": 999,
+    "driverStartupDelaySeconds": 30,
+    "sortingMode": "Formal",
+    "fixedChuteId": null,
+    "availableChuteIds": []
   }'
 ```
 
@@ -164,14 +168,11 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/config/system" -Method Get
 #### 更新配置
 ```powershell
 $body = @{
-    exceptionChuteId = "CUSTOM_EXCEPTION"
-    mqttDefaultPort = 1884
-    tcpDefaultPort = 9999
-    chuteAssignmentTimeoutMs = 15000
-    requestTimeoutMs = 8000
-    retryCount = 5
-    retryDelayMs = 2000
-    enableAutoReconnect = $true
+    exceptionChuteId = 999
+    driverStartupDelaySeconds = 30
+    sortingMode = "Formal"
+    fixedChuteId = $null
+    availableChuteIds = @()
 } | ConvertTo-Json
 
 Invoke-RestMethod -Uri "http://localhost:5000/api/config/system" `
@@ -186,13 +187,11 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/config/system" `
 
 ### 验证规则
 
-- **异常格口ID**: 不能为空
-- **MQTT端口**: 必须在 1-65535 之间
-- **TCP端口**: 必须在 1-65535 之间
-- **格口分配超时**: 必须在 1000-60000 毫秒之间
-- **请求超时**: 必须在 1000-60000 毫秒之间
-- **重试次数**: 必须在 0-10 之间
-- **重试延迟**: 必须在 100-10000 毫秒之间
+- **异常格口ID**: 必须大于0
+- **驱动启动延迟**: 必须在 0-300 秒之间
+- **分拣模式**: 必须为 Formal、FixedChute 或 RoundRobin
+- **固定格口ID**: 在 FixedChute 模式下必须配置且大于0
+- **可用格口ID列表**: 在 RoundRobin 模式下必须至少包含一个格口且所有ID大于0
 
 ### 验证错误示例
 
@@ -204,8 +203,8 @@ Invoke-RestMethod -Uri "http://localhost:5000/api/config/system" `
   "title": "One or more validation errors occurred.",
   "status": 400,
   "errors": {
-    "MqttDefaultPort": [
-      "MQTT默认端口必须在1-65535之间"
+    "DriverStartupDelaySeconds": [
+      "驱动启动延迟时间必须在0-300秒之间"
     ]
   }
 }
