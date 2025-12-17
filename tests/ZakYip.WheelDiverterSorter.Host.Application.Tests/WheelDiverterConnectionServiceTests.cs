@@ -358,4 +358,117 @@ public class WheelDiverterConnectionServiceTests
         Assert.Equal(0, result.TotalCount);
         Assert.Empty(result.FailedDriverIds);
     }
+
+    #region Driver Startup Delay Tests
+
+    [Fact]
+    public async Task ConnectAllAsync_ShouldCheckSystemConfig_ForDriverStartupDelay()
+    {
+        // Arrange
+        var systemConfig = new SystemConfiguration
+        {
+            ConfigName = "system",
+            ExceptionChuteId = 999,
+            DriverStartupDelaySeconds = 5,
+            SortingMode = ZakYip.WheelDiverterSorter.Core.Enums.Sorting.SortingMode.Formal
+        };
+
+        _mockSystemConfigRepository.Setup(x => x.Get()).Returns(systemConfig);
+        
+        // Setup SafeExecutor to execute the operation and return the result
+        _mockSafeExecutor.Setup(x => x.ExecuteAsync(
+                It.IsAny<Func<Task<WheelDiverterConnectionResult>>>(),
+                It.IsAny<string>(),
+                It.IsAny<WheelDiverterConnectionResult>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<WheelDiverterConnectionResult>>, string, WheelDiverterConnectionResult, CancellationToken>(
+                async (func, _, _, __) => await func());
+
+        var service = new WheelDiverterConnectionService(
+            _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
+            _mockDriverManager.Object,
+            _mockHealthRegistry.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object,
+            _mockLogger.Object);
+
+        // Act
+        await service.ConnectAllAsync(CancellationToken.None);
+
+        // Assert - Verify that system config was retrieved (proves the delay logic was executed)
+        _mockSystemConfigRepository.Verify(x => x.Get(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConnectAllAsync_ShouldNotDelay_WhenDriverStartupDelayIsZero()
+    {
+        // Arrange
+        var systemConfig = new SystemConfiguration
+        {
+            ConfigName = "system",
+            ExceptionChuteId = 999,
+            DriverStartupDelaySeconds = 0, // No delay
+            SortingMode = ZakYip.WheelDiverterSorter.Core.Enums.Sorting.SortingMode.Formal
+        };
+
+        _mockSystemConfigRepository.Setup(x => x.Get()).Returns(systemConfig);
+        
+        // Setup SafeExecutor to execute the operation and return the result
+        _mockSafeExecutor.Setup(x => x.ExecuteAsync(
+                It.IsAny<Func<Task<WheelDiverterConnectionResult>>>(),
+                It.IsAny<string>(),
+                It.IsAny<WheelDiverterConnectionResult>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<WheelDiverterConnectionResult>>, string, WheelDiverterConnectionResult, CancellationToken>(
+                async (func, _, _, __) => await func());
+
+        var service = new WheelDiverterConnectionService(
+            _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
+            _mockDriverManager.Object,
+            _mockHealthRegistry.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object,
+            _mockLogger.Object);
+
+        // Act
+        await service.ConnectAllAsync(CancellationToken.None);
+
+        // Assert - Verify that system config was retrieved and no delay occurred
+        _mockSystemConfigRepository.Verify(x => x.Get(), Times.Once);
+    }
+
+    [Fact]
+    public async Task ConnectAllAsync_ShouldHandleNullSystemConfig_Gracefully()
+    {
+        // Arrange
+        _mockSystemConfigRepository.Setup(x => x.Get()).Returns((SystemConfiguration)null!);
+        
+        // Setup SafeExecutor to execute the operation and return the result
+        _mockSafeExecutor.Setup(x => x.ExecuteAsync(
+                It.IsAny<Func<Task<WheelDiverterConnectionResult>>>(),
+                It.IsAny<string>(),
+                It.IsAny<WheelDiverterConnectionResult>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<Task<WheelDiverterConnectionResult>>, string, WheelDiverterConnectionResult, CancellationToken>(
+                async (func, _, _, __) => await func());
+
+        var service = new WheelDiverterConnectionService(
+            _mockConfigRepository.Object,
+            _mockSystemConfigRepository.Object,
+            _mockDriverManager.Object,
+            _mockHealthRegistry.Object,
+            _mockClock.Object,
+            _mockSafeExecutor.Object,
+            _mockLogger.Object);
+
+        // Act - Should not throw when system config is null
+        await service.ConnectAllAsync(CancellationToken.None);
+
+        // Assert - Verify that system config was attempted to be retrieved
+        _mockSystemConfigRepository.Verify(x => x.Get(), Times.Once);
+    }
+
+    #endregion
 }

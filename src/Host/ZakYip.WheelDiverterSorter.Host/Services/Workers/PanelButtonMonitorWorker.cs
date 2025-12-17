@@ -133,7 +133,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                                         buttonType);
                                     
                                     // 触发急停蜂鸣器
-                                    await TriggerEmergencyBuzzerAsync(stoppingToken);
+                                    await TriggerEmergencyStopBuzzerAsync(stoppingToken);
                                 }
 
                                 // 触发IO联动
@@ -623,19 +623,6 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
         {
             _logger.LogError(ex, "触发急停蜂鸣器异常");
         }
-    }
-    
-    /// <summary>
-    /// 触发急停蜂鸣（在急停状态下按下任意非急停按钮时调用）
-    /// </summary>
-    /// <remarks>
-    /// 当系统处于急停状态时，如果按下任意非急停按钮（如启动、停止、复位等），
-    /// 触发急停蜂鸣器提醒操作员必须先解除急停才能进行其他操作。
-    /// 此方法直接调用 TriggerEmergencyStopBuzzerAsync 复用现有的蜂鸣器控制逻辑。
-    /// </remarks>
-    private async Task TriggerEmergencyBuzzerAsync(CancellationToken cancellationToken)
-    {
-        await TriggerEmergencyStopBuzzerAsync(cancellationToken);
     }
     
     /// <summary>
