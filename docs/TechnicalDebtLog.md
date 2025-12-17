@@ -83,6 +83,7 @@
 - [TD-078] 对象池 + Span<T> 性能优化（TD-076 PR #2）
 - [TD-079] ConfigureAwait + 字符串/集合优化（TD-076 PR #3）
 - [TD-080] 低优先级性能优化收尾（TD-076 PR #4）
+- [TD-081] API 重组剩余工作（经审计确认已实现）
 
 ---
 
@@ -4004,17 +4005,18 @@ dotnet test tests/ZakYip.WheelDiverterSorter.Execution.Tests/
 
 ---
 
-## [TD-API-REORG-001] API 重组剩余工作
+## [TD-081] API 重组剩余工作（经审计确认已实现）
 
 **状态**：✅ 已解决 (2025-12-16 - 经审计确认所有功能已实现)  
 **创建日期**: 2025-12-14  
 **完成日期**: 2025-12-16  
 **优先级**: 高  
 **实际工作量**: 0小时（功能已在先前PR中完成）
+**备注**: 原标识为 TD-API-REORG-001，现统一编号为 TD-081
 
 **审计结论**：
 
-经全面代码审计，TD-API-REORG-001 中列出的所有工作已在先前的 PR 中完成，无需额外开发。
+经全面代码审计，本技术债中列出的所有工作已在先前的 PR 中完成，无需额外开发。
 
 **验证结果**：
 
@@ -4065,7 +4067,7 @@ dotnet test tests/ZakYip.WheelDiverterSorter.Execution.Tests/
 - ✅ 接口实现完整
 
 **结论**：
-TD-API-REORG-001 中描述的所有功能已在先前的开发过程中完整实现。无需进行任何额外开发工作。
+本技术债（原 TD-API-REORG-001）中描述的所有功能已在先前的开发过程中完整实现。无需进行任何额外开发工作。
 
 **相关文件**：
 - `src/Host/ZakYip.WheelDiverterSorter.Host/Controllers/SortingController.cs` - 分拣API端点
