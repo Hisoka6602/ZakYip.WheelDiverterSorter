@@ -243,6 +243,7 @@ public class SystemConfigService : ISystemConfigService
         var config = new SystemConfiguration
         {
             ExceptionChuteId = request.ExceptionChuteId,
+            DriverStartupDelaySeconds = request.DriverStartupDelaySeconds,
             SortingMode = request.SortingMode,
             FixedChuteId = request.FixedChuteId,
             AvailableChuteIds = request.AvailableChuteIds ?? new List<long>()

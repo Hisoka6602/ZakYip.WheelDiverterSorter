@@ -24,6 +24,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
     private const int PingTimeoutMs = 2000;
     
     private readonly IWheelDiverterConfigurationRepository _configRepository;
+    private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly IWheelDiverterDriverManager _driverManager;
     private readonly INodeHealthRegistry _healthRegistry;
     private readonly ISystemClock _clock;
@@ -32,6 +33,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
 
     public WheelDiverterConnectionService(
         IWheelDiverterConfigurationRepository configRepository,
+        ISystemConfigurationRepository systemConfigRepository,
         IWheelDiverterDriverManager driverManager,
         INodeHealthRegistry healthRegistry,
         ISystemClock clock,
@@ -39,6 +41,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
         ILogger<WheelDiverterConnectionService> logger)
     {
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
+        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _driverManager = driverManager ?? throw new ArgumentNullException(nameof(driverManager));
         _healthRegistry = healthRegistry ?? throw new ArgumentNullException(nameof(healthRegistry));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -53,6 +56,35 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
             async () =>
             {
                 _logger.LogInformation("开始连接所有摆轮设备...");
+
+                // 获取系统配置以检查启动延迟设置
+                var systemConfig = _systemConfigRepository.Get();
+                if (systemConfig != null && systemConfig.DriverStartupDelaySeconds > 0)
+                {
+                    var systemUptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
+                    var requiredDelay = TimeSpan.FromSeconds(systemConfig.DriverStartupDelaySeconds);
+                    
+                    if (systemUptime < requiredDelay)
+                    {
+                        var remainingDelay = requiredDelay - systemUptime;
+                        _logger.LogInformation(
+                            "系统运行时间 {Uptime:F1}秒 小于配置的驱动启动延迟 {ConfiguredDelay}秒，将等待 {RemainingDelay:F1}秒后再连接驱动",
+                            systemUptime.TotalSeconds,
+                            systemConfig.DriverStartupDelaySeconds,
+                            remainingDelay.TotalSeconds);
+                        
+                        await Task.Delay(remainingDelay, cancellationToken);
+                        
+                        _logger.LogInformation("驱动启动延迟等待完成，现在开始连接驱动");
+                    }
+                    else
+                    {
+                        _logger.LogInformation(
+                            "系统运行时间 {Uptime:F1}秒 已超过配置的驱动启动延迟 {ConfiguredDelay}秒，立即连接驱动",
+                            systemUptime.TotalSeconds,
+                            systemConfig.DriverStartupDelaySeconds);
+                    }
+                }
 
                 // 获取摆轮配置
                 var config = _configRepository.Get();

@@ -28,6 +28,14 @@ public record SystemConfigResponse
     public required long ExceptionChuteId { get; init; }
 
     /// <summary>
+    /// 设备初次开机后延迟连接驱动的时间（秒）
+    /// Driver startup delay after device boot (seconds)
+    /// </summary>
+    /// <example>15</example>
+    [SwaggerSchema(Description = "系统开机后延迟N秒再连接驱动，给硬件设备足够的初始化时间。0表示立即连接")]
+    public required int DriverStartupDelaySeconds { get; init; }
+
+    /// <summary>
     /// 分拣模式
     /// Sorting mode
     /// </summary>

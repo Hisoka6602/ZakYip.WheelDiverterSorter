@@ -387,4 +387,78 @@ public class DefaultIoLinkageCoordinatorTests
         // Assert
         Assert.True(result);
     }
+
+    #region ReadyStateIos Tests
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenReadyWithReadyStateIos_ShouldReturnReadyStateIos()
+    {
+        // Arrange
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            ReadyStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 10, Level = TriggerLevel.ActiveHigh },
+                new() { BitNumber = 11, Level = TriggerLevel.ActiveLow }
+            },
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh }
+            }
+        };
+
+        // Act
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Ready, options);
+
+        // Assert - Should return ReadyStateIos, not StoppedStateIos
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, p => p.BitNumber == 10 && p.Level == TriggerLevel.ActiveHigh);
+        Assert.Contains(result, p => p.BitNumber == 11 && p.Level == TriggerLevel.ActiveLow);
+        Assert.DoesNotContain(result, p => p.BitNumber == 3);
+    }
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenReadyWithEmptyReadyStateIos_ShouldFallbackToStoppedStateIos()
+    {
+        // Arrange
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            ReadyStateIos = new List<IoLinkagePoint>(), // Empty - should fallback
+            StoppedStateIos = new List<IoLinkagePoint>
+            {
+                new() { BitNumber = 3, Level = TriggerLevel.ActiveHigh },
+                new() { BitNumber = 5, Level = TriggerLevel.ActiveHigh }
+            }
+        };
+
+        // Act
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Ready, options);
+
+        // Assert - Should fallback to StoppedStateIos
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, p => p.BitNumber == 3 && p.Level == TriggerLevel.ActiveHigh);
+        Assert.Contains(result, p => p.BitNumber == 5 && p.Level == TriggerLevel.ActiveHigh);
+    }
+
+    [Fact]
+    public void DetermineIoLinkagePoints_WhenReadyWithBothEmpty_ShouldReturnEmpty()
+    {
+        // Arrange
+        var options = new IoLinkageOptions
+        {
+            Enabled = true,
+            ReadyStateIos = new List<IoLinkagePoint>(), // Empty
+            StoppedStateIos = new List<IoLinkagePoint>() // Empty
+        };
+
+        // Act
+        var result = _coordinator.DetermineIoLinkagePoints(SystemState.Ready, options);
+
+        // Assert - Should return empty
+        Assert.Empty(result);
+    }
+
+    #endregion
 }

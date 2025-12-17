@@ -36,6 +36,20 @@ public class SystemConfiguration
     public long ExceptionChuteId { get; set; } = 999;
 
     /// <summary>
+    /// 设备初次开机后延迟连接驱动的时间（秒）
+    /// </summary>
+    /// <remarks>
+    /// <para>用于在设备刚启动时给予硬件设备足够的初始化时间</para>
+    /// <para>该延迟应用于所有驱动的连接（摆轮驱动和IO驱动）</para>
+    /// <para>如果系统运行时间小于此配置值，将等待差值时间后再初始化驱动</para>
+    /// <para>默认值为0，表示立即连接</para>
+    /// </remarks>
+    /// <example>
+    /// 如果配置为15秒，系统在启动后10秒时检测到此配置，则会等待5秒后再连接驱动
+    /// </example>
+    public int DriverStartupDelaySeconds { get; set; } = 0;
+
+    /// <summary>
     /// 格口分配超时配置
     /// </summary>
     /// <remarks>
@@ -175,6 +189,12 @@ public class SystemConfiguration
             return (false, "异常格口ID必须大于0");
         }
 
+        // 验证驱动启动延迟时间
+        if (DriverStartupDelaySeconds < 0 || DriverStartupDelaySeconds > 300)
+        {
+            return (false, "驱动启动延迟时间必须在0-300秒之间");
+        }
+
         // 验证格口分配超时配置
         var timeoutValidation = ChuteAssignmentTimeout.Validate();
         if (!timeoutValidation.IsValid)
@@ -217,6 +237,7 @@ public class SystemConfiguration
         {
             ConfigName = "system",
             ExceptionChuteId = 999,
+            DriverStartupDelaySeconds = 0,
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions(),
             // 注意：面板配置已迁移到 PanelConfiguration，通过 IPanelConfigurationRepository 访问
             IoLinkage = new IoLinkageOptions(),

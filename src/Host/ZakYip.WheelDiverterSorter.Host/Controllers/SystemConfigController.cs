@@ -110,6 +110,7 @@ public class SystemConfigController : ApiControllerBase
             var command = new UpdateSystemConfigCommand
             {
                 ExceptionChuteId = request.ExceptionChuteId,
+                DriverStartupDelaySeconds = request.DriverStartupDelaySeconds,
                 SortingMode = request.SortingMode,
                 FixedChuteId = request.FixedChuteId,
                 AvailableChuteIds = request.AvailableChuteIds
@@ -138,6 +139,7 @@ public class SystemConfigController : ApiControllerBase
         return new SystemConfigResponse
         {
             ExceptionChuteId = config.ExceptionChuteId,
+            DriverStartupDelaySeconds = config.DriverStartupDelaySeconds,
             SortingMode = config.SortingMode,
             FixedChuteId = config.FixedChuteId,
             AvailableChuteIds = config.AvailableChuteIds ?? new List<long>(),

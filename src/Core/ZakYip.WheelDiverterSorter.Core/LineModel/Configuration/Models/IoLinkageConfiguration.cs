@@ -34,6 +34,14 @@ public sealed record class IoLinkageConfiguration
     public bool Enabled { get; init; } = true;
 
     /// <summary>
+    /// 就绪状态时联动的 IO 点列表
+    /// </summary>
+    /// <remarks>
+    /// 例如：系统就绪时将某些 IO 设置为特定电平以指示设备已准备好
+    /// </remarks>
+    public List<IoLinkagePoint> ReadyStateIos { get; init; } = new();
+
+    /// <summary>
     /// 运行中状态时联动的 IO 点列表
     /// </summary>
     /// <remarks>
@@ -116,6 +124,7 @@ public sealed record class IoLinkageConfiguration
             ConfigName = "io_linkage",
             Version = 1,
             Enabled = true,
+            ReadyStateIos = new List<IoLinkagePoint>(),
             RunningStateIos = new List<IoLinkagePoint>(),
             StoppedStateIos = new List<IoLinkagePoint>(),
             EmergencyStopStateIos = new List<IoLinkagePoint>(),
@@ -134,6 +143,20 @@ public sealed record class IoLinkageConfiguration
     /// <returns>验证结果元组 (IsValid, ErrorMessage)</returns>
     public (bool IsValid, string? ErrorMessage) Validate()
     {
+        // 验证就绪状态 IO 点
+        foreach (var ioPoint in ReadyStateIos)
+        {
+            if (ioPoint.BitNumber < 0 || ioPoint.BitNumber > 1023)
+            {
+                return (false, $"就绪状态 IO 点 {ioPoint.BitNumber} 必须在 0-1023 范围内");
+            }
+
+            if (!Enum.IsDefined(typeof(TriggerLevel), ioPoint.Level))
+            {
+                return (false, $"就绪状态 IO 点 {ioPoint.BitNumber} 的电平配置无效");
+            }
+        }
+
         // 验证运行状态 IO 点
         foreach (var ioPoint in RunningStateIos)
         {
@@ -205,6 +228,13 @@ public sealed record class IoLinkageConfiguration
         }
 
         // 检查重复的 IO 点
+        var readyBits = ReadyStateIos.Select(io => io.BitNumber).ToList();
+        var duplicateReadyBits = readyBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+        if (duplicateReadyBits.Any())
+        {
+            return (false, $"就绪状态 IO 点存在重复: {string.Join(", ", duplicateReadyBits)}");
+        }
+
         var runningBits = RunningStateIos.Select(io => io.BitNumber).ToList();
         var duplicateRunningBits = runningBits.GroupBy(b => b).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
         if (duplicateRunningBits.Any())

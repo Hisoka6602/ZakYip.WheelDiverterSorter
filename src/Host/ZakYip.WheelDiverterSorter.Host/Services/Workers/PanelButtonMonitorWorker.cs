@@ -123,6 +123,19 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                                     "检测到面板按钮按下：{ButtonType}",
                                     buttonType);
 
+                                // 检查：如果当前处于急停状态，且按下的不是急停按钮，则触发急停蜂鸣
+                                var currentSystemState = _stateManager.CurrentState;
+                                if (currentSystemState == SystemState.EmergencyStop && 
+                                    buttonType != PanelButtonType.EmergencyStop)
+                                {
+                                    _logger.LogWarning(
+                                        "系统处于急停状态时按下非急停按钮 {ButtonType}，触发急停蜂鸣提醒",
+                                        buttonType);
+                                    
+                                    // 触发急停蜂鸣器
+                                    await TriggerEmergencyStopBuzzerAsync(stoppingToken);
+                                }
+
                                 // 触发IO联动
                                 await TriggerIoLinkageAsync(buttonType, stoppingToken);
                             }

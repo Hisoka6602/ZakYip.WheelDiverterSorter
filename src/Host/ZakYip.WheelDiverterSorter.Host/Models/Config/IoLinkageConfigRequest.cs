@@ -14,6 +14,12 @@ public sealed record class IoLinkageConfigRequest
     public required bool Enabled { get; init; }
 
     /// <summary>
+    /// 就绪状态时联动的 IO 点列表
+    /// </summary>
+    [Required(ErrorMessage = "ReadyStateIos 不能为空")]
+    public required List<IoLinkagePointRequest> ReadyStateIos { get; init; }
+
+    /// <summary>
     /// 运行中状态时联动的 IO 点列表
     /// </summary>
     [Required(ErrorMessage = "RunningStateIos 不能为空")]

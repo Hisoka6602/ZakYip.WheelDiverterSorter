@@ -75,6 +75,11 @@ public record UpdateIoLinkageConfigCommand
     public bool Enabled { get; init; }
 
     /// <summary>
+    /// 就绪状态下的 IO 点
+    /// </summary>
+    public List<IoLinkagePointCommand> ReadyStateIos { get; init; } = new();
+
+    /// <summary>
     /// 运行状态下的 IO 点
     /// </summary>
     public List<IoLinkagePointCommand> RunningStateIos { get; init; } = new();

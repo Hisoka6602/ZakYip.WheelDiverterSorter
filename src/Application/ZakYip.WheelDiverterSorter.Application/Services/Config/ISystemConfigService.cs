@@ -88,6 +88,11 @@ public record UpdateSystemConfigCommand
     public long ExceptionChuteId { get; init; } = 999;
 
     /// <summary>
+    /// 设备初次开机后延迟连接驱动的时间（秒）
+    /// </summary>
+    public int DriverStartupDelaySeconds { get; init; } = 0;
+
+    /// <summary>
     /// 分拣模式
     /// </summary>
     public SortingMode SortingMode { get; init; } = SortingMode.Formal;
