@@ -18,18 +18,11 @@ try
     var miniApiOptions = builder.Configuration.GetSection("MiniApi").Get<MiniApiOptions>() ?? new MiniApiOptions();
     
     // 配置服务监听地址 - Configure service listen addresses
-    // 使用 ConfigureKestrel 确保配置生效，优先级高于默认配置
-    // Use ConfigureKestrel to ensure configuration takes effect with higher priority than defaults
+    // 如果配置中没有指定URL，将使用MiniApiOptions的默认值（http://localhost:5000）
+    // If no URLs are specified in configuration, the default value from MiniApiOptions will be used (http://localhost:5000)
     if (miniApiOptions.Urls.Length > 0)
     {
-        // 清除默认的 URL 配置，强制使用我们的配置
-        // Clear default URL configuration and force use of our configuration
         builder.WebHost.UseUrls(miniApiOptions.Urls);
-        
-        // 同时设置 ASPNETCORE_URLS 环境变量（最高优先级）
-        // Also set ASPNETCORE_URLS environment variable (highest priority)
-        Environment.SetEnvironmentVariable("ASPNETCORE_URLS", string.Join(";", miniApiOptions.Urls));
-        
         logger.Info($"API服务将监听以下地址 - API service will listen on: {string.Join(", ", miniApiOptions.Urls)}");
     }
 
