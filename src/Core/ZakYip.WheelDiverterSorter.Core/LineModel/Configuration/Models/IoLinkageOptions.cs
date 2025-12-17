@@ -12,6 +12,12 @@ public sealed record class IoLinkageOptions
     public bool Enabled { get; init; } = true;
 
     /// <summary>
+    /// 就绪状态时联动的 IO 点列表。
+    /// 例如：系统就绪时将某些 IO 设置为特定电平以指示设备已准备好。
+    /// </summary>
+    public List<IoLinkagePoint> ReadyStateIos { get; init; } = new();
+
+    /// <summary>
     /// 运行中状态时联动的 IO 点列表。
     /// 例如：运行中时将 IO 3、5、6 设置为低电平。
     /// </summary>

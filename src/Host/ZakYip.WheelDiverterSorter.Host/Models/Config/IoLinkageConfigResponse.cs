@@ -11,6 +11,11 @@ public sealed record class IoLinkageConfigResponse
     public required bool Enabled { get; init; }
 
     /// <summary>
+    /// 就绪状态时联动的 IO 点列表
+    /// </summary>
+    public required List<IoLinkagePointResponse> ReadyStateIos { get; init; }
+
+    /// <summary>
     /// 运行中状态时联动的 IO 点列表
     /// </summary>
     public required List<IoLinkagePointResponse> RunningStateIos { get; init; }

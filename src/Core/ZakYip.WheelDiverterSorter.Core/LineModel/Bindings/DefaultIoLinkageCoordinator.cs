@@ -43,6 +43,12 @@ public class DefaultIoLinkageCoordinator : IIoLinkageCoordinator
                 break;
             
             case SystemState.Ready: // 对应原 Stopped/Standby/Stopping
+                // 就绪状态时，优先使用 ReadyStateIos，如果为空则使用 StoppedStateIos
+                points = options.ReadyStateIos.Count > 0
+                    ? options.ReadyStateIos
+                    : options.StoppedStateIos;
+                break;
+            
             case SystemState.Booting: // 启动中也使用 Stopped 配置
                 // 停止/复位/待机状态时，使用 StoppedStateIos 配置
                 points = options.StoppedStateIos;

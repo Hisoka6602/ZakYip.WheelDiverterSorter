@@ -324,6 +324,13 @@ public class IoLinkageConfigService : IIoLinkageConfigService
             ConfigName = "io_linkage",
             Version = 1,
             Enabled = command.Enabled,
+            ReadyStateIos = command.ReadyStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
             RunningStateIos = command.RunningStateIos
                 .Select(p => new IoLinkagePoint
                 {
@@ -383,6 +390,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
         return new IoLinkageOptions
         {
             Enabled = config.Enabled,
+            ReadyStateIos = config.ReadyStateIos.ToList(),
             RunningStateIos = config.RunningStateIos.ToList(),
             StoppedStateIos = config.StoppedStateIos.ToList(),
             EmergencyStopStateIos = config.EmergencyStopStateIos.ToList(),

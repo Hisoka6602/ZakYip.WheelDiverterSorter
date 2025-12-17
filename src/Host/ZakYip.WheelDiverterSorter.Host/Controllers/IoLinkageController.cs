@@ -763,6 +763,13 @@ public class IoLinkageController : ControllerBase
             ConfigName = "io_linkage",
             Version = 1,
             Enabled = request.Enabled,
+            ReadyStateIos = request.ReadyStateIos
+                .Select(p => new IoLinkagePoint
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level
+                })
+                .ToList(),
             RunningStateIos = request.RunningStateIos
                 .Select(p => new IoLinkagePoint
                 {
@@ -825,6 +832,13 @@ public class IoLinkageController : ControllerBase
         return new IoLinkageConfigResponse
         {
             Enabled = config.Enabled,
+            ReadyStateIos = config.ReadyStateIos
+                .Select(p => new IoLinkagePointResponse
+                {
+                    BitNumber = p.BitNumber,
+                    Level = p.Level.ToString()
+                })
+                .ToList(),
             RunningStateIos = config.RunningStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
