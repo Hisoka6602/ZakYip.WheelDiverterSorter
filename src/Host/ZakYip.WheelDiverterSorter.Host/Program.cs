@@ -18,6 +18,8 @@ try
     var miniApiOptions = builder.Configuration.GetSection("MiniApi").Get<MiniApiOptions>() ?? new MiniApiOptions();
     
     // 配置服务监听地址 - Configure service listen addresses
+    // 如果配置中没有指定URL，将使用MiniApiOptions的默认值（http://localhost:5000）
+    // If no URLs are specified in configuration, the default value from MiniApiOptions will be used (http://localhost:5000)
     if (miniApiOptions.Urls.Length > 0)
     {
         builder.WebHost.UseUrls(miniApiOptions.Urls);
