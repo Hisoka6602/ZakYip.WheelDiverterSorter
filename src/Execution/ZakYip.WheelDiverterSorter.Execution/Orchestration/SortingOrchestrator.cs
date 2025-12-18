@@ -205,6 +205,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
         
+        // 订阅系统状态变更事件（用于自动清空队列）
+        _systemStateManager.StateChanged += OnSystemStateChanged;
+        
         // TD-LOSS-ORCHESTRATOR-001: 订阅包裹丢失事件
         if (_lossMonitoringService != null)
         {
@@ -1680,6 +1683,70 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
+    /// 处理系统状态变更事件
+    /// </summary>
+    /// <remarks>
+    /// 根据 CORE_ROUTING_LOGIC.md 规则：
+    /// - 当系统状态转换到 Ready、EmergencyStop 或 Faulted 时，清空所有队列
+    /// - 确保停止/急停/复位时不会残留任务影响后续操作
+    /// </remarks>
+    private void OnSystemStateChanged(object? sender, StateChangeEventArgs e)
+    {
+        _logger.LogInformation(
+            "[系统状态变更] 检测到状态转换: {OldState} -> {NewState}",
+            e.OldState,
+            e.NewState);
+
+        // 判断是否需要清空队列
+        // 根据 CORE_ROUTING_LOGIC.md: "清空队列时机: 面板按钮（停止/急停/复位）时清空所有队列"
+        // 对应状态转换：
+        // - 任何状态 -> EmergencyStop (急停)
+        // - Running/Paused -> Ready (停止)
+        // - EmergencyStop -> Ready (急停解除/复位)
+        // - Faulted -> Ready (故障恢复/复位)
+        // - 任何状态 -> Faulted (故障)
+        bool shouldClearQueues = e.NewState switch
+        {
+            SystemState.EmergencyStop => true,  // 急停时必须清空
+            SystemState.Ready when e.OldState is SystemState.Running or SystemState.Paused => true,  // 从运行状态停止
+            SystemState.Ready when e.OldState is SystemState.EmergencyStop or SystemState.Faulted => true,  // 复位时清空
+            SystemState.Faulted => true,  // 故障时清空
+            _ => false
+        };
+
+        if (shouldClearQueues)
+        {
+            if (_queueManager != null)
+            {
+                _logger.LogWarning(
+                    "[队列清理] 系统状态转换到 {NewState}，正在清空所有 Position-Index 队列...",
+                    e.NewState);
+
+                _queueManager.ClearAllQueues();
+
+                _logger.LogInformation(
+                    "[队列清理] 队列清空完成，状态: {OldState} -> {NewState}",
+                    e.OldState,
+                    e.NewState);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "[队列清理] 检测到应清空队列的状态转换 ({OldState} -> {NewState})，但 QueueManager 未注入",
+                    e.OldState,
+                    e.NewState);
+            }
+        }
+        else
+        {
+            _logger.LogDebug(
+                "[队列清理] 状态转换 {OldState} -> {NewState} 无需清空队列",
+                e.OldState,
+                e.NewState);
+        }
+    }
+
+    /// <summary>
     /// 处理格口分配通知
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
@@ -1872,6 +1939,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _sensorEventProvider.ChuteDropoffDetected -= OnChuteDropoffDetected;
         // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
+        // 取消订阅系统状态变更事件
+        _systemStateManager.StateChanged -= OnSystemStateChanged;
         
         // TD-LOSS-ORCHESTRATOR-001: 取消订阅包裹丢失事件
         if (_lossMonitoringService != null)

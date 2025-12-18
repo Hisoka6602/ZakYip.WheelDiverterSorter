@@ -36,6 +36,13 @@ public class SystemStateManagerWithBoot : ISystemStateManager
 
     /// <inheritdoc/>
     public SystemState CurrentState => _inner.CurrentState;
+    
+    /// <inheritdoc/>
+    public event EventHandler<StateChangeEventArgs>? StateChanged
+    {
+        add => _inner.StateChanged += value;
+        remove => _inner.StateChanged -= value;
+    }
 
     /// <inheritdoc/>
     public SystemSelfTestReport? LastSelfTestReport => _inner.LastSelfTestReport;
