@@ -101,6 +101,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISafeExecutionService? _safeExecutor;
     private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
     private readonly Monitoring.ParcelLossMonitoringService? _lossMonitoringService;
+    private readonly AlarmService? _alarmService; // 告警服务（用于失败率统计）
+    private readonly ISortingStatisticsService? _statisticsService; // 分拣统计服务
     
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
     private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
@@ -154,7 +156,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
         IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
-        Monitoring.ParcelLossMonitoringService? lossMonitoringService = null) // 包裹丢失监控服务
+        Monitoring.ParcelLossMonitoringService? lossMonitoringService = null, // 包裹丢失监控服务
+        AlarmService? alarmService = null, // 告警服务（用于失败率统计）
+        ISortingStatisticsService? statisticsService = null) // 分拣统计服务
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -184,6 +188,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _intervalTracker = intervalTracker;
         _callbackConfigRepository = callbackConfigRepository;
         _lossMonitoringService = lossMonitoringService;
+        _alarmService = alarmService;
+        _statisticsService = statisticsService;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -485,6 +491,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     executionResult.ActualChuteId,
                     targetChuteId);
                 _metrics?.RecordSortingSuccess(stopwatch.Elapsed.TotalSeconds);
+                _alarmService?.RecordSortingSuccess();
+                _statisticsService?.IncrementSuccess();
             }
             else
             {
@@ -494,6 +502,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     executionResult.FailureReason,
                     executionResult.ActualChuteId);
                 _metrics?.RecordSortingFailure(stopwatch.Elapsed.TotalSeconds);
+                _alarmService?.RecordSortingFailure();
+                _statisticsService?.IncrementTimeout(); // 调试分拣失败算作超时
             }
 
             return new SortingResult(
@@ -1182,6 +1192,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 positionIndex, sensorId, boundWheelDiverterId);
             
             _metrics?.RecordSortingFailure(0);
+            _alarmService?.RecordSortingFailure();
+            _statisticsService?.IncrementTimeout(); // 队列为空算作异常（超时）
             return;
         }
         
@@ -1264,6 +1276,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
             
             _metrics?.RecordSortingFailure(0);
+            _alarmService?.RecordSortingFailure();
+            _statisticsService?.IncrementTimeout(); // 包裹超时
         }
         else
         {
@@ -1305,6 +1319,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     "[生命周期-失败] P{ParcelId} Pos{PositionIndex} 摆轮执行失败: {ErrorMessage}",
                     task.ParcelId, positionIndex, executionResult.FailureReason);
                 _metrics?.RecordSortingFailure(0);
+                _alarmService?.RecordSortingFailure();
+                _statisticsService?.IncrementTimeout(); // 摆轮执行失败算作超时
                 
                 // 摆轮动作失败，通知上游
                 await NotifyUpstreamSortingCompletedAsync(
@@ -1412,6 +1428,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常",
                 task.ParcelId, positionIndex);
             _metrics?.RecordSortingFailure(0);
+            _alarmService?.RecordSortingFailure();
+            _statisticsService?.IncrementTimeout(); // 执行异常算作超时
             
             // 异常情况，通知上游
             await NotifyUpstreamSortingCompletedAsync(
@@ -1425,6 +1443,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!isTimeout)
         {
             _metrics?.RecordSortingSuccess(0);
+            _alarmService?.RecordSortingSuccess();
+            _statisticsService?.IncrementSuccess(); // 正常成功
         }
     }
 
@@ -1775,6 +1795,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                 // 记录成功指标（执行时间待 PathExecutionResult 扩展后再传入）
                 _metrics?.RecordSortingSuccess(0);
+                _alarmService?.RecordSortingSuccess();
+                _statisticsService?.IncrementSuccess(); // 虽然路由到异常口，但物理分拣成功
                 
                 // 发送落格完成通知到上游系统
                 var notification = new SortingCompletedNotification
@@ -1946,6 +1968,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 {
                     // 记录丢失包裹
                     _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
+                }
+                
+                // 记录失败率和统计数据
+                _alarmService?.RecordSortingFailure(); // 丢失算作失败
+                _statisticsService?.IncrementLost(); // 增加丢失计数
+                
+                // 记录受影响的包裹数量
+                if (affectedParcelIds.Count > 0)
+                {
+                    _statisticsService?.IncrementAffected(affectedParcelIds.Count);
                 }
                 
                 // 5. 清理丢失包裹的所有内存记录

@@ -71,8 +71,7 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<ZakYip.WheelDiverterSorter.Communication.Abstractions.IMessageStatsCallback>(
             sp => sp.GetRequiredService<ICommunicationStatsService>());
         
-        // 注册分拣统计服务（单例模式，确保计数器全局唯一）
-        services.AddSingleton<ISortingStatisticsService, SortingStatisticsService>();
+        // 注:分拣统计服务已移至 Observability 层注册
         
         // 注册拓扑相关服务（单例模式）
         services.AddSingleton<IChutePathTopologyService, ChutePathTopologyService>();

@@ -37,6 +37,8 @@ public static class ObservabilityServiceExtensions
     public static IServiceCollection AddAlarmService(this IServiceCollection services)
     {
         services.AddSingleton<AlarmService>();
+        // 注册分拣统计服务（单例模式，确保计数器全局唯一）
+        services.AddSingleton<ISortingStatisticsService, SortingStatisticsService>();
         return services;
     }
 

@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Application.Services.Metrics;
+namespace ZakYip.WheelDiverterSorter.Observability;
 
 /// <summary>
 /// 分拣统计服务 - 使用原子操作保证线程安全，支持超高并发
