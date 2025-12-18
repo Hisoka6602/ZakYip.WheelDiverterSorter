@@ -7,6 +7,9 @@ using ZakYip.WheelDiverterSorter.Host.Swagger;
 using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 using ZakYip.WheelDiverterSorter.Host.Models;
 
+// 日志刷新超时时间（秒）- 确保异常日志在进程终止前写入磁盘
+const int LogFlushTimeoutSeconds = 5;
+
 // Early init of NLog to allow startup and shutdown logging
 var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
 
@@ -176,29 +179,12 @@ try
 catch (Exception exception)
 {
     // NLog: catch setup errors
-    // 记录详细的异常信息，包括内部异常和堆栈跟踪
+    // 记录详细的异常信息（NLog 配置会自动包含所有内部异常和堆栈跟踪）
     logger.Fatal(exception, "========== 应用程序启动失败 ==========");
-    logger.Fatal($"异常类型: {exception.GetType().FullName}");
-    logger.Fatal($"异常消息: {exception.Message}");
-    logger.Fatal($"堆栈跟踪:\n{exception.StackTrace}");
-    
-    // 记录所有内部异常
-    var innerException = exception.InnerException;
-    var innerLevel = 1;
-    while (innerException != null)
-    {
-        logger.Fatal($"内部异常 #{innerLevel} 类型: {innerException.GetType().FullName}");
-        logger.Fatal($"内部异常 #{innerLevel} 消息: {innerException.Message}");
-        logger.Fatal($"内部异常 #{innerLevel} 堆栈跟踪:\n{innerException.StackTrace}");
-        innerException = innerException.InnerException;
-        innerLevel++;
-    }
-    
-    logger.Fatal("=========================================");
     logger.Fatal("请检查上述错误信息，并参考 docs/WINDOWS_SERVICE_DEPLOYMENT.md 故障排查章节");
     
     // 确保日志刷新到磁盘
-    LogManager.Flush(TimeSpan.FromSeconds(5));
+    LogManager.Flush(TimeSpan.FromSeconds(LogFlushTimeoutSeconds));
     
     throw;
 }

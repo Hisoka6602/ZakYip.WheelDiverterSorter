@@ -14,9 +14,13 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 public sealed class StartupMonitorHostedService : IHostedService
 {
     /// <summary>
-    /// 启动超时阈值（毫秒）- Windows Service 默认超时为 30 秒
+    /// 启动警告阈值（毫秒）
     /// </summary>
-    private const int StartupWarningThresholdMs = 25000; // 25 秒警告阈值
+    /// <remarks>
+    /// 设置为 25 秒，留出 5 秒缓冲时间，因为 Windows Service 默认超时为 30 秒。
+    /// 超过此阈值时会记录警告，帮助识别可能导致服务启动超时的慢速组件。
+    /// </remarks>
+    private const int StartupWarningThresholdMilliseconds = 25000;
     
     private readonly ILogger<StartupMonitorHostedService> _logger;
     private readonly System.Diagnostics.Stopwatch _stopwatch;
@@ -38,11 +42,11 @@ public sealed class StartupMonitorHostedService : IHostedService
         _logger.LogInformation("========== 启动监控报告 ==========");
         _logger.LogInformation($"应用程序启动耗时: {elapsedMs} ms ({elapsedMs / 1000.0:F2} 秒)");
         
-        if (elapsedMs > StartupWarningThresholdMs)
+        if (elapsedMs > StartupWarningThresholdMilliseconds)
         {
             _logger.LogWarning(
                 "⚠️ 应用程序启动耗时过长: {ElapsedMs} ms，超过警告阈值 {ThresholdMs} ms",
-                elapsedMs, StartupWarningThresholdMs);
+                elapsedMs, StartupWarningThresholdMilliseconds);
             _logger.LogWarning(
                 "这可能导致 Windows Service 启动超时（错误 1053）。" +
                 "请检查以下可能的原因：");
