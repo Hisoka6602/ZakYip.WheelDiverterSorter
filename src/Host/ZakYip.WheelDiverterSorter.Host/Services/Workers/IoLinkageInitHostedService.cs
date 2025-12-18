@@ -47,14 +47,20 @@ public sealed class IoLinkageInitHostedService : IHostedService
     }
 
     /// <summary>
-    /// 启动时初始化 IO 联动硬件
+    /// 启动时初始化 IO 联动硬件（非阻塞）
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <remarks>
+    /// PR-FIX-1053: 使用后台任务避免阻塞应用启动。
+    /// IO 硬件初始化（包括 Ping 检查、EMC/S7 连接）在后台运行，
+    /// 不影响 Windows Service 启动响应时间。
+    /// </remarks>
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        await _safeExecutor.ExecuteAsync(
+        // 在后台执行 IO 硬件初始化，不等待完成（非阻塞）
+        _ = _safeExecutor.ExecuteAsync(
             async () =>
             {
-                _logger.LogInformation("========== IO 联动硬件初始化 ==========");
+                _logger.LogInformation("========== IO 联动硬件初始化（后台） ==========");
 
                 // 初始化雷赛 EMC（如果已注册）
                 if (_emcController != null)
@@ -81,6 +87,9 @@ public sealed class IoLinkageInitHostedService : IHostedService
             operationName: "IoLinkageHardwareInitialization",
             cancellationToken: cancellationToken
         );
+
+        _logger.LogInformation("IoLinkageInitHostedService 已启动（硬件初始化在后台进行）");
+        return Task.CompletedTask;
     }
 
     /// <summary>
