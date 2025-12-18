@@ -52,14 +52,20 @@ public sealed class SortingServicesInitHostedService : IHostedService
     }
 
     /// <summary>
-    /// 启动时初始化分拣服务
+    /// 启动时初始化分拣服务（非阻塞）
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <remarks>
+    /// PR-FIX-1053: 使用后台任务避免阻塞应用启动。
+    /// 分拣服务初始化（包括传感器监听、上游连接）在后台运行，
+    /// 不影响 Windows Service 启动响应时间。
+    /// </remarks>
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        await _safeExecutor.ExecuteAsync(
+        // 在后台执行分拣服务初始化，不等待完成（非阻塞）
+        _ = _safeExecutor.ExecuteAsync(
             async () =>
             {
-                _logger.LogInformation("========== 分拣服务初始化 ==========");
+                _logger.LogInformation("========== 分拣服务初始化（后台） ==========");
                 
                 try
                 {
@@ -74,7 +80,6 @@ public sealed class SortingServicesInitHostedService : IHostedService
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "❌ 分拣服务初始化失败");
-                    throw;
                 }
                 finally
                 {
@@ -84,6 +89,9 @@ public sealed class SortingServicesInitHostedService : IHostedService
             operationName: "SortingServicesInitialization",
             cancellationToken: cancellationToken
         );
+
+        _logger.LogInformation("SortingServicesInitHostedService 已启动（分拣服务初始化在后台进行）");
+        return Task.CompletedTask;
     }
 
     /// <summary>

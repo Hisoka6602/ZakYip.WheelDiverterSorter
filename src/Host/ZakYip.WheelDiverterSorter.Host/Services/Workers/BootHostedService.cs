@@ -26,63 +26,74 @@ public class BootHostedService : IHostedService
     }
 
     /// <summary>
-    /// 启动时执行自检
+    /// 启动时执行自检（非阻塞）
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <remarks>
+    /// PR-FIX-1053: 使用火灾忘记模式（fire-and-forget）避免阻塞应用启动。
+    /// 自检在后台运行，不影响 Windows Service 启动响应时间。
+    /// </remarks>
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        _logger.LogInformation("========== 系统启动自检 ==========");
-
-        try
+        // 在后台执行自检，不等待完成（非阻塞）
+        _ = Task.Run(async () =>
         {
-            // 执行系统自检
-            var report = await _stateManager.BootAsync(cancellationToken);
+            _logger.LogInformation("========== 系统启动自检（后台） ==========");
 
-            if (report.IsSuccess)
+            try
             {
-                _logger.LogInformation("✅ 自检通过，系统状态: Ready");
-                _logger.LogInformation("驱动器自检: {DriverCount} 个驱动器，全部健康", report.Drivers.Count);
-                _logger.LogInformation("上游系统检查: {UpstreamCount} 个上游端点检查完成", report.Upstreams.Count);
-                _logger.LogInformation("配置验证: {ConfigStatus}", report.Config.IsValid ? "通过" : "失败");
+                // 执行系统自检
+                var report = await _stateManager.BootAsync(cancellationToken);
 
-                // 更新Prometheus指标
-                _metrics?.RecordSelfTestSuccess();
-                _metrics?.SetSystemState((int)_stateManager.CurrentState);
+                if (report.IsSuccess)
+                {
+                    _logger.LogInformation("✅ 自检通过，系统状态: Ready");
+                    _logger.LogInformation("驱动器自检: {DriverCount} 个驱动器，全部健康", report.Drivers.Count);
+                    _logger.LogInformation("上游系统检查: {UpstreamCount} 个上游端点检查完成", report.Upstreams.Count);
+                    _logger.LogInformation("配置验证: {ConfigStatus}", report.Config.IsValid ? "通过" : "失败");
+
+                    // 更新Prometheus指标
+                    _metrics?.RecordSelfTestSuccess();
+                    _metrics?.SetSystemState((int)_stateManager.CurrentState);
+                }
+                else
+                {
+                    _logger.LogError("❌ 自检失败，系统状态: Faulted");
+                    _logger.LogError("请检查以下组件:");
+
+                    foreach (var driver in report.Drivers.Where(d => !d.IsHealthy))
+                    {
+                        _logger.LogError("  - 驱动器 [{DriverName}]: {ErrorMessage}", 
+                            driver.DriverName, driver.ErrorMessage);
+                    }
+
+                    foreach (var upstream in report.Upstreams.Where(u => !u.IsHealthy))
+                    {
+                        _logger.LogError("  - 上游系统 [{EndpointName}]: {ErrorMessage}", 
+                            upstream.EndpointName, upstream.ErrorMessage);
+                    }
+
+                    if (!report.Config.IsValid)
+                    {
+                        _logger.LogError("  - 配置: {ErrorMessage}", report.Config.ErrorMessage);
+                    }
+
+                    // 更新Prometheus指标
+                    _metrics?.RecordSelfTestFailure();
+                    _metrics?.SetSystemState((int)_stateManager.CurrentState);
+                }
+
+                _logger.LogInformation("========================================");
             }
-            else
+            catch (Exception ex)
             {
-                _logger.LogError("❌ 自检失败，系统状态: Faulted");
-                _logger.LogError("请检查以下组件:");
-
-                foreach (var driver in report.Drivers.Where(d => !d.IsHealthy))
-                {
-                    _logger.LogError("  - 驱动器 [{DriverName}]: {ErrorMessage}", 
-                        driver.DriverName, driver.ErrorMessage);
-                }
-
-                foreach (var upstream in report.Upstreams.Where(u => !u.IsHealthy))
-                {
-                    _logger.LogError("  - 上游系统 [{EndpointName}]: {ErrorMessage}", 
-                        upstream.EndpointName, upstream.ErrorMessage);
-                }
-
-                if (!report.Config.IsValid)
-                {
-                    _logger.LogError("  - 配置: {ErrorMessage}", report.Config.ErrorMessage);
-                }
-
-                // 更新Prometheus指标
+                _logger.LogError(ex, "系统自检过程中发生异常");
                 _metrics?.RecordSelfTestFailure();
-                _metrics?.SetSystemState((int)_stateManager.CurrentState);
+                _metrics?.SetSystemState((int)SystemState.Faulted);
             }
+        }, cancellationToken);
 
-            _logger.LogInformation("========================================");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "系统自检过程中发生异常");
-            _metrics?.RecordSelfTestFailure();
-            _metrics?.SetSystemState((int)SystemState.Faulted);
-        }
+        _logger.LogInformation("BootHostedService 已启动（自检在后台进行）");
+        return Task.CompletedTask;
     }
 
     /// <summary>

@@ -29,14 +29,19 @@ public sealed class WheelDiverterInitHostedService : IHostedService
     }
 
     /// <summary>
-    /// 启动时连接摆轮设备
+    /// 启动时连接摆轮设备（非阻塞）
     /// </summary>
-    public async Task StartAsync(CancellationToken cancellationToken)
+    /// <remarks>
+    /// PR-FIX-1053: 使用后台任务避免阻塞应用启动。
+    /// 摆轮设备连接在后台运行，不影响 Windows Service 启动响应时间。
+    /// </remarks>
+    public Task StartAsync(CancellationToken cancellationToken)
     {
-        await _safeExecutor.ExecuteAsync(
+        // 在后台执行摆轮初始化，不等待完成（非阻塞）
+        _ = _safeExecutor.ExecuteAsync(
             async () =>
             {
-                _logger.LogInformation("========== 摆轮设备初始化 ==========");
+                _logger.LogInformation("========== 摆轮设备初始化（后台） ==========");
 
                 try
                 {
@@ -77,6 +82,9 @@ public sealed class WheelDiverterInitHostedService : IHostedService
             operationName: "WheelDiverterInitialization",
             cancellationToken: cancellationToken
         );
+
+        _logger.LogInformation("WheelDiverterInitHostedService 已启动（设备连接在后台进行）");
+        return Task.CompletedTask;
     }
 
     /// <summary>
