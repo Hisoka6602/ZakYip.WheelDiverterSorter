@@ -14,6 +14,15 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 public interface ISystemStateManager
 {
     /// <summary>
+    /// 系统状态变更事件
+    /// </summary>
+    /// <remarks>
+    /// 当系统状态成功转换时触发。
+    /// 用于通知其他组件（如队列管理器）执行相应的清理或初始化操作。
+    /// </remarks>
+    event EventHandler<StateChangeEventArgs>? StateChanged;
+
+    /// <summary>
     /// 获取当前系统状态
     /// </summary>
     SystemState CurrentState { get; }
@@ -148,4 +157,19 @@ public class StateTransitionRecord
 
     /// <summary>失败原因（如果失败）</summary>
     public string? FailureReason { get; init; }
+}
+
+/// <summary>
+/// 系统状态变更事件参数
+/// </summary>
+public class StateChangeEventArgs : EventArgs
+{
+    /// <summary>转移前的状态</summary>
+    public required SystemState OldState { get; init; }
+
+    /// <summary>转移后的状态</summary>
+    public required SystemState NewState { get; init; }
+
+    /// <summary>状态转换时间</summary>
+    public required DateTimeOffset ChangedAt { get; init; }
 }

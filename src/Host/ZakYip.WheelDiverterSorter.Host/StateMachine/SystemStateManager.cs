@@ -30,6 +30,9 @@ public class SystemStateManager : ISystemStateManager
     private readonly List<BootstrapStageInfo> _bootstrapHistory = new();
 
     /// <inheritdoc/>
+    public event EventHandler<StateChangeEventArgs>? StateChanged;
+
+    /// <inheritdoc/>
     public SystemState CurrentState
     {
         get
@@ -96,6 +99,7 @@ public class SystemStateManager : ISystemStateManager
     {
         // 状态转移必须在锁内执行，确保线程安全
         StateChangeResult result;
+        StateChangeEventArgs? eventArgs = null;
         
         lock (_lock)
         {
@@ -132,9 +136,30 @@ public class SystemStateManager : ISystemStateManager
             RecordTransition(previousState, _currentState, true, null);
 
             result = StateChangeResult.CreateSuccess(previousState, _currentState);
+            
+            // 准备事件参数（在锁内创建，在锁外触发）
+            eventArgs = new StateChangeEventArgs
+            {
+                OldState = previousState,
+                NewState = _currentState,
+                ChangedAt = new DateTimeOffset(_clock.LocalNow)
+            };
         }
 
-        // 在锁外执行异步操作（如果需要）
+        // 在锁外触发事件，避免死锁
+        if (eventArgs != null)
+        {
+            try
+            {
+                StateChanged?.Invoke(this, eventArgs);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "触发系统状态变更事件异常: {OldState} -> {NewState}", 
+                    eventArgs.OldState, eventArgs.NewState);
+            }
+        }
+
         await Task.CompletedTask;
 
         return result;
