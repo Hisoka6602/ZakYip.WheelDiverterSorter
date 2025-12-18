@@ -10,19 +10,48 @@ using ZakYip.WheelDiverterSorter.Host.Models;
 // 日志刷新超时时间（秒）- 确保异常日志在进程终止前写入磁盘
 const int LogFlushTimeoutSeconds = 5;
 
+// PR-FIX-1053: 确保日志目录存在（Windows Service 可能没有权限自动创建）
+var baseDirectory = AppContext.BaseDirectory;
+var logsDirectory = Path.Combine(baseDirectory, "logs");
+try
+{
+    if (!Directory.Exists(logsDirectory))
+    {
+        Directory.CreateDirectory(logsDirectory);
+        Console.WriteLine($"[Startup] 创建日志目录: {logsDirectory}");
+    }
+    Console.WriteLine($"[Startup] 日志目录: {logsDirectory}");
+    Console.WriteLine($"[Startup] 工作目录: {Environment.CurrentDirectory}");
+    Console.WriteLine($"[Startup] 基础目录: {baseDirectory}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"[Startup] 警告: 无法创建日志目录 {logsDirectory}: {ex.Message}");
+    // 继续执行，让 NLog 尝试使用备用位置
+}
+
 // Early init of NLog to allow startup and shutdown logging
 var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
 
 // 记录启动开始，包含关键环境信息
 logger.Info("========== 应用程序启动开始 ==========");
 logger.Info($"应用程序版本: {Assembly.GetEntryAssembly()?.GetName().Version}");
+logger.Info($"基础目录: {baseDirectory}");
 logger.Info($"工作目录: {Environment.CurrentDirectory}");
+logger.Info($"日志目录: {logsDirectory}");
 logger.Info($"进程 ID: {Environment.ProcessId}");
 logger.Info($".NET 版本: {Environment.Version}");
 logger.Info($"操作系统: {Environment.OSVersion}");
 logger.Info($"是否 64 位进程: {Environment.Is64BitProcess}");
 logger.Info($"是否自包含部署: {string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_ROOT"))}");
 logger.Info("=========================================");
+
+// 强制输出到控制台以便诊断（即使在 Windows Service 模式下）
+Console.WriteLine($"[Startup] NLog 已初始化，日志文件应该在: {logsDirectory}");
+Console.WriteLine($"[Startup] 检查以下位置的日志文件:");
+Console.WriteLine($"  - {Path.Combine(logsDirectory, $"startup-{DateTime.Now:yyyy-MM-dd}.log")}");
+Console.WriteLine($"  - {Path.Combine(logsDirectory, $"error-{DateTime.Now:yyyy-MM-dd}.log")}");
+Console.WriteLine($"  - {Path.Combine(logsDirectory, $"internal-nlog-{DateTime.Now:yyyy-MM-dd}.log")}");
 
 try
 {
