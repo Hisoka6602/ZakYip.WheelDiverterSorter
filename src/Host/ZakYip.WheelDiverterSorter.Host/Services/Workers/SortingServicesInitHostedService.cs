@@ -67,24 +67,14 @@ public sealed class SortingServicesInitHostedService : IHostedService
             {
                 _logger.LogInformation("========== 分拣服务初始化（后台） ==========");
                 
-                try
-                {
-                    // 启动分拣编排服务（会自动启动传感器监听和连接上游）
-                    await _orchestrator.StartAsync(cancellationToken);
-                    
-                    _logger.LogInformation("✅ 分拣服务初始化完成");
-                    _logger.LogInformation("  - 传感器监听已启动并开始轮询");
-                    _logger.LogInformation("  - 上游连接已建立或将在首次使用时建立");
-                    _logger.LogInformation("  - 分拣编排服务已就绪");
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "❌ 分拣服务初始化失败");
-                }
-                finally
-                {
-                    _logger.LogInformation("=======================================");
-                }
+                // 启动分拣编排服务（会自动启动传感器监听和连接上游）
+                await _orchestrator.StartAsync(cancellationToken);
+                
+                _logger.LogInformation("✅ 分拣服务初始化完成");
+                _logger.LogInformation("  - 传感器监听已启动并开始轮询");
+                _logger.LogInformation("  - 上游连接已建立或将在首次使用时建立");
+                _logger.LogInformation("  - 分拣编排服务已就绪");
+                _logger.LogInformation("=======================================");
             },
             operationName: "SortingServicesInitialization",
             cancellationToken: cancellationToken
