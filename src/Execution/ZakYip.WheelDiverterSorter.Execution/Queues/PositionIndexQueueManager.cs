@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Execution.Tracking;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 
@@ -20,18 +21,24 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     private readonly ConcurrentDictionary<int, DateTime> _lastDequeueTimes = new();
     private readonly ILogger<PositionIndexQueueManager> _logger;
     private readonly ISystemClock _clock;
+    private readonly IPositionIntervalTracker? _intervalTracker;
 
     public PositionIndexQueueManager(
         ILogger<PositionIndexQueueManager> logger,
-        ISystemClock clock)
+        ISystemClock clock,
+        IPositionIntervalTracker? intervalTracker = null)
     {
         _logger = logger;
         _clock = clock;
+        _intervalTracker = intervalTracker;
     }
 
     /// <inheritdoc/>
     public void EnqueueTask(int positionIndex, PositionQueueItem task)
     {
+        // 应用动态丢失检测阈值（基于中位数×系数）
+        task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
+        
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
         queue.Enqueue(task);
         _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
@@ -44,6 +51,9 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <inheritdoc/>
     public void EnqueuePriorityTask(int positionIndex, PositionQueueItem task)
     {
+        // 应用动态丢失检测阈值（基于中位数×系数）
+        task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
+        
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
         
         // ConcurrentQueue 不支持直接插入头部，需要重建队列
@@ -351,5 +361,61 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
 
         // 转换为 List 返回
         return affectedParcelIdsSet.ToList();
+    }
+
+    /// <summary>
+    /// 应用动态丢失检测截止时间（基于中位数×系数）
+    /// </summary>
+    /// <param name="task">原始任务</param>
+    /// <param name="positionIndex">位置索引</param>
+    /// <returns>更新后的任务</returns>
+    /// <remarks>
+    /// <para>优先使用 IPositionIntervalTracker 计算的动态阈值（median × coefficient）。</para>
+    /// <para>如果动态阈值不可用（数据不足或未注入tracker），则回退到静态值。</para>
+    /// </remarks>
+    private PositionQueueItem ApplyDynamicLostDetectionDeadline(PositionQueueItem task, int positionIndex)
+    {
+        // 如果任务已有 ExpectedArrivalTime，尝试应用动态阈值
+        if (task.ExpectedArrivalTime != default)
+        {
+            // 尝试获取动态阈值（基于中位数×系数）
+            var dynamicThreshold = _intervalTracker?.GetLostDetectionThreshold(positionIndex);
+            
+            if (dynamicThreshold.HasValue)
+            {
+                // 使用动态阈值计算截止时间
+                var newDeadline = task.ExpectedArrivalTime.AddMilliseconds(dynamicThreshold.Value);
+                
+                _logger.LogDebug(
+                    "[动态阈值] Position {PositionIndex} 包裹 {ParcelId}: 使用中位数动态阈值 {ThresholdMs}ms，截止时间 {Deadline:HH:mm:ss.fff}",
+                    positionIndex, task.ParcelId, dynamicThreshold.Value, newDeadline);
+                
+                return task with
+                {
+                    LostDetectionTimeoutMs = (long)dynamicThreshold.Value,
+                    LostDetectionDeadline = newDeadline
+                };
+            }
+            else if (task.LostDetectionDeadline == null && task.TimeoutThresholdMs > 0)
+            {
+                // 回退：如果没有动态阈值，但有 TimeoutThresholdMs，则使用 TimeoutThresholdMs × 1.5
+                // 这确保了向后兼容性
+                var fallbackThreshold = task.TimeoutThresholdMs * 1.5;
+                var newDeadline = task.ExpectedArrivalTime.AddMilliseconds(fallbackThreshold);
+                
+                _logger.LogDebug(
+                    "[静态回退] Position {PositionIndex} 包裹 {ParcelId}: 动态阈值不可用，使用静态阈值 {ThresholdMs}ms (TimeoutThreshold × 1.5)",
+                    positionIndex, task.ParcelId, fallbackThreshold);
+                
+                return task with
+                {
+                    LostDetectionTimeoutMs = (long)fallbackThreshold,
+                    LostDetectionDeadline = newDeadline
+                };
+            }
+        }
+        
+        // 如果无法计算，返回原任务
+        return task;
     }
 }

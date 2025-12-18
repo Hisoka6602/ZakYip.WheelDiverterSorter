@@ -1,4 +1,4 @@
-namespace ZakYip.WheelDiverterSorter.Application.Services.Metrics;
+namespace ZakYip.WheelDiverterSorter.Observability;
 
 /// <summary>
 /// 分拣统计服务接口

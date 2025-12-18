@@ -4,7 +4,6 @@ using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
-using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
