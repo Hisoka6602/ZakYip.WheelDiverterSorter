@@ -257,40 +257,138 @@ sc.exe config WheelDiverterSorter obj= ".\ServiceAccount" password= "YourPasswor
 #### 症状
 - 服务状态显示"已停止"
 - 服务管理器报错"无法启动服务"
+- 错误代码 1053："服务没有及时响应启动或控制请求"
 
 #### 排查步骤
 
-1. **查看事件查看器**
+**重要提示**: 错误 1053 通常表示服务启动超时（Windows 默认 30 秒）。系统已在日志中记录详细的启动过程和失败原因。
+
+1. **查看启动日志文件**（最重要的诊断步骤）
+   
+   服务启动失败时，详细的错误信息会记录在以下日志文件中：
+   
+   ```powershell
+   # 查看启动日志（包含详细的启动过程）
+   Get-Content "C:\Program Files\WheelDiverterSorter\Logs\startup-$(Get-Date -Format yyyy-MM-dd).log"
+   
+   # 查看错误日志（包含完整的异常堆栈）
+   Get-Content "C:\Program Files\WheelDiverterSorter\Logs\error-$(Get-Date -Format yyyy-MM-dd).log"
+   
+   # 查看 NLog 内部日志（诊断日志系统本身的问题）
+   Get-Content "C:\Program Files\WheelDiverterSorter\Logs\internal-nlog-$(Get-Date -Format yyyy-MM-dd).log"
+   
+   # 查看所有日志（完整记录）
+   Get-Content "C:\Program Files\WheelDiverterSorter\Logs\all-$(Get-Date -Format yyyy-MM-dd).log"
+   ```
+   
+   **日志文件说明**：
+   - `startup-*.log`: 记录应用程序启动的每个步骤，包括配置加载、服务注册、中间件配置等
+   - `error-*.log`: 记录所有错误和异常，包含完整的堆栈跟踪和内部异常
+   - `internal-nlog-*.log`: 记录 NLog 日志系统本身的问题（如配置错误、文件权限等）
+   - `all-*.log`: 包含所有级别的日志，用于全面诊断
+
+2. **检查启动超时**
+   
+   如果日志显示 "⚠️ 应用程序启动耗时过长"，说明服务初始化时间超过了警告阈值（25 秒）。
+   
+   **常见原因**：
+   - 硬件设备初始化耗时（IO 板卡、PLC、摆轮设备等）
+   - 数据库连接或查询超时
+   - 网络连接检查超时（上游系统、设备 Ping 检查）
+   - 配置文件验证耗时过长
+   
+   **解决方案**：
+   ```powershell
+   # 方案 1: 增加 Windows Service 启动超时时间（推荐）
+   # 将超时时间从默认 30 秒增加到 120 秒
+   sc.exe config WheelDiverterSorter start= delayed-auto
+   sc.exe failure WheelDiverterSorter reset= 86400 actions= restart/60000/restart/60000/restart/60000
+   
+   # 方案 2: 检查并优化慢速初始化的组件
+   # 查看日志确定哪个组件初始化最慢，考虑异步初始化或跳过可选组件
+   ```
+
+3. **查看事件查看器**
    ```
    Win + R -> eventvwr.msc
    -> Windows 日志 -> 应用程序
-   -> 查找来源为 "WheelDiverterSorter" 的错误
+   -> 查找来源为 "WheelDiverterSorter" 或 ".NET Runtime" 的错误
+   ```
+   
+   **注意**: 事件查看器可能只包含简短的错误信息。详细的诊断信息在上述日志文件中。
+
+4. **检查日志文件权限**
+   
+   如果没有生成任何日志文件，可能是日志目录权限问题：
+   
+   ```powershell
+   # 检查服务账户对日志目录的权限
+   icacls "C:\Program Files\WheelDiverterSorter\Logs"
+   
+   # 授予完全控制权限（如果需要）
+   icacls "C:\Program Files\WheelDiverterSorter\Logs" /grant "NT AUTHORITY\SYSTEM:(OI)(CI)F"
+   icacls "C:\Program Files\WheelDiverterSorter\Logs" /grant "BUILTIN\Administrators:(OI)(CI)F"
    ```
 
-2. **检查日志文件**
-   - 打开 `Logs/` 目录
-   - 查看最新的日志文件
-   - 搜索 "Error"、"Exception"、"Failed" 等关键词
-
-3. **验证权限**
+5. **验证自包含部署**
+   
+   确认应用程序是自包含部署，不依赖系统 .NET Runtime：
+   
    ```powershell
-   # 检查服务账户对目录的权限
-   icacls "C:\Program Files\WheelDiverterSorter"
+   # 检查是否存在 .NET Runtime DLLs
+   Get-ChildItem "C:\Program Files\WheelDiverterSorter" -Filter "System.*.dll" | Select-Object -First 5
+   
+   # 应该看到大量 System.*.dll 文件（自包含部署的标志）
+   # 如果没有这些文件，说明部署方式不正确
    ```
+   
+   **如果发现不是自包含部署**：
+   - 重新使用 `publish-win-x64.ps1` 脚本发布
+   - 或使用 `dotnet publish --self-contained true` 参数
 
-4. **手动测试启动**
+6. **验证配置文件**
+   - 检查 `appsettings.json` 格式是否正确（JSON 语法）
+   - 检查 `nlog.config` 是否存在且格式正确（XML 语法）
+   - 确保 `Data/` 目录可写（数据库文件位置）
+
+7. **手动测试启动**
    ```powershell
-   # 直接运行可执行文件测试
+   # 直接运行可执行文件测试（不作为服务）
    cd "C:\Program Files\WheelDiverterSorter"
    .\ZakYip.WheelDiverterSorter.Host.exe
    
    # 观察控制台输出的错误信息
+   # 如果成功启动，按 Ctrl+C 停止，然后尝试作为服务运行
    ```
 
-5. **验证配置文件**
-   - 检查 `appsettings.json` 格式是否正确
-   - 检查 `nlog.config` 是否存在
-   - 确保 `Data/` 目录可写
+8. **常见错误及解决方案**
+   
+   | 错误信息 | 原因 | 解决方案 |
+   |---------|------|---------|
+   | "Failed to bind to address" | 端口被占用 | 修改 appsettings.json 中的 MiniApi:Urls，使用其他端口 |
+   | "Unable to connect to database" | 数据库文件不可写 | 检查 Data/ 目录权限 |
+   | "LTDMC.dll not found" | 雷赛驱动 DLL 缺失 | 确认 Vendors/Leadshine/ 目录存在且包含 LTDMC.dll |
+   | "Configuration file is missing" | 配置文件缺失 | 确认 appsettings.json 和 nlog.config 存在 |
+   | "应用程序启动耗时过长" | 硬件初始化超时 | 增加服务启动超时或检查硬件连接 |
+
+---
+
+### 错误 1053 专项排查清单
+
+Windows Service 错误 1053 的完整排查清单：
+
+- [ ] **步骤 1**: 查看 `startup-*.log` 文件，确认启动到哪一步失败
+- [ ] **步骤 2**: 查看 `error-*.log` 文件，查找异常堆栈跟踪
+- [ ] **步骤 3**: 查看 `internal-nlog-*.log` 文件，排除日志系统问题
+- [ ] **步骤 4**: 检查启动耗时是否超过 25 秒（查看启动监控报告）
+- [ ] **步骤 5**: 如果超时，增加 Windows Service 启动超时时间
+- [ ] **步骤 6**: 验证日志目录 (Logs/) 有写权限
+- [ ] **步骤 7**: 验证数据库目录 (Data/) 有写权限
+- [ ] **步骤 8**: 验证是否为自包含部署（检查 System.*.dll 文件）
+- [ ] **步骤 9**: 手动运行可执行文件，确认能正常启动
+- [ ] **步骤 10**: 检查是否有端口冲突（默认 5000）
+
+---
 
 ### 服务运行但功能异常
 

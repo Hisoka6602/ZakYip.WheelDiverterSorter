@@ -79,6 +79,7 @@ public static class WheelDiverterSorterHostServiceCollectionExtensions
             Health.HostHealthStatusProvider>();
 
         // 4. 注册后台工作服务（Host 特定）
+        services.AddHostedService<StartupMonitorHostedService>(); // 启动监控（检测启动超时）
         services.AddHostedService<IoLinkageInitHostedService>(); // PR-SWAGGER-FIX: IO 联动硬件初始化（Ping 检查 + 异步初始化）
         services.AddHostedService<SortingServicesInitHostedService>(); // 分拣服务初始化（启动传感器和编排器）
         services.AddHostedService<AlarmMonitoringWorker>();
