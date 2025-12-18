@@ -2,44 +2,44 @@
 setlocal enabledelayedexpansion
 
 :: =========================
-:: é…ç½®åŒºï¼ˆæŒ‰éœ€ä¿®æ”¹ï¼‰
+:: ÅäÖÃÇø£¨°´ÐèÐÞ¸Ä£©
 :: =========================
 set "serviceName=ZakYip.WheelDiverterSorter"
-set "serviceDisplayName=ZakYip.WheelDiverterSorter"  :: å¯ä¸Ž serviceName ä¸åŒï¼›ä»…ç”¨äºŽæœåŠ¡ç®¡ç†å™¨æ˜¾ç¤º
-set "serviceDescription=æ³½ä¸šç›´çº¿æ‘†è½®åˆ†æ‹£æœåŠ¡ï¼ˆç›´çº¿æ‘†è½®åˆ†æ‹£ Hostï¼‰"
-:: å¦‚éœ€è¦ä¾èµ–æŸä¸ªæœåŠ¡ï¼ˆç¤ºä¾‹ï¼šMySQLï¼‰ï¼Œå–æ¶ˆä¸‹ä¸€è¡Œæ³¨é‡Šå¹¶æ”¹åï¼ˆå¤šä¸ªç”¨/åˆ†éš”ï¼Œå¦‚ MySQL80/W32Timeï¼‰ï¼š
+set "serviceDisplayName=ZakYip.WheelDiverterSorter"  :: ¿ÉÓë serviceName ²»Í¬£»½öÓÃÓÚ·þÎñ¹ÜÀíÆ÷ÏÔÊ¾
+set "serviceDescription=ÔóÒµÖ±Ïß°ÚÂÖ·Ö¼ð·þÎñ£¨Ö±Ïß°ÚÂÖ·Ö¼ð Host£©"
+:: ÈçÐèÒªÒÀÀµÄ³¸ö·þÎñ£¨Ê¾Àý£ºMySQL£©£¬È¡ÏûÏÂÒ»ÐÐ×¢ÊÍ²¢¸ÄÃû£¨¶à¸öÓÃ/·Ö¸ô£¬Èç MySQL80/W32Time£©£º
 :: set "dependService=MySQL80"
 
-:: è®¡ç®— EXE è·¯å¾„ï¼ˆé»˜è®¤æ”¾åœ¨ä¸Žæœ¬ bat åŒç›®å½•ï¼‰
+:: ¼ÆËã EXE Â·¾¶£¨Ä¬ÈÏ·ÅÔÚÓë±¾ bat Í¬Ä¿Â¼£©
 set "exeName=ZakYip.WheelDiverterSorter.Host.exe"
 set "exePath=%~dp0%exeName%"
 
 :: =========================
-:: ç®¡ç†å‘˜æƒé™æ£€æŸ¥
+:: ¹ÜÀíÔ±È¨ÏÞ¼ì²é
 :: =========================
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-  echo [é”™è¯¯] è¯·ä»¥â€œç®¡ç†å‘˜èº«ä»½â€è¿è¡Œæ­¤è„šæœ¬ã€‚
+  echo [´íÎó] ÇëÒÔ¡°¹ÜÀíÔ±Éí·Ý¡±ÔËÐÐ´Ë½Å±¾¡£
   pause
   exit /b 1
 )
 
 :: =========================
-:: åŸºæœ¬æ ¡éªŒ
+:: »ù±¾Ð£Ñé
 :: =========================
 if not exist "%exePath%" (
-  echo [é”™è¯¯] æœªæ‰¾åˆ°å¯æ‰§è¡Œæ–‡ä»¶ï¼š%exePath%
-  echo è¯·å°† %exeName% æ”¾åœ¨æœ¬è„šæœ¬åŒç›®å½•ï¼Œæˆ–ä¿®æ”¹è„šæœ¬ä¸­çš„ exePathã€‚
+  echo [´íÎó] Î´ÕÒµ½¿ÉÖ´ÐÐÎÄ¼þ£º%exePath%
+  echo Çë½« %exeName% ·ÅÔÚ±¾½Å±¾Í¬Ä¿Â¼£¬»òÐÞ¸Ä½Å±¾ÖÐµÄ exePath¡£
   pause
   exit /b 1
 )
 
 :: =========================
-:: è‹¥åŒåæœåŠ¡å·²å­˜åœ¨ï¼šå…ˆåœæ­¢å¹¶åˆ é™¤
+:: ÈôÍ¬Ãû·þÎñÒÑ´æÔÚ£ºÏÈÍ£Ö¹²¢É¾³ý
 :: =========================
 sc query "%serviceName%" >nul 2>&1
 if %errorlevel%==0 (
-  echo [ä¿¡æ¯] æ£€æµ‹åˆ°å·²å­˜åœ¨æœåŠ¡ï¼š%serviceName%ï¼Œå°è¯•åœæ­¢å¹¶åˆ é™¤...
+  echo [ÐÅÏ¢] ¼ì²âµ½ÒÑ´æÔÚ·þÎñ£º%serviceName%£¬³¢ÊÔÍ£Ö¹²¢É¾³ý...
   sc stop "%serviceName%" >nul 2>&1
   timeout /t 2 >nul
   sc delete "%serviceName%" >nul 2>&1
@@ -47,62 +47,62 @@ if %errorlevel%==0 (
 )
 
 :: =========================
-:: åˆ›å»ºæœåŠ¡
+:: ´´½¨·þÎñ
 :: =========================
 set "createCmd=sc create "%serviceName%" binPath= "\"%exePath%\"" start= auto"
-:: è®¾ç½®æ˜¾ç¤ºåï¼ˆå¯é€‰ï¼‰
+:: ÉèÖÃÏÔÊ¾Ãû£¨¿ÉÑ¡£©
 set "createCmd=%createCmd% DisplayName= "%serviceDisplayName%""
-:: ä¾èµ–ï¼ˆå¯é€‰ï¼‰
+:: ÒÀÀµ£¨¿ÉÑ¡£©
 if defined dependService (
   set "createCmd=%createCmd% depend= %dependService%"
 )
 
-echo [ä¿¡æ¯] æ­£åœ¨åˆ›å»ºæœåŠ¡ï¼š%serviceName%
+echo [ÐÅÏ¢] ÕýÔÚ´´½¨·þÎñ£º%serviceName%
 %createCmd%
 if %errorlevel% neq 0 (
-  echo [å¤±è´¥] æœåŠ¡åˆ›å»ºå¤±è´¥ï¼Œè¯·æ£€æŸ¥æƒé™æˆ–è·¯å¾„ï¼ˆ%exePath%ï¼‰ã€‚
+  echo [Ê§°Ü] ·þÎñ´´½¨Ê§°Ü£¬Çë¼ì²éÈ¨ÏÞ»òÂ·¾¶£¨%exePath%£©¡£
   pause
   exit /b 1
 )
 
-:: è®¾ç½®æè¿°
+:: ÉèÖÃÃèÊö
 sc description "%serviceName%" "%serviceDescription%" >nul
 
-:: ï¼ˆå¯é€‰ï¼‰è®¾ç½®å»¶è¿Ÿè‡ªå¯ï¼ˆå¦‚éœ€ï¼‰
+:: £¨¿ÉÑ¡£©ÉèÖÃÑÓ³Ù×ÔÆô£¨ÈçÐè£©
 :: sc config "%serviceName%" start= delayed-auto >nul
 
 :: =========================
-:: å¤±è´¥è‡ªåŠ¨æ¢å¤ç­–ç•¥
-::  - 60 ç§’å†…çš„å¤±è´¥è®¡æ•°çª—å£
-::  - è¿žç»­ä¸‰æ¬¡å¤±è´¥å‡åœ¨ 5 ç§’åŽé‡å¯
-::  - å°†â€œéžå´©æºƒ/ä¼˜é›…é€€å‡ºâ€ä¹Ÿè§†ä¸ºå¤±è´¥ï¼ˆå…³é”®ï¼‰
+:: Ê§°Ü×Ô¶¯»Ö¸´²ßÂÔ
+::  - 60 ÃëÄÚµÄÊ§°Ü¼ÆÊý´°¿Ú
+::  - Á¬ÐøÈý´ÎÊ§°Ü¾ùÔÚ 5 ÃëºóÖØÆô
+::  - ½«¡°·Ç±ÀÀ£/ÓÅÑÅÍË³ö¡±Ò²ÊÓÎªÊ§°Ü£¨¹Ø¼ü£©
 :: =========================
 sc failure "%serviceName%" reset= 60 actions= restart/5000/restart/5000/restart/5000 >nul
 sc failureflag "%serviceName%" 1 >nul 2>&1
 
-:: ï¼ˆå¯é€‰ï¼‰æŸ¥è¯¢éªŒè¯å½“å‰æ¢å¤é…ç½®
+:: £¨¿ÉÑ¡£©²éÑ¯ÑéÖ¤µ±Ç°»Ö¸´ÅäÖÃ
 sc qfailure "%serviceName%"
 
 :: =========================
-:: å¯åŠ¨æœåŠ¡
+:: Æô¶¯·þÎñ
 :: =========================
-echo [ä¿¡æ¯] å¯åŠ¨æœåŠ¡...
+echo [ÐÅÏ¢] Æô¶¯·þÎñ...
 sc start "%serviceName%"
 if %errorlevel% neq 0 (
-  echo [è­¦å‘Š] æœåŠ¡å¯åŠ¨å‘½ä»¤è¿”å›žéžé›¶ã€‚è¯·ç”¨ "sc query %serviceName%" æŸ¥çœ‹çŠ¶æ€æˆ–æ£€æŸ¥äº‹ä»¶æ—¥å¿—ã€‚
+  echo [¾¯¸æ] ·þÎñÆô¶¯ÃüÁî·µ»Ø·ÇÁã¡£ÇëÓÃ "sc query %serviceName%" ²é¿´×´Ì¬»ò¼ì²éÊÂ¼þÈÕÖ¾¡£
 ) else (
-  echo [æˆåŠŸ] æœåŠ¡å·²å¯åŠ¨ã€‚
+  echo [³É¹¦] ·þÎñÒÑÆô¶¯¡£
 )
 
 echo.
-echo [å®Œæˆ] å®‰è£…è„šæœ¬æ‰§è¡Œç»“æŸï¼š
-echo   - æœåŠ¡åï¼š%serviceName%
-echo   - æ˜¾ç¤ºåï¼š%serviceDisplayName%
-echo   - è·¯å¾„ï¼š%exePath%
-echo   - å¼€æœºè‡ªå¯ï¼šæ˜¯
-echo   - å¤±è´¥è‡ªåŠ¨é‡å¯ï¼šæ˜¯ï¼ˆ5 ç§’ Ã— 3 æ¬¡ï¼›å«éžå´©æºƒ/ä¼˜é›…é€€å‡ºï¼‰
+echo [Íê³É] °²×°½Å±¾Ö´ÐÐ½áÊø£º
+echo   - ·þÎñÃû£º%serviceName%
+echo   - ÏÔÊ¾Ãû£º%serviceDisplayName%
+echo   - Â·¾¶£º%exePath%
+echo   - ¿ª»ú×ÔÆô£ºÊÇ
+echo   - Ê§°Ü×Ô¶¯ÖØÆô£ºÊÇ£¨5 Ãë ¡Á 3 ´Î£»º¬·Ç±ÀÀ£/ÓÅÑÅÍË³ö£©
 echo.
-echo [æç¤º] è‹¥éœ€ç»´æŠ¤æ—¶ä¸é‡å¯ï¼Œè¯·æš‚æ—¶ç¦ç”¨æœåŠ¡æˆ–ä¸´æ—¶ä¿®æ”¹æ¢å¤ç­–ç•¥ã€‚
+echo [ÌáÊ¾] ÈôÐèÎ¬»¤Ê±²»ÖØÆô£¬ÇëÔÝÊ±½ûÓÃ·þÎñ»òÁÙÊ±ÐÞ¸Ä»Ö¸´²ßÂÔ¡£
 echo.
 pause
 endlocal
