@@ -1,10 +1,14 @@
 # 包裹丢失检测系数使用情况总结
 
+> **最新更新 (2025-12-18)**：动态阈值现已正确应用！  
+> 系统现在在包裹入队时使用 `IPositionIntervalTracker` 计算动态阈值（median × coefficient），  
+> 不再依赖静态配置值。详见 [修复说明](#历史问题修复-2025-12-18)。
+
 ## 问题回答
 
 ### 当前判断包裹丢失的计算系数是否生效？
 
-**答：✅ 是的，系数已经生效并在实际计算中使用。**
+**答：✅ 是的，系数已经生效并在实际计算中使用（2025-12-18 修复后）。**
 
 ---
 
@@ -267,5 +271,50 @@ GET /api/sorting/position-intervals
 
 ---
 
+## 历史问题修复 (2025-12-18)
+
+### 问题描述
+在 2025-12-18 之前，虽然 `PositionIntervalTracker` 正确实现了动态阈值计算（`median × coefficient`），
+但这些方法从未被调用。系统实际使用的是 `DefaultSwitchingPathGenerator` 中的静态值（`TimeToleranceMs * 1.5`）。
+
+### 修复方案
+在 `PositionIndexQueueManager` 的入队方法中应用动态阈值：
+1. 注入 `IPositionIntervalTracker`（可选依赖）
+2. 在 `EnqueueTask()` 和 `EnqueuePriorityTask()` 中调用 `ApplyDynamicLostDetectionDeadline()`
+3. 优先使用动态阈值（median × coefficient）
+4. 当动态阈值不可用时回退到静态值（TimeoutThresholdMs × 1.5）
+
+### 修复效果
+- ✅ 现在每次包裹入队时都会使用最新的中位数计算丢失检测截止时间
+- ✅ 系统能够自动适应不同的包裹流速
+- ✅ 向后兼容：当数据不足时自动使用静态值
+- ✅ 日志中可以看到 "使用中位数动态阈值" 或 "使用静态阈值" 的记录
+
+### 相关代码
+**修改文件**：`src/Execution/ZakYip.WheelDiverterSorter.Execution/Queues/PositionIndexQueueManager.cs`
+
+**核心逻辑**：
+```csharp
+private PositionQueueItem ApplyDynamicLostDetectionDeadline(PositionQueueItem task, int positionIndex)
+{
+    // 尝试获取动态阈值（基于中位数×系数）
+    var dynamicThreshold = _intervalTracker?.GetLostDetectionThreshold(positionIndex);
+    
+    if (dynamicThreshold.HasValue)
+    {
+        // 使用动态阈值：median × LostDetectionMultiplier
+        return task with
+        {
+            LostDetectionTimeoutMs = (long)dynamicThreshold.Value,
+            LostDetectionDeadline = task.ExpectedArrivalTime.AddMilliseconds(dynamicThreshold.Value)
+        };
+    }
+    // 回退到静态值...
+}
+```
+
+---
+
 **创建时间**：2025-12-15  
+**最后更新**：2025-12-18  
 **维护团队**：ZakYip Development Team
