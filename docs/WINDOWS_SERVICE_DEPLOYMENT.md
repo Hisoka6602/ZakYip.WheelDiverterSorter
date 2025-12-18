@@ -33,6 +33,8 @@
 
 ## 发布应用程序
 
+**重要提示**: Windows Service 部署**必须使用 Release 构建**。Debug 构建不适合部署为 Windows Service，会导致服务启动失败（错误 1053）。
+
 ### 方式一：使用发布脚本（推荐）
 
 在仓库根目录运行以下 PowerShell 脚本：
@@ -252,11 +254,27 @@ sc.exe config WheelDiverterSorter obj= ".\ServiceAccount" password= "YourPasswor
 
 ## 故障排查
 
-### 服务无法启动
+### 服务无法启动 (错误 1053)
 
 #### 症状
 - 服务状态显示"已停止"
-- 服务管理器报错"无法启动服务"
+- 服务管理器报错"服务没有及时响应启动或控制请求" (Error 1053)
+- 事件查看器显示服务启动超时
+
+#### 常见原因
+
+1. **使用了 Debug 构建版本**（最常见）
+   - **解决方案**：必须使用 Release 构建
+   - Windows Service 支持在代码中已启用，但 Release 构建包含额外的优化
+   - Debug 版本不适合部署为 Windows Service
+
+2. **服务启动超时**
+   - 服务初始化时间超过 Windows SCM 默认超时（30秒）
+   - **解决方案**：检查日志，确认初始化卡在哪个步骤
+
+3. **权限问题**
+   - 服务账户没有足够权限访问文件/目录
+   - **解决方案**：确保服务账户对应用目录、Data/、Logs/ 有完整权限
 
 #### 排查步骤
 
@@ -350,10 +368,39 @@ sc.exe config WheelDiverterSorter obj= ".\ServiceAccount" password= "YourPasswor
 
 | 错误代码 | 说明 | 解决方案 |
 |---------|------|---------|
-| 1053 | 服务在指定时间内未响应 | 增加服务启动超时时间，检查启动逻辑 |
+| 1053 | 服务在指定时间内未响应 | **1. 确保使用 Release 构建**<br>2. 检查日志确认启动进度<br>3. 验证权限设置 |
 | 1067 | 进程意外终止 | 查看应用日志，修复启动错误 |
 | 5 | 拒绝访问 | 检查服务账户权限 |
 | 2 | 找不到指定的文件 | 验证可执行文件路径和依赖文件 |
+
+#### 错误 1053 详细说明
+
+**错误 1053** 是最常见的 Windows Service 启动问题。主要原因：
+
+1. **未使用 Release 构建**（占 90% 的情况）
+   ```powershell
+   # ❌ 错误：使用 Debug 构建
+   dotnet build --configuration Debug
+   
+   # ✅ 正确：使用 Release 构建
+   dotnet publish --configuration Release --runtime win-x64 --self-contained
+   ```
+   
+2. **服务初始化时间过长**
+   - 检查 Logs/ 目录下的启动日志
+   - 查找是否卡在某个初始化步骤（如数据库连接、硬件驱动初始化）
+   - 典型的启动时间应在 5-10 秒内完成
+
+3. **文件/目录权限不足**
+   ```powershell
+   # 检查目录权限
+   icacls "C:\Program Files\WheelDiverterSorter"
+   
+   # 如需修改权限，确保服务账户对以下目录有完整权限：
+   # - C:\Program Files\WheelDiverterSorter\ (读取+执行)
+   # - C:\Program Files\WheelDiverterSorter\Data\ (读写)
+   # - C:\Program Files\WheelDiverterSorter\Logs\ (读写)
+   ```
 
 ---
 

@@ -30,13 +30,13 @@ try
     builder.Logging.ClearProviders();
     builder.Host.UseNLog();
 
-#if RELEASE
-    // 在 Release 模式下启用 Windows Service 支持
-    // Enable Windows Service support in Release mode
+    // 启用 Windows Service 支持
+    // Enable Windows Service support
     // 这允许应用程序作为 Windows Service 运行，同时仍然支持控制台模式
     // This allows the application to run as a Windows Service while still supporting console mode
+    // 注意：UseWindowsService() 在非服务环境下运行时是无操作的（no-op），不影响调试
+    // Note: UseWindowsService() is a no-op when not running as a service, doesn't affect debugging
     builder.Host.UseWindowsService();
-#endif
 
     // 添加服务到容器
     builder.Services.AddControllers()

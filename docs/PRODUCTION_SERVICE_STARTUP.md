@@ -3,6 +3,8 @@
 本文档说明系统在生产环境中的服务启动流程和配置加载机制。
 
 > **Windows Service 部署**: 如需将系统部署为 Windows Service，请参阅 [Windows Service 部署指南](./WINDOWS_SERVICE_DEPLOYMENT.md)
+> 
+> **重要提示**: Windows Service 部署必须使用 **Release 构建**。使用 Debug 构建会导致服务启动失败（错误 1053）。
 
 ## 目录
 
