@@ -31,7 +31,16 @@ catch (Exception ex)
 }
 
 // Early init of NLog to allow startup and shutdown logging
-var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
+// PR-FIX-1053: 检查 nlog.config 是否存在，避免文件缺失导致程序崩溃
+var nlogConfigPath = Path.Combine(baseDirectory, "nlog.config");
+if (!File.Exists(nlogConfigPath))
+{
+    Console.WriteLine($"[FATAL] nlog.config 文件不存在: {nlogConfigPath}");
+    Console.WriteLine($"[FATAL] 程序无法启动，请确保 nlog.config 文件存在于应用程序目录中");
+    throw new FileNotFoundException($"nlog.config 文件不存在: {nlogConfigPath}");
+}
+
+var logger = LogManager.Setup().LoadConfigurationFromFile(nlogConfigPath).GetCurrentClassLogger();
 
 // 记录启动开始，包含关键环境信息
 logger.Info("========== 应用程序启动开始 ==========");

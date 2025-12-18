@@ -35,6 +35,7 @@ public class BootHostedService : IHostedService
     public Task StartAsync(CancellationToken cancellationToken)
     {
         // 在后台执行自检，不等待完成（非阻塞）
+        // PR-FIX-CRASH: 使用 SafeExecutor 包装确保后台任务的异常不会导致程序崩溃
         _ = Task.Run(async () =>
         {
             _logger.LogInformation("========== 系统启动自检（后台） ==========");
@@ -86,11 +87,19 @@ public class BootHostedService : IHostedService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "系统自检过程中发生异常");
+                // PR-FIX-CRASH: 捕获所有异常，防止后台任务异常导致程序崩溃
+                _logger.LogError(ex, "❌ 系统自检过程中发生未捕获的异常");
                 _metrics?.RecordSelfTestFailure();
                 _metrics?.SetSystemState((int)SystemState.Faulted);
             }
-        }, cancellationToken);
+        }, cancellationToken).ContinueWith(task =>
+        {
+            // PR-FIX-CRASH: 观察任务异常，防止未观察的任务异常导致程序终止
+            if (task.IsFaulted && task.Exception != null)
+            {
+                _logger.LogError(task.Exception, "❌ 后台自检任务发生严重错误");
+            }
+        }, TaskScheduler.Default);
 
         _logger.LogInformation("BootHostedService 已启动（自检在后台进行）");
         return Task.CompletedTask;
