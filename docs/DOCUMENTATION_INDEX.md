@@ -28,6 +28,13 @@
 | [guides/SENSOR_IO_POLLING_CONFIGURATION.md](guides/SENSOR_IO_POLLING_CONFIGURATION.md) | **感应IO轮询时间配置指南** |
 | [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | **上游连接配置（协议字段/时序/超时规则的唯一权威文档）** |
 | [guides/VENDOR_EXTENSION_GUIDE.md](guides/VENDOR_EXTENSION_GUIDE.md) | 厂商扩展开发 |
+
+## 部署与服务管理
+
+| 文档 | 说明 |
+|------|------|
+| [WINDOWS_SERVICE_DEPLOYMENT.md](WINDOWS_SERVICE_DEPLOYMENT.md) | **Windows Service 部署指南（完整部署流程、故障排查）** |
+| [INSTALL_BAT_USAGE.md](INSTALL_BAT_USAGE.md) | **⚠️ install.bat 使用说明（必读，避免错误 1053）** |
 | [PRODUCTION_SERVICE_STARTUP.md](PRODUCTION_SERVICE_STARTUP.md) | **生产环境服务启动说明（服务启动流程、配置加载、日志验证、故障排查）** |
 | [../SELF_CONTAINED_DEPLOYMENT.md](../SELF_CONTAINED_DEPLOYMENT.md) | **自包含部署指南（无需安装 .NET Runtime）** |
 | [SELF_CONTAINED_DEPLOYMENT_SUMMARY.md](SELF_CONTAINED_DEPLOYMENT_SUMMARY.md) | 自包含部署实施总结 |

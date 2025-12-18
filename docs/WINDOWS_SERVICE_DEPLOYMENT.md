@@ -75,6 +75,15 @@ dotnet publish src/Host/ZakYip.WheelDiverterSorter.Host/ZakYip.WheelDiverterSort
 
 ## 安装 Windows Service
 
+> **⚠️ 重要提示：关于 install.bat**
+> 
+> 如果您使用的是 `install.bat` 批处理脚本，请注意：
+> - `install.bat` 会从**当前目录**安装服务
+> - **必须**在正确的构建目录（`publish\win-x64\` 或 `bin\Release\net8.0\`）中运行
+> - **不要**在源代码目录（`src\Host\...`）或 Debug 构建目录中运行
+> 
+> 详细说明请参阅：[install.bat 使用说明](./INSTALL_BAT_USAGE.md)
+
 ### 步骤 1：准备部署目录
 
 1. 将 `publish/win-x64/` 目录复制到目标服务器
