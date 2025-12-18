@@ -7,15 +7,34 @@ using ZakYip.WheelDiverterSorter.Host.Swagger;
 using ZakYip.WheelDiverterSorter.Host.Services.Extensions;
 using ZakYip.WheelDiverterSorter.Host.Models;
 
+// 日志刷新超时时间（秒）- 确保异常日志在进程终止前写入磁盘
+const int LogFlushTimeoutSeconds = 5;
+
 // Early init of NLog to allow startup and shutdown logging
 var logger = LogManager.Setup().LoadConfigurationFromFile("nlog.config").GetCurrentClassLogger();
 
+// 记录启动开始，包含关键环境信息
+logger.Info("========== 应用程序启动开始 ==========");
+logger.Info($"应用程序版本: {Assembly.GetEntryAssembly()?.GetName().Version}");
+logger.Info($"工作目录: {Environment.CurrentDirectory}");
+logger.Info($"进程 ID: {Environment.ProcessId}");
+logger.Info($".NET 版本: {Environment.Version}");
+logger.Info($"操作系统: {Environment.OSVersion}");
+logger.Info($"是否 64 位进程: {Environment.Is64BitProcess}");
+logger.Info($"是否自包含部署: {string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DOTNET_ROOT"))}");
+logger.Info("=========================================");
+
 try
 {
+    logger.Info("开始构建 WebApplication Builder...");
     var builder = WebApplication.CreateBuilder(args);
 
+    logger.Info("WebApplication Builder 构建成功");
+    
     // 读取 MiniApi 配置 - Load MiniApi configuration
+    logger.Info("加载 MiniApi 配置...");
     var miniApiOptions = builder.Configuration.GetSection("MiniApi").Get<MiniApiOptions>() ?? new MiniApiOptions();
+    logger.Info($"MiniApi 配置加载完成 - EnableSwagger: {miniApiOptions.EnableSwagger}");
     
     // 配置服务监听地址 - Configure service listen addresses
     // 如果配置中没有指定URL，将使用MiniApiOptions的默认值（http://localhost:5000）
@@ -50,10 +69,12 @@ try
                     allowIntegerValues: true));
         });
 
+    logger.Info("开始注册 WheelDiverterSorter 服务...");
     // PR-H1: 使用 Host 层薄包装的 DI 入口注册所有 WheelDiverterSorter 服务
     // 此方法内部调用 Application 层的 AddWheelDiverterSorter()，然后添加 Host 特定服务
     // （健康检查、系统状态管理、健康状态提供器、命令处理器、后台工作服务）
     builder.Services.AddWheelDiverterSorterHost(builder.Configuration);
+    logger.Info("WheelDiverterSorter 服务注册完成");
 
     // 注意：健康检查端点通过 HealthController 中的自定义 Action 方法实现，
     // 无需注册 ASP.NET Core 标准健康检查服务
@@ -116,7 +137,9 @@ try
         options.DocumentFilter<WheelDiverterControllerDocumentFilter>();
     });
 
+    logger.Info("开始构建 WebApplication...");
     var app = builder.Build();
+    logger.Info("WebApplication 构建成功，准备配置中间件...");
 
     // 配置Prometheus指标中间件
     // Configure Prometheus metrics middleware
@@ -146,13 +169,23 @@ try
     }
 
     app.MapControllers();
+    
+    logger.Info("中间件配置完成，开始运行应用程序...");
+    logger.Info($"监听地址: {string.Join(", ", miniApiOptions.Urls)}");
+    logger.Info("========== 应用程序启动完成 ==========");
 
     app.Run();
 }
 catch (Exception exception)
 {
     // NLog: catch setup errors
-    logger.Error(exception, "Stopped program because of exception");
+    // 记录详细的异常信息（NLog 配置会自动包含所有内部异常和堆栈跟踪）
+    logger.Fatal(exception, "========== 应用程序启动失败 ==========");
+    logger.Fatal("请检查上述错误信息，并参考 docs/WINDOWS_SERVICE_DEPLOYMENT.md 故障排查章节");
+    
+    // 确保日志刷新到磁盘
+    LogManager.Flush(TimeSpan.FromSeconds(LogFlushTimeoutSeconds));
+    
     throw;
 }
 finally

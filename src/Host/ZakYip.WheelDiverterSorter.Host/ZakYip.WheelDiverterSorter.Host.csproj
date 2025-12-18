@@ -15,6 +15,10 @@
     <SelfContained>true</SelfContained>
     <!-- 启用 ReadyToRun 编译，提升启动性能 -->
     <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- 确保原生库被正确提取（用于厂商驱动 DLL） -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- 确保所有内容文件都被复制 -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <ItemGroup>
