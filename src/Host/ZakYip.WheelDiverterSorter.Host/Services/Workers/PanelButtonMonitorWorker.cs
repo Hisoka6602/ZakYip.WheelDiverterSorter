@@ -219,12 +219,21 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             // 首先处理按钮的主要功能（状态转换）
             await HandleButtonActionAsync(buttonType, currentState, cancellationToken);
 
-            // 特殊处理：启动按钮的IO联动和上游通知在预警结束后触发，不在这里触发
+            // 特殊处理启动按钮：上游通知立即发送，但IO联动在预警结束后触发
             if (buttonType == PanelButtonType.Start && currentState is SystemState.Ready or SystemState.Paused)
             {
                 _logger.LogInformation(
-                    "[面板按钮] 启动按钮按下，IO联动将在预警结束后触发");
-                return;
+                    "[面板按钮] 启动按钮按下，立即发送上游通知，IO联动将在预警结束后触发");
+                
+                // 启动按钮的上游通知需要立即发送（状态尚未改变，仍为 Ready/Paused）
+                await NotifyUpstreamPanelButtonPressedAsync(
+                    buttonType, 
+                    pressedAt, 
+                    currentState, 
+                    currentState,  // 状态尚未改变
+                    cancellationToken);
+                
+                return; // 跳过 IO 联动
             }
 
             // 状态转换后，获取新的系统状态用于IO联动和上游通知
@@ -484,21 +493,11 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 return;
             }
             
-            _logger.LogInformation("✅ 系统状态已成功转换到 Running，准备触发IO联动和上游通知");
+            _logger.LogInformation("✅ 系统状态已成功转换到 Running，准备触发IO联动");
 
             // 状态转换成功后，触发 Running 状态的 IO 联动
             try
             {
-                var pressedAt = warningStartTime; // 使用按钮按下的时间
-                
-                // 通知上游系统按钮按下事件（fire-and-forget）
-                await NotifyUpstreamPanelButtonPressedAsync(
-                    PanelButtonType.Start, 
-                    pressedAt, 
-                    currentState, 
-                    SystemState.Running, 
-                    cancellationToken);
-
                 // 触发 Running 状态的 IO 联动
                 var ioLinkageResult = await _ioLinkageConfigService.TriggerIoLinkageAsync(SystemState.Running);
                 
@@ -517,7 +516,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "触发启动按钮的IO联动或上游通知异常");
+                _logger.LogError(ex, "触发启动按钮的IO联动异常");
             }
         }
         catch (OperationCanceledException)
