@@ -58,6 +58,11 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// 预警等待锁，用于同步预警状态的访问
     /// </summary>
     private readonly object _preWarningLock = new();
+    
+    /// <summary>
+    /// 预警进行中标志，用于防止多次并发启动预警（0=未运行, 1=运行中）
+    /// </summary>
+    private int _preWarningInProgress = 0;
 
     public PanelButtonMonitorWorker(
         ILogger<PanelButtonMonitorWorker> logger,
@@ -292,9 +297,28 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             // 特殊处理启动按钮：需要预警逻辑（使用fire-and-forget避免阻塞）
             if (buttonType == PanelButtonType.Start && currentState is SystemState.Ready or SystemState.Paused)
             {
+                // 防止并发启动多个预警任务
+                if (Interlocked.CompareExchange(ref _preWarningInProgress, 1, 0) == 1)
+                {
+                    _logger.LogWarning("启动按钮被按下，但预警任务已在进行中，忽略此次按下");
+                    return;
+                }
+                
                 // 启动预警过程（非阻塞，使用SafeExecutionService确保异常被捕获）
                 _ = _safeExecutor.ExecuteAsync(
-                    async () => await HandleStartButtonWithPreWarningAsync(currentState, cancellationToken),
+                    async () =>
+                    {
+                        try
+                        {
+                            await HandleStartButtonWithPreWarningAsync(currentState, cancellationToken);
+                        }
+                        finally
+                        {
+                            // 确保预警完成或取消后重置标志
+                            Interlocked.Exchange(ref _preWarningInProgress, 0);
+                            _logger.LogDebug("预警任务已结束，预警进行中标志已重置");
+                        }
+                    },
                     "StartButtonPreWarning",
                     cancellationToken);
                 return;
@@ -493,11 +517,24 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 return;
             }
             
-            _logger.LogInformation("✅ 系统状态已成功转换到 Running，准备触发IO联动");
+            _logger.LogInformation("✅ 系统状态已成功转换到 Running，准备触发IO联动和发送状态变更通知");
 
             // 状态转换成功后，触发 Running 状态的 IO 联动
             try
             {
+                // 注意：启动按钮的上游通知流程与其他按钮不同
+                // - 第一次通知：在按钮按下时立即发送（Ready → Ready），通知上游"用户已按下启动按钮，预警开始"
+                // - 第二次通知：在预警结束、状态转换到 Running 后发送（Ready → Running），通知上游"预警结束，系统已启动"
+                // 这样上游系统可以完整追踪启动流程：按钮按下 → 预警中 → 实际启动
+                
+                // 发送状态变更通知（Ready/Paused → Running）
+                await NotifyUpstreamPanelButtonPressedAsync(
+                    PanelButtonType.Start,
+                    warningStartTime,
+                    currentState,
+                    SystemState.Running,
+                    cancellationToken);
+                
                 // 触发 Running 状态的 IO 联动
                 var ioLinkageResult = await _ioLinkageConfigService.TriggerIoLinkageAsync(SystemState.Running);
                 
@@ -516,7 +553,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "触发启动按钮的IO联动异常");
+                _logger.LogError(ex, "触发启动按钮的IO联动或状态变更通知异常");
             }
         }
         catch (OperationCanceledException)
@@ -758,6 +795,7 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     public override void Dispose()
     {
         CleanupPreWarningCancellationSource();
+        Interlocked.Exchange(ref _preWarningInProgress, 0);
         base.Dispose();
     }
 }
