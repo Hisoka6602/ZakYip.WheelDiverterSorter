@@ -184,6 +184,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// 按钮优先级：急停 > 停止 > 启动
     /// 如果当前正在预警等待期间，高优先级按钮（停止、急停）会立即取消预警等待
     /// 按钮按下时会通知上游系统（包含按钮类型、时间、状态变化）
+    /// 
+    /// 修复: 启动按钮的IO联动在预警结束后触发，而不是按钮按下时触发
     /// </remarks>
     private async Task TriggerIoLinkageAsync(PanelButtonType buttonType, CancellationToken cancellationToken)
     {
@@ -216,6 +218,14 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
 
             // 首先处理按钮的主要功能（状态转换）
             await HandleButtonActionAsync(buttonType, currentState, cancellationToken);
+
+            // 特殊处理：启动按钮的IO联动和上游通知在预警结束后触发，不在这里触发
+            if (buttonType == PanelButtonType.Start && currentState is SystemState.Ready or SystemState.Paused)
+            {
+                _logger.LogInformation(
+                    "[面板按钮] 启动按钮按下，IO联动将在预警结束后触发");
+                return;
+            }
 
             // 状态转换后，获取新的系统状态用于IO联动和上游通知
             var newState = _stateManager.CurrentState;
@@ -264,15 +274,20 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// <remarks>
     /// 修复Issue 2: 面板按钮按下时应该触发相应的系统状态转换
     /// 新需求: 启动按钮按下时先触发预警，等待预警时间后再进入Running状态
+    /// 修复Issue: 启动预警期间按下停止/急停应立即取消预警（使用fire-and-forget避免阻塞按钮监控循环）
     /// </remarks>
     private async Task HandleButtonActionAsync(PanelButtonType buttonType, SystemState currentState, CancellationToken cancellationToken)
     {
         try
         {
-            // 特殊处理启动按钮：需要预警逻辑
+            // 特殊处理启动按钮：需要预警逻辑（使用fire-and-forget避免阻塞）
             if (buttonType == PanelButtonType.Start && currentState is SystemState.Ready or SystemState.Paused)
             {
-                await HandleStartButtonWithPreWarningAsync(currentState, cancellationToken);
+                // 启动预警过程（非阻塞，使用SafeExecutionService确保异常被捕获）
+                _ = _safeExecutor.ExecuteAsync(
+                    async () => await HandleStartButtonWithPreWarningAsync(currentState, cancellationToken),
+                    "StartButtonPreWarning",
+                    cancellationToken);
                 return;
             }
 
@@ -342,12 +357,18 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     /// 3. 预警时间结束后转换到Running状态
     /// 4. 无论是否正常结束，都确保关闭预警输出
     /// 5. 在预警等待期间，如果按下停止或急停按钮，预警等待会被取消
+    /// 
+    /// 修复: 使用fire-and-forget模式调用，避免阻塞按钮监控循环
+    /// - 在单独的任务中运行预警等待
+    /// - 确保异常被正确捕获和记录
+    /// - 确保取消时立即清理资源
     /// </remarks>
     private async Task HandleStartButtonWithPreWarningAsync(SystemState currentState, CancellationToken cancellationToken)
     {
         var panelConfig = _panelConfigRepository.Get();
         var preWarningDuration = panelConfig?.PreStartWarningDurationSeconds;
         var warningOutputActivated = false;
+        var warningStartTime = _systemClock.LocalNow; // 记录预警开始时间（按钮按下时间）
 
         _logger.LogInformation(
             "启动按钮处理开始 - 当前状态: {CurrentState}, 配置的预警时间: {PreWarningDuration} 秒",
@@ -362,9 +383,6 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                     "⚠️ 启动按钮按下，开始预警 {Duration} 秒，当前状态保持为 {CurrentState}，摆轮将在预警结束后启动",
                     preWarningDuration.Value,
                     currentState);
-
-                // 记录预警开始时间用于验证
-                var warningStartTime = _systemClock.LocalNow;
 
                 // 触发预警输出
                 if (panelConfig?.PreStartWarningOutputBit.HasValue == true)
@@ -456,17 +474,50 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
 
             // 预警结束后，转换到Running状态
             _logger.LogInformation("正在将系统状态从 {CurrentState} 转换到 Running...", currentState);
-            var result = await _stateManager.ChangeStateAsync(SystemState.Running, cancellationToken);
+            var stateChangeResult = await _stateManager.ChangeStateAsync(SystemState.Running, cancellationToken);
             
-            if (!result.Success)
+            if (!stateChangeResult.Success)
             {
                 _logger.LogError(
                     "❌ 启动按钮状态转换失败: {ErrorMessage}",
-                    result.ErrorMessage);
+                    stateChangeResult.ErrorMessage);
+                return;
             }
-            else
+            
+            _logger.LogInformation("✅ 系统状态已成功转换到 Running，准备触发IO联动和上游通知");
+
+            // 状态转换成功后，触发 Running 状态的 IO 联动
+            try
             {
-                _logger.LogInformation("✅ 系统状态已成功转换到 Running，摆轮应该开始启动");
+                var pressedAt = warningStartTime; // 使用按钮按下的时间
+                
+                // 通知上游系统按钮按下事件（fire-and-forget）
+                await NotifyUpstreamPanelButtonPressedAsync(
+                    PanelButtonType.Start, 
+                    pressedAt, 
+                    currentState, 
+                    SystemState.Running, 
+                    cancellationToken);
+
+                // 触发 Running 状态的 IO 联动
+                var ioLinkageResult = await _ioLinkageConfigService.TriggerIoLinkageAsync(SystemState.Running);
+                
+                if (ioLinkageResult.Success)
+                {
+                    _logger.LogInformation(
+                        "启动按钮的IO联动触发成功，触发了 {Count} 个IO点",
+                        ioLinkageResult.TriggeredIoPoints.Count);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "启动按钮的IO联动触发失败：{ErrorMessage}",
+                        ioLinkageResult.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "触发启动按钮的IO联动或上游通知异常");
             }
         }
         catch (OperationCanceledException)
