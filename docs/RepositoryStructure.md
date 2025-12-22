@@ -55,6 +55,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | PRODUCTION_SERVICE_STARTUP.md | `./docs/PRODUCTION_SERVICE_STARTUP.md` | **生产环境服务启动说明（服务启动流程、配置加载、日志验证、故障排查）** | 🔴 高 |
 | WINDOWS_SERVICE_DEPLOYMENT.md | `./docs/WINDOWS_SERVICE_DEPLOYMENT.md` | **Windows Service 部署指南（服务安装、管理、配置、故障排查）** | 🔴 高 |
 | UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md | `./docs/UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md` | 上游通知故障排查指南（传感器触发vs测试端点对比） | 🔴 高 |
+| COMMUNICATION_LOGGING_VERIFICATION.md | `./docs/COMMUNICATION_LOGGING_VERIFICATION.md` | **通信日志功能验证文档（日志文件说明、配置方法、验证步骤、故障排查）** | 🔴 高 |
 | SERVER_MODE_DUAL_INSTANCE_ISSUE.md | `./docs/SERVER_MODE_DUAL_INSTANCE_ISSUE.md` | **Server模式双实例问题分析与修复（根本原因诊断）** | 🔴 高 |
 | POSITION_INTERVAL_FIX.md | `./docs/POSITION_INTERVAL_FIX.md` | Position间隔追踪修复文档（问题诊断、解决方案、位置映射表、间隔计算逻辑） | 🟢 低 |
 | TIMEOUT_HANDLING_MECHANISM.md | `./docs/TIMEOUT_HANDLING_MECHANISM.md` | **包裹超时处理机制说明文档（上游无响应时的超时兜底流程、配置参数、日志追踪、故障排查）** | 🔴 高 |
