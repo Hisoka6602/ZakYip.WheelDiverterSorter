@@ -39,6 +39,7 @@
 | 文档 | 说明 |
 |------|------|
 | [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | **权威文档**：字段表、示例 JSON、超时规则、配置说明 |
+| [UPSTREAM_TCP_DATA_EXAMPLES.md](UPSTREAM_TCP_DATA_EXAMPLES.md) | **TCP 数据示例**：完整的 TCP 原始数据示例，用于调试上游程序 |
 | [UPSTREAM_SEQUENCE_FIREFORGET.md](UPSTREAM_SEQUENCE_FIREFORGET.md) | 时序图详解（引用权威文档） |
 
 ## 项目级文档
