@@ -39,6 +39,7 @@
 | 文档 | 说明 |
 |------|------|
 | [guides/UPSTREAM_CONNECTION_GUIDE.md](guides/UPSTREAM_CONNECTION_GUIDE.md) | **权威文档**：字段表、示例 JSON、超时规则、配置说明 |
+| [UPSTREAM_CHUTE_ASSIGNMENT_WORKFLOW.md](UPSTREAM_CHUTE_ASSIGNMENT_WORKFLOW.md) | **上游格口分配工作流详解**：收到上游格口信息后的完整逻辑操作、瑞典系统集成 |
 | [UPSTREAM_SEQUENCE_FIREFORGET.md](UPSTREAM_SEQUENCE_FIREFORGET.md) | 时序图详解（引用权威文档） |
 
 ## 项目级文档
