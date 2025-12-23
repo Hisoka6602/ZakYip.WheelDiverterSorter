@@ -40,6 +40,39 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
+    
+    /// <summary>
+    /// 确保已订阅服务器的 ChuteAssigned 事件
+    /// </summary>
+    private void EnsureServerEventSubscription()
+    {
+        // 使用局部变量捕获服务器实例，避免竞态条件
+        var server = _serverBackgroundService.CurrentServer;
+        if (server == null)
+            return;
+            
+        // 订阅服务器的 ChuteAssigned 事件（先取消订阅再重新订阅，避免重复订阅）
+        server.ChuteAssigned -= OnServerChuteAssigned;
+        server.ChuteAssigned += OnServerChuteAssigned;
+        
+        _logger.LogDebug(
+            "[{LocalTime}] [服务端模式-适配器] 已订阅服务器的 ChuteAssigned 事件",
+            _systemClock.LocalNow);
+    }
+    
+    /// <summary>
+    /// 转发服务器收到的格口分配事件
+    /// </summary>
+    private void OnServerChuteAssigned(object? sender, ChuteAssignmentEventArgs e)
+    {
+        _logger.LogInformation(
+            "[{LocalTime}] [服务端模式-适配器] 转发格口分配事件: ParcelId={ParcelId}, ChuteId={ChuteId}",
+            _systemClock.LocalNow,
+            e.ParcelId,
+            e.ChuteId);
+            
+        ChuteAssigned?.Invoke(this, e);
+    }
 
     /// <summary>
     /// 获取当前服务器实例
@@ -57,15 +90,14 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     public bool IsConnected => _serverBackgroundService.CurrentServer?.IsRunning ?? false;
 
     /// <summary>
-    /// 格口分配事件（服务端模式下不使用）
+    /// 格口分配事件（从上游客户端接收格口分配通知）
     /// </summary>
     /// <remarks>
-    /// 在服务端模式下，格口分配是由本地业务逻辑决定的，不需要从上游接收。
-    /// 此事件仅为实现接口而保留，不会被触发。
+    /// PR-FIX: 在服务端模式下，当上游客户端发送格口分配通知时，
+    /// 服务器会触发 ChuteAssigned 事件，适配器需要转发这个事件给 Orchestrator。
+    /// 这对于 Formal 模式的正确运行至关重要。
     /// </remarks>
-#pragma warning disable CS0067 // Event is never used (intentional for server mode)
     public event EventHandler<ChuteAssignmentEventArgs>? ChuteAssigned;
-#pragma warning restore CS0067
 
     /// <summary>
     /// 连接到RuleEngine（启动服务器）
@@ -79,6 +111,9 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
 
         if (_serverBackgroundService.CurrentServer?.IsRunning == true)
         {
+            // 订阅服务器的事件
+            EnsureServerEventSubscription();
+            
             _logger.LogDebug(
                 "[{LocalTime}] [服务端模式-适配器] 服务器已运行，当前连接客户端数: {ClientCount}",
                 _systemClock.LocalNow,
