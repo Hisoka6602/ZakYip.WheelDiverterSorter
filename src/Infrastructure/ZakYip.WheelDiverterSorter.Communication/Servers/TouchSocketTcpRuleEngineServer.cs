@@ -234,25 +234,35 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                 client.Id,
                 json);
 
-            // 尝试解析为包裹检测通知
-            var notification = JsonSerializer.Deserialize<ParcelDetectionNotification>(json);
+            // 尝试解析为格口分配通知（上游主动推送）
+            var notification = JsonSerializer.Deserialize<ChuteAssignmentNotification>(json);
             if (notification != null)
             {
                 _logger.LogInformation(
-                    "[{LocalTime}] [服务端模式-处理通知] 解析到包裹检测通知 | ClientId={ClientId} | ParcelId={ParcelId}",
+                    "[{LocalTime}] [服务端模式-处理通知] 解析到格口分配通知 | ClientId={ClientId} | ParcelId={ParcelId} | ChuteId={ChuteId}",
                     _systemClock.LocalNow,
                     client.Id,
-                    notification.ParcelId);
+                    notification.ParcelId,
+                    notification.ChuteId);
 
-                // 触发包裹通知接收事件
-                ParcelNotificationReceived.SafeInvoke(this, new ParcelNotificationReceivedEventArgs
+                // 转换 DwsPayload from DTO to domain model
+                DwsMeasurement? dwsPayload = null;
+                if (notification.DwsPayload != null)
                 {
-                    ParcelId = notification.ParcelId,
-                    ReceivedAt = _systemClock.LocalNowOffset,
-                    ClientId = client.Id
-                }, _logger, nameof(ParcelNotificationReceived));
+                    dwsPayload = new DwsMeasurement
+                    {
+                        WeightGrams = notification.DwsPayload.WeightGrams,
+                        LengthMm = notification.DwsPayload.LengthMm,
+                        WidthMm = notification.DwsPayload.WidthMm,
+                        HeightMm = notification.DwsPayload.HeightMm,
+                        VolumetricWeightGrams = notification.DwsPayload.VolumetricWeightGrams,
+                        Barcode = notification.DwsPayload.Barcode,
+                        MeasuredAt = notification.DwsPayload.MeasuredAt
+                    };
+                }
 
-                // 如果有处理器，调用处理器
+                // 触发格口分配事件（不再使用 ParcelNotificationReceived）
+                // 需要通过 IRuleEngineHandler 或直接触发 ChuteAssigned 事件
                 if (_handler != null)
                 {
                     _ = Task.Run(async () =>
@@ -262,8 +272,10 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                             var eventArgs = new ChuteAssignmentEventArgs
                             {
                                 ParcelId = notification.ParcelId,
-                                ChuteId = 0, // 服务器端接收到的是检测通知，没有格口分配信息
-                                AssignedAt = notification.DetectionTime
+                                ChuteId = notification.ChuteId,
+                                AssignedAt = notification.AssignedAt,
+                                DwsPayload = dwsPayload,
+                                Metadata = notification.Metadata
                             };
                             await _handler.HandleChuteAssignmentAsync(eventArgs);
                         }
@@ -271,7 +283,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                         {
                             _logger.LogError(
                                 ex,
-                                "[{LocalTime}] [服务端模式-处理错误] 处理包裹 {ParcelId} 时发生错误",
+                                "[{LocalTime}] [服务端模式-处理错误] 处理包裹 {ParcelId} 的格口分配时发生错误",
                                 _systemClock.LocalNow,
                                 notification.ParcelId);
                         }

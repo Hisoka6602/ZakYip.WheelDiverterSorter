@@ -312,24 +312,33 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
             }
 
             var json = Encoding.UTF8.GetString(args.ApplicationMessage.PayloadSegment);
-            // PR-UPSTREAM02: 使用 ParcelDetectionNotification 代替 ChuteAssignmentRequest
-            var notification = JsonSerializer.Deserialize<ParcelDetectionNotification>(json);
+            // 尝试解析为格口分配通知（上游主动推送）
+            var notification = JsonSerializer.Deserialize<ChuteAssignmentNotification>(json);
 
             if (notification != null)
             {
                 _logger.LogInformation(
-                    "[{LocalTime}] 收到MQTT客户端 {ClientId} 的包裹检测通知: ParcelId={ParcelId}",
+                    "[{LocalTime}] 收到MQTT客户端 {ClientId} 的格口分配通知: ParcelId={ParcelId} | ChuteId={ChuteId}",
                     _systemClock.LocalNow,
                     args.ClientId,
-                    notification.ParcelId);
+                    notification.ParcelId,
+                    notification.ChuteId);
 
-                // 触发包裹通知接收事件
-                ParcelNotificationReceived.SafeInvoke(this, new ParcelNotificationReceivedEventArgs
+                // 转换 DwsPayload from DTO to domain model
+                DwsMeasurement? dwsPayload = null;
+                if (notification.DwsPayload != null)
                 {
-                    ParcelId = notification.ParcelId,
-                    ClientId = args.ClientId,
-                    ReceivedAt = _systemClock.LocalNowOffset
-                }, _logger, nameof(ParcelNotificationReceived));
+                    dwsPayload = new DwsMeasurement
+                    {
+                        WeightGrams = notification.DwsPayload.WeightGrams,
+                        LengthMm = notification.DwsPayload.LengthMm,
+                        WidthMm = notification.DwsPayload.WidthMm,
+                        HeightMm = notification.DwsPayload.HeightMm,
+                        VolumetricWeightGrams = notification.DwsPayload.VolumetricWeightGrams,
+                        Barcode = notification.DwsPayload.Barcode,
+                        MeasuredAt = notification.DwsPayload.MeasuredAt
+                    };
+                }
 
                 // 如果有处理器，调用处理器
                 if (_handler != null)
@@ -337,8 +346,10 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                     var eventArgs = new ChuteAssignmentEventArgs
                     {
                         ParcelId = notification.ParcelId,
-                        ChuteId = 0, // Server模式下由RuleEngine决定
-                        AssignedAt = notification.DetectionTime
+                        ChuteId = notification.ChuteId,
+                        AssignedAt = notification.AssignedAt,
+                        DwsPayload = dwsPayload,
+                        Metadata = notification.Metadata
                     };
                     await _handler.HandleChuteAssignmentAsync(eventArgs);
                 }
