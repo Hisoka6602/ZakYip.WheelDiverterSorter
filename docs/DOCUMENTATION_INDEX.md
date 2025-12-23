@@ -32,6 +32,18 @@
 | [../SELF_CONTAINED_DEPLOYMENT.md](../SELF_CONTAINED_DEPLOYMENT.md) | **自包含部署指南（无需安装 .NET Runtime）** |
 | [SELF_CONTAINED_DEPLOYMENT_SUMMARY.md](SELF_CONTAINED_DEPLOYMENT_SUMMARY.md) | 自包含部署实施总结 |
 
+## 故障排查与问题解答
+
+| 文档 | 说明 |
+|------|------|
+| [UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md](UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md) | 上游通知故障排查指南（传感器触发vs测试端点对比） |
+| [TIMEOUT_HANDLING_MECHANISM.md](TIMEOUT_HANDLING_MECHANISM.md) | **包裹超时处理机制说明（上游无响应时的超时兜底流程、配置参数、日志追踪）** |
+| [PATH_EXECUTION_TARGET_CHUTE_ZERO_EXPLANATION.md](PATH_EXECUTION_TARGET_CHUTE_ZERO_EXPLANATION.md) | **"路径执行成功，到达目标格口: 0"日志说明（单段动作执行模式解释、常见疑问解答）** |
+| [COMMUNICATION_LOGGING_VERIFICATION.md](COMMUNICATION_LOGGING_VERIFICATION.md) | **通信日志功能验证文档（日志文件说明、配置方法、验证步骤）** |
+| [SERVER_MODE_DUAL_INSTANCE_ISSUE.md](SERVER_MODE_DUAL_INSTANCE_ISSUE.md) | **Server模式双实例问题分析与修复** |
+| [POSITION_INTERVAL_FIX.md](POSITION_INTERVAL_FIX.md) | Position间隔追踪修复文档 |
+| [WINDOWS_SERVICE_DEPLOYMENT.md](WINDOWS_SERVICE_DEPLOYMENT.md) | **Windows Service 部署指南（服务安装、管理、配置、故障排查）** |
+
 ## 上游协议相关文档
 
 > **单一权威说明**：所有上游协议字段定义、示例 JSON、时序说明、超时/丢失规则只在 `guides/UPSTREAM_CONNECTION_GUIDE.md` 中维护，其他文档只做高层引用。
