@@ -92,6 +92,16 @@ public interface IRuleEngineServer : IDisposable
     /// Parcel notification received event
     /// </summary>
     event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
+
+    /// <summary>
+    /// 格口分配事件（接收到上游客户端的格口分配通知时触发）
+    /// Chute assigned event (triggered when receiving chute assignment notification from upstream client)
+    /// </summary>
+    /// <remarks>
+    /// 与客户端模式保持一致，服务端收到格口分配通知后，应触发此事件。
+    /// 订阅者（如 SortingOrchestrator）通过此事件接收格口分配信息并更新 RoutePlan。
+    /// </remarks>
+    event EventHandler<Core.Abstractions.Upstream.ChuteAssignmentEventArgs>? ChuteAssigned;
 }
 
 /// <summary>

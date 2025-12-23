@@ -482,6 +482,10 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var intervalTracker = sp.GetService<Execution.Tracking.IPositionIntervalTracker>();
             var callbackConfigRepository = sp.GetService<IChuteDropoffCallbackConfigurationRepository>();
             var lossMonitoringService = sp.GetService<Execution.Monitoring.ParcelLossMonitoringService>();
+            var alarmService = sp.GetService<AlarmService>();
+            var statisticsService = sp.GetService<ISortingStatisticsService>();
+            var routePlanRepository = sp.GetService<IRoutePlanRepository>();
+            var upstreamServer = sp.GetService<Communication.Abstractions.IRuleEngineServer>(); // 服务端模式（可选）
             
             return new SortingOrchestrator(
                 sensorEventProvider,
@@ -509,7 +513,11 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 safeExecutor,
                 intervalTracker,
                 callbackConfigRepository,
-                lossMonitoringService);
+                lossMonitoringService,
+                alarmService,
+                statisticsService,
+                routePlanRepository,
+                upstreamServer);
         });
 
         // 注册路由-拓扑一致性检查器
