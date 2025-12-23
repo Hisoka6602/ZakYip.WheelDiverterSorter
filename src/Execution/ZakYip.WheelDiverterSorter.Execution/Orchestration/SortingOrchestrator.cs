@@ -32,6 +32,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Orchestration;
 
@@ -92,6 +93,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
     private readonly IChuteDropoffCallbackConfigurationRepository? _callbackConfigRepository;
+    private readonly IRoutePlanRepository? _routePlanRepository;
+    private readonly object? _upstreamServer; // 服务端模式（可选，类型为 IRuleEngineServer）
     
     // 新的 Position-Index 队列系统依赖
     private readonly IPositionIndexQueueManager? _queueManager;
@@ -158,7 +161,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
         Monitoring.ParcelLossMonitoringService? lossMonitoringService = null, // 包裹丢失监控服务
         AlarmService? alarmService = null, // 告警服务（用于失败率统计）
-        ISortingStatisticsService? statisticsService = null) // 分拣统计服务
+        ISortingStatisticsService? statisticsService = null, // 分拣统计服务
+        IRoutePlanRepository? routePlanRepository = null, // 路由计划仓储（用于保存格口分配）
+        object? upstreamServer = null) // 上游服务端（服务端模式，可选，类型为 IRuleEngineServer）
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -190,6 +195,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _lossMonitoringService = lossMonitoringService;
         _alarmService = alarmService;
         _statisticsService = statisticsService;
+        _routePlanRepository = routePlanRepository;
+        _upstreamServer = upstreamServer;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -204,6 +211,24 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
+        
+        // 订阅服务端模式的格口分配事件（如果存在）
+        // upstreamServer 的实际类型是 IRuleEngineServer，但由于 Execution 层不能引用 Communication 层，
+        // 这里使用 object 类型，并通过反射订阅事件
+        if (_upstreamServer != null)
+        {
+            var serverType = _upstreamServer.GetType();
+            var chuteAssignedEvent = serverType.GetEvent("ChuteAssigned");
+            if (chuteAssignedEvent != null)
+            {
+                var handlerDelegate = Delegate.CreateDelegate(
+                    chuteAssignedEvent.EventHandlerType!,
+                    this,
+                    typeof(SortingOrchestrator).GetMethod(nameof(OnChuteAssignmentReceived), 
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!);
+                chuteAssignedEvent.AddEventHandler(_upstreamServer, handlerDelegate);
+            }
+        }
         
         // 订阅系统状态变更事件（用于自动清空队列）
         _systemStateManager.StateChanged += OnSystemStateChanged;
@@ -1788,6 +1813,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 记录上游响应接收时间
         _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.LocalNow);
         
+        // 更新 RoutePlan 中的目标格口（异步执行，不阻塞事件处理）
+        _ = UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+        
         if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
         {
             // 正常情况：在超时前收到响应
@@ -1821,6 +1849,91 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 e.ParcelId,
                 e.ChuteId,
                 _clock.LocalNow);
+        }
+    }
+
+    /// <summary>
+    /// 更新 RoutePlan 中的目标格口
+    /// </summary>
+    /// <remarks>
+    /// 当收到上游的格口分配通知时，需要更新包裹的路由计划，保存分配的格口信息。
+    /// 如果 RoutePlan 不存在，则创建新的路由计划。
+    /// </remarks>
+    private async Task UpdateRoutePlanWithChuteAssignmentAsync(long parcelId, long chuteId, DateTimeOffset assignedAt)
+    {
+        if (_routePlanRepository == null)
+        {
+            _logger.LogWarning(
+                "RoutePlanRepository 未注入，无法保存包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})",
+                parcelId,
+                chuteId);
+            return;
+        }
+
+        try
+        {
+            // 获取或创建 RoutePlan
+            var routePlan = await _routePlanRepository.GetByParcelIdAsync(parcelId);
+            
+            if (routePlan == null)
+            {
+                // 创建新的 RoutePlan
+                routePlan = new RoutePlan(parcelId, chuteId, assignedAt);
+                
+                _logger.LogInformation(
+                    "创建新的路由计划: ParcelId={ParcelId}, TargetChuteId={ChuteId}, AssignedAt={AssignedAt:yyyy-MM-dd HH:mm:ss.fff}",
+                    parcelId,
+                    chuteId,
+                    assignedAt);
+            }
+            else
+            {
+                // 如果 RoutePlan 已存在，检查是否需要更新格口
+                if (routePlan.CurrentTargetChuteId != chuteId)
+                {
+                    _logger.LogInformation(
+                        "包裹 {ParcelId} 的目标格口从 {OldChuteId} 更新为 {NewChuteId}",
+                        parcelId,
+                        routePlan.CurrentTargetChuteId,
+                        chuteId);
+                    
+                    // 使用改口逻辑更新格口
+                    var result = routePlan.TryApplyChuteChange(chuteId, assignedAt, out var decision);
+                    
+                    if (!result.IsSuccess)
+                    {
+                        _logger.LogWarning(
+                            "包裹 {ParcelId} 改口失败: {Reason}，决策结果={Outcome}",
+                            parcelId,
+                            result.ErrorMessage,
+                            decision.Outcome);
+                        return;
+                    }
+                }
+                else
+                {
+                    _logger.LogDebug(
+                        "包裹 {ParcelId} 的目标格口 {ChuteId} 未改变，无需更新",
+                        parcelId,
+                        chuteId);
+                }
+            }
+            
+            // 保存 RoutePlan
+            await _routePlanRepository.SaveAsync(routePlan);
+            
+            _logger.LogDebug(
+                "成功保存包裹 {ParcelId} 的路由计划，目标格口={ChuteId}",
+                parcelId,
+                chuteId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "更新包裹 {ParcelId} 的路由计划时发生错误 (ChuteId={ChuteId})",
+                parcelId,
+                chuteId);
         }
     }
 
@@ -1961,6 +2074,23 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _sensorEventProvider.ChuteDropoffDetected -= OnChuteDropoffDetected;
         // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
+        
+        // 取消订阅服务端模式的格口分配事件（如果存在）
+        if (_upstreamServer != null)
+        {
+            var serverType = _upstreamServer.GetType();
+            var chuteAssignedEvent = serverType.GetEvent("ChuteAssigned");
+            if (chuteAssignedEvent != null)
+            {
+                var handlerDelegate = Delegate.CreateDelegate(
+                    chuteAssignedEvent.EventHandlerType!,
+                    this,
+                    typeof(SortingOrchestrator).GetMethod(nameof(OnChuteAssignmentReceived),
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!);
+                chuteAssignedEvent.RemoveEventHandler(_upstreamServer, handlerDelegate);
+            }
+        }
+        
         // 取消订阅系统状态变更事件
         _systemStateManager.StateChanged -= OnSystemStateChanged;
         

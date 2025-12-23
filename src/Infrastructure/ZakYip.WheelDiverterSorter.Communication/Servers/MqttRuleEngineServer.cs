@@ -54,6 +54,11 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
 #pragma warning disable CS0067 // Event is never used - Legacy event, kept for interface compatibility
     public event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
 #pragma warning restore CS0067
+    
+    /// <summary>
+    /// 格口分配事件（与客户端模式保持一致）
+    /// </summary>
+    public event EventHandler<Core.Abstractions.Upstream.ChuteAssignmentEventArgs>? ChuteAssigned;
 
     public IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients()
     {
@@ -343,17 +348,21 @@ public sealed class MqttRuleEngineServer : IRuleEngineServer
                     };
                 }
 
-                // 如果有处理器，调用处理器
+                // 触发格口分配事件（与客户端模式保持一致）
+                var eventArgs = new ChuteAssignmentEventArgs
+                {
+                    ParcelId = notification.ParcelId,
+                    ChuteId = notification.ChuteId,
+                    AssignedAt = notification.AssignedAt,
+                    DwsPayload = dwsPayload,
+                    Metadata = notification.Metadata
+                };
+                
+                ChuteAssigned.SafeInvoke(this, eventArgs, _logger, nameof(ChuteAssigned));
+                
+                // 同时调用 handler（如果存在）以保持向后兼容
                 if (_handler != null)
                 {
-                    var eventArgs = new ChuteAssignmentEventArgs
-                    {
-                        ParcelId = notification.ParcelId,
-                        ChuteId = notification.ChuteId,
-                        AssignedAt = notification.AssignedAt,
-                        DwsPayload = dwsPayload,
-                        Metadata = notification.Metadata
-                    };
                     await _handler.HandleChuteAssignmentAsync(eventArgs);
                 }
             }

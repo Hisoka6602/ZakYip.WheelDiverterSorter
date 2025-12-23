@@ -50,6 +50,13 @@ public sealed class SignalRRuleEngineServer : IRuleEngineServer
     public event EventHandler<ClientConnectionEventArgs>? ClientConnected;
     public event EventHandler<ClientConnectionEventArgs>? ClientDisconnected;
     public event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
+    
+#pragma warning disable CS0067 // Event is never used - Will be used when server receives chute assignments from clients
+    /// <summary>
+    /// 格口分配事件（与客户端模式保持一致）
+    /// </summary>
+    public event EventHandler<Core.Abstractions.Upstream.ChuteAssignmentEventArgs>? ChuteAssigned;
+#pragma warning restore CS0067
 
     public IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients()
     {

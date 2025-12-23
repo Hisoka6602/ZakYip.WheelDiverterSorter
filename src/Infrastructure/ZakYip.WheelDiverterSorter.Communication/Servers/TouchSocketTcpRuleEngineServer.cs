@@ -61,6 +61,11 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
 #pragma warning restore CS0067
 
     /// <summary>
+    /// 格口分配事件（与客户端模式保持一致）
+    /// </summary>
+    public event EventHandler<Core.Abstractions.Upstream.ChuteAssignmentEventArgs>? ChuteAssigned;
+
+    /// <summary>
     /// 获取所有已连接的客户端信息
     /// </summary>
     public IReadOnlyList<ClientConnectionEventArgs> GetConnectedClients()
@@ -264,22 +269,26 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                     };
                 }
 
-                // 触发格口分配事件（不再使用 ParcelNotificationReceived）
-                // 需要通过 IRuleEngineHandler 或直接触发 ChuteAssigned 事件
+                // 触发格口分配事件（与客户端模式保持一致）
+                // SortingOrchestrator 订阅此事件并更新 RoutePlan
+                var eventArgs = new ChuteAssignmentEventArgs
+                {
+                    ParcelId = notification.ParcelId,
+                    ChuteId = notification.ChuteId,
+                    AssignedAt = notification.AssignedAt,
+                    DwsPayload = dwsPayload,
+                    Metadata = notification.Metadata
+                };
+                
+                ChuteAssigned.SafeInvoke(this, eventArgs, _logger, nameof(ChuteAssigned));
+                
+                // 同时调用 handler（如果存在）以保持向后兼容
                 if (_handler != null)
                 {
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            var eventArgs = new ChuteAssignmentEventArgs
-                            {
-                                ParcelId = notification.ParcelId,
-                                ChuteId = notification.ChuteId,
-                                AssignedAt = notification.AssignedAt,
-                                DwsPayload = dwsPayload,
-                                Metadata = notification.Metadata
-                            };
                             await _handler.HandleChuteAssignmentAsync(eventArgs);
                         }
                         catch (Exception ex)
