@@ -44,13 +44,14 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
     }
 
     /// <summary>
-    /// 关键测试：验证上游格口分配的完整流程（简化版，直接触发事件）
+    /// 关键测试：验证上游格口分配的完整流程
     /// </summary>
     /// <remarks>
     /// 这个测试验证了系统的核心功能：
-    /// 1. 启动 Orchestrator（订阅 ChuteAssigned 事件）
-    /// 2. 模拟上游发送格口分配事件
-    /// 3. **验证 RoutePlan 是否正确保存了格口**
+    /// 1. 配置系统为 Formal 模式
+    /// 2. 设置 Mock 在收到发送请求时立即触发格口分配事件
+    /// 3. 调用 ProcessParcelAsync 并等待完成
+    /// 4. **验证 RoutePlan 是否正确保存了格口**
     /// 
     /// 这是最基础、最关键的测试。如果这个测试失败，说明事件订阅或 RoutePlan 保存有问题。
     /// </remarks>
@@ -63,53 +64,68 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
         var sensorId = 1L;
         var assignedChuteId = 3L;
 
+        // 设置系统为 Formal 模式
+        var systemConfig = SystemRepository.Get();
+        systemConfig.SortingMode = SortingMode.Formal;
+        SystemRepository.Update(systemConfig);
+
         // 设置 Mock
         Factory.MockRuleEngineClient!
             .Setup(x => x.IsConnected)
             .Returns(true);
 
+        // 关键：设置 SendAsync 被调用时，在后台延迟后触发 ChuteAssigned 事件
+        Factory.MockRuleEngineClient
+            .Setup(x => x.SendAsync(It.IsAny<ParcelDetectedMessage>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true)
+            .Callback<IUpstreamMessage, CancellationToken>((msg, ct) =>
+            {
+                if (msg is ParcelDetectedMessage pdm)
+                {
+                    // 模拟上游延迟响应（随机1-5秒）
+                    var delay = GetRandomUpstreamDelay();
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(delay, ct);
+                        if (!ct.IsCancellationRequested)
+                        {
+                            var args = new ChuteAssignmentEventArgs
+                            {
+                                ParcelId = pdm.ParcelId,
+                                ChuteId = assignedChuteId,
+                                AssignedAt = DateTimeOffset.Now
+                            };
+                            Factory.MockRuleEngineClient.Raise(
+                                x => x.ChuteAssigned += null,
+                                Factory.MockRuleEngineClient.Object,
+                                args);
+                        }
+                    }, ct);
+                }
+            });
+
         // 启动 Orchestrator（这会订阅 ChuteAssigned 事件）
         await _orchestrator.StartAsync();
 
-        // **关键调试**：先创建一个 RoutePlan，验证仓储是否工作
-        var testRoutePlan = new RoutePlan(parcelId, assignedChuteId, DateTimeOffset.Now);
-        await _routePlanRepository.SaveAsync(testRoutePlan);
-        
-        // 验证能否读取回来
-        var savedPlan = await _routePlanRepository.GetByParcelIdAsync(parcelId);
-        savedPlan.Should().NotBeNull("测试：RoutePlanRepository 应该能正常保存和读取");
-        
-        // 清理测试数据
-        await _routePlanRepository.DeleteAsync(parcelId);
+        // Act - 处理包裹（会发送上游通知并等待响应）
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
 
-        // 现在开始真正的测试流程
-        // 先创建包裹（模拟包裹检测）
-        await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        // Assert - **关键验证**：检查分拣结果使用了上游分配的格口
+        result.Should().NotBeNull("应该返回分拣结果");
+        result.ActualChuteId.Should().Be(assignedChuteId,
+            $"应该使用上游分配的格口 {assignedChuteId}，而不是异常格口");
 
-        // 给一点时间让包裹创建完成
-        await Task.Delay(500);
-
-        // Act - 模拟上游发送格口分配事件
-        var assignmentArgs = new ChuteAssignmentEventArgs
-        {
-            ParcelId = parcelId,
-            ChuteId = assignedChuteId,
-            AssignedAt = DateTimeOffset.Now
-        };
-
-        Factory.MockRuleEngineClient.Raise(
-            x => x.ChuteAssigned += null,
-            Factory.MockRuleEngineClient.Object,
-            assignmentArgs);
-
-        // 给足够时间让事件处理完成（包括 RoutePlan 保存）
-        await Task.Delay(2000);
-
-        // Assert - **关键验证**：检查 RoutePlan 是否正确保存了上游分配的格口
+        // **关键验证**：检查 RoutePlan 是否正确保存了上游分配的格口
         var routePlan = await _routePlanRepository.GetByParcelIdAsync(parcelId);
         routePlan.Should().NotBeNull($"包裹 {parcelId} 应该有 RoutePlan");
         routePlan!.CurrentTargetChuteId.Should().Be(assignedChuteId,
             $"RoutePlan 中应该保存上游分配的格口 {assignedChuteId}");
+
+        // 验证上游通知被发送了
+        Factory.MockRuleEngineClient.Verify(
+            x => x.SendAsync(It.Is<ParcelDetectedMessage>(m => m.ParcelId == parcelId), It.IsAny<CancellationToken>()),
+            Times.Once,
+            "应该向上游发送包裹检测通知");
 
         await _orchestrator.StopAsync();
     }
