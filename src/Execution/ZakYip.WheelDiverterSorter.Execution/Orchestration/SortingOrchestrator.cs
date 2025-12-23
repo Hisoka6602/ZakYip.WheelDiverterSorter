@@ -95,6 +95,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteDropoffCallbackConfigurationRepository? _callbackConfigRepository;
     private readonly IRoutePlanRepository? _routePlanRepository;
     private readonly object? _upstreamServer; // 服务端模式（可选，类型为 IRuleEngineServer）
+    private readonly object? _serverBackgroundService; // 服务端后台服务（可选，类型为 UpstreamServerBackgroundService）
     
     // 新的 Position-Index 队列系统依赖
     private readonly IPositionIndexQueueManager? _queueManager;
@@ -163,7 +164,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         AlarmService? alarmService = null, // 告警服务（用于失败率统计）
         ISortingStatisticsService? statisticsService = null, // 分拣统计服务
         IRoutePlanRepository? routePlanRepository = null, // 路由计划仓储（用于保存格口分配）
-        object? upstreamServer = null) // 上游服务端（服务端模式，可选）
+        object? upstreamServer = null, // 上游服务端（服务端模式，可选）
+        object? serverBackgroundService = null) // 上游服务端后台服务（服务端模式，可选）
         /// <remarks>
         /// upstreamServer 参数类型为 object 以避免 Execution 层直接引用 Communication 层（架构约束）。
         /// 实际运行时类型应为 IRuleEngineServer。使用反射订阅 ChuteAssigned 事件。
@@ -171,6 +173,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         /// 1. 在 Core 层定义共享的事件接口
         /// 2. 使用适配器模式包装服务端为 IUpstreamRoutingClient
         /// 3. 使用消息总线解耦事件订阅
+        /// 
+        /// serverBackgroundService 参数类型为 object，实际运行时类型应为 UpstreamServerBackgroundService。
+        /// 用于处理服务端热重启场景：
+        /// - 当配置更新导致服务端重启时，会创建新的 IRuleEngineServer 实例
+        /// - 通过订阅 ServerRestarted 事件，可以自动重新订阅新服务端实例的事件
+        /// - 确保事件订阅不会因热重启而丢失
         /// </remarks>
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
@@ -205,6 +213,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _statisticsService = statisticsService;
         _routePlanRepository = routePlanRepository;
         _upstreamServer = upstreamServer;
+        _serverBackgroundService = serverBackgroundService;
         
         _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
@@ -227,6 +236,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (_upstreamServer != null)
         {
             SubscribeToChuteAssignedEvent(_upstreamServer, nameof(OnChuteAssignmentReceived));
+        }
+        
+        // 订阅服务端后台服务的 ServerRestarted 事件（用于处理热重启后的事件重新订阅）
+        // 🔧 修复: 服务端热重启后事件订阅丢失问题
+        if (_serverBackgroundService != null)
+        {
+            SubscribeToServerRestartedEvent(_serverBackgroundService);
+            _logger.LogDebug("已订阅 UpstreamServerBackgroundService.ServerRestarted 事件，用于处理服务端热重启");
         }
         
         // 订阅系统状态变更事件（用于自动清空队列）
@@ -2211,6 +2228,88 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
     }
 
+    /// <summary>
+    /// 使用反射订阅服务端后台服务的 ServerRestarted 事件
+    /// </summary>
+    /// <param name="serverBackgroundService">服务端后台服务对象（实际类型为 UpstreamServerBackgroundService）</param>
+    private void SubscribeToServerRestartedEvent(object serverBackgroundService)
+    {
+        var serviceType = serverBackgroundService.GetType();
+        var serverRestartedEvent = serviceType.GetEvent("ServerRestarted");
+        if (serverRestartedEvent == null)
+        {
+            _logger.LogWarning(
+                "无法在服务端后台服务类型 {ServiceType} 上找到 ServerRestarted 事件",
+                serviceType.FullName);
+            return;
+        }
+
+        var handlerMethodInfo = typeof(SortingOrchestrator).GetMethod(
+            nameof(OnServerRestarted),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        if (handlerMethodInfo == null)
+        {
+            _logger.LogWarning("无法找到事件处理方法 {MethodName}", nameof(OnServerRestarted));
+            return;
+        }
+
+        try
+        {
+            var handlerDelegate = Delegate.CreateDelegate(
+                serverRestartedEvent.EventHandlerType!,
+                this,
+                handlerMethodInfo);
+            serverRestartedEvent.AddEventHandler(serverBackgroundService, handlerDelegate);
+            
+            _logger.LogDebug("成功订阅服务端后台服务的 ServerRestarted 事件");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "订阅服务端后台服务 ServerRestarted 事件失败");
+        }
+    }
+
+    /// <summary>
+    /// 使用反射取消订阅服务端后台服务的 ServerRestarted 事件
+    /// </summary>
+    /// <param name="serverBackgroundService">服务端后台服务对象（实际类型为 UpstreamServerBackgroundService）</param>
+    private void UnsubscribeFromServerRestartedEvent(object serverBackgroundService)
+    {
+        var serviceType = serverBackgroundService.GetType();
+        var serverRestartedEvent = serviceType.GetEvent("ServerRestarted");
+        if (serverRestartedEvent == null)
+        {
+            return;
+        }
+
+        var handlerMethodInfo = typeof(SortingOrchestrator).GetMethod(
+            nameof(OnServerRestarted),
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        if (handlerMethodInfo == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var handlerDelegate = Delegate.CreateDelegate(
+                serverRestartedEvent.EventHandlerType!,
+                this,
+                handlerMethodInfo);
+            serverRestartedEvent.RemoveEventHandler(serverBackgroundService, handlerDelegate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "取消订阅服务端后台服务 ServerRestarted 事件失败");
+        }
+    }
+
     #endregion
 
     #region RoutePlan 更新逻辑
@@ -2338,6 +2437,75 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
+    /// 处理服务端热重启事件
+    /// </summary>
+    /// <remarks>
+    /// 🔧 修复: 服务端热重启后事件订阅丢失问题
+    /// 
+    /// 当 UpstreamServerBackgroundService 执行热重启时（如配置更新），
+    /// 会停止旧的服务端实例并创建新的实例。此时需要：
+    /// 1. 从旧服务端实例取消订阅 ChuteAssigned 事件
+    /// 2. 订阅新服务端实例的 ChuteAssigned 事件
+    /// 3. 更新内部引用，确保后续事件能够正常接收
+    /// </remarks>
+    private void OnServerRestarted(object? sender, EventArgs e)
+    {
+        try
+        {
+            // 使用反射获取事件参数中的 NewServer 属性
+            var eventArgsType = e.GetType();
+            var newServerProperty = eventArgsType.GetProperty("NewServer");
+            var restartedAtProperty = eventArgsType.GetProperty("RestartedAt");
+            var reasonProperty = eventArgsType.GetProperty("Reason");
+            
+            var newServer = newServerProperty?.GetValue(e);
+            var restartedAt = restartedAtProperty?.GetValue(e);
+            var reason = reasonProperty?.GetValue(e);
+            
+            _logger.LogInformation(
+                "[服务端热重启] 检测到服务端重启事件: RestartedAt={RestartedAt}, Reason={Reason}",
+                restartedAt,
+                reason);
+            
+            // 1. 从旧服务端实例取消订阅（如果存在）
+            if (_upstreamServer != null)
+            {
+                UnsubscribeFromChuteAssignedEvent(_upstreamServer, nameof(OnChuteAssignmentReceived));
+                _logger.LogDebug("[服务端热重启] 已从旧服务端实例取消订阅 ChuteAssigned 事件");
+            }
+            
+            // 2. 订阅新服务端实例的事件（如果存在）
+            if (newServer != null)
+            {
+                SubscribeToChuteAssignedEvent(newServer, nameof(OnChuteAssignmentReceived));
+                _logger.LogInformation(
+                    "[服务端热重启] 已订阅新服务端实例的 ChuteAssigned 事件，事件订阅迁移完成");
+                
+                // 3. 更新内部引用（使用反射设置私有字段）
+                // 注意：这是必要的，因为 Dispose 时需要取消订阅
+                var field = typeof(SortingOrchestrator).GetField("_upstreamServer", 
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                if (field != null)
+                {
+                    field.SetValue(this, newServer);
+                    _logger.LogDebug("[服务端热重启] 已更新内部服务端实例引用");
+                }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "[服务端热重启] 新服务端实例为 null，可能是切换到 Client 模式，跳过事件订阅");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "[服务端热重启] 处理服务端重启事件时发生异常");
+        }
+    }
+
+    /// <summary>
     /// 释放资源
     /// </summary>
     public void Dispose()
@@ -2353,6 +2521,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (_upstreamServer != null)
         {
             UnsubscribeFromChuteAssignedEvent(_upstreamServer, nameof(OnChuteAssignmentReceived));
+        }
+        
+        // 取消订阅服务端后台服务的 ServerRestarted 事件
+        if (_serverBackgroundService != null)
+        {
+            UnsubscribeFromServerRestartedEvent(_serverBackgroundService);
         }
         
         // 取消订阅系统状态变更事件

@@ -41,6 +41,16 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
     /// </summary>
     public IRuleEngineServer? CurrentServer => _currentServer;
 
+    /// <summary>
+    /// 服务器重启事件 - 当服务器实例被重新创建时触发
+    /// Server restarted event - triggered when server instance is recreated
+    /// </summary>
+    /// <remarks>
+    /// 事件参数包含新的服务器实例，订阅者可以重新订阅事件
+    /// Event args contain the new server instance, subscribers can re-subscribe to events
+    /// </remarks>
+    public event EventHandler<ServerRestartedEventArgs>? ServerRestarted;
+
     public UpstreamServerBackgroundService(
         ILogger<UpstreamServerBackgroundService> logger,
         ISystemClock systemClock,
@@ -183,6 +193,14 @@ public sealed class UpstreamServerBackgroundService : BackgroundService
                 _logger.LogInformation(
                     "[{LocalTime}] Server restarted successfully with new configuration",
                     _systemClock.LocalNow);
+
+                // 触发服务器重启事件，通知订阅者（如 SortingOrchestrator）重新订阅新服务器实例的事件
+                ServerRestarted?.Invoke(this, new ServerRestartedEventArgs
+                {
+                    NewServer = _currentServer,
+                    RestartedAt = new DateTimeOffset(_systemClock.LocalNow),
+                    Reason = "Configuration update"
+                });
             }
             else
             {
