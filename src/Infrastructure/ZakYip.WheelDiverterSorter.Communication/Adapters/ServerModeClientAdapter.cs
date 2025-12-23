@@ -46,11 +46,12 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     /// </summary>
     private void EnsureServerEventSubscription()
     {
+        // 使用局部变量捕获服务器实例，避免竞态条件
         var server = _serverBackgroundService.CurrentServer;
         if (server == null)
             return;
             
-        // 订阅服务器的 ChuteAssigned 事件（使用弱引用避免重复订阅）
+        // 订阅服务器的 ChuteAssigned 事件（先取消订阅再重新订阅，避免重复订阅）
         server.ChuteAssigned -= OnServerChuteAssigned;
         server.ChuteAssigned += OnServerChuteAssigned;
         

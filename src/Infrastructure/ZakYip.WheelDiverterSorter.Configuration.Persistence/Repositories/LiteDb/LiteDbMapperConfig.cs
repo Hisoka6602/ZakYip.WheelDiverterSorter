@@ -90,7 +90,7 @@ public static class LiteDbMapperConfig
         var mapper = new BsonMapper();
         
         // 注意：IncludeNonPublic 在 .NET 9 + LiteDB 5.0.21 中可能导致序列化错误
-        // RoutePlan 现在使用 init 属性，不再需要 IncludeNonPublic
+        // RoutePlan 现在使用 internal set 属性，Configuration.Persistence 程序集通过 InternalsVisibleTo 访问
         // mapper.IncludeNonPublic = true;
         
         // 配置序列化行为

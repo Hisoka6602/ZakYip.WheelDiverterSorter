@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
@@ -26,12 +27,14 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
 {
     private readonly ISortingOrchestrator _orchestrator;
     private readonly IRoutePlanRepository _routePlanRepository;
-    private readonly Random _random = new Random();
+    private readonly ISystemClock _systemClock;
+    private readonly Random _random = new Random(12345); // 使用固定种子以确保测试可重现
 
     public UpstreamChuteAssignmentE2ETests(E2ETestFactory factory) : base(factory)
     {
         _orchestrator = Scope.ServiceProvider.GetRequiredService<ISortingOrchestrator>();
         _routePlanRepository = Scope.ServiceProvider.GetRequiredService<IRoutePlanRepository>();
+        _systemClock = Scope.ServiceProvider.GetRequiredService<ISystemClock>();
         SetupDefaultRouteConfiguration();
     }
 
@@ -93,7 +96,7 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
                             {
                                 ParcelId = pdm.ParcelId,
                                 ChuteId = assignedChuteId,
-                                AssignedAt = DateTimeOffset.Now
+                                AssignedAt = new DateTimeOffset(_systemClock.LocalNow)
                             };
                             Factory.MockRuleEngineClient.Raise(
                                 x => x.ChuteAssigned += null,
@@ -224,7 +227,7 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
         {
             ParcelId = parcelId,
             ChuteId = lateChuteId,
-            AssignedAt = DateTimeOffset.Now
+            AssignedAt = new DateTimeOffset(_systemClock.LocalNow)
         };
 
         Factory.MockRuleEngineClient.Raise(
