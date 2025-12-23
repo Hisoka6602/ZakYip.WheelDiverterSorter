@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Routing;
 using LiteDB;
 
 namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
@@ -56,6 +57,12 @@ public static class LiteDbMapperConfig
         mapper.Entity<WheelDiverterConfiguration>()
             .Id(x => x.Id);
         
+        // 配置 RoutePlan 实体（使用 ParcelId 作为主键）
+        // 忽略 DomainEvents 属性（这是内存中的领域事件，不需要持久化）
+        mapper.Entity<RoutePlan>()
+            .Id(x => x.ParcelId)
+            .Ignore(x => x.DomainEvents);
+        
         // WheelBindingsConfig removed - wheel binding now handled via topology + vendor config association
     }
 
@@ -83,8 +90,9 @@ public static class LiteDbMapperConfig
         var mapper = new BsonMapper();
         
         // 注意：IncludeNonPublic 在 .NET 9 + LiteDB 5.0.21 中可能导致序列化错误
-        // 暂时禁用，仅序列化公共成员
-        // mapper.IncludeNonPublic = true;
+        // 但是 RoutePlan 需要访问 private setters 才能反序列化
+        // 因此这里启用 IncludeNonPublic，但后续测试需要验证是否有问题
+        mapper.IncludeNonPublic = true;
         
         // 配置序列化行为
         mapper.SerializeNullValues = false;  // 不序列化 null 值
