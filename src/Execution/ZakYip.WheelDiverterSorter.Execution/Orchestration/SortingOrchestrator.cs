@@ -875,22 +875,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 等待上游推送格口分配（带动态超时）
         var tcs = new TaskCompletionSource<long>();
         
+        // 计算动态超时时间
+        var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
+        var timeoutMs = (int)(timeoutSeconds * 1000);
+        var startTime = _clock.LocalNow;
+        
         // PR-44: ConcurrentDictionary 索引器赋值是线程安全的
         _pendingAssignments[parcelId] = tcs;
+        
+        _logger.LogDebug(
+            "[格口分配-等待] 包裹 {ParcelId} 开始等待上游格口分配 | 超时限制={TimeoutMs}ms | 开始时间={StartTime:HH:mm:ss.fff}",
+            parcelId,
+            timeoutMs,
+            startTime);
 
         try
         {
-            // 计算动态超时时间
-            var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
-            var timeoutMs = (int)(timeoutSeconds * 1000);
-            
-            var startTime = _clock.LocalNow;
             using var cts = new CancellationTokenSource(timeoutMs);
             var targetChuteId = await tcs.Task.WaitAsync(cts.Token);
             var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
             
             _logger.LogInformation(
-                "包裹 {ParcelId} 从上游系统分配到格口 {ChuteId}（耗时 {ElapsedMs:F0}ms，超时限制 {TimeoutMs}ms）", 
+                "[格口分配-成功] 包裹 {ParcelId} 从上游系统分配到格口 {ChuteId} | 耗时={ElapsedMs:F0}ms | 超时限制={TimeoutMs}ms", 
                 parcelId, 
                 targetChuteId,
                 elapsedMs,
@@ -911,16 +917,38 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         catch (TimeoutException)
         {
+            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
+            _logger.LogWarning(
+                "[格口分配-超时] 包裹 {ParcelId} 等待上游格口分配超时 | 耗时={ElapsedMs:F0}ms | 超时限制={TimeoutMs}ms | 即将返回异常格口={ExceptionChuteId}",
+                parcelId,
+                elapsedMs,
+                timeoutMs,
+                exceptionChuteId);
+            
             return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Timeout");
         }
         catch (OperationCanceledException)
         {
+            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
+            _logger.LogWarning(
+                "[格口分配-取消] 包裹 {ParcelId} 等待上游格口分配被取消 | 耗时={ElapsedMs:F0}ms | 超时限制={TimeoutMs}ms | 即将返回异常格口={ExceptionChuteId}",
+                parcelId,
+                elapsedMs,
+                timeoutMs,
+                exceptionChuteId);
+            
             return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Cancelled");
         }
         finally
         {
             // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
-            _pendingAssignments.TryRemove(parcelId, out _);
+            // 注意：OnChuteAssignmentReceived可能已提前移除，导致此处返回false
+            var removed = _pendingAssignments.TryRemove(parcelId, out _);
+            _logger.LogDebug(
+                "[格口分配-清理] 包裹 {ParcelId} 的TaskCompletionSource清理完成 | " +
+                "从_pendingAssignments中移除={Removed}（false表示可能已在事件处理器中提前移除）",
+                parcelId,
+                removed);
         }
     }
 
@@ -1797,9 +1825,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private void OnChuteAssignmentReceived(object? sender, ChuteAssignmentEventArgs e)
     {
+        var receivedAt = _clock.LocalNow;
+        
+        _logger.LogInformation(
+            "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 接收时间={ReceivedAt:HH:mm:ss.fff}",
+            e.ParcelId,
+            e.ChuteId,
+            receivedAt);
+        
         // Invariant 2 - 上游响应必须匹配已存在的本地包裹
-        // ConcurrentDictionary.ContainsKey 是线程安全的
-        if (!_createdParcels.ContainsKey(e.ParcelId))
+        // 使用 TryGetValue 避免 ContainsKey + 索引器的重复查找
+        if (!_createdParcels.TryGetValue(e.ParcelId, out var parcelRecord))
         {
             _logger.LogError(
                 "[Invariant Violation] 收到未知包裹 {ParcelId} 的路由响应 (ChuteId={ChuteId})，" +
@@ -1810,9 +1846,60 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         // 记录上游响应接收时间
-        _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.LocalNow);
+        // 注意：对 ConcurrentDictionary 中对象的属性赋值不是原子操作
+        // 假设：每个包裹的格口分配通知只会收到一次，不会有并发修改同一包裹记录的情况
+        parcelRecord.UpstreamReplyReceivedAt = new DateTimeOffset(receivedAt);
         
-        // 更新 RoutePlan 中的目标格口（使用 SafeExecutionService 确保异常被正确处理）
+        // ⚠️ 关键修复：优先完成TaskCompletionSource，再异步更新RoutePlan
+        // 原代码问题：先异步执行UpdateRoutePlan，可能延迟TrySetResult调用
+        // 导致等待端超时，即使格口分配已及时到达
+        
+        if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
+        {
+            // 正常情况：在超时前收到响应，立即完成等待任务
+            _logger.LogInformation(
+                "[格口分配-完成] 包裹 {ParcelId} 成功分配到格口 {ChuteId}，立即完成等待任务",
+                e.ParcelId,
+                e.ChuteId);
+            
+            // 记录路由绑定时间
+            parcelRecord.RouteBoundAt = new DateTimeOffset(receivedAt);
+            
+            // 记录路由绑定完成的 Trace 日志
+            _logger.LogTrace(
+                "[Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
+                e.ParcelId,
+                e.ChuteId,
+                parcelRecord.CreatedAt,
+                parcelRecord.UpstreamRequestSentAt,
+                parcelRecord.UpstreamReplyReceivedAt,
+                parcelRecord.RouteBoundAt);
+            
+            // 立即完成TaskCompletionSource，解除GetChuteFromUpstreamAsync的等待
+            var taskCompleted = tcs.TrySetResult(e.ChuteId);
+            
+            _logger.LogDebug(
+                "[格口分配-TCS] 包裹 {ParcelId} 的TaskCompletionSource{Result}",
+                e.ParcelId,
+                taskCompleted ? "已成功设置结果" : "设置结果失败（可能已被取消或超时）");
+            
+            // 不在此处移除TCS，由GetChuteFromUpstreamAsync的finally块统一清理
+        }
+        else
+        {
+            // 迟到的响应：包裹已经超时并被路由到异常口
+            _logger.LogWarning(
+                "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
+                "但该包裹已因超时被路由到异常口（_pendingAssignments中未找到对应的TCS）。" +
+                "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}",
+                e.ParcelId,
+                e.ChuteId,
+                receivedAt);
+        }
+        
+        // 异步更新 RoutePlan 中的目标格口（不阻塞主流程）
+        // 使用 SafeExecutionService 确保异常被正确处理
         if (_safeExecutor != null)
         {
             _ = _safeExecutor.ExecuteAsync(
@@ -1837,41 +1924,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         e.ParcelId);
                 }
             });
-        }
-        
-        if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
-        {
-            // 正常情况：在超时前收到响应
-            _logger.LogDebug("收到包裹 {ParcelId} 的格口分配: {ChuteId}", e.ParcelId, e.ChuteId);
-            
-            // 记录路由绑定时间
-            _createdParcels[e.ParcelId].RouteBoundAt = new DateTimeOffset(_clock.LocalNow);
-            
-            // 记录路由绑定完成的 Trace 日志
-            _logger.LogTrace(
-                "[Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
-                "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
-                e.ParcelId,
-                e.ChuteId,
-                _createdParcels[e.ParcelId].CreatedAt,
-                _createdParcels[e.ParcelId].UpstreamRequestSentAt,
-                _createdParcels[e.ParcelId].UpstreamReplyReceivedAt,
-                _createdParcels[e.ParcelId].RouteBoundAt);
-            
-            tcs.TrySetResult(e.ChuteId);
-            // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
-            _pendingAssignments.TryRemove(e.ParcelId, out _);
-        }
-        else
-        {
-            // 迟到的响应：包裹已经超时并被路由到异常口
-            _logger.LogInformation(
-                "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
-                "但该包裹已因超时被路由到异常口，不再改变去向。" +
-                "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}",
-                e.ParcelId,
-                e.ChuteId,
-                _clock.LocalNow);
         }
     }
 
@@ -2253,27 +2305,61 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return;
         }
         
+        _logger.LogError(
+            "[生命周期-丢失] P{ParcelId} Pos{Position}丢失 延迟{DelayMs}ms 阈值{ThresholdMs}ms",
+            e.LostParcelId, 
+            e.DetectedAtPositionIndex,
+            e.DelayMs,
+            e.LostThresholdMs);
+        
+        // ⚠️ 关键修复：优先取消待处理的格口分配，再执行其他操作
+        // 原代码问题：CleanupParcelMemory在SafeExecutor异步回调的最后才执行，
+        // 可能导致上游格口分配到达时，TCS已被移除但其他清理操作尚未完成
+        
+        // 1. 立即取消待处理的格口分配（如果存在）
+        if (_pendingAssignments.TryRemove(e.LostParcelId, out var tcs))
+        {
+            // 尝试取消TCS（如果尚未完成）
+            bool wasCancelled = tcs.TrySetCanceled();
+            
+            if (wasCancelled)
+            {
+                _logger.LogWarning(
+                    "[包裹丢失-取消分配] 包裹 {ParcelId} 丢失，已取消待处理的格口分配请求",
+                    e.LostParcelId);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "[包裹丢失-取消分配] 包裹 {ParcelId} 丢失，发现TCS已完成，跳过取消操作",
+                    e.LostParcelId);
+            }
+        }
+        
+        // 2. 立即移除已创建的包裹记录，避免后续回调在已清理的实体上继续操作
+        // 这可以防止 OnChuteAssignmentReceived 在验证通过后尝试更新已删除的包裹记录
+        if (_createdParcels.TryRemove(e.LostParcelId, out _))
+        {
+            _logger.LogInformation(
+                "[包裹丢失-清理创建记录] 已从 _createdParcels 中移除包裹 {ParcelId} 的创建记录",
+                e.LostParcelId);
+        }
+        
+        // 3. 异步执行其他清理操作（不阻塞主流程）
         await _safeExecutor.ExecuteAsync(
             async () =>
             {
-                _logger.LogError(
-                    "[生命周期-丢失] P{ParcelId} Pos{Position}丢失 延迟{DelayMs}ms 阈值{ThresholdMs}ms",
-                    e.LostParcelId, 
-                    e.DetectedAtPositionIndex,
-                    e.DelayMs,
-                    e.LostThresholdMs);
-                
-                // 1. 从所有队列删除丢失包裹的任务
+                // 3. 从所有队列删除丢失包裹的任务
                 int removedTasks = 0;
                 if (_queueManager != null)
                 {
                     removedTasks = _queueManager.RemoveAllTasksForParcel(e.LostParcelId);
                     _logger.LogInformation(
-                        "[包裹丢失] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务",
+                        "[包裹丢失-清理队列] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务",
                         e.LostParcelId, removedTasks);
                 }
                 
-                // 2. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
+                // 4. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
                 List<long> affectedParcelIds = new List<long>();
                 if (_queueManager != null && e.ParcelCreatedAt.HasValue)
                 {
@@ -2292,10 +2378,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     }
                 }
                 
-                // 3. 上报丢失包裹到上游（包含受影响包裹信息）
+                // 5. 上报丢失包裹到上游（包含受影响包裹信息）
                 await NotifyUpstreamParcelLostAsync(e, affectedParcelIds);
                 
-                // 4. 记录指标
+                // 6. 记录指标
                 if (_metrics != null)
                 {
                     // 记录丢失包裹
@@ -2312,8 +2398,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     _statisticsService?.IncrementAffected(affectedParcelIds.Count);
                 }
                 
-                // 5. 清理丢失包裹的所有内存记录
-                CleanupParcelMemory(e.LostParcelId);
+                // 7. 清理丢失包裹的其他内存记录（_pendingAssignments和_createdParcels已在上面立即处理）
+                _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
+                _parcelPaths.TryRemove(e.LostParcelId, out _);
+                _timeoutCompensationInserted.TryRemove(e.LostParcelId, out _);
+                _intervalTracker?.ClearParcelTracking(e.LostParcelId);
+                
+                _logger.LogTrace(
+                    "[包裹丢失-内存清理] 已清理包裹 {ParcelId} 在内存中的其他痕迹（目标格口、路径、超时标记、位置追踪）",
+                    e.LostParcelId);
             },
             operationName: "HandleParcelLost",
             cancellationToken: CancellationToken.None);
