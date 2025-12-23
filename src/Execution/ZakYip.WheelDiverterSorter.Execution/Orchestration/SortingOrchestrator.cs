@@ -1243,12 +1243,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (task == null)
         {
             _logger.LogWarning(
-                "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId})",
+                "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId})" +
+                "【队列管理异常】这表示任务生成延迟/丢失/事件链路异常，而非包裹超时",
                 positionIndex, sensorId, boundWheelDiverterId);
             
             _metrics?.RecordSortingFailure(0);
             _alarmService?.RecordSortingFailure();
-            _statisticsService?.IncrementTimeout(); // 队列为空算作异常（超时）
+            // 🔧 修复：队列为空不是"超时"，而是系统异常（任务生成延迟/丢失/事件链路问题）
+            // 不应增加超时统计，避免虚假的超时指标干扰监控和告警判断
+            // _statisticsService?.IncrementTimeout(); // ❌ 已移除：队列为空 ≠ 超时
             return;
         }
         
