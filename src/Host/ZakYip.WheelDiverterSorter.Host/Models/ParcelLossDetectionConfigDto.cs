@@ -42,6 +42,20 @@ public record ParcelLossDetectionConfigDto
     public required int AutoClearMedianIntervalMs { get; init; }
     
     /// <summary>
+    /// 自动清空任务队列的时间间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 当超过此时间未创建新包裹时，自动清空所有 Position 的任务队列
+    /// 设置为 0 表示不自动清空
+    /// 默认值：30000ms (30秒)
+    /// 推荐范围：10000-600000ms (10秒-10分钟)
+    /// 
+    /// 注意：此功能用于处理长时间无包裹进入后的队列清理，避免旧任务影响新包裹分拣
+    /// </remarks>
+    /// <example>30000</example>
+    public required int AutoClearQueueIntervalMs { get; init; }
+    
+    /// <summary>
     /// 丢失检测系数
     /// </summary>
     /// <remarks>

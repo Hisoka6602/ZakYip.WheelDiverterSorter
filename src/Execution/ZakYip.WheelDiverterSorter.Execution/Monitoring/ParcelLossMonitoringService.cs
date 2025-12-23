@@ -105,6 +105,21 @@ public class ParcelLossMonitoringService : BackgroundService
                     _logger.LogInformation(
                         "[自动清空中位数] 中位数统计数据已自动清空");
                 }
+                
+                // 检查是否应该自动清空任务队列
+                if (_intervalTracker != null && 
+                    config.AutoClearQueueIntervalMs > 0 &&
+                    _intervalTracker.ShouldAutoClear(config.AutoClearQueueIntervalMs))
+                {
+                    _logger.LogWarning(
+                        "[自动清空队列] 检测到超过 {IntervalMs}ms 未创建新包裹，正在清空所有任务队列...",
+                        config.AutoClearQueueIntervalMs);
+                    
+                    _queueManager.ClearAllQueues();
+                    
+                    _logger.LogInformation(
+                        "[自动清空队列] 所有任务队列已自动清空");
+                }
             }
             catch (Exception ex)
             {

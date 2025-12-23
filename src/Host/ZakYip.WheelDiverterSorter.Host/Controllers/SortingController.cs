@@ -842,6 +842,7 @@ public class SortingController : ApiControllerBase
                 IsEnabled = config.IsEnabled,
                 MonitoringIntervalMs = config.MonitoringIntervalMs,
                 AutoClearMedianIntervalMs = config.AutoClearMedianIntervalMs,
+                AutoClearQueueIntervalMs = config.AutoClearQueueIntervalMs,
                 LostDetectionMultiplier = config.LostDetectionMultiplier,
                 TimeoutMultiplier = config.TimeoutMultiplier,
                 WindowSize = config.WindowSize
@@ -918,6 +919,7 @@ public class SortingController : ApiControllerBase
     ///   "isEnabled": true,
     ///   "monitoringIntervalMs": 60,
     ///   "autoClearMedianIntervalMs": 300000,
+    ///   "autoClearQueueIntervalMs": 30000,
     ///   "lostDetectionMultiplier": 2.0,
     ///   "timeoutMultiplier": 3.5,
     ///   "windowSize": 10
@@ -930,6 +932,7 @@ public class SortingController : ApiControllerBase
     ///   "isEnabled": true,
     ///   "monitoringIntervalMs": 60,
     ///   "autoClearMedianIntervalMs": 300000,
+    ///   "autoClearQueueIntervalMs": 30000,
     ///   "lostDetectionMultiplier": 2.0,
     ///   "timeoutMultiplier": 3.5,
     ///   "windowSize": 10
@@ -989,6 +992,12 @@ public class SortingController : ApiControllerBase
                 return BadRequest(new { message = "自动清空中位数间隔必须在0-3600000ms之间" });
             }
 
+            if (request.AutoClearQueueIntervalMs.HasValue &&
+                (request.AutoClearQueueIntervalMs.Value < 0 || request.AutoClearQueueIntervalMs.Value > 600000))
+            {
+                return BadRequest(new { message = "自动清空队列间隔必须在0-600000ms之间" });
+            }
+
             if (request.WindowSize.HasValue &&
                 (request.WindowSize.Value < 10 || request.WindowSize.Value > 10000))
             {
@@ -1024,6 +1033,11 @@ public class SortingController : ApiControllerBase
                 config.AutoClearMedianIntervalMs = request.AutoClearMedianIntervalMs.Value;
             }
             
+            if (request.AutoClearQueueIntervalMs.HasValue)
+            {
+                config.AutoClearQueueIntervalMs = request.AutoClearQueueIntervalMs.Value;
+            }
+            
             if (request.WindowSize.HasValue)
             {
                 config.WindowSize = request.WindowSize.Value;
@@ -1037,11 +1051,12 @@ public class SortingController : ApiControllerBase
             
             _logger.LogInformation(
                 "包裹丢失检测配置已更新: IsEnabled={IsEnabled}, MonitoringIntervalMs={MonitoringInterval}ms, " +
-                "AutoClearMedianIntervalMs={AutoClearInterval}ms, LostDetectionMultiplier={LostMultiplier}, " +
-                "TimeoutMultiplier={TimeoutMultiplier}, WindowSize={WindowSize}",
+                "AutoClearMedianIntervalMs={AutoClearMedianInterval}ms, AutoClearQueueIntervalMs={AutoClearQueueInterval}ms, " +
+                "LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}, WindowSize={WindowSize}",
                 config.IsEnabled,
                 config.MonitoringIntervalMs,
                 config.AutoClearMedianIntervalMs,
+                config.AutoClearQueueIntervalMs,
                 config.LostDetectionMultiplier,
                 config.TimeoutMultiplier,
                 config.WindowSize);
@@ -1052,6 +1067,7 @@ public class SortingController : ApiControllerBase
                 IsEnabled = config.IsEnabled,
                 MonitoringIntervalMs = config.MonitoringIntervalMs,
                 AutoClearMedianIntervalMs = config.AutoClearMedianIntervalMs,
+                AutoClearQueueIntervalMs = config.AutoClearQueueIntervalMs,
                 LostDetectionMultiplier = config.LostDetectionMultiplier,
                 TimeoutMultiplier = config.TimeoutMultiplier,
                 WindowSize = config.WindowSize
