@@ -163,7 +163,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         AlarmService? alarmService = null, // 告警服务（用于失败率统计）
         ISortingStatisticsService? statisticsService = null, // 分拣统计服务
         IRoutePlanRepository? routePlanRepository = null, // 路由计划仓储（用于保存格口分配）
-        object? upstreamServer = null) // 上游服务端（服务端模式，可选，类型为 IRuleEngineServer）
+        object? upstreamServer = null) // 上游服务端（服务端模式，可选）
+        /// <remarks>
+        /// upstreamServer 参数类型为 object 以避免 Execution 层直接引用 Communication 层（架构约束）。
+        /// 实际运行时类型应为 IRuleEngineServer。使用反射订阅 ChuteAssigned 事件。
+        /// 此架构约束是临时方案，未来应考虑：
+        /// 1. 在 Core 层定义共享的事件接口
+        /// 2. 使用适配器模式包装服务端为 IUpstreamRoutingClient
+        /// 3. 使用消息总线解耦事件订阅
+        /// </remarks>
     {
         _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
@@ -213,21 +221,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
         
         // 订阅服务端模式的格口分配事件（如果存在）
-        // upstreamServer 的实际类型是 IRuleEngineServer，但由于 Execution 层不能引用 Communication 层，
-        // 这里使用 object 类型，并通过反射订阅事件
+        // 注意：使用反射是临时方案，以避免 Execution 层引用 Communication 层（架构约束）
+        // 缺点：失去编译时类型安全，事件名称或签名变更会导致运行时静默失败
+        // 改进建议：将 ChuteAssigned 事件移至 Core 层的共享接口，或使用适配器模式
         if (_upstreamServer != null)
         {
-            var serverType = _upstreamServer.GetType();
-            var chuteAssignedEvent = serverType.GetEvent("ChuteAssigned");
-            if (chuteAssignedEvent != null)
-            {
-                var handlerDelegate = Delegate.CreateDelegate(
-                    chuteAssignedEvent.EventHandlerType!,
-                    this,
-                    typeof(SortingOrchestrator).GetMethod(nameof(OnChuteAssignmentReceived), 
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!);
-                chuteAssignedEvent.AddEventHandler(_upstreamServer, handlerDelegate);
-            }
+            SubscribeToChuteAssignedEvent(_upstreamServer, nameof(OnChuteAssignmentReceived));
         }
         
         // 订阅系统状态变更事件（用于自动清空队列）
@@ -1813,8 +1812,32 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 记录上游响应接收时间
         _createdParcels[e.ParcelId].UpstreamReplyReceivedAt = new DateTimeOffset(_clock.LocalNow);
         
-        // 更新 RoutePlan 中的目标格口（异步执行，不阻塞事件处理）
-        _ = UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+        // 更新 RoutePlan 中的目标格口（使用 SafeExecutionService 确保异常被正确处理）
+        if (_safeExecutor != null)
+        {
+            _ = _safeExecutor.ExecuteAsync(
+                async () => await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt),
+                operationName: $"UpdateRoutePlan-Parcel-{e.ParcelId}");
+        }
+        else
+        {
+            // 如果 SafeExecutor 不可用，直接执行但捕获异常
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(
+                        ex,
+                        "[{LocalTime}] 更新包裹 {ParcelId} 的路由计划时发生错误",
+                        _clock.LocalNow,
+                        e.ParcelId);
+                }
+            });
+        }
         
         if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
         {
@@ -1939,10 +1962,108 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
     #endregion
 
-    #region Helper Methods - 辅助方法
+    #region 服务端事件订阅辅助方法（反射）
 
     /// <summary>
-    /// 写入包裹追踪日志
+    /// 使用反射订阅服务端的 ChuteAssigned 事件
+    /// </summary>
+    /// <param name="server">服务端对象（实际类型为 IRuleEngineServer）</param>
+    /// <param name="handlerMethodName">事件处理方法名称</param>
+    /// <remarks>
+    /// 此方法使用反射以避免 Execution 层引用 Communication 层。
+    /// 缺点：失去编译时类型安全，事件名称或签名变更会导致运行时静默失败。
+    /// </remarks>
+    private void SubscribeToChuteAssignedEvent(object server, string handlerMethodName)
+    {
+        var serverType = server.GetType();
+        var chuteAssignedEvent = serverType.GetEvent("ChuteAssigned");
+        if (chuteAssignedEvent == null)
+        {
+            _logger.LogWarning(
+                "无法在服务端类型 {ServerType} 上找到 ChuteAssigned 事件",
+                serverType.FullName);
+            return;
+        }
+
+        var handlerMethodInfo = typeof(SortingOrchestrator).GetMethod(
+            handlerMethodName,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        if (handlerMethodInfo == null)
+        {
+            _logger.LogWarning(
+                "无法找到事件处理方法 {MethodName}",
+                handlerMethodName);
+            return;
+        }
+
+        try
+        {
+            var handlerDelegate = Delegate.CreateDelegate(
+                chuteAssignedEvent.EventHandlerType!,
+                this,
+                handlerMethodInfo);
+            chuteAssignedEvent.AddEventHandler(server, handlerDelegate);
+            
+            _logger.LogDebug(
+                "成功订阅服务端的 ChuteAssigned 事件，处理器={HandlerMethod}",
+                handlerMethodName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "订阅服务端 ChuteAssigned 事件失败，处理器={HandlerMethod}",
+                handlerMethodName);
+        }
+    }
+
+    /// <summary>
+    /// 使用反射取消订阅服务端的 ChuteAssigned 事件
+    /// </summary>
+    /// <param name="server">服务端对象（实际类型为 IRuleEngineServer）</param>
+    /// <param name="handlerMethodName">事件处理方法名称</param>
+    private void UnsubscribeFromChuteAssignedEvent(object server, string handlerMethodName)
+    {
+        var serverType = server.GetType();
+        var chuteAssignedEvent = serverType.GetEvent("ChuteAssigned");
+        if (chuteAssignedEvent == null)
+        {
+            return;
+        }
+
+        var handlerMethodInfo = typeof(SortingOrchestrator).GetMethod(
+            handlerMethodName,
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+        if (handlerMethodInfo == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var handlerDelegate = Delegate.CreateDelegate(
+                chuteAssignedEvent.EventHandlerType!,
+                this,
+                handlerMethodInfo);
+            chuteAssignedEvent.RemoveEventHandler(server, handlerDelegate);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "取消订阅服务端 ChuteAssigned 事件失败，处理器={HandlerMethod}",
+                handlerMethodName);
+        }
+    }
+
+    #endregion
+
+    #region RoutePlan 更新逻辑
+
+    /// <summary>
+    /// 更新 RoutePlan 中的目标格口
     /// </summary>
     private async ValueTask WriteTraceAsync(ParcelTraceEventArgs eventArgs)
     {
@@ -2078,17 +2199,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 取消订阅服务端模式的格口分配事件（如果存在）
         if (_upstreamServer != null)
         {
-            var serverType = _upstreamServer.GetType();
-            var chuteAssignedEvent = serverType.GetEvent("ChuteAssigned");
-            if (chuteAssignedEvent != null)
-            {
-                var handlerDelegate = Delegate.CreateDelegate(
-                    chuteAssignedEvent.EventHandlerType!,
-                    this,
-                    typeof(SortingOrchestrator).GetMethod(nameof(OnChuteAssignmentReceived),
-                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!);
-                chuteAssignedEvent.RemoveEventHandler(_upstreamServer, handlerDelegate);
-            }
+            UnsubscribeFromChuteAssignedEvent(_upstreamServer, nameof(OnChuteAssignmentReceived));
         }
         
         // 取消订阅系统状态变更事件

@@ -269,8 +269,7 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
                     };
                 }
 
-                // 触发格口分配事件（与客户端模式保持一致）
-                // SortingOrchestrator 订阅此事件并更新 RoutePlan
+                // 触发格口分配事件，SortingOrchestrator 订阅此事件并更新 RoutePlan
                 var eventArgs = new ChuteAssignmentEventArgs
                 {
                     ParcelId = notification.ParcelId,
