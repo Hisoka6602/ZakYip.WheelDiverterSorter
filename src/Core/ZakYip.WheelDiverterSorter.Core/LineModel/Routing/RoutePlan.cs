@@ -17,42 +17,42 @@ public class RoutePlan
     /// <summary>
     /// 包裹ID
     /// </summary>
-    public long ParcelId { get; private set; }
+    public long ParcelId { get; internal set; }
 
     /// <summary>
     /// 初始目标格口ID
     /// </summary>
-    public long InitialTargetChuteId { get; private set; }
+    public long InitialTargetChuteId { get; internal set; }
 
     /// <summary>
     /// 当前有效目标格口ID
     /// </summary>
-    public long CurrentTargetChuteId { get; private set; }
+    public long CurrentTargetChuteId { get; internal set; }
 
     /// <summary>
     /// 当前计划状态
     /// </summary>
-    public RoutePlanStatus Status { get; private set; }
+    public RoutePlanStatus Status { get; internal set; }
 
     /// <summary>
     /// 计划创建时间
     /// </summary>
-    public DateTimeOffset CreatedAt { get; private set; }
+    public DateTimeOffset CreatedAt { get; internal set; }
 
     /// <summary>
     /// 最后修改时间
     /// </summary>
-    public DateTimeOffset LastModifiedAt { get; private set; }
+    public DateTimeOffset LastModifiedAt { get; internal set; }
 
     /// <summary>
     /// 最后可改口时间（可选，用于时间窗口控制）
     /// </summary>
-    public DateTimeOffset? LastReplanDeadline { get; private set; }
+    public DateTimeOffset? LastReplanDeadline { get; internal set; }
 
     /// <summary>
     /// 已应用的改口次数
     /// </summary>
-    public int ChuteChangeCount { get; private set; }
+    public int ChuteChangeCount { get; internal set; }
 
     /// <summary>
     /// 领域事件集合（只读）
@@ -75,9 +75,13 @@ public class RoutePlan
     }
 
     /// <summary>
-    /// 私有构造函数（用于反序列化/重建）
+    /// 公共无参构造函数（用于LiteDB反序列化）
     /// </summary>
-    private RoutePlan()
+    /// <remarks>
+    /// 此构造函数仅供LiteDB序列化框架使用。
+    /// 应用代码应使用带参数的构造函数创建 RoutePlan 实例。
+    /// </remarks>
+    public RoutePlan()
     {
     }
 
