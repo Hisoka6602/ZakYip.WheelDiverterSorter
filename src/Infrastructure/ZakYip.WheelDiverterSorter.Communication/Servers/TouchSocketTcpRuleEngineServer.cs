@@ -55,7 +55,10 @@ public sealed class TouchSocketTcpRuleEngineServer : IRuleEngineServer
 
     public event EventHandler<ClientConnectionEventArgs>? ClientConnected;
     public event EventHandler<ClientConnectionEventArgs>? ClientDisconnected;
+    
+#pragma warning disable CS0067 // Event is never used - Legacy event, kept for interface compatibility
     public event EventHandler<ParcelNotificationReceivedEventArgs>? ParcelNotificationReceived;
+#pragma warning restore CS0067
 
     /// <summary>
     /// 获取所有已连接的客户端信息
