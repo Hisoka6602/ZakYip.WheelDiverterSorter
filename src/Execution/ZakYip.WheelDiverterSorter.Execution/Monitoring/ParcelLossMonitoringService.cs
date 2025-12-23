@@ -81,15 +81,13 @@ public class ParcelLossMonitoringService : BackgroundService
     {
         // 首先检查是否启用了包裹丢失检测
         // 如果配置仓储不存在或读取配置失败，默认禁用检测（安全策略）
-        bool isEnabled = false;
         if (_configRepository != null)
         {
             try
             {
                 var config = _configRepository.Get();
-                isEnabled = config.IsEnabled;
                 
-                if (!isEnabled)
+                if (!config.IsEnabled)
                 {
                     // 检测被禁用，直接返回，不执行任何检测或自动清空逻辑
                     return;

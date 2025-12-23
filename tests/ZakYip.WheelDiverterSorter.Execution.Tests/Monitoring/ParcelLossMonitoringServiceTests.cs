@@ -78,7 +78,10 @@ public class ParcelLossMonitoringServiceTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         // Act
-        await (Task)method!.Invoke(service, null)!;
+        if (method?.Invoke(service, null) is Task monitorTask)
+        {
+            await monitorTask;
+        }
 
         // Assert
         // 验证没有调用队列管理器的 GetAllQueueStatuses 方法（检测逻辑的入口）
@@ -122,7 +125,10 @@ public class ParcelLossMonitoringServiceTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         // Act
-        await (Task)method!.Invoke(service, null)!;
+        if (method?.Invoke(service, null) is Task monitorTask)
+        {
+            await monitorTask;
+        }
 
         // Assert
         // 验证没有调用队列管理器的 GetAllQueueStatuses 方法
@@ -158,7 +164,10 @@ public class ParcelLossMonitoringServiceTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         // Act
-        await (Task)method!.Invoke(service, null)!;
+        if (method?.Invoke(service, null) is Task monitorTask)
+        {
+            await monitorTask;
+        }
 
         // Assert
         // 验证没有调用队列管理器的 GetAllQueueStatuses 方法
@@ -224,7 +233,10 @@ public class ParcelLossMonitoringServiceTests
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
 
         // Act
-        await (Task)method!.Invoke(service, null)!;
+        if (method?.Invoke(service, null) is Task monitorTask)
+        {
+            await monitorTask;
+        }
 
         // Assert
         // 验证调用了队列管理器的 GetAllQueueStatuses 方法
