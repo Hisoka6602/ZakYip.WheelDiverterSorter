@@ -90,6 +90,21 @@ public class ParcelLossMonitoringService : BackgroundService
                     // 检测被禁用，直接返回
                     return;
                 }
+                
+                // 检查是否应该自动清空中位数统计数据
+                if (_intervalTracker != null && 
+                    config.AutoClearMedianIntervalMs > 0 &&
+                    _intervalTracker.ShouldAutoClear(config.AutoClearMedianIntervalMs))
+                {
+                    _logger.LogWarning(
+                        "[自动清空中位数] 检测到超过 {IntervalMs}ms 未创建新包裹，正在清空所有中位数统计数据...",
+                        config.AutoClearMedianIntervalMs);
+                    
+                    _intervalTracker.ClearAllStatistics();
+                    
+                    _logger.LogInformation(
+                        "[自动清空中位数] 中位数统计数据已自动清空");
+                }
             }
             catch (Exception ex)
             {

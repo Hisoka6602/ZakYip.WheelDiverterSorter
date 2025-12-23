@@ -31,6 +31,10 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     
     // 每个 position 的最后更新时间
     private readonly ConcurrentDictionary<int, DateTime> _lastUpdatedTimes;
+    
+    // 最后一次包裹记录时间
+    private DateTime? _lastParcelRecordTime;
+    private readonly object _lastRecordTimeLock = new();
 
     public PositionIntervalTracker(
         ISystemClock clock,
@@ -72,6 +76,12 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     /// <inheritdoc/>
     public void RecordParcelPosition(long parcelId, int positionIndex, DateTime arrivedAt)
     {
+        // 更新最后包裹记录时间
+        lock (_lastRecordTimeLock)
+        {
+            _lastParcelRecordTime = arrivedAt;
+        }
+        
         // 获取或创建该包裹的位置时间记录
         var positionTimes = _parcelPositionTimes.GetOrAdd(
             parcelId,
@@ -240,6 +250,38 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
             _logger.LogInformation(
                 "[位置追踪清理] 已清除包裹 {ParcelId} 的所有位置追踪记录",
                 parcelId);
+        }
+    }
+
+    /// <inheritdoc/>
+    public DateTime? GetLastParcelRecordTime()
+    {
+        lock (_lastRecordTimeLock)
+        {
+            return _lastParcelRecordTime;
+        }
+    }
+
+    /// <inheritdoc/>
+    public bool ShouldAutoClear(int autoClearIntervalMs)
+    {
+        // 如果设置为0，表示不自动清空
+        if (autoClearIntervalMs <= 0)
+        {
+            return false;
+        }
+
+        lock (_lastRecordTimeLock)
+        {
+            // 如果从未记录过包裹，不需要清空
+            if (!_lastParcelRecordTime.HasValue)
+            {
+                return false;
+            }
+
+            // 检查是否超过了自动清空间隔
+            var elapsed = (_clock.LocalNow - _lastParcelRecordTime.Value).TotalMilliseconds;
+            return elapsed >= autoClearIntervalMs;
         }
     }
 
