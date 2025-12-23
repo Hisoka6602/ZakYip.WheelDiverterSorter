@@ -19,6 +19,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -135,7 +136,9 @@ public static class CommunicationServiceExtensions
                 return ValidateOptions(options);
             };
             
-            return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock, serverBackgroundService);
+            var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
+            
+            return new UpstreamRoutingClientFactory(loggerFactory, optionsProvider, systemClock, safeExecutor, serverBackgroundService);
         });
 
         // PR-U1: 直接注册 IUpstreamRoutingClient（使用工厂创建，不再需要 Adapter）
