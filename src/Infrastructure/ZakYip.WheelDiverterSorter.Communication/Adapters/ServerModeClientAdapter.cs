@@ -24,6 +24,7 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
     private readonly ILogger<ServerModeClientAdapter> _logger;
     private readonly ISystemClock _systemClock;
     private bool _disposed;
+    private bool _eventSubscribed; // PR-UPSTREAM-SERVER-FIX: 跟踪事件订阅状态
 
     /// <summary>
     /// 构造函数
@@ -39,6 +40,35 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
         _serverBackgroundService = serverBackgroundService ?? throw new ArgumentNullException(nameof(serverBackgroundService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        
+        // PR-UPSTREAM-SERVER-FIX: 在构造函数中立即尝试订阅事件
+        // 关键修复：不等待 ConnectAsync 被调用（因为它可能永远不会被调用），主动订阅
+        // 使用后台任务轮询服务器是否就绪，一旦就绪立即订阅
+        _ = Task.Run(async () =>
+        {
+            // 等待服务器启动（最多等待30秒）
+            var maxWaitTime = TimeSpan.FromSeconds(30);
+            var startTime = DateTime.UtcNow;
+            
+            while (DateTime.UtcNow - startTime < maxWaitTime)
+            {
+                if (_serverBackgroundService.CurrentServer?.IsRunning == true)
+                {
+                    EnsureServerEventSubscription();
+                    _logger.LogInformation(
+                        "[{LocalTime}] [服务端模式-适配器-自动订阅] 服务器已就绪，已自动订阅 ChuteAssigned 事件",
+                        _systemClock.LocalNow);
+                    return;
+                }
+                
+                await Task.Delay(500); // 每500ms检查一次
+            }
+            
+            _logger.LogWarning(
+                "[{LocalTime}] [服务端模式-适配器-自动订阅] 等待服务器启动超时（{MaxWaitSeconds}秒），事件订阅将在首次调用时完成",
+                _systemClock.LocalNow,
+                maxWaitTime.TotalSeconds);
+        });
     }
     
     /// <summary>
@@ -50,13 +80,23 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
         var server = _serverBackgroundService.CurrentServer;
         if (server == null)
             return;
+        
+        // 如果已经订阅过，跳过（避免重复订阅）    
+        if (_eventSubscribed)
+        {
+            _logger.LogDebug(
+                "[{LocalTime}] [服务端模式-适配器] 已经订阅过 ChuteAssigned 事件，跳过重复订阅",
+                _systemClock.LocalNow);
+            return;
+        }
             
         // 订阅服务器的 ChuteAssigned 事件（先取消订阅再重新订阅，避免重复订阅）
         server.ChuteAssigned -= OnServerChuteAssigned;
         server.ChuteAssigned += OnServerChuteAssigned;
+        _eventSubscribed = true;
         
-        _logger.LogDebug(
-            "[{LocalTime}] [服务端模式-适配器] 已订阅服务器的 ChuteAssigned 事件",
+        _logger.LogInformation(
+            "[{LocalTime}] [服务端模式-适配器] ✅ 已订阅服务器的 ChuteAssigned 事件",
             _systemClock.LocalNow);
     }
     
@@ -195,6 +235,9 @@ public sealed class ServerModeClientAdapter : IUpstreamRoutingClient
         CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        
+        // PR-UPSTREAM-SERVER-FIX: 确保每次发送前都已订阅事件（防御性编程）
+        EnsureServerEventSubscription();
 
         try
         {
