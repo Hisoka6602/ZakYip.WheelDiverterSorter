@@ -1897,27 +1897,56 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     taskCompleted ? "已成功设置结果" : "设置结果失败（可能已被取消或超时）");
                 
                 // 在后台异步更新 RoutePlan（不阻塞主流程）
-                // 使用 Task.Run 将数据库操作移到后台线程池执行
-                _ = Task.Run(async () =>
+                // 使用 SafeExecutionService 将数据库操作移到后台执行
+                if (_safeExecutor != null)
                 {
-                    try
+                    _ = _safeExecutor.ExecuteAsync(
+                        async () =>
+                        {
+                            try
+                            {
+                                await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                                
+                                _logger.LogDebug(
+                                    "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
+                                    e.ParcelId,
+                                    e.ChuteId);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(
+                                    ex,
+                                    "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                    e.ParcelId,
+                                    e.ChuteId);
+                            }
+                        },
+                        operationName: "SortingOrchestrator.OnChuteAssignmentReceived_RoutePlanUpdate");
+                }
+                else
+                {
+                    // 降级：如果 SafeExecutionService 不可用，使用 Task.Run
+                    _ = Task.Run(async () =>
                     {
-                        await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
-                        
-                        _logger.LogDebug(
-                            "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
-                            e.ParcelId,
-                            e.ChuteId);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
-                            e.ParcelId,
-                            e.ChuteId);
-                    }
-                });
+                        try
+                        {
+                            await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                            
+                            _logger.LogDebug(
+                                "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
+                                e.ParcelId,
+                                e.ChuteId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(
+                                ex,
+                                "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                e.ParcelId,
+                                e.ChuteId);
+                        }
+                    });
+                }
                 
                 // 不在此处移除TCS，由GetChuteFromUpstreamAsync的finally块统一清理
             }
@@ -1933,26 +1962,56 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     receivedAt);
                 
                 // 即使迟到，仍然在后台更新 RoutePlan 以保留正确的历史记录
-                _ = Task.Run(async () =>
+                // 使用 SafeExecutionService 包裹后台任务
+                if (_safeExecutor != null)
                 {
-                    try
+                    _ = _safeExecutor.ExecuteAsync(
+                        async () =>
+                        {
+                            try
+                            {
+                                await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                                
+                                _logger.LogDebug(
+                                    "[迟到响应-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
+                                    e.ParcelId,
+                                    e.ChuteId);
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(
+                                    ex,
+                                    "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                    e.ParcelId,
+                                    e.ChuteId);
+                            }
+                        },
+                        operationName: "SortingOrchestrator.OnChuteAssignmentReceived_LateRoutePlanUpdate");
+                }
+                else
+                {
+                    // 降级：如果 SafeExecutionService 不可用，使用 Task.Run
+                    _ = Task.Run(async () =>
                     {
-                        await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
-                        
-                        _logger.LogDebug(
-                            "[迟到响应-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
-                            e.ParcelId,
-                            e.ChuteId);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(
-                            ex,
-                            "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
-                            e.ParcelId,
-                            e.ChuteId);
-                    }
-                });
+                        try
+                        {
+                            await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                            
+                            _logger.LogDebug(
+                                "[迟到响应-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
+                                e.ParcelId,
+                                e.ChuteId);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(
+                                ex,
+                                "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                e.ParcelId,
+                                e.ChuteId);
+                        }
+                    });
+                }
             }
         }
         catch (Exception ex)

@@ -8,6 +8,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Communication;
 
@@ -34,6 +35,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     private readonly Func<UpstreamConnectionOptions> _optionsProvider;
     private readonly ISystemClock _systemClock;
     private readonly UpstreamServerBackgroundService? _serverBackgroundService;
+    private readonly ISafeExecutionService _safeExecutor;
 
     /// <summary>
     /// 构造函数
@@ -41,19 +43,23 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
     /// <param name="loggerFactory">日志工厂</param>
     /// <param name="optionsProvider">配置提供者（支持动态获取最新配置）</param>
     /// <param name="systemClock">系统时钟</param>
+    /// <param name="safeExecutor">安全执行服务</param>
     /// <param name="serverBackgroundService">服务器后台服务（Server模式下使用）</param>
     /// <remarks>
     /// PR-DUAL-INSTANCE-FIX: 添加 serverBackgroundService 参数，用于 Server 模式下引用统一的服务器实例
+    /// PR-UPSTREAM-SERVER-FIX: 添加 safeExecutor 参数，用于 ServerModeClientAdapter 的安全执行服务
     /// </remarks>
     public UpstreamRoutingClientFactory(
         ILoggerFactory loggerFactory,
         Func<UpstreamConnectionOptions> optionsProvider,
         ISystemClock systemClock,
+        ISafeExecutionService safeExecutor,
         UpstreamServerBackgroundService? serverBackgroundService = null)
     {
         _loggerFactory = loggerFactory ?? throw new ArgumentNullException(nameof(loggerFactory));
         _optionsProvider = optionsProvider ?? throw new ArgumentNullException(nameof(optionsProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _serverBackgroundService = serverBackgroundService;
     }
 
@@ -174,6 +180,7 @@ public class UpstreamRoutingClientFactory : IUpstreamRoutingClientFactory
         return new Adapters.ServerModeClientAdapter(
             _serverBackgroundService,
             _loggerFactory.CreateLogger<Adapters.ServerModeClientAdapter>(),
-            _systemClock);
+            _systemClock,
+            _safeExecutor);
     }
 }
