@@ -1852,35 +1852,25 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 假设：每个包裹的格口分配通知只会收到一次，不会有并发修改同一包裹记录的情况
             parcelRecord.UpstreamReplyReceivedAt = new DateTimeOffset(receivedAt);
             
-            // ⚠️ 关键修复：先同步更新RoutePlan，再完成TaskCompletionSource
-            // 修复问题：之前是异步更新RoutePlan，导致队列任务生成时可能读取到过期的RoutePlan
-            // 新逻辑：确保RoutePlan保存完成后，再通知等待端，保证数据一致性
-            
-            // 先同步更新 RoutePlan 中的目标格口
-            try
-            {
-                await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
-                
-                _logger.LogDebug(
-                    "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
-                    e.ParcelId,
-                    e.ChuteId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(
-                    ex,
-                    "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})，但仍会继续完成TCS",
-                    e.ParcelId,
-                    e.ChuteId);
-                // 即使更新失败，仍然继续完成TCS，避免阻塞主流程
-            }
+            // ⚠️ 关键修复（PR-UPSTREAM-TIMEOUT-FIX）：先完成TCS解除超时等待，再异步更新RoutePlan
+            // 问题根因：UpdateRoutePlanWithChuteAssignmentAsync 包含数据库操作，如果耗时超过剩余超时时间，
+            //         会导致超时处理器在 TCS 完成前触发，将包裹路由到异常格口。
+            // 
+            // 修复策略：
+            // 1. 立即完成 TCS，解除 GetChuteFromUpstreamAsync 的等待，防止超时
+            // 2. 在后台异步更新 RoutePlan，不阻塞主流程
+            // 3. 即使 RoutePlan 更新失败，包裹仍能正常分拣（格口已通过TCS传递）
+            //
+            // 时序保证：
+            // - 步骤3"确定目标格口"已经从上游获取到 chuteId（通过TCS）
+            // - 步骤5"生成队列任务"使用该 chuteId 生成路径和任务
+            // - RoutePlan 主要用于历史记录和追溯，不是分拣流程的关键路径
             
             if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
             {
-                // 正常情况：在超时前收到响应，RoutePlan已更新，现在完成等待任务
+                // 正常情况：在超时前收到响应，立即完成等待任务
                 _logger.LogInformation(
-                    "[格口分配-完成] 包裹 {ParcelId} 成功分配到格口 {ChuteId}，RoutePlan已更新，现在完成等待任务",
+                    "[格口分配-接收成功] 包裹 {ParcelId} 成功分配到格口 {ChuteId}，立即完成TCS解除超时等待",
                     e.ParcelId,
                     e.ChuteId);
                 
@@ -1898,13 +1888,36 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelRecord.UpstreamReplyReceivedAt,
                     parcelRecord.RouteBoundAt);
                 
-                // 完成TaskCompletionSource，解除GetChuteFromUpstreamAsync的等待
+                // ⚠️ 关键：立即完成TCS，解除GetChuteFromUpstreamAsync的超时等待
                 var taskCompleted = tcs.TrySetResult(e.ChuteId);
                 
                 _logger.LogDebug(
-                    "[格口分配-TCS] 包裹 {ParcelId} 的TaskCompletionSource{Result}",
+                    "[格口分配-TCS完成] 包裹 {ParcelId} 的TaskCompletionSource{Result}",
                     e.ParcelId,
                     taskCompleted ? "已成功设置结果" : "设置结果失败（可能已被取消或超时）");
+                
+                // 在后台异步更新 RoutePlan（不阻塞主流程）
+                // 使用 Task.Run 将数据库操作移到后台线程池执行
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                        
+                        _logger.LogDebug(
+                            "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
+                            e.ParcelId,
+                            e.ChuteId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                            e.ParcelId,
+                            e.ChuteId);
+                    }
+                });
                 
                 // 不在此处移除TCS，由GetChuteFromUpstreamAsync的finally块统一清理
             }
@@ -1914,10 +1927,32 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 _logger.LogWarning(
                     "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
                     "但该包裹已因超时被路由到异常口（_pendingAssignments中未找到对应的TCS）。" +
-                    "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}，RoutePlan已更新但不影响当前分拣结果",
+                    "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}，将在后台更新RoutePlan记录正确的目标格口",
                     e.ParcelId,
                     e.ChuteId,
                     receivedAt);
+                
+                // 即使迟到，仍然在后台更新 RoutePlan 以保留正确的历史记录
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                        
+                        _logger.LogDebug(
+                            "[迟到响应-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
+                            e.ParcelId,
+                            e.ChuteId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(
+                            ex,
+                            "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                            e.ParcelId,
+                            e.ChuteId);
+                    }
+                });
             }
         }
         catch (Exception ex)
