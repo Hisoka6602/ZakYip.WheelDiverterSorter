@@ -1736,6 +1736,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     e.OldState,
                     e.NewState);
             }
+            
+            // 需求1: 清空中位数统计数据
+            if (_intervalTracker != null)
+            {
+                _logger.LogWarning(
+                    "[中位数清理] 系统状态转换到 {NewState}，正在清空所有 Position 的中位数统计数据...",
+                    e.NewState);
+
+                _intervalTracker.ClearAllStatistics();
+
+                _logger.LogInformation(
+                    "[中位数清理] 中位数统计数据清空完成，状态: {OldState} -> {NewState}",
+                    e.OldState,
+                    e.NewState);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "[中位数清理] 检测到应清空统计数据的状态转换 ({OldState} -> {NewState})，但 IntervalTracker 未注入",
+                    e.OldState,
+                    e.NewState);
+            }
         }
         else
         {

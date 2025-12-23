@@ -6,6 +6,18 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 public record ParcelLossDetectionConfigDto
 {
     /// <summary>
+    /// 是否启用包裹丢失检测
+    /// </summary>
+    /// <remarks>
+    /// 控制整个包裹丢失检测功能的开关
+    /// - true: 启用丢失检测和超时检测
+    /// - false: 关闭所有检测，包裹不会因超时或丢失而被移除
+    /// 默认值：true
+    /// </remarks>
+    /// <example>true</example>
+    public required bool IsEnabled { get; init; }
+    
+    /// <summary>
     /// 监控间隔（毫秒）
     /// </summary>
     /// <remarks>
@@ -16,6 +28,18 @@ public record ParcelLossDetectionConfigDto
     /// </remarks>
     /// <example>60</example>
     public required int MonitoringIntervalMs { get; init; }
+    
+    /// <summary>
+    /// 自动清空中位数数据的时间间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 当超过此时间未创建新包裹时，自动清空所有 Position 的中位数统计数据
+    /// 设置为 0 表示不自动清空
+    /// 默认值：300000ms (5分钟)
+    /// 推荐范围：60000-600000ms (1-10分钟)
+    /// </remarks>
+    /// <example>300000</example>
+    public required int AutoClearMedianIntervalMs { get; init; }
     
     /// <summary>
     /// 丢失检测系数
@@ -44,7 +68,7 @@ public record ParcelLossDetectionConfigDto
     /// </summary>
     /// <remarks>
     /// 默认值：10
-    /// 推荐范围：10-20
+    /// 推荐范围：10-10000（新增：支持大窗口）
     /// </remarks>
     /// <example>10</example>
     public required int WindowSize { get; init; }
