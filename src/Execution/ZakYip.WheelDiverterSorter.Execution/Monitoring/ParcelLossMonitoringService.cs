@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Events.Queue;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
 using ZakYip.WheelDiverterSorter.Execution.Tracking;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -24,6 +25,7 @@ public class ParcelLossMonitoringService : BackgroundService
 {
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IPositionIntervalTracker? _intervalTracker;
+    private readonly IParcelLossDetectionConfigurationRepository? _configRepository;
     private readonly ISystemClock _clock;
     private readonly ILogger<ParcelLossMonitoringService> _logger;
     private readonly ISafeExecutionService _safeExecutor;
@@ -43,7 +45,8 @@ public class ParcelLossMonitoringService : BackgroundService
         ILogger<ParcelLossMonitoringService> logger,
         ISafeExecutionService safeExecutor,
         IOptions<PositionIntervalTrackerOptions> trackerOptions,
-        IPositionIntervalTracker? intervalTracker = null)
+        IPositionIntervalTracker? intervalTracker = null,
+        IParcelLossDetectionConfigurationRepository? configRepository = null)
     {
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -51,6 +54,7 @@ public class ParcelLossMonitoringService : BackgroundService
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _trackerOptions = trackerOptions?.Value ?? new PositionIntervalTrackerOptions();
         _intervalTracker = intervalTracker;
+        _configRepository = configRepository;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -75,6 +79,39 @@ public class ParcelLossMonitoringService : BackgroundService
 
     private async Task MonitorQueuesForLostParcels()
     {
+        // 检查是否启用了包裹丢失检测
+        if (_configRepository != null)
+        {
+            try
+            {
+                var config = _configRepository.Get();
+                if (!config.IsEnabled)
+                {
+                    // 检测被禁用，直接返回
+                    return;
+                }
+                
+                // 检查是否应该自动清空中位数统计数据
+                if (_intervalTracker != null && 
+                    config.AutoClearMedianIntervalMs > 0 &&
+                    _intervalTracker.ShouldAutoClear(config.AutoClearMedianIntervalMs))
+                {
+                    _logger.LogWarning(
+                        "[自动清空中位数] 检测到超过 {IntervalMs}ms 未创建新包裹，正在清空所有中位数统计数据...",
+                        config.AutoClearMedianIntervalMs);
+                    
+                    _intervalTracker.ClearAllStatistics();
+                    
+                    _logger.LogInformation(
+                        "[自动清空中位数] 中位数统计数据已自动清空");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "读取包裹丢失检测配置失败，将继续执行检测");
+            }
+        }
+        
         var currentTime = _clock.LocalNow;
         var allStatuses = _queueManager.GetAllQueueStatuses();
         

@@ -839,7 +839,9 @@ public class SortingController : ApiControllerBase
             
             var response = new ParcelLossDetectionConfigDto
             {
+                IsEnabled = config.IsEnabled,
                 MonitoringIntervalMs = config.MonitoringIntervalMs,
+                AutoClearMedianIntervalMs = config.AutoClearMedianIntervalMs,
                 LostDetectionMultiplier = config.LostDetectionMultiplier,
                 TimeoutMultiplier = config.TimeoutMultiplier,
                 WindowSize = config.WindowSize
@@ -865,11 +867,26 @@ public class SortingController : ApiControllerBase
     /// <remarks>
     /// 更新包裹丢失检测的配置参数。修改后立即生效。
     /// 
+    /// **启用开关 (IsEnabled)**：
+    /// - 可选参数
+    /// - 控制整个包裹丢失检测功能的开关
+    /// - true: 启用丢失检测和超时检测
+    /// - false: 关闭所有检测，包裹不会因超时或丢失而被移除
+    /// - 如不提供则保持当前值不变
+    /// 
     /// **监控间隔 (MonitoringIntervalMs)**：
     /// - 可选参数
     /// - 取值范围：50-1000ms
     /// - 包裹丢失监控服务扫描队列的时间间隔
     /// - 默认值：60ms
+    /// - 如不提供则保持当前值不变
+    /// 
+    /// **自动清空中位数间隔 (AutoClearMedianIntervalMs)**：
+    /// - 可选参数
+    /// - 取值范围：0-3600000ms (0-60分钟)
+    /// - 当超过此时间未创建新包裹时，自动清空所有 Position 的中位数统计数据
+    /// - 设置为 0 表示不自动清空
+    /// - 默认值：300000ms (5分钟)
     /// - 如不提供则保持当前值不变
     /// 
     /// **丢失检测系数 (LostDetectionMultiplier)**：
@@ -884,6 +901,12 @@ public class SortingController : ApiControllerBase
     /// - 取值范围：1.5-10.0
     /// - 如不提供则保持当前值不变
     /// 
+    /// **历史窗口大小 (WindowSize)**：
+    /// - 可选参数
+    /// - 取值范围：10-10000
+    /// - 保留最近N个间隔样本用于计算中位数
+    /// - 如不提供则保持当前值不变
+    /// 
     /// **部分更新支持**：
     /// - 所有字段均为可选，仅更新提供的字段
     /// - 未提供的字段保持当前值不变
@@ -892,16 +915,21 @@ public class SortingController : ApiControllerBase
     /// **示例请求**：
     /// ```json
     /// {
+    ///   "isEnabled": true,
     ///   "monitoringIntervalMs": 60,
+    ///   "autoClearMedianIntervalMs": 300000,
     ///   "lostDetectionMultiplier": 2.0,
-    ///   "timeoutMultiplier": 3.5
+    ///   "timeoutMultiplier": 3.5,
+    ///   "windowSize": 10
     /// }
     /// ```
     /// 
     /// **示例响应**：
     /// ```json
     /// {
+    ///   "isEnabled": true,
     ///   "monitoringIntervalMs": 60,
+    ///   "autoClearMedianIntervalMs": 300000,
     ///   "lostDetectionMultiplier": 2.0,
     ///   "timeoutMultiplier": 3.5,
     ///   "windowSize": 10
@@ -916,7 +944,7 @@ public class SortingController : ApiControllerBase
     [HttpPost("loss-detection-config")]
     [SwaggerOperation(
         Summary = "更新包裹丢失检测配置",
-        Description = "修改包裹丢失检测的配置参数，包括丢失检测系数和超时检测系数。修改后立即生效。",
+        Description = "修改包裹丢失检测的配置参数，包括启用开关、丢失检测系数、超时检测系数等。修改后立即生效。",
         OperationId = "UpdateParcelLossDetectionConfig",
         Tags = new[] { "分拣管理" }
     )]
@@ -955,10 +983,27 @@ public class SortingController : ApiControllerBase
                 return BadRequest(new { message = "监控间隔必须在50-1000ms之间" });
             }
 
+            if (request.AutoClearMedianIntervalMs.HasValue &&
+                (request.AutoClearMedianIntervalMs.Value < 0 || request.AutoClearMedianIntervalMs.Value > 3600000))
+            {
+                return BadRequest(new { message = "自动清空中位数间隔必须在0-3600000ms之间" });
+            }
+
+            if (request.WindowSize.HasValue &&
+                (request.WindowSize.Value < 10 || request.WindowSize.Value > 10000))
+            {
+                return BadRequest(new { message = "历史窗口大小必须在10-10000之间" });
+            }
+
             // 获取当前配置
             var config = _lossDetectionConfigRepository.Get();
             
             // 更新配置值（仅更新提供的字段）
+            if (request.IsEnabled.HasValue)
+            {
+                config.IsEnabled = request.IsEnabled.Value;
+            }
+            
             if (request.LostDetectionMultiplier.HasValue)
             {
                 config.LostDetectionMultiplier = request.LostDetectionMultiplier.Value;
@@ -974,6 +1019,16 @@ public class SortingController : ApiControllerBase
                 config.MonitoringIntervalMs = request.MonitoringIntervalMs.Value;
             }
             
+            if (request.AutoClearMedianIntervalMs.HasValue)
+            {
+                config.AutoClearMedianIntervalMs = request.AutoClearMedianIntervalMs.Value;
+            }
+            
+            if (request.WindowSize.HasValue)
+            {
+                config.WindowSize = request.WindowSize.Value;
+            }
+            
             // 设置更新时间
             config.UpdatedAt = _clock.LocalNow;
             
@@ -981,15 +1036,22 @@ public class SortingController : ApiControllerBase
             _lossDetectionConfigRepository.Update(config);
             
             _logger.LogInformation(
-                "包裹丢失检测配置已更新: MonitoringIntervalMs={MonitoringInterval}ms, LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}",
+                "包裹丢失检测配置已更新: IsEnabled={IsEnabled}, MonitoringIntervalMs={MonitoringInterval}ms, " +
+                "AutoClearMedianIntervalMs={AutoClearInterval}ms, LostDetectionMultiplier={LostMultiplier}, " +
+                "TimeoutMultiplier={TimeoutMultiplier}, WindowSize={WindowSize}",
+                config.IsEnabled,
                 config.MonitoringIntervalMs,
+                config.AutoClearMedianIntervalMs,
                 config.LostDetectionMultiplier,
-                config.TimeoutMultiplier);
+                config.TimeoutMultiplier,
+                config.WindowSize);
             
             // 返回更新后的配置
             var response = new ParcelLossDetectionConfigDto
             {
+                IsEnabled = config.IsEnabled,
                 MonitoringIntervalMs = config.MonitoringIntervalMs,
+                AutoClearMedianIntervalMs = config.AutoClearMedianIntervalMs,
                 LostDetectionMultiplier = config.LostDetectionMultiplier,
                 TimeoutMultiplier = config.TimeoutMultiplier,
                 WindowSize = config.WindowSize

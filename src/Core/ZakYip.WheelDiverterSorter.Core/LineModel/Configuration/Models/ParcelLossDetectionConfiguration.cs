@@ -22,6 +22,17 @@ public class ParcelLossDetectionConfiguration
     public string ConfigName { get; set; } = "parcel-loss-detection";
 
     /// <summary>
+    /// 是否启用包裹丢失检测
+    /// </summary>
+    /// <remarks>
+    /// 控制整个包裹丢失检测功能的开关
+    /// - true: 启用丢失检测和超时检测
+    /// - false: 关闭所有检测，包裹不会因超时或丢失而被移除
+    /// 默认值：true
+    /// </remarks>
+    public bool IsEnabled { get; set; } = true;
+
+    /// <summary>
     /// 监控间隔（毫秒）
     /// </summary>
     /// <remarks>
@@ -30,6 +41,17 @@ public class ParcelLossDetectionConfiguration
     /// 推荐范围：50-500ms
     /// </remarks>
     public int MonitoringIntervalMs { get; set; } = 60;
+
+    /// <summary>
+    /// 自动清空中位数数据的时间间隔（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 当超过此时间未创建新包裹时，自动清空所有 Position 的中位数统计数据
+    /// 设置为 0 表示不自动清空
+    /// 默认值：300000ms (5分钟)
+    /// 推荐范围：60000-600000ms (1-10分钟)
+    /// </remarks>
+    public int AutoClearMedianIntervalMs { get; set; } = 300000;
 
     /// <summary>
     /// 丢失检测系数
@@ -84,7 +106,9 @@ public class ParcelLossDetectionConfiguration
         return new ParcelLossDetectionConfiguration
         {
             ConfigName = "parcel-loss-detection",
+            IsEnabled = true,
             MonitoringIntervalMs = 60,
+            AutoClearMedianIntervalMs = 300000,
             LostDetectionMultiplier = 1.5,
             TimeoutMultiplier = 3.0,
             WindowSize = 10,

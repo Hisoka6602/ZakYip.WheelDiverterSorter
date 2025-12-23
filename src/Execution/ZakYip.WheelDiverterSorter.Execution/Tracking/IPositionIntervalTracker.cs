@@ -77,4 +77,17 @@ public interface IPositionIntervalTracker
     /// 当包裹完成分拣或检测到丢失时调用，防止残留数据影响后续包裹
     /// </remarks>
     void ClearParcelTracking(long parcelId);
+    
+    /// <summary>
+    /// 获取最后一次包裹记录时间
+    /// </summary>
+    /// <returns>最后一次记录包裹位置的时间，如果从未记录则返回 null</returns>
+    DateTime? GetLastParcelRecordTime();
+    
+    /// <summary>
+    /// 检查是否应该自动清空统计数据
+    /// </summary>
+    /// <param name="autoClearIntervalMs">自动清空间隔（毫秒），0表示不自动清空</param>
+    /// <returns>如果应该清空返回 true，否则返回 false</returns>
+    bool ShouldAutoClear(int autoClearIntervalMs);
 }
