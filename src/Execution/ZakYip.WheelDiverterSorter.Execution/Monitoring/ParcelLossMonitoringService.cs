@@ -108,12 +108,12 @@ public class ParcelLossMonitoringService : BackgroundService
                 
                 // 检查是否应该自动清空任务队列
                 if (_intervalTracker != null && 
-                    config.AutoClearQueueIntervalMs > 0 &&
-                    _intervalTracker.ShouldAutoClear(config.AutoClearQueueIntervalMs))
+                    config.AutoClearQueueIntervalSeconds > 0 &&
+                    _intervalTracker.ShouldAutoClear(config.AutoClearQueueIntervalSeconds * 1000))
                 {
                     _logger.LogWarning(
-                        "[自动清空队列] 检测到超过 {IntervalMs}ms 未创建新包裹，正在清空所有任务队列...",
-                        config.AutoClearQueueIntervalMs);
+                        "[自动清空队列] 检测到超过 {IntervalSeconds}秒 未创建新包裹，正在清空所有任务队列...",
+                        config.AutoClearQueueIntervalSeconds);
                     
                     _queueManager.ClearAllQueues();
                     
