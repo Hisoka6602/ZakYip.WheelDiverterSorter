@@ -183,7 +183,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         
         var sensorType = GetSensorType(sensorEvent.SensorId);
         
-        // 修复 TD-XXX: 拦截未知传感器，防止虚假包裹流
+        // 拦截未知传感器，防止虚假包裹流
         if (sensorType == SensorIoType.Unknown)
         {
             _logger?.LogWarning(
@@ -288,10 +288,15 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="sensorId">传感器ID</param>
     /// <returns>传感器类型</returns>
     /// <remarks>
-    /// 修复 TD-XXX: 未知传感器不再默认为 ParcelCreation，防止虚假包裹流。
+    /// 未知传感器不再默认为 ParcelCreation，防止虚假包裹流。
     /// - 仓储未注入时：默认 ParcelCreation（向后兼容）
     /// - 配置未找到时：返回 Unknown（阻止创建）
+    /// - 传感器已禁用时：返回 Unknown（阻止创建）
     /// - 异常时：返回 Unknown（阻止创建）
+    /// 
+    /// 日志级别说明：
+    /// - 未配置的传感器使用 LogError：表示配置错误，需要立即修正
+    /// - 已禁用的传感器使用 LogWarning：表示正常的配置状态，仅提醒
     /// </remarks>
     private SensorIoType GetSensorType(long sensorId)
     {
@@ -312,7 +317,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
             if (sensor == null)
             {
-                // 修复：未配置的传感器视为不可用，防止虚假包裹流
+                // 未配置的传感器视为配置错误，使用 LogError
                 _logger?.LogError(
                     "传感器 {SensorId} 未在配置中找到，拒绝创建包裹（Unknown 类型）。请检查传感器配置。",
                     sensorId);
@@ -321,6 +326,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
             if (!sensor.IsEnabled)
             {
+                // 已禁用的传感器是正常配置状态，使用 LogWarning
                 _logger?.LogWarning(
                     "传感器 {SensorId} 已禁用，视为 Unknown 类型",
                     sensorId);
@@ -331,7 +337,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
         catch (Exception ex)
         {
-            // 修复：异常情况下视为不可用，防止虚假包裹流
+            // 异常情况视为严重问题，使用 LogError
             _logger?.LogError(ex,
                 "获取传感器 {SensorId} 类型时发生异常，拒绝创建包裹（Unknown 类型）",
                 sensorId);

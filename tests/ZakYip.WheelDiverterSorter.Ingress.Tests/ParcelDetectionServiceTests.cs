@@ -10,6 +10,8 @@ using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Tests;
 
@@ -394,9 +396,9 @@ public class ParcelDetectionServiceTests
         var sensors = new[] { mockSensor.Object };
         
         // Mock repository that returns a sensor with Unknown type
-        var mockConfig = new ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SensorConfiguration
+        var mockConfig = new SensorConfiguration
         {
-            Sensors = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SensorIoEntry>
+            Sensors = new List<SensorIoEntry>
             {
                 new() 
                 { 
@@ -408,7 +410,7 @@ public class ParcelDetectionServiceTests
             }
         };
         
-        var mockRepository = new Mock<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ISensorConfigurationRepository>();
+        var mockRepository = new Mock<ISensorConfigurationRepository>();
         mockRepository.Setup(r => r.Get()).Returns(mockConfig);
         
         var options = Options.Create(new ParcelDetectionOptions());
@@ -451,12 +453,12 @@ public class ParcelDetectionServiceTests
         var sensors = new[] { mockSensor.Object };
         
         // Mock repository that returns empty configuration (sensor not found)
-        var mockConfig = new ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SensorConfiguration
+        var mockConfig = new SensorConfiguration
         {
-            Sensors = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SensorIoEntry>()
+            Sensors = new List<SensorIoEntry>()
         };
         
-        var mockRepository = new Mock<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ISensorConfigurationRepository>();
+        var mockRepository = new Mock<ISensorConfigurationRepository>();
         mockRepository.Setup(r => r.Get()).Returns(mockConfig);
         
         var options = Options.Create(new ParcelDetectionOptions());
@@ -499,9 +501,9 @@ public class ParcelDetectionServiceTests
         var sensors = new[] { mockSensor.Object };
         
         // Mock repository that returns a disabled sensor
-        var mockConfig = new ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SensorConfiguration
+        var mockConfig = new SensorConfiguration
         {
-            Sensors = new List<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.SensorIoEntry>
+            Sensors = new List<SensorIoEntry>
             {
                 new() 
                 { 
@@ -513,7 +515,7 @@ public class ParcelDetectionServiceTests
             }
         };
         
-        var mockRepository = new Mock<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces.ISensorConfigurationRepository>();
+        var mockRepository = new Mock<ISensorConfigurationRepository>();
         mockRepository.Setup(r => r.Get()).Returns(mockConfig);
         
         var options = Options.Create(new ParcelDetectionOptions());
