@@ -15,6 +15,7 @@
 5. [测试与质量保证原则](#测试与质量保证原则)
 6. [可观测性原则](#可观测性原则)
 7. [安全性原则](#安全性原则)
+8. [持久化与序列化原则](#8-持久化与序列化原则)
 
 ---
 
@@ -880,6 +881,78 @@ public async Task<ActionResult<ApiResponse<ChuteDto>>> CreateChute(
 - 防止手动修改导致的配置错误
 
 **相关文档**: [CONFIGURATION_API.md](../CONFIGURATION_API.md)
+
+---
+
+## 8. 持久化与序列化原则
+
+### LiteDB 序列化约束
+
+**原则**: 所有需要持久化到 LiteDB 的实体必须符合 BsonMapper 序列化要求。
+
+**背景**: 由于 .NET 9 + LiteDB 5.0.21 兼容性限制，`BsonMapper.IncludeNonPublic` 必须设置为 `false`。
+
+**强制要求**:
+
+1. **公共属性访问器**
+   ```csharp
+   // ✅ 正确：public set 允许 LiteDB 反序列化
+   public long ParcelId { get; set; }
+   public long TargetChuteId { get; set; }
+   
+   // ❌ 错误：internal set 导致反序列化失败
+   public long ParcelId { get; internal set; }
+   ```
+
+2. **公共无参构造函数**
+   ```csharp
+   // ✅ 正确：提供无参构造函数供 LiteDB 使用
+   public class RoutePlan
+   {
+       public RoutePlan() { }  // LiteDB 反序列化用
+       
+       public RoutePlan(long parcelId, long chuteId)  // 业务代码用
+       {
+           ParcelId = parcelId;
+           TargetChuteId = chuteId;
+       }
+   }
+   ```
+
+3. **通过方法封装业务规则**
+   
+   由于属性必须是 `public set`，业务规则通过方法封装：
+   
+   ```csharp
+   public class RoutePlan
+   {
+       // 属性必须 public set（序列化需要）
+       public long ParcelId { get; set; }
+       public RoutePlanStatus Status { get; set; }
+       
+       // 业务规则通过方法封装
+       public OperationResult TryApplyChuteChange(long newChuteId, DateTimeOffset changedAt, out Decision decision)
+       {
+           // 验证业务规则
+           if (Status != RoutePlanStatus.Created)
+           {
+               return OperationResult.Failure("Cannot change chute after execution started");
+           }
+           
+           // 更新状态
+           CurrentTargetChuteId = newChuteId;
+           ChuteChangeCount++;
+           return OperationResult.Success();
+       }
+   }
+   ```
+
+**禁止行为**:
+- ❌ 使用 `internal set` 或 `private set`（LiteDB 无法访问）
+- ❌ 依赖 `IncludeNonPublic = true`（.NET 9 兼容性问题）
+- ❌ 缺少无参构造函数
+
+**相关技术债**: [TD-082] LiteDB RoutePlan 序列化兼容性修复
 
 ---
 

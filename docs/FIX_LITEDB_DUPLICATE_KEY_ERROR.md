@@ -1,4 +1,13 @@
-# LiteDB Duplicate Key Error Fix - Technical Summary
+# LiteDB Duplicate Key Error Fix – Temporary Migration Note
+
+> [!IMPORTANT]
+> This `FIX_*.md` document is subject to the 60-day lifecycle rule in `copilot-instructions.md` (Rule 3).  
+> The permanent, authoritative documentation for this issue has been consolidated into long-lived docs:  
+> - `docs/TechnicalDebtLog.md` (closed entry: LiteDB duplicate key / serialization & encapsulation tradeoff)  
+> - `docs/ARCHITECTURE_PRINCIPLES.md` (persistence & LiteDB serialization constraints; see design principles section)  
+> This file now serves only as a temporary breadcrumb and must be deleted no later than **2025-02-24**.
+
+---
 
 ## 问题描述
 

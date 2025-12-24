@@ -1473,6 +1473,7 @@ tools/Profiling/
 | TD-079 | ❌ 未开始 | ConfigureAwait + 字符串/集合优化（TD-076 PR #3）→ 异步开销 -5-10%，集合性能 +20%（预计 5-7小时） | [详情](./TechnicalDebtLog.md#td-079-configureawait--字符串集合优化td-076-pr-3) |
 | TD-080 | ❌ 未开始 | 低优先级性能优化收尾（TD-076 PR #4）→ 日志开销 -30%，JSON序列化 -10%（预计 4-6小时） | [详情](./TechnicalDebtLog.md#td-080-低优先级性能优化收尾td-076-pr-4) |
 | TD-081 | ✅ 已解决 | API 重组剩余工作 → 经审计确认所有功能已在先前PR中实现（2025-12-16） | [详情](./TechnicalDebtLog.md#td-081-api-重组剩余工作经审计确认已实现) |
+| TD-082 | ✅ 已解决 | LiteDB RoutePlan 序列化兼容性修复 → 修改属性为 public set，添加验证和测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-082-litedb-routeplan-序列化兼容性修复) |
 
 ### 技术债统计
 

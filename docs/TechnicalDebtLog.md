@@ -84,6 +84,7 @@
 - [TD-079] ConfigureAwait + 字符串/集合优化（TD-076 PR #3）
 - [TD-080] 低优先级性能优化收尾（TD-076 PR #4）
 - [TD-081] API 重组剩余工作（经审计确认已实现）
+- [TD-082] LiteDB RoutePlan 序列化兼容性修复
 
 ---
 
@@ -5173,3 +5174,87 @@ _logParcelRouted(_logger, parcelId, chuteId, null);
 - TD-076 主文档
 
 ---
+
+---
+
+## [TD-082] LiteDB RoutePlan 序列化兼容性修复
+
+**状态**：✅ 已解决 (2025-12-24)  
+**创建日期**: 2025-12-24  
+**优先级**: 🔴 高（生产环境错误）  
+**预估工作量**: 4小时  
+**实际工作量**: 4小时  
+**来源**: 生产环境错误日志
+
+### 问题描述
+
+LiteDB 在保存 RoutePlan 实体时抛出重复键错误：
+```
+LiteDB.LiteException: Cannot insert duplicate key in unique index 'ParcelId'. The duplicate value is 'null'.
+```
+
+**根本原因**：
+- .NET 9 + LiteDB 5.0.21 兼容性限制，`BsonMapper.IncludeNonPublic` 必须设置为 `false`
+- RoutePlan 属性使用 `internal set` 访问器
+- LiteDB 反序列化时无法设置 `internal set` 属性
+- ParcelId 保持默认值 0，导致重复键冲突
+
+### 解决方案
+
+#### 修改文件
+
+**1. RoutePlan.cs**
+```csharp
+// 修改前
+public long ParcelId { get; internal set; }
+public long InitialTargetChuteId { get; internal set; }
+// ... 其他 6 个属性
+
+// 修改后
+public long ParcelId { get; set; }
+public long InitialTargetChuteId { get; set; }
+// ... 其他 6 个属性
+```
+
+**2. LiteDbRoutePlanRepository.cs**
+```csharp
+// 添加防御性验证
+if (routePlan.ParcelId <= 0)
+{
+    throw new ArgumentException(
+        $"RoutePlan.ParcelId must be a positive value, but got {routePlan.ParcelId}",
+        nameof(routePlan));
+}
+```
+
+**3. 新增测试**
+- `LiteDbRoutePlanRepositoryTests.cs` (8个测试用例)
+- 验证插入/更新/删除操作
+- 复现原始错误场景（包裹 1766567704191）
+
+### 设计权衡
+
+**封装性 vs 序列化兼容性**：
+- **权衡点**: 将 `internal set` 改为 `public set` 降低了封装性
+- **保护措施**: 通过公共方法（`TryApplyChuteChange()`, `MarkAsExecuting()`, `MarkAsCompleted()`）维持业务规则
+- **结论**: 序列化兼容性优先级更高（生产环境错误必须修复）
+
+### 架构约束（已添加到 ARCHITECTURE_PRINCIPLES.md）
+
+**LiteDB 序列化约束**：
+1. 所有需要持久化的实体属性必须使用 `public set`
+2. 不能依赖 `IncludeNonPublic = true`（.NET 9 兼容性问题）
+3. 业务规则通过方法封装，而非属性访问器
+4. 必须提供公共无参构造函数供 LiteDB 使用
+
+### 测试覆盖
+
+- ✅ 新增: 8/8 LiteDbRoutePlanRepositoryTests
+- ✅ 现有: 11/11 RoutePlan 域模型测试
+- ✅ 无回归: 404+ Core 测试套件
+
+### 相关文档
+
+- `docs/FIX_LITEDB_DUPLICATE_KEY_ERROR.md` (临时文档，60天后删除)
+- `docs/ARCHITECTURE_PRINCIPLES.md` (持久化约束章节)
+
