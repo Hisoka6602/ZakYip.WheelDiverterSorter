@@ -75,10 +75,10 @@ public class RoutePlan
     }
 
     /// <summary>
-    /// 公共无参构造函数（用于LiteDB反序列化）
+    /// 公共无参构造函数（用于序列化框架）
     /// </summary>
     /// <remarks>
-    /// 此构造函数仅供LiteDB序列化框架使用。
+    /// 此构造函数仅供序列化框架使用（如 JSON、XML 等）。
     /// 应用代码应使用带参数的构造函数创建 RoutePlan 实例。
     /// </remarks>
     public RoutePlan()
