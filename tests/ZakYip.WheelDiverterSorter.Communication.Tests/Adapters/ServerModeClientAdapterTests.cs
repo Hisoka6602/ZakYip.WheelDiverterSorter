@@ -59,7 +59,8 @@ public class ServerModeClientAdapterTests : IDisposable
         _adapter = new ServerModeClientAdapter(
             _serverService,
             _mockLogger.Object,
-            _mockClock.Object);
+            _mockClock.Object,
+            safeExecutor);  // 添加 safeExecutor 参数
     }
 
     public void Dispose()
