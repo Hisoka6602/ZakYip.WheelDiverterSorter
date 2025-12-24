@@ -1877,11 +1877,25 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             var receivedAt = _clock.LocalNow;
 
-            _logger.LogInformation(
-                "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 接收时间={ReceivedAt:HH:mm:ss.fff}",
-                e.ParcelId,
-                e.ChuteId,
-                receivedAt);
+            // 构建日志消息，如果有条码则包含在日志中
+            var barcode = e.DwsPayload?.Barcode;
+            if (!string.IsNullOrEmpty(barcode))
+            {
+                _logger.LogInformation(
+                    "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 条码={Barcode} | 接收时间={ReceivedAt:HH:mm:ss.fff}",
+                    e.ParcelId,
+                    e.ChuteId,
+                    barcode,
+                    receivedAt);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 接收时间={ReceivedAt:HH:mm:ss.fff}",
+                    e.ParcelId,
+                    e.ChuteId,
+                    receivedAt);
+            }
 
             // Invariant 2 - 上游响应必须匹配已存在的本地包裹
             // 使用 TryGetValue 避免 ContainsKey + 索引器的重复查找
