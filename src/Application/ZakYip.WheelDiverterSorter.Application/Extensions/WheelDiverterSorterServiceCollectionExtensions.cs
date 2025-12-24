@@ -329,7 +329,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddSingleton<IConveyorSegmentRepository>(serviceProvider =>
         {
             var clock = serviceProvider.GetRequiredService<ISystemClock>();
-            var repository = new LiteDbConveyorSegmentRepository(fullDatabasePath, clock);
+            var logger = serviceProvider.GetRequiredService<ILogger<LiteDbConveyorSegmentRepository>>();
+            var repository = new LiteDbConveyorSegmentRepository(fullDatabasePath, clock, logger);
             return repository;
         });
 
