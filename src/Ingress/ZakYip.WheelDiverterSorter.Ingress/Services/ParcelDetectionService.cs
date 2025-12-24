@@ -91,12 +91,14 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         _logger?.LogInformation("启动包裹检测服务");
 
-        // 订阅所有传感器的事件，并缓存计数以避免重复枚举
-        var sensorCount = 0;
+        // 物化传感器列表以避免重复枚举（Issue #4: 性能优化）
+        var sensorList = _sensors.ToList();
+        var sensorCount = sensorList.Count;
         var activeSensorCount = 0;
-        foreach (var sensor in _sensors)
+        
+        // 订阅所有传感器的事件
+        foreach (var sensor in sensorList)
         {
-            sensorCount++;
             if (sensor != null)
             {
                 activeSensorCount++;

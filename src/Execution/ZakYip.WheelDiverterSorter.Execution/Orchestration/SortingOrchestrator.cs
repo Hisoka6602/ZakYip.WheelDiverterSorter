@@ -116,6 +116,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
     private readonly ConcurrentDictionary<long, long> _parcelTargetChutes; // Track target chute for each parcel (for Position-Index queue system)
     private readonly ConcurrentDictionary<long, byte> _timeoutCompensationInserted; // 记录已插入超时补偿任务的包裹ID，防止重复插入（使用byte占位）
+    
+    // Issue #2: 缓存传感器到位置的映射，避免重复查询（热路径优化）
+    private readonly ConcurrentDictionary<long, (long DiverterId, int PositionIndex)> _sensorToPositionCache;
+    
+    // Issue #3: 缓存每个position后续节点列表，避免超时时重复构造
+    private readonly ConcurrentDictionary<int, List<DiverterPathNode>> _subsequentNodesCache;
+    
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
 
@@ -214,6 +221,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
         _parcelTargetChutes = new ConcurrentDictionary<long, long>();
         _timeoutCompensationInserted = new ConcurrentDictionary<long, byte>();
+        _sensorToPositionCache = new ConcurrentDictionary<long, (long, int)>();
+        _subsequentNodesCache = new ConcurrentDictionary<int, List<DiverterPathNode>>();
 
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
@@ -248,6 +257,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("正在启动分拣编排服务...");
+
+        // Issue #2: 构建传感器到位置的映射缓存（启动时优化）
+        BuildSensorToPositionCache();
 
         // 启动传感器事件监听
         _logger.LogInformation("正在启动传感器事件监听...");
@@ -520,9 +532,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId,
                     executionResult.ActualChuteId,
                     targetChuteId);
-                _metrics?.RecordSortingSuccess(stopwatch.Elapsed.TotalSeconds);
-                _alarmService?.RecordSortingSuccess();
-                _statisticsService?.IncrementSuccess();
+                RecordSortingSuccess(stopwatch.Elapsed.TotalSeconds);
             }
             else
             {
@@ -531,9 +541,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId,
                     executionResult.FailureReason,
                     executionResult.ActualChuteId);
-                _metrics?.RecordSortingFailure(stopwatch.Elapsed.TotalSeconds);
-                _alarmService?.RecordSortingFailure();
-                _statisticsService?.IncrementTimeout(); // 调试分拣失败算作超时
+                RecordSortingFailure(stopwatch.Elapsed.TotalSeconds, isTimeout: true);
             }
 
             return new SortingResult(
@@ -1135,9 +1143,22 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 e.SensorId,
                 e.DetectedAt);
 
-            // 检查是否为 WheelFront 传感器触发
-            if (_sensorConfigRepository != null && _queueManager != null && _topologyRepository != null)
+            // Issue #2: 检查是否为 WheelFront 传感器触发（使用缓存避免重复查询）
+            if (_queueManager != null && _sensorToPositionCache.TryGetValue(e.SensorId, out var position))
             {
+                _logger.LogInformation(
+                    "[WheelFront触发] 检测到摆轮前传感器触发: SensorId={SensorId}, DiverterId={DiverterId}, PositionIndex={PositionIndex}",
+                    e.SensorId,
+                    position.DiverterId,
+                    position.PositionIndex);
+
+                // 这是摆轮前传感器触发，处理待执行队列中的包裹
+                await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex);
+                return;
+            }
+            else if (_sensorConfigRepository != null && _queueManager != null && _topologyRepository != null)
+            {
+                // 缓存未命中时fallback到原有逻辑（仅在缓存未初始化或配置更新时）
                 var sensorConfig = _sensorConfigRepository.Get();
                 var sensor = sensorConfig.Sensors.FirstOrDefault(s => s.SensorId == e.SensorId);
 
@@ -1243,13 +1264,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         if (task == null)
         {
+            // Issue #1: 统一记录空队列异常，避免重复告警噪声
             _logger.LogWarning(
-                "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId})",
+                "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - 记录为超时异常",
                 positionIndex, sensorId, boundWheelDiverterId);
-
-            _metrics?.RecordSortingFailure(0);
-            _alarmService?.RecordSortingFailure();
-            _statisticsService?.IncrementTimeout(); // 队列为空算作异常（超时）
+            
+            RecordSortingFailure(0, isTimeout: true);
             return;
         }
 
@@ -1282,44 +1302,78 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
             // 超时包裹需要在后续所有 position 插入 Straight 任务到队列头部
             // 但只在首次超时时插入一次，避免重复插入导致队列堆积
-            if (_topologyRepository != null && _timeoutCompensationInserted.TryAdd(task.ParcelId, 0))
+            if (_timeoutCompensationInserted.TryAdd(task.ParcelId, 0))
             {
-                var topology = _topologyRepository.Get();
-                if (topology != null)
+                // Issue #3: 使用缓存的后续节点列表，避免重复查询和构造
+                if (_subsequentNodesCache.TryGetValue(positionIndex, out var subsequentNodes) && subsequentNodes.Any())
                 {
-                    // 找到所有比当前 position 大的节点
-                    var subsequentNodes = topology.DiverterNodes
-                        .Where(n => n.PositionIndex > positionIndex)
-                        .OrderBy(n => n.PositionIndex)
-                        .ToList();
+                    _logger.LogWarning(
+                        "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
+                        task.ParcelId,
+                        subsequentNodes.Count,
+                        string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
 
-                    if (subsequentNodes.Any())
+                    foreach (var node in subsequentNodes)
                     {
-                        _logger.LogWarning(
-                            "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
-                            task.ParcelId,
-                            subsequentNodes.Count,
-                            string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
-
-                        foreach (var node in subsequentNodes)
+                        var straightTask = new PositionQueueItem
                         {
-                            var straightTask = new PositionQueueItem
-                            {
-                                ParcelId = task.ParcelId,
-                                DiverterId = node.DiverterId,
-                                DiverterAction = DiverterDirection.Straight,
-                                ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
-                                TimeoutThresholdMs = task.TimeoutThresholdMs,
-                                FallbackAction = DiverterDirection.Straight,
-                                PositionIndex = node.PositionIndex,
-                                CreatedAt = _clock.LocalNow,
-                                // 丢失判定超时 = TimeoutThreshold * 1.5
-                                LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                                LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
-                            };
+                            ParcelId = task.ParcelId,
+                            DiverterId = node.DiverterId,
+                            DiverterAction = DiverterDirection.Straight,
+                            ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                            TimeoutThresholdMs = task.TimeoutThresholdMs,
+                            FallbackAction = DiverterDirection.Straight,
+                            PositionIndex = node.PositionIndex,
+                            CreatedAt = _clock.LocalNow,
+                            // 丢失判定超时 = TimeoutThreshold * 1.5
+                            LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
+                            LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
+                        };
 
-                            // 使用优先入队，插入到队列头部
-                            _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
+                        // 使用优先入队，插入到队列头部
+                        _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
+                    }
+                }
+                else if (_topologyRepository != null)
+                {
+                    // 缓存未命中时的fallback（配置动态变更场景）
+                    var topology = _topologyRepository.Get();
+                    if (topology != null)
+                    {
+                        // 找到所有比当前 position 大的节点
+                        var fallbackSubsequentNodes = topology.DiverterNodes
+                            .Where(n => n.PositionIndex > positionIndex)
+                            .OrderBy(n => n.PositionIndex)
+                            .ToList();
+
+                        if (fallbackSubsequentNodes.Any())
+                        {
+                            _logger.LogWarning(
+                                "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务 (缓存未命中，使用fallback): [{Positions}]",
+                                task.ParcelId,
+                                fallbackSubsequentNodes.Count,
+                                string.Join(", ", fallbackSubsequentNodes.Select(n => n.PositionIndex)));
+
+                            foreach (var node in fallbackSubsequentNodes)
+                            {
+                                var straightTask = new PositionQueueItem
+                                {
+                                    ParcelId = task.ParcelId,
+                                    DiverterId = node.DiverterId,
+                                    DiverterAction = DiverterDirection.Straight,
+                                    ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                                    TimeoutThresholdMs = task.TimeoutThresholdMs,
+                                    FallbackAction = DiverterDirection.Straight,
+                                    PositionIndex = node.PositionIndex,
+                                    CreatedAt = _clock.LocalNow,
+                                    // 丢失判定超时 = TimeoutThreshold * 1.5
+                                    LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
+                                    LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
+                                };
+
+                                // 使用优先入队，插入到队列头部
+                                _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
+                            }
                         }
                     }
                 }
@@ -1331,9 +1385,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     task.ParcelId, positionIndex);
             }
 
-            _metrics?.RecordSortingFailure(0);
-            _alarmService?.RecordSortingFailure();
-            _statisticsService?.IncrementTimeout(); // 包裹超时
+            RecordSortingFailure(0, isTimeout: true);
         }
         else
         {
@@ -1374,9 +1426,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 _logger.LogError(
                     "[生命周期-失败] P{ParcelId} Pos{PositionIndex} 摆轮执行失败: {ErrorMessage}",
                     task.ParcelId, positionIndex, executionResult.FailureReason);
-                _metrics?.RecordSortingFailure(0);
-                _alarmService?.RecordSortingFailure();
-                _statisticsService?.IncrementTimeout(); // 摆轮执行失败算作超时
+                RecordSortingFailure(0, isTimeout: true);
 
                 // 摆轮动作失败，通知上游
                 await NotifyUpstreamSortingCompletedAsync(
@@ -1483,9 +1533,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 ex,
                 "包裹 {ParcelId} 在 Position {PositionIndex} 执行摆轮动作时发生异常",
                 task.ParcelId, positionIndex);
-            _metrics?.RecordSortingFailure(0);
-            _alarmService?.RecordSortingFailure();
-            _statisticsService?.IncrementTimeout(); // 执行异常算作超时
+            RecordSortingFailure(0, isTimeout: true);
 
             // 异常情况，通知上游
             await NotifyUpstreamSortingCompletedAsync(
@@ -1498,9 +1546,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         if (!isTimeout)
         {
-            _metrics?.RecordSortingSuccess(0);
-            _alarmService?.RecordSortingSuccess();
-            _statisticsService?.IncrementSuccess(); // 正常成功
+            RecordSortingSuccess(0);
         }
     }
 
@@ -2269,9 +2315,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId, exceptionChuteId);
 
                 // 记录成功指标（执行时间待 PathExecutionResult 扩展后再传入）
-                _metrics?.RecordSortingSuccess(0);
-                _alarmService?.RecordSortingSuccess();
-                _statisticsService?.IncrementSuccess(); // 虽然路由到异常口，但物理分拣成功
+                RecordSortingSuccess(0);
 
                 // 发送落格完成通知到上游系统
                 var notification = new SortingCompletedNotification
@@ -2616,4 +2660,128 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     #endregion 包裹丢失处理 (TD-LOSS-ORCHESTRATOR-001)
+
+    #region Helper Methods - 性能优化辅助方法
+
+    /// <summary>
+    /// 构建传感器到位置的映射缓存（Issue #2: 避免热路径重复查询）
+    /// </summary>
+    private void BuildSensorToPositionCache()
+    {
+        if (_sensorConfigRepository == null || _topologyRepository == null)
+        {
+            _logger.LogWarning("无法构建传感器位置缓存：缺少传感器配置或拓扑仓储");
+            return;
+        }
+
+        try
+        {
+            var sensorConfig = _sensorConfigRepository.Get();
+            var topology = _topologyRepository.Get();
+
+            if (sensorConfig == null || topology == null)
+            {
+                _logger.LogWarning("无法构建传感器位置缓存：配置或拓扑为空");
+                return;
+            }
+
+            _sensorToPositionCache.Clear();
+
+            // 只缓存 WheelFront 类型的传感器
+            var wheelFrontSensors = sensorConfig.Sensors
+                .Where(s => s.IoType == SensorIoType.WheelFront)
+                .ToList();
+
+            foreach (var sensor in wheelFrontSensors)
+            {
+                var node = topology.DiverterNodes.FirstOrDefault(n => n.FrontSensorId == sensor.SensorId);
+                if (node != null)
+                {
+                    _sensorToPositionCache[sensor.SensorId] = (node.DiverterId, node.PositionIndex);
+                    _logger.LogDebug(
+                        "缓存传感器映射: SensorId={SensorId} -> DiverterId={DiverterId}, PositionIndex={PositionIndex}",
+                        sensor.SensorId, node.DiverterId, node.PositionIndex);
+                }
+            }
+
+            _logger.LogInformation(
+                "传感器位置缓存已构建，共 {Count} 个 WheelFront 传感器",
+                _sensorToPositionCache.Count);
+
+            // Issue #3: 同时构建后续节点缓存
+            BuildSubsequentNodesCache(topology);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "构建传感器位置缓存时发生异常");
+        }
+    }
+
+    /// <summary>
+    /// 构建每个position的后续节点列表缓存（Issue #3: 优化超时补偿性能）
+    /// </summary>
+    /// <param name="topology">拓扑配置</param>
+    private void BuildSubsequentNodesCache(ChutePathTopologyConfig topology)
+    {
+        if (topology == null || topology.DiverterNodes == null)
+        {
+            return;
+        }
+
+        _subsequentNodesCache.Clear();
+
+        // 获取所有位置索引
+        var allPositions = topology.DiverterNodes
+            .Select(n => n.PositionIndex)
+            .Distinct()
+            .OrderBy(p => p)
+            .ToList();
+
+        // 为每个位置构建后续节点列表
+        foreach (var position in allPositions)
+        {
+            var subsequentNodes = topology.DiverterNodes
+                .Where(n => n.PositionIndex > position)
+                .OrderBy(n => n.PositionIndex)
+                .ToList();
+
+            _subsequentNodesCache[position] = subsequentNodes;
+
+            _logger.LogDebug(
+                "缓存后续节点: Position={Position} -> {Count} 个后续节点",
+                position, subsequentNodes.Count);
+        }
+
+        _logger.LogInformation(
+            "后续节点缓存已构建，共 {Count} 个位置",
+            _subsequentNodesCache.Count);
+    }
+
+    /// <summary>
+    /// 统一记录分拣失败（Issue #1: 避免重复告警噪声）
+    /// </summary>
+    /// <param name="elapsedSeconds">已用时间（秒）</param>
+    /// <param name="isTimeout">是否为超时</param>
+    private void RecordSortingFailure(double elapsedSeconds, bool isTimeout)
+    {
+        _metrics?.RecordSortingFailure(elapsedSeconds);
+        _alarmService?.RecordSortingFailure();
+        if (isTimeout)
+        {
+            _statisticsService?.IncrementTimeout();
+        }
+    }
+
+    /// <summary>
+    /// 统一记录分拣成功（Issue #1: 避免重复代码）
+    /// </summary>
+    /// <param name="elapsedSeconds">已用时间（秒）</param>
+    private void RecordSortingSuccess(double elapsedSeconds)
+    {
+        _metrics?.RecordSortingSuccess(elapsedSeconds);
+        _alarmService?.RecordSortingSuccess();
+        _statisticsService?.IncrementSuccess();
+    }
+
+    #endregion Helper Methods - 性能优化辅助方法
 }
