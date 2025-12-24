@@ -53,6 +53,9 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             Directory.CreateDirectory(dbDirectory);
         }
 
+        // 获取系统时钟服务
+        var clock = Scope.ServiceProvider.GetRequiredService<ISystemClock>();
+
         // 直接使用 LiteDB 插入旧格式数据（包含 ObjectId 作为 _id）
         using var db = new LiteDatabase($"Filename={dbPath};Connection=shared");
         var collection = db.GetCollection("ConveyorSegmentConfiguration");
@@ -71,8 +74,8 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             ["TimeToleranceMs"] = 500L,
             ["EnableLossDetection"] = true,
             ["Remarks"] = "旧数据 - ObjectId _id",
-            ["CreatedAt"] = DateTime.Now.AddDays(-30),
-            ["UpdatedAt"] = DateTime.Now.AddDays(-30)
+            ["CreatedAt"] = clock.LocalNow.AddDays(-30),
+            ["UpdatedAt"] = clock.LocalNow.AddDays(-30)
         };
 
         var legacyDoc2 = new BsonDocument
@@ -85,8 +88,8 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             ["TimeToleranceMs"] = 600L,
             ["EnableLossDetection"] = true,
             ["Remarks"] = "旧数据 - ObjectId _id",
-            ["CreatedAt"] = DateTime.Now.AddDays(-20),
-            ["UpdatedAt"] = DateTime.Now.AddDays(-20)
+            ["CreatedAt"] = clock.LocalNow.AddDays(-20),
+            ["UpdatedAt"] = clock.LocalNow.AddDays(-20)
         };
 
         var legacyDoc3 = new BsonDocument
@@ -99,8 +102,8 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             ["TimeToleranceMs"] = 450L,
             ["EnableLossDetection"] = false,
             ["Remarks"] = "旧数据 - ObjectId _id",
-            ["CreatedAt"] = DateTime.Now.AddDays(-10),
-            ["UpdatedAt"] = DateTime.Now.AddDays(-10)
+            ["CreatedAt"] = clock.LocalNow.AddDays(-10),
+            ["UpdatedAt"] = clock.LocalNow.AddDays(-10)
         };
 
         collection.Insert(legacyDoc1);

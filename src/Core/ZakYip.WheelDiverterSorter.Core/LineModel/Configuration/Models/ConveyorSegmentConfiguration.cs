@@ -15,11 +15,10 @@ public record class ConveyorSegmentConfiguration
     /// 数据库内部主键（仅用于兼容性，实际不使用）
     /// </summary>
     /// <remarks>
-    /// <para>此字段已废弃，不映射到数据库 _id 字段。</para>
+    /// <para>此字段不映射到数据库 _id 字段。</para>
     /// <para>数据库使用 ObjectId 作为 _id，但此字段不再使用。</para>
     /// <para>业务逻辑使用 SegmentId 作为唯一标识。</para>
     /// </remarks>
-    [Obsolete("此字段已废弃，请使用 SegmentId 作为唯一标识")]
     public long Id { get; init; }
 
     /// <summary>
