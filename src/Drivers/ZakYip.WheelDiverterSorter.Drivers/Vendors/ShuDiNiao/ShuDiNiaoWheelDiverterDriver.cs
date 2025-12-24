@@ -41,6 +41,19 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     /// </summary>
     private static readonly TimeSpan ReceiveTaskStopTimeout = TimeSpan.FromSeconds(2);
     
+    /// <summary>
+    /// 重连最大退避时间（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// 根据 copilot-instructions.md 第三章第2条，退避时间上限为 2 秒（硬编码）
+    /// </remarks>
+    private const int MaxReconnectBackoffMs = 2000;
+    
+    /// <summary>
+    /// 重连初始退避时间（毫秒）
+    /// </summary>
+    private const int InitialReconnectBackoffMs = 200;
+    
     private readonly ILogger<ShuDiNiaoWheelDiverterDriver> _logger;
     private readonly ShuDiNiaoDeviceEntry _config;
     private readonly ISystemClock _clock;
@@ -56,6 +69,10 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     private DateTimeOffset _lastStatusReportTime = DateTimeOffset.MinValue;
     private Task? _receiveTask;
     private CancellationTokenSource? _receiveCts;
+    
+    // 重连相关字段
+    private Task? _reconnectTask;
+    private CancellationTokenSource? _reconnectCts;
 
     /// <inheritdoc/>
     public string DiverterId => _config.DiverterId.ToString();
@@ -362,6 +379,134 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
             timeSinceLastReport.TotalSeconds);
         
         return Task.FromResult(true);
+    }
+
+    /// <summary>
+    /// 触发重连（无限重试，指数退避，上限 2 秒）
+    /// </summary>
+    /// <remarks>
+    /// 此方法会启动一个后台任务进行无限重连，直到连接成功或被取消。
+    /// 重连使用指数退避策略，退避时间上限为 2 秒（符合 copilot-instructions.md 第三章第2条）。
+    /// 如果已有重连任务在运行，则不会重复启动。
+    /// </remarks>
+    public void ReconnectAsync()
+    {
+        // 检查是否已有重连任务在运行
+        if (_reconnectTask != null && !_reconnectTask.IsCompleted)
+        {
+            _logger.LogDebug("摆轮 {DiverterId} 重连任务已在运行中，跳过本次触发", DiverterId);
+            return;
+        }
+
+        // 停止旧的重连任务
+        StopReconnectTask();
+
+        // 启动新的重连任务
+        _reconnectCts = new CancellationTokenSource();
+        _reconnectTask = Task.Run(() => ReconnectLoopAsync(_reconnectCts.Token), _reconnectCts.Token);
+
+        _logger.LogInformation("摆轮 {DiverterId} 重连任务已启动", DiverterId);
+    }
+
+    /// <summary>
+    /// 重连循环（无限重试，指数退避）
+    /// </summary>
+    private async Task ReconnectLoopAsync(CancellationToken cancellationToken)
+    {
+        var backoffMs = InitialReconnectBackoffMs;
+
+        _logger.LogInformation(
+            "摆轮 {DiverterId} 开始重连循环，初始退避={InitialBackoff}ms，最大退避={MaxBackoff}ms",
+            DiverterId, InitialReconnectBackoffMs, MaxReconnectBackoffMs);
+
+        while (!cancellationToken.IsCancellationRequested && !_disposed)
+        {
+            try
+            {
+                // 尝试重连
+                _logger.LogInformation(
+                    "摆轮 {DiverterId} 尝试重连到 {Host}:{Port}（当前退避={Backoff}ms）",
+                    DiverterId, _config.Host, _config.Port, backoffMs);
+
+                var connected = await EnsureConnectedAsync(cancellationToken);
+
+                if (connected)
+                {
+                    _logger.LogInformation(
+                        "摆轮 {DiverterId} 重连成功，退出重连循环",
+                        DiverterId);
+                    return; // 重连成功，退出循环
+                }
+
+                // 重连失败，等待退避时间后重试
+                _logger.LogWarning(
+                    "摆轮 {DiverterId} 重连失败，{Backoff}ms 后重试",
+                    DiverterId, backoffMs);
+
+                await Task.Delay(backoffMs, cancellationToken);
+
+                // 指数退避，上限 2 秒
+                backoffMs = Math.Min(backoffMs * 2, MaxReconnectBackoffMs);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("摆轮 {DiverterId} 重连循环被取消", DiverterId);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "摆轮 {DiverterId} 重连循环异常，继续重试", DiverterId);
+                
+                // 异常后等待退避时间
+                try
+                {
+                    await Task.Delay(backoffMs, cancellationToken);
+                    backoffMs = Math.Min(backoffMs * 2, MaxReconnectBackoffMs);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogInformation("摆轮 {DiverterId} 重连循环被取消", DiverterId);
+                    return;
+                }
+            }
+        }
+
+        if (_disposed)
+        {
+            _logger.LogInformation("摆轮 {DiverterId} 重连循环因对象已释放而退出", DiverterId);
+        }
+    }
+
+    /// <summary>
+    /// 停止重连任务
+    /// </summary>
+    private void StopReconnectTask()
+    {
+        if (_reconnectCts != null)
+        {
+            _reconnectCts.Cancel();
+            _reconnectCts.Dispose();
+            _reconnectCts = null;
+        }
+
+        if (_reconnectTask != null)
+        {
+            try
+            {
+                // 等待任务完成，但不阻塞太久
+                _reconnectTask.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "摆轮 {DiverterId} 停止重连任务时出现异常", DiverterId);
+            }
+            finally
+            {
+                _reconnectTask = null;
+            }
+        }
+
+        _logger.LogDebug("摆轮 {DiverterId} 已停止重连任务", DiverterId);
     }
 
     /// <summary>
@@ -843,6 +988,9 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
 
         try
         {
+            // 停止重连任务
+            StopReconnectTask();
+            
             CloseConnectionAsync().ConfigureAwait(false).GetAwaiter().GetResult();
             _connectionLock.Dispose();
         }
