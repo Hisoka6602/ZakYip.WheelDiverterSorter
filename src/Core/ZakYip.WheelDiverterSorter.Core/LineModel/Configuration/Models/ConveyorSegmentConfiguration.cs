@@ -12,10 +12,12 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 public record class ConveyorSegmentConfiguration
 {
     /// <summary>
-    /// 数据库内部主键（由 LiteDB 自动生成）
+    /// 数据库内部主键（仅用于兼容性，实际不使用）
     /// </summary>
     /// <remarks>
-    /// 用于数据库内部标识，业务逻辑使用 SegmentId 作为业务主键
+    /// <para>此字段不映射到数据库 _id 字段。</para>
+    /// <para>数据库使用 ObjectId 作为 _id，但此字段不再使用。</para>
+    /// <para>业务逻辑使用 SegmentId 作为唯一标识。</para>
     /// </remarks>
     public long Id { get; init; }
 

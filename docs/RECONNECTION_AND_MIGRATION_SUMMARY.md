@@ -109,7 +109,15 @@ if (driver is Drivers.Vendors.ShuDiNiao.ShuDiNiaoWheelDiverterDriver shuDiNiaoDr
 - 新代码配置 `SegmentId`（`long` 类型）作为主键
 - LiteDB 尝试将 `ObjectId` 转换为 `Int64` 时失败
 
-### 解决方案
+> **⚠️ 废弃说明 (2025-12-24)**：
+> 
+> 以下描述的 ObjectId → Int64 迁移方案已废弃，不再使用。
+> 
+> **实际采用方案**：保留数据库中的 ObjectId 格式 `_id`，在代码中忽略 `Id` 字段映射，使用 `SegmentId` 作为业务主键。这种方案无需数据迁移，向后兼容所有现有数据。
+> 
+> 详见 TD-083 和相关 PR: "Fix ConveyorSegmentConfiguration ObjectId compatibility"
+
+### 解决方案（已废弃，仅供参考）
 
 创建自动迁移工具 `ConveyorSegmentIdMigration`，在仓储初始化时自动执行。
 

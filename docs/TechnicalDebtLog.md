@@ -5270,3 +5270,55 @@ if (routePlan.ParcelId <= 0)
 - `docs/FIX_LITEDB_DUPLICATE_KEY_ERROR.md` (临时文档，60天后删除)
 - `docs/ARCHITECTURE_PRINCIPLES.md` (持久化约束章节)
 
+
+---
+
+## [TD-083] ConveyorSegment 迁移文档与实际不符
+
+**状态**：✅ 已解决 (2025-12-24)
+
+**问题描述**：
+- `RECONNECTION_AND_MIGRATION_SUMMARY.md` 文档描述了 `ConveyorSegmentIdMigration` 工具，将 ObjectId 类型的 `_id` 迁移到 Int64
+- 实际实现采用了不同的方案：保留 ObjectId，忽略 `Id` 字段映射，使用 `SegmentId` 作为业务主键
+- 文档与代码不一致，可能误导后续开发
+
+**解决方案**：
+1. 在 `RECONNECTION_AND_MIGRATION_SUMMARY.md` 中添加说明，标注 ObjectId->Int64 迁移方案已废弃
+2. 新增 TD-083 技术债记录，说明实际采用的 ObjectId 兼容方案
+3. 更新文档指向当前 PR 的实现说明
+
+**影响范围**：
+- 文档：`RECONNECTION_AND_MIGRATION_SUMMARY.md`
+- 实际代码：`LiteDbMapperConfig.cs`, `LiteDbConveyorSegmentRepository.cs`, `ConveyorSegmentConfiguration.cs`
+
+**实际实现方案**（当前 PR）：
+```csharp
+// ConveyorSegmentConfiguration.cs
+public long Id { get; init; }  // 不映射到数据库，仅保留兼容性
+
+// LiteDbMapperConfig.cs
+mapper.Entity<ConveyorSegmentConfiguration>()
+    .Ignore(x => x.Id);  // 忽略 Id，数据库 _id 保持 ObjectId
+
+// 更新操作使用事务确保原子性
+_database.BeginTrans();
+try {
+    _collection.DeleteMany(x => x.SegmentId == config.SegmentId);
+    _collection.Insert(configWithTimestamps);
+    _database.Commit();
+} catch {
+    _database.Rollback();
+    throw;
+}
+```
+
+**优点**：
+- 零迁移成本，无需重建数据库
+- 向后兼容现有 ObjectId 数据
+- 业务逻辑使用 `SegmentId`，代码清晰
+
+**文档更新**：
+- [ ] 在 `RECONNECTION_AND_MIGRATION_SUMMARY.md` 添加废弃说明
+- [x] 登记 TD-083 到技术债索引
+
+**相关 PR**：当前 PR (Fix ConveyorSegmentConfiguration ObjectId compatibility)

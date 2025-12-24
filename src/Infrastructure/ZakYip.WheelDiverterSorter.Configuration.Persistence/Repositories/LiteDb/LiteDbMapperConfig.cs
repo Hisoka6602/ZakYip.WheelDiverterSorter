@@ -57,9 +57,11 @@ public static class LiteDbMapperConfig
         mapper.Entity<WheelDiverterConfiguration>()
             .Id(x => x.Id);
         
-        // 配置 ConveyorSegmentConfiguration 实体（使用 Id 作为数据库内部主键，自动生成；SegmentId 作为业务主键）
+        // 配置 ConveyorSegmentConfiguration 实体
+        // 数据库中 _id 字段为 ObjectId 类型，不映射到任何 C# 属性
+        // 业务逻辑使用 SegmentId 作为唯一标识，已在 SegmentId 上创建唯一索引
         mapper.Entity<ConveyorSegmentConfiguration>()
-            .Id(x => x.Id, autoId: true);
+            .Ignore(x => x.Id);  // 忽略 Id 字段，不映射到 _id
         
         // 配置 RoutePlan 实体（使用 ParcelId 作为主键）
         // 忽略 DomainEvents 属性（这是内存中的领域事件，不需要持久化）

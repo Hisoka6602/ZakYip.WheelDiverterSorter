@@ -118,7 +118,22 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
             UpdatedAt = _systemClock.LocalNow 
         };
 
-        return _collection.Update(configWithTimestamps);
+        // 使用事务包装删除和插入操作，确保更新过程的原子性
+        // 由于 Id 字段被忽略，使用 SegmentId 来更新记录
+        _database.BeginTrans();
+        try
+        {
+            // 先删除旧记录，再插入新记录（LiteDB 的 Upsert 不适用于没有 _id 映射的情况）
+            _collection.DeleteMany(x => x.SegmentId == config.SegmentId);
+            _collection.Insert(configWithTimestamps);
+            _database.Commit();
+            return true;
+        }
+        catch
+        {
+            _database.Rollback();
+            throw;
+        }
     }
 
     /// <summary>
@@ -128,15 +143,9 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
     /// <returns>是否删除成功</returns>
     public bool Delete(long segmentId)
     {
-        // 先通过 SegmentId 查询记录
-        var config = GetById(segmentId);
-        if (config == null)
-        {
-            return false;
-        }
-        
-        // 使用内部 Id 删除记录
-        return _collection.Delete(new BsonValue(config.Id));
+        // 直接使用 SegmentId 删除记录（通过唯一索引）
+        var deleteCount = _collection.DeleteMany(x => x.SegmentId == segmentId);
+        return deleteCount > 0;
     }
 
     /// <summary>
@@ -228,25 +237,36 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
             var count = 0;
             var now = _systemClock.LocalNow;
             
-            foreach (var config in configList)
+            // 使用事务包装批量更新操作，确保原子性
+            _database.BeginTrans();
+            try
             {
-                var existing = GetById(config.SegmentId);
-                if (existing != null)
+                foreach (var config in configList)
                 {
-                    var configWithTimestamps = config with 
-                    { 
-                        CreatedAt = existing.CreatedAt, 
-                        UpdatedAt = now 
-                    };
-                    
-                    if (_collection.Update(configWithTimestamps))
+                    var existing = GetById(config.SegmentId);
+                    if (existing != null)
                     {
+                        var configWithTimestamps = config with 
+                        { 
+                            CreatedAt = existing.CreatedAt, 
+                            UpdatedAt = now 
+                        };
+                        
+                        // 由于 Id 字段被忽略，使用 SegmentId 来更新记录
+                        _collection.DeleteMany(x => x.SegmentId == config.SegmentId);
+                        _collection.Insert(configWithTimestamps);
                         count++;
                     }
                 }
+                
+                _database.Commit();
+                return count;
             }
-            
-            return count;
+            catch
+            {
+                _database.Rollback();
+                throw;
+            }
         });
     }
 
