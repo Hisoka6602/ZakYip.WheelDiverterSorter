@@ -180,7 +180,6 @@ public class ConfigurationTimestampTests
             .Where(t => t.IsClass && !t.IsAbstract)
             .Where(t => t.Name.StartsWith("LiteDb") && t.Name.EndsWith("Repository"))
             .Where(t => t.Name != "LiteDbMapperConfig")
-            .Where(t => t.Name != "LiteDbRoutePlanRepository")  // RoutePlan 不是配置模型
             .ToList();
 
         Assert.NotEmpty(repositoryTypes);  // 确保找到了仓储

@@ -1707,6 +1707,7 @@ grep -r "ProjectReference" src/**/*.csproj
 - `ZakYip.WheelDiverterSorter.Application/ApplicationServiceExtensions.cs` - 扩展方法类
 - `ZakYip.WheelDiverterSorter.Application/Extensions/WheelDiverterSorterServiceCollectionExtensions.cs` - 扩展方法类
 - `ZakYip.WheelDiverterSorter.Application/Services/Caching/CachedSwitchingPathGenerator.cs` - 类定义
+- `ZakYip.WheelDiverterSorter.Application/Services/Caching/InMemoryRoutePlanRepository.cs` - 仓储层 - 路由计划内存缓存实现（3分钟滑动过期）
 - `ZakYip.WheelDiverterSorter.Application/Services/Caching/ISlidingConfigCache.cs` - 接口定义
 - `ZakYip.WheelDiverterSorter.Application/Services/Caching/SlidingConfigCache.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Application/Services/Config/CommunicationConfigService.cs` - 服务层 - 业务逻辑实现
@@ -2217,7 +2218,6 @@ grep -r "ProjectReference" src/**/*.csproj
 - `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbMapperConfig.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbPanelConfigurationRepository.cs` - 仓储层 - 数据访问
 - `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbRouteConfigurationRepository.cs` - 仓储层 - 数据访问
-- `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbRoutePlanRepository.cs` - 仓储层 - 数据访问
 - `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbSensorConfigurationRepository.cs` - 仓储层 - 数据访问
 - `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbSystemConfigurationRepository.cs` - 仓储层 - 数据访问
 - `ZakYip.WheelDiverterSorter.Configuration.Persistence/Repositories/LiteDb/LiteDbWheelDiverterConfigurationRepository.cs` - 仓储层 - 数据访问
