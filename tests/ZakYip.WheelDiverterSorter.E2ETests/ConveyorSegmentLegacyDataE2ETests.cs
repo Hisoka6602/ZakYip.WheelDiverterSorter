@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using LiteDB;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 using Xunit.Abstractions;
@@ -26,16 +27,14 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// <item>验证分拣流程中能正确读取输送线段配置</item>
 /// </list>
 /// </remarks>
+[Collection("ConveyorSegmentTests")]  // 确保测试按顺序运行，避免数据库并发问题
 public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
 {
     private const string ApiBaseUrl = "/api/config/conveyor-segments";
-    private readonly string _testDbPath;
 
     public ConveyorSegmentLegacyDataE2ETests(E2ETestFactory factory, ITestOutputHelper output) 
         : base(factory, output)
     {
-        // 使用独立的测试数据库路径
-        _testDbPath = Path.Combine(Path.GetTempPath(), $"conveyor_segment_legacy_test_{Guid.NewGuid()}.db");
     }
 
     /// <summary>
@@ -43,9 +42,23 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
     /// </summary>
     private void SeedLegacyData()
     {
+        // 通过配置获取数据库路径
+        var configuration = Scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var dbPath = configuration.GetValue<string>("RouteConfiguration:DatabasePath") ?? "Data/routes.db";
+        
+        // 确保数据库目录存在
+        var dbDirectory = Path.GetDirectoryName(dbPath);
+        if (!string.IsNullOrEmpty(dbDirectory) && !Directory.Exists(dbDirectory))
+        {
+            Directory.CreateDirectory(dbDirectory);
+        }
+
         // 直接使用 LiteDB 插入旧格式数据（包含 ObjectId 作为 _id）
-        using var db = new LiteDatabase($"Filename={_testDbPath};Connection=shared");
+        using var db = new LiteDatabase($"Filename={dbPath};Connection=shared");
         var collection = db.GetCollection("ConveyorSegmentConfiguration");
+
+        // 先清空现有数据
+        collection.DeleteAll();
 
         // 模拟旧数据：_id 为 ObjectId 类型
         var legacyDoc1 = new BsonDocument
@@ -94,7 +107,7 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
         collection.Insert(legacyDoc2);
         collection.Insert(legacyDoc3);
 
-        Output.WriteLine($"✅ 已插入 3 条旧格式数据（ObjectId _id）到数据库: {_testDbPath}");
+        Output.WriteLine($"✅ 已插入 3 条旧格式数据（ObjectId _id）到数据库: {dbPath}");
     }
 
     [Fact]
@@ -349,19 +362,7 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
     public override void Dispose()
     {
         base.Dispose();
-
-        // 清理测试数据库文件
-        if (File.Exists(_testDbPath))
-        {
-            try
-            {
-                File.Delete(_testDbPath);
-                Output.WriteLine($"🗑️ 已清理测试数据库: {_testDbPath}");
-            }
-            catch (Exception ex)
-            {
-                Output.WriteLine($"⚠️ 清理测试数据库失败: {ex.Message}");
-            }
-        }
+        
+        Output.WriteLine("🧹 测试完成");
     }
 }
