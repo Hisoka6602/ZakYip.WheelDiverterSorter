@@ -1,11 +1,11 @@
-using System.Net.NetworkInformation;
 using Microsoft.Extensions.Logging;
+using System.Net.NetworkInformation;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Observability.Utilities;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
-using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Observability.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 
@@ -22,7 +22,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
     /// Ping 超时时间（毫秒）
     /// </summary>
     private const int PingTimeoutMs = 2000;
-    
+
     private readonly IWheelDiverterConfigurationRepository _configRepository;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly IWheelDiverterDriverManager _driverManager;
@@ -63,7 +63,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 {
                     var systemUptime = TimeSpan.FromMilliseconds(Environment.TickCount64);
                     var requiredDelay = TimeSpan.FromSeconds(systemConfig.DriverStartupDelaySeconds);
-                    
+
                     if (systemUptime < requiredDelay)
                     {
                         var remainingDelay = requiredDelay - systemUptime;
@@ -72,9 +72,9 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                             systemUptime.TotalSeconds,
                             systemConfig.DriverStartupDelaySeconds,
                             remainingDelay.TotalSeconds);
-                        
+
                         await Task.Delay(remainingDelay, cancellationToken);
-                        
+
                         _logger.LogInformation("驱动启动延迟等待完成，现在开始连接驱动");
                     }
                     else
@@ -102,7 +102,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 }
 
                 // 检查配置是否为数递鸟类型
-                if (config.VendorType != Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao || 
+                if (config.VendorType != Core.Enums.Hardware.WheelDiverterVendorType.ShuDiNiao ||
                     config.ShuDiNiao == null)
                 {
                     _logger.LogInformation("未配置数递鸟摆轮设备");
@@ -148,7 +148,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                     {
                         _logger.LogWarning("摆轮 {DiverterId} (主机={Host}) 不可达", device.DiverterId, device.Host);
                         unreachableDevices.Add(device.DiverterId.ToString());
-                        
+
                         // 更新健康状态为不健康
                         UpdateHealthStatus(device.DiverterId.ToString(), false, false, "主机不可达");
                     }
@@ -190,7 +190,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 {
                     var diverterId = device.DiverterId.ToString();
                     var isConnected = activeDrivers.ContainsKey(diverterId);
-                    UpdateHealthStatus(diverterId, isConnected, isConnected, 
+                    UpdateHealthStatus(diverterId, isConnected, isConnected,
                         isConnected ? "已连接" : "连接失败");
                     return device;
                 }).ToList();
@@ -248,7 +248,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 var successCount = 0;
                 var failedDriverIds = new List<string>();
 
-                foreach (var kvp in activeDrivers)
+                foreach (var kvp in activeDrivers.OrderByDescending(o => o.Value.DiverterId))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
@@ -273,6 +273,10 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                         failedDriverIds.Add(kvp.Key);
                         _logger.LogError(ex, "摆轮 {DiverterId} 启动异常", kvp.Key);
                         UpdateHealthStatus(kvp.Key, false, true, $"启动异常: {ex.Message}");
+                    }
+                    finally
+                    {
+                        await Task.Delay(500, cancellationToken);
                     }
                 }
 
@@ -468,7 +472,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
             async () =>
             {
                 await Task.Yield();
-                
+
                 var activeDrivers = _driverManager.GetActiveDrivers();
                 var healthInfos = new List<WheelDiverterHealthInfo>();
 
@@ -476,7 +480,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 {
                     var diverterId = kvp.Key;
                     var driver = kvp.Value;
-                    
+
                     var nodeHealth = _healthRegistry.GetNodeHealth(long.Parse(diverterId));
                     var status = await driver.GetStatusAsync();
 
@@ -509,7 +513,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
             using var ping = new Ping();
             var reply = await ping.SendPingAsync(host, PingTimeoutMs);
             var isReachable = reply.Status == IPStatus.Success;
-            
+
             if (isReachable)
             {
                 _logger.LogDebug("主机 {Host} 可达，往返时间={RoundtripTime}ms", host, reply.RoundtripTime);
@@ -518,7 +522,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
             {
                 _logger.LogDebug("主机 {Host} 不可达，状态={Status}", host, reply.Status);
             }
-            
+
             return isReachable;
         }
         catch (Exception ex)
@@ -550,7 +554,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
         };
 
         _healthRegistry.UpdateNodeHealth(healthStatus);
-        
+
         _logger.LogDebug(
             "更新摆轮 {DiverterId} 健康状态: 健康={IsHealthy}, 已连接={IsConnected}, 状态={Status}",
             diverterId, isHealthy, isConnected, statusMessage);
