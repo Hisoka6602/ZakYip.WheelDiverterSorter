@@ -17,6 +17,53 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Tests;
 
 public class ParcelDetectionServiceTests
 {
+    /// <summary>
+    /// 创建带传感器配置的 Mock 仓储
+    /// </summary>
+    private Mock<ISensorConfigurationRepository> CreateMockSensorRepository(long sensorId, int deduplicationWindowMs = 400)
+    {
+        var mockRepo = new Mock<ISensorConfigurationRepository>();
+        var sensorConfig = new SensorConfiguration
+        {
+            Sensors = new List<SensorIoEntry>
+            {
+                new SensorIoEntry
+                {
+                    SensorId = sensorId,
+                    SensorName = "Test Sensor",
+                    IoType = SensorIoType.ParcelCreation,
+                    BitNumber = 0,
+                    DeduplicationWindowMs = deduplicationWindowMs,
+                    IsEnabled = true
+                }
+            }
+        };
+        mockRepo.Setup(r => r.Get()).Returns(sensorConfig);
+        return mockRepo;
+    }
+
+    /// <summary>
+    /// 创建带多个传感器配置的 Mock 仓储
+    /// </summary>
+    private Mock<ISensorConfigurationRepository> CreateMockSensorRepository(Dictionary<long, int> sensorDeduplicationWindows)
+    {
+        var mockRepo = new Mock<ISensorConfigurationRepository>();
+        var sensorConfig = new SensorConfiguration
+        {
+            Sensors = sensorDeduplicationWindows.Select((kvp, index) => new SensorIoEntry
+            {
+                SensorId = kvp.Key,
+                SensorName = $"Test Sensor {kvp.Key}",
+                IoType = SensorIoType.ParcelCreation,
+                BitNumber = (int)kvp.Key,
+                DeduplicationWindowMs = kvp.Value,
+                IsEnabled = true
+            }).ToList()
+        };
+        mockRepo.Setup(r => r.Get()).Returns(sensorConfig);
+        return mockRepo;
+    }
+
     [Fact]
     public async Task GenerateParcelId_ShouldBeUnique()
     {
@@ -66,11 +113,9 @@ public class ParcelDetectionServiceTests
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var sensors = new[] { mockSensor.Object };
-        var options = Options.Create(new ParcelDetectionOptions
-        {
-            DeduplicationWindowMs = 500 // 500ms window
-        });
-        var service = new ParcelDetectionService(sensors, options);
+        var options = Options.Create(new ParcelDetectionOptions());
+        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 500);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
 
         var detectedCount = 0;
         var duplicateCount = 0;
@@ -116,11 +161,9 @@ public class ParcelDetectionServiceTests
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var sensors = new[] { mockSensor.Object };
-        var options = Options.Create(new ParcelDetectionOptions
-        {
-            DeduplicationWindowMs = 500 // 500ms window
-        });
-        var service = new ParcelDetectionService(sensors, options);
+        var options = Options.Create(new ParcelDetectionOptions());
+        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 500);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
@@ -251,11 +294,13 @@ public class ParcelDetectionServiceTests
         mockSensor2.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var sensors = new[] { mockSensor1.Object, mockSensor2.Object };
-        var options = Options.Create(new ParcelDetectionOptions
+        var options = Options.Create(new ParcelDetectionOptions());
+        var mockSensorRepo = CreateMockSensorRepository(new Dictionary<long, int>
         {
-            DeduplicationWindowMs = 1000
+            { 1, 1000 },
+            { 2, 1000 }
         });
-        var service = new ParcelDetectionService(sensors, options);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
@@ -298,11 +343,9 @@ public class ParcelDetectionServiceTests
         mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
 
         var sensors = new[] { mockSensor.Object };
-        var options = Options.Create(new ParcelDetectionOptions
-        {
-            DeduplicationWindowMs = 500 // 500ms window
-        });
-        var service = new ParcelDetectionService(sensors, options);
+        var options = Options.Create(new ParcelDetectionOptions());
+        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 500);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
 
         ZakYip.WheelDiverterSorter.Core.Events.Sensor.DuplicateTriggerEventArgs? duplicateArgs = null;
         service.DuplicateTriggerDetected += (sender, e) => duplicateArgs = e;
@@ -353,10 +396,10 @@ public class ParcelDetectionServiceTests
         var sensors = new[] { mockSensor.Object };
         var options = Options.Create(new ParcelDetectionOptions
         {
-            ParcelIdHistorySize = 10, // Small history size for testing
-            DeduplicationWindowMs = 100 // Small window to allow rapid triggering
+            ParcelIdHistorySize = 10 // Small history size for testing
         });
-        var service = new ParcelDetectionService(sensors, options);
+        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 100); // Small window to allow rapid triggering
+        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
 
         var detectedParcelIds = new List<long>();
         service.ParcelDetected += (sender, e) => detectedParcelIds.Add(e.ParcelId);

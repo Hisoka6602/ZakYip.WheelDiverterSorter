@@ -202,6 +202,23 @@ public class SensorIoEntry
     public int? PollingIntervalMs { get; set; }
 
     /// <summary>
+    /// 重复触发判定窗口（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// <para>设置此传感器的防抖时间窗口。在此时间窗口内，同一传感器的重复触发将被检测并标记为异常。</para>
+    /// <para>**默认值**: 400ms</para>
+    /// <para>**建议范围**：100ms - 2000ms</para>
+    /// <list type="bullet">
+    /// <item>100-400ms: 高速分拣场景（快速移动的包裹，默认推荐）</item>
+    /// <item>400-1000ms: 标准速度（平衡防抖和灵敏度）</item>
+    /// <item>1000-2000ms: 低速场景或机械抖动明显的传感器</item>
+    /// </list>
+    /// </remarks>
+    /// <example>400</example>
+    [Range(100, 5000, ErrorMessage = "重复触发判定窗口必须在 100-5000ms 之间")]
+    public int DeduplicationWindowMs { get; set; } = 400;
+
+    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; } = true;

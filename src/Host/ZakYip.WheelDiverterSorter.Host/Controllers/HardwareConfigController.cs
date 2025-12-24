@@ -289,11 +289,21 @@ public class HardwareConfigController : ControllerBase
     /// - 建议范围：5-50ms，推荐10-20ms
     /// - 支持为每个传感器单独配置不同的轮询间隔
     /// 
+    /// - `deduplicationWindowMs`: 重复触发判定窗口（毫秒），默认值为400ms
+    /// - 建议范围：100-2000ms
+    /// - 在此时间窗口内，同一传感器的重复触发将被检测并标记为异常
+    /// - 每个传感器可以独立配置不同的防抖时间
+    /// 
     /// **重要变更（v2.0）**：
     /// - 移除了 `boundWheelDiverterId` 和 `boundChuteId` 字段
     /// - 传感器与摆轮/格口的绑定关系现在通过**拓扑配置 (topology configuration)** 管理
     /// - WheelFront 传感器通过 `DiverterPathNode.FrontSensorId` 绑定到摆轮
     /// - 这样可以更灵活地配置拓扑结构，无需修改传感器硬件配置
+    /// 
+    /// **v2.1 更新**：
+    /// - 新增 `deduplicationWindowMs` 字段，每个传感器独立配置防抖时间
+    /// - 默认值为 400ms，适合高速分拣场景
+    /// - 移除了全局 `ParcelDetectionOptions.DeduplicationWindowMs` 配置
     /// 
     /// **示例响应：**
     /// ```json
@@ -307,6 +317,7 @@ public class HardwareConfigController : ControllerBase
     ///         "ioType": "ParcelCreation",
     ///         "bitNumber": 0,
     ///         "pollingIntervalMs": 10,
+    ///         "deduplicationWindowMs": 400,
     ///         "triggerLevel": "ActiveHigh",
     ///         "isEnabled": true
     ///       }
@@ -360,10 +371,22 @@ public class HardwareConfigController : ControllerBase
     ///   - 10-20ms: 标准速度（推荐，平衡性能）
     ///   - 20-50ms: 低速场景（低CPU占用，较低精度）
     /// 
+    /// **配置防抖时间（deduplicationWindowMs）：**
+    /// 
+    /// - 设置为具体数值（如300）：使用自定义的防抖时间
+    /// - 不设置或使用默认值：400ms
+    /// - 建议范围：100-2000ms
+    ///   - 100-400ms: 高速分拣场景（快速移动的包裹，默认推荐）
+    ///   - 400-1000ms: 标准速度（平衡防抖和灵敏度）
+    ///   - 1000-2000ms: 低速场景或机械抖动明显的传感器
+    /// 
     /// **重要变更（v2.0）**：
     /// - 不再需要配置 `boundWheelDiverterId` 和 `boundChuteId`
     /// - 绑定关系由拓扑配置管理（参见 `/api/config/chute-path-topology`）
-    /// - `deduplicationWindowMs` 移至全局配置，不再支持单独设置
+    /// 
+    /// **v2.1 更新**：
+    /// - 新增 `deduplicationWindowMs` 字段，每个传感器独立配置
+    /// - 默认值为 400ms（不再依赖全局配置）
     /// 
     /// **示例请求：**
     /// ```json
@@ -375,6 +398,7 @@ public class HardwareConfigController : ControllerBase
     ///       "ioType": "ParcelCreation",
     ///       "bitNumber": 0,
     ///       "pollingIntervalMs": 20,
+    ///       "deduplicationWindowMs": 400,
     ///       "triggerLevel": "ActiveHigh",
     ///       "isEnabled": true
     ///     },
@@ -384,6 +408,7 @@ public class HardwareConfigController : ControllerBase
     ///       "ioType": "WheelFront",
     ///       "bitNumber": 1,
     ///       "pollingIntervalMs": null,
+    ///       "deduplicationWindowMs": 300,
     ///       "triggerLevel": "ActiveHigh",
     ///       "isEnabled": true
     ///     }
