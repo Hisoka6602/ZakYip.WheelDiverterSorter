@@ -10,6 +10,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using Xunit.Abstractions;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 
@@ -21,6 +22,7 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
     protected readonly E2ETestFactory Factory;
     protected readonly HttpClient Client;
     protected readonly IServiceScope Scope;
+    protected readonly ITestOutputHelper Output;
 
     // 通用服务
     protected readonly ISwitchingPathGenerator PathGenerator;
@@ -28,11 +30,16 @@ public class E2ETestBase : IClassFixture<E2ETestFactory>, IDisposable
     protected readonly IRouteConfigurationRepository RouteRepository;
     protected readonly ISystemConfigurationRepository SystemRepository;
 
-    public E2ETestBase(E2ETestFactory factory)
+    public E2ETestBase(E2ETestFactory factory) : this(factory, null!)
+    {
+    }
+
+    public E2ETestBase(E2ETestFactory factory, ITestOutputHelper output)
     {
         Factory = factory;
         Client = factory.CreateClient();
         Scope = factory.Services.CreateScope();
+        Output = output;
 
         // 重置模拟调用记录，确保此测试具有干净的状态
         Factory.ResetMockInvocations();

@@ -118,7 +118,11 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
             UpdatedAt = _systemClock.LocalNow 
         };
 
-        return _collection.Update(configWithTimestamps);
+        // 由于 Id 字段被忽略，使用 SegmentId 来更新记录
+        // 先删除旧记录，再插入新记录（LiteDB 的 Upsert 不适用于没有 _id 映射的情况）
+        _collection.DeleteMany(x => x.SegmentId == config.SegmentId);
+        _collection.Insert(configWithTimestamps);
+        return true;
     }
 
     /// <summary>
@@ -128,15 +132,9 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
     /// <returns>是否删除成功</returns>
     public bool Delete(long segmentId)
     {
-        // 先通过 SegmentId 查询记录
-        var config = GetById(segmentId);
-        if (config == null)
-        {
-            return false;
-        }
-        
-        // 使用内部 Id 删除记录
-        return _collection.Delete(new BsonValue(config.Id));
+        // 直接使用 SegmentId 删除记录（通过唯一索引）
+        var deleteCount = _collection.DeleteMany(x => x.SegmentId == segmentId);
+        return deleteCount > 0;
     }
 
     /// <summary>
@@ -239,10 +237,10 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
                         UpdatedAt = now 
                     };
                     
-                    if (_collection.Update(configWithTimestamps))
-                    {
-                        count++;
-                    }
+                    // 由于 Id 字段被忽略，使用 SegmentId 来更新记录
+                    _collection.DeleteMany(x => x.SegmentId == config.SegmentId);
+                    _collection.Insert(configWithTimestamps);
+                    count++;
                 }
             }
             
