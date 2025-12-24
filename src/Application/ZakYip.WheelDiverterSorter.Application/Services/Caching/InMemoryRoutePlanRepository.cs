@@ -65,23 +65,23 @@ public sealed class InMemoryRoutePlanRepository : IRoutePlanRepository
     public async Task<RoutePlan?> GetByParcelIdAsync(long parcelId, CancellationToken cancellationToken = default)
     {
         return await _safeExecutor.ExecuteAsync(
-            async () =>
+            () =>
             {
                 if (parcelId <= 0)
                 {
                     _logger.LogWarning("GetByParcelIdAsync: Invalid ParcelId={ParcelId}", parcelId);
-                    return null;
+                    return Task.FromResult<RoutePlan?>(null);
                 }
 
                 var cacheKey = BuildCacheKey(parcelId);
                 if (_memoryCache.TryGetValue(cacheKey, out RoutePlan? routePlan) && routePlan is not null)
                 {
                     _logger.LogDebug("GetByParcelIdAsync: 缓存命中 ParcelId={ParcelId}", parcelId);
-                    return routePlan;
+                    return Task.FromResult<RoutePlan?>(routePlan);
                 }
 
                 _logger.LogDebug("GetByParcelIdAsync: 缓存未命中 ParcelId={ParcelId}", parcelId);
-                return null;
+                return Task.FromResult<RoutePlan?>(null);
             },
             operationName: "InMemoryRoutePlanRepository.GetByParcelIdAsync",
             cancellationToken: cancellationToken,
@@ -93,7 +93,7 @@ public sealed class InMemoryRoutePlanRepository : IRoutePlanRepository
     public async Task SaveAsync(RoutePlan routePlan, CancellationToken cancellationToken = default)
     {
         await _safeExecutor.ExecuteAsync(
-            async () =>
+            () =>
             {
                 ArgumentNullException.ThrowIfNull(routePlan);
 
@@ -102,7 +102,7 @@ public sealed class InMemoryRoutePlanRepository : IRoutePlanRepository
                     _logger.LogWarning(
                         "SaveAsync: Invalid RoutePlan.ParcelId={ParcelId}",
                         routePlan.ParcelId);
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var cacheKey = BuildCacheKey(routePlan.ParcelId);
@@ -121,7 +121,7 @@ public sealed class InMemoryRoutePlanRepository : IRoutePlanRepository
                     routePlan.CurrentTargetChuteId,
                     routePlan.Status);
 
-                await Task.CompletedTask;
+                return Task.CompletedTask;
             },
             operationName: "InMemoryRoutePlanRepository.SaveAsync",
             cancellationToken: cancellationToken
@@ -132,12 +132,12 @@ public sealed class InMemoryRoutePlanRepository : IRoutePlanRepository
     public async Task DeleteAsync(long parcelId, CancellationToken cancellationToken = default)
     {
         await _safeExecutor.ExecuteAsync(
-            async () =>
+            () =>
             {
                 if (parcelId <= 0)
                 {
                     _logger.LogWarning("DeleteAsync: Invalid ParcelId={ParcelId}", parcelId);
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 var cacheKey = BuildCacheKey(parcelId);
@@ -145,7 +145,7 @@ public sealed class InMemoryRoutePlanRepository : IRoutePlanRepository
 
                 _logger.LogDebug("DeleteAsync: 已删除路由计划 ParcelId={ParcelId}", parcelId);
 
-                await Task.CompletedTask;
+                return Task.CompletedTask;
             },
             operationName: "InMemoryRoutePlanRepository.DeleteAsync",
             cancellationToken: cancellationToken
