@@ -95,7 +95,9 @@ public class ConveyorSegmentIdMigration
             // 4. 使用正确的映射配置重新打开数据库
             var mapper = Repositories.LiteDb.LiteDbMapperConfig.CreateConfiguredMapper();
             using var newDb = new LiteDatabase(connectionString, mapper);
-            var newCollection = newDb.GetCollection(CollectionName);
+            
+            // 获取类型化的集合（使用 ConveyorSegmentConfiguration 类型，自动应用 Id 映射）
+            var newCollection = newDb.GetCollection<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.ConveyorSegmentConfiguration>(CollectionName);
 
             // 5. 逐条迁移数据，使用 SegmentId 作为新的 _id
             var migratedCount = 0;
@@ -105,18 +107,17 @@ public class ConveyorSegmentIdMigration
             {
                 try
                 {
-                    // 使用 SegmentId 作为新的 _id
-                    if (doc.TryGetValue("SegmentId", out var segmentIdValue) && segmentIdValue.IsInt64)
+                    // 从 BsonDocument 反序列化为 ConveyorSegmentConfiguration 对象
+                    // mapper 会自动将 SegmentId 映射为 _id
+                    var config = mapper.ToObject<ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models.ConveyorSegmentConfiguration>(doc);
+                    
+                    if (config != null && config.SegmentId > 0)
                     {
-                        var segmentId = segmentIdValue.AsInt64;
-                        
-                        // 创建新文档，将 _id 设置为 SegmentId
-                        var newDoc = new BsonDocument(doc);
-                        newDoc["_id"] = new BsonValue(segmentId);
-                        
-                        // 插入到新集合
-                        newCollection.Insert(newDoc);
+                        // 插入到新集合（mapper 会自动使用 SegmentId 作为 _id）
+                        newCollection.Insert(config);
                         migratedCount++;
+                        
+                        logger?.LogDebug("成功迁移记录: SegmentId={SegmentId}", config.SegmentId);
                     }
                     else
                     {
@@ -140,7 +141,11 @@ public class ConveyorSegmentIdMigration
                 return (true, migratedCount > 0, message);
             }
 
-            // 6. 迁移完全成功，删除备份
+            // 6. 确保创建唯一索引（与 LiteDbConveyorSegmentRepository 构造函数中的索引一致）
+            logger?.LogInformation("为 SegmentId 字段创建唯一索引");
+            newCollection.EnsureIndex(x => x.SegmentId, unique: true);
+
+            // 7. 迁移完全成功，删除备份
             logger?.LogInformation("迁移完全成功，删除备份集合 {BackupCollectionName}", BackupCollectionName);
             newDb.DropCollection(BackupCollectionName);
 
