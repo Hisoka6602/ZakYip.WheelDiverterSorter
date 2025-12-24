@@ -64,6 +64,14 @@ public sealed class LiteDbRoutePlanRepository : IRoutePlanRepository, IDisposabl
 
         ArgumentNullException.ThrowIfNull(routePlan);
 
+        // 验证 ParcelId 必须有效（不能为0或负数）
+        if (routePlan.ParcelId <= 0)
+        {
+            throw new ArgumentException(
+                $"RoutePlan.ParcelId must be a positive value, but got {routePlan.ParcelId}",
+                nameof(routePlan));
+        }
+
         // 检查是否已存在该包裹的路由计划
         var existing = _collection
             .Query()

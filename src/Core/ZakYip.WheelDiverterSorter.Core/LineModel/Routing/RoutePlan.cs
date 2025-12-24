@@ -17,42 +17,42 @@ public class RoutePlan
     /// <summary>
     /// 包裹ID
     /// </summary>
-    public long ParcelId { get; internal set; }
+    public long ParcelId { get; set; }
 
     /// <summary>
     /// 初始目标格口ID
     /// </summary>
-    public long InitialTargetChuteId { get; internal set; }
+    public long InitialTargetChuteId { get; set; }
 
     /// <summary>
     /// 当前有效目标格口ID
     /// </summary>
-    public long CurrentTargetChuteId { get; internal set; }
+    public long CurrentTargetChuteId { get; set; }
 
     /// <summary>
     /// 当前计划状态
     /// </summary>
-    public RoutePlanStatus Status { get; internal set; }
+    public RoutePlanStatus Status { get; set; }
 
     /// <summary>
     /// 计划创建时间
     /// </summary>
-    public DateTimeOffset CreatedAt { get; internal set; }
+    public DateTimeOffset CreatedAt { get; set; }
 
     /// <summary>
     /// 最后修改时间
     /// </summary>
-    public DateTimeOffset LastModifiedAt { get; internal set; }
+    public DateTimeOffset LastModifiedAt { get; set; }
 
     /// <summary>
     /// 最后可改口时间（可选，用于时间窗口控制）
     /// </summary>
-    public DateTimeOffset? LastReplanDeadline { get; internal set; }
+    public DateTimeOffset? LastReplanDeadline { get; set; }
 
     /// <summary>
     /// 已应用的改口次数
     /// </summary>
-    public int ChuteChangeCount { get; internal set; }
+    public int ChuteChangeCount { get; set; }
 
     /// <summary>
     /// 领域事件集合（只读）
