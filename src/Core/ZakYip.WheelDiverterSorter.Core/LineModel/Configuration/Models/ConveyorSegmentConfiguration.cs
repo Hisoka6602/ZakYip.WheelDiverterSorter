@@ -17,7 +17,7 @@ public record class ConveyorSegmentConfiguration
     /// <remarks>
     /// 用于数据库内部标识，业务逻辑使用 SegmentId 作为业务主键
     /// </remarks>
-    public int Id { get; init; }
+    public long Id { get; init; }
 
     /// <summary>
     /// 线段唯一标识符（对应拓扑配置中的 SegmentId）

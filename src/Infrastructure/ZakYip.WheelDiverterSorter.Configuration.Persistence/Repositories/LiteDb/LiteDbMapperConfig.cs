@@ -57,7 +57,7 @@ public static class LiteDbMapperConfig
         mapper.Entity<WheelDiverterConfiguration>()
             .Id(x => x.Id);
         
-        // 配置 ConveyorSegmentConfiguration 实体（使用 ObjectId 作为主键）
+        // 配置 ConveyorSegmentConfiguration 实体（使用 Id 作为数据库内部主键，自动生成；SegmentId 作为业务主键）
         mapper.Entity<ConveyorSegmentConfiguration>()
             .Id(x => x.Id, autoId: true);
         

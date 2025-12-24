@@ -36,7 +36,7 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<ConveyorSegmentConfiguration>(CollectionName);
         
-        // 为SegmentId字段创建唯一索引（业务主键）
+        // 为SegmentId字段创建唯一索引（业务唯一键，用于业务逻辑查询）
         _collection.EnsureIndex(x => x.SegmentId, unique: true);
     }
 
