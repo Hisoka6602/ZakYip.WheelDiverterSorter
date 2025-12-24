@@ -10,6 +10,8 @@ using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Ingress.Models;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Tests;
 
@@ -380,5 +382,167 @@ public class ParcelDetectionServiceTests
         Assert.Equal(15, detectedParcelIds.Count);
         // All should still be unique (within the test scope)
         Assert.Equal(detectedParcelIds.Count, detectedParcelIds.Distinct().Count());
+    }
+
+    [Fact]
+    public async Task UnknownSensorType_ShouldNotTriggerParcelCreation()
+    {
+        // Arrange
+        var mockSensor = new Mock<ISensor>();
+        mockSensor.Setup(s => s.SensorId).Returns(999);
+        mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
+        mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var sensors = new[] { mockSensor.Object };
+        
+        // Mock repository that returns a sensor with Unknown type
+        var mockConfig = new SensorConfiguration
+        {
+            Sensors = new List<SensorIoEntry>
+            {
+                new() 
+                { 
+                    SensorId = 999, 
+                    IoType = SensorIoType.Unknown,
+                    BitNumber = 0,
+                    IsEnabled = true 
+                }
+            }
+        };
+        
+        var mockRepository = new Mock<ISensorConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(mockConfig);
+        
+        var options = Options.Create(new ParcelDetectionOptions());
+        var service = new ParcelDetectionService(
+            sensors, 
+            options,
+            sensorConfigRepository: mockRepository.Object);
+
+        var detectedCount = 0;
+        service.ParcelDetected += (sender, e) => detectedCount++;
+
+        // Start the service
+        await service.StartAsync();
+
+        var baseTime = DateTimeOffset.Now;
+
+        // Act - Trigger unknown sensor
+        var sensorEvent = new SensorEvent
+        {
+            SensorId = 999,
+            SensorType = SensorType.Photoelectric,
+            TriggerTime = baseTime,
+            IsTriggered = true
+        };
+        mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent);
+
+        // Assert - Should NOT create parcel (count should be 0)
+        Assert.Equal(0, detectedCount);
+    }
+
+    [Fact]
+    public async Task UnconfiguredSensor_ShouldReturnUnknownType()
+    {
+        // Arrange
+        var mockSensor = new Mock<ISensor>();
+        mockSensor.Setup(s => s.SensorId).Returns(888);
+        mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
+        mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var sensors = new[] { mockSensor.Object };
+        
+        // Mock repository that returns empty configuration (sensor not found)
+        var mockConfig = new SensorConfiguration
+        {
+            Sensors = new List<SensorIoEntry>()
+        };
+        
+        var mockRepository = new Mock<ISensorConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(mockConfig);
+        
+        var options = Options.Create(new ParcelDetectionOptions());
+        var service = new ParcelDetectionService(
+            sensors, 
+            options,
+            sensorConfigRepository: mockRepository.Object);
+
+        var detectedCount = 0;
+        service.ParcelDetected += (sender, e) => detectedCount++;
+
+        // Start the service
+        await service.StartAsync();
+
+        var baseTime = DateTimeOffset.Now;
+
+        // Act - Trigger unconfigured sensor
+        var sensorEvent = new SensorEvent
+        {
+            SensorId = 888,
+            SensorType = SensorType.Photoelectric,
+            TriggerTime = baseTime,
+            IsTriggered = true
+        };
+        mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent);
+
+        // Assert - Should NOT create parcel (sensor not configured -> Unknown type)
+        Assert.Equal(0, detectedCount);
+    }
+
+    [Fact]
+    public async Task DisabledSensor_ShouldReturnUnknownType()
+    {
+        // Arrange
+        var mockSensor = new Mock<ISensor>();
+        mockSensor.Setup(s => s.SensorId).Returns(777);
+        mockSensor.Setup(s => s.Type).Returns(SensorType.Photoelectric);
+        mockSensor.Setup(s => s.StartAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+
+        var sensors = new[] { mockSensor.Object };
+        
+        // Mock repository that returns a disabled sensor
+        var mockConfig = new SensorConfiguration
+        {
+            Sensors = new List<SensorIoEntry>
+            {
+                new() 
+                { 
+                    SensorId = 777, 
+                    IoType = SensorIoType.ParcelCreation,
+                    BitNumber = 0,
+                    IsEnabled = false  // Disabled
+                }
+            }
+        };
+        
+        var mockRepository = new Mock<ISensorConfigurationRepository>();
+        mockRepository.Setup(r => r.Get()).Returns(mockConfig);
+        
+        var options = Options.Create(new ParcelDetectionOptions());
+        var service = new ParcelDetectionService(
+            sensors, 
+            options,
+            sensorConfigRepository: mockRepository.Object);
+
+        var detectedCount = 0;
+        service.ParcelDetected += (sender, e) => detectedCount++;
+
+        // Start the service
+        await service.StartAsync();
+
+        var baseTime = DateTimeOffset.Now;
+
+        // Act - Trigger disabled sensor
+        var sensorEvent = new SensorEvent
+        {
+            SensorId = 777,
+            SensorType = SensorType.Photoelectric,
+            TriggerTime = baseTime,
+            IsTriggered = true
+        };
+        mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent);
+
+        // Assert - Should NOT create parcel (disabled sensor -> Unknown type)
+        Assert.Equal(0, detectedCount);
     }
 }
