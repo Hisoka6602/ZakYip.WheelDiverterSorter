@@ -438,12 +438,52 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="sensorId">传感器ID</param>
     /// <returns>防抖时间窗口（毫秒）</returns>
     /// <remarks>
-    /// v2.0: 统一使用全局默认值，不再支持单独配置
+    /// v2.1: 从传感器配置中读取防抖时间，默认值为 400ms
     /// </remarks>
     private int GetDeduplicationWindowForSensor(long sensorId)
     {
-        // 使用全局默认值
-        return _options.DeduplicationWindowMs;
+        const int DefaultDeduplicationWindowMs = 400;
+
+        // 如果没有配置仓储，使用默认值
+        if (_sensorConfigRepository == null)
+        {
+            _logger?.LogWarning(
+                "未注入 ISensorConfigurationRepository，传感器 {SensorId} 使用默认防抖时间: {DeduplicationWindowMs}ms",
+                sensorId,
+                DefaultDeduplicationWindowMs);
+            return DefaultDeduplicationWindowMs;
+        }
+
+        try
+        {
+            var config = _sensorConfigRepository.Get();
+            var sensor = config.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
+
+            // 如果找到传感器配置，使用配置的值
+            if (sensor != null)
+            {
+                _logger?.LogDebug(
+                    "传感器 {SensorId} 使用配置的防抖时间: {DeduplicationWindowMs}ms",
+                    sensorId,
+                    sensor.DeduplicationWindowMs);
+                return sensor.DeduplicationWindowMs;
+            }
+
+            // 未找到传感器配置，使用默认值
+            _logger?.LogWarning(
+                "传感器 {SensorId} 未在配置中找到，使用默认防抖时间: {DeduplicationWindowMs}ms",
+                sensorId,
+                DefaultDeduplicationWindowMs);
+            return DefaultDeduplicationWindowMs;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex,
+                "获取传感器 {SensorId} 防抖时间配置时发生异常，使用默认值: {DeduplicationWindowMs}ms",
+                sensorId,
+                DefaultDeduplicationWindowMs);
+            return DefaultDeduplicationWindowMs;
+        }
     }
 
     /// <summary>
