@@ -11,15 +11,26 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 /// <remarks>
 /// 使用 ConcurrentDictionary 替代 ConcurrentBag，支持高并发添加、查询和高效删除旧数据，
 /// 避免长时间运行时的内存泄漏问题。
+/// <para>
+/// 技术债 TD-040 最初被标记为"已解决"，理由是"当前使用 ConcurrentBag 的实现已满足性能需求"，
+/// 但后续在长时间运行场景中暴露出严重的内存泄漏问题，证明该判断不准确。
+/// 本实现通过切换为 ConcurrentDictionary 并实现真正的清理逻辑，
+/// 最终按 TD-040 的建议完成了技术债闭环；相关状态与详细说明已同步更新到
+/// <c>docs/RepositoryStructure.md</c> 与 <c>docs/TechnicalDebtLog.md</c> 中。
+/// </para>
 /// </remarks>
 public class CongestionDataCollector : ICongestionDataCollector
 {
+    private const int CleanupIntervalMinutes = 5;
+    private const int HistoryWindowSeconds = 60;
+    
     private readonly ISystemClock _clock;
     // 使用 ConcurrentDictionary 存储包裹历史记录，键为 ParcelId
     private readonly ConcurrentDictionary<long, ParcelHistoryRecord> _parcelHistory = new();
     private int _inFlightParcels = 0; // 使用 Interlocked 操作
-    private readonly TimeSpan _historyWindow = TimeSpan.FromSeconds(60);
+    private readonly TimeSpan _historyWindow = TimeSpan.FromSeconds(HistoryWindowSeconds);
     private DateTime _lastCleanupTime = DateTime.MinValue;
+    private readonly object _cleanupLock = new();
 
     public CongestionDataCollector(ISystemClock clock)
     {
@@ -32,11 +43,11 @@ public class CongestionDataCollector : ICongestionDataCollector
     /// </summary>
     public void RecordParcelEntry(long parcelId, DateTime entryTime)
     {
-        // 添加或更新包裹记录
+        // 包裹重新进入时，视为新的生命周期，重置完成时间为 null
         _parcelHistory.AddOrUpdate(
             parcelId,
             new ParcelHistoryRecord(parcelId, entryTime, null),
-            (_, existing) => new ParcelHistoryRecord(parcelId, entryTime, existing.CompletionTime)
+            (_, existing) => new ParcelHistoryRecord(parcelId, entryTime, null)
         );
         
         // 使用 Interlocked 原子递增
@@ -129,25 +140,35 @@ public class CongestionDataCollector : ICongestionDataCollector
     {
         var now = _clock.LocalNow;
         
-        // 每隔 5 分钟执行一次清理
-        if ((now - _lastCleanupTime).TotalMinutes < 5)
+        // 每隔 CleanupIntervalMinutes 分钟执行一次清理
+        if ((now - _lastCleanupTime).TotalMinutes < CleanupIntervalMinutes)
         {
             return;
         }
         
-        _lastCleanupTime = now;
-        
-        // 清理超过时间窗口 + 额外 5 分钟的记录
-        var cutoffTime = now - _historyWindow - TimeSpan.FromMinutes(5);
-        
-        var keysToRemove = _parcelHistory
-            .Where(kvp => kvp.Value.EntryTime < cutoffTime)
-            .Select(kvp => kvp.Key)
-            .ToList();
-        
-        foreach (var key in keysToRemove)
+        // 使用锁防止多个线程同时执行清理
+        lock (_cleanupLock)
         {
-            _parcelHistory.TryRemove(key, out _);
+            // Double-check pattern: 再次检查是否需要清理
+            if ((now - _lastCleanupTime).TotalMinutes < CleanupIntervalMinutes)
+            {
+                return;
+            }
+            
+            _lastCleanupTime = now;
+            
+            // 清理超过时间窗口 + 额外 CleanupIntervalMinutes 分钟的记录
+            var cutoffTime = now - _historyWindow - TimeSpan.FromMinutes(CleanupIntervalMinutes);
+            
+            var keysToRemove = _parcelHistory
+                .Where(kvp => kvp.Value.EntryTime < cutoffTime)
+                .Select(kvp => kvp.Key)
+                .ToList();
+            
+            foreach (var key in keysToRemove)
+            {
+                _parcelHistory.TryRemove(key, out _);
+            }
         }
     }
 
