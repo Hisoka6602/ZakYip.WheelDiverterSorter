@@ -91,13 +91,20 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         _logger?.LogInformation("启动包裹检测服务");
 
-        // 订阅所有传感器的事件
+        // 订阅所有传感器的事件，并缓存计数以避免重复枚举
+        var sensorCount = 0;
+        var activeSensorCount = 0;
         foreach (var sensor in _sensors)
         {
-            sensor.SensorTriggered += OnSensorTriggered;
-            sensor.SensorError += OnSensorError;
-            await sensor.StartAsync(cancellationToken);
-            _logger?.LogInformation("传感器 {SensorId} ({Type}) 已启动", sensor.SensorId, sensor.Type);
+            sensorCount++;
+            if (sensor != null)
+            {
+                activeSensorCount++;
+                sensor.SensorTriggered += OnSensorTriggered;
+                sensor.SensorError += OnSensorError;
+                await sensor.StartAsync(cancellationToken);
+                _logger?.LogInformation("传感器 {SensorId} ({Type}) 已启动", sensor.SensorId, sensor.Type);
+            }
         }
 
         // 启动健康监控
@@ -109,9 +116,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         _isRunning = true;
         
-        // 输出启动完成总结
-        var sensorCount = _sensors.Count();
-        var activeSensorCount = _sensors.Count(s => s != null);
+        // 输出启动完成总结（使用缓存的计数值）
         _logger?.LogInformation(
             "========== 包裹检测服务启动完成 ==========\n" +
             "  - 已注册传感器: {SensorCount} 个\n" +
@@ -173,9 +178,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         // PR-fix-sensor-type-filtering: 
         // - ParcelCreation 类型：创建包裹并触发 ParcelDetected 事件
         // - WheelFront/ChuteLock 类型：触发 ParcelDetected 事件（但不创建包裹，由 Orchestrator 处理）
+        // - Unknown 类型：不触发任何事件，阻止虚假包裹流
         // PR-fix-system-state-check: 所有传感器类型都需要检查系统状态
         
         var sensorType = GetSensorType(sensorEvent.SensorId);
+        
+        // 修复 TD-XXX: 拦截未知传感器，防止虚假包裹流
+        if (sensorType == SensorIoType.Unknown)
+        {
+            _logger?.LogWarning(
+                "传感器 {SensorId} 类型为 Unknown，拒绝处理触发事件（可能未配置或配置错误）",
+                sensorEvent.SensorId);
+            return;
+        }
         
         // 所有传感器类型都需要检查系统是否处于运行状态
         if (!IsSystemReadyForParcelCreation())
@@ -272,9 +287,16 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <returns>传感器类型</returns>
+    /// <remarks>
+    /// 修复 TD-XXX: 未知传感器不再默认为 ParcelCreation，防止虚假包裹流。
+    /// - 仓储未注入时：默认 ParcelCreation（向后兼容）
+    /// - 配置未找到时：返回 Unknown（阻止创建）
+    /// - 异常时：返回 Unknown（阻止创建）
+    /// </remarks>
     private SensorIoType GetSensorType(long sensorId)
     {
         // 如果没有配置仓储，默认为 ParcelCreation 类型（向后兼容）
+        // 这是唯一允许默认为 ParcelCreation 的场景，因为系统可能在简化模式下运行
         if (_sensorConfigRepository == null)
         {
             _logger?.LogWarning(
@@ -290,20 +312,30 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
             if (sensor == null)
             {
-                _logger?.LogWarning(
-                    "传感器 {SensorId} 未在配置中找到，默认为 ParcelCreation 类型",
+                // 修复：未配置的传感器视为不可用，防止虚假包裹流
+                _logger?.LogError(
+                    "传感器 {SensorId} 未在配置中找到，拒绝创建包裹（Unknown 类型）。请检查传感器配置。",
                     sensorId);
-                return SensorIoType.ParcelCreation;
+                return SensorIoType.Unknown;
+            }
+
+            if (!sensor.IsEnabled)
+            {
+                _logger?.LogWarning(
+                    "传感器 {SensorId} 已禁用，视为 Unknown 类型",
+                    sensorId);
+                return SensorIoType.Unknown;
             }
 
             return sensor.IoType;
         }
         catch (Exception ex)
         {
+            // 修复：异常情况下视为不可用，防止虚假包裹流
             _logger?.LogError(ex,
-                "获取传感器 {SensorId} 类型时发生异常，默认为 ParcelCreation 类型",
+                "获取传感器 {SensorId} 类型时发生异常，拒绝创建包裹（Unknown 类型）",
                 sensorId);
-            return SensorIoType.ParcelCreation;
+            return SensorIoType.Unknown;
         }
     }
 

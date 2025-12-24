@@ -6,17 +6,29 @@ namespace ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 /// 感应IO类型 - 按业务功能分类
 /// </summary>
 /// <remarks>
-/// 感应IO按业务功能分为三种类型：
+/// 感应IO按业务功能分为以下类型：
+/// - Unknown: 未知/未配置的感应IO，不触发任何业务逻辑
 /// - ParcelCreation: 创建包裹感应IO，用于感应包裹进入系统并创建包裹实体
 /// - WheelFront: 摆轮前感应IO，用于检测包裹即将到达摆轮
 /// - ChuteLock: 锁格感应IO，用于检测包裹落入格口
+/// - ChuteDropoff: 落格感应IO，用于触发落格回调
 /// 
 /// 注意：
 /// - 一个系统中只能有一个 ParcelCreation 类型的感应IO处于激活状态
 /// - WheelFront 类型的感应IO与摆轮的 frontIoId 关联
+/// - Unknown 类型用于防止未配置的传感器触发虚假包裹流
 /// </remarks>
 public enum SensorIoType
 {
+    /// <summary>
+    /// 未知/未配置的感应IO - 不触发任何业务逻辑
+    /// </summary>
+    /// <remarks>
+    /// 用于未在配置中找到或配置错误的传感器，防止触发虚假包裹流
+    /// </remarks>
+    [Description("未知感应IO")]
+    Unknown = -1,
+
     /// <summary>
     /// 创建包裹感应IO - 感应包裹进入系统并触发包裹创建
     /// </summary>
