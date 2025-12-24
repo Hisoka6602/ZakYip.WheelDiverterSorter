@@ -211,11 +211,11 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                         UpdateWheelDiverterHealth(diverterId, false, 
                             $"心跳超时: {elapsed.TotalSeconds:F1}秒", "连接异常");
                         
-                        // 触发重连（数递鸟驱动器支持 ReconnectAsync）
+                        // 触发重连（数递鸟驱动器支持 StartReconnect）
                         if (driver is Drivers.Vendors.ShuDiNiao.ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
                         {
                             _logger.LogInformation("摆轮 {DiverterId} 心跳超时，触发自动重连", diverterId);
-                            shuDiNiaoDriver.ReconnectAsync();
+                            shuDiNiaoDriver.StartReconnect();
                         }
                     }
                 }

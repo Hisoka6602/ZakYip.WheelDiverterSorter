@@ -57,6 +57,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md | `./docs/UPSTREAM_NOTIFICATION_TROUBLESHOOTING.md` | 上游通知故障排查指南（传感器触发vs测试端点对比） | 🔴 高 |
 | COMMUNICATION_LOGGING_VERIFICATION.md | `./docs/COMMUNICATION_LOGGING_VERIFICATION.md` | **通信日志功能验证文档（日志文件说明、配置方法、验证步骤、故障排查）** | 🔴 高 |
 | SERVER_MODE_DUAL_INSTANCE_ISSUE.md | `./docs/SERVER_MODE_DUAL_INSTANCE_ISSUE.md` | **Server模式双实例问题分析与修复（根本原因诊断）** | 🔴 高 |
+| RECONNECTION_AND_MIGRATION_SUMMARY.md | `./docs/RECONNECTION_AND_MIGRATION_SUMMARY.md` | **摆轮无限重连机制与数据库迁移实施总结（重连策略、迁移工具、部署说明）** | 🔴 高 |
 | POSITION_INTERVAL_FIX.md | `./docs/POSITION_INTERVAL_FIX.md` | Position间隔追踪修复文档（问题诊断、解决方案、位置映射表、间隔计算逻辑） | 🟢 低 |
 | TIMEOUT_HANDLING_MECHANISM.md | `./docs/TIMEOUT_HANDLING_MECHANISM.md` | **包裹超时处理机制说明文档（上游无响应时的超时兜底流程、配置参数、日志追踪、故障排查）** | 🔴 高 |
 | VERIFICATION_REPORT.md | `./docs/VERIFICATION_REPORT.md` | PR #464 功能验证报告（队列清理与预警取消功能验证） | 🟢 低 |

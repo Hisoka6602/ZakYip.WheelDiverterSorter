@@ -23,7 +23,7 @@ public class ShuDiNiaoReconnectionTests
     }
 
     [Fact]
-    public void ReconnectAsync_ShouldNotThrow_WhenCalledMultipleTimes()
+    public async Task StartReconnect_ShouldNotThrow_WhenCalledMultipleTimes()
     {
         // Arrange
         var config = new ShuDiNiaoDeviceEntry
@@ -37,18 +37,18 @@ public class ShuDiNiaoReconnectionTests
 
         using var driver = new ShuDiNiaoWheelDiverterDriver(config, _mockLogger.Object, _mockClock.Object);
 
-        // Act - 多次调用 ReconnectAsync 不应抛出异常
-        driver.ReconnectAsync();
-        driver.ReconnectAsync();
-        driver.ReconnectAsync();
+        // Act - 多次调用 StartReconnect 不应抛出异常
+        driver.StartReconnect();
+        driver.StartReconnect();
+        driver.StartReconnect();
 
         // Assert - 通过没有异常表示成功
         // 等待一小段时间让重连任务启动
-        Thread.Sleep(100);
+        await Task.Delay(100);
     }
 
     [Fact]
-    public void CheckHeartbeatAsync_ShouldReturnFalse_WhenNeverConnected()
+    public async Task CheckHeartbeatAsync_ShouldReturnFalse_WhenNeverConnected()
     {
         // Arrange
         var config = new ShuDiNiaoDeviceEntry
@@ -63,14 +63,14 @@ public class ShuDiNiaoReconnectionTests
         using var driver = new ShuDiNiaoWheelDiverterDriver(config, _mockLogger.Object, _mockClock.Object);
 
         // Act
-        var result = driver.CheckHeartbeatAsync().Result;
+        var result = await driver.CheckHeartbeatAsync();
 
         // Assert
         Assert.False(result);
     }
 
     [Fact]
-    public void Dispose_ShouldStopReconnectTask()
+    public async Task Dispose_ShouldStopReconnectTask()
     {
         // Arrange
         var config = new ShuDiNiaoDeviceEntry
@@ -85,8 +85,8 @@ public class ShuDiNiaoReconnectionTests
         var driver = new ShuDiNiaoWheelDiverterDriver(config, _mockLogger.Object, _mockClock.Object);
 
         // Act - 启动重连任务后立即释放
-        driver.ReconnectAsync();
-        Thread.Sleep(100); // 等待任务启动
+        driver.StartReconnect();
+        await Task.Delay(100); // 等待任务启动
         driver.Dispose();
 
         // Assert - 验证没有异常

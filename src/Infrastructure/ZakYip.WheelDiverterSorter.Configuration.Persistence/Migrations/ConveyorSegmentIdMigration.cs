@@ -89,12 +89,15 @@ public class ConveyorSegmentIdMigration
 
             logger?.LogInformation("从备份中读取了 {Count} 条记录", allDocs.Count);
 
-            // 3. 创建新集合（使用正确的映射配置）
+            // 3. 关闭原数据库，以便使用新的映射配置重新打开
+            db.Dispose();
+
+            // 4. 使用正确的映射配置重新打开数据库
             var mapper = Repositories.LiteDb.LiteDbMapperConfig.CreateConfiguredMapper();
-            var newDb = new LiteDatabase(connectionString, mapper);
+            using var newDb = new LiteDatabase(connectionString, mapper);
             var newCollection = newDb.GetCollection(CollectionName);
 
-            // 4. 逐条迁移数据，使用 SegmentId 作为新的 _id
+            // 5. 逐条迁移数据，使用 SegmentId 作为新的 _id
             var migratedCount = 0;
             var failedCount = 0;
 
@@ -128,8 +131,6 @@ public class ConveyorSegmentIdMigration
                 }
             }
 
-            newDb.Dispose();
-
             var message = $"迁移完成：成功 {migratedCount} 条，失败 {failedCount} 条";
             logger?.LogInformation(message);
 
@@ -139,9 +140,9 @@ public class ConveyorSegmentIdMigration
                 return (true, migratedCount > 0, message);
             }
 
-            // 5. 迁移完全成功，删除备份
+            // 6. 迁移完全成功，删除备份
             logger?.LogInformation("迁移完全成功，删除备份集合 {BackupCollectionName}", BackupCollectionName);
-            db.DropCollection(BackupCollectionName);
+            newDb.DropCollection(BackupCollectionName);
 
             return (true, true, message);
         }
