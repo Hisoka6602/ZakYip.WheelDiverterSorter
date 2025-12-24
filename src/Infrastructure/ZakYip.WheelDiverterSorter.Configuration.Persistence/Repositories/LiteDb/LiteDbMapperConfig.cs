@@ -59,7 +59,7 @@ public static class LiteDbMapperConfig
         
         // 配置 ConveyorSegmentConfiguration 实体（使用 SegmentId 作为主键）
         mapper.Entity<ConveyorSegmentConfiguration>()
-            .Id(x => x.SegmentId);
+            .Id(x => x.SegmentId, autoId: false);
         
         // 配置 RoutePlan 实体（使用 ParcelId 作为主键）
         // 忽略 DomainEvents 属性（这是内存中的领域事件，不需要持久化）

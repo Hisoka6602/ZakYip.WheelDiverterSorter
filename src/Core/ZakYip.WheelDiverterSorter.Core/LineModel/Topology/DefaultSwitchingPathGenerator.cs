@@ -641,16 +641,29 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             
             // 从输送线段配置读取传输时间和超时容差
             var segmentConfig = _conveyorSegmentRepository?.GetById(node.SegmentId);
+            
+            // 计算理论传输时间和超时容差
+            double transitTimeMs;
+            long timeoutThresholdMs;
+            
             if (segmentConfig == null)
             {
+                // 线段配置不存在时，使用默认值而非跳过任务
+                // 这样可以确保即使配置缺失，包裹仍能正常分拣
+                transitTimeMs = DefaultSegmentTtlMs;
+                timeoutThresholdMs = DefaultTimeoutThresholdMs;
+                
                 _logger?.LogWarning(
-                    "[队列任务生成] 线段配置不存在 (SegmentId={SegmentId})，跳过该任务",
-                    node.SegmentId);
-                continue;
+                    "[队列任务生成] 线段配置不存在 (SegmentId={SegmentId})，使用默认值 (TransitTime={TransitTimeMs}ms, Timeout={TimeoutMs}ms)",
+                    node.SegmentId, transitTimeMs, timeoutThresholdMs);
             }
-
-            // 计算理论传输时间并累加到当前时间
-            var transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+            else
+            {
+                transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+                timeoutThresholdMs = segmentConfig.TimeToleranceMs;
+            }
+            
+            // 累加到当前时间
             currentTime = currentTime.AddMilliseconds(transitTimeMs);
 
             // 确定摆轮动作
@@ -679,12 +692,12 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 PositionIndex = node.PositionIndex,
                 DiverterAction = targetDirection,
                 ExpectedArrivalTime = currentTime,
-                TimeoutThresholdMs = segmentConfig.TimeToleranceMs,
+                TimeoutThresholdMs = timeoutThresholdMs,
                 FallbackAction = DiverterDirection.Straight,
                 CreatedAt = createdAt, // 使用包裹创建时间，而非任务生成时间
                 // 丢失判定超时 = TimeoutThreshold * 1.5 (默认系数)
-                LostDetectionTimeoutMs = (long)(segmentConfig.TimeToleranceMs * 1.5),
-                LostDetectionDeadline = currentTime.AddMilliseconds(segmentConfig.TimeToleranceMs * 1.5)
+                LostDetectionTimeoutMs = (long)(timeoutThresholdMs * 1.5),
+                LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5)
             };
 
             tasks.Add(task);
@@ -693,7 +706,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 "[队列任务创建] ParcelId={ParcelId}, Position={PositionIndex}, Action={Action}, " +
                 "ExpectedArrival={ExpectedTime:HH:mm:ss.fff}, Timeout={TimeoutMs}ms",
                 parcelId, node.PositionIndex, targetDirection,
-                currentTime, segmentConfig.TimeToleranceMs);
+                currentTime, timeoutThresholdMs);
         }
 
         _logger?.LogInformation(
@@ -734,11 +747,28 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             var node = sortedNodes[i];
             var segmentConfig = _conveyorSegmentRepository?.GetById(node.SegmentId);
             
+            // 计算理论传输时间和超时容差
+            double transitTimeMs;
+            long timeoutThresholdMs;
+            
             if (segmentConfig != null)
             {
-                var transitTimeMs = segmentConfig.CalculateTransitTimeMs();
-                currentTime = currentTime.AddMilliseconds(transitTimeMs);
+                transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+                timeoutThresholdMs = segmentConfig.TimeToleranceMs;
             }
+            else
+            {
+                // 线段配置不存在时，使用默认值
+                transitTimeMs = DefaultSegmentTtlMs;
+                timeoutThresholdMs = DefaultTimeoutThresholdMs;
+                
+                _logger?.LogWarning(
+                    "[异常格口任务生成] 线段配置不存在 (SegmentId={SegmentId})，使用默认值 (TransitTime={TransitTimeMs}ms, Timeout={TimeoutMs}ms)",
+                    node.SegmentId, transitTimeMs, timeoutThresholdMs);
+            }
+            
+            // 累加到当前时间
+            currentTime = currentTime.AddMilliseconds(transitTimeMs);
 
             var task = new PositionQueueItem
             {
@@ -747,12 +777,12 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 PositionIndex = node.PositionIndex,
                 DiverterAction = DiverterDirection.Straight,
                 ExpectedArrivalTime = currentTime,
-                TimeoutThresholdMs = segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs,
+                TimeoutThresholdMs = timeoutThresholdMs,
                 FallbackAction = DiverterDirection.Straight,
                 CreatedAt = createdAt, // 使用包裹创建时间，而非任务生成时间
                 // 丢失判定超时 = TimeoutThreshold * 1.5
-                LostDetectionTimeoutMs = (long)((segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs) * 1.5),
-                LostDetectionDeadline = currentTime.AddMilliseconds((segmentConfig?.TimeToleranceMs ?? DefaultTimeoutThresholdMs) * 1.5)
+                LostDetectionTimeoutMs = (long)(timeoutThresholdMs * 1.5),
+                LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5)
             };
 
             tasks.Add(task);
