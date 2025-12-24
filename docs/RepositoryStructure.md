@@ -60,6 +60,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | POSITION_INTERVAL_FIX.md | `./docs/POSITION_INTERVAL_FIX.md` | Position间隔追踪修复文档（问题诊断、解决方案、位置映射表、间隔计算逻辑） | 🟢 低 |
 | TIMEOUT_HANDLING_MECHANISM.md | `./docs/TIMEOUT_HANDLING_MECHANISM.md` | **包裹超时处理机制说明文档（上游无响应时的超时兜底流程、配置参数、日志追踪、故障排查）** | 🔴 高 |
 | VERIFICATION_REPORT.md | `./docs/VERIFICATION_REPORT.md` | PR #464 功能验证报告（队列清理与预警取消功能验证） | 🟢 低 |
+| FIX_LITEDB_DUPLICATE_KEY_ERROR.md | `./docs/FIX_LITEDB_DUPLICATE_KEY_ERROR.md` | LiteDB重复键错误修复记录（.NET 9兼容性、序列化问题、设计权衡） 📅 删除期限：2025-02-24 | 🟢 低 |
 
 ### docs/guides/ 使用指南
 
@@ -1472,6 +1473,7 @@ tools/Profiling/
 | TD-079 | ❌ 未开始 | ConfigureAwait + 字符串/集合优化（TD-076 PR #3）→ 异步开销 -5-10%，集合性能 +20%（预计 5-7小时） | [详情](./TechnicalDebtLog.md#td-079-configureawait--字符串集合优化td-076-pr-3) |
 | TD-080 | ❌ 未开始 | 低优先级性能优化收尾（TD-076 PR #4）→ 日志开销 -30%，JSON序列化 -10%（预计 4-6小时） | [详情](./TechnicalDebtLog.md#td-080-低优先级性能优化收尾td-076-pr-4) |
 | TD-081 | ✅ 已解决 | API 重组剩余工作 → 经审计确认所有功能已在先前PR中实现（2025-12-16） | [详情](./TechnicalDebtLog.md#td-081-api-重组剩余工作经审计确认已实现) |
+| TD-082 | ✅ 已解决 | LiteDB RoutePlan 序列化兼容性修复 → 修改属性为 public set，添加验证和测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-082-litedb-routeplan-序列化兼容性修复) |
 
 ### 技术债统计
 
