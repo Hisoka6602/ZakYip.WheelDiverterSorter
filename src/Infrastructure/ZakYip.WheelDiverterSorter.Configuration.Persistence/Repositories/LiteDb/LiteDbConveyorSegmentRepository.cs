@@ -3,7 +3,6 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using LiteDB;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Configuration.Persistence.Migrations;
 
 namespace ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 
@@ -32,33 +31,12 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _logger = logger;
         
-        // 在打开数据库前执行迁移（如果需要）
-        try
-        {
-            var (migrationNeeded, success, message) = ConveyorSegmentIdMigration.Migrate(databasePath, logger);
-            if (migrationNeeded)
-            {
-                if (success)
-                {
-                    _logger?.LogInformation("ConveyorSegmentConfiguration 集合迁移成功: {Message}", message);
-                }
-                else
-                {
-                    _logger?.LogWarning("ConveyorSegmentConfiguration 集合迁移失败: {Message}", message);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "执行 ConveyorSegmentConfiguration 迁移时发生异常");
-        }
-        
         // 使用Shared模式允许多个仓储实例共享同一个数据库文件
         var connectionString = $"Filename={databasePath};Connection=shared";
         _database = new LiteDatabase(connectionString, LiteDbMapperConfig.CreateConfiguredMapper());
         _collection = _database.GetCollection<ConveyorSegmentConfiguration>(CollectionName);
         
-        // 为SegmentId字段创建唯一索引
+        // 为SegmentId字段创建唯一索引（业务主键）
         _collection.EnsureIndex(x => x.SegmentId, unique: true);
     }
 
@@ -150,7 +128,15 @@ public class LiteDbConveyorSegmentRepository : IConveyorSegmentRepository, IDisp
     /// <returns>是否删除成功</returns>
     public bool Delete(long segmentId)
     {
-        return _collection.Delete(new BsonValue(segmentId));
+        // 先通过 SegmentId 查询记录
+        var config = GetById(segmentId);
+        if (config == null)
+        {
+            return false;
+        }
+        
+        // 使用内部 Id 删除记录
+        return _collection.Delete(new BsonValue(config.Id));
     }
 
     /// <summary>
