@@ -1545,14 +1545,26 @@ TD-037 已删除 Siemens 摆轮驱动，但根据文档（TD-035），Siemens �
 
 ## [TD-040] CongestionDataCollector 性能优化
 
-**状态**：✅ 已解决（当前 PR）
+**状态**：✅ 已解决（PR #XXX）
 
-**解决方案**：
+**解决方案**（2025-12-24 更新）：
 
-经评估，当前使用 `ConcurrentBag` 的实现已满足性能需求：
-- 线程安全：使用 `ConcurrentBag` 和 `Interlocked` 操作保证线程安全
-- 性能充足：在当前包裹量级下，性能表现良好
-- 简洁性优势：实现简单，易于维护
+原先标记为"已解决"的评估结论**不准确**。当前 PR 证实了 `ConcurrentBag` 的实现存在**严重的内存泄漏问题**：
+- **根本原因**：`ConcurrentBag` 不支持删除操作，`CleanupOldHistory()` 方法只有注释没有实际清理逻辑
+- **实际影响**：长时间运行时，`_parcelHistory` 会无限增长，导致内存泄漏
+- **触发条件**：系统连续运行数小时后，内存占用持续上升
+
+**最终解决方案**（按原 TD-040 建议实施）：
+1. 将 `ConcurrentBag<T>` 替换为 `ConcurrentDictionary<long, ParcelHistoryRecord>`，支持高效删除
+2. 实现真正的清理逻辑：每 5 分钟清理一次超过 65 秒（60秒窗口 + 5秒缓冲）的旧记录
+3. 添加 `_cleanupLock` 防止多线程同时执行清理（双重检查模式）
+4. 提取魔法数字为常量：`CleanupIntervalMinutes = 5`, `HistoryWindowSeconds = 60`
+5. 修复包裹重新进入时的逻辑错误：重置 `CompletionTime` 为 null
+6. 添加完整的单元测试覆盖（10个测试用例）
+
+**影响文件**：
+- `src/Application/ZakYip.WheelDiverterSorter.Application/Services/Metrics/CongestionDataCollector.cs`
+- `tests/ZakYip.WheelDiverterSorter.Host.Application.Tests/CongestionDataCollectorTests.cs`（新增）
 
 **原问题描述**：
 

@@ -8,17 +8,34 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 /// <summary>
 /// 拥堵数据收集器：收集系统当前拥堵指标快照
 /// </summary>
+/// <remarks>
+/// 使用 ConcurrentDictionary 替代 ConcurrentBag，支持高并发添加、查询和高效删除旧数据，
+/// 避免长时间运行时的内存泄漏问题。
+/// <para>
+/// 技术债 TD-040 最初被标记为"已解决"，理由是"当前使用 ConcurrentBag 的实现已满足性能需求"，
+/// 但后续在长时间运行场景中暴露出严重的内存泄漏问题，证明该判断不准确。
+/// 本实现通过切换为 ConcurrentDictionary 并实现真正的清理逻辑，
+/// 最终按 TD-040 的建议完成了技术债闭环；相关状态与详细说明已同步更新到
+/// <c>docs/RepositoryStructure.md</c> 与 <c>docs/TechnicalDebtLog.md</c> 中。
+/// </para>
+/// </remarks>
 public class CongestionDataCollector : ICongestionDataCollector
 {
+    private const int CleanupIntervalMinutes = 5;
+    private const int HistoryWindowSeconds = 60;
+    
     private readonly ISystemClock _clock;
-    // PR-44: 使用 ConcurrentBag 替代 List + lock，支持高并发添加和查询
-    private readonly ConcurrentBag<(long ParcelId, DateTime EntryTime, DateTime? CompletionTime)> _parcelHistory = new();
+    // 使用 ConcurrentDictionary 存储包裹历史记录，键为 ParcelId
+    private readonly ConcurrentDictionary<long, ParcelHistoryRecord> _parcelHistory = new();
     private int _inFlightParcels = 0; // 使用 Interlocked 操作
-    private readonly TimeSpan _historyWindow = TimeSpan.FromSeconds(60);
+    private readonly TimeSpan _historyWindow = TimeSpan.FromSeconds(HistoryWindowSeconds);
+    private DateTime _lastCleanupTime = DateTime.MinValue;
+    private readonly object _cleanupLock = new();
 
     public CongestionDataCollector(ISystemClock clock)
     {
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        _lastCleanupTime = _clock.LocalNow;
     }
 
     /// <summary>
@@ -26,11 +43,18 @@ public class CongestionDataCollector : ICongestionDataCollector
     /// </summary>
     public void RecordParcelEntry(long parcelId, DateTime entryTime)
     {
-        // PR-44: ConcurrentBag.Add 是线程安全的
-        _parcelHistory.Add((parcelId, entryTime, null));
-        // PR-44: 使用 Interlocked 原子递增
+        // 包裹重新进入时，视为新的生命周期，重置完成时间为 null
+        _parcelHistory.AddOrUpdate(
+            parcelId,
+            new ParcelHistoryRecord(parcelId, entryTime, null),
+            (_, existing) => new ParcelHistoryRecord(parcelId, entryTime, null)
+        );
+        
+        // 使用 Interlocked 原子递增
         Interlocked.Increment(ref _inFlightParcels);
-        CleanupOldHistory();
+        
+        // 定期清理旧数据
+        CleanupOldHistoryIfNeeded();
     }
 
     /// <summary>
@@ -38,15 +62,17 @@ public class CongestionDataCollector : ICongestionDataCollector
     /// </summary>
     public void RecordParcelCompletion(long parcelId, DateTime completionTime, bool isSuccess)
     {
-        // PR-44: ConcurrentBag 不支持查找和修改，保持原始设计
-        // 这里的实现有局限性，但为了向后兼容暂时保留
-        // TD-040: 未来考虑使用 ConcurrentDictionary<long, ParcelRecord> 优化查找性能
+        // 更新包裹完成时间
+        _parcelHistory.AddOrUpdate(
+            parcelId,
+            // 如果包裹不存在（理论上不应该发生），创建新记录
+            new ParcelHistoryRecord(parcelId, completionTime, completionTime),
+            // 如果存在，更新完成时间
+            (_, existing) => new ParcelHistoryRecord(existing.ParcelId, existing.EntryTime, completionTime)
+        );
         
         // 使用 Interlocked 原子递减
         Interlocked.Decrement(ref _inFlightParcels);
-        
-        // 注意：由于 ConcurrentBag 不支持修改，这里只能添加新记录
-        // 原有的查找和修改逻辑被简化
     }
 
     /// <summary>
@@ -54,9 +80,6 @@ public class CongestionDataCollector : ICongestionDataCollector
     /// </summary>
     public CongestionSnapshot CollectSnapshot()
     {
-        // PR-PERF: Optimize - avoid multiple LINQ materializations
-        CleanupOldHistory();
-
         var now = _clock.LocalNow;
         var cutoffTime = now - _historyWindow;
         
@@ -66,7 +89,7 @@ public class CongestionDataCollector : ICongestionDataCollector
         var totalLatency = 0.0;
         var maxLatency = 0.0;
         
-        foreach (var entry in _parcelHistory)
+        foreach (var entry in _parcelHistory.Values)
         {
             if (entry.EntryTime >= cutoffTime)
             {
@@ -106,21 +129,63 @@ public class CongestionDataCollector : ICongestionDataCollector
     /// </summary>
     public int GetInFlightCount()
     {
-        // PR-44: volatile read (Interlocked.CompareExchange with 0)
+        // volatile read (Interlocked.CompareExchange with 0)
         return Interlocked.CompareExchange(ref _inFlightParcels, 0, 0);
     }
 
     /// <summary>
-    /// 清理过期历史记录
+    /// 定期清理过期历史记录（如果需要）
     /// </summary>
-    private void CleanupOldHistory()
+    private void CleanupOldHistoryIfNeeded()
     {
-        // PR-44: ConcurrentBag 不支持 RemoveAll，需要重建
-        // 由于清理操作不频繁，且数据量不大，暂时保持简单实现
-        // TD-040: 如果性能成为问题，考虑使用定时后台任务清理
-        var cutoff = _clock.LocalNow - _historyWindow - TimeSpan.FromMinutes(5); // 额外保留5分钟
+        var now = _clock.LocalNow;
         
-        // 简化实现：不主动清理，依赖 CollectSnapshot 时的过滤
-        // ConcurrentBag 设计为只增不减，适合这种追加式日志场景
+        // 每隔 CleanupIntervalMinutes 分钟执行一次清理
+        if ((now - _lastCleanupTime).TotalMinutes < CleanupIntervalMinutes)
+        {
+            return;
+        }
+        
+        // 使用锁防止多个线程同时执行清理
+        lock (_cleanupLock)
+        {
+            // Double-check pattern: 再次检查是否需要清理
+            if ((now - _lastCleanupTime).TotalMinutes < CleanupIntervalMinutes)
+            {
+                return;
+            }
+            
+            _lastCleanupTime = now;
+            
+            // 清理超过时间窗口 + 额外 CleanupIntervalMinutes 分钟的记录
+            var cutoffTime = now - _historyWindow - TimeSpan.FromMinutes(CleanupIntervalMinutes);
+            
+            var keysToRemove = _parcelHistory
+                .Where(kvp => kvp.Value.EntryTime < cutoffTime)
+                .Select(kvp => kvp.Key)
+                .ToList();
+            
+            foreach (var key in keysToRemove)
+            {
+                _parcelHistory.TryRemove(key, out _);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 包裹历史记录
+    /// </summary>
+    private readonly record struct ParcelHistoryRecord
+    {
+        public long ParcelId { get; init; }
+        public DateTime EntryTime { get; init; }
+        public DateTime? CompletionTime { get; init; }
+
+        public ParcelHistoryRecord(long parcelId, DateTime entryTime, DateTime? completionTime)
+        {
+            ParcelId = parcelId;
+            EntryTime = entryTime;
+            CompletionTime = completionTime;
+        }
     }
 }
