@@ -397,6 +397,14 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
     /// 重连使用指数退避策略，退避时间上限为 2 秒（符合 copilot-instructions.md 第三章第2条）。
     /// 如果已有重连任务在运行，则不会重复启动。
     /// 使用 SemaphoreSlim 确保线程安全。
+    ///
+    /// <para><b>重要特性</b>：</para>
+    /// <list type="bullet">
+    ///   <item>无系统状态依赖：即使在停止、急停、故障状态下也会尝试重连</item>
+    ///   <item>无限重试：持续尝试直到连接成功</item>
+    ///   <item>指数退避：从 200ms 开始，最大 2000ms</item>
+    ///   <item>线程安全：使用信号量保证并发调用的安全性</item>
+    /// </list>
     /// </remarks>
     public void StartReconnect()
     {

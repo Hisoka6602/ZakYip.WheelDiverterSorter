@@ -19,6 +19,15 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 /// 当检测到摆轮心跳异常时：
 /// 1. 更新NodeHealthRegistry中的健康状态
 /// 2. (TD-071已移除告警功能 - 由IO联动替代)
+/// 3. **触发自动重连（无论系统处于何种状态）**
+///
+/// <para><b>重连机制（适用于所有系统状态）</b>：</para>
+/// <list type="bullet">
+///   <item>心跳监控在所有系统状态下持续运行（Ready/Running/Paused/Faulted/EmergencyStop）</item>
+///   <item>当检测到心跳超时（> 10秒），立即触发重连，不受系统状态限制</item>
+///   <item>即使在停止、急停、故障状态，摆轮也会自动尝试重新连接</item>
+///   <item>重连使用指数退避策略，最大退避时间2秒</item>
+/// </list>
 /// </remarks>
 public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
 {
@@ -212,9 +221,13 @@ public sealed class WheelDiverterHeartbeatMonitor : BackgroundService
                             $"心跳超时: {elapsed.TotalSeconds:F1}秒", "连接异常");
                         
                         // 触发重连（数递鸟驱动器支持 StartReconnect）
+                        // 注意：重连机制在所有系统状态下都有效（Ready/Running/Paused/Faulted/EmergencyStop）
+                        // 即使系统处于停止、急停或故障状态，摆轮也会自动尝试重新连接
                         if (driver is Drivers.Vendors.ShuDiNiao.ShuDiNiaoWheelDiverterDriver shuDiNiaoDriver)
                         {
-                            _logger.LogInformation("摆轮 {DiverterId} 心跳超时，触发自动重连", diverterId);
+                            _logger.LogInformation(
+                                "摆轮 {DiverterId} 心跳超时，触发自动重连（不受系统状态限制）",
+                                diverterId);
                             shuDiNiaoDriver.StartReconnect();
                         }
                     }
