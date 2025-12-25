@@ -73,8 +73,9 @@ public record class PositionQueueItem
     /// </summary>
     /// <remarks>
     /// 用于主动检测包裹丢失。如果包裹在此时间内未到达检查点（传感器），判定为丢失。
-    /// 计算公式：LostDetectionTimeoutMs = 中位数间隔 * 丢失判定系数（默认1.5）
+    /// 计算公式：LostDetectionTimeoutMs = TimeoutThresholdMs × 1.5（基于输送线配置）
     /// 此值大于 TimeoutThresholdMs，用于区分"超时"和"丢失"两种情况。
+    /// ⚠️ 注意：不再基于中位数计算，所有判断均基于输送线配置。
     /// </remarks>
     public long? LostDetectionTimeoutMs { get; init; }
     
