@@ -1296,25 +1296,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     peekedTask.EarliestDequeueTime.Value,
                     peekedTask.ExpectedArrivalTime);
                 
-                // 记录告警到统计（用于监控提前触发频率）
-                _alarmService?.RaiseAlarm(new AlarmEvent
-                {
-                    Level = AlarmLevel.Warning,
-                    Type = AlarmType.SortingAbnormal,
-                    Message = $"Position {positionIndex} 传感器 {sensorId} 提前触发 {earlyMs:F0}ms，包裹 {peekedTask.ParcelId} 被跳过",
-                    Source = $"Position{positionIndex}",
-                    Timestamp = currentTime,
-                    Metadata = new Dictionary<string, object>
-                    {
-                        ["ParcelId"] = peekedTask.ParcelId,
-                        ["PositionIndex"] = positionIndex,
-                        ["SensorId"] = sensorId,
-                        ["EarlyMs"] = earlyMs,
-                        ["EarliestDequeueTime"] = peekedTask.EarliestDequeueTime.Value,
-                        ["ExpectedArrivalTime"] = peekedTask.ExpectedArrivalTime,
-                        ["CurrentTime"] = currentTime
-                    }
-                });
+                // 记录为分拣异常（用于监控提前触发频率）
+                _alarmService?.RecordSortingFailure();
                 
                 // 不出队、不执行动作，直接返回
                 return;
