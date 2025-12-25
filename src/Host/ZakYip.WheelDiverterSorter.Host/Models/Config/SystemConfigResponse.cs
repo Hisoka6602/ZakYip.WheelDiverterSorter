@@ -58,6 +58,14 @@ public record SystemConfigResponse
     /// <example>[1, 2, 3, 4, 5]</example>
     [SwaggerSchema(Description = "循环格口模式下的可用格口编号列表")]
     public List<long> AvailableChuteIds { get; init; } = new();
+    
+    /// <summary>
+    /// 启用提前触发检测功能
+    /// Enable early trigger detection
+    /// </summary>
+    /// <example>false</example>
+    [SwaggerSchema(Description = "启用后，系统会在摆轮前传感器触发时检查 EarliestDequeueTime，防止包裹提前到达导致的错位问题")]
+    public required bool EnableEarlyTriggerDetection { get; init; }
 
     /// <summary>
     /// 配置版本号

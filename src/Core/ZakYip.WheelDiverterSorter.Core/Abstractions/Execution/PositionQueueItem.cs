@@ -86,4 +86,23 @@ public record class PositionQueueItem
     /// 后台监控服务使用此字段判断包裹是否丢失
     /// </remarks>
     public DateTime? LostDetectionDeadline { get; init; }
+    
+    /// <summary>
+    /// 最早出队时间（用于提前触发检测）
+    /// </summary>
+    /// <remarks>
+    /// 用于防止摆轮前传感器提前触发导致的错位问题。
+    /// 计算公式：EarliestDequeueTime = Max(CreatedAt, ExpectedArrivalTime - TimeoutThresholdMs)
+    /// 
+    /// <para>触发检测逻辑：</para>
+    /// <list type="bullet">
+    ///   <item>传感器触发时，先窥视队列头部任务</item>
+    ///   <item>若当前时间 &lt; EarliestDequeueTime，判定为提前触发</item>
+    ///   <item>提前触发时：不出队、不执行动作、仅记录告警</item>
+    ///   <item>正常触发时：执行正常的出队和摆轮动作流程</item>
+    /// </list>
+    /// 
+    /// <para>此字段为可空类型，null 表示未启用提前触发检测（向后兼容）</para>
+    /// </remarks>
+    public DateTime? EarliestDequeueTime { get; init; }
 }

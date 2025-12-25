@@ -154,6 +154,23 @@ public class SystemConfiguration
     /// </summary>
     public int ThrottleMetricsWindowSeconds { get; set; } = 60;
 
+    // ========== 提前触发检测配置 / Early Trigger Detection Config ==========
+    
+    /// <summary>
+    /// 启用提前触发检测功能
+    /// </summary>
+    /// <remarks>
+    /// <para>当启用时，系统会在摆轮前传感器触发时检查 EarliestDequeueTime，防止包裹提前到达导致的错位问题。</para>
+    /// <para>检测逻辑：</para>
+    /// <list type="bullet">
+    ///   <item>传感器触发时窥视队列头部任务</item>
+    ///   <item>若当前时间 &lt; EarliestDequeueTime，判定为提前触发</item>
+    ///   <item>提前触发时不出队、不执行摆轮动作，仅记录告警</item>
+    /// </list>
+    /// <para>默认值为 false（禁用），确保向后兼容性</para>
+    /// </remarks>
+    public bool EnableEarlyTriggerDetection { get; set; } = false;
+
     /// <summary>
     /// 配置版本号
     /// </summary>
@@ -244,6 +261,7 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
+            EnableEarlyTriggerDetection = false, // 默认禁用提前触发检测，确保向后兼容性
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now

@@ -106,6 +106,11 @@ public record UpdateSystemConfigCommand
     /// 可用格口ID列表（仅在循环格口落格模式下使用）
     /// </summary>
     public List<long> AvailableChuteIds { get; init; } = new();
+    
+    /// <summary>
+    /// 启用提前触发检测功能
+    /// </summary>
+    public bool EnableEarlyTriggerDetection { get; init; } = false;
 }
 
 /// <summary>

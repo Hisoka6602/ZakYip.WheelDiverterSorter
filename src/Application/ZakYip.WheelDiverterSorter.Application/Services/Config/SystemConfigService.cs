@@ -246,7 +246,8 @@ public class SystemConfigService : ISystemConfigService
             DriverStartupDelaySeconds = request.DriverStartupDelaySeconds,
             SortingMode = request.SortingMode,
             FixedChuteId = request.FixedChuteId,
-            AvailableChuteIds = request.AvailableChuteIds ?? new List<long>()
+            AvailableChuteIds = request.AvailableChuteIds ?? new List<long>(),
+            EnableEarlyTriggerDetection = request.EnableEarlyTriggerDetection
             // Note: Communication-related fields are not set here.
             // They should be managed through /api/communication endpoints
         };

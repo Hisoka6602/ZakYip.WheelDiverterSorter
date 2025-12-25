@@ -1256,17 +1256,61 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         var currentTime = _clock.LocalNow;
 
         _logger.LogDebug(
-            "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
+            "Position {PositionIndex} 传感器 {SensorId} 触发，检查队列任务",
             positionIndex, sensorId);
 
-        // 从 Position-Index 队列取出任务
-        var task = _queueManager!.DequeueTask(positionIndex);
-
-        if (task == null)
+        // 先窥视队列头部任务（不出队）
+        var peekedTask = _queueManager!.PeekTask(positionIndex);
+        
+        if (peekedTask == null)
         {
             // Issue #1: 统一记录空队列异常，避免重复告警噪声
             _logger.LogWarning(
                 "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - 记录为超时异常",
+                positionIndex, sensorId, boundWheelDiverterId);
+            
+            RecordSortingFailure(0, isTimeout: true);
+            return;
+        }
+
+        // 检查是否启用提前触发检测
+        var systemConfig = _systemConfigRepository.Get();
+        var enableEarlyTriggerDetection = systemConfig?.EnableEarlyTriggerDetection ?? false;
+        
+        // 提前触发检测：如果启用且队列任务有 EarliestDequeueTime，检查当前时间是否过早
+        if (enableEarlyTriggerDetection
+            && peekedTask.EarliestDequeueTime is DateTime earliestDequeueTime
+            && currentTime < earliestDequeueTime)
+        {
+            var earlyMs = (earliestDequeueTime - currentTime).TotalMilliseconds;
+            
+            _logger.LogWarning(
+                "[提前触发检测] Position {PositionIndex} 传感器 {SensorId} 提前触发 {EarlyMs}ms，" +
+                "包裹 {ParcelId} 不出队、不执行动作 | " +
+                "当前时间={CurrentTime:HH:mm:ss.fff}, " +
+                "最早出队时间={EarliestTime:HH:mm:ss.fff}, " +
+                "期望到达时间={ExpectedTime:HH:mm:ss.fff}",
+                positionIndex, sensorId, earlyMs,
+                peekedTask.ParcelId,
+                currentTime,
+                earliestDequeueTime,
+                peekedTask.ExpectedArrivalTime);
+            
+            // 记录为分拣异常（用于监控提前触发频率）
+            _alarmService?.RecordSortingFailure();
+            
+            // 不出队、不执行动作，直接返回
+            return;
+        }
+        
+        // 正常流程：从队列取出任务
+        var task = _queueManager!.DequeueTask(positionIndex);
+        
+        if (task == null)
+        {
+            // 理论上不应该发生（刚刚窥视时队列有任务），但防御性编程
+            _logger.LogWarning(
+                "Position {PositionIndex} 窥视有任务但出队失败，传感器 {SensorId} (摆轮ID={WheelDiverterId})",
                 positionIndex, sensorId, boundWheelDiverterId);
             
             RecordSortingFailure(0, isTimeout: true);
@@ -1279,6 +1323,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 记录包裹到达此位置（用于跟踪相邻position间的间隔）
         _intervalTracker?.RecordParcelPosition(task.ParcelId, positionIndex, currentTime);
+
+        // 动态更新下一个position的期望到达时间（避免误差累积）
+        // 只有在启用提前触发检测时才更新，因为这个功能依赖于准确的时间窗口
+        if (systemConfig?.EnableEarlyTriggerDetection ?? false)
+        {
+            UpdateNextPositionExpectedTime(task, positionIndex, currentTime);
+        }
 
         // IO触发逻辑说明：
         // 1. 包裹物理丢失的情况由 ParcelLossMonitoringService 主动检测并处理
@@ -1315,19 +1366,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                     foreach (var node in subsequentNodes)
                     {
+                        var now = _clock.LocalNow;
+                        var compensationEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
+                        if (compensationEarliestDequeueTime < task.CreatedAt)
+                        {
+                            compensationEarliestDequeueTime = task.CreatedAt;
+                        }
+                        
                         var straightTask = new PositionQueueItem
                         {
                             ParcelId = task.ParcelId,
                             DiverterId = node.DiverterId,
                             DiverterAction = DiverterDirection.Straight,
-                            ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                            ExpectedArrivalTime = now, // 已超时，使用当前时间
                             TimeoutThresholdMs = task.TimeoutThresholdMs,
                             FallbackAction = DiverterDirection.Straight,
                             PositionIndex = node.PositionIndex,
-                            CreatedAt = _clock.LocalNow,
+                            CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
                             // 丢失判定超时 = TimeoutThreshold * 1.5
                             LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                            LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
+                            LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
+                            // 最早出队时间（提前触发检测）
+                            EarliestDequeueTime = compensationEarliestDequeueTime
                         };
 
                         // 使用优先入队，插入到队列头部
@@ -1356,19 +1416,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                             foreach (var node in fallbackSubsequentNodes)
                             {
+                                var now = _clock.LocalNow;
+                                var fallbackEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
+                                if (fallbackEarliestDequeueTime < task.CreatedAt)
+                                {
+                                    fallbackEarliestDequeueTime = task.CreatedAt;
+                                }
+                                
                                 var straightTask = new PositionQueueItem
                                 {
                                     ParcelId = task.ParcelId,
                                     DiverterId = node.DiverterId,
                                     DiverterAction = DiverterDirection.Straight,
-                                    ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                                    ExpectedArrivalTime = now, // 已超时，使用当前时间
                                     TimeoutThresholdMs = task.TimeoutThresholdMs,
                                     FallbackAction = DiverterDirection.Straight,
                                     PositionIndex = node.PositionIndex,
-                                    CreatedAt = _clock.LocalNow,
+                                    CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
                                     // 丢失判定超时 = TimeoutThreshold * 1.5
                                     LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                                    LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
+                                    LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
+                                    // 最早出队时间（提前触发检测）
+                                    EarliestDequeueTime = fallbackEarliestDequeueTime
                                 };
 
                                 // 使用优先入队，插入到队列头部
@@ -2824,6 +2893,135 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _metrics?.RecordSortingSuccess(elapsedSeconds);
         _alarmService?.RecordSortingSuccess();
         _statisticsService?.IncrementSuccess();
+    }
+
+    /// <summary>
+    /// 动态更新下一个position的期望到达时间（避免误差累积）
+    /// </summary>
+    /// <param name="currentTask">当前触发的任务</param>
+    /// <param name="currentPositionIndex">当前position索引</param>
+    /// <param name="actualArrivalTime">实际到达时间</param>
+    /// <remarks>
+    /// <para>当包裹实际到达当前position时，根据实际到达时间重新计算下一个position的期望到达时间。</para>
+    /// <para>这样可以避免基于初始计算时间的误差累积，使时间窗口更准确。</para>
+    /// <para>计算公式：</para>
+    /// <list type="bullet">
+    ///   <item>NextExpectedArrivalTime = ActualArrivalTime + SegmentTransitTime</item>
+    ///   <item>NextEarliestDequeueTime = Max(CreatedAt, NextExpectedArrivalTime - TimeoutThresholdMs)</item>
+    /// </list>
+    /// </remarks>
+    private void UpdateNextPositionExpectedTime(PositionQueueItem currentTask, int currentPositionIndex, DateTime actualArrivalTime)
+    {
+        if (_queueManager == null || _topologyRepository == null || _segmentRepository == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var topology = _topologyRepository.Get();
+            if (topology == null)
+            {
+                return;
+            }
+
+            // 找到下一个position的节点
+            var nextNode = topology.DiverterNodes
+                .Where(n => n.PositionIndex == currentPositionIndex + 1)
+                .FirstOrDefault();
+
+            if (nextNode == null)
+            {
+                // 当前position是最后一个，没有下一个position
+                return;
+            }
+
+            // 获取到下一个position的线段配置
+            var segmentConfig = _segmentRepository.GetById(nextNode.SegmentId);
+            if (segmentConfig == null)
+            {
+                _logger.LogDebug(
+                    "无法更新下一个position的期望时间：线段配置不存在 (SegmentId={SegmentId})",
+                    nextNode.SegmentId);
+                return;
+            }
+
+            // 计算传输时间
+            var transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+            var nextExpectedArrivalTime = actualArrivalTime.AddMilliseconds(transitTimeMs);
+            var timeoutThresholdMs = segmentConfig.TimeToleranceMs;
+
+            // 计算下一个position的最早出队时间
+            var nextEarliestDequeueTime = nextExpectedArrivalTime.AddMilliseconds(-timeoutThresholdMs);
+            if (nextEarliestDequeueTime < currentTask.CreatedAt)
+            {
+                nextEarliestDequeueTime = currentTask.CreatedAt;
+            }
+
+            // 窥视下一个position的队列头部任务
+            var nextTask = _queueManager.PeekTask(nextNode.PositionIndex);
+            if (nextTask == null || nextTask.ParcelId != currentTask.ParcelId)
+            {
+                // 队列中没有该包裹的下一个任务，不需要更新
+                return;
+            }
+
+            // 出队旧任务
+            // 注意：此处存在潜在的并发风险，如果在出队和入队之间另一个传感器触发，可能导致顺序错乱
+            // 然而实际场景中，由于物理传感器的间隔和包裹移动的时序性，同一position的并发触发极为罕见
+            // 如果未来需要解决此问题，可以考虑为每个positionIndex添加独立的锁
+            var dequeuedTask = _queueManager.DequeueTask(nextNode.PositionIndex);
+            if (dequeuedTask == null || dequeuedTask.ParcelId != currentTask.ParcelId)
+            {
+                // 出队失败或队列已变化，放弃更新
+                if (dequeuedTask != null)
+                {
+                    // 如果出队了其他包裹的任务，放回队列
+                    _queueManager.EnqueuePriorityTask(nextNode.PositionIndex, dequeuedTask);
+                }
+                return;
+            }
+
+            // 创建更新后的任务（仅更新时间相关字段）
+            // 使用 record 的 with 表达式确保不可变性，以下字段被保留：
+            // - ParcelId, DiverterId, DiverterAction, PositionIndex (核心业务字段)
+            // - TimeoutThresholdMs, FallbackAction (超时处理配置)
+            // - CreatedAt, LostDetectionTimeoutMs (原始时间戳和配置)
+            // 以下字段被更新：
+            // - ExpectedArrivalTime (基于实际到达时间重新计算)
+            // - EarliestDequeueTime (基于新的期望时间重新计算)
+            // - LostDetectionDeadline (基于新的期望时间重新计算，保持一致性)
+            var updatedTask = dequeuedTask with
+            {
+                ExpectedArrivalTime = nextExpectedArrivalTime,
+                EarliestDequeueTime = nextEarliestDequeueTime,
+                // 也更新丢失检测截止时间，保持一致性
+                LostDetectionDeadline = dequeuedTask.LostDetectionTimeoutMs.HasValue
+                    ? nextExpectedArrivalTime.AddMilliseconds(dequeuedTask.LostDetectionTimeoutMs.Value)
+                    : dequeuedTask.LostDetectionDeadline
+            };
+
+            // 将更新后的任务放回队列头部（优先级入队）
+            _queueManager.EnqueuePriorityTask(nextNode.PositionIndex, updatedTask);
+
+            _logger.LogDebug(
+                "[动态时间更新] 包裹 {ParcelId} 在Position {CurrentPos}触发，" +
+                "更新Position {NextPos}的期望到达时间: {OldTime:HH:mm:ss.fff} -> {NewTime:HH:mm:ss.fff}, " +
+                "最早出队时间: {EarliestTime:HH:mm:ss.fff}",
+                currentTask.ParcelId,
+                currentPositionIndex,
+                nextNode.PositionIndex,
+                dequeuedTask.ExpectedArrivalTime,
+                nextExpectedArrivalTime,
+                nextEarliestDequeueTime);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "更新下一个position的期望时间时发生异常 (ParcelId={ParcelId}, CurrentPos={CurrentPos})",
+                currentTask.ParcelId,
+                currentPositionIndex);
+        }
     }
 
     #endregion Helper Methods - 性能优化辅助方法
