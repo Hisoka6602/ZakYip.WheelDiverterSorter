@@ -106,4 +106,18 @@ public record class PositionQueueItem
     /// <para>此字段为可空类型，null 表示未启用提前触发检测（向后兼容）</para>
     /// </remarks>
     public DateTime? EarliestDequeueTime { get; init; }
+    
+    /// <summary>
+    /// 超时检测开关（是否启用包裹延迟到达的超时处理）
+    /// </summary>
+    /// <remarks>
+    /// <para>从 ConveyorSegmentConfiguration.EnableLossDetection 获取并在任务创建时固定。</para>
+    /// <para>控制范围：</para>
+    /// <list type="bullet">
+    ///   <item><b>启用（true）</b>：包裹延迟到达时执行超时处理（回退动作、补偿任务插入、失败统计）</item>
+    ///   <item><b>禁用（false）</b>：包裹延迟到达时仍按计划动作正常执行，不做超时判定</item>
+    /// </list>
+    /// <para>默认值为 false（禁用超时检测），确保配置缺失时不会误判超时。</para>
+    /// </remarks>
+    public bool EnableTimeoutDetection { get; init; } = false;
 }
