@@ -34,6 +34,11 @@ namespace ZakYip.WheelDiverterSorter.E2ETests;
 /// </remarks>
 public class InterferenceSignalDetectionE2ETests : E2ETestBase
 {
+    // Test configuration constants (per coding guideline section 8: avoid magic numbers)
+    private const int TestSegmentLengthMm = 6000;
+    private const decimal TestSegmentSpeedMmps = 1300m;
+    private const int TestTimeToleranceMs = 700;
+    
     private readonly ISortingOrchestrator _orchestrator;
     private readonly ISensorEventProvider _sensorEventProvider;
     private readonly IPositionIndexQueueManager _queueManager;
@@ -61,12 +66,7 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     /// 设置测试用的输送线段配置
     /// </summary>
     /// <remarks>
-    /// 配置参数基于问题描述:
-    /// - lengthMm: 6000
-    /// - speedMmps: 1300
-    /// - timeToleranceMs: 700
-    /// - 理论传输时间: 4615ms
-    /// - 容差范围: [3915ms, 5315ms]
+    /// 配置参数使用常量定义，避免魔法数字
     /// </remarks>
     private void SetupTestSegmentConfiguration()
     {
@@ -85,9 +85,9 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
             {
                 SegmentId = segmentId,
                 SegmentName = $"测试线段 {segmentId}",
-                LengthMm = 6000,      // 6米
-                SpeedMmps = 1300m,    // 1.3 m/s
-                TimeToleranceMs = 700, // ±700ms容差
+                LengthMm = TestSegmentLengthMm,
+                SpeedMmps = TestSegmentSpeedMmps,
+                TimeToleranceMs = TestTimeToleranceMs,
                 EnableLossDetection = false, // 禁用丢失检测以简化测试
                 Remarks = "E2E测试配置 - 干扰信号检测",
                 CreatedAt = now,
@@ -99,7 +99,7 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
             // 验证理论传输时间计算
             var transitTime = config.CalculateTransitTimeMs();
             _output.WriteLine($"线段 {segmentId}: 理论传输时间 = {transitTime:F2}ms, " +
-                            $"容差范围 = [{transitTime - 700:F2}ms, {transitTime + 700:F2}ms]");
+                            $"容差范围 = [{transitTime - TestTimeToleranceMs:F2}ms, {transitTime + TestTimeToleranceMs:F2}ms]");
         }
     }
 
@@ -172,16 +172,28 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     }
 
     /// <summary>
-    /// 测试场景2: 验证容差双向应用 - 提前触发检测
+    /// 测试场景2: 验证容差双向应用 - 提前触发检测配置
     /// </summary>
     /// <remarks>
-    /// 验证时间容差在期望到达时间之前的应用：
-    /// - 配置: timeToleranceMs = 700
-    /// - 理论传输时间: 4615ms
-    /// - 最早允许时间: 4615 - 700 = 3915ms
-    /// - 如果在 3915ms 之前到达，应识别为提前触发
-    /// 
-    /// 注意：此测试仅验证时间窗口计算逻辑是否正确，不依赖完整的分拣流程
+    /// <para>
+    /// 此测试验证输送线段配置中的容差参数是否正确设置。
+    /// 虽然不直接测试运行时行为，但确保配置正确性是E2E测试的重要部分。
+    /// </para>
+    /// <para>
+    /// 验证点：
+    /// - 线段配置参数匹配测试常量
+    /// - 理论传输时间计算正确
+    /// - 容差值正确应用于时间窗口计算
+    /// </para>
+    /// <para>
+    /// 运行时行为验证：
+    /// 实际的提前触发检测行为在 SortingOrchestrator 中通过以下逻辑实现：
+    /// - EarliestDequeueTime = ExpectedArrivalTime - TimeToleranceMs (DefaultSwitchingPathGenerator.cs:690)
+    /// - 提前触发检测: currentTime &lt; EarliestDequeueTime (SortingOrchestrator.cs:1283)
+    /// </para>
+    /// <para>
+    /// 此配置测试与主要的干扰信号检测测试配合，共同验证系统正确性。
+    /// </para>
     /// </remarks>
     [Fact]
     [SimulationScenario("ToleranceBidirectional_EarlyTrigger_ConfigurationCheck")]
@@ -192,29 +204,41 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
         
         // Assert - 验证配置正确
         segment1.Should().NotBeNull("线段1配置应存在");
-        segment1!.TimeToleranceMs.Should().Be(700, "容差应为700ms");
-        segment1.LengthMm.Should().Be(6000, "线段长度应为6000mm");
-        segment1.SpeedMmps.Should().Be(1300m, "线速应为1300mm/s");
+        segment1!.TimeToleranceMs.Should().Be(TestTimeToleranceMs, $"容差应为{TestTimeToleranceMs}ms");
+        segment1.LengthMm.Should().Be(TestSegmentLengthMm, $"线段长度应为{TestSegmentLengthMm}mm");
+        segment1.SpeedMmps.Should().Be(TestSegmentSpeedMmps, $"线速应为{TestSegmentSpeedMmps}mm/s");
         
         // 验证理论传输时间计算
         var transitTime = segment1.CalculateTransitTimeMs();
-        transitTime.Should().BeApproximately(4615.38, 0.01, "理论传输时间应为4615.38ms");
+        var expectedTransitTime = TestSegmentLengthMm / (double)TestSegmentSpeedMmps * 1000;
+        transitTime.Should().BeApproximately(expectedTransitTime, 0.01, $"理论传输时间应为{expectedTransitTime:F2}ms");
         
         _output.WriteLine($"[容差配置验证] 传输时间={transitTime:F2}ms, 容差=±{segment1.TimeToleranceMs}ms");
         _output.WriteLine($"[容差配置验证] 时间窗口=[{transitTime - segment1.TimeToleranceMs:F2}ms, {transitTime + segment1.TimeToleranceMs:F2}ms]");
     }
 
     /// <summary>
-    /// 测试场景3: 验证容差双向应用 - 延迟触发检测
+    /// 测试场景3: 验证容差双向应用 - 延迟触发检测配置
     /// </summary>
     /// <remarks>
-    /// 验证时间容差在期望到达时间之后的应用：
-    /// - 配置: timeToleranceMs = 700
-    /// - 理论传输时间: 4615ms
-    /// - 最晚允许时间: 4615 + 700 = 5315ms
-    /// - 如果在 5315ms 之后到达，应识别为超时
-    /// 
-    /// 注意：此测试仅验证配置是否正确应用，不依赖完整的分拣流程
+    /// <para>
+    /// 此测试验证输送线段配置中的超时容差参数是否正确设置。
+    /// 虽然不直接测试运行时行为，但确保配置正确性是E2E测试的重要部分。
+    /// </para>
+    /// <para>
+    /// 验证点：
+    /// - 超时容差配置值正确
+    /// - 超时截止时间计算正确（理论时间 + 容差）
+    /// </para>
+    /// <para>
+    /// 运行时行为验证：
+    /// 实际的超时检测行为在 SortingOrchestrator 中通过以下逻辑实现：
+    /// - 超时检测: currentTime &gt; ExpectedArrivalTime + TimeoutThresholdMs (SortingOrchestrator.cs:1344)
+    /// - TimeoutThresholdMs 值从配置的 TimeToleranceMs 获取
+    /// </para>
+    /// <para>
+    /// 此配置测试与主要的干扰信号检测测试配合，共同验证系统正确性。
+    /// </para>
     /// </remarks>
     [Fact]
     [SimulationScenario("ToleranceBidirectional_LateArrival_ConfigurationCheck")]
@@ -301,10 +325,25 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     /// 辅助方法：触发传感器事件
     /// </summary>
     /// <remarks>
-    /// 使用反射机制触发 ISensorEventProvider 的 ParcelDetected 事件
+    /// <para>
+    /// 使用反射机制触发 ISensorEventProvider 的 ParcelDetected 事件。
+    /// 虽然反射依赖实现细节，但在E2E测试中是可接受的，原因：
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>E2E测试需要模拟真实传感器触发场景，而生产代码中传感器触发是硬件层行为</item>
+    ///   <item>ISensorEventProvider没有提供公共的RaiseEvent方法（这是正确的设计）</item>
+    ///   <item>创建完整的Mock替换会破坏E2E测试的集成性（需要测试实际的事件订阅和处理流程）</item>
+    ///   <item>如果实现改变，测试会失败并提示需要更新，这是可接受的维护成本</item>
+    /// </list>
+    /// <para>
+    /// 替代方案考虑：
+    /// - 添加测试专用的RaiseEventForTest方法会污染生产接口
+    /// - 完全Mock ISensorEventProvider会失去对真实事件订阅的测试覆盖
+    /// </para>
     /// </remarks>
     private void TriggerSensorEvent(ParcelDetectedEventArgs eventArgs)
     {
+        // 获取事件的backing field
         var field = _sensorEventProvider.GetType()
             .GetField("ParcelDetected", System.Reflection.BindingFlags.Instance | 
                                        System.Reflection.BindingFlags.NonPublic | 
@@ -315,6 +354,7 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
             var eventDelegate = field.GetValue(_sensorEventProvider) as MulticastDelegate;
             if (eventDelegate != null)
             {
+                // 触发所有订阅的事件处理器
                 foreach (var handler in eventDelegate.GetInvocationList())
                 {
                     handler.Method.Invoke(handler.Target, new object?[] { _sensorEventProvider, eventArgs });
