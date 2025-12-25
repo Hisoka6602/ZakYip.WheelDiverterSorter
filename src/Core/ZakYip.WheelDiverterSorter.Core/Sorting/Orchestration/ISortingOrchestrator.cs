@@ -113,6 +113,28 @@ public interface ISortingOrchestrator
     /// </list>
     /// </remarks>
     Task ProcessTimedOutParcelAsync(long parcelId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 重建性能优化缓存
+    /// </summary>
+    /// <remarks>
+    /// <para>当传感器配置或拓扑配置在运行时更新后，需要调用此方法重建内部性能缓存。</para>
+    /// 
+    /// <para><b>使用场景</b>：</para>
+    /// <list type="bullet">
+    ///   <item>传感器配置通过API动态更新后</item>
+    ///   <item>拓扑配置通过API动态更新后</item>
+    ///   <item>摆轮节点配置发生变化后</item>
+    /// </list>
+    /// 
+    /// <para><b>注意事项</b>：</para>
+    /// <list type="bullet">
+    ///   <item>此方法是线程安全的</item>
+    ///   <item>重建期间可能有短暂的性能下降，建议在系统空闲时调用</item>
+    ///   <item>如果不调用此方法，系统会自动fallback到实时查询，但会损失性能优化效果</item>
+    /// </list>
+    /// </remarks>
+    void RebuildCaches();
 }
 
 /// <summary>

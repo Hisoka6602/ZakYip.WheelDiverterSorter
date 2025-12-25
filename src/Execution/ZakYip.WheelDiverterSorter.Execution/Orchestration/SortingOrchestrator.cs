@@ -1879,23 +1879,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
             // 构建日志消息，如果有条码则包含在日志中
             var barcode = e.DwsPayload?.Barcode;
-            if (!string.IsNullOrEmpty(barcode))
-            {
-                _logger.LogInformation(
-                    "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 条码={Barcode} | 接收时间={ReceivedAt:HH:mm:ss.fff}",
-                    e.ParcelId,
-                    e.ChuteId,
-                    barcode,
-                    receivedAt);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 接收时间={ReceivedAt:HH:mm:ss.fff}",
-                    e.ParcelId,
-                    e.ChuteId,
-                    receivedAt);
-            }
+            var hasBarcode = !string.IsNullOrEmpty(barcode);
+
+            var logMessage = hasBarcode
+                ? "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 条码={Barcode} | 接收时间={ReceivedAt:HH:mm:ss.fff}"
+                : "[格口分配-接收] 收到包裹 {ParcelId} 的格口分配通知 | ChuteId={ChuteId} | 接收时间={ReceivedAt:HH:mm:ss.fff}";
+
+            object[] logArgs = hasBarcode
+                ? new object[] { e.ParcelId, e.ChuteId, barcode!, receivedAt }
+                : new object[] { e.ParcelId, e.ChuteId, receivedAt };
+
+            _logger.LogInformation(logMessage, logArgs);
 
             // Invariant 2 - 上游响应必须匹配已存在的本地包裹
             // 使用 TryGetValue 避免 ContainsKey + 索引器的重复查找
@@ -2680,6 +2674,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 构建传感器到位置的映射缓存（Issue #2: 避免热路径重复查询）
     /// </summary>
+    /// <remarks>
+    /// 此方法在服务启动时调用，构建传感器ID到位置的映射缓存。
+    /// 
+    /// <para><b>缓存失效注意事项</b>：</para>
+    /// <list type="bullet">
+    ///   <item>如果传感器配置或拓扑在运行时更新，需要调用 <see cref="RebuildCaches"/> 方法重建缓存</item>
+    ///   <item>缓存不会自动更新，必须手动调用重建方法或重启服务</item>
+    ///   <item>缓存未更新时，会自动fallback到实时查询，但会损失性能优化效果</item>
+    /// </list>
+    /// </remarks>
     private void BuildSensorToPositionCache()
     {
         if (_sensorConfigRepository == null || _topologyRepository == null)
@@ -2769,6 +2773,31 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _logger.LogInformation(
             "后续节点缓存已构建，共 {Count} 个位置",
             _subsequentNodesCache.Count);
+    }
+
+    /// <summary>
+    /// 重建所有性能缓存（Issue #2 & #3: 配置更新后的缓存失效处理）
+    /// </summary>
+    /// <remarks>
+    /// <para><b>使用场景</b>：</para>
+    /// <list type="bullet">
+    ///   <item>传感器配置通过API动态更新后</item>
+    ///   <item>拓扑配置通过API动态更新后</item>
+    ///   <item>摆轮节点配置发生变化后</item>
+    /// </list>
+    /// 
+    /// <para><b>注意事项</b>：</para>
+    /// <list type="bullet">
+    ///   <item>此方法是线程安全的（使用ConcurrentDictionary.Clear()）</item>
+    ///   <item>重建期间可能有短暂的缓存未命中，会自动fallback到实时查询</item>
+    ///   <item>建议在系统空闲时调用，避免重建期间的性能抖动</item>
+    /// </list>
+    /// </remarks>
+    public void RebuildCaches()
+    {
+        _logger.LogInformation("开始重建性能缓存（传感器位置映射 + 后续节点列表）");
+        BuildSensorToPositionCache();
+        _logger.LogInformation("性能缓存重建完成");
     }
 
     /// <summary>
