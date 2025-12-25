@@ -428,7 +428,9 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             // 同时记录中位数统计数据（仅用于观测，不用于判断）
             if (_intervalTracker != null)
             {
+#pragma warning disable CS0618 // Obsolete method is intentionally used here for observation/logging only
                 var medianThreshold = _intervalTracker.GetLostDetectionThreshold(positionIndex);
+#pragma warning restore CS0618
                 if (medianThreshold.HasValue)
                 {
                     _logger.LogDebug(

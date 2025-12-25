@@ -65,7 +65,7 @@ public interface IPositionIntervalTracker
     /// 所有丢失判定应基于输送线配置（ConveyorSegmentConfiguration.TimeToleranceMs × 1.5）。
     /// 请使用 GetStatistics() 获取中位数统计信息用于观测。
     /// </remarks>
-    [Obsolete("中位数阈值仅用于分拣逻辑判断。请使用输送线配置进行判断。")]
+    [Obsolete("中位数阈值仅用于观测统计，不应用于分拣逻辑判断。请使用输送线配置进行判断。")]
     double? GetLostDetectionThreshold(int positionIndex);
     
     /// <summary>

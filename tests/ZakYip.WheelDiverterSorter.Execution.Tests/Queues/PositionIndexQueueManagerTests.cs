@@ -79,7 +79,7 @@ public class PositionIndexQueueManagerTests
     }
 
     /// <summary>
-    /// 测试：当 IsEnabled = true 时，入队时应保留或计算丢失检测字段
+    /// 测试：当 IsEnabled = true 时，入队时应保留或计算丢失检测字段（基于配置）
     /// </summary>
     [Fact]
     public void EnqueueTask_WhenIsEnabledIsTrue_ShouldApplyLostDetectionFields()
@@ -88,17 +88,15 @@ public class PositionIndexQueueManagerTests
         var config = new ParcelLossDetectionConfiguration
         {
             IsEnabled = true,  // 启用检测
-            LostDetectionMultiplier = 1.5
+            LostDetectionMultiplier = 1.5  // 此系数已不再用于计算，保留为向后兼容
         };
         
         _mockConfigRepository
             .Setup(r => r.Get())
             .Returns(config);
         
-        // 模拟中位数阈值计算
-        _mockIntervalTracker
-            .Setup(t => t.GetLostDetectionThreshold(It.IsAny<int>()))
-            .Returns(3000.0);  // 返回动态阈值
+        // 注意：不再模拟中位数阈值计算，因为现在使用 TimeoutThresholdMs × 1.5
+        // 中位数仅用于观测日志，不影响实际判断逻辑
 
         var manager = new PositionIndexQueueManager(
             _mockLogger.Object,
@@ -114,7 +112,7 @@ public class PositionIndexQueueManagerTests
             PositionIndex = 1,
             DiverterAction = DiverterDirection.Right,
             ExpectedArrivalTime = expectedArrival,
-            TimeoutThresholdMs = 2000,
+            TimeoutThresholdMs = 2000,  // 来自输送线配置
             FallbackAction = DiverterDirection.Straight,
             CreatedAt = _mockClock.Object.LocalNow
         };
@@ -127,6 +125,7 @@ public class PositionIndexQueueManagerTests
         Assert.NotNull(dequeuedTask);
         Assert.NotNull(dequeuedTask.LostDetectionTimeoutMs);
         Assert.NotNull(dequeuedTask.LostDetectionDeadline);
+        // 丢失检测阈值 = TimeoutThresholdMs × 1.5 = 2000 × 1.5 = 3000
         Assert.Equal(3000, dequeuedTask.LostDetectionTimeoutMs);
         Assert.Equal(expectedArrival.AddMilliseconds(3000), dequeuedTask.LostDetectionDeadline);
     }
