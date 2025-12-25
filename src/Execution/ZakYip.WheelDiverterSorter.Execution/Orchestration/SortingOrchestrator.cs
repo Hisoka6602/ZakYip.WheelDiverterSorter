@@ -123,6 +123,30 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     // Issue #3: 缓存每个position后续节点列表，避免超时时重复构造
     private readonly ConcurrentDictionary<int, List<DiverterPathNode>> _subsequentNodesCache;
     
+    /// <summary>
+    /// 包裹条码缓存，用于在日志中附加来自上游 DWS 的条码信息以便追踪。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 条码的写入时机：在 <c>OnChuteAssignmentReceived</c> 中，当上游消息的
+    /// <c>DwsPayload.Barcode</c> 字段存在且非空时，将对应包裹 ID 与条码写入缓存。
+    /// </para>
+    /// <para>
+    /// 条码的清理时机：在以下五类清理路径中移除缓存项，以避免内存泄漏并保证状态一致：
+    /// 1) 路由/分拣超时清理；2) 正常分拣完成后的清理；3) 包裹丢失（lost）处理时的清理；
+    /// 4) 显式的包裹清理操作；5) <c>CleanupParcelMemory</c> 中统一回收包裹相关内存时的清理。
+    /// </para>
+    /// <para>
+    /// 线程安全：使用 <see cref="ConcurrentDictionary{TKey,TValue}"/> 存储条码，
+    /// 支持多线程并发读写而无需额外锁，符合本类在多线程回调与后台任务中的并发访问需求。
+    /// </para>
+    /// <para>
+    /// 日志格式：为了便于关联，同一包裹的日志中会在消息末尾附加
+    /// <c>",BarCode:{value}"</c> 形式的后缀，其中 <c>{value}</c> 为缓存中的条码值。
+    /// </para>
+    /// </remarks>
+    private readonly ConcurrentDictionary<long, string> _parcelBarcodes;
+    
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
 
@@ -223,6 +247,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _timeoutCompensationInserted = new ConcurrentDictionary<long, byte>();
         _sensorToPositionCache = new ConcurrentDictionary<long, (long, int)>();
         _subsequentNodesCache = new ConcurrentDictionary<int, List<DiverterPathNode>>();
+        _parcelBarcodes = new ConcurrentDictionary<long, string>();
 
         // 订阅包裹检测事件
         _sensorEventProvider.ParcelDetected += OnParcelDetected;
@@ -955,10 +980,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
             // 注意：OnChuteAssignmentReceived可能已提前移除，导致此处返回false
             var removed = _pendingAssignments.TryRemove(parcelId, out _);
+            var barcodeSuffix = GetBarcodeSuffix(parcelId);
             _logger.LogDebug(
-                "[格口分配-清理] 包裹 {ParcelId} 的TaskCompletionSource清理完成 | " +
+                "[格口分配-清理] 包裹 {ParcelId}{BarcodeSuffix} 的TaskCompletionSource清理完成 | " +
                 "从_pendingAssignments中移除={Removed}（false表示可能已在事件处理器中提前移除）",
                 parcelId,
+                barcodeSuffix,
                 removed);
         }
     }
@@ -1025,6 +1052,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 清理目标格口记录，防止后续IO触发时重复发送通知
         _parcelTargetChutes.TryRemove(parcelId, out _);
+        
+        // 清理条码缓存
+        _parcelBarcodes.TryRemove(parcelId, out _);
 
         return exceptionChuteId;
     }
@@ -1086,6 +1116,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 清理路径记录
         // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
         _parcelPaths.TryRemove(parcelId, out _);
+        
+        // 清理条码缓存
+        _parcelBarcodes.TryRemove(parcelId, out _);
 
         // 清理位置追踪记录（防止内存泄漏和混淆后续包裹）
         _intervalTracker?.ClearParcelTracking(parcelId);
@@ -1121,6 +1154,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _createdParcels.TryRemove(parcelId, out _);
         _parcelPaths.TryRemove(parcelId, out _);
         _pendingAssignments.TryRemove(parcelId, out _);
+        _parcelBarcodes.TryRemove(parcelId, out _);
     }
 
     #endregion Private Methods - 流程步骤拆分
@@ -1995,6 +2029,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
             _logger.LogInformation(logMessage, logArgs);
 
+            // 缓存条码（如果存在）用于后续日志追踪
+            if (hasBarcode)
+            {
+                _parcelBarcodes.TryAdd(e.ParcelId, barcode!);
+            }
+
             // Invariant 2 - 上游响应必须匹配已存在的本地包裹
             // 使用 TryGetValue 避免 ContainsKey + 索引器的重复查找
             if (!_createdParcels.TryGetValue(e.ParcelId, out var parcelRecord))
@@ -2051,9 +2091,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 // ⚠️ 关键：立即完成TCS，解除GetChuteFromUpstreamAsync的超时等待
                 var taskCompleted = tcs.TrySetResult(e.ChuteId);
 
+                var barcodeSuffix = GetBarcodeSuffix(e.ParcelId);
                 _logger.LogDebug(
-                    "[格口分配-TCS完成] 包裹 {ParcelId} 的TaskCompletionSource{Result}",
+                    "[格口分配-TCS完成] 包裹 {ParcelId}{BarcodeSuffix} 的TaskCompletionSource{Result}",
                     e.ParcelId,
+                    barcodeSuffix,
                     taskCompleted ? "已成功设置结果" : "设置结果失败（可能已被取消或超时）");
 
                 // 在后台异步更新 RoutePlan（不阻塞主流程）
@@ -2067,17 +2109,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             {
                                 await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
 
+                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                                 _logger.LogDebug(
-                                    "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
+                                    "[格口分配-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已成功更新为格口 {ChuteId}",
                                     e.ParcelId,
+                                    barcodeSuffixInner,
                                     e.ChuteId);
                             }
                             catch (Exception ex)
                             {
+                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                                 _logger.LogError(
                                     ex,
-                                    "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                    "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
                                     e.ParcelId,
+                                    barcodeSuffixInner,
                                     e.ChuteId);
                             }
                         },
@@ -2092,17 +2138,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         {
                             await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
 
+                            var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                             _logger.LogDebug(
-                                "[格口分配-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已成功更新为格口 {ChuteId}",
+                                "[格口分配-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已成功更新为格口 {ChuteId}",
                                 e.ParcelId,
+                                barcodeSuffixInner,
                                 e.ChuteId);
                         }
                         catch (Exception ex)
                         {
+                            var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                             _logger.LogError(
                                 ex,
-                                "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
                                 e.ParcelId,
+                                barcodeSuffixInner,
                                 e.ChuteId);
                         }
                     });
@@ -2132,17 +2182,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             {
                                 await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
 
+                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                                 _logger.LogDebug(
-                                    "[迟到响应-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
+                                    "[迟到响应-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
                                     e.ParcelId,
+                                    barcodeSuffixInner,
                                     e.ChuteId);
                             }
                             catch (Exception ex)
                             {
+                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                                 _logger.LogError(
                                     ex,
-                                    "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                    "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
                                     e.ParcelId,
+                                    barcodeSuffixInner,
                                     e.ChuteId);
                             }
                         },
@@ -2157,17 +2211,21 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         {
                             await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
 
+                            var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                             _logger.LogDebug(
-                                "[迟到响应-RoutePlan已更新] 包裹 {ParcelId} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
+                                "[迟到响应-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
                                 e.ParcelId,
+                                barcodeSuffixInner,
                                 e.ChuteId);
                         }
                         catch (Exception ex)
                         {
+                            var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                             _logger.LogError(
                                 ex,
-                                "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
                                 e.ParcelId,
+                                barcodeSuffixInner,
                                 e.ChuteId);
                         }
                     });
@@ -2213,9 +2271,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 // 创建新的 RoutePlan
                 routePlan = new RoutePlan(parcelId, chuteId, assignedAt);
 
+                var barcodeSuffix = GetBarcodeSuffix(parcelId);
                 _logger.LogInformation(
-                    "创建新的路由计划: ParcelId={ParcelId}, TargetChuteId={ChuteId}, AssignedAt={AssignedAt:yyyy-MM-dd HH:mm:ss.fff}",
+                    "创建新的路由计划: ParcelId={ParcelId}{BarcodeSuffix}, TargetChuteId={ChuteId}, AssignedAt={AssignedAt:yyyy-MM-dd HH:mm:ss.fff}",
                     parcelId,
+                    barcodeSuffix,
                     chuteId,
                     assignedAt);
             }
@@ -2255,9 +2315,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 保存 RoutePlan
             await _routePlanRepository.SaveAsync(routePlan);
 
+            var barcodeSuffixFinal = GetBarcodeSuffix(parcelId);
             _logger.LogDebug(
-                "成功保存包裹 {ParcelId} 的路由计划，目标格口={ChuteId}",
+                "成功保存包裹 {ParcelId}{BarcodeSuffix} 的路由计划，目标格口={ChuteId}",
                 parcelId,
+                barcodeSuffixFinal,
                 chuteId);
         }
         catch (Exception ex)
@@ -2657,6 +2719,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 // 7. 清理丢失包裹的其他内存记录（_pendingAssignments和_createdParcels已在上面立即处理）
                 _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
                 _parcelPaths.TryRemove(e.LostParcelId, out _);
+                _parcelBarcodes.TryRemove(e.LostParcelId, out _);
                 _timeoutCompensationInserted.TryRemove(e.LostParcelId, out _);
                 _intervalTracker?.ClearParcelTracking(e.LostParcelId);
 
@@ -2681,6 +2744,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     ///   <item>待处理分配 (_pendingAssignments)</item>
     ///   <item>超时补偿标记 (_timeoutCompensationInserted)</item>
     ///   <item>位置追踪记录 (_intervalTracker)</item>
+    ///   <item>条码缓存 (_parcelBarcodes)</item>
     /// </list>
     /// </remarks>
     private void CleanupParcelMemory(long parcelId)
@@ -2690,6 +2754,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _parcelPaths.TryRemove(parcelId, out _);
         _pendingAssignments.TryRemove(parcelId, out _);
         _timeoutCompensationInserted.TryRemove(parcelId, out _);
+        _parcelBarcodes.TryRemove(parcelId, out _);
         _intervalTracker?.ClearParcelTracking(parcelId);
 
         _logger.LogTrace(
@@ -3057,6 +3122,45 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 currentTask.ParcelId,
                 currentPositionIndex);
         }
+    }
+
+    /// <summary>
+    /// 获取指定包裹的条码后缀字符串，用于在日志和监控中进行精确追踪。
+    /// </summary>
+    /// <param name="parcelId">
+    /// 本地分拣流程中使用的包裹 ID。该 ID 与上游 DWS 载荷中的条码通过缓存进行关联。
+    /// </param>
+    /// <returns>
+    /// 若在条码缓存中能找到与 <paramref name="parcelId"/> 对应的非空条码，
+    /// 则返回形如 <c>",BarCode:xxx"</c> 的后缀字符串；否则返回 <see cref="string.Empty"/>。
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 此方法仅用于<strong>日志追踪和问题排查</strong>，不会影响实际分拣决策或硬件控制逻辑。
+    /// </para>
+    /// <para>
+    /// 条码在收到上游格口分配通知（<c>OnChuteAssignmentReceived</c>）时写入缓存：
+    /// 当通知中携带的 DWS 载荷 (<c>DwsPayload</c>) 包含非空 <c>Barcode</c> 字段时，
+    /// 分拣编排器会将 <c>parcelId</c> 与该条码写入内部的
+    /// <see cref="ConcurrentDictionary{TKey,TValue}"/> 缓存字段 <c>_parcelBarcodes</c>。
+    /// </para>
+    /// <para>
+    /// 条码会在包裹生命周期结束后的清理操作中从缓存中移除（例如分拣完成、异常结束或
+    /// 显式的缓存清理任务），以避免缓存无限增长并保持内存占用可控。
+    /// </para>
+    /// <para>
+    /// 由于缓存使用的是 <see cref="ConcurrentDictionary{TKey,TValue}"/>，因此
+    /// <see cref="GetBarcodeSuffix(long)"/> 的查找操作是线程安全的，
+    /// 可以在多个传感器回调 / 分拣任务并发执行的场景下安全调用。
+    /// </para>
+    /// </remarks>
+    private string GetBarcodeSuffix(long parcelId)
+    {
+        if (_parcelBarcodes.TryGetValue(parcelId, out var barcode) && !string.IsNullOrEmpty(barcode))
+        {
+            return $",BarCode:{barcode}";
+        }
+        return string.Empty;
     }
 
     #endregion Helper Methods - 性能优化辅助方法
