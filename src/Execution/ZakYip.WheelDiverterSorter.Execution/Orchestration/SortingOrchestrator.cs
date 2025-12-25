@@ -1292,16 +1292,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             if (_topologyRepository != null && _segmentRepository != null)
             {
                 var topology = _topologyRepository.Get();
-                var node = topology?.FindNodeByDiverterId(peekedTask.DiverterId);
-                if (node != null)
+                if (topology != null)
                 {
-                    var segment = _segmentRepository.GetById(node.SegmentId);
-                    if (segment != null)
+                    var node = topology.FindNodeByDiverterId(peekedTask.DiverterId);
+                    if (node != null)
                     {
-                        segmentInfo = $"线体Id={segment.SegmentId}, " +
-                                     $"线体长度={segment.LengthMm}mm, " +
-                                     $"线体速度={segment.SpeedMmps}mm/s, " +
-                                     $"容差时间={segment.TimeToleranceMs}ms";
+                        var segment = _segmentRepository.GetById(node.SegmentId);
+                        if (segment != null)
+                        {
+                            segmentInfo = $"线体Id={segment.SegmentId}, " +
+                                         $"线体长度={segment.LengthMm}mm, " +
+                                         $"线体速度={segment.SpeedMmps}mm/s, " +
+                                         $"容差时间={segment.TimeToleranceMs}ms";
+                        }
                     }
                 }
             }

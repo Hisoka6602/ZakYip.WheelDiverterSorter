@@ -858,12 +858,20 @@ public class SortingController : ApiControllerBase
             // 超时检测状态：所有段都启用才算启用
             var enableTimeoutDetection = segments.Any() && segments.All(s => s.EnableLossDetection);
             
-            // 取最新的更新时间
-            var latestUpdateTime = new[] 
-            { 
-                systemConfig.UpdatedAt, 
-                lossDetectionConfig.UpdatedAt 
-            }.Max();
+            // 取最新的更新时间（包括所有输送段的更新时间）
+            var timestamps = new List<DateTime>
+            {
+                systemConfig.UpdatedAt,
+                lossDetectionConfig.UpdatedAt
+            };
+
+            if (segments.Any())
+            {
+                var segmentLatestUpdateTime = segments.Max(s => s.UpdatedAt);
+                timestamps.Add(segmentLatestUpdateTime);
+            }
+
+            var latestUpdateTime = timestamps.Max();
             
             var response = new DetectionSwitchesDto
             {
@@ -996,13 +1004,12 @@ public class SortingController : ApiControllerBase
                 var segments = _conveyorSegmentRepository.GetAll();
                 foreach (var segment in segments)
                 {
-                    // 创建新的记录以更新不可变对象
-                    var updatedSegment = segment with
-                    {
-                        EnableLossDetection = request.EnableTimeoutDetection.Value,
-                        UpdatedAt = now
-                    };
-                    _conveyorSegmentRepository.Update(updatedSegment);
+                    _conveyorSegmentRepository.Update(
+                        segment with
+                        {
+                            EnableLossDetection = request.EnableTimeoutDetection.Value,
+                            UpdatedAt = now
+                        });
                 }
                 
                 _logger.LogInformation(

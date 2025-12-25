@@ -19,9 +19,9 @@ public record DetectionSwitchesDto
     ///   <item>若当前时间 &lt; EarliestDequeueTime，判定为提前触发</item>
     ///   <item>提前触发时不出队、不执行摆轮动作，仅记录告警</item>
     /// </list>
-    /// <para>默认值为 false（禁用），确保向后兼容性</para>
+    /// <para>默认值为 true（启用），防止包裹错位问题</para>
     /// </remarks>
-    /// <example>false</example>
+    /// <example>true</example>
     public bool EnableInterferenceDetection { get; init; }
 
     /// <summary>
@@ -31,8 +31,9 @@ public record DetectionSwitchesDto
     /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为超时并路由到异常格口。</para>
     /// <para>当禁用时，超时后继续等待，不进行超时处理。</para>
     /// <para>超时阈值 = 理论传输时间 + 时间容差（来自输送线段配置）</para>
+    /// <para>默认值为 false（禁用超时检测）</para>
     /// </remarks>
-    /// <example>true</example>
+    /// <example>false</example>
     public bool EnableTimeoutDetection { get; init; }
 
     /// <summary>
@@ -54,9 +55,9 @@ public record DetectionSwitchesDto
     /// <item><description>后台服务跳过所有巡检逻辑，不执行任何检测</description></item>
     /// <item><description>包裹不会因为超时/丢失而被自动移除，只能通过正常到达或手动清空队列</description></item>
     /// </list>
-    /// <para><b>默认值</b>：true（启用检测，确保系统能自动清理丢失包裹）</para>
+    /// <para><b>默认值</b>：false（禁用检测，不自动清理丢失包裹）</para>
     /// </remarks>
-    /// <example>true</example>
+    /// <example>false</example>
     public bool EnableParcelLossDetection { get; init; }
 
     /// <summary>
@@ -80,8 +81,9 @@ public record UpdateDetectionSwitchesRequest
     /// <remarks>
     /// <para>可选参数，如不提供则保持当前值不变</para>
     /// <para>当启用时，系统会在摆轮前传感器触发时检查 EarliestDequeueTime，防止包裹提前到达导致的错位问题。</para>
+    /// <para>默认值为 true（启用），防止包裹错位问题</para>
     /// </remarks>
-    /// <example>false</example>
+    /// <example>true</example>
     public bool? EnableInterferenceDetection { get; init; }
 
     /// <summary>
@@ -91,8 +93,9 @@ public record UpdateDetectionSwitchesRequest
     /// <para>可选参数，如不提供则保持当前值不变</para>
     /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为超时并路由到异常格口。</para>
     /// <para>当禁用时，超时后继续等待，不进行超时处理。</para>
+    /// <para>默认值为 false（禁用超时检测）</para>
     /// </remarks>
-    /// <example>true</example>
+    /// <example>false</example>
     public bool? EnableTimeoutDetection { get; init; }
 
     /// <summary>
@@ -103,7 +106,8 @@ public record UpdateDetectionSwitchesRequest
     /// <para>控制整个包裹丢失检测功能的开关</para>
     /// <para>true: 启用丢失检测和超时检测</para>
     /// <para>false: 关闭所有检测，包裹不会因超时或丢失而被移除</para>
+    /// <para>默认值为 false（禁用检测，不自动清理丢失包裹）</para>
     /// </remarks>
-    /// <example>true</example>
+    /// <example>false</example>
     public bool? EnableParcelLossDetection { get; init; }
 }

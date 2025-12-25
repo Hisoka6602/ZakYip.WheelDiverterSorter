@@ -113,7 +113,7 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
     public async Task UpdateDetectionSwitches_WithNullRequest_ShouldReturnBadRequest()
     {
         // Act
-        var content = new StringContent("", System.Text.Encoding.UTF8, "application/json");
+        using var content = new StringContent("", System.Text.Encoding.UTF8, "application/json");
         var response = await _client.PutAsync("/api/sorting/detection-switches", content);
 
         // Assert
