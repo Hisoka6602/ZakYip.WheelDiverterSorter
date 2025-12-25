@@ -1278,30 +1278,29 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         var enableEarlyTriggerDetection = systemConfig?.EnableEarlyTriggerDetection ?? false;
         
         // 提前触发检测：如果启用且队列任务有 EarliestDequeueTime，检查当前时间是否过早
-        if (enableEarlyTriggerDetection && peekedTask.EarliestDequeueTime.HasValue)
+        if (enableEarlyTriggerDetection
+            && peekedTask.EarliestDequeueTime is DateTime earliestDequeueTime
+            && currentTime < earliestDequeueTime)
         {
-            if (currentTime < peekedTask.EarliestDequeueTime.Value)
-            {
-                var earlyMs = (peekedTask.EarliestDequeueTime.Value - currentTime).TotalMilliseconds;
-                
-                _logger.LogWarning(
-                    "[提前触发检测] Position {PositionIndex} 传感器 {SensorId} 提前触发 {EarlyMs}ms，" +
-                    "包裹 {ParcelId} 不出队、不执行动作 | " +
-                    "当前时间={CurrentTime:HH:mm:ss.fff}, " +
-                    "最早出队时间={EarliestTime:HH:mm:ss.fff}, " +
-                    "期望到达时间={ExpectedTime:HH:mm:ss.fff}",
-                    positionIndex, sensorId, earlyMs,
-                    peekedTask.ParcelId,
-                    currentTime,
-                    peekedTask.EarliestDequeueTime.Value,
-                    peekedTask.ExpectedArrivalTime);
-                
-                // 记录为分拣异常（用于监控提前触发频率）
-                _alarmService?.RecordSortingFailure();
-                
-                // 不出队、不执行动作，直接返回
-                return;
-            }
+            var earlyMs = (earliestDequeueTime - currentTime).TotalMilliseconds;
+            
+            _logger.LogWarning(
+                "[提前触发检测] Position {PositionIndex} 传感器 {SensorId} 提前触发 {EarlyMs}ms，" +
+                "包裹 {ParcelId} 不出队、不执行动作 | " +
+                "当前时间={CurrentTime:HH:mm:ss.fff}, " +
+                "最早出队时间={EarliestTime:HH:mm:ss.fff}, " +
+                "期望到达时间={ExpectedTime:HH:mm:ss.fff}",
+                positionIndex, sensorId, earlyMs,
+                peekedTask.ParcelId,
+                currentTime,
+                earliestDequeueTime,
+                peekedTask.ExpectedArrivalTime);
+            
+            // 记录为分拣异常（用于监控提前触发频率）
+            _alarmService?.RecordSortingFailure();
+            
+            // 不出队、不执行动作，直接返回
+            return;
         }
         
         // 正常流程：从队列取出任务
@@ -1368,10 +1367,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     foreach (var node in subsequentNodes)
                     {
                         var now = _clock.LocalNow;
-                        var earliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
-                        if (earliestDequeueTime < now)
+                        var compensationEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
+                        if (compensationEarliestDequeueTime < task.CreatedAt)
                         {
-                            earliestDequeueTime = now;
+                            compensationEarliestDequeueTime = task.CreatedAt;
                         }
                         
                         var straightTask = new PositionQueueItem
@@ -1383,12 +1382,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             TimeoutThresholdMs = task.TimeoutThresholdMs,
                             FallbackAction = DiverterDirection.Straight,
                             PositionIndex = node.PositionIndex,
-                            CreatedAt = now,
+                            CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
                             // 丢失判定超时 = TimeoutThreshold * 1.5
                             LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
                             LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
                             // 最早出队时间（提前触发检测）
-                            EarliestDequeueTime = earliestDequeueTime
+                            EarliestDequeueTime = compensationEarliestDequeueTime
                         };
 
                         // 使用优先入队，插入到队列头部
@@ -1418,10 +1417,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             foreach (var node in fallbackSubsequentNodes)
                             {
                                 var now = _clock.LocalNow;
-                                var earliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
-                                if (earliestDequeueTime < now)
+                                var fallbackEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
+                                if (fallbackEarliestDequeueTime < task.CreatedAt)
                                 {
-                                    earliestDequeueTime = now;
+                                    fallbackEarliestDequeueTime = task.CreatedAt;
                                 }
                                 
                                 var straightTask = new PositionQueueItem
@@ -1433,12 +1432,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                     TimeoutThresholdMs = task.TimeoutThresholdMs,
                                     FallbackAction = DiverterDirection.Straight,
                                     PositionIndex = node.PositionIndex,
-                                    CreatedAt = now,
+                                    CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
                                     // 丢失判定超时 = TimeoutThreshold * 1.5
                                     LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
                                     LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
                                     // 最早出队时间（提前触发检测）
-                                    EarliestDequeueTime = earliestDequeueTime
+                                    EarliestDequeueTime = fallbackEarliestDequeueTime
                                 };
 
                                 // 使用优先入队，插入到队列头部
@@ -2968,6 +2967,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 出队旧任务
+            // 注意：此处存在潜在的并发风险，如果在出队和入队之间另一个传感器触发，可能导致顺序错乱
+            // 然而实际场景中，由于物理传感器的间隔和包裹移动的时序性，同一position的并发触发极为罕见
+            // 如果未来需要解决此问题，可以考虑为每个positionIndex添加独立的锁
             var dequeuedTask = _queueManager.DequeueTask(nextNode.PositionIndex);
             if (dequeuedTask == null || dequeuedTask.ParcelId != currentTask.ParcelId)
             {
@@ -2981,6 +2983,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 创建更新后的任务（仅更新时间相关字段）
+            // 使用 record 的 with 表达式确保不可变性，以下字段被保留：
+            // - ParcelId, DiverterId, DiverterAction, PositionIndex (核心业务字段)
+            // - TimeoutThresholdMs, FallbackAction (超时处理配置)
+            // - CreatedAt, LostDetectionTimeoutMs (原始时间戳和配置)
+            // 以下字段被更新：
+            // - ExpectedArrivalTime (基于实际到达时间重新计算)
+            // - EarliestDequeueTime (基于新的期望时间重新计算)
+            // - LostDetectionDeadline (基于新的期望时间重新计算，保持一致性)
             var updatedTask = dequeuedTask with
             {
                 ExpectedArrivalTime = nextExpectedArrivalTime,

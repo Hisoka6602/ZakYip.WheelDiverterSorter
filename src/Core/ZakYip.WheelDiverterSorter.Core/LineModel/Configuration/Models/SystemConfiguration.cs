@@ -261,6 +261,7 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
+            EnableEarlyTriggerDetection = false, // 默认禁用提前触发检测，确保向后兼容性
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now
