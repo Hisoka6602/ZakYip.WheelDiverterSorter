@@ -43,32 +43,6 @@ public interface IPositionIntervalTracker
     IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics();
     
     /// <summary>
-    /// 获取当前 Position 的动态超时阈值（用于包裹丢失检测）
-    /// </summary>
-    /// <param name="positionIndex">Position 索引</param>
-    /// <returns>动态超时阈值（毫秒），如果数据不足则返回 null</returns>
-    /// <remarks>
-    /// ⚠️ 已废弃：此方法返回的中位数阈值仅用于观测统计，不应用于分拣逻辑判断。
-    /// 所有超时判断应基于输送线配置（ConveyorSegmentConfiguration）。
-    /// 请使用 GetStatistics() 获取中位数统计信息用于观测。
-    /// </remarks>
-    [Obsolete("中位数阈值仅用于观测统计，不应用于分拣逻辑判断。请使用输送线配置进行判断。")]
-    double? GetDynamicThreshold(int positionIndex);
-    
-    /// <summary>
-    /// 获取当前 Position 的丢失判定阈值
-    /// </summary>
-    /// <param name="positionIndex">Position 索引</param>
-    /// <returns>丢失判定阈值（毫秒），如果数据不足则返回 null</returns>
-    /// <remarks>
-    /// ⚠️ 已废弃：此方法返回的中位数阈值仅用于观测统计，不应用于分拣逻辑判断。
-    /// 所有丢失判定应基于输送线配置（ConveyorSegmentConfiguration.TimeToleranceMs × 1.5）。
-    /// 请使用 GetStatistics() 获取中位数统计信息用于观测。
-    /// </remarks>
-    [Obsolete("中位数阈值仅用于观测统计，不应用于分拣逻辑判断。请使用输送线配置进行判断。")]
-    double? GetLostDetectionThreshold(int positionIndex);
-    
-    /// <summary>
     /// 清空指定 Position 的统计数据
     /// </summary>
     /// <param name="positionIndex">Position 索引</param>

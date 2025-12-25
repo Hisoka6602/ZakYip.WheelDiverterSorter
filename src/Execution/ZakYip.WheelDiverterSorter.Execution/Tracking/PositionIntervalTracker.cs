@@ -179,62 +179,6 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     }
 
     /// <inheritdoc/>
-    [Obsolete("中位数阈值仅用于观测统计，不应用于分拣逻辑判断。请使用输送线配置进行判断。")]
-    public double? GetDynamicThreshold(int positionIndex)
-    {
-        if (!_intervalHistory.TryGetValue(positionIndex, out var buffer))
-        {
-            return null;
-        }
-        
-        // 数据不足，返回 null
-        if (buffer.Count < _options.MinSamplesForThreshold)
-        {
-            return null;
-        }
-        
-        var intervals = buffer.ToArray();
-        var median = CalculateMedian(intervals);
-        
-        // 应用系数计算动态阈值（直接使用中位数×系数，不做限幅）
-        var threshold = median * _options.TimeoutMultiplier;
-        
-        _logger.LogDebug(
-            "[观测数据] Position {PositionIndex}: 中位数超时阈值={ThresholdMs}ms（仅观测，不用于判断）",
-            positionIndex, threshold);
-        
-        return threshold;
-    }
-    
-    /// <inheritdoc/>
-    [Obsolete("中位数阈值仅用于观测统计，不应用于分拣逻辑判断。请使用输送线配置进行判断。")]
-    public double? GetLostDetectionThreshold(int positionIndex)
-    {
-        if (!_intervalHistory.TryGetValue(positionIndex, out var buffer))
-        {
-            return null;
-        }
-        
-        // 数据不足，返回 null
-        if (buffer.Count < _options.MinSamplesForThreshold)
-        {
-            return null;
-        }
-        
-        var intervals = buffer.ToArray();
-        var median = CalculateMedian(intervals);
-        
-        // 应用丢失判定系数计算阈值
-        var lostThreshold = median * _options.LostDetectionMultiplier;
-        
-        _logger.LogDebug(
-            "[观测数据] Position {PositionIndex}: 中位数丢失阈值={ThresholdMs}ms（仅观测，不用于判断）",
-            positionIndex, lostThreshold);
-        
-        return lostThreshold;
-    }
-
-    /// <inheritdoc/>
     public void ClearStatistics(int positionIndex)
     {
         _intervalHistory.TryRemove(positionIndex, out _);

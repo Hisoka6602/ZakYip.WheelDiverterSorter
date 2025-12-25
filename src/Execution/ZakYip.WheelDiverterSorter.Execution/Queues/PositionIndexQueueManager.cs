@@ -425,20 +425,6 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
                 "[配置阈值] Position {PositionIndex} 包裹 {ParcelId}: 使用输送线配置阈值 {ThresholdMs}ms (TimeoutThreshold × 1.5)，截止时间 {Deadline:HH:mm:ss.fff}",
                 positionIndex, task.ParcelId, lostDetectionThreshold, newDeadline);
             
-            // 同时记录中位数统计数据（仅用于观测，不用于判断）
-            if (_intervalTracker != null)
-            {
-#pragma warning disable CS0618 // Obsolete method is intentionally used here for observation/logging only
-                var medianThreshold = _intervalTracker.GetLostDetectionThreshold(positionIndex);
-#pragma warning restore CS0618
-                if (medianThreshold.HasValue)
-                {
-                    _logger.LogDebug(
-                        "[观测数据] Position {PositionIndex}: 中位数阈值={MedianThresholdMs}ms（仅观测，不用于判断）",
-                        positionIndex, medianThreshold.Value);
-                }
-            }
-            
             return task with
             {
                 LostDetectionTimeoutMs = (long)lostDetectionThreshold,
