@@ -154,10 +154,10 @@ public class SystemConfiguration
     /// </summary>
     public int ThrottleMetricsWindowSeconds { get; set; } = 60;
 
-    // ========== 提前触发检测配置 / Early Trigger Detection Config ==========
+    // ========== 检测开关配置 / Detection Switches Config ==========
     
     /// <summary>
-    /// 启用提前触发检测功能
+    /// 启用提前触发检测功能（干扰检测）
     /// </summary>
     /// <remarks>
     /// <para>当启用时，系统会在摆轮前传感器触发时检查 EarliestDequeueTime，防止包裹提前到达导致的错位问题。</para>
@@ -170,6 +170,18 @@ public class SystemConfiguration
     /// <para>默认值为 true（启用），防止包裹错位问题</para>
     /// </remarks>
     public bool EnableEarlyTriggerDetection { get; set; } = true;
+    
+    /// <summary>
+    /// 启用超时检测功能
+    /// </summary>
+    /// <remarks>
+    /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为超时并路由到异常格口。</para>
+    /// <para>当禁用时，超时后继续等待，不进行超时处理。</para>
+    /// <para>超时阈值 = 理论传输时间 + 时间容差（来自输送线段配置）</para>
+    /// <para>默认值为 false（禁用超时检测）</para>
+    /// <para>此为全局开关，通过 /api/sorting/detection-switches 统一控制</para>
+    /// </remarks>
+    public bool EnableTimeoutDetection { get; set; } = false;
 
     /// <summary>
     /// 配置版本号

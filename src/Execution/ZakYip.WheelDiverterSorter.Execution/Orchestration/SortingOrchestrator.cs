@@ -1399,10 +1399,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 4. 即使包裹延迟很大（如前面包裹丢失导致），也应该正常执行摆轮动作
 
         // 检查是否超时（延迟到达）
-        // 超时检测由任务创建时固定的 EnableTimeoutDetection 标志控制
+        // FIX: 读取全局实时配置，确保通过 /api/sorting/detection-switches 的配置变更立即生效
+        // 使用 SystemConfiguration.EnableTimeoutDetection 作为唯一控制源
+        var enableTimeoutDetection = systemConfig?.EnableTimeoutDetection ?? false;
+        
         // - 启用时：延迟到达判定为"超时"，执行回退动作并插入补偿任务
         // - 禁用时：不区分"延迟到达"和"正常到达"，一律按正常到达执行主动作
-        var isTimeout = task.EnableTimeoutDetection && 
+        var isTimeout = enableTimeoutDetection && 
                        currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
 
         DiverterDirection actionToExecute;

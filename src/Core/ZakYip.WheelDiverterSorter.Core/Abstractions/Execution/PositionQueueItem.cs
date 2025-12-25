@@ -111,8 +111,8 @@ public record class PositionQueueItem
     /// 超时检测开关（是否启用包裹延迟到达的超时处理）
     /// </summary>
     /// <remarks>
-    /// <para>从 ConveyorSegmentConfiguration.EnableLossDetection 获取并在任务创建时固定。</para>
-    /// <para>控制范围：</para>
+    /// <para>此字段已弃用。超时检测现在由 SystemConfiguration.EnableTimeoutDetection 全局控制。</para>
+    /// <para>历史说明：</para>
     /// <list type="bullet">
     ///   <item><b>启用（true）</b>：包裹延迟到达时执行超时处理（回退动作、补偿任务插入、失败统计）</item>
     ///   <item><b>禁用（false）</b>：包裹延迟到达时仍按计划动作正常执行，不做超时判定</item>
