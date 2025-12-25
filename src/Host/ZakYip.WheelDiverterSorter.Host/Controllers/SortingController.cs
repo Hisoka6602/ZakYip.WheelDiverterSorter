@@ -847,36 +847,21 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            // 获取系统配置（干扰检测开关）
+            // 获取系统配置（干扰检测开关、超时检测开关）
             var systemConfig = _systemConfigRepository.Get();
             
             // 获取包裹丢失检测配置
             var lossDetectionConfig = _lossDetectionConfigRepository.Get();
             
-            // 获取所有输送段配置（超时检测开关）
-            var segments = _conveyorSegmentRepository.GetAll();
-            // 超时检测状态：所有段都启用才算启用
-            var enableTimeoutDetection = segments.Any() && segments.All(s => s.EnableLossDetection);
-            
-            // 取最新的更新时间（包括所有输送段的更新时间）
-            var timestamps = new List<DateTime>
-            {
-                systemConfig.UpdatedAt,
-                lossDetectionConfig.UpdatedAt
-            };
-
-            if (segments.Any())
-            {
-                var segmentLatestUpdateTime = segments.Max(s => s.UpdatedAt);
-                timestamps.Add(segmentLatestUpdateTime);
-            }
-
-            var latestUpdateTime = timestamps.Max();
+            // 取最新的更新时间
+            var latestUpdateTime = systemConfig.UpdatedAt > lossDetectionConfig.UpdatedAt 
+                ? systemConfig.UpdatedAt 
+                : lossDetectionConfig.UpdatedAt;
             
             var response = new DetectionSwitchesDto
             {
                 EnableInterferenceDetection = systemConfig.EnableEarlyTriggerDetection,
-                EnableTimeoutDetection = enableTimeoutDetection,
+                EnableTimeoutDetection = systemConfig.EnableTimeoutDetection,
                 EnableParcelLossDetection = lossDetectionConfig.IsEnabled,
                 UpdatedAt = latestUpdateTime
             };
@@ -998,24 +983,17 @@ public class SortingController : ApiControllerBase
                     request.EnableInterferenceDetection.Value);
             }
 
-            // 更新超时检测开关（输送段配置）
+            // 更新超时检测开关（系统配置）
             if (request.EnableTimeoutDetection.HasValue)
             {
-                var segments = _conveyorSegmentRepository.GetAll();
-                foreach (var segment in segments)
-                {
-                    _conveyorSegmentRepository.Update(
-                        segment with
-                        {
-                            EnableLossDetection = request.EnableTimeoutDetection.Value,
-                            UpdatedAt = now
-                        });
-                }
+                var systemConfig = _systemConfigRepository.Get();
+                systemConfig.EnableTimeoutDetection = request.EnableTimeoutDetection.Value;
+                systemConfig.UpdatedAt = now;
+                _systemConfigRepository.Update(systemConfig);
                 
                 _logger.LogInformation(
-                    "超时检测开关已更新: {EnableTimeoutDetection}, 影响 {SegmentCount} 个输送段",
-                    request.EnableTimeoutDetection.Value,
-                    segments.Count());
+                    "超时检测开关已更新: {EnableTimeoutDetection}",
+                    request.EnableTimeoutDetection.Value);
             }
 
             // 更新包裹丢失检测开关
@@ -1034,13 +1012,11 @@ public class SortingController : ApiControllerBase
             // 重新获取更新后的配置并返回
             var updatedSystemConfig = _systemConfigRepository.Get();
             var updatedLossDetectionConfig = _lossDetectionConfigRepository.Get();
-            var updatedSegments = _conveyorSegmentRepository.GetAll();
-            var enableTimeoutDetection = updatedSegments.Any() && updatedSegments.All(s => s.EnableLossDetection);
 
             var response = new DetectionSwitchesDto
             {
                 EnableInterferenceDetection = updatedSystemConfig.EnableEarlyTriggerDetection,
-                EnableTimeoutDetection = enableTimeoutDetection,
+                EnableTimeoutDetection = updatedSystemConfig.EnableTimeoutDetection,
                 EnableParcelLossDetection = updatedLossDetectionConfig.IsEnabled,
                 UpdatedAt = now
             };
