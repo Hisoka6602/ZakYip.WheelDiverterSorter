@@ -62,16 +62,6 @@ public record class ConveyorSegmentConfiguration
     public required long TimeToleranceMs { get; init; }
 
     /// <summary>
-    /// 是否启用丢失检测
-    /// </summary>
-    /// <remarks>
-    /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为丢失。</para>
-    /// <para>当禁用时，超时后继续等待，不判定丢失。</para>
-    /// <para>默认值为 false（禁用超时检测）</para>
-    /// </remarks>
-    public bool EnableLossDetection { get; init; } = false;
-
-    /// <summary>
     /// 备注信息
     /// </summary>
     public string? Remarks { get; init; }
@@ -111,27 +101,6 @@ public record class ConveyorSegmentConfiguration
     }
 
     /// <summary>
-    /// 验证包裹传输时间是否在正常范围内
-    /// </summary>
-    /// <param name="actualTimeMs">实际传输时间（毫秒）</param>
-    /// <returns>验证结果：(是否正常, 是否超时, 是否丢失)</returns>
-    public (bool IsNormal, bool IsTimeout, bool IsLost) ValidateTransitTime(double actualTimeMs)
-    {
-        var timeoutThreshold = CalculateTimeoutThresholdMs();
-
-        // 正常：实际时间 <= 超时阈值
-        var isNormal = actualTimeMs <= timeoutThreshold;
-
-        // 超时：实际时间 > 超时阈值
-        var isTimeout = actualTimeMs > timeoutThreshold;
-
-        // 丢失：启用丢失检测 且 超时
-        var isLost = EnableLossDetection && isTimeout;
-
-        return (isNormal, isTimeout, isLost);
-    }
-
-    /// <summary>
     /// 获取默认线段配置（用于测试和初始化）
     /// </summary>
     /// <param name="segmentId">线段ID</param>
@@ -146,7 +115,6 @@ public record class ConveyorSegmentConfiguration
             LengthMm = 5000,  // 默认 5 米
             SpeedMmps = 1000m,  // 默认 1 m/s
             TimeToleranceMs = 500,  // 默认 500 毫秒容差
-            EnableLossDetection = false,
             Remarks = "默认配置",
             CreatedAt = now,
             UpdatedAt = now

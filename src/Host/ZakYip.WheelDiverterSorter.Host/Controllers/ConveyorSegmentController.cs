@@ -419,7 +419,6 @@ public class ConveyorSegmentController : ControllerBase
             LengthMm = request.LengthMm,
             SpeedMmps = request.SpeedMmps,
             TimeToleranceMs = request.TimeToleranceMs,
-            EnableLossDetection = false, // 默认关闭，通过统一的检测开关API控制
             Remarks = request.Remarks,
             CreatedAt = now,
             UpdatedAt = now
