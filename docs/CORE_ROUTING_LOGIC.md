@@ -444,6 +444,104 @@ if (isTimeout && action == DiverterDirection.Straight)
 }
 ```
 
+### 5.5 提前触发检测机制（Early Trigger Detection）
+
+⚠️ **可选功能**: 通过 `SystemConfiguration.EnableEarlyTriggerDetection` 配置开关控制。
+
+**目的**: 防止包裹提前到达传感器导致的错位问题。当传感器触发时间早于安全时间窗口时，不出队、不执行动作。
+
+**核心概念**:
+- `EarliestDequeueTime`: 任务的最早出队时间，计算公式为 `Max(CreatedAt, ExpectedArrivalTime - TimeoutThresholdMs)`
+- 确保任务不会在包裹创建之前或期望时间窗口之前被出队执行
+
+**检测流程**:
+```csharp
+public async Task OnSensorTriggered(int sensorId)
+{
+    var positionIndex = FindPositionIndexBySensorId(sensorId);
+    var now = _clock.LocalNow;
+    
+    // 1. 先窥视队列头部任务（不出队）
+    var peekedTask = PeekTask(positionIndex);
+    if (peekedTask == null)
+    {
+        _logger.LogWarning($"位置索引 {positionIndex} 队列为空");
+        return;
+    }
+    
+    // 2. 检查是否启用提前触发检测
+    var config = _systemConfigRepository.Get();
+    if (config.EnableEarlyTriggerDetection && peekedTask.EarliestDequeueTime.HasValue)
+    {
+        // 3. 如果当前时间早于最早出队时间，判定为提前触发
+        if (now < peekedTask.EarliestDequeueTime.Value)
+        {
+            var earlyMs = (peekedTask.EarliestDequeueTime.Value - now).TotalMilliseconds;
+            _logger.LogWarning(
+                $"[提前触发检测] Position {positionIndex} 提前触发 {earlyMs}ms，包裹 {peekedTask.ParcelId} 不出队");
+            
+            // 记录为分拣异常（用于监控）
+            _alarmService?.RecordSortingFailure();
+            
+            // 不出队、不执行动作，直接返回
+            return;
+        }
+    }
+    
+    // 4. 正常流程：从队列取出任务并执行
+    var task = DequeueTask(positionIndex);
+    
+    // 5. 动态更新下一个position的期望时间（避免误差累积）
+    if (config.EnableEarlyTriggerDetection)
+    {
+        UpdateNextPositionExpectedTime(task, positionIndex, now);
+    }
+    
+    // 6. 执行摆轮动作
+    await ExecuteDiverterAction(task.DiverterId, task.Action);
+}
+```
+
+**动态时间更新机制**:
+```csharp
+private void UpdateNextPositionExpectedTime(Task currentTask, int currentPosition, DateTime actualArrivalTime)
+{
+    // 找到下一个position的节点
+    var nextNode = GetNextNode(currentPosition);
+    if (nextNode == null) return;
+    
+    // 计算实际的传输时间
+    var segmentConfig = GetSegmentConfig(nextNode.SegmentId);
+    var transitTimeMs = segmentConfig.CalculateTransitTimeMs();
+    
+    // 基于实际到达时间计算下一个position的期望时间
+    var nextExpectedArrival = actualArrivalTime.AddMilliseconds(transitTimeMs);
+    
+    // 重新计算最早出队时间
+    var nextEarliestDequeue = nextExpectedArrival.AddMilliseconds(-segmentConfig.TimeToleranceMs);
+    if (nextEarliestDequeue < currentTask.CreatedAt)
+    {
+        nextEarliestDequeue = currentTask.CreatedAt;
+    }
+    
+    // 更新下一个position队列中对应任务的时间字段
+    UpdateTaskTiming(nextNode.PositionIndex, currentTask.ParcelId, 
+        nextExpectedArrival, nextEarliestDequeue);
+}
+```
+
+**关键特性**:
+1. **独立控制**: 通过 `SystemConfiguration.EnableEarlyTriggerDetection` 开关，默认为 `false`
+2. **不影响丢失检测**: 与包裹丢失检测功能独立，使用不同的配置和字段
+3. **动态修正**: 每次触发时基于实际到达时间更新下一个position的期望时间，避免误差累积
+4. **时间一致性**: 同时更新 `EarliestDequeueTime` 和 `LostDetectionDeadline`，保持系统时间字段的一致性
+
+**与其他机制的关系**:
+- **提前触发检测**: 防止包裹提前到达（时间 < EarliestDequeueTime）
+- **超时处理**: 处理包裹延迟到达（时间 > ExpectedArrivalTime + TimeoutThreshold）
+- **丢失检测**: 处理包裹永不到达（时间 > LostDetectionDeadline）
+- 三者互补，覆盖不同的异常场景
+
 ---
 
 ## 六、架构映射
@@ -489,6 +587,19 @@ public record PositionIndexTask
     
     /// <summary>是否为补偿任务</summary>
     public bool IsCompensation { get; init; } = false;
+    
+    /// <summary>最早出队时间（用于提前触发检测）</summary>
+    /// <remarks>
+    /// 计算公式: Max(CreatedAt, ExpectedArrivalTime - TimeoutThresholdMs)
+    /// 确保任务不会在包裹创建之前或期望时间窗口之前被出队
+    /// </remarks>
+    public DateTime? EarliestDequeueTime { get; init; }
+    
+    /// <summary>包裹创建时间</summary>
+    public DateTime CreatedAt { get; init; }
+    
+    /// <summary>丢失检测截止时间（用于包裹丢失检测）</summary>
+    public DateTime? LostDetectionDeadline { get; init; }
 }
 ```
 
@@ -574,6 +685,12 @@ public record PositionIndexTask
    - 补偿任务在正确位置
    - 多包裹超时的处理
 
+5. **提前触发检测**:
+   - `EarliestDequeueTime` 字段计算正确性
+   - 提前触发时不出队、不执行动作
+   - 动态时间更新机制正确性
+   - 功能开关正确控制检测行为
+
 ### 8.2 集成测试
 
 必须覆盖以下场景：
@@ -589,6 +706,12 @@ public record PositionIndexTask
 3. **队列清空测试**:
    - 模拟系统状态变更
    - 验证所有队列被清空
+
+4. **提前触发检测测试**:
+   - 模拟包裹提前到达传感器
+   - 验证系统不出队、不执行动作
+   - 验证告警记录
+   - 验证动态时间更新后正常执行
 
 ---
 
