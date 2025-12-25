@@ -27,9 +27,11 @@ public class LeadshineSensor : ISensor {
     private readonly int _inputBit;
     private readonly string _sensorTypeName;
     private readonly int _pollingIntervalMs;
+    private readonly int _stateChangeIgnoreWindowMs;
     private CancellationTokenSource? _cts;
     private Task? _monitoringTask;
     private bool _lastState;
+    private DateTimeOffset? _lastRisingEdgeTime; // 记录最后一次上升沿时间，用于状态变化忽略窗口
 
     /// <summary>
     /// 传感器ID
@@ -67,6 +69,7 @@ public class LeadshineSensor : ISensor {
     /// <param name="inputBit">输入位索引</param>
     /// <param name="systemClock">系统时钟</param>
     /// <param name="pollingIntervalMs">传感器轮询间隔（毫秒），默认10ms</param>
+    /// <param name="stateChangeIgnoreWindowMs">状态变化忽略窗口（毫秒），默认0（禁用）</param>
     public LeadshineSensor(
         ILogger logger,
         ILogDeduplicator logDeduplicator,
@@ -75,7 +78,8 @@ public class LeadshineSensor : ISensor {
         IInputPort inputPort,
         int inputBit,
         ISystemClock systemClock,
-        int pollingIntervalMs = 10) {
+        int pollingIntervalMs = 10,
+        int stateChangeIgnoreWindowMs = 0) {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _logDeduplicator = logDeduplicator ?? throw new ArgumentNullException(nameof(logDeduplicator));
         SensorId = sensorId;
@@ -84,7 +88,9 @@ public class LeadshineSensor : ISensor {
         _inputBit = inputBit;
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _pollingIntervalMs = pollingIntervalMs;
+        _stateChangeIgnoreWindowMs = stateChangeIgnoreWindowMs;
         _lastState = false;
+        _lastRisingEdgeTime = null;
         
         // 根据传感器类型设置名称（用于日志）
         _sensorTypeName = type switch {
@@ -146,16 +152,45 @@ public class LeadshineSensor : ISensor {
             try {
                 // 读取输入位状态
                 var currentState = await _inputPort.ReadAsync(_inputBit);
+                var now = _systemClock.LocalNowOffset;
 
                 // 检测状态变化
                 if (currentState != _lastState) {
+                    // 状态变化忽略窗口逻辑（用于处理镂空包裹）
+                    if (_stateChangeIgnoreWindowMs > 0 && _lastRisingEdgeTime.HasValue)
+                    {
+                        var timeSinceLastRisingEdge = (now - _lastRisingEdgeTime.Value).TotalMilliseconds;
+                        if (timeSinceLastRisingEdge < _stateChangeIgnoreWindowMs)
+                        {
+                            // 在状态变化忽略窗口内，忽略所有状态变化
+                            _logger.LogDebug(
+                                "雷赛{SensorTypeName} {SensorId} 状态变化（{OldState} -> {NewState}）在忽略窗口内（距上次上升沿 {TimeSinceMs}ms < {WindowMs}ms），已忽略",
+                                _sensorTypeName,
+                                SensorId,
+                                _lastState ? "触发" : "解除",
+                                currentState ? "触发" : "解除",
+                                timeSinceLastRisingEdge,
+                                _stateChangeIgnoreWindowMs);
+                            
+                            // 不更新 _lastState，不触发事件，继续轮询
+                            await Task.Delay(_pollingIntervalMs, cancellationToken);
+                            continue;
+                        }
+                    }
+                    
+                    // 记录上升沿时间（用于状态变化忽略窗口）
+                    if (currentState && !_lastState)
+                    {
+                        _lastRisingEdgeTime = now;
+                    }
+                    
                     _lastState = currentState;
 
                     // 触发事件
                     var sensorEvent = new SensorEvent {
                         SensorId = SensorId,
                         SensorType = Type,
-                        TriggerTime = _systemClock.LocalNowOffset,
+                        TriggerTime = now,
                         IsTriggered = currentState
                     };
 

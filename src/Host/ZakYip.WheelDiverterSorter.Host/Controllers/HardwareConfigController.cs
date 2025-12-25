@@ -291,8 +291,17 @@ public class HardwareConfigController : ControllerBase
     /// 
     /// - `deduplicationWindowMs`: 重复触发判定窗口（毫秒），默认值为400ms
     /// - 建议范围：100-2000ms
-    /// - 在此时间窗口内，同一传感器的重复触发将被检测并标记为异常
+    /// - 在此时间窗口内，同一传感器的重复上升沿触发将被完全忽略（不创建包裹）
     /// - 每个传感器可以独立配置不同的防抖时间
+    /// - **工作原理**: 只检测上升沿（IsTriggered=true），在窗口内的重复上升沿被忽略
+    /// 
+    /// - `stateChangeIgnoreWindowMs`: 状态变化忽略窗口（毫秒），默认值为0（禁用）
+    /// - 建议范围：0-500ms，推荐100-300ms（镂空包裹场景）
+    /// - **应用场景**: 镂空包裹经过传感器时，会触发多次上升沿/下降沿变化
+    /// - **工作原理**: 在首次上升沿触发后的此时间窗口内，所有状态变化（包括上升沿和下降沿）都将被忽略
+    /// - **与 deduplicationWindowMs 的区别**: 
+    ///   - `deduplicationWindowMs`: 防止同一个包裹的多次重复检测（只检测上升沿）
+    ///   - `stateChangeIgnoreWindowMs`: 处理镂空包裹的多次状态变化（忽略所有状态变化，包括上升沿和下降沿）
     /// 
     /// **重要变更（v2.0）**：
     /// - 移除了 `boundWheelDiverterId` 和 `boundChuteId` 字段
@@ -304,6 +313,11 @@ public class HardwareConfigController : ControllerBase
     /// - 新增 `deduplicationWindowMs` 字段，每个传感器独立配置防抖时间
     /// - 默认值为 400ms，适合高速分拣场景
     /// - 移除了全局 `ParcelDetectionOptions.DeduplicationWindowMs` 配置
+    /// 
+    /// **v2.2 更新**：
+    /// - 新增 `stateChangeIgnoreWindowMs` 字段，处理镂空包裹的多次状态变化
+    /// - 默认值为 0（禁用），适用于实心包裹场景
+    /// - 修复 `deduplicationWindowMs` 逻辑：现在重复触发会被完全忽略，不再创建包裹
     /// 
     /// **示例响应：**
     /// ```json
@@ -318,6 +332,7 @@ public class HardwareConfigController : ControllerBase
     ///         "bitNumber": 0,
     ///         "pollingIntervalMs": 10,
     ///         "deduplicationWindowMs": 400,
+    ///         "stateChangeIgnoreWindowMs": 0,
     ///         "triggerLevel": "ActiveHigh",
     ///         "isEnabled": true
     ///       }
@@ -330,8 +345,8 @@ public class HardwareConfigController : ControllerBase
     /// </remarks>
     [HttpGet("leadshine/sensors")]
     [SwaggerOperation(
-        Summary = "获取感应IO配置（包含轮询间隔配置）",
-        Description = "返回当前系统的感应IO配置，包括所有感应IO的业务类型、绑定关系和轮询间隔（pollingIntervalMs）。每个传感器可以独立配置轮询间隔，null表示使用默认值10ms。",
+        Summary = "获取感应IO配置（包含轮询间隔和防抖配置）",
+        Description = "返回当前系统的感应IO配置，包括所有感应IO的业务类型、绑定关系、轮询间隔（pollingIntervalMs）、防抖窗口（deduplicationWindowMs）和状态变化忽略窗口（stateChangeIgnoreWindowMs）。",
         OperationId = "GetLeadshineSensorIoConfig",
         Tags = new[] { "硬件配置" }
     )]
@@ -379,6 +394,19 @@ public class HardwareConfigController : ControllerBase
     ///   - 100-400ms: 高速分拣场景（快速移动的包裹，默认推荐）
     ///   - 400-1000ms: 标准速度（平衡防抖和灵敏度）
     ///   - 1000-2000ms: 低速场景或机械抖动明显的传感器
+    /// - **工作原理**: 只检测上升沿，在窗口内的重复上升沿触发被完全忽略（不创建包裹）
+    /// 
+    /// **配置状态变化忽略窗口（stateChangeIgnoreWindowMs）：**
+    /// 
+    /// - 设置为具体数值（如200）：使用自定义的状态变化忽略时间
+    /// - 不设置或使用默认值：0（禁用）
+    /// - 建议范围：0-500ms
+    ///   - 0ms: 禁用（默认，适用于实心包裹）
+    ///   - 50-100ms: 小型镂空包裹（镂空间隙较小）
+    ///   - 100-300ms: 中型镂空包裹（常见场景，推荐）
+    ///   - 300-500ms: 大型镂空包裹（镂空间隙较大或移动速度较慢）
+    /// - **工作原理**: 在首次上升沿触发后的此时间窗口内，所有状态变化（包括上升沿和下降沿）都将被忽略
+    /// - **应用场景**: 镂空包裹经过传感器时，会触发多次上升沿/下降沿变化，导致被误认为多个包裹
     /// 
     /// **重要变更（v2.0）**：
     /// - 不再需要配置 `boundWheelDiverterId` 和 `boundChuteId`
@@ -387,6 +415,11 @@ public class HardwareConfigController : ControllerBase
     /// **v2.1 更新**：
     /// - 新增 `deduplicationWindowMs` 字段，每个传感器独立配置
     /// - 默认值为 400ms（不再依赖全局配置）
+    /// 
+    /// **v2.2 更新**：
+    /// - 新增 `stateChangeIgnoreWindowMs` 字段，处理镂空包裹的多次状态变化
+    /// - 默认值为 0（禁用），适用于实心包裹场景
+    /// - 修复 `deduplicationWindowMs` 逻辑：现在重复触发会被完全忽略，不再创建包裹
     /// 
     /// **示例请求：**
     /// ```json
@@ -399,16 +432,18 @@ public class HardwareConfigController : ControllerBase
     ///       "bitNumber": 0,
     ///       "pollingIntervalMs": 20,
     ///       "deduplicationWindowMs": 400,
+    ///       "stateChangeIgnoreWindowMs": 0,
     ///       "triggerLevel": "ActiveHigh",
     ///       "isEnabled": true
     ///     },
     ///     {
     ///       "sensorId": 2,
-    ///       "sensorName": "摆轮1前感应IO",
+    ///       "sensorName": "摆轮1前感应IO（镂空包裹场景）",
     ///       "ioType": "WheelFront",
     ///       "bitNumber": 1,
     ///       "pollingIntervalMs": null,
     ///       "deduplicationWindowMs": 300,
+     ///       "stateChangeIgnoreWindowMs": 200,
     ///       "triggerLevel": "ActiveHigh",
     ///       "isEnabled": true
     ///     }
@@ -425,8 +460,8 @@ public class HardwareConfigController : ControllerBase
     /// </remarks>
     [HttpPut("leadshine/sensors")]
     [SwaggerOperation(
-        Summary = "更新感应IO配置（支持轮询间隔配置）",
-        Description = "更新系统感应IO配置，配置立即生效无需重启。支持为每个传感器单独配置轮询间隔（pollingIntervalMs），null表示使用默认值10ms。建议范围：5-50ms。",
+        Summary = "更新感应IO配置（支持轮询间隔和防抖配置）",
+        Description = "更新系统感应IO配置，配置立即生效无需重启。支持为每个传感器单独配置轮询间隔（pollingIntervalMs）、防抖窗口（deduplicationWindowMs）和状态变化忽略窗口（stateChangeIgnoreWindowMs）。",
         OperationId = "UpdateLeadshineSensorIoConfig",
         Tags = new[] { "硬件配置" }
     )]

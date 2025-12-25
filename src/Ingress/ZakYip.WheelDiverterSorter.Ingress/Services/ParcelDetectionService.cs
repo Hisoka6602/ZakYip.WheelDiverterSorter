@@ -175,6 +175,31 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         // PR-44: 不再需要锁，使用 ConcurrentDictionary 和 ConcurrentQueue
         var (isDuplicate, timeSinceLastTriggerMs) = CheckForDuplicateTrigger(sensorEvent);
+        
+        // 防抖策略：在 deduplicationWindowMs 窗口内，只有第一次触发生效，其余触发完全忽略
+        if (isDuplicate)
+        {
+            _logger?.LogDebug(
+                "传感器 {SensorId} 在防抖窗口内重复触发（距上次 {TimeSinceLastMs}ms），已忽略",
+                sensorEvent.SensorId,
+                timeSinceLastTriggerMs);
+            
+            // 触发重复触发事件通知（用于监控和统计）
+            var deduplicationWindowMs = GetDeduplicationWindowForSensor(sensorEvent.SensorId);
+            var duplicateEventArgs = new DuplicateTriggerEventArgs
+            {
+                ParcelId = 0, // 未创建包裹，使用0表示
+                DetectedAt = sensorEvent.TriggerTime,
+                SensorId = sensorEvent.SensorId,
+                SensorType = sensorEvent.SensorType,
+                TimeSinceLastTriggerMs = timeSinceLastTriggerMs,
+                Reason = $"传感器在{deduplicationWindowMs}ms去重窗口内重复触发，已忽略"
+            };
+            DuplicateTriggerDetected.SafeInvoke(this, duplicateEventArgs, _logger, nameof(DuplicateTriggerDetected));
+            return; // 重复触发，直接返回，不创建包裹
+        }
+        
+        // 更新最后触发时间（只有非重复触发才更新）
         UpdateLastTriggerTime(sensorEvent);
 
         // PR-fix-sensor-type-filtering: 
@@ -206,24 +231,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         
         if (sensorType == SensorIoType.ParcelCreation)
         {
-            // ParcelCreation 传感器：创建包裹并触发事件
+            // ParcelCreation 传感器：创建包裹并触发事件（只有非重复触发才会到这里）
             var parcelId = GenerateUniqueParcelId(sensorEvent);
             AddParcelIdToHistory(parcelId);
-
-            if (isDuplicate)
-            {
-                RaiseDuplicateTriggerEvent(parcelId, sensorEvent, timeSinceLastTriggerMs);
-            }
             
             _logger?.LogDebug(
                 "传感器 {SensorId} 类型为 {SensorType}，触发包裹创建",
                 sensorEvent.SensorId,
                 sensorType);
-            RaiseParcelDetectedEvent(parcelId, sensorEvent, isDuplicate, sensorType);
+            RaiseParcelDetectedEvent(parcelId, sensorEvent, false, sensorType); // isDuplicate 永远是 false（重复的已被过滤）
         }
         else if (sensorType == SensorIoType.ChuteDropoff)
         {
-            // ChuteDropoff 传感器：触发落格检测事件
+            // ChuteDropoff 传感器：触发落格检测事件（只有非重复触发才会到这里）
             _logger?.LogDebug(
                 "传感器 {SensorId} 类型为 {SensorType}，触发落格检测事件",
                 sensorEvent.SensorId,
@@ -236,7 +256,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
         else
         {
-            // WheelFront/ChuteLock 传感器：不创建包裹，只触发事件供 Orchestrator 处理
+            // WheelFront/ChuteLock 传感器：不创建包裹，只触发事件供 Orchestrator 处理（只有非重复触发才会到这里）
             // 使用 0 作为 ParcelId，表示这不是一个真正的包裹创建事件
             _logger?.LogDebug(
                 "传感器 {SensorId} 类型为 {SensorType}，不触发包裹创建（只用于监控）",
@@ -244,7 +264,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 sensorType);
             
             // 触发 ParcelDetected 事件，ParcelId=0 表示非包裹创建事件
-            RaiseParcelDetectedEvent(0, sensorEvent, isDuplicate, sensorType);
+            RaiseParcelDetectedEvent(0, sensorEvent, false, sensorType); // isDuplicate 永远是 false（重复的已被过滤）
         }
     }
 
@@ -497,37 +517,11 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     }
 
     /// <summary>
-    /// 触发重复触发异常事件
-    /// </summary>
-    private void RaiseDuplicateTriggerEvent(long parcelId, SensorEvent sensorEvent, double timeSinceLastTriggerMs)
-    {
-        var deduplicationWindowMs = GetDeduplicationWindowForSensor(sensorEvent.SensorId);
-        
-        var duplicateEventArgs = new DuplicateTriggerEventArgs
-        {
-            ParcelId = parcelId,
-            DetectedAt = sensorEvent.TriggerTime,
-            SensorId = sensorEvent.SensorId,
-            SensorType = sensorEvent.SensorType,
-            TimeSinceLastTriggerMs = timeSinceLastTriggerMs,
-            Reason = $"传感器在{deduplicationWindowMs}ms去重窗口内重复触发"
-        };
-
-        _logger?.LogWarning(
-            "包裹 {ParcelId} 标记为重复触发异常，传感器: {SensorId}，距上次触发: {TimeSinceLastMs}ms",
-            parcelId,
-            sensorEvent.SensorId,
-            timeSinceLastTriggerMs);
-
-        DuplicateTriggerDetected.SafeInvoke(this, duplicateEventArgs, _logger, nameof(DuplicateTriggerDetected));
-    }
-
-    /// <summary>
     /// 触发包裹检测事件
     /// </summary>
     /// <param name="parcelId">包裹ID（对于WheelFront/ChuteLock传感器为0，表示非包裹创建事件）</param>
     /// <param name="sensorEvent">传感器事件</param>
-    /// <param name="isDuplicate">是否为重复触发</param>
+    /// <param name="isDuplicate">是否为重复触发（已废弃，总是为 false，因为重复触发已被过滤）</param>
     /// <param name="sensorType">传感器类型（避免重复查询）</param>
     private void RaiseParcelDetectedEvent(long parcelId, SensorEvent sensorEvent, bool isDuplicate, SensorIoType sensorType)
     {

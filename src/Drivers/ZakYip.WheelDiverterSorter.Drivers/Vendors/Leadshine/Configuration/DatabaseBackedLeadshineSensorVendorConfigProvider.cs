@@ -68,7 +68,8 @@ public sealed class DatabaseBackedLeadshineSensorVendorConfigProvider : ISensorV
                     SensorTypeName = MapIoTypeToSensorType(s.IoType).ToString(),
                     InputBit = s.BitNumber,
                     IsEnabled = s.IsEnabled,
-                    PollingIntervalMs = s.PollingIntervalMs
+                    PollingIntervalMs = s.PollingIntervalMs,
+                    StateChangeIgnoreWindowMs = s.StateChangeIgnoreWindowMs
                 })
                 .ToList()
                 .AsReadOnly();

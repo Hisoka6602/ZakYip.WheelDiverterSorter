@@ -205,7 +205,7 @@ public class SensorIoEntry
     /// 重复触发判定窗口（毫秒）
     /// </summary>
     /// <remarks>
-    /// <para>设置此传感器的防抖时间窗口。在此时间窗口内，同一传感器的重复触发将被检测并标记为异常。</para>
+    /// <para>设置此传感器的防抖时间窗口。在此时间窗口内，同一传感器的重复触发将被完全忽略（不创建包裹）。</para>
     /// <para>**默认值**: 400ms</para>
     /// <para>**建议范围**：100ms - 2000ms</para>
     /// <list type="bullet">
@@ -213,10 +213,40 @@ public class SensorIoEntry
     /// <item>400-1000ms: 标准速度（平衡防抖和灵敏度）</item>
     /// <item>1000-2000ms: 低速场景或机械抖动明显的传感器</item>
     /// </list>
+    /// <para>**与 StateChangeIgnoreWindowMs 的区别**：</para>
+    /// <list type="bullet">
+    /// <item>DeduplicationWindowMs: 防止同一个包裹的多次重复检测（只检测上升沿）</item>
+    /// <item>StateChangeIgnoreWindowMs: 处理镂空包裹的多次状态变化（忽略所有状态变化）</item>
+    /// </list>
     /// </remarks>
     /// <example>400</example>
     [Range(100, 5000, ErrorMessage = "重复触发判定窗口必须在 100-5000ms 之间")]
     public int DeduplicationWindowMs { get; set; } = 400;
+
+    /// <summary>
+    /// 状态变化忽略窗口（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// <para>设置此传感器的状态变化忽略时间窗口。在首次上升沿触发后的此时间窗口内，所有状态变化（包括上升沿和下降沿）都将被忽略。</para>
+    /// <para>**应用场景**: 镂空包裹经过传感器时，会触发多次上升沿/下降沿变化，导致被误认为多个包裹。</para>
+    /// <para>**默认值**: 0（禁用，不忽略状态变化）</para>
+    /// <para>**建议范围**：0ms - 500ms</para>
+    /// <list type="bullet">
+    /// <item>0ms: 禁用状态变化忽略（默认，适用于实心包裹）</item>
+    /// <item>50-100ms: 小型镂空包裹（镂空间隙较小）</item>
+    /// <item>100-300ms: 中型镂空包裹（常见场景，推荐）</item>
+    /// <item>300-500ms: 大型镂空包裹（镂空间隙较大或移动速度较慢）</item>
+    /// </list>
+    /// <para>**工作原理**: 在传感器首次触发（上升沿）后，启动忽略窗口。在窗口内的所有状态变化（上升沿、下降沿）都会被忽略，防止镂空部分被误判为多个包裹。</para>
+    /// <para>**与 DeduplicationWindowMs 的区别**：</para>
+    /// <list type="bullet">
+    /// <item>DeduplicationWindowMs: 防止同一个包裹的多次重复检测（只检测上升沿，在窗口内忽略重复上升沿）</item>
+    /// <item>StateChangeIgnoreWindowMs: 处理镂空包裹的多次状态变化（在窗口内忽略所有状态变化，包括上升沿和下降沿）</item>
+    /// </list>
+    /// </remarks>
+    /// <example>0</example>
+    [Range(0, 1000, ErrorMessage = "状态变化忽略窗口必须在 0-1000ms 之间")]
+    public int StateChangeIgnoreWindowMs { get; set; } = 0;
 
     /// <summary>
     /// 是否启用
