@@ -60,16 +60,6 @@ public record ConveyorSegmentRequest
     public required long TimeToleranceMs { get; init; }
 
     /// <summary>
-    /// 是否启用丢失检测
-    /// </summary>
-    /// <remarks>
-    /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为丢失。</para>
-    /// <para>当禁用时，超时后继续等待，不判定丢失。</para>
-    /// </remarks>
-    /// <example>true</example>
-    public bool EnableLossDetection { get; init; } = true;
-
-    /// <summary>
     /// 备注信息
     /// </summary>
     /// <example>入口到第一个摆轮的输送段</example>
@@ -111,12 +101,6 @@ public record ConveyorSegmentResponse
     /// </summary>
     /// <example>500</example>
     public required long TimeToleranceMs { get; init; }
-
-    /// <summary>
-    /// 是否启用丢失检测
-    /// </summary>
-    /// <example>true</example>
-    public bool EnableLossDetection { get; init; }
 
     /// <summary>
     /// 备注信息

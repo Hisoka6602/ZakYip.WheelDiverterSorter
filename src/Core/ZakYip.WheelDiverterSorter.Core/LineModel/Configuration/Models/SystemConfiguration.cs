@@ -167,9 +167,9 @@ public class SystemConfiguration
     ///   <item>若当前时间 &lt; EarliestDequeueTime，判定为提前触发</item>
     ///   <item>提前触发时不出队、不执行摆轮动作，仅记录告警</item>
     /// </list>
-    /// <para>默认值为 false（禁用），确保向后兼容性</para>
+    /// <para>默认值为 true（启用），防止包裹错位问题</para>
     /// </remarks>
-    public bool EnableEarlyTriggerDetection { get; set; } = false;
+    public bool EnableEarlyTriggerDetection { get; set; } = true;
 
     /// <summary>
     /// 配置版本号
@@ -261,7 +261,7 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
-            EnableEarlyTriggerDetection = false, // 默认禁用提前触发检测，确保向后兼容性
+            EnableEarlyTriggerDetection = true, // 默认启用提前触发检测，防止包裹错位问题
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now

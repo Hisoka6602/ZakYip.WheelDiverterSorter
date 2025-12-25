@@ -113,8 +113,7 @@ public class SystemConfigController : ApiControllerBase
                 DriverStartupDelaySeconds = request.DriverStartupDelaySeconds,
                 SortingMode = request.SortingMode,
                 FixedChuteId = request.FixedChuteId,
-                AvailableChuteIds = request.AvailableChuteIds,
-                EnableEarlyTriggerDetection = request.EnableEarlyTriggerDetection
+                AvailableChuteIds = request.AvailableChuteIds
             };
 
             var result = await _configService.UpdateSystemConfigAsync(command);
@@ -144,7 +143,6 @@ public class SystemConfigController : ApiControllerBase
             SortingMode = config.SortingMode,
             FixedChuteId = config.FixedChuteId,
             AvailableChuteIds = config.AvailableChuteIds ?? new List<long>(),
-            EnableEarlyTriggerDetection = config.EnableEarlyTriggerDetection,
             Version = config.Version,
             CreatedAt = config.CreatedAt,
             UpdatedAt = config.UpdatedAt

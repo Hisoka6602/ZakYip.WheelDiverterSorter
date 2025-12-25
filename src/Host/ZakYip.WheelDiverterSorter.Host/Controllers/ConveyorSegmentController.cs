@@ -19,7 +19,6 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// <item>线段长度（LengthMm）</item>
 /// <item>线速（SpeedMmps）</item>
 /// <item>时间容差（TimeToleranceMs）</item>
-/// <item>是否启用丢失检测（EnableLossDetection）</item>
 /// </list>
 /// <para>系统根据这些参数自动计算：</para>
 /// <list type="bullet">
@@ -420,7 +419,7 @@ public class ConveyorSegmentController : ControllerBase
             LengthMm = request.LengthMm,
             SpeedMmps = request.SpeedMmps,
             TimeToleranceMs = request.TimeToleranceMs,
-            EnableLossDetection = request.EnableLossDetection,
+            EnableLossDetection = false, // 默认关闭，通过统一的检测开关API控制
             Remarks = request.Remarks,
             CreatedAt = now,
             UpdatedAt = now
@@ -436,7 +435,6 @@ public class ConveyorSegmentController : ControllerBase
             LengthMm = config.LengthMm,
             SpeedMmps = config.SpeedMmps,
             TimeToleranceMs = config.TimeToleranceMs,
-            EnableLossDetection = config.EnableLossDetection,
             Remarks = config.Remarks,
             CalculatedTransitTimeMs = config.CalculateTransitTimeMs(),
             CalculatedTimeoutThresholdMs = config.CalculateTimeoutThresholdMs(),

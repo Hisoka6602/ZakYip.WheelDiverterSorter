@@ -67,8 +67,9 @@ public record class ConveyorSegmentConfiguration
     /// <remarks>
     /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为丢失。</para>
     /// <para>当禁用时，超时后继续等待，不判定丢失。</para>
+    /// <para>默认值为 false（禁用超时检测）</para>
     /// </remarks>
-    public bool EnableLossDetection { get; init; } = true;
+    public bool EnableLossDetection { get; init; } = false;
 
     /// <summary>
     /// 备注信息
@@ -145,7 +146,7 @@ public record class ConveyorSegmentConfiguration
             LengthMm = 5000,  // 默认 5 米
             SpeedMmps = 1000m,  // 默认 1 m/s
             TimeToleranceMs = 500,  // 默认 500 毫秒容差
-            EnableLossDetection = true,
+            EnableLossDetection = false,
             Remarks = "默认配置",
             CreatedAt = now,
             UpdatedAt = now

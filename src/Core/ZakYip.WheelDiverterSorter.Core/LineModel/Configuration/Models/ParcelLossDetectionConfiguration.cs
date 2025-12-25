@@ -42,14 +42,14 @@ public class ParcelLossDetectionConfiguration
     /// <item><description>队列任务的 LostDetectionTimeoutMs 和 LostDetectionDeadline 字段被清空为 null</description></item>
     /// <item><description>包裹不会因为超时/丢失而被自动移除，只能通过正常到达或手动清空队列</description></item>
     /// </list>
-    /// <para><b>默认值</b>：true（启用检测，确保系统能自动清理丢失包裹）</para>
+    /// <para><b>默认值</b>：false（禁用检测，不自动清理丢失包裹）</para>
     /// <para><b>使用场景</b>：</para>
     /// <list type="bullet">
     /// <item><description>启用：生产环境，需要自动检测和清理丢失包裹</description></item>
     /// <item><description>禁用：测试/调试环境，需要手动控制队列清空时机</description></item>
     /// </list>
     /// </remarks>
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get; set; } = false;
 
     /// <summary>
     /// 监控间隔（毫秒）
@@ -138,7 +138,7 @@ public class ParcelLossDetectionConfiguration
         return new ParcelLossDetectionConfiguration
         {
             ConfigName = "parcel-loss-detection",
-            IsEnabled = true,
+            IsEnabled = false,
             MonitoringIntervalMs = 60,
             AutoClearMedianIntervalMs = 300000,
             AutoClearQueueIntervalSeconds = 30,

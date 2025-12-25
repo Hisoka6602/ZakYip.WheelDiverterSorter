@@ -72,7 +72,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             ["LengthMm"] = 5000.0,
             ["SpeedMmps"] = 1000.0m,
             ["TimeToleranceMs"] = 500L,
-            ["EnableLossDetection"] = true,
             ["Remarks"] = "旧数据 - ObjectId _id",
             ["CreatedAt"] = clock.LocalNow.AddDays(-30),
             ["UpdatedAt"] = clock.LocalNow.AddDays(-30)
@@ -86,7 +85,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             ["LengthMm"] = 6000.0,
             ["SpeedMmps"] = 1200.0m,
             ["TimeToleranceMs"] = 600L,
-            ["EnableLossDetection"] = true,
             ["Remarks"] = "旧数据 - ObjectId _id",
             ["CreatedAt"] = clock.LocalNow.AddDays(-20),
             ["UpdatedAt"] = clock.LocalNow.AddDays(-20)
@@ -100,7 +98,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             ["LengthMm"] = 4500.0,
             ["SpeedMmps"] = 900.0m,
             ["TimeToleranceMs"] = 450L,
-            ["EnableLossDetection"] = false,
             ["Remarks"] = "旧数据 - ObjectId _id",
             ["CreatedAt"] = clock.LocalNow.AddDays(-10),
             ["UpdatedAt"] = clock.LocalNow.AddDays(-10)
@@ -178,7 +175,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             LengthMm = 5500,
             SpeedMmps = 1100m,
             TimeToleranceMs = 550,
-            EnableLossDetection = true,
             Remarks = "已更新的旧数据"
         };
 
@@ -250,7 +246,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
             LengthMm = 7000,
             SpeedMmps = 1400m,
             TimeToleranceMs = 700,
-            EnableLossDetection = true,
             Remarks = "新创建的数据"
         };
 
@@ -291,7 +286,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
                 LengthMm = 5000,
                 SpeedMmps = 1000m,
                 TimeToleranceMs = 500,
-                EnableLossDetection = true
             },
             new()
             {
@@ -300,7 +294,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
                 LengthMm = 6000,
                 SpeedMmps = 1200m,
                 TimeToleranceMs = 600,
-                EnableLossDetection = true
             }
         };
 
@@ -350,7 +343,6 @@ public class ConveyorSegmentLegacyDataE2ETests : E2ETestBase
 
         Assert.NotNull(segment3);
         Assert.Equal("Legacy Segment 3", segment3.SegmentName);
-        Assert.False(segment3.EnableLossDetection);
 
         // 验证计算方法
         var transitTime = segment1.CalculateTransitTimeMs();
