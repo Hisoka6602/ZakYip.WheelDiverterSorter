@@ -28,10 +28,16 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - 分拣测试（手动触发分拣用于测试）
 /// - Position间隔查询（支持包裹丢失检测的方案A+）
 /// - 落格回调配置（配置分拣完成通知的触发模式）
+/// - 检测开关配置（统一管理干扰检测、超时检测、包裹丢失检测三个开关）
 /// 
 /// **落格回调模式**：
 /// - OnWheelExecution：执行摆轮动作时立即发送分拣完成通知
 /// - OnSensorTrigger：等待落格传感器感应后发送分拣完成通知（默认）
+/// 
+/// **检测开关**：
+/// - 干扰检测开关（提前触发检测）：防止包裹提前到达导致的错位问题
+/// - 超时检测开关：启用包裹传输超时检测和处理
+/// - 包裹丢失检测开关：启用包裹丢失的主动巡检和处理
 /// 
 /// **Position间隔查询**：
 /// 支持Position间隔统计观测，提供各positionIndex的实际触发间隔中位数。
@@ -48,6 +54,8 @@ public class SortingController : ApiControllerBase
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
     private readonly IParcelLossDetectionConfigurationRepository _lossDetectionConfigRepository;
+    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly IConveyorSegmentRepository _conveyorSegmentRepository;
     private readonly ISystemClock _clock;
     private readonly IWebHostEnvironment _environment;
     private readonly ILogger<SortingController> _logger;
@@ -60,6 +68,8 @@ public class SortingController : ApiControllerBase
         IPositionIndexQueueManager queueManager,
         IChuteDropoffCallbackConfigurationRepository callbackConfigRepository,
         IParcelLossDetectionConfigurationRepository lossDetectionConfigRepository,
+        ISystemConfigurationRepository systemConfigRepository,
+        IConveyorSegmentRepository conveyorSegmentRepository,
         ISystemClock clock,
         IWebHostEnvironment environment,
         ILogger<SortingController> logger,
@@ -72,6 +82,8 @@ public class SortingController : ApiControllerBase
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _callbackConfigRepository = callbackConfigRepository ?? throw new ArgumentNullException(nameof(callbackConfigRepository));
         _lossDetectionConfigRepository = lossDetectionConfigRepository ?? throw new ArgumentNullException(nameof(lossDetectionConfigRepository));
+        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _conveyorSegmentRepository = conveyorSegmentRepository ?? throw new ArgumentNullException(nameof(conveyorSegmentRepository));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -786,127 +798,129 @@ public class SortingController : ApiControllerBase
 
     #endregion
 
-    #region 包裹丢失检测配置
+
+    #region 检测开关统一配置
 
     /// <summary>
-    /// 获取包裹丢失检测配置
+    /// 获取所有检测开关配置
     /// </summary>
-    /// <returns>当前包裹丢失检测配置</returns>
+    /// <returns>当前检测开关配置</returns>
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 返回包裹丢失检测的相关配置参数，包括：
+    /// 统一查询三个检测开关的状态：
     /// 
-    /// **丢失检测系数 (LostDetectionMultiplier)**：
-    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际丢失判断
-    /// - 实际丢失判断使用：LostDetectionTimeoutMs = TimeoutThresholdMs × 1.5（基于输送线配置）
-    /// - 默认值：1.5（保留为向后兼容）
+    /// **干扰检测开关 (EnableInterferenceDetection)**：
+    /// - 启用提前触发检测，防止包裹提前到达导致的错位问题
+    /// - 默认值：false（禁用）
     /// 
-    /// **超时检测系数 (TimeoutMultiplier)**：
-    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际超时判断
-    /// - 实际超时判断使用：TimeoutThresholdMs（来自 ConveyorSegmentConfiguration.TimeToleranceMs）
-    /// - 默认值：3.0（保留为向后兼容）
+    /// **超时检测开关 (EnableTimeoutDetection)**：
+    /// - 启用包裹传输超时检测和处理
+    /// - 默认值：true（启用）
     /// 
-    /// **历史窗口大小 (WindowSize)**：
-    /// - 保留最近N个间隔样本用于统计观测
-    /// - 默认值：10
+    /// **包裹丢失检测开关 (EnableParcelLossDetection)**：
+    /// - 启用包裹丢失的主动巡检和处理
+    /// - 默认值：true（启用）
     /// 
     /// **示例响应**：
     /// ```json
     /// {
-    ///   "monitoringIntervalMs": 60,
-    ///   "lostDetectionMultiplier": 1.5,
-    ///   "timeoutMultiplier": 3.0,
-    ///   "windowSize": 10
+    ///   "enableInterferenceDetection": false,
+    ///   "enableTimeoutDetection": true,
+    ///   "enableParcelLossDetection": true,
+    ///   "updatedAt": "2025-12-25T15:00:00Z"
     /// }
     /// ```
     /// </remarks>
-    [HttpGet("loss-detection-config")]
+    [HttpGet("detection-switches")]
     [SwaggerOperation(
-        Summary = "获取包裹丢失检测配置",
-        Description = "返回当前包裹丢失检测的配置参数，包括监控间隔、丢失检测系数、超时检测系数等",
-        OperationId = "GetParcelLossDetectionConfig",
+        Summary = "获取所有检测开关配置",
+        Description = "统一查询干扰检测、超时检测、包裹丢失检测三个开关的状态",
+        OperationId = "GetDetectionSwitches",
         Tags = new[] { "分拣管理" }
     )]
-    [SwaggerResponse(200, "成功返回配置", typeof(ParcelLossDetectionConfigDto))]
+    [SwaggerResponse(200, "成功返回配置", typeof(ApiResponse<DetectionSwitchesDto>))]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ParcelLossDetectionConfigDto), 200)]
+    [ProducesResponseType(typeof(ApiResponse<DetectionSwitchesDto>), 200)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ParcelLossDetectionConfigDto> GetLossDetectionConfig()
+    public ActionResult<ApiResponse<DetectionSwitchesDto>> GetDetectionSwitches()
     {
         try
         {
-            var config = _lossDetectionConfigRepository.Get();
+            // 获取系统配置（干扰检测开关）
+            var systemConfig = _systemConfigRepository.Get();
             
-            var response = new ParcelLossDetectionConfigDto
+            // 获取包裹丢失检测配置
+            var lossDetectionConfig = _lossDetectionConfigRepository.Get();
+            
+            // 获取所有输送段配置（超时检测开关）
+            var segments = _conveyorSegmentRepository.GetAll();
+            // 超时检测状态：所有段都启用才算启用
+            var enableTimeoutDetection = segments.Any() && segments.All(s => s.EnableLossDetection);
+            
+            // 取最新的更新时间（包括所有输送段的更新时间）
+            var timestamps = new List<DateTime>
             {
-                IsEnabled = config.IsEnabled,
-                MonitoringIntervalMs = config.MonitoringIntervalMs,
-                AutoClearMedianIntervalMs = config.AutoClearMedianIntervalMs,
-                AutoClearQueueIntervalSeconds = config.AutoClearQueueIntervalSeconds,
-                LostDetectionMultiplier = config.LostDetectionMultiplier,
-                TimeoutMultiplier = config.TimeoutMultiplier,
-                WindowSize = config.WindowSize
+                systemConfig.UpdatedAt,
+                lossDetectionConfig.UpdatedAt
+            };
+
+            if (segments.Any())
+            {
+                var segmentLatestUpdateTime = segments.Max(s => s.UpdatedAt);
+                timestamps.Add(segmentLatestUpdateTime);
+            }
+
+            var latestUpdateTime = timestamps.Max();
+            
+            var response = new DetectionSwitchesDto
+            {
+                EnableInterferenceDetection = systemConfig.EnableEarlyTriggerDetection,
+                EnableTimeoutDetection = enableTimeoutDetection,
+                EnableParcelLossDetection = lossDetectionConfig.IsEnabled,
+                UpdatedAt = latestUpdateTime
             };
             
-            return Ok(response);
+            return Ok(ApiResponse<DetectionSwitchesDto>.Ok(response));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取包裹丢失检测配置失败");
-            return StatusCode(500, new { message = "获取包裹丢失检测配置失败" });
+            _logger.LogError(ex, "获取检测开关配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("获取检测开关配置失败"));
         }
     }
 
     /// <summary>
-    /// 更新包裹丢失检测配置
+    /// 更新检测开关配置
     /// </summary>
-    /// <param name="request">配置更新请求</param>
+    /// <param name="request">检测开关配置更新请求</param>
     /// <returns>更新后的配置</returns>
     /// <response code="200">配置更新成功</response>
     /// <response code="400">请求参数无效</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 更新包裹丢失检测的配置参数。修改后立即生效。
+    /// 统一更新三个检测开关的配置，所有字段均为可选，仅更新提供的字段。
     /// 
-    /// **启用开关 (IsEnabled)**：
+    /// **干扰检测开关 (EnableInterferenceDetection)**：
     /// - 可选参数
-    /// - 控制整个包裹丢失检测功能的开关
-    /// - true: 启用丢失检测和超时检测
-    /// - false: 关闭所有检测，包裹不会因超时或丢失而被移除
+    /// - 控制提前触发检测功能
+    /// - true: 启用检测，防止包裹提前到达导致错位
+    /// - false: 禁用检测
     /// - 如不提供则保持当前值不变
     /// 
-    /// **监控间隔 (MonitoringIntervalMs)**：
+    /// **超时检测开关 (EnableTimeoutDetection)**：
     /// - 可选参数
-    /// - 取值范围：50-1000ms
-    /// - 包裹丢失监控服务扫描队列的时间间隔
-    /// - 默认值：60ms
+    /// - 控制所有输送段的超时检测功能
+    /// - true: 启用检测，包裹超时后路由到异常格口
+    /// - false: 禁用检测，包裹超时后继续等待
     /// - 如不提供则保持当前值不变
+    /// - ⚠️ 注意：此开关会同时影响所有输送段配置
     /// 
-    /// **自动清空中位数间隔 (AutoClearMedianIntervalMs)**：
+    /// **包裹丢失检测开关 (EnableParcelLossDetection)**：
     /// - 可选参数
-    /// - 取值范围：0-3600000ms (0-60分钟)
-    /// - 当超过此时间未创建新包裹时，自动清空所有 Position 的中位数统计数据
-    /// - 设置为 0 表示不自动清空
-    /// - 默认值：300000ms (5分钟)
-    /// - 如不提供则保持当前值不变
-    /// 
-    /// **丢失检测系数 (LostDetectionMultiplier)**：
-    /// - 可选参数
-    /// - 取值范围：1.0-5.0
-    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际丢失判断
-    /// - 如不提供则保持当前值不变
-    /// 
-    /// **超时检测系数 (TimeoutMultiplier)**：
-    /// - 可选参数
-    /// - 取值范围：1.5-10.0
-    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际超时判断
-    /// - 如不提供则保持当前值不变
-    /// 
-    /// **历史窗口大小 (WindowSize)**：
-    /// - 可选参数
-    /// - 取值范围：10-10000
-    /// - 保留最近N个间隔样本用于计算中位数（仅观测用）
+    /// - 控制包裹丢失的主动巡检功能
+    /// - true: 启用检测，后台服务定期巡检队列
+    /// - false: 禁用检测，包裹不会因丢失而被自动移除
     /// - 如不提供则保持当前值不变
     /// 
     /// **部分更新支持**：
@@ -917,169 +931,132 @@ public class SortingController : ApiControllerBase
     /// **示例请求**：
     /// ```json
     /// {
-    ///   "isEnabled": true,
-    ///   "monitoringIntervalMs": 60,
-    ///   "autoClearMedianIntervalMs": 300000,
-    ///   "autoClearQueueIntervalSeconds": 30,
-    ///   "lostDetectionMultiplier": 2.0,
-    ///   "timeoutMultiplier": 3.5,
-    ///   "windowSize": 10
+    ///   "enableInterferenceDetection": false,
+    ///   "enableTimeoutDetection": true,
+    ///   "enableParcelLossDetection": true
     /// }
     /// ```
     /// 
     /// **示例响应**：
     /// ```json
     /// {
-    ///   "isEnabled": true,
-    ///   "monitoringIntervalMs": 60,
-    ///   "autoClearMedianIntervalMs": 300000,
-    ///   "autoClearQueueIntervalSeconds": 30,
-    ///   "lostDetectionMultiplier": 2.0,
-    ///   "timeoutMultiplier": 3.5,
-    ///   "windowSize": 10
+    ///   "enableInterferenceDetection": false,
+    ///   "enableTimeoutDetection": true,
+    ///   "enableParcelLossDetection": true,
+    ///   "updatedAt": "2025-12-25T15:30:00Z"
     /// }
     /// ```
     /// 
     /// **注意事项**：
-    /// - 配置修改立即生效，影响后续的丢失判定
-    /// - 已在队列中的任务不受影响（使用创建时的阈值）
+    /// - 配置修改立即生效
     /// - 建议在低峰期或测试环境中调整参数
+    /// - 超时检测开关会更新所有输送段配置
     /// </remarks>
-    [HttpPost("loss-detection-config")]
+    [HttpPut("detection-switches")]
     [SwaggerOperation(
-        Summary = "更新包裹丢失检测配置",
-        Description = "修改包裹丢失检测的配置参数，包括启用开关、丢失检测系数、超时检测系数等。修改后立即生效。",
-        OperationId = "UpdateParcelLossDetectionConfig",
+        Summary = "更新检测开关配置",
+        Description = "统一更新干扰检测、超时检测、包裹丢失检测三个开关的状态。修改后立即生效。",
+        OperationId = "UpdateDetectionSwitches",
         Tags = new[] { "分拣管理" }
     )]
-    [SwaggerResponse(200, "配置更新成功", typeof(ParcelLossDetectionConfigDto))]
+    [SwaggerResponse(200, "配置更新成功", typeof(ApiResponse<DetectionSwitchesDto>))]
     [SwaggerResponse(400, "请求参数无效")]
     [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(ParcelLossDetectionConfigDto), 200)]
+    [ProducesResponseType(typeof(ApiResponse<DetectionSwitchesDto>), 200)]
     [ProducesResponseType(typeof(object), 400)]
     [ProducesResponseType(typeof(object), 500)]
-    public ActionResult<ParcelLossDetectionConfigDto> UpdateLossDetectionConfig(
-        [FromBody] UpdateParcelLossDetectionConfigRequest request)
+    public ActionResult<ApiResponse<DetectionSwitchesDto>> UpdateDetectionSwitches(
+        [FromBody] UpdateDetectionSwitchesRequest request)
     {
         try
         {
             if (request == null)
             {
-                return BadRequest(new { message = "请求体不能为空" });
+                return BadRequest(ApiResponse<object>.BadRequest("请求体不能为空"));
             }
 
-            // 验证参数范围
-            if (request.LostDetectionMultiplier.HasValue &&
-                (request.LostDetectionMultiplier.Value < 1.0 || request.LostDetectionMultiplier.Value > 5.0))
+            // 如果没有提供任何更新字段，返回错误
+            if (request.EnableInterferenceDetection == null &&
+                request.EnableTimeoutDetection == null &&
+                request.EnableParcelLossDetection == null)
             {
-                return BadRequest(new { message = "丢失检测系数必须在1.0-5.0之间" });
+                return BadRequest(ApiResponse<object>.BadRequest("至少需要提供一个检测开关字段进行更新"));
             }
 
-            if (request.TimeoutMultiplier.HasValue && 
-                (request.TimeoutMultiplier.Value < 1.5 || request.TimeoutMultiplier.Value > 10.0))
+            var now = _clock.LocalNow;
+
+            // 更新干扰检测开关（系统配置）
+            if (request.EnableInterferenceDetection.HasValue)
             {
-                return BadRequest(new { message = "超时检测系数必须在1.5-10.0之间" });
+                var systemConfig = _systemConfigRepository.Get();
+                systemConfig.EnableEarlyTriggerDetection = request.EnableInterferenceDetection.Value;
+                systemConfig.UpdatedAt = now;
+                _systemConfigRepository.Update(systemConfig);
+                
+                _logger.LogInformation(
+                    "干扰检测开关已更新: {EnableInterferenceDetection}",
+                    request.EnableInterferenceDetection.Value);
             }
 
-            if (request.MonitoringIntervalMs.HasValue &&
-                (request.MonitoringIntervalMs.Value < 50 || request.MonitoringIntervalMs.Value > 1000))
+            // 更新超时检测开关（输送段配置）
+            if (request.EnableTimeoutDetection.HasValue)
             {
-                return BadRequest(new { message = "监控间隔必须在50-1000ms之间" });
+                var segments = _conveyorSegmentRepository.GetAll();
+                foreach (var segment in segments)
+                {
+                    _conveyorSegmentRepository.Update(
+                        segment with
+                        {
+                            EnableLossDetection = request.EnableTimeoutDetection.Value,
+                            UpdatedAt = now
+                        });
+                }
+                
+                _logger.LogInformation(
+                    "超时检测开关已更新: {EnableTimeoutDetection}, 影响 {SegmentCount} 个输送段",
+                    request.EnableTimeoutDetection.Value,
+                    segments.Count());
             }
 
-            if (request.AutoClearMedianIntervalMs.HasValue &&
-                (request.AutoClearMedianIntervalMs.Value < 0 || request.AutoClearMedianIntervalMs.Value > 3600000))
+            // 更新包裹丢失检测开关
+            if (request.EnableParcelLossDetection.HasValue)
             {
-                return BadRequest(new { message = "自动清空中位数间隔必须在0-3600000ms之间" });
+                var lossDetectionConfig = _lossDetectionConfigRepository.Get();
+                lossDetectionConfig.IsEnabled = request.EnableParcelLossDetection.Value;
+                lossDetectionConfig.UpdatedAt = now;
+                _lossDetectionConfigRepository.Update(lossDetectionConfig);
+                
+                _logger.LogInformation(
+                    "包裹丢失检测开关已更新: {EnableParcelLossDetection}",
+                    request.EnableParcelLossDetection.Value);
             }
 
-            if (request.AutoClearQueueIntervalSeconds.HasValue &&
-                (request.AutoClearQueueIntervalSeconds.Value < 0 || request.AutoClearQueueIntervalSeconds.Value > 600))
-            {
-                return BadRequest(new { message = "自动清空队列间隔必须在0-600秒之间" });
-            }
+            // 重新获取更新后的配置并返回
+            var updatedSystemConfig = _systemConfigRepository.Get();
+            var updatedLossDetectionConfig = _lossDetectionConfigRepository.Get();
+            var updatedSegments = _conveyorSegmentRepository.GetAll();
+            var enableTimeoutDetection = updatedSegments.Any() && updatedSegments.All(s => s.EnableLossDetection);
 
-            if (request.WindowSize.HasValue &&
-                (request.WindowSize.Value < 10 || request.WindowSize.Value > 10000))
+            var response = new DetectionSwitchesDto
             {
-                return BadRequest(new { message = "历史窗口大小必须在10-10000之间" });
-            }
-
-            // 获取当前配置
-            var config = _lossDetectionConfigRepository.Get();
-            
-            // 更新配置值（仅更新提供的字段）
-            if (request.IsEnabled.HasValue)
-            {
-                config.IsEnabled = request.IsEnabled.Value;
-            }
-            
-            if (request.LostDetectionMultiplier.HasValue)
-            {
-                config.LostDetectionMultiplier = request.LostDetectionMultiplier.Value;
-            }
-            
-            if (request.TimeoutMultiplier.HasValue)
-            {
-                config.TimeoutMultiplier = request.TimeoutMultiplier.Value;
-            }
-            
-            if (request.MonitoringIntervalMs.HasValue)
-            {
-                config.MonitoringIntervalMs = request.MonitoringIntervalMs.Value;
-            }
-            
-            if (request.AutoClearMedianIntervalMs.HasValue)
-            {
-                config.AutoClearMedianIntervalMs = request.AutoClearMedianIntervalMs.Value;
-            }
-            
-            if (request.AutoClearQueueIntervalSeconds.HasValue)
-            {
-                config.AutoClearQueueIntervalSeconds = request.AutoClearQueueIntervalSeconds.Value;
-            }
-            
-            if (request.WindowSize.HasValue)
-            {
-                config.WindowSize = request.WindowSize.Value;
-            }
-            
-            // 设置更新时间
-            config.UpdatedAt = _clock.LocalNow;
-            
-            // 保存到数据库
-            _lossDetectionConfigRepository.Update(config);
-            
-            _logger.LogInformation(
-                "包裹丢失检测配置已更新: IsEnabled={IsEnabled}, MonitoringIntervalMs={MonitoringInterval}ms, " +
-                "AutoClearMedianIntervalMs={AutoClearMedianInterval}ms, AutoClearQueueIntervalSeconds={AutoClearQueueInterval}s, " +
-                "LostDetectionMultiplier={LostMultiplier}, TimeoutMultiplier={TimeoutMultiplier}, WindowSize={WindowSize}",
-                config.IsEnabled,
-                config.MonitoringIntervalMs,
-                config.AutoClearMedianIntervalMs,
-                config.AutoClearQueueIntervalSeconds,
-                config.LostDetectionMultiplier,
-                config.TimeoutMultiplier,
-                config.WindowSize);
-            
-            // 返回更新后的配置
-            var response = new ParcelLossDetectionConfigDto
-            {
-                IsEnabled = config.IsEnabled,
-                MonitoringIntervalMs = config.MonitoringIntervalMs,
-                AutoClearMedianIntervalMs = config.AutoClearMedianIntervalMs,
-                AutoClearQueueIntervalSeconds = config.AutoClearQueueIntervalSeconds,
-                LostDetectionMultiplier = config.LostDetectionMultiplier,
-                TimeoutMultiplier = config.TimeoutMultiplier,
-                WindowSize = config.WindowSize
+                EnableInterferenceDetection = updatedSystemConfig.EnableEarlyTriggerDetection,
+                EnableTimeoutDetection = enableTimeoutDetection,
+                EnableParcelLossDetection = updatedLossDetectionConfig.IsEnabled,
+                UpdatedAt = now
             };
-            
-            return Ok(response);
+
+            _logger.LogInformation(
+                "检测开关配置已更新: 干扰检测={InterferenceDetection}, 超时检测={TimeoutDetection}, 丢失检测={LossDetection}",
+                response.EnableInterferenceDetection,
+                response.EnableTimeoutDetection,
+                response.EnableParcelLossDetection);
+
+            return Ok(ApiResponse<DetectionSwitchesDto>.Ok(response, "检测开关配置已更新"));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "更新包裹丢失检测配置失败");
-            return StatusCode(500, new { message = "更新包裹丢失检测配置失败" });
+            _logger.LogError(ex, "更新检测开关配置失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("更新检测开关配置失败"));
         }
     }
 

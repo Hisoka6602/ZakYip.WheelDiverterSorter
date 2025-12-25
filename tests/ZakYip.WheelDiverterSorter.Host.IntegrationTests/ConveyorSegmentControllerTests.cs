@@ -48,7 +48,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
             LengthMm = 5000,
             SpeedMmps = 1000m,
             TimeToleranceMs = 500,
-            EnableLossDetection = true,
             Remarks = "Test segment for integration testing"
         };
 
@@ -92,7 +91,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
             LengthMm = 4000,
             SpeedMmps = 800m,
             TimeToleranceMs = 400,
-            EnableLossDetection = true
         };
         await _client.PostAsJsonAsync("/api/config/conveyor-segments", createRequest);
 
@@ -104,7 +102,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
             LengthMm = 6000,
             SpeedMmps = 1200m,
             TimeToleranceMs = 600,
-            EnableLossDetection = false
         };
         var response = await _client.PutAsJsonAsync("/api/config/conveyor-segments/101", updateRequest);
 
@@ -133,7 +130,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
             LengthMm = 5000,
             SpeedMmps = 1000m,
             TimeToleranceMs = 500,
-            EnableLossDetection = true
         };
         await _client.PostAsJsonAsync("/api/config/conveyor-segments", createRequest);
 
@@ -178,7 +174,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
             LengthMm = -100, // Invalid: negative length
             SpeedMmps = 1000m,
             TimeToleranceMs = 500,
-            EnableLossDetection = true
         };
 
         // Act
@@ -203,7 +198,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
                     LengthMm = 5000,
                     SpeedMmps = 1000m,
                     TimeToleranceMs = 500,
-                    EnableLossDetection = true
                 },
                 new()
                 {
@@ -212,7 +206,6 @@ public class ConveyorSegmentControllerTests : IClassFixture<WebApplicationFactor
                     LengthMm = 6000,
                     SpeedMmps = 1200m,
                     TimeToleranceMs = 600,
-                    EnableLossDetection = true
                 }
             }
         };

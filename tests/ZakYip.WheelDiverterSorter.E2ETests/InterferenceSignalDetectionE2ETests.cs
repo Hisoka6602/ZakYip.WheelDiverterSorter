@@ -88,7 +88,6 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
                 LengthMm = TestSegmentLengthMm,
                 SpeedMmps = TestSegmentSpeedMmps,
                 TimeToleranceMs = TestTimeToleranceMs,
-                EnableLossDetection = false, // 禁用丢失检测以简化测试
                 Remarks = "E2E测试配置 - 干扰信号检测",
                 CreatedAt = now,
                 UpdatedAt = now

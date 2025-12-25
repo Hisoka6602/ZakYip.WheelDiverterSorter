@@ -1287,17 +1287,41 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             var earlyMs = (earliestDequeueTime - currentTime).TotalMilliseconds;
             
+            // 获取输送段信息用于日志记录
+            string segmentInfo = "线体信息未知";
+            if (_topologyRepository != null && _segmentRepository != null)
+            {
+                var topology = _topologyRepository.Get();
+                if (topology != null)
+                {
+                    var node = topology.FindNodeByDiverterId(peekedTask.DiverterId);
+                    if (node != null)
+                    {
+                        var segment = _segmentRepository.GetById(node.SegmentId);
+                        if (segment != null)
+                        {
+                            segmentInfo = $"线体Id={segment.SegmentId}, " +
+                                         $"线体长度={segment.LengthMm}mm, " +
+                                         $"线体速度={segment.SpeedMmps}mm/s, " +
+                                         $"容差时间={segment.TimeToleranceMs}ms";
+                        }
+                    }
+                }
+            }
+            
             _logger.LogWarning(
                 "[提前触发检测] Position {PositionIndex} 传感器 {SensorId} 提前触发 {EarlyMs}ms，" +
                 "包裹 {ParcelId} 不出队、不执行动作 | " +
                 "当前时间={CurrentTime:HH:mm:ss.fff}, " +
                 "最早出队时间={EarliestTime:HH:mm:ss.fff}, " +
-                "期望到达时间={ExpectedTime:HH:mm:ss.fff}",
+                "期望到达时间={ExpectedTime:HH:mm:ss.fff}, " +
+                "{SegmentInfo}",
                 positionIndex, sensorId, earlyMs,
                 peekedTask.ParcelId,
                 currentTime,
                 earliestDequeueTime,
-                peekedTask.ExpectedArrivalTime);
+                peekedTask.ExpectedArrivalTime,
+                segmentInfo);
             
             // 记录为分拣异常（用于监控提前触发频率）
             _alarmService?.RecordSortingFailure();
