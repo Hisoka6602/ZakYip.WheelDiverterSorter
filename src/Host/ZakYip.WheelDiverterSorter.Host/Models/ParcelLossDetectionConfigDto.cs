@@ -59,9 +59,9 @@ public record ParcelLossDetectionConfigDto
     /// 丢失检测系数
     /// </summary>
     /// <remarks>
-    /// 丢失阈值 = 中位数间隔 * 丢失检测系数
-    /// 默认值：1.5
-    /// 推荐范围：1.5-2.5
+    /// ⚠️ 已废弃：此系数仅用于中位数统计观测，不再用于实际丢失判断逻辑。
+    /// 实际丢失判断使用：LostDetectionTimeoutMs = TimeoutThresholdMs × 1.5（基于输送线配置）
+    /// 默认值：1.5（保留为向后兼容）
     /// </remarks>
     /// <example>1.5</example>
     public required double LostDetectionMultiplier { get; init; }
@@ -70,9 +70,9 @@ public record ParcelLossDetectionConfigDto
     /// 超时检测系数
     /// </summary>
     /// <remarks>
-    /// 超时阈值 = 中位数间隔 * 超时检测系数
-    /// 默认值：3.0
-    /// 推荐范围：2.5-3.5
+    /// ⚠️ 已废弃：此系数仅用于中位数统计观测，不再用于实际超时判断逻辑。
+    /// 实际超时判断使用：TimeoutThresholdMs（来自 ConveyorSegmentConfiguration.TimeToleranceMs）
+    /// 默认值：3.0（保留为向后兼容）
     /// </remarks>
     /// <example>3.0</example>
     public required double TimeoutMultiplier { get; init; }

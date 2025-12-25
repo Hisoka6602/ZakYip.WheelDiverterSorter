@@ -3,6 +3,10 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 /// <summary>
 /// Position间隔统计DTO
 /// </summary>
+/// <remarks>
+/// ⚠️ 重要：此DTO提供的中位数统计数据仅用于观测和监控，不用于任何分拣逻辑判断。
+/// 所有超时判断、丢失判定均基于输送线配置（ConveyorSegmentConfiguration）。
+/// </remarks>
 public record PositionIntervalDto
 {
     /// <summary>
