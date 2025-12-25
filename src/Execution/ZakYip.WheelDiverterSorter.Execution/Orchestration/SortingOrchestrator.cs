@@ -123,7 +123,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     // Issue #3: 缓存每个position后续节点列表，避免超时时重复构造
     private readonly ConcurrentDictionary<int, List<DiverterPathNode>> _subsequentNodesCache;
     
-    // 包裹条码缓存 - 用于日志追踪（从上游DWS数据获取）
+    /// <summary>
+    /// 包裹条码缓存，用于在日志中附加来自上游 DWS 的条码信息以便追踪。
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// 条码的写入时机：在 <c>OnChuteAssignmentReceived</c> 中，当上游消息的
+    /// <c>DwsPayload.Barcode</c> 字段存在且非空时，将对应包裹 ID 与条码写入缓存。
+    /// </para>
+    /// <para>
+    /// 条码的清理时机：在以下五类清理路径中移除缓存项，以避免内存泄漏并保证状态一致：
+    /// 1) 路由/分拣超时清理；2) 正常分拣完成后的清理；3) 包裹丢失（lost）处理时的清理；
+    /// 4) 显式的包裹清理操作；5) <c>CleanupParcelMemory</c> 中统一回收包裹相关内存时的清理。
+    /// </para>
+    /// <para>
+    /// 线程安全：使用 <see cref="ConcurrentDictionary{TKey,TValue}"/> 存储条码，
+    /// 支持多线程并发读写而无需额外锁，符合本类在多线程回调与后台任务中的并发访问需求。
+    /// </para>
+    /// <para>
+    /// 日志格式：为了便于关联，同一包裹的日志中会在消息末尾附加
+    /// <c>",BarCode:{value}"</c> 形式的后缀，其中 <c>{value}</c> 为缓存中的条码值。
+    /// </para>
+    /// </remarks>
     private readonly ConcurrentDictionary<long, string> _parcelBarcodes;
     
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
@@ -2737,7 +2758,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _intervalTracker?.ClearParcelTracking(parcelId);
 
         _logger.LogTrace(
-            "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、条码、位置追踪）",
+            "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、位置追踪）",
             parcelId);
     }
 
@@ -3104,10 +3125,35 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
-    /// 获取包裹的条码后缀，用于日志追踪
+    /// 获取指定包裹的条码后缀字符串，用于在日志和监控中进行精确追踪。
     /// </summary>
-    /// <param name="parcelId">包裹ID</param>
-    /// <returns>如果有条码则返回 ",BarCode:xxx"，否则返回空字符串</returns>
+    /// <param name="parcelId">
+    /// 本地分拣流程中使用的包裹 ID。该 ID 与上游 DWS 载荷中的条码通过缓存进行关联。
+    /// </param>
+    /// <returns>
+    /// 若在条码缓存中能找到与 <paramref name="parcelId"/> 对应的非空条码，
+    /// 则返回形如 <c>",BarCode:xxx"</c> 的后缀字符串；否则返回 <see cref="string.Empty"/>。
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// 此方法仅用于<strong>日志追踪和问题排查</strong>，不会影响实际分拣决策或硬件控制逻辑。
+    /// </para>
+    /// <para>
+    /// 条码在收到上游格口分配通知（<c>OnChuteAssignmentReceived</c>）时写入缓存：
+    /// 当通知中携带的 DWS 载荷 (<c>DwsPayload</c>) 包含非空 <c>Barcode</c> 字段时，
+    /// 分拣编排器会将 <c>parcelId</c> 与该条码写入内部的
+    /// <see cref="ConcurrentDictionary{TKey,TValue}"/> 缓存字段 <c>_parcelBarcodes</c>。
+    /// </para>
+    /// <para>
+    /// 条码会在包裹生命周期结束后的清理操作中从缓存中移除（例如分拣完成、异常结束或
+    /// 显式的缓存清理任务），以避免缓存无限增长并保持内存占用可控。
+    /// </para>
+    /// <para>
+    /// 由于缓存使用的是 <see cref="ConcurrentDictionary{TKey,TValue}"/>，因此
+    /// <see cref="GetBarcodeSuffix(long)"/> 的查找操作是线程安全的，
+    /// 可以在多个传感器回调 / 分拣任务并发执行的场景下安全调用。
+    /// </para>
+    /// </remarks>
     private string GetBarcodeSuffix(long parcelId)
     {
         if (_parcelBarcodes.TryGetValue(parcelId, out var barcode) && !string.IsNullOrEmpty(barcode))
