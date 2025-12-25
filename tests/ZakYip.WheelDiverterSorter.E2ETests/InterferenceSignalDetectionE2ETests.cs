@@ -153,24 +153,8 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
             SensorType = SensorType.Photoelectric  // 使用光电传感器类型
         };
         
-        // 使用反射触发事件（模拟传感器触发）
-        var eventInfo = _sensorEventProvider.GetType().GetEvent("ParcelDetected");
-        var field = _sensorEventProvider.GetType()
-            .GetField("ParcelDetected", System.Reflection.BindingFlags.Instance | 
-                                       System.Reflection.BindingFlags.NonPublic | 
-                                       System.Reflection.BindingFlags.Public);
-        
-        if (field != null)
-        {
-            var eventDelegate = field.GetValue(_sensorEventProvider) as MulticastDelegate;
-            if (eventDelegate != null)
-            {
-                foreach (var handler in eventDelegate.GetInvocationList())
-                {
-                    handler.Method.Invoke(handler.Target, new object?[] { _sensorEventProvider, eventArgs });
-                }
-            }
-        }
+        // 使用辅助方法触发事件
+        TriggerSensorEvent(eventArgs);
 
         await Task.Delay(500); // 等待事件处理完成
 
@@ -316,9 +300,11 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     /// <summary>
     /// 辅助方法：触发传感器事件
     /// </summary>
+    /// <remarks>
+    /// 使用反射机制触发 ISensorEventProvider 的 ParcelDetected 事件
+    /// </remarks>
     private void TriggerSensorEvent(ParcelDetectedEventArgs eventArgs)
     {
-        var eventInfo = _sensorEventProvider.GetType().GetEvent("ParcelDetected");
         var field = _sensorEventProvider.GetType()
             .GetField("ParcelDetected", System.Reflection.BindingFlags.Instance | 
                                        System.Reflection.BindingFlags.NonPublic | 
