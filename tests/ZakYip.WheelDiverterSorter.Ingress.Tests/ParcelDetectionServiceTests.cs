@@ -146,9 +146,9 @@ public class ParcelDetectionServiceTests
         };
         mockSensor.Raise(s => s.SensorTriggered += null, mockSensor.Object, sensorEvent2);
 
-        // Assert - Should detect both parcels, second one flagged as duplicate
-        Assert.Equal(2, detectedCount);
-        Assert.Equal(1, duplicateCount);
+        // Assert - Only first trigger creates parcel, second trigger is completely ignored
+        Assert.Equal(1, detectedCount); // Changed from 2 to 1 - second trigger is ignored
+        Assert.Equal(1, duplicateCount); // Duplicate event is still raised for monitoring
     }
 
     [Fact]
@@ -376,12 +376,13 @@ public class ParcelDetectionServiceTests
 
         // Assert - Duplicate event should be triggered with correct information
         Assert.NotNull(duplicateArgs);
-        Assert.True(duplicateArgs.ParcelId > 0);
+        Assert.Equal(0, duplicateArgs.ParcelId); // Changed: ParcelId is 0 because duplicate triggers don't create parcels
         Assert.Equal(1, duplicateArgs.SensorId);
         Assert.Equal(SensorType.Photoelectric, duplicateArgs.SensorType);
         Assert.Equal(baseTime.AddMilliseconds(300), duplicateArgs.DetectedAt);
         Assert.True(duplicateArgs.TimeSinceLastTriggerMs >= 299 && duplicateArgs.TimeSinceLastTriggerMs <= 301); // Allow small tolerance
         Assert.Contains("去重窗口", duplicateArgs.Reason);
+        Assert.Contains("已忽略", duplicateArgs.Reason); // Verify the reason says it was ignored
     }
 
     [Fact]
