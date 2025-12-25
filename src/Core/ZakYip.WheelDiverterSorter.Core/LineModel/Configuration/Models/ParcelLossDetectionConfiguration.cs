@@ -25,10 +25,29 @@ public class ParcelLossDetectionConfiguration
     /// 是否启用包裹丢失检测
     /// </summary>
     /// <remarks>
-    /// 控制整个包裹丢失检测功能的开关
-    /// - true: 启用丢失检测和超时检测
-    /// - false: 关闭所有检测，包裹不会因超时或丢失而被移除
-    /// 默认值：true
+    /// <para><b>控制范围</b>：</para>
+    /// <list type="bullet">
+    /// <item><description>后台主动巡检服务（ParcelLossMonitoringService）：巡检是否执行</description></item>
+    /// <item><description>队列任务的丢失判定字段（LostDetectionDeadline）：是否设置和使用</description></item>
+    /// </list>
+    /// <para><b>启用（true）</b>：</para>
+    /// <list type="bullet">
+    /// <item><description>后台服务定期巡检队列，检测超时丢失的包裹</description></item>
+    /// <item><description>队列任务在生成和入队时设置丢失判定阈值（基于中位数×系数）</description></item>
+    /// <item><description>包裹超过阈值未到达时，触发丢失处理（清除任务、记录日志、触发事件）</description></item>
+    /// </list>
+    /// <para><b>禁用（false）</b>：</para>
+    /// <list type="bullet">
+    /// <item><description>后台服务跳过所有巡检逻辑，不执行任何检测</description></item>
+    /// <item><description>队列任务的 LostDetectionTimeoutMs 和 LostDetectionDeadline 字段被清空为 null</description></item>
+    /// <item><description>包裹不会因为超时/丢失而被自动移除，只能通过正常到达或手动清空队列</description></item>
+    /// </list>
+    /// <para><b>默认值</b>：true（启用检测，确保系统能自动清理丢失包裹）</para>
+    /// <para><b>使用场景</b>：</para>
+    /// <list type="bullet">
+    /// <item><description>启用：生产环境，需要自动检测和清理丢失包裹</description></item>
+    /// <item><description>禁用：测试/调试环境，需要手动控制队列清空时机</description></item>
+    /// </list>
     /// </remarks>
     public bool IsEnabled { get; set; } = true;
 
