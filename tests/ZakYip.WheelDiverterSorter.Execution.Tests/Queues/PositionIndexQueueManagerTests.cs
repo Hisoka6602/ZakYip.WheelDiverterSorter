@@ -27,8 +27,8 @@ public class PositionIndexQueueManagerTests
         _mockIntervalTracker = new Mock<IPositionIntervalTracker>();
         _mockConfigRepository = new Mock<IParcelLossDetectionConfigurationRepository>();
         
-        // 默认时间设置
-        _mockClock.Setup(c => c.LocalNow).Returns(DateTime.Now);
+        // 使用固定时间确保测试可重复
+        _mockClock.Setup(c => c.LocalNow).Returns(new DateTime(2025, 1, 1, 12, 0, 0));
     }
 
     /// <summary>
@@ -59,13 +59,13 @@ public class PositionIndexQueueManagerTests
             DiverterId = 1,
             PositionIndex = 1,
             DiverterAction = DiverterDirection.Left,
-            ExpectedArrivalTime = DateTime.Now.AddSeconds(5),
+            ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(5),
             TimeoutThresholdMs = 2000,
             FallbackAction = DiverterDirection.Straight,
-            CreatedAt = DateTime.Now,
+            CreatedAt = _mockClock.Object.LocalNow,
             // 初始状态有值
             LostDetectionTimeoutMs = 3000,
-            LostDetectionDeadline = DateTime.Now.AddSeconds(8)
+            LostDetectionDeadline = _mockClock.Object.LocalNow.AddSeconds(8)
         };
 
         // Act
@@ -106,7 +106,7 @@ public class PositionIndexQueueManagerTests
             _mockIntervalTracker.Object,
             _mockConfigRepository.Object);
 
-        var expectedArrival = DateTime.Now.AddSeconds(5);
+        var expectedArrival = _mockClock.Object.LocalNow.AddSeconds(5);
         var task = new PositionQueueItem
         {
             ParcelId = 1002,
@@ -116,7 +116,7 @@ public class PositionIndexQueueManagerTests
             ExpectedArrivalTime = expectedArrival,
             TimeoutThresholdMs = 2000,
             FallbackAction = DiverterDirection.Straight,
-            CreatedAt = DateTime.Now
+            CreatedAt = _mockClock.Object.LocalNow
         };
 
         // Act
@@ -150,10 +150,10 @@ public class PositionIndexQueueManagerTests
             DiverterId = 1,
             PositionIndex = 1,
             DiverterAction = DiverterDirection.Straight,
-            ExpectedArrivalTime = DateTime.Now.AddSeconds(5),
+            ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(5),
             TimeoutThresholdMs = 2000,
             FallbackAction = DiverterDirection.Straight,
-            CreatedAt = DateTime.Now
+            CreatedAt = _mockClock.Object.LocalNow
         };
 
         // Act
@@ -191,10 +191,10 @@ public class PositionIndexQueueManagerTests
             DiverterId = 1,
             PositionIndex = 1,
             DiverterAction = DiverterDirection.Left,
-            ExpectedArrivalTime = DateTime.Now.AddSeconds(5),
+            ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(5),
             TimeoutThresholdMs = 2000,
             FallbackAction = DiverterDirection.Straight,
-            CreatedAt = DateTime.Now
+            CreatedAt = _mockClock.Object.LocalNow
         };
 
         // Act
