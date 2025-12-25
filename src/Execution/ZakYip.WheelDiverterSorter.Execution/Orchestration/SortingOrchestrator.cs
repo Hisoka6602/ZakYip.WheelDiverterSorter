@@ -1264,12 +1264,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         if (peekedTask == null)
         {
-            // Issue #1: 统一记录空队列异常，避免重复告警噪声
-            _logger.LogWarning(
-                "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - 记录为超时异常",
+            // 队列为空但传感器触发 - 可能是输送线上的残留包裹（干扰信号）
+            // 不应记录为超时异常，只记录日志用于监控
+            _logger.LogInformation(
+                "[干扰信号] Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - " +
+                "可能是输送线残留包裹，不执行任何动作",
                 positionIndex, sensorId, boundWheelDiverterId);
             
-            RecordSortingFailure(0, isTimeout: true);
+            // 不记录为分拣失败，不影响系统统计
+            // RecordSortingFailure(0, isTimeout: true); // 移除此调用
             return;
         }
 
