@@ -9,12 +9,16 @@ namespace ZakYip.WheelDiverterSorter.Execution.Tracking;
 /// Position 间隔追踪器实现
 /// </summary>
 /// <remarks>
-/// 基于方案A+（中位数自适应超时检测）的实现：
-/// - 使用滑动窗口记录每个 position 的最近 N 次触发间隔
-/// - 计算中位数（抗异常值）
-/// - 动态阈值 = 中位数 * 可配置系数
-/// - 仅使用内存缓存，无数据库依赖
-/// - 内存开销：每个 position 约 80 字节
+/// <para>基于滑动窗口记录每个 position 的最近 N 次触发间隔，计算中位数（抗异常值）。</para>
+/// <para>⚠️ 重要变更：中位数值<b>仅用于观测统计</b>，不用于任何分拣逻辑判断。</para>
+/// <para>所有超时判断、丢失判定均基于输送线配置（ConveyorSegmentConfiguration）。</para>
+/// <para>实现特性：</para>
+/// <list type="bullet">
+///   <item>使用滑动窗口记录每个 position 的最近 N 次触发间隔</item>
+///   <item>计算中位数（抗异常值）用于观测</item>
+///   <item>仅使用内存缓存，无数据库依赖</item>
+///   <item>内存开销：每个 position 约 80 字节</item>
+/// </list>
 /// </remarks>
 public sealed class PositionIntervalTracker : IPositionIntervalTracker
 {
@@ -172,56 +176,6 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
             .Where(stat => stat != null)
             .Select(stat => stat!.Value)
             .ToList();
-    }
-
-    /// <inheritdoc/>
-    public double? GetDynamicThreshold(int positionIndex)
-    {
-        if (!_intervalHistory.TryGetValue(positionIndex, out var buffer))
-        {
-            return null;
-        }
-        
-        // 数据不足，返回 null
-        if (buffer.Count < _options.MinSamplesForThreshold)
-        {
-            return null;
-        }
-        
-        var intervals = buffer.ToArray();
-        var median = CalculateMedian(intervals);
-        
-        // 应用系数计算动态阈值（直接使用中位数×系数，不做限幅）
-        var threshold = median * _options.TimeoutMultiplier;
-        
-        return threshold;
-    }
-    
-    /// <inheritdoc/>
-    public double? GetLostDetectionThreshold(int positionIndex)
-    {
-        if (!_intervalHistory.TryGetValue(positionIndex, out var buffer))
-        {
-            return null;
-        }
-        
-        // 数据不足，返回 null
-        if (buffer.Count < _options.MinSamplesForThreshold)
-        {
-            return null;
-        }
-        
-        var intervals = buffer.ToArray();
-        var median = CalculateMedian(intervals);
-        
-        // 应用丢失判定系数计算阈值
-        var lostThreshold = median * _options.LostDetectionMultiplier;
-        
-        _logger.LogDebug(
-            "[丢失检测阈值] Position {PositionIndex}: 中位数={MedianMs}ms, 系数={Factor}, 阈值={ThresholdMs}ms",
-            positionIndex, median, _options.LostDetectionMultiplier, lostThreshold);
-        
-        return lostThreshold;
     }
 
     /// <inheritdoc/>

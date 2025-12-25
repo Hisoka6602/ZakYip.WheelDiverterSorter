@@ -4,7 +4,9 @@ namespace ZakYip.WheelDiverterSorter.Execution.Tracking;
 /// Position 间隔追踪器接口
 /// </summary>
 /// <remarks>
-/// 用于记录和统计每个 position 的传感器触发间隔，支持包裹丢失检测方案A+（中位数自适应超时检测）
+/// <para>用于记录和统计每个 position 的传感器触发间隔，提供观测数据。</para>
+/// <para>⚠️ 重要：中位数统计值<b>仅用于观测</b>，不用于任何分拣逻辑判断。</para>
+/// <para>所有超时判断、丢失判定均应基于输送线配置（ConveyorSegmentConfiguration）。</para>
 /// </remarks>
 public interface IPositionIntervalTracker
 {
@@ -39,24 +41,6 @@ public interface IPositionIntervalTracker
     /// </summary>
     /// <returns>所有 Position 的统计信息列表</returns>
     IReadOnlyList<(int PositionIndex, double? MedianIntervalMs, int SampleCount, double? MinIntervalMs, double? MaxIntervalMs, DateTime? LastUpdatedAt)> GetAllStatistics();
-    
-    /// <summary>
-    /// 获取当前 Position 的动态超时阈值（用于包裹丢失检测）
-    /// </summary>
-    /// <param name="positionIndex">Position 索引</param>
-    /// <returns>动态超时阈值（毫秒），如果数据不足则返回 null</returns>
-    double? GetDynamicThreshold(int positionIndex);
-    
-    /// <summary>
-    /// 获取当前 Position 的丢失判定阈值
-    /// </summary>
-    /// <param name="positionIndex">Position 索引</param>
-    /// <returns>丢失判定阈值（毫秒），如果数据不足则返回 null</returns>
-    /// <remarks>
-    /// 丢失判定阈值 = 中位数间隔 * LostDetectionMultiplier
-    /// 当包裹延迟超过此阈值时，判定为物理丢失（不在分拣设备上），需要从队列删除
-    /// </remarks>
-    double? GetLostDetectionThreshold(int positionIndex);
     
     /// <summary>
     /// 清空指定 Position 的统计数据

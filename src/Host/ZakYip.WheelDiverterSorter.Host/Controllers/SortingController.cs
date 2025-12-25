@@ -34,7 +34,9 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - OnSensorTrigger：等待落格传感器感应后发送分拣完成通知（默认）
 /// 
 /// **Position间隔查询**：
-/// 支持方案A+（中位数自适应超时检测）的实施，提供各positionIndex的实际触发间隔中位数。
+/// 支持Position间隔统计观测，提供各positionIndex的实际触发间隔中位数。
+/// ⚠️ 重要：中位数数据仅用于观测和监控，不用于任何分拣逻辑判断。
+/// 所有超时判断、丢失判定均基于输送线配置（ConveyorSegmentConfiguration）。
 /// </remarks>
 [ApiController]
 [Route("api/sorting")]
@@ -344,19 +346,20 @@ public class SortingController : ApiControllerBase
     /// <response code="200">成功返回Position间隔数据</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 此接口用于支持包裹丢失检测方案A+（中位数自适应超时检测）。
+    /// ⚠️ 重要：此接口返回的中位数数据仅用于观测和监控，不用于任何分拣逻辑判断。
+    /// 所有超时判断、丢失判定均基于输送线配置（ConveyorSegmentConfiguration）。
     /// 
     /// 返回每个positionIndex从上一个positionIndex到当前positionIndex的实际触发间隔中位数。
     /// 
     /// **数据说明**：
-    /// - MedianIntervalMs：最近N次触发的间隔中位数（毫秒）
+    /// - MedianIntervalMs：最近N次触发的间隔中位数（毫秒）- 仅供观测
     /// - SampleCount：实际采样次数（少于10次时为实际采样数）
     /// - LastTriggerTime：最后一次触发时间
     /// 
     /// **应用场景**：
-    /// - 配置动态超时阈值
     /// - 监控分拣流量密度
     /// - 识别异常慢速段
+    /// - 性能分析和优化
     /// 
     /// **示例响应**：
     /// ```json
@@ -381,8 +384,8 @@ public class SortingController : ApiControllerBase
     /// </remarks>
     [HttpGet("position-intervals")]
     [SwaggerOperation(
-        Summary = "获取所有Position的触发间隔中位数",
-        Description = "返回各positionIndex的实际触发间隔统计信息，用于支持包裹丢失检测方案A+",
+        Summary = "获取所有Position的触发间隔中位数（仅观测）",
+        Description = "返回各positionIndex的实际触发间隔统计信息，用于观测和监控（不用于分拣判断）",
         OperationId = "GetPositionIntervals",
         Tags = new[] { "分拣管理" }
     )]
@@ -795,19 +798,17 @@ public class SortingController : ApiControllerBase
     /// 返回包裹丢失检测的相关配置参数，包括：
     /// 
     /// **丢失检测系数 (LostDetectionMultiplier)**：
-    /// - 用于计算丢失判定阈值 = 中位数间隔 * 丢失检测系数
-    /// - 默认值：1.5
-    /// - 推荐范围：1.5-2.5
-    /// - 值越小越敏感，但可能误报；值越大越宽松，但可能漏报
+    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际丢失判断
+    /// - 实际丢失判断使用：LostDetectionTimeoutMs = TimeoutThresholdMs × 1.5（基于输送线配置）
+    /// - 默认值：1.5（保留为向后兼容）
     /// 
     /// **超时检测系数 (TimeoutMultiplier)**：
-    /// - 用于计算超时判定阈值 = 中位数间隔 * 超时检测系数
-    /// - 默认值：3.0
-    /// - 推荐范围：2.5-3.5
-    /// - 超时包裹会被导向异常格口，但不会从队列删除
+    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际超时判断
+    /// - 实际超时判断使用：TimeoutThresholdMs（来自 ConveyorSegmentConfiguration.TimeToleranceMs）
+    /// - 默认值：3.0（保留为向后兼容）
     /// 
     /// **历史窗口大小 (WindowSize)**：
-    /// - 保留最近N个间隔样本用于统计
+    /// - 保留最近N个间隔样本用于统计观测
     /// - 默认值：10
     /// 
     /// **示例响应**：
@@ -893,19 +894,19 @@ public class SortingController : ApiControllerBase
     /// **丢失检测系数 (LostDetectionMultiplier)**：
     /// - 可选参数
     /// - 取值范围：1.0-5.0
-    /// - 建议根据实际线速和包裹密度调整
-    /// - 例如：高速线体建议使用较小值（1.5-2.0），低速线体可使用较大值（2.0-2.5）
+    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际丢失判断
     /// - 如不提供则保持当前值不变
     /// 
     /// **超时检测系数 (TimeoutMultiplier)**：
     /// - 可选参数
     /// - 取值范围：1.5-10.0
+    /// - ⚠️ 已废弃：仅用于中位数统计观测，不用于实际超时判断
     /// - 如不提供则保持当前值不变
     /// 
     /// **历史窗口大小 (WindowSize)**：
     /// - 可选参数
     /// - 取值范围：10-10000
-    /// - 保留最近N个间隔样本用于计算中位数
+    /// - 保留最近N个间隔样本用于计算中位数（仅观测用）
     /// - 如不提供则保持当前值不变
     /// 
     /// **部分更新支持**：

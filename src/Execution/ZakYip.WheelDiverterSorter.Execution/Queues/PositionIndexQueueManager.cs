@@ -40,7 +40,7 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <inheritdoc/>
     public void EnqueueTask(int positionIndex, PositionQueueItem task)
     {
-        // 应用动态丢失检测阈值（基于中位数×系数）
+        // 应用丢失检测阈值（基于输送线配置）
         task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
         
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
@@ -55,7 +55,7 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <inheritdoc/>
     public void EnqueuePriorityTask(int positionIndex, PositionQueueItem task)
     {
-        // 应用动态丢失检测阈值（基于中位数×系数）
+        // 应用丢失检测阈值（基于输送线配置）
         task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
         
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
@@ -368,7 +368,7 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     }
 
     /// <summary>
-    /// 应用动态丢失检测截止时间（基于中位数×系数）
+    /// 应用丢失检测截止时间（基于输送线配置）
     /// </summary>
     /// <param name="task">原始任务</param>
     /// <param name="positionIndex">位置索引</param>
@@ -376,8 +376,9 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <remarks>
     /// <para>首先检查配置是否启用包裹丢失检测（IsEnabled）。</para>
     /// <para>如果禁用，则清除任务的所有丢失检测字段，阻止任何形式的丢失判定。</para>
-    /// <para>如果启用，则优先使用 IPositionIntervalTracker 计算的动态阈值（median × coefficient）。</para>
-    /// <para>如果动态阈值不可用（数据不足或未注入tracker），则回退到静态值。</para>
+    /// <para>如果启用，则使用任务中的 TimeoutThresholdMs（来自 ConveyorSegmentConfiguration.TimeToleranceMs）。</para>
+    /// <para>丢失检测阈值 = TimeoutThresholdMs × 1.5，用于区分超时和丢失两种情况。</para>
+    /// <para>⚠️ 重要：不再使用中位数计算，所有判断均基于输送线配置。</para>
     /// </remarks>
     private PositionQueueItem ApplyDynamicLostDetectionDeadline(PositionQueueItem task, int positionIndex)
     {
@@ -411,48 +412,27 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             };
         }
         
-        // 检测已启用，继续应用动态/静态阈值
-        // 如果任务已有 ExpectedArrivalTime，尝试应用动态阈值
-        if (task.ExpectedArrivalTime != default)
+        // 检测已启用，使用输送线配置（TimeoutThresholdMs）计算丢失检测阈值
+        // 如果任务已有 ExpectedArrivalTime 和 TimeoutThresholdMs，计算丢失检测截止时间
+        if (task.ExpectedArrivalTime != default && task.TimeoutThresholdMs > 0)
         {
-            // 尝试获取动态阈值（基于中位数×系数）
-            var dynamicThreshold = _intervalTracker?.GetLostDetectionThreshold(positionIndex);
+            // 使用 TimeoutThresholdMs × 1.5 作为丢失检测阈值
+            // 这确保丢失判定比超时判定更宽松，用于区分"超时"和"物理丢失"两种情况
+            var lostDetectionThreshold = task.TimeoutThresholdMs * 1.5;
+            var newDeadline = task.ExpectedArrivalTime.AddMilliseconds(lostDetectionThreshold);
             
-            if (dynamicThreshold.HasValue)
+            _logger.LogDebug(
+                "[配置阈值] Position {PositionIndex} 包裹 {ParcelId}: 使用输送线配置阈值 {ThresholdMs}ms (TimeoutThreshold × 1.5)，截止时间 {Deadline:HH:mm:ss.fff}",
+                positionIndex, task.ParcelId, lostDetectionThreshold, newDeadline);
+            
+            return task with
             {
-                // 使用动态阈值计算截止时间
-                var newDeadline = task.ExpectedArrivalTime.AddMilliseconds(dynamicThreshold.Value);
-                
-                _logger.LogDebug(
-                    "[动态阈值] Position {PositionIndex} 包裹 {ParcelId}: 使用中位数动态阈值 {ThresholdMs}ms，截止时间 {Deadline:HH:mm:ss.fff}",
-                    positionIndex, task.ParcelId, dynamicThreshold.Value, newDeadline);
-                
-                return task with
-                {
-                    LostDetectionTimeoutMs = (long)dynamicThreshold.Value,
-                    LostDetectionDeadline = newDeadline
-                };
-            }
-            else if (task.LostDetectionDeadline == null && task.TimeoutThresholdMs > 0)
-            {
-                // 回退：如果没有动态阈值，但有 TimeoutThresholdMs，则使用 TimeoutThresholdMs × 1.5
-                // 这确保了向后兼容性
-                var fallbackThreshold = task.TimeoutThresholdMs * 1.5;
-                var newDeadline = task.ExpectedArrivalTime.AddMilliseconds(fallbackThreshold);
-                
-                _logger.LogDebug(
-                    "[静态回退] Position {PositionIndex} 包裹 {ParcelId}: 动态阈值不可用，使用静态阈值 {ThresholdMs}ms (TimeoutThreshold × 1.5)",
-                    positionIndex, task.ParcelId, fallbackThreshold);
-                
-                return task with
-                {
-                    LostDetectionTimeoutMs = (long)fallbackThreshold,
-                    LostDetectionDeadline = newDeadline
-                };
-            }
+                LostDetectionTimeoutMs = (long)lostDetectionThreshold,
+                LostDetectionDeadline = newDeadline
+            };
         }
         
-        // 如果无法计算，返回原任务
+        // 如果无法计算（缺少必要字段），返回原任务
         return task;
     }
 }
