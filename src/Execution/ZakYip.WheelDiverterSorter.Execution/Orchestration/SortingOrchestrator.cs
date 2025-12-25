@@ -1364,28 +1364,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 3. IO触发时只需要判断"超时"（延迟到达）或"正常到达"
         // 4. 即使包裹延迟很大（如前面包裹丢失导致），也应该正常执行摆轮动作
 
-        // 检查超时检测是否启用
-        bool enableTimeoutDetection = false;
-        if (_topologyRepository != null && _segmentRepository != null)
-        {
-            var topology = _topologyRepository.Get();
-            if (topology != null)
-            {
-                var node = topology.FindNodeByDiverterId(task.DiverterId);
-                if (node != null)
-                {
-                    var segment = _segmentRepository.GetById(node.SegmentId);
-                    if (segment != null)
-                    {
-                        enableTimeoutDetection = segment.EnableLossDetection;
-                    }
-                }
-            }
-        }
-
         // 检查是否超时（延迟到达）
-        // 只有在启用超时检测时才执行超时判断和处理
-        var isTimeout = enableTimeoutDetection && 
+        // 超时检测由任务创建时固定的 EnableTimeoutDetection 标志控制
+        // - 启用时：延迟到达判定为"超时"，执行回退动作并插入补偿任务
+        // - 禁用时：不区分"延迟到达"和"正常到达"，一律按正常到达执行主动作
+        var isTimeout = task.EnableTimeoutDetection && 
                        currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
 
         DiverterDirection actionToExecute;
@@ -1435,7 +1418,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
                             LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
                             // 最早出队时间（提前触发检测）
-                            EarliestDequeueTime = compensationEarliestDequeueTime
+                            EarliestDequeueTime = compensationEarliestDequeueTime,
+                            // 继承原任务的超时检测开关设置
+                            EnableTimeoutDetection = task.EnableTimeoutDetection
                         };
 
                         // 使用优先入队，插入到队列头部
@@ -1485,7 +1470,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                     LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
                                     LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
                                     // 最早出队时间（提前触发检测）
-                                    EarliestDequeueTime = fallbackEarliestDequeueTime
+                                    EarliestDequeueTime = fallbackEarliestDequeueTime,
+                                    // 继承原任务的超时检测开关设置
+                                    EnableTimeoutDetection = task.EnableTimeoutDetection
                                 };
 
                                 // 使用优先入队，插入到队列头部

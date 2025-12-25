@@ -645,6 +645,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             // 计算理论传输时间和超时容差
             double transitTimeMs;
             long timeoutThresholdMs;
+            bool enableTimeoutDetection = false;
             
             if (segmentConfig == null)
             {
@@ -652,15 +653,18 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 // 这样可以确保即使配置缺失，包裹仍能正常分拣
                 transitTimeMs = DefaultSegmentTtlMs;
                 timeoutThresholdMs = DefaultTimeoutThresholdMs;
+                // 配置缺失时禁用超时检测（安全默认值）
+                enableTimeoutDetection = false;
                 
                 _logger?.LogWarning(
-                    "[队列任务生成] 线段配置不存在 (SegmentId={SegmentId})，使用默认值 (TransitTime={TransitTimeMs}ms, Timeout={TimeoutMs}ms)",
+                    "[队列任务生成] 线段配置不存在 (SegmentId={SegmentId})，使用默认值 (TransitTime={TransitTimeMs}ms, Timeout={TimeoutMs}ms)，超时检测已禁用",
                     node.SegmentId, transitTimeMs, timeoutThresholdMs);
             }
             else
             {
                 transitTimeMs = segmentConfig.CalculateTransitTimeMs();
                 timeoutThresholdMs = segmentConfig.TimeToleranceMs;
+                enableTimeoutDetection = segmentConfig.EnableLossDetection;
             }
             
             // 累加到当前时间
@@ -708,7 +712,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 LostDetectionTimeoutMs = (long)(timeoutThresholdMs * 1.5),
                 LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5),
                 // 最早出队时间（提前触发检测）
-                EarliestDequeueTime = earliestDequeueTime
+                EarliestDequeueTime = earliestDequeueTime,
+                // 超时检测开关（从线段配置获取，任务创建时固定）
+                EnableTimeoutDetection = enableTimeoutDetection
             };
 
             tasks.Add(task);
@@ -761,20 +767,24 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             // 计算理论传输时间和超时容差
             double transitTimeMs;
             long timeoutThresholdMs;
+            bool enableTimeoutDetection = false;
             
             if (segmentConfig != null)
             {
                 transitTimeMs = segmentConfig.CalculateTransitTimeMs();
                 timeoutThresholdMs = segmentConfig.TimeToleranceMs;
+                enableTimeoutDetection = segmentConfig.EnableLossDetection;
             }
             else
             {
                 // 线段配置不存在时，使用默认值
                 transitTimeMs = DefaultSegmentTtlMs;
                 timeoutThresholdMs = DefaultTimeoutThresholdMs;
+                // 配置缺失时禁用超时检测（安全默认值）
+                enableTimeoutDetection = false;
                 
                 _logger?.LogWarning(
-                    "[异常格口任务生成] 线段配置不存在 (SegmentId={SegmentId})，使用默认值 (TransitTime={TransitTimeMs}ms, Timeout={TimeoutMs}ms)",
+                    "[异常格口任务生成] 线段配置不存在 (SegmentId={SegmentId})，使用默认值 (TransitTime={TransitTimeMs}ms, Timeout={TimeoutMs}ms)，超时检测已禁用",
                     node.SegmentId, transitTimeMs, timeoutThresholdMs);
             }
             
@@ -802,7 +812,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 LostDetectionTimeoutMs = (long)(timeoutThresholdMs * 1.5),
                 LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5),
                 // 最早出队时间（提前触发检测）
-                EarliestDequeueTime = earliestDequeueTime
+                EarliestDequeueTime = earliestDequeueTime,
+                // 超时检测开关（从线段配置获取，任务创建时固定）
+                EnableTimeoutDetection = enableTimeoutDetection
             };
 
             tasks.Add(task);
