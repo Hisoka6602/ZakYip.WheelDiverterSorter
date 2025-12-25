@@ -684,6 +684,15 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 targetDirection = DiverterDirection.Straight;
             }
 
+            // 计算最早出队时间（用于提前触发检测）
+            // EarliestDequeueTime = Max(CreatedAt, ExpectedArrivalTime - TimeoutThresholdMs)
+            // 确保不早于包裹创建时间
+            var earliestDequeueTime = currentTime.AddMilliseconds(-timeoutThresholdMs);
+            if (earliestDequeueTime < createdAt)
+            {
+                earliestDequeueTime = createdAt;
+            }
+
             // 创建队列任务
             var task = new PositionQueueItem
             {
@@ -697,7 +706,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 CreatedAt = createdAt, // 使用包裹创建时间，而非任务生成时间
                 // 丢失判定超时 = TimeoutThreshold * 1.5 (默认系数)
                 LostDetectionTimeoutMs = (long)(timeoutThresholdMs * 1.5),
-                LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5)
+                LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5),
+                // 最早出队时间（提前触发检测）
+                EarliestDequeueTime = earliestDequeueTime
             };
 
             tasks.Add(task);
@@ -770,6 +781,13 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             // 累加到当前时间
             currentTime = currentTime.AddMilliseconds(transitTimeMs);
 
+            // 计算最早出队时间（用于提前触发检测）
+            var earliestDequeueTime = currentTime.AddMilliseconds(-timeoutThresholdMs);
+            if (earliestDequeueTime < createdAt)
+            {
+                earliestDequeueTime = createdAt;
+            }
+
             var task = new PositionQueueItem
             {
                 ParcelId = parcelId,
@@ -782,7 +800,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
                 CreatedAt = createdAt, // 使用包裹创建时间，而非任务生成时间
                 // 丢失判定超时 = TimeoutThreshold * 1.5
                 LostDetectionTimeoutMs = (long)(timeoutThresholdMs * 1.5),
-                LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5)
+                LostDetectionDeadline = currentTime.AddMilliseconds(timeoutThresholdMs * 1.5),
+                // 最早出队时间（提前触发检测）
+                EarliestDequeueTime = earliestDequeueTime
             };
 
             tasks.Add(task);

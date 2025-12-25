@@ -1256,17 +1256,79 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         var currentTime = _clock.LocalNow;
 
         _logger.LogDebug(
-            "Position {PositionIndex} 传感器 {SensorId} 触发，从队列取出任务",
+            "Position {PositionIndex} 传感器 {SensorId} 触发，检查队列任务",
             positionIndex, sensorId);
 
-        // 从 Position-Index 队列取出任务
-        var task = _queueManager!.DequeueTask(positionIndex);
-
-        if (task == null)
+        // 先窥视队列头部任务（不出队）
+        var peekedTask = _queueManager!.PeekTask(positionIndex);
+        
+        if (peekedTask == null)
         {
             // Issue #1: 统一记录空队列异常，避免重复告警噪声
             _logger.LogWarning(
                 "Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - 记录为超时异常",
+                positionIndex, sensorId, boundWheelDiverterId);
+            
+            RecordSortingFailure(0, isTimeout: true);
+            return;
+        }
+
+        // 检查是否启用提前触发检测
+        var systemConfig = _systemConfigRepository.Get();
+        var enableEarlyTriggerDetection = systemConfig?.EnableEarlyTriggerDetection ?? false;
+        
+        // 提前触发检测：如果启用且队列任务有 EarliestDequeueTime，检查当前时间是否过早
+        if (enableEarlyTriggerDetection && peekedTask.EarliestDequeueTime.HasValue)
+        {
+            if (currentTime < peekedTask.EarliestDequeueTime.Value)
+            {
+                var earlyMs = (peekedTask.EarliestDequeueTime.Value - currentTime).TotalMilliseconds;
+                
+                _logger.LogWarning(
+                    "[提前触发检测] Position {PositionIndex} 传感器 {SensorId} 提前触发 {EarlyMs}ms，" +
+                    "包裹 {ParcelId} 不出队、不执行动作 | " +
+                    "当前时间={CurrentTime:HH:mm:ss.fff}, " +
+                    "最早出队时间={EarliestTime:HH:mm:ss.fff}, " +
+                    "期望到达时间={ExpectedTime:HH:mm:ss.fff}",
+                    positionIndex, sensorId, earlyMs,
+                    peekedTask.ParcelId,
+                    currentTime,
+                    peekedTask.EarliestDequeueTime.Value,
+                    peekedTask.ExpectedArrivalTime);
+                
+                // 记录告警到统计（用于监控提前触发频率）
+                _alarmService?.RaiseAlarm(new AlarmEvent
+                {
+                    Level = AlarmLevel.Warning,
+                    Type = AlarmType.SortingAbnormal,
+                    Message = $"Position {positionIndex} 传感器 {sensorId} 提前触发 {earlyMs:F0}ms，包裹 {peekedTask.ParcelId} 被跳过",
+                    Source = $"Position{positionIndex}",
+                    Timestamp = currentTime,
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["ParcelId"] = peekedTask.ParcelId,
+                        ["PositionIndex"] = positionIndex,
+                        ["SensorId"] = sensorId,
+                        ["EarlyMs"] = earlyMs,
+                        ["EarliestDequeueTime"] = peekedTask.EarliestDequeueTime.Value,
+                        ["ExpectedArrivalTime"] = peekedTask.ExpectedArrivalTime,
+                        ["CurrentTime"] = currentTime
+                    }
+                });
+                
+                // 不出队、不执行动作，直接返回
+                return;
+            }
+        }
+        
+        // 正常流程：从队列取出任务
+        var task = _queueManager!.DequeueTask(positionIndex);
+        
+        if (task == null)
+        {
+            // 理论上不应该发生（刚刚窥视时队列有任务），但防御性编程
+            _logger.LogWarning(
+                "Position {PositionIndex} 窥视有任务但出队失败，传感器 {SensorId} (摆轮ID={WheelDiverterId})",
                 positionIndex, sensorId, boundWheelDiverterId);
             
             RecordSortingFailure(0, isTimeout: true);
@@ -1315,19 +1377,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                     foreach (var node in subsequentNodes)
                     {
+                        var now = _clock.LocalNow;
+                        var earliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
+                        if (earliestDequeueTime < now)
+                        {
+                            earliestDequeueTime = now;
+                        }
+                        
                         var straightTask = new PositionQueueItem
                         {
                             ParcelId = task.ParcelId,
                             DiverterId = node.DiverterId,
                             DiverterAction = DiverterDirection.Straight,
-                            ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                            ExpectedArrivalTime = now, // 已超时，使用当前时间
                             TimeoutThresholdMs = task.TimeoutThresholdMs,
                             FallbackAction = DiverterDirection.Straight,
                             PositionIndex = node.PositionIndex,
-                            CreatedAt = _clock.LocalNow,
+                            CreatedAt = now,
                             // 丢失判定超时 = TimeoutThreshold * 1.5
                             LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                            LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
+                            LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
+                            // 最早出队时间（提前触发检测）
+                            EarliestDequeueTime = earliestDequeueTime
                         };
 
                         // 使用优先入队，插入到队列头部
@@ -1356,19 +1427,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                             foreach (var node in fallbackSubsequentNodes)
                             {
+                                var now = _clock.LocalNow;
+                                var earliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
+                                if (earliestDequeueTime < now)
+                                {
+                                    earliestDequeueTime = now;
+                                }
+                                
                                 var straightTask = new PositionQueueItem
                                 {
                                     ParcelId = task.ParcelId,
                                     DiverterId = node.DiverterId,
                                     DiverterAction = DiverterDirection.Straight,
-                                    ExpectedArrivalTime = _clock.LocalNow, // 已超时，使用当前时间
+                                    ExpectedArrivalTime = now, // 已超时，使用当前时间
                                     TimeoutThresholdMs = task.TimeoutThresholdMs,
                                     FallbackAction = DiverterDirection.Straight,
                                     PositionIndex = node.PositionIndex,
-                                    CreatedAt = _clock.LocalNow,
+                                    CreatedAt = now,
                                     // 丢失判定超时 = TimeoutThreshold * 1.5
                                     LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                                    LostDetectionDeadline = _clock.LocalNow.AddMilliseconds(task.TimeoutThresholdMs * 1.5)
+                                    LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
+                                    // 最早出队时间（提前触发检测）
+                                    EarliestDequeueTime = earliestDequeueTime
                                 };
 
                                 // 使用优先入队，插入到队列头部
