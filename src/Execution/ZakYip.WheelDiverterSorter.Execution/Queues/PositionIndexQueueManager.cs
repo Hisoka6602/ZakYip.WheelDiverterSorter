@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Execution.Tracking;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Queues;
@@ -22,15 +23,18 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     private readonly ILogger<PositionIndexQueueManager> _logger;
     private readonly ISystemClock _clock;
     private readonly IPositionIntervalTracker? _intervalTracker;
+    private readonly IParcelLossDetectionConfigurationRepository? _configRepository;
 
     public PositionIndexQueueManager(
         ILogger<PositionIndexQueueManager> logger,
         ISystemClock clock,
-        IPositionIntervalTracker? intervalTracker = null)
+        IPositionIntervalTracker? intervalTracker = null,
+        IParcelLossDetectionConfigurationRepository? configRepository = null)
     {
         _logger = logger;
         _clock = clock;
         _intervalTracker = intervalTracker;
+        _configRepository = configRepository;
     }
 
     /// <inheritdoc/>
@@ -370,11 +374,44 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <param name="positionIndex">位置索引</param>
     /// <returns>更新后的任务</returns>
     /// <remarks>
-    /// <para>优先使用 IPositionIntervalTracker 计算的动态阈值（median × coefficient）。</para>
+    /// <para>首先检查配置是否启用包裹丢失检测（IsEnabled）。</para>
+    /// <para>如果禁用，则清除任务的所有丢失检测字段，阻止任何形式的丢失判定。</para>
+    /// <para>如果启用，则优先使用 IPositionIntervalTracker 计算的动态阈值（median × coefficient）。</para>
     /// <para>如果动态阈值不可用（数据不足或未注入tracker），则回退到静态值。</para>
     /// </remarks>
     private PositionQueueItem ApplyDynamicLostDetectionDeadline(PositionQueueItem task, int positionIndex)
     {
+        // 检查是否启用了包裹丢失检测
+        bool isDetectionEnabled = true; // 默认启用（安全策略）
+        if (_configRepository != null)
+        {
+            try
+            {
+                var config = _configRepository.Get();
+                isDetectionEnabled = config.IsEnabled;
+            }
+            catch (Exception ex)
+            {
+                // 配置读取失败，使用默认值（启用）
+                _logger.LogWarning(ex, "读取包裹丢失检测配置失败，使用默认值（启用）");
+            }
+        }
+        
+        // 如果检测被禁用，清除所有丢失检测相关字段
+        if (!isDetectionEnabled)
+        {
+            _logger.LogDebug(
+                "[检测已禁用] Position {PositionIndex} 包裹 {ParcelId}: 包裹丢失检测已禁用，清除丢失判定字段",
+                positionIndex, task.ParcelId);
+            
+            return task with
+            {
+                LostDetectionTimeoutMs = null,
+                LostDetectionDeadline = null
+            };
+        }
+        
+        // 检测已启用，继续应用动态/静态阈值
         // 如果任务已有 ExpectedArrivalTime，尝试应用动态阈值
         if (task.ExpectedArrivalTime != default)
         {
