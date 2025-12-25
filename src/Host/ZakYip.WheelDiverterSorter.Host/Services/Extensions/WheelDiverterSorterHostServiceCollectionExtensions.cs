@@ -84,6 +84,10 @@ public static class WheelDiverterSorterHostServiceCollectionExtensions
         services.AddHostedService<AlarmMonitoringWorker>();
         services.AddHostedService<RouteTopologyConsistencyCheckWorker>();
         services.AddHostedService<PanelButtonMonitorWorker>();
+        
+        // 注册摆轮心跳监控服务（始终运行，确保摆轮断开后持续重连）
+        // 此服务独立于 HealthCheck 配置，保证在所有系统状态下持续监控和重连摆轮
+        services.AddHostedService<WheelDiverterHeartbeatMonitor>();
 
         return services;
     }
