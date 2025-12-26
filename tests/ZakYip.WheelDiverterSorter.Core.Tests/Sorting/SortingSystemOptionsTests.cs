@@ -26,7 +26,7 @@ public class SortingSystemOptionsTests
         Assert.Null(options.FixedChuteId);
         Assert.Empty(options.AvailableChuteIds);
         Assert.Equal(0.9m, options.ChuteAssignmentTimeoutSafetyFactor);
-        Assert.Equal(5m, options.ChuteAssignmentFallbackTimeoutSeconds);
+        Assert.Equal(5000, options.ChuteAssignmentFallbackTimeoutMs);
     }
 
     [Fact]
@@ -278,14 +278,14 @@ public class SortingSystemOptionsTests
 
     [Theory]
     [InlineData(0)]
-    [InlineData(0.5)]
+    [InlineData(500)]    // 0.5 seconds = 500ms
     [InlineData(-1)]
-    public void Validate_WithTooLowFallbackTimeout_ShouldFail(decimal timeout)
+    public void Validate_WithTooLowFallbackTimeout_ShouldFail(int timeout)
     {
         // Arrange
         var options = new SortingSystemOptions
         {
-            ChuteAssignmentFallbackTimeoutSeconds = timeout
+            ChuteAssignmentFallbackTimeoutMs = timeout
         };
 
         // Act
@@ -297,14 +297,14 @@ public class SortingSystemOptionsTests
     }
 
     [Theory]
-    [InlineData(61)]
-    [InlineData(100)]
-    public void Validate_WithTooHighFallbackTimeout_ShouldFail(decimal timeout)
+    [InlineData(61000)]  // 61 seconds = 61000ms
+    [InlineData(100000)] // 100 seconds = 100000ms
+    public void Validate_WithTooHighFallbackTimeout_ShouldFail(int timeout)
     {
         // Arrange
         var options = new SortingSystemOptions
         {
-            ChuteAssignmentFallbackTimeoutSeconds = timeout
+            ChuteAssignmentFallbackTimeoutMs = timeout
         };
 
         // Act

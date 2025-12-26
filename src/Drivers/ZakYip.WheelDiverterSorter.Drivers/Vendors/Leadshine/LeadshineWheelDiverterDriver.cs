@@ -181,7 +181,13 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
                 }
             }
 
-            await Task.Delay(1, cancellationToken);
+            /// <summary>
+            /// 摆轮动作最小稳定延迟（毫秒）
+            /// Minimal delay to ensure diverter hardware state stabilization
+            /// </summary>
+            const int DiverterActionStabilizationDelayMs = 1;
+            
+            await Task.Delay(DiverterActionStabilizationDelayMs, cancellationToken);
 
             _logger.LogInformation(
                 "[摆轮通信-发送完成] 摆轮 {DiverterId} 方向设置成功 | 目标方向={Direction}",

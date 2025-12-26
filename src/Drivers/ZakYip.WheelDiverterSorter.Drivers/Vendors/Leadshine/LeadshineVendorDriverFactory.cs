@@ -96,6 +96,7 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
     // IIoLinkageDriver and ISensorInputReader are now registered directly in DI
     // to avoid circular dependencies and to support the centralized IO cache architecture.
     
+    [Obsolete("CreateIoLinkageDriver is deprecated. IIoLinkageDriver is now registered directly in DI container. See LeadshineIoServiceCollectionExtensions.AddLeadshineIo()")]
     public IIoLinkageDriver CreateIoLinkageDriver()
     {
         throw new NotSupportedException(
@@ -104,6 +105,7 @@ public class LeadshineVendorDriverFactory : IVendorDriverFactory
             "See LeadshineIoServiceCollectionExtensions.AddLeadshineIo()");
     }
 
+    [Obsolete("CreateSensorInputReader is deprecated. ISensorInputReader is now registered directly in DI container. See LeadshineIoServiceCollectionExtensions.AddLeadshineIo()")]
     public ISensorInputReader? CreateSensorInputReader()
     {
         throw new NotSupportedException(

@@ -76,14 +76,14 @@ public class SortingOrchestratorTests : IDisposable
 
         _options = Options.Create(new UpstreamConnectionOptions
         {
-            FallbackTimeoutSeconds = 5m
+            FallbackTimeoutMs = 5000
         });
 
         _defaultConfig = new SystemConfiguration
         {
             SortingMode = SortingMode.Formal,
             ExceptionChuteId = 99,
-            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutSeconds = 5m },
+            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutMs = 5000 },
             AvailableChuteIds = new List<long> { 1, 2, 3, 4, 5 }
         };
 
@@ -308,7 +308,7 @@ public class SortingOrchestratorTests : IDisposable
         {
             SortingMode = SortingMode.Formal,
             ExceptionChuteId = exceptionChuteId,
-            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutSeconds = 0.1m } // 很短的超时时间
+            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutMs = 100 } // 很短的超时时间
         };
         _mockConfigRepository.Setup(r => r.Get()).Returns(config);
 

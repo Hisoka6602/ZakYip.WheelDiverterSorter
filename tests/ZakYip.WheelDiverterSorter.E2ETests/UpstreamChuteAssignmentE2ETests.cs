@@ -148,7 +148,7 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
         // 设置超时时间为1秒（用于快速测试）
         systemConfig.ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions
         {
-            FallbackTimeoutSeconds = 1,
+            FallbackTimeoutMs = 1000,
             SafetyFactor = 0.9m
         };
 
@@ -200,7 +200,7 @@ public class UpstreamChuteAssignmentE2ETests : E2ETestBase
         // 设置超时时间为1秒
         systemConfig.ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions
         {
-            FallbackTimeoutSeconds = 1,
+            FallbackTimeoutMs = 1000,
             SafetyFactor = 0.9m
         };
 

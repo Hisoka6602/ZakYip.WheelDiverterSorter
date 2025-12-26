@@ -61,14 +61,14 @@ public class SortingOrchestratorStateChangeTests : IDisposable
 
         _options = Options.Create(new UpstreamConnectionOptions
         {
-            FallbackTimeoutSeconds = 5m
+            FallbackTimeoutMs = 5000
         });
 
         var defaultConfig = new SystemConfiguration
         {
             SortingMode = SortingMode.Formal,
             ExceptionChuteId = 999,
-            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutSeconds = 5m }
+            ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutMs = 5000 }
         };
 
         _mockConfigRepository.Setup(r => r.Get()).Returns(defaultConfig);

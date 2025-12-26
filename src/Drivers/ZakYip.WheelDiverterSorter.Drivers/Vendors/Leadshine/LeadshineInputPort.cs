@@ -78,7 +78,7 @@ public class LeadshineInputPort : InputPortBase
             var array = new bool[count];
             for (int i = 0; i < count; i++)
             {
-                array[i] = results.TryGetValue(startBit + i, out bool value) ? value : false;
+                array[i] = results.TryGetValue(startBit + i, out bool value) && value;
             }
 
             return Task.FromResult(array);

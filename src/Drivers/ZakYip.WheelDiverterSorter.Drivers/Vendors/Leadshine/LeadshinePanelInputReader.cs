@@ -122,26 +122,22 @@ public class LeadshinePanelInputReader : IPanelInputReader
             var emergencyStopBits = new List<int>();
 
             // 收集常规按钮的IO位
-            foreach (PanelButtonType buttonType in Enum.GetValues<PanelButtonType>())
+            foreach (PanelButtonType buttonType in Enum.GetValues<PanelButtonType>().Where(bt => bt != PanelButtonType.EmergencyStop))
             {
-                if (buttonType == PanelButtonType.EmergencyStop)
-                {
-                    // 急停按钮需要特殊处理（可能有多个）
-                    foreach (var emergencyButton in config.EmergencyStopButtons)
-                    {
-                        if (!emergencyStopBits.Contains(emergencyButton.InputBit))
-                        {
-                            emergencyStopBits.Add(emergencyButton.InputBit);
-                        }
-                    }
-                    continue;
-                }
-
                 var (bitNumber, triggerLevel) = GetButtonConfig(buttonType, config);
                 
                 if (bitNumber.HasValue && !buttonBits.ContainsKey(bitNumber.Value))
                 {
                     buttonBits[bitNumber.Value] = (buttonType, triggerLevel);
+                }
+            }
+            
+            // 收集急停按钮的IO位（可能有多个）
+            foreach (var emergencyButton in config.EmergencyStopButtons)
+            {
+                if (!emergencyStopBits.Contains(emergencyButton.InputBit))
+                {
+                    emergencyStopBits.Add(emergencyButton.InputBit);
                 }
             }
 
@@ -157,8 +153,14 @@ public class LeadshinePanelInputReader : IPanelInputReader
                 int maxBit = allBitsToRead.Max();
                 int count = maxBit - minBit + 1;
                 
+                /// <summary>
+                /// 批量读取范围扩展倍数阈值
+                /// 当IO位范围不超过实际位数的此倍数时，使用批量读取更高效
+                /// </summary>
+                const int MaxBatchRangeMultiplier = 3;
+                
                 // 如果位分布比较集中（范围内的位数不超过实际需要读取位数的3倍），使用批量读取
-                if (count <= allBitsToRead.Count * 3)
+                if (count <= allBitsToRead.Count * MaxBatchRangeMultiplier)
                 {
                     bool[] batchValues = await _inputPort.ReadBatchAsync(minBit, count);
                     
@@ -209,7 +211,7 @@ public class LeadshinePanelInputReader : IPanelInputReader
                 try
                 {
                     // 从批量读取的结果中获取IO值
-                    bool rawValue = ioValues.TryGetValue(bitNumber.Value, out bool val) ? val : false;
+                    bool rawValue = ioValues.TryGetValue(bitNumber.Value, out bool val) && val;
 
                     // 根据触发电平判断按钮是否按下
                     bool isPressed = triggerLevel == TriggerLevel.ActiveHigh ? rawValue : !rawValue;
@@ -306,15 +308,9 @@ public class LeadshinePanelInputReader : IPanelInputReader
                 try
                 {
                     // 优先从缓存中读取，如果没有缓存则从硬件读取
-                    bool rawValue;
-                    if (ioValues != null && ioValues.TryGetValue(emergencyButton.InputBit, out bool cachedValue))
-                    {
-                        rawValue = cachedValue;
-                    }
-                    else
-                    {
-                        rawValue = await _inputPort.ReadAsync(emergencyButton.InputBit);
-                    }
+                    bool rawValue = ioValues != null && ioValues.TryGetValue(emergencyButton.InputBit, out bool cachedValue)
+                        ? cachedValue
+                        : await _inputPort.ReadAsync(emergencyButton.InputBit);
 
                     // 根据触发电平判断按钮是否按下
                     // ActiveHigh: 高电平=按下急停，低电平=解除急停

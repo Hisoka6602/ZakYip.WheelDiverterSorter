@@ -307,12 +307,15 @@ public class PanelConfigController : ControllerBase
     /// </summary>
     private static PanelConfiguration MapToConfiguration(PanelConfigRequest request, DateTime currentTime)
     {
+        // 面板按钮轮询间隔（毫秒），硬编码为10ms以确保实时响应
+        const int HardcodedPollingIntervalMs = 10;
+        
         return new PanelConfiguration
         {
             ConfigName = "panel",
             Version = 1,
             Enabled = request.Enabled,
-            PollingIntervalMs = 10, // 硬编码为10ms
+            PollingIntervalMs = HardcodedPollingIntervalMs,
             DebounceMs = request.DebounceMs,
             StartButtonInputBit = request.StartButton?.InputBit,
             StartButtonTriggerLevel = request.StartButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,

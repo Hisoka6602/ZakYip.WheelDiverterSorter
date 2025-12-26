@@ -21,7 +21,7 @@ public class SystemConfigurationTests
         Assert.Equal(999, config.ExceptionChuteId);
         Assert.NotNull(config.ChuteAssignmentTimeout);
         Assert.Equal(0.9m, config.ChuteAssignmentTimeout.SafetyFactor);
-        Assert.Equal(5m, config.ChuteAssignmentTimeout.FallbackTimeoutSeconds);
+        Assert.Equal(5000, config.ChuteAssignmentTimeout.FallbackTimeoutMs);
         Assert.Equal(1, config.Version);
         Assert.Equal(SortingMode.Formal, config.SortingMode);
     }
