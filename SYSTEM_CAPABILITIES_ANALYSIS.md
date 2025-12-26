@@ -458,6 +458,12 @@ public List<long> UpdateAffectedParcelsToStraight(DateTime lostParcelCreatedAt, 
    - 防抖时间、丢失检测阈值等参数需要根据实际情况调整
    - 参数过大会漏检，过小会误报
 
+4. **⚠️ UpdateAffectedParcelsToStraight 存在竞态条件** (新发现):
+   - 在修改队列时可能与 EnqueueTask/DequeueTask 产生竞态
+   - 可能导致 FIFO 顺序被破坏或任务丢失
+   - 建议增加锁保护机制
+   - **详细分析**: 参见 [docs/RACE_CONDITION_ANALYSIS.md](./docs/RACE_CONDITION_ANALYSIS.md)
+
 ### 4.4 优化建议
 
 #### **短期优化（0-1周）**
@@ -578,6 +584,7 @@ public List<long> UpdateAffectedParcelsToStraight(DateTime lostParcelCreatedAt, 
 - **[EDGE_CASE_HANDLING.md](./docs/EDGE_CASE_HANDLING.md)** - 边缘场景处理机制
 - **[LOSS_DETECTION_ENHANCEMENT_SUMMARY.md](./docs/LOSS_DETECTION_ENHANCEMENT_SUMMARY.md)** - 包裹丢失检测功能增强
 - **[guides/PARCEL_LOSS_DETECTION.md](./docs/guides/PARCEL_LOSS_DETECTION.md)** - 包裹丢失检测指南
+- **[RACE_CONDITION_ANALYSIS.md](./docs/RACE_CONDITION_ANALYSIS.md)** - UpdateAffectedParcelsToStraight 竞态条件分析（新增）
 
 ### 代码位置
 - 防抖实现: `src/Ingress/ZakYip.WheelDiverterSorter.Ingress/Services/ParcelDetectionService.cs`
