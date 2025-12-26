@@ -27,7 +27,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
+using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
@@ -75,7 +75,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     // 空的可用格口列表（静态共享实例）
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
 
-    private readonly ISensorEventProvider _sensorEventProvider;
+    private readonly IParcelDetectionService _parcelDetectionService;
     private readonly IUpstreamRoutingClient _upstreamClient;
     private readonly ISwitchingPathGenerator _pathGenerator;
     private readonly ISwitchingPathExecutor _pathExecutor;
@@ -167,7 +167,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     public SortingOrchestrator(
-        ISensorEventProvider sensorEventProvider,
+        IParcelDetectionService parcelDetectionService,
         IUpstreamRoutingClient upstreamClient,
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
@@ -205,7 +205,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 3. 使用消息总线解耦事件订阅
     /// </remarks>
     {
-        _sensorEventProvider = sensorEventProvider ?? throw new ArgumentNullException(nameof(sensorEventProvider));
+        _parcelDetectionService = parcelDetectionService ?? throw new ArgumentNullException(nameof(parcelDetectionService));
         _upstreamClient = upstreamClient ?? throw new ArgumentNullException(nameof(upstreamClient));
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
@@ -247,9 +247,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _parcelBarcodes = new ConcurrentDictionary<long, string>();
 
         // 订阅包裹检测事件
-        _sensorEventProvider.ParcelDetected += OnParcelDetected;
-        _sensorEventProvider.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
-        _sensorEventProvider.ChuteDropoffDetected += OnChuteDropoffDetected;
+        _parcelDetectionService.ParcelDetected += OnParcelDetected;
+        _parcelDetectionService.DuplicateTriggerDetected += OnDuplicateTriggerDetected;
+        _parcelDetectionService.ChuteDropoffDetected += OnChuteDropoffDetected;
 
         // PR-UPSTREAM02: 订阅格口分配事件（从 ChuteAssignmentReceived 改为 ChuteAssigned）
         _upstreamClient.ChuteAssigned += OnChuteAssignmentReceived;
@@ -285,7 +285,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 启动传感器事件监听
         _logger.LogInformation("正在启动传感器事件监听...");
-        await _sensorEventProvider.StartAsync(cancellationToken);
+        await _parcelDetectionService.StartAsync(cancellationToken);
         _logger.LogInformation("传感器事件监听已启动");
 
         // 连接到上游系统
@@ -310,7 +310,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 停止传感器事件监听
         _logger.LogInformation("正在停止传感器事件监听...");
-        await _sensorEventProvider.StopAsync();
+        await _parcelDetectionService.StopAsync();
         _logger.LogInformation("传感器事件监听已停止");
 
         // 断开与上游系统的连接
@@ -2555,9 +2555,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     public void Dispose()
     {
         // 取消订阅事件
-        _sensorEventProvider.ParcelDetected -= OnParcelDetected;
-        _sensorEventProvider.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
-        _sensorEventProvider.ChuteDropoffDetected -= OnChuteDropoffDetected;
+        _parcelDetectionService.ParcelDetected -= OnParcelDetected;
+        _parcelDetectionService.DuplicateTriggerDetected -= OnDuplicateTriggerDetected;
+        _parcelDetectionService.ChuteDropoffDetected -= OnChuteDropoffDetected;
         // PR-UPSTREAM02: 从 ChuteAssignmentReceived 改为 ChuteAssigned
         _upstreamClient.ChuteAssigned -= OnChuteAssignmentReceived;
 

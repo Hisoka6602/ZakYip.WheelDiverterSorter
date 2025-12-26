@@ -85,6 +85,11 @@
 - [TD-080] 低优先级性能优化收尾（TD-076 PR #4）
 - [TD-081] API 重组剩余工作（经审计确认已实现）
 - [TD-082] LiteDB RoutePlan 序列化兼容性修复
+- [TD-083] ConveyorSegment 迁移文档与实际不符
+- [TD-084] 配置管理迁移到 IOptions<T> 模式（过度工程简化 P0-2）
+- [TD-085] Factory 模式滥用简化（过度工程简化 P1-4）
+- [TD-086] Manager 类过多简化（过度工程简化 P1-5）
+- [TD-087] 事件系统引入 MediatR 统一事件总线（过度工程简化 P1-6）
 
 ---
 
@@ -5322,3 +5327,775 @@ try {
 - [x] 登记 TD-083 到技术债索引
 
 **相关 PR**：当前 PR (Fix ConveyorSegmentConfiguration ObjectId compatibility)
+
+---
+
+## [TD-084] 配置管理迁移到 IOptions<T> 模式
+
+**状态**：❌ 未开始 (2025-12-26 登记)  
+**创建日期**: 2025-12-26  
+**优先级**: 🔴 高（过度工程简化 P0-2）  
+**预估工作量**: 2-3天  
+**来源**: 过度工程分析报告 (OVER_ENGINEERING_ANALYSIS.md)
+
+### 问题描述
+
+当前系统使用 Repository 模式管理配置数据（11个仓储接口 + 12个 LiteDB 实现），但配置数据本质上是"启动时读取一次"的静态数据，不是领域实体，不需要完整的 Repository 模式。
+
+**当前实现问题**：
+- 11 个配置仓储接口：`ISystemConfigurationRepository`, `ICommunicationConfigurationRepository`, `IDriverConfigurationRepository` 等
+- 12 个 LiteDB 仓储实现：每个约350-400行代码
+- 配置数据被当作领域实体处理，增加了不必要的复杂度
+- 无法利用 ASP.NET Core 的热重载功能 (`IOptionsMonitor<T>`)
+- 总代码量：~4,400 行
+
+### 推荐方案
+
+采用 ASP.NET Core 标准的 `IOptions<T>` 模式：
+
+```csharp
+// 简化后的配置模型
+public class SystemConfiguration
+{
+    public int ExceptionChuteId { get; set; }
+    public int RoutingTimeoutMs { get; set; }
+    // ...
+}
+
+// appsettings.json
+{
+  "SystemConfig": {
+    "ExceptionChuteId": 999,
+    "RoutingTimeoutMs": 5000
+  }
+}
+
+// Program.cs - 一行配置
+services.Configure<SystemConfiguration>(
+    configuration.GetSection("SystemConfig"));
+
+// 使用 - 支持热重载
+public class MyService
+{
+    private readonly IOptionsMonitor<SystemConfiguration> _config;
+    
+    public MyService(IOptionsMonitor<SystemConfiguration> config)
+    {
+        _config = config;
+    }
+    
+    public void DoWork()
+    {
+        var exceptionChute = _config.CurrentValue.ExceptionChuteId;
+        // ...
+    }
+}
+```
+
+### 实施计划
+
+#### 阶段1：配置模型迁移（1天）
+
+**需迁移的配置类型**（11个）：
+1. `SystemConfiguration` → `SystemOptions`
+2. `CommunicationConfiguration` → `CommunicationOptions`
+3. `DriverConfiguration` → `DriverOptions`
+4. `SensorConfiguration` → `SensorOptions`
+5. `WheelDiverterConfiguration` → `WheelDiverterOptions`
+6. `IoLinkageConfiguration` → `IoLinkageOptions`
+7. `PanelConfiguration` → `PanelOptions`
+8. `LoggingConfiguration` → `LoggingOptions`
+9. `ChutePathTopologyConfig` → `TopologyOptions`
+10. `RouteConfiguration` → `RoutingOptions`
+11. `ConveyorSegmentConfiguration` → `ConveyorOptions`
+
+**任务清单**：
+- [ ] 创建 Options 类（保留原 Configuration 类的字段，移除 Id/CreatedAt/UpdatedAt）
+- [ ] 迁移验证特性（从模型验证转为 Options 验证）
+- [ ] 配置 appsettings.json 结构
+- [ ] 更新 Program.cs 配置绑定
+
+#### 阶段2：服务层适配（1天）
+
+**需更新的服务**：
+- 所有使用 `I*Repository.GetAsync()` 的服务
+- 改为注入 `IOptionsMonitor<*Options>`
+- 移除仓储依赖
+
+**示例修改**：
+```csharp
+// 修改前
+public class SortingOrchestrator
+{
+    private readonly ISystemConfigurationRepository _configRepo;
+    
+    public async Task<int> GetExceptionChuteAsync()
+    {
+        var config = await _configRepo.GetAsync();
+        return config.ExceptionChuteId;
+    }
+}
+
+// 修改后
+public class SortingOrchestrator
+{
+    private readonly IOptionsMonitor<SystemOptions> _config;
+    
+    public int GetExceptionChute()
+    {
+        return _config.CurrentValue.ExceptionChuteId;
+    }
+}
+```
+
+#### 阶段3：清理旧代码（0.5天）
+
+**需删除的文件**（~4,400行）：
+- 11 个仓储接口：`Core/LineModel/Configuration/Repositories/Interfaces/I*Repository.cs`
+- 12 个 LiteDB 实现：`Configuration.Persistence/Repositories/LiteDb/LiteDb*Repository.cs`
+- Configuration.Persistence 项目（整个项目可能不再需要）
+
+#### 阶段4：测试更新（0.5天）
+
+**需更新的测试**：
+- 配置相关的单元测试
+- 集成测试中的配置初始化
+- E2E 测试的配置准备
+
+### 预期收益
+
+| 指标 | 当前 | 优化后 | 改善 |
+|------|------|--------|------|
+| 代码行数 | ~4,400 | ~500 | -88% |
+| 配置文件数 | 23 (11接口+12实现) | 11 (仅Options) | -52% |
+| 配置读取方式 | 异步仓储查询 | 同步属性访问 | 简化 |
+| 热重载支持 | ❌ 不支持 | ✅ 支持 | 新功能 |
+| 类型安全 | ✅ | ✅ | 保持 |
+
+### 风险评估
+
+- **中风险**：配置数据当前存储在 LiteDB，迁移到 appsettings.json 需要数据导出
+- **低风险**：IOptions<T> 是 ASP.NET Core 标准模式，成熟稳定
+- **缓解措施**：提供一次性迁移工具，从 LiteDB 导出到 JSON
+
+### 验收标准
+
+- [ ] 所有配置类型已迁移到 IOptions<T>
+- [ ] 删除所有配置仓储接口和实现
+- [ ] 支持配置热重载（IOptionsMonitor）
+- [ ] 所有单元测试通过
+- [ ] 所有集成测试通过
+- [ ] E2E 测试验证配置加载正常
+- [ ] 代码行数减少 ~3,900 行
+
+### 相关文档
+
+- `OVER_ENGINEERING_ANALYSIS.md` - 过度工程分析主报告
+- `OVER_ENGINEERING_DETAILED_EXAMPLES.md` - 配置管理简化示例（示例2）
+- [ASP.NET Core Options 模式](https://learn.microsoft.com/zh-cn/aspnet/core/fundamentals/configuration/options)
+
+---
+
+## [TD-085] Factory 模式滥用简化
+
+**状态**：❌ 未开始 (2025-12-26 登记)  
+**创建日期**: 2025-12-26  
+**优先级**: 🟡 中等（过度工程简化 P1-4）  
+**预估工作量**: 4-6小时  
+**来源**: 过度工程分析报告 (OVER_ENGINEERING_ANALYSIS.md)
+
+### 问题描述
+
+项目中存在 17 个 Factory 类，大部分只是做简单的 switch 语句或字典查找，可以用 .NET 8+ 的 Keyed Services 功能替代。
+
+**当前 Factory 类统计**：
+```
+src/
+├── Core/
+│   ├── PathGeneratorFactory.cs
+│   ├── ChuteSelectionStrategyFactory.cs
+│   └── ...
+├── Drivers/
+│   ├── VendorDriverFactory.cs
+│   ├── WheelDiverterDriverFactory.cs
+│   └── ...
+└── Communication/
+    ├── UpstreamClientFactory.cs
+    └── ...
+
+总计: 17 个 Factory 类，~850 行代码
+```
+
+**典型问题模式**：
+```csharp
+// 当前实现 - 自定义 Factory
+public interface IWheelDiverterDriverFactory
+{
+    IWheelDiverterDriver Create(string vendorName);
+}
+
+public class WheelDiverterDriverFactory : IWheelDiverterDriverFactory
+{
+    private readonly IServiceProvider _serviceProvider;
+    
+    public IWheelDiverterDriver Create(string vendorName)
+    {
+        return vendorName switch
+        {
+            "Leadshine" => _serviceProvider.GetRequiredService<LeadshineWheelDiverterDriver>(),
+            "ShuDiNiao" => _serviceProvider.GetRequiredService<ShuDiNiaoWheelDiverterDriver>(),
+            "Simulated" => _serviceProvider.GetRequiredService<SimulatedWheelDiverterDriver>(),
+            _ => throw new ArgumentException($"Unknown vendor: {vendorName}")
+        };
+    }
+}
+```
+
+### 推荐方案
+
+使用 .NET 8+ Keyed Services 功能：
+
+```csharp
+// DI 注册
+services.AddKeyedSingleton<IWheelDiverterDriver, LeadshineWheelDiverterDriver>("Leadshine");
+services.AddKeyedSingleton<IWheelDiverterDriver, ShuDiNiaoWheelDiverterDriver>("ShuDiNiao");
+services.AddKeyedSingleton<IWheelDiverterDriver, SimulatedWheelDiverterDriver>("Simulated");
+
+// 使用方式1：通过 [FromKeyedServices] 注入
+public class DriverManager
+{
+    public DriverManager(
+        [FromKeyedServices("Leadshine")] IWheelDiverterDriver leadshineDriver,
+        [FromKeyedServices("ShuDiNiao")] IWheelDiverterDriver shuDiNiaoDriver)
+    {
+        // ...
+    }
+}
+
+// 使用方式2：运行时解析
+public class DriverSelector
+{
+    private readonly IServiceProvider _serviceProvider;
+    
+    public IWheelDiverterDriver GetDriver(string vendorName)
+    {
+        return _serviceProvider.GetRequiredKeyedService<IWheelDiverterDriver>(vendorName);
+    }
+}
+```
+
+### 实施计划
+
+#### 阶段1：识别可替代的 Factory（2小时）
+
+**Factory 分类**：
+- **可直接删除**（12个）：仅做 switch/字典查找，无额外逻辑
+  - `WheelDiverterDriverFactory`
+  - `PathGeneratorFactory`
+  - `ChuteSelectionStrategyFactory`
+  - `UpstreamClientFactory`
+  - ...
+  
+- **需保留**（5个）：包含复杂初始化逻辑或状态管理
+  - `VendorDriverFactory`（厂商特定配置加载）
+  - `TopologyBuilderFactory`（图结构构建）
+  - ...
+
+#### 阶段2：迁移到 Keyed Services（2-3小时）
+
+**迁移步骤**（每个 Factory）：
+1. 更新 DI 注册：`services.AddKeyedSingleton<I, Impl>("key")`
+2. 更新调用方：注入 `IServiceProvider` 或使用 `[FromKeyedServices]`
+3. 删除 Factory 接口和实现类
+4. 更新测试
+
+#### 阶段3：验证和清理（1小时）
+
+- 验证所有服务正确解析
+- 确保无遗漏的 Factory 引用
+- 更新文档
+
+### 任务清单
+
+- [ ] 识别 17 个 Factory，分类为"可删除"和"需保留"
+- [ ] 为 12 个可删除 Factory 创建 Keyed Services 注册
+- [ ] 更新所有调用方代码
+- [ ] 删除 Factory 接口和实现类（~650行）
+- [ ] 更新单元测试
+- [ ] 更新集成测试
+- [ ] 验收：编译成功，所有测试通过
+
+### 预期收益
+
+| 指标 | 当前 | 优化后 | 改善 |
+|------|------|--------|------|
+| Factory 类数量 | 17 | 5 | -71% |
+| 代码行数 | ~850 | ~200 | -76% |
+| 抽象层次 | 额外 Factory 层 | 直接 DI | 简化 |
+
+### 验收标准
+
+- [ ] 删除 12 个简单 Factory 类
+- [ ] 所有服务使用 Keyed Services 注册
+- [ ] 所有单元测试通过
+- [ ] 所有集成测试通过
+- [ ] 代码行数减少 ~650 行
+
+### 相关文档
+
+- `OVER_ENGINEERING_ANALYSIS.md` - 过度工程分析主报告
+- `OVER_ENGINEERING_DETAILED_EXAMPLES.md` - Factory 简化示例（示例3）
+- [Keyed Services in .NET 8](https://learn.microsoft.com/en-us/dotnet/core/extensions/dependency-injection#keyed-services)
+
+---
+
+## [TD-086] Manager 类过多简化
+
+**状态**：❌ 未开始 (2025-12-26 登记)  
+**创建日期**: 2025-12-26  
+**优先级**: 🟡 中等（过度工程简化 P1-5）  
+**预估工作量**: 6-8小时  
+**来源**: 过度工程分析报告 (OVER_ENGINEERING_ANALYSIS.md)
+
+### 问题描述
+
+项目中存在 15 个 Manager 类，大部分只是维护一个字典（Dictionary）并提供 Get/Add/Remove 方法，没有实质性的业务逻辑。
+
+**Manager 类统计**：
+```
+Execution/
+├── WheelDiverterDriverManager.cs (~120行)
+├── ChuteManager.cs (~80行)
+├── RouteManager.cs (~150行)
+├── ParcelManager.cs (~180行)
+└── ...
+
+Communication/
+├── UpstreamConnectionManager.cs (~100行)
+└── ...
+
+总计: 15 个 Manager 类，~2000 行代码
+```
+
+**典型问题模式**：
+```csharp
+// 当前实现 - 简单字典包装
+public class WheelDiverterDriverManager : IWheelDiverterDriverManager
+{
+    private readonly Dictionary<string, IWheelDiverterDriver> _drivers = new();
+    
+    public void Register(string diverterId, IWheelDiverterDriver driver)
+    {
+        _drivers[diverterId] = driver;
+    }
+    
+    public IWheelDiverterDriver GetDriver(string diverterId)
+    {
+        return _drivers.TryGetValue(diverterId, out var driver) 
+            ? driver 
+            : throw new KeyNotFoundException($"Driver not found: {diverterId}");
+    }
+    
+    public IEnumerable<IWheelDiverterDriver> GetAllDrivers()
+    {
+        return _drivers.Values;
+    }
+}
+```
+
+### 推荐方案
+
+根据 Manager 的职责，采用不同的简化策略：
+
+#### 策略1：使用 `IMemoryCache`（适用于缓存性质的 Manager）
+
+```csharp
+// 删除 ParcelManager，直接使用 IMemoryCache
+public class SortingOrchestrator
+{
+    private readonly IMemoryCache _cache;
+    
+    public void TrackParcel(Parcel parcel)
+    {
+        _cache.Set($"parcel:{parcel.ParcelId}", parcel, TimeSpan.FromMinutes(10));
+    }
+    
+    public Parcel? GetParcel(string parcelId)
+    {
+        return _cache.TryGetValue($"parcel:{parcelId}", out Parcel? parcel) ? parcel : null;
+    }
+}
+```
+
+#### 策略2：内联到使用者（适用于简单字典查找的 Manager）
+
+```csharp
+// 删除 WheelDiverterDriverManager，直接在服务中维护字典
+public class DiverterControlService
+{
+    private readonly ConcurrentDictionary<string, IWheelDiverterDriver> _drivers;
+    
+    public DiverterControlService(IEnumerable<IWheelDiverterDriver> drivers)
+    {
+        _drivers = new(drivers.Select(d => KeyValuePair.Create(d.DiverterId, d)));
+    }
+}
+```
+
+#### 策略3：保留有实质业务逻辑的 Manager
+
+某些 Manager 包含状态机、验证逻辑、事件发布等，应保留：
+- `UpstreamConnectionManager`（连接状态管理、重连逻辑）
+- `SystemStateManager`（状态机转换、事件发布）
+
+### 实施计划
+
+#### 阶段1：Manager 分类（2小时）
+
+**分类标准**：
+- **简单字典包装**（10个）→ 删除，内联或使用 IMemoryCache
+- **有状态管理**（3个）→ 简化，但保留核心逻辑
+- **有复杂业务逻辑**（2个）→ 保留
+
+#### 阶段2：简化或删除（4-5小时）
+
+**逐个处理**：
+1. 分析调用方依赖
+2. 选择简化策略（IMemoryCache/内联/保留）
+3. 更新调用方代码
+4. 删除 Manager 类
+5. 更新测试
+
+#### 阶段3：验证（1小时）
+
+- 确保无遗漏的 Manager 引用
+- 验证性能无回归
+- 更新文档
+
+### 任务清单
+
+- [ ] 分类 15 个 Manager 类
+- [ ] 简化/删除 10 个简单字典包装 Manager
+- [ ] 简化 3 个有状态管理的 Manager
+- [ ] 保留 2 个有复杂业务逻辑的 Manager
+- [ ] 更新所有调用方代码
+- [ ] 更新单元测试
+- [ ] 更新集成测试
+- [ ] 验收：编译成功，所有测试通过
+
+### 预期收益
+
+| 指标 | 当前 | 优化后 | 改善 |
+|------|------|--------|------|
+| Manager 类数量 | 15 | 5 | -67% |
+| 代码行数 | ~2000 | ~500 | -75% |
+| 抽象层次 | 额外 Manager 层 | 直接使用 | 简化 |
+
+### 验收标准
+
+- [ ] 删除/简化 10 个简单 Manager 类
+- [ ] 保留的 Manager 有明确的业务价值
+- [ ] 所有单元测试通过
+- [ ] 所有集成测试通过
+- [ ] 代码行数减少 ~1,500 行
+
+### 相关文档
+
+- `OVER_ENGINEERING_ANALYSIS.md` - 过度工程分析主报告
+- `OVER_ENGINEERING_DETAILED_EXAMPLES.md` - Manager 简化示例（示例4）
+
+---
+
+## [TD-087] 事件系统引入 MediatR 统一事件总线
+
+**状态**：❌ 未开始 (2025-12-26 登记)  
+**创建日期**: 2025-12-26  
+**优先级**: 🟡 中等（过度工程简化 P1-6）  
+**预估工作量**: 1-2周  
+**来源**: 过度工程分析报告 (OVER_ENGINEERING_ANALYSIS.md)
+
+### 问题描述
+
+项目中存在 40+ 个事件类型，事件订阅关系复杂，事件传播链路过长（7层），很多事件只有 1 个订阅者。
+
+**当前事件问题**：
+1. **事件类型爆炸**：40+ 个独立的 EventArgs 类
+2. **传播链路过长**：
+   ```
+   Sensor → ParcelDetectedEventArgs 
+         → Adapter (转发)
+         → SortingOrchestrator (处理)
+         → RoutePlannedEventArgs 
+         → PathExecutor (处理)
+         → ParcelDivertedEventArgs
+   ```
+3. **订阅关系复杂**：难以追踪谁订阅了什么事件
+4. **事件命名相似**：容易混淆（ParcelDetectedEventArgs, ParcelDetectionEventArgs）
+5. **无法集中管理**：事件分散在各个模块
+
+**事件分布**：
+```
+Core/Events/
+├── Alarm/            # 报警事件
+├── Hardware/         # 硬件事件
+├── Sensor/           # 传感器事件 (6个)
+├── Sorting/          # 分拣事件 (8个)
+├── Communication/    # 通信事件
+├── Simulation/       # 仿真事件
+└── Monitoring/       # 监控事件
+
+总计: 40+ 个事件类型，~1200 行代码
+```
+
+### 推荐方案
+
+引入 **MediatR** 统一事件总线，简化事件管理：
+
+#### 方案优势
+
+1. **统一事件总线**：所有事件通过 IMediator 发布和处理
+2. **松耦合**：发布者不需要知道订阅者
+3. **易于追踪**：所有处理器通过 INotificationHandler 注册
+4. **减少事件类型**：合并语义相似的事件
+5. **管道支持**：可添加日志、验证等横切关注点
+
+#### 设计方案
+
+**简化后的事件模型**（5-10个核心事件）：
+
+```csharp
+// 1. 包裹事件 (替代 6+ 个包裹相关事件)
+public record ParcelEvent : INotification
+{
+    public string ParcelId { get; init; }
+    public ParcelEventType Type { get; init; }  // Detected, RouteRequested, RoutePlanned, Diverted, Failed
+    public DateTime OccurredAt { get; init; }
+    public Dictionary<string, object> Metadata { get; init; } = new();
+}
+
+// 2. 硬件事件 (替代 8+ 个硬件相关事件)
+public record HardwareEvent : INotification
+{
+    public string DeviceId { get; init; }
+    public HardwareEventType Type { get; init; }  // Connected, Disconnected, Error, StatusChanged
+    public DateTime OccurredAt { get; init; }
+    public Dictionary<string, object> Metadata { get; init; } = new();
+}
+
+// 3. 路由事件
+public record RoutingEvent : INotification
+{
+    public string ParcelId { get; init; }
+    public RoutingEventType Type { get; init; }  // Planned, Executing, Completed, Failed
+    public DateTime OccurredAt { get; init; }
+    public Dictionary<string, object> Metadata { get; init; } = new();
+}
+
+// 4. 告警事件
+public record AlarmEvent : INotification
+{
+    public AlarmType Type { get; init; }
+    public AlarmLevel Level { get; init; }
+    public string Message { get; init; }
+    public DateTime OccurredAt { get; init; }
+    public Dictionary<string, object> Metadata { get; init; } = new();
+}
+
+// 5. 系统事件
+public record SystemEvent : INotification
+{
+    public SystemEventType Type { get; init; }  // StateChanged, ConfigUpdated, ShutdownRequested
+    public DateTime OccurredAt { get; init; }
+    public Dictionary<string, object> Metadata { get; init; } = new();
+}
+```
+
+**事件处理器示例**：
+
+```csharp
+// 包裹检测处理器
+public class ParcelDetectedHandler : INotificationHandler<ParcelEvent>
+{
+    private readonly ISortingOrchestrator _orchestrator;
+    
+    public async Task Handle(ParcelEvent notification, CancellationToken ct)
+    {
+        if (notification.Type == ParcelEventType.Detected)
+        {
+            await _orchestrator.RequestRoutingAsync(notification.ParcelId);
+        }
+    }
+}
+
+// 路由计划处理器
+public class RoutePlannedHandler : INotificationHandler<ParcelEvent>
+{
+    private readonly IPathExecutor _executor;
+    
+    public async Task Handle(ParcelEvent notification, CancellationToken ct)
+    {
+        if (notification.Type == ParcelEventType.RoutePlanned)
+        {
+            var chuteId = notification.Metadata["ChuteId"];
+            await _executor.ExecutePathAsync(notification.ParcelId, chuteId);
+        }
+    }
+}
+```
+
+**发布事件**：
+
+```csharp
+// 传感器服务
+public class SensorService
+{
+    private readonly IMediator _mediator;
+    
+    public async Task OnSensorTriggered(string sensorId)
+    {
+        var parcelId = GenerateParcelId();
+        
+        await _mediator.Publish(new ParcelEvent
+        {
+            ParcelId = parcelId,
+            Type = ParcelEventType.Detected,
+            OccurredAt = DateTime.Now,
+            Metadata = new() { ["SensorId"] = sensorId }
+        });
+    }
+}
+```
+
+### 实施计划
+
+#### 阶段1：引入 MediatR 框架（2天）
+
+**任务**：
+- [ ] 安装 MediatR NuGet 包
+- [ ] 配置 DI 注册
+- [ ] 创建简化的事件模型（5-10个核心事件）
+- [ ] 创建事件类型枚举
+
+#### 阶段2：迁移现有事件（3-5天）
+
+**迁移策略**（逐个模块）：
+1. **包裹相关事件**（6个 → 1个）：
+   - ParcelDetectedEventArgs
+   - ParcelRoutedEventArgs
+   - RoutePlannedEventArgs
+   - ParcelDivertedEventArgs
+   - ParcelDivertedToExceptionEventArgs
+   - ParcelCompletedEventArgs
+   → 统一为 `ParcelEvent` + 类型枚举
+
+2. **硬件相关事件**（8个 → 1个）：
+   - DeviceConnectionEventArgs
+   - DeviceStatusEventArgs
+   - SensorFaultEventArgs
+   - ...
+   → 统一为 `HardwareEvent` + 类型枚举
+
+3. **其他事件类似处理**
+
+#### 阶段3：更新事件发布者（2-3天）
+
+**更新模式**：
+```csharp
+// 修改前
+public event EventHandler<ParcelDetectedEventArgs>? ParcelDetected;
+ParcelDetected?.Invoke(this, new ParcelDetectedEventArgs { ... });
+
+// 修改后
+await _mediator.Publish(new ParcelEvent 
+{ 
+    Type = ParcelEventType.Detected, 
+    ...
+});
+```
+
+#### 阶段4：更新事件订阅者（2-3天）
+
+**更新模式**：
+```csharp
+// 修改前
+public class SortingOrchestrator
+{
+    public SortingOrchestrator(ISensorEventProvider sensor)
+    {
+        sensor.ParcelDetected += OnParcelDetected;
+    }
+    
+    private void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
+    {
+        // ...
+    }
+}
+
+// 修改后
+public class ParcelDetectedHandler : INotificationHandler<ParcelEvent>
+{
+    public async Task Handle(ParcelEvent notification, CancellationToken ct)
+    {
+        if (notification.Type == ParcelEventType.Detected)
+        {
+            // ...
+        }
+    }
+}
+```
+
+#### 阶段5：清理旧事件（1天）
+
+- 删除 40+ 个 EventArgs 类（~1200 行）
+- 删除事件订阅/取消订阅代码
+- 更新测试
+
+### 任务清单
+
+- [ ] 安装 MediatR 并配置 DI
+- [ ] 设计简化的事件模型（5-10个核心事件）
+- [ ] 迁移包裹相关事件（6个 → 1个）
+- [ ] 迁移硬件相关事件（8个 → 1个）
+- [ ] 迁移路由相关事件
+- [ ] 迁移告警相关事件
+- [ ] 迁移系统相关事件
+- [ ] 更新所有事件发布者
+- [ ] 更新所有事件订阅者（转为 INotificationHandler）
+- [ ] 删除旧事件类型（40+ 个）
+- [ ] 更新单元测试
+- [ ] 更新集成测试
+- [ ] 添加事件管道（日志、验证）
+
+### 预期收益
+
+| 指标 | 当前 | 优化后 | 改善 |
+|------|------|--------|------|
+| 事件类型数量 | 40+ | 5-10 | -75-87% |
+| 代码行数 | ~1200 | ~400 | -67% |
+| 事件传播链路 | 7层 | 2层（发布→处理） | 简化 |
+| 订阅管理 | 手动 += / -= | 自动注册 | 简化 |
+| 可追踪性 | 难 | 易（统一入口） | 提升 |
+
+### 验收标准
+
+- [ ] 事件类型从 40+ 减少到 5-10 个
+- [ ] 所有事件通过 MediatR 发布和处理
+- [ ] 删除所有旧事件类型和订阅代码
+- [ ] 所有单元测试通过
+- [ ] 所有集成测试通过
+- [ ] E2E 测试验证事件流程正常
+- [ ] 代码行数减少 ~800 行
+
+### 风险评估
+
+- **中风险**：大量事件订阅者需要迁移，工作量较大
+- **低风险**：MediatR 是成熟的库，广泛使用
+- **缓解措施**：逐模块迁移，保持渐进式重构
+
+### 相关文档
+
+- `OVER_ENGINEERING_ANALYSIS.md` - 过度工程分析主报告
+- `OVER_ENGINEERING_DETAILED_EXAMPLES.md` - 事件系统简化示例（示例6）
+- [MediatR GitHub](https://github.com/jbogard/MediatR)
+- [MediatR Wiki](https://github.com/jbogard/MediatR/wiki)
+

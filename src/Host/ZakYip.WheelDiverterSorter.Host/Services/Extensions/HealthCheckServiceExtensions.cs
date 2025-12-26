@@ -7,7 +7,6 @@ using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
-using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
@@ -74,8 +73,8 @@ public static class HealthCheckServiceExtensions
         // 注册系统状态与摆轮协调服务（监听状态变化，在进入Running时设置摆轮为直行）
         services.AddHostedService<SystemStateWheelDiverterCoordinator>();
 
-        // 注册运行前健康检查服务 - 使用适配器包装 SystemSelfTestCoordinator
-        services.AddSingleton<IPreRunHealthCheckService, PreRunHealthCheckAdapter>();
+        // PR-PHASE1: 删除 PreRunHealthCheckAdapter，Controller 直接使用 ISelfTestCoordinator
+        // SystemSelfTestCoordinator 已在上面注册为 ISelfTestCoordinator
 
         return services;
     }

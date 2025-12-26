@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
-using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
@@ -25,6 +24,7 @@ using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Enums.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Execution.SelfTest;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -40,7 +40,7 @@ public class HealthController : ControllerBase
 {
     private readonly ISystemStateManager _stateManager;
     private readonly IHealthStatusProvider _healthStatusProvider;
-    private readonly IPreRunHealthCheckService? _preRunHealthCheckService;
+    private readonly ISelfTestCoordinator? _selfTestCoordinator;
     private readonly ISystemClock _systemClock;
     private readonly ILogger<HealthController> _logger;
     private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
@@ -52,7 +52,7 @@ public class HealthController : ControllerBase
         IHealthStatusProvider healthStatusProvider,
         ISystemClock systemClock,
         ILogger<HealthController> logger,
-        IPreRunHealthCheckService? preRunHealthCheckService = null,
+        ISelfTestCoordinator? selfTestCoordinator = null,
         IWheelDiverterDriverManager? wheelDiverterDriverManager = null,
         IWheelDiverterConfigurationRepository? wheelDiverterConfigRepository = null,
         IDriverConfigurationRepository? ioDriverConfigRepository = null)
@@ -60,7 +60,7 @@ public class HealthController : ControllerBase
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _healthStatusProvider = healthStatusProvider ?? throw new ArgumentNullException(nameof(healthStatusProvider));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
-        _preRunHealthCheckService = preRunHealthCheckService;
+        _selfTestCoordinator = selfTestCoordinator;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _wheelDiverterDriverManager = wheelDiverterDriverManager;
         _wheelDiverterConfigRepository = wheelDiverterConfigRepository;
@@ -413,9 +413,9 @@ public class HealthController : ControllerBase
     {
         try
         {
-            if (_preRunHealthCheckService == null)
+            if (_selfTestCoordinator == null)
             {
-                _logger.LogWarning("PreRunHealthCheckService 未注册，返回服务不可用");
+                _logger.LogWarning("SelfTestCoordinator 未注册，返回服务不可用");
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new PreRunHealthCheckResponse
                 {
                     OverallStatus = HealthStatus.Unhealthy,
@@ -431,20 +431,57 @@ public class HealthController : ControllerBase
                 });
             }
 
-            var result = await _preRunHealthCheckService.ExecuteAsync(HttpContext.RequestAborted);
+            // 直接调用 SystemSelfTestCoordinator
+            var selfTestReport = await _selfTestCoordinator.RunAsync(HttpContext.RequestAborted);
+
+            // 转换为API响应格式
+            var checks = new List<HealthCheckItemResponse>();
+
+            // 1. 配置检查
+            checks.Add(new HealthCheckItemResponse
+            {
+                Name = "ConfigurationValid",
+                Status = selfTestReport.Config.IsValid ? HealthStatus.Healthy : HealthStatus.Unhealthy,
+                Message = selfTestReport.Config.IsValid
+                    ? "系统配置验证成功（包括异常口、面板IO、拓扑、上游配置）"
+                    : selfTestReport.Config.ErrorMessage ?? "系统配置验证失败"
+            });
+
+            // 2. 驱动器检查 - 聚合所有驱动器的状态
+            foreach (var driver in selfTestReport.Drivers)
+            {
+                checks.Add(new HealthCheckItemResponse
+                {
+                    Name = $"Driver_{driver.DriverName.Replace(" ", "_").Replace("（", "").Replace("）", "")}",
+                    Status = driver.IsHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,
+                    Message = driver.ErrorMessage ?? (driver.IsHealthy ? $"{driver.DriverName} 已就绪" : $"{driver.DriverName} 不健康")
+                });
+            }
+
+            // 3. 上游连接检查 - 但不作为必需项
+            foreach (var upstream in selfTestReport.Upstreams)
+            {
+                checks.Add(new HealthCheckItemResponse
+                {
+                    Name = $"Upstream_{upstream.EndpointName.Replace("-", "_")}",
+                    Status = upstream.IsHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,
+                    Message = upstream.ErrorMessage ?? (upstream.IsHealthy ? $"{upstream.EndpointName} 已连接" : $"{upstream.EndpointName} 未连接（非必需）")
+                });
+            }
+
+            // 计算整体状态 - 只考虑配置和驱动器，上游连接是可选的
+            var overallStatus = selfTestReport.Config.IsValid &&
+                              selfTestReport.Drivers.All(d => d.IsHealthy)
+                ? HealthStatus.Healthy
+                : HealthStatus.Unhealthy;
 
             var response = new PreRunHealthCheckResponse
             {
-                OverallStatus = result.OverallStatus,
-                Checks = result.Checks.Select(c => new HealthCheckItemResponse
-                {
-                    Name = c.Name,
-                    Status = c.Status,
-                    Message = c.Message
-                }).ToList()
+                OverallStatus = overallStatus,
+                Checks = checks
             };
 
-            if (result.IsHealthy)
+            if (overallStatus == HealthStatus.Healthy)
             {
                 return Ok(response);
             }

@@ -1472,20 +1472,26 @@ tools/Profiling/
 | TD-079 | ❌ 未开始 | ConfigureAwait + 字符串/集合优化（TD-076 PR #3）→ 异步开销 -5-10%，集合性能 +20%（预计 5-7小时） | [详情](./TechnicalDebtLog.md#td-079-configureawait--字符串集合优化td-076-pr-3) |
 | TD-080 | ❌ 未开始 | 低优先级性能优化收尾（TD-076 PR #4）→ 日志开销 -30%，JSON序列化 -10%（预计 4-6小时） | [详情](./TechnicalDebtLog.md#td-080-低优先级性能优化收尾td-076-pr-4) |
 | TD-081 | ✅ 已解决 | API 重组剩余工作 → 经审计确认所有功能已在先前PR中实现（2025-12-16） | [详情](./TechnicalDebtLog.md#td-081-api-重组剩余工作经审计确认已实现) |
-| TD-082 | ✅ 已解决 | LiteDB RoutePlan 序列化兼容性修复 → 修改属性为 public set，添加验证和测试（当前 PR） | [详情](./TechnicalDebtLog.md#td-082-litedb-routeplan-序列化兼容性修复) |
+| TD-082 | ✅ 已解决 | LiteDB RoutePlan 序列化兼容性修复 → 修改属性为 public set，添加验证和测试（2025-12-24） | [详情](./TechnicalDebtLog.md#td-082-litedb-routeplan-序列化兼容性修复) |
+| TD-083 | ✅ 已解决 | ConveyorSegment 迁移文档与实际不符 → 文档已更新说明实际采用 ObjectId 兼容方案（2025-12-24） | [详情](./TechnicalDebtLog.md#td-083-conveyorsegment-迁移文档与实际不符) |
+| TD-084 | ❌ 未开始 | 配置管理迁移到 IOptions<T> 模式（过度工程简化 P0-2）→ 删除 11 个配置仓储，代码减少 ~4,400 行（预计 2-3天） | [详情](./TechnicalDebtLog.md#td-084-配置管理迁移到-ioptionstgtypes-模式) |
+| TD-085 | ❌ 未开始 | Factory 模式滥用简化（过度工程简化 P1-4）→ 用 Keyed Services 替代 12 个简单 Factory，代码减少 ~650 行（预计 4-6小时） | [详情](./TechnicalDebtLog.md#td-085-factory-模式滥用简化) |
+| TD-086 | ❌ 未开始 | Manager 类过多简化（过度工程简化 P1-5）→ 删除/简化 10 个简单 Manager 类，代码减少 ~1,500 行（预计 6-8小时） | [详情](./TechnicalDebtLog.md#td-086-manager-类过多简化) |
+| TD-087 | ❌ 未开始 | 事件系统引入 MediatR 统一事件总线（过度工程简化 P1-6）→ 事件类型从 40+ 减少到 5-10 个，代码减少 ~800 行（预计 1-2周） | [详情](./TechnicalDebtLog.md#td-087-事件系统引入-mediatr-统一事件总线) |
 
 ### 技术债统计
 
 | 状态 | 数量 |
 |------|------|
-| ✅ 已解决 | 78 |
+| ✅ 已解决 | 79 |
 | ⏳ 进行中 | 0 |
-| ❌ 未开始 | 3 |
-| **总计** | **81** |
+| ❌ 未开始 | 8 |
+| **总计** | **87** |
 
-**完成率**：78/81 = **96.30%**
+**完成率**：79/87 = **90.80%**
 
 **最近更新**：
+- 2025-12-26：✅ 新增 TD-084/085/086/087（过度工程简化 - 配置/Factory/Manager/事件系统）+ TD-083（ConveyorSegment 迁移文档）
 - 2025-12-17：✅ 新增 TD-078/079/080（TD-076 剩余优化登记为独立技术债）+ TD-081（API重组审计确认已实现）
 - 2025-12-16：✅ **所有核心技术债已解决！** TD-076 PR #1 完成（数据库批处理+ValueTask，性能提升10-15%）
 - 2025-12-16：TD-077 确认已实现（面板按钮上游通信协议）

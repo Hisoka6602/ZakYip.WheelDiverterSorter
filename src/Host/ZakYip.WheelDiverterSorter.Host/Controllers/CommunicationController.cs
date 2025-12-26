@@ -5,7 +5,6 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
-using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;

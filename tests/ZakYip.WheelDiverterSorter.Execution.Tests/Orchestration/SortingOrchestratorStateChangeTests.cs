@@ -2,7 +2,7 @@ using Moq;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
+using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -28,7 +28,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Tests.Orchestration;
 /// </remarks>
 public class SortingOrchestratorStateChangeTests : IDisposable
 {
-    private readonly Mock<ISensorEventProvider> _mockSensorEventProvider;
+    private readonly Mock<IParcelDetectionService> _mockSensorEventProvider;
     private readonly Mock<IUpstreamRoutingClient> _mockUpstreamClient;
     private readonly Mock<ISwitchingPathGenerator> _mockPathGenerator;
     private readonly Mock<ISwitchingPathExecutor> _mockPathExecutor;
@@ -44,7 +44,7 @@ public class SortingOrchestratorStateChangeTests : IDisposable
 
     public SortingOrchestratorStateChangeTests()
     {
-        _mockSensorEventProvider = new Mock<ISensorEventProvider>();
+        _mockSensorEventProvider = new Mock<IParcelDetectionService>();
         _mockUpstreamClient = new Mock<IUpstreamRoutingClient>();
         _mockPathGenerator = new Mock<ISwitchingPathGenerator>();
         _mockPathExecutor = new Mock<ISwitchingPathExecutor>();

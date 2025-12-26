@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit.Abstractions;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
+using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
@@ -39,7 +39,7 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     private const int TestTimeToleranceMs = 700;
     
     private readonly ISortingOrchestrator _orchestrator;
-    private readonly ISensorEventProvider _sensorEventProvider;
+    private readonly IParcelDetectionService _sensorEventProvider;
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly ISystemClock _systemClock;
     private readonly IChutePathTopologyRepository _topologyRepository;
@@ -51,7 +51,7 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     {
         _output = output;
         _orchestrator = Scope.ServiceProvider.GetRequiredService<ISortingOrchestrator>();
-        _sensorEventProvider = Scope.ServiceProvider.GetRequiredService<ISensorEventProvider>();
+        _sensorEventProvider = Scope.ServiceProvider.GetRequiredService<IParcelDetectionService>();
         _queueManager = Scope.ServiceProvider.GetRequiredService<IPositionIndexQueueManager>();
         _systemClock = Scope.ServiceProvider.GetRequiredService<ISystemClock>();
         _topologyRepository = Scope.ServiceProvider.GetRequiredService<IChutePathTopologyRepository>();
@@ -324,19 +324,19 @@ public class InterferenceSignalDetectionE2ETests : E2ETestBase
     /// </summary>
     /// <remarks>
     /// <para>
-    /// 使用反射机制触发 ISensorEventProvider 的 ParcelDetected 事件。
+    /// 使用反射机制触发 IParcelDetectionService 的 ParcelDetected 事件。
     /// 虽然反射依赖实现细节，但在E2E测试中是可接受的，原因：
     /// </para>
     /// <list type="bullet">
     ///   <item>E2E测试需要模拟真实传感器触发场景，而生产代码中传感器触发是硬件层行为</item>
-    ///   <item>ISensorEventProvider没有提供公共的RaiseEvent方法（这是正确的设计）</item>
+    ///   <item>IParcelDetectionService没有提供公共的RaiseEvent方法（这是正确的设计）</item>
     ///   <item>创建完整的Mock替换会破坏E2E测试的集成性（需要测试实际的事件订阅和处理流程）</item>
     ///   <item>如果实现改变，测试会失败并提示需要更新，这是可接受的维护成本</item>
     /// </list>
     /// <para>
     /// 替代方案考虑：
     /// - 添加测试专用的RaiseEventForTest方法会污染生产接口
-    /// - 完全Mock ISensorEventProvider会失去对真实事件订阅的测试覆盖
+    /// - 完全Mock IParcelDetectionService会失去对真实事件订阅的测试覆盖
     /// </para>
     /// </remarks>
     private void TriggerSensorEvent(ParcelDetectedEventArgs eventArgs)
