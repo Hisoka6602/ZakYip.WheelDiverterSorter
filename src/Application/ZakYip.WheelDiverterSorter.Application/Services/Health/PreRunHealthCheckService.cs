@@ -431,20 +431,8 @@ public class PreRunHealthCheckService : IPreRunHealthCheckService
                 // 获取厂商显示名称
                 var vendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
 
-                // 检查运行时模式
-                bool isSimulationMode = _runtimeProfile?.IsSimulationMode ?? false;
+                // Simulation mode removed - always use real hardware
                 
-                // 如果是仿真模式，返回不健康（正式环境运行准备检查）
-                if (isSimulationMode)
-                {
-                    return new HealthCheckItem
-                    {
-                        Name = "IoDriverConnected",
-                        Status = HealthStatus.Unhealthy,
-                        Message = $"IO驱动器处于仿真模式，厂商类型: {vendorDisplayName}（正式环境不应使用仿真驱动）"
-                    };
-                }
-
                 // 验证硬件模式下的配置
                 if (ioConfig.VendorType == DriverVendorType.Leadshine && ioConfig.Leadshine == null)
                 {

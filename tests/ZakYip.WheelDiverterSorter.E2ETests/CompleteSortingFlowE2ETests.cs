@@ -1,6 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using FluentAssertions;
-using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;
 

@@ -10,7 +10,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
-using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
@@ -19,7 +18,6 @@ using ZakYip.WheelDiverterSorter.Execution.Routing;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using Microsoft.Extensions.Logging;
 using Moq;
-using ZakYip.WheelDiverterSorter.E2ETests.Simulation;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 
 namespace ZakYip.WheelDiverterSorter.E2ETests;

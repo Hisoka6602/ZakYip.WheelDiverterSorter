@@ -20,9 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 ///   - 莫迪（Modi）: 通过TCP协议直接控制
 ///
 /// **架构原则**：
-/// - 系统默认使用真实硬件IO驱动器
-/// - 只有在仿真模式下（ISimulationModeProvider.IsSimulationMode() == true）才使用Mock驱动器
-/// - 通过 POST /api/simulation/run-scenario-e 等仿真端点进入仿真模式
+/// - 系统使用真实硬件IO驱动器
 /// </remarks>
 public class DriverConfiguration
 {
@@ -36,7 +34,6 @@ public class DriverConfiguration
     /// </summary>
     /// <remarks>
     /// 可选值:
-    /// - Mock: 模拟驱动器（仅在仿真模式下自动使用）
     /// - Leadshine: 雷赛运动控制卡
     /// - Siemens: 西门子PLC
     /// - Mitsubishi: 三菱PLC
@@ -76,7 +73,7 @@ public class DriverConfiguration
     /// - CardNo = 8
     /// - PortNo = 2
     /// 
-    /// 系统默认使用真实硬件，仿真模式通过 ISimulationModeProvider 控制
+    /// 系统使用真实硬件
     /// </remarks>
     public static DriverConfiguration GetDefault()
     {

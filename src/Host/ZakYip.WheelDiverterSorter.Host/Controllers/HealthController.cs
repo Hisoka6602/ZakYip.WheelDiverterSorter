@@ -4,7 +4,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
-using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
@@ -45,7 +44,6 @@ public class HealthController : ControllerBase
     private readonly IPreRunHealthCheckService? _preRunHealthCheckService;
     private readonly ISystemClock _systemClock;
     private readonly ILogger<HealthController> _logger;
-    private readonly ISimulationModeProvider _simulationModeProvider;
     private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
     private readonly IWheelDiverterConfigurationRepository? _wheelDiverterConfigRepository;
     private readonly IDriverConfigurationRepository? _ioDriverConfigRepository;
@@ -55,7 +53,6 @@ public class HealthController : ControllerBase
         IHealthStatusProvider healthStatusProvider,
         ISystemClock systemClock,
         ILogger<HealthController> logger,
-        ISimulationModeProvider simulationModeProvider,
         IPreRunHealthCheckService? preRunHealthCheckService = null,
         IWheelDiverterDriverManager? wheelDiverterDriverManager = null,
         IWheelDiverterConfigurationRepository? wheelDiverterConfigRepository = null,
@@ -66,7 +63,6 @@ public class HealthController : ControllerBase
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _preRunHealthCheckService = preRunHealthCheckService;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _simulationModeProvider = simulationModeProvider ?? throw new ArgumentNullException(nameof(simulationModeProvider));
         _wheelDiverterDriverManager = wheelDiverterDriverManager;
         _wheelDiverterConfigRepository = wheelDiverterConfigRepository;
         _ioDriverConfigRepository = ioDriverConfigRepository;
@@ -107,7 +103,6 @@ public class HealthController : ControllerBase
     public IActionResult GetSystemStatus()
     {
         var currentState = _stateManager.CurrentState;
-        var isSimulation = _simulationModeProvider.IsSimulationMode();
         
         // 判断是否异常状态
         var isAbnormal = currentState == SystemState.Faulted || currentState == SystemState.EmergencyStop;
@@ -123,7 +118,7 @@ public class HealthController : ControllerBase
         {
             SystemState = currentState,
             SystemStateDisplayName = GetSystemStateDisplayName(currentState),
-            EnvironmentMode = isSimulation ? EnvironmentMode.Simulation : EnvironmentMode.Production,
+            EnvironmentMode = EnvironmentMode.Production, // Simulation mode removed
             IsAbnormal = isAbnormal,
             ErrorReason = errorReason,
             Timestamp = _systemClock.LocalNowOffset
@@ -348,11 +343,8 @@ public class HealthController : ControllerBase
             // 使用 IHealthStatusProvider 获取健康快照
             var snapshot = await _healthStatusProvider.GetHealthSnapshotAsync();
 
-            // 获取运行环境模式
-            var isSimulation = _simulationModeProvider.IsSimulationMode();
-
-            // 映射到响应DTO
-            var response = MapSnapshotToResponse(snapshot, isSimulation);
+            // 映射到响应DTO (simulation mode removed)
+            var response = MapSnapshotToResponse(snapshot, false);
 
             // 判断HTTP状态码：检查所有关键模块
             var isReady = snapshot.IsLineAvailable && snapshot.IsSelfTestSuccess;
@@ -527,11 +519,10 @@ public class HealthController : ControllerBase
                     var ioConfig = _ioDriverConfigRepository.Get();
                     var ioVendorDisplayName = GetIoVendorDisplayName(ioConfig.VendorType);
                     
-                    // 使用 IRuntimeProfile 判断仿真模式
-                    var runtimeProfile = HttpContext.RequestServices.GetService<IRuntimeProfile>();
-                    var isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
+                    // Simulation mode removed - always use production
+                    var isSimulationMode = false;
                     
-                    // 检查配置是否完整（非仿真模式下需要）
+                    // 检查配置是否完整
                     var isConfigured = true;
                     var configError = string.Empty;
                     if (!isSimulationMode)
@@ -806,7 +797,7 @@ public class HealthController : ControllerBase
         return new LineHealthResponse
         {
             SystemState = snapshot.SystemState,
-            EnvironmentMode = isSimulation ? EnvironmentMode.Simulation : EnvironmentMode.Production,
+            EnvironmentMode = EnvironmentMode.Production, // Simulation mode removed
             IsSelfTestSuccess = snapshot.IsSelfTestSuccess,
             LastSelfTestAt = snapshot.LastSelfTestAt,
             Drivers = snapshot.Drivers?.Select(d => new DriverHealthInfo
