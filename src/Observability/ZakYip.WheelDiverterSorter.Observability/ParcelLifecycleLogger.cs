@@ -28,12 +28,11 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogCreated(ParcelLifecycleContext context)
     {
         _logger.LogInformation(
-            "ParcelLifecycle | Event=Created | ParcelId={ParcelId} | Barcode={Barcode} | EntryTime={EntryTime} | TargetChuteId={TargetChuteId} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=Created | ParcelId={ParcelId} | Barcode={Barcode} | EntryTime={EntryTime} | TargetChuteId={TargetChuteId}",
             context.ParcelId,
             context.Barcode ?? "N/A",
             context.EntryTime?.ToString("yyyy-MM-dd HH:mm:ss.fff") ?? "N/A",
-            context.TargetChuteId ?? 0,
-            context.IsSimulation);
+            context.TargetChuteId ?? 0);
     }
 
     /// <summary>
@@ -42,11 +41,10 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogSensorPassed(ParcelLifecycleContext context, string sensorName)
     {
         _logger.LogInformation(
-            "ParcelLifecycle | Event=SensorPassed | ParcelId={ParcelId} | SensorName={SensorName} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=SensorPassed | ParcelId={ParcelId} | SensorName={SensorName} | EventTime={EventTime}",
             context.ParcelId,
             sensorName,
-            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            context.IsSimulation);
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
     }
 
     /// <summary>
@@ -55,11 +53,10 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogChuteAssigned(ParcelLifecycleContext context, long chuteId)
     {
         _logger.LogInformation(
-            "ParcelLifecycle | Event=ChuteAssigned | ParcelId={ParcelId} | ChuteId={ChuteId} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=ChuteAssigned | ParcelId={ParcelId} | ChuteId={ChuteId} | EventTime={EventTime}",
             context.ParcelId,
             chuteId,
-            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            context.IsSimulation);
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
     }
 
     /// <summary>
@@ -68,13 +65,12 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogCompleted(ParcelLifecycleContext context, ParcelFinalStatus status)
     {
         _logger.LogInformation(
-            "ParcelLifecycle | Event=Completed | ParcelId={ParcelId} | FinalStatus={FinalStatus} | TargetChuteId={TargetChuteId} | ActualChuteId={ActualChuteId} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=Completed | ParcelId={ParcelId} | FinalStatus={FinalStatus} | TargetChuteId={TargetChuteId} | ActualChuteId={ActualChuteId} | EventTime={EventTime}",
             context.ParcelId,
             status,
             context.TargetChuteId ?? 0,
             context.ActualChuteId ?? 0,
-            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            context.IsSimulation);
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
     }
 
     /// <summary>
@@ -83,11 +79,10 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogException(ParcelLifecycleContext context, string reason)
     {
         _logger.LogWarning(
-            "ParcelLifecycle | Event=Exception | ParcelId={ParcelId} | Reason={Reason} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=Exception | ParcelId={ParcelId} | Reason={Reason} | EventTime={EventTime}",
             context.ParcelId,
             reason,
-            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            context.IsSimulation);
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
     }
 
     /// <summary>
@@ -99,13 +94,12 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogTimeout(ParcelLifecycleContext context, string timeoutType, double elapsedSeconds)
     {
         _logger.LogWarning(
-            "ParcelLifecycle | Event=Timeout | ParcelId={ParcelId} | TimeoutType={TimeoutType} | ElapsedSeconds={ElapsedSeconds:F1} | TargetChuteId={TargetChuteId} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=Timeout | ParcelId={ParcelId} | TimeoutType={TimeoutType} | ElapsedSeconds={ElapsedSeconds:F1} | TargetChuteId={TargetChuteId} | EventTime={EventTime}",
             context.ParcelId,
             timeoutType,
             elapsedSeconds,
             context.TargetChuteId ?? 0,
-            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            context.IsSimulation);
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
     }
 
     /// <summary>
@@ -117,12 +111,11 @@ public class ParcelLifecycleLogger : IParcelLifecycleLogger
     public void LogLost(ParcelLifecycleContext context, double lifetimeSeconds)
     {
         _logger.LogError(
-            "ParcelLifecycle | Event=Lost | ParcelId={ParcelId} | LifetimeSeconds={LifetimeSeconds:F1} | TargetChuteId={TargetChuteId} | EntryTime={EntryTime} | EventTime={EventTime} | IsSimulation={IsSimulation}",
+            "ParcelLifecycle | Event=Lost | ParcelId={ParcelId} | LifetimeSeconds={LifetimeSeconds:F1} | TargetChuteId={TargetChuteId} | EntryTime={EntryTime} | EventTime={EventTime}",
             context.ParcelId,
             lifetimeSeconds,
             context.TargetChuteId ?? 0,
             context.EntryTime?.ToString("yyyy-MM-dd HH:mm:ss.fff") ?? "N/A",
-            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"),
-            context.IsSimulation);
+            context.EventTime.ToString("yyyy-MM-dd HH:mm:ss.fff"));
     }
 }

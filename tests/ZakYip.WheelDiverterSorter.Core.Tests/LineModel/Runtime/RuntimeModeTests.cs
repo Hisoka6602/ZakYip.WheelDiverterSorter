@@ -18,13 +18,6 @@ public class RuntimeModeTests
     }
 
     [Fact]
-    public void RuntimeMode_Simulation_HasCorrectValue()
-    {
-        // Assert
-        Assert.Equal(1, (int)RuntimeMode.Simulation);
-    }
-
-    [Fact]
     public void RuntimeMode_PerformanceTest_HasCorrectValue()
     {
         // Assert
@@ -33,10 +26,8 @@ public class RuntimeModeTests
 
     [Theory]
     [InlineData("Production", RuntimeMode.Production)]
-    [InlineData("Simulation", RuntimeMode.Simulation)]
     [InlineData("PerformanceTest", RuntimeMode.PerformanceTest)]
     [InlineData("production", RuntimeMode.Production)]
-    [InlineData("SIMULATION", RuntimeMode.Simulation)]
     public void RuntimeMode_CanBeParsedFromString(string input, RuntimeMode expected)
     {
         // Act
@@ -51,9 +42,8 @@ public class RuntimeModeTests
     {
         // Assert
         var values = Enum.GetValues<RuntimeMode>();
-        Assert.Equal(3, values.Length);
+        Assert.Equal(2, values.Length);
         Assert.Contains(RuntimeMode.Production, values);
-        Assert.Contains(RuntimeMode.Simulation, values);
         Assert.Contains(RuntimeMode.PerformanceTest, values);
     }
 }

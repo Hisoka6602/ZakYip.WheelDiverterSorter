@@ -41,11 +41,6 @@ public sealed record class ParcelLifecycleContext
     public DateTimeOffset EventTime { get; init; }
 
     /// <summary>
-    /// 是否为仿真环境
-    /// </summary>
-    public bool IsSimulation { get; init; }
-
-    /// <summary>
     /// 系统状态快照（可选）
     /// </summary>
     public string? SystemState { get; init; }
