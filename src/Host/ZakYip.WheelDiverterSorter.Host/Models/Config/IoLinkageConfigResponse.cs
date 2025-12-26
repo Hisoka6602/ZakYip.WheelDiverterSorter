@@ -75,4 +75,9 @@ public sealed record class IoLinkagePointResponse
     /// 目标电平状态（ActiveHigh=高电平，ActiveLow=低电平）
     /// </summary>
     public required string Level { get; init; }
+
+    /// <summary>
+    /// 延迟执行时间（毫秒），0 表示立即执行
+    /// </summary>
+    public int DelayMilliseconds { get; init; } = 0;
 }

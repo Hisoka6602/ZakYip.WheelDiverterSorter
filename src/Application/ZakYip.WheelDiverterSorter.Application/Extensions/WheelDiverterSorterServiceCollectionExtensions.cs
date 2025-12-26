@@ -764,12 +764,14 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             services.Remove(existingDescriptor);
         }
         
-        // 重新注册为动态版本
+        // 重新注册为动态版本（使用装饰器模式支持延迟执行）
         // DI容器的Singleton注册已经确保工厂只会被调用一次
         services.AddSingleton<IIoLinkageDriver>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("DynamicIoLinkageDriver");
+            
+            IIoLinkageDriver innerDriver;
             
             try
             {
@@ -778,47 +780,57 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 if (isTestEnv)
                 {
                     logger.LogInformation("检测到测试环境，使用模拟 IO 联动驱动器");
-                    return new SimulatedIoLinkageDriver(
+                    innerDriver = new SimulatedIoLinkageDriver(
                         loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
                 }
-                
-                var driverRepo = sp.GetRequiredService<IDriverConfigurationRepository>();
-                
-                // 从数据库读取驱动器配置
-                var driverConfig = driverRepo.Get();
-                var vendorType = driverConfig.VendorType;
-                
-                // 使用 IRuntimeProfile.IsSimulationMode 判断是否使用模拟驱动器
-                var runtimeProfile = sp.GetService<IRuntimeProfile>();
-                bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
-                
-                logger.LogInformation(
-                    "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}, SimulationMode={SimulationMode}",
-                    vendorType,
-                    isSimulationMode);
-                
-                // 如果是仿真模式或使用 Mock，返回模拟驱动器
-                if (isSimulationMode || vendorType == DriverVendorType.Mock)
+                else
                 {
-                    logger.LogInformation("使用模拟 IO 联动驱动器");
-                    return new SimulatedIoLinkageDriver(
-                        loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                    var driverRepo = sp.GetRequiredService<IDriverConfigurationRepository>();
+                    
+                    // 从数据库读取驱动器配置
+                    var driverConfig = driverRepo.Get();
+                    var vendorType = driverConfig.VendorType;
+                    
+                    // 使用 IRuntimeProfile.IsSimulationMode 判断是否使用模拟驱动器
+                    var runtimeProfile = sp.GetService<IRuntimeProfile>();
+                    bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
+                    
+                    logger.LogInformation(
+                        "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}, SimulationMode={SimulationMode}",
+                        vendorType,
+                        isSimulationMode);
+                    
+                    // 如果是仿真模式或使用 Mock，返回模拟驱动器
+                    if (isSimulationMode || vendorType == DriverVendorType.Mock)
+                    {
+                        logger.LogInformation("使用模拟 IO 联动驱动器");
+                        innerDriver = new SimulatedIoLinkageDriver(
+                            loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                    }
+                    else
+                    {
+                        // 根据厂商类型选择驱动器
+                        innerDriver = vendorType switch
+                        {
+                            DriverVendorType.Leadshine => CreateLeadshineDriver(sp, logger),
+                            DriverVendorType.Siemens => CreateS7IoLinkageDriver(sp, configuration, loggerFactory),
+                            _ => CreateDefaultDriver(logger, vendorType)
+                        };
+                    }
                 }
-                
-                // 根据厂商类型选择驱动器
-                return vendorType switch
-                {
-                    DriverVendorType.Leadshine => CreateLeadshineDriver(sp, logger),
-                    DriverVendorType.Siemens => CreateS7IoLinkageDriver(sp, configuration, loggerFactory),
-                    _ => CreateDefaultDriver(logger, vendorType)
-                };
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "创建 IO 联动驱动器失败，回退到模拟驱动器");
-                return new SimulatedIoLinkageDriver(
+                innerDriver = new SimulatedIoLinkageDriver(
                     loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
             }
+            
+            // 使用装饰器包装驱动器以支持延迟执行和状态检查
+            var systemStateManager = sp.GetRequiredService<ISystemStateManager>();
+            var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
+            var decoratorLogger = loggerFactory.CreateLogger<DelayedIoLinkageDriverDecorator>();
+            return new DelayedIoLinkageDriverDecorator(innerDriver, systemStateManager, safeExecutor, decoratorLogger);
         });
         
         // 注册驱动器初始化服务，在启动时强制解析驱动器

@@ -120,33 +120,40 @@ public class IoLinkageController : ControllerBase
     ///     {
     ///         "enabled": true,
     ///         "runningStateIos": [
-    ///             { "bitNumber": 3, "level": "ActiveLow" },
-    ///             { "bitNumber": 5, "level": "ActiveLow" }
+    ///             { "bitNumber": 3, "level": "ActiveLow", "delayMilliseconds": 0 },
+    ///             { "bitNumber": 5, "level": "ActiveLow", "delayMilliseconds": 5000 }
     ///         ],
     ///         "stoppedStateIos": [
-    ///             { "bitNumber": 3, "level": "ActiveHigh" },
-    ///             { "bitNumber": 5, "level": "ActiveHigh" }
+    ///             { "bitNumber": 3, "level": "ActiveHigh", "delayMilliseconds": 0 },
+    ///             { "bitNumber": 5, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "emergencyStopStateIos": [
-    ///             { "bitNumber": 10, "level": "ActiveHigh" }
+    ///             { "bitNumber": 10, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "upstreamConnectionExceptionStateIos": [
-    ///             { "bitNumber": 11, "level": "ActiveHigh" }
+    ///             { "bitNumber": 11, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "diverterExceptionStateIos": [
-    ///             { "bitNumber": 12, "level": "ActiveHigh" }
+    ///             { "bitNumber": 12, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "postPreStartWarningStateIos": [
-    ///             { "bitNumber": 13, "level": "ActiveHigh" }
+    ///             { "bitNumber": 13, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "wheelDiverterDisconnectedStateIos": [
-    ///             { "bitNumber": 14, "level": "ActiveHigh" }
+    ///             { "bitNumber": 14, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ]
     ///     }
     /// 
     /// IO电平说明：
     /// - ActiveLow：低电平有效（输出0时设备工作）
     /// - ActiveHigh：高电平有效（输出1时设备工作）
+    /// 
+    /// 延迟执行说明：
+    /// - delayMilliseconds：延迟执行时间（毫秒），默认为 0 表示立即执行
+    /// - 如果配置了延迟时间，IO点将在延迟指定毫秒后才生效
+    /// - 延迟期间如果系统状态发生变化（如急停/停止），则取消执行
+    /// - 优先级：急停 > 停止 > 运行
+    /// - 例如：配置某个IO在启动后5000毫秒（5秒）生效，但在1000毫秒（1秒）时按下急停，则该IO不会生效
     /// 
     /// 配置更新后立即生效，无需重启服务。
     /// 系统根据不同状态自动应用对应的IO联动配置：
@@ -595,7 +602,8 @@ public class IoLinkageController : ControllerBase
             var ioPoint = new IoLinkagePoint
             {
                 BitNumber = bitNumber,
-                Level = request.Level
+                Level = request.Level,
+                DelayMilliseconds = request.DelayMilliseconds
             };
 
             await _ioLinkageDriver.SetIoPointAsync(ioPoint);
@@ -711,7 +719,8 @@ public class IoLinkageController : ControllerBase
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList();
 
@@ -767,56 +776,64 @@ public class IoLinkageController : ControllerBase
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             RunningStateIos = request.RunningStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             StoppedStateIos = request.StoppedStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             EmergencyStopStateIos = request.EmergencyStopStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             UpstreamConnectionExceptionStateIos = request.UpstreamConnectionExceptionStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             DiverterExceptionStateIos = request.DiverterExceptionStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             PostPreStartWarningStateIos = request.PostPreStartWarningStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             WheelDiverterDisconnectedStateIos = request.WheelDiverterDisconnectedStateIos
                 .Select(p => new IoLinkagePoint
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level
+                    Level = p.Level,
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             CreatedAt = _systemClock.LocalNow,
@@ -836,56 +853,64 @@ public class IoLinkageController : ControllerBase
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             RunningStateIos = config.RunningStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             StoppedStateIos = config.StoppedStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             EmergencyStopStateIos = config.EmergencyStopStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             UpstreamConnectionExceptionStateIos = config.UpstreamConnectionExceptionStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             DiverterExceptionStateIos = config.DiverterExceptionStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             PostPreStartWarningStateIos = config.PostPreStartWarningStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             WheelDiverterDisconnectedStateIos = config.WheelDiverterDisconnectedStateIos
                 .Select(p => new IoLinkagePointResponse
                 {
                     BitNumber = p.BitNumber,
-                    Level = p.Level.ToString()
+                    Level = p.Level.ToString(),
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList()
         };
