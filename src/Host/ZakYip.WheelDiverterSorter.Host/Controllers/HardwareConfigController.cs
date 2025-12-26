@@ -14,6 +14,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
 using Swashbuckle.AspNetCore.Annotations;
@@ -48,6 +49,7 @@ public class HardwareConfigController : ControllerBase
     private readonly IWheelDiverterDriverManager? _driverManager;
     private readonly IEmcController? _emcController;
     private readonly IInputPort? _inputPort;
+    private readonly ISystemClock? _clock;
     private readonly ISystemStateManager _stateManager;
     private readonly ILogger<HardwareConfigController> _logger;
 
@@ -62,7 +64,8 @@ public class HardwareConfigController : ControllerBase
         ILogger<HardwareConfigController> logger,
         IWheelDiverterDriverManager? driverManager = null,
         IEmcController? emcController = null,
-        IInputPort? inputPort = null)
+        IInputPort? inputPort = null,
+        ISystemClock? clock = null)
     {
         _driverRepository = driverRepository;
         _sensorRepository = sensorRepository;
@@ -72,6 +75,7 @@ public class HardwareConfigController : ControllerBase
         _driverManager = driverManager;
         _emcController = emcController;
         _inputPort = inputPort;
+        _clock = clock;
     }
 
     #region 雷赛IO驱动器配置 (Leadshine IO Driver)
@@ -1496,7 +1500,8 @@ public class HardwareConfigController : ControllerBase
                 "开始IO性能测试: BitNumber={BitNumber}, IterationCount={IterationCount}, IsAsync={IsAsync}",
                 request.BitNumber, request.IterationCount, request.IsAsync);
 
-            var startTime = DateTimeOffset.Now;
+            // 使用 ISystemClock 获取时间，如果未注入则回退到 DateTimeOffset.Now
+            var startTime = _clock?.LocalNowOffset ?? DateTimeOffset.Now;
             var timings = new List<double>();
             int successCount = 0;
             int failedCount = 0;
@@ -1514,7 +1519,7 @@ public class HardwareConfigController : ControllerBase
                     break;
                 }
 
-                var iterationStart = DateTimeOffset.Now;
+                var iterationStart = _clock?.LocalNowOffset ?? DateTimeOffset.Now;
                 bool readSuccess = false;
 
                 try
@@ -1526,12 +1531,9 @@ public class HardwareConfigController : ControllerBase
                     }
                     else
                     {
-                        // 同步阻塞模式 - 直接调用底层同步方法
-                        // 注意：这里仍然使用 ReadAsync，因为底层 LeadshineInputPort.ReadAsync 
-                        // 实际上是同步执行的（使用 Task.FromResult）
-                        var task = _inputPort.ReadAsync(request.BitNumber);
-                        task.Wait(cancellationToken); // 同步等待
-                        _ = task.Result;
+                        // 同步阻塞模式 - 使用 GetAwaiter().GetResult() 避免 Task.Wait 带来的死锁风险
+                        // 注意：底层 LeadshineInputPort.ReadAsync 实际上是同步执行的（使用 Task.FromResult）
+                        _ = _inputPort.ReadAsync(request.BitNumber).GetAwaiter().GetResult();
                     }
 
                     readSuccess = true;
@@ -1544,7 +1546,7 @@ public class HardwareConfigController : ControllerBase
                     failedCount++;
                 }
 
-                var iterationEnd = DateTimeOffset.Now;
+                var iterationEnd = _clock?.LocalNowOffset ?? DateTimeOffset.Now;
                 var duration = (iterationEnd - iterationStart).TotalMilliseconds;
 
                 if (readSuccess)
@@ -1559,7 +1561,7 @@ public class HardwareConfigController : ControllerBase
                 }
             }
 
-            var endTime = DateTimeOffset.Now;
+            var endTime = _clock?.LocalNowOffset ?? DateTimeOffset.Now;
             var totalDuration = (endTime - startTime).TotalMilliseconds;
             var averageDuration = successCount > 0 ? totalDuration / successCount : 0;
 
