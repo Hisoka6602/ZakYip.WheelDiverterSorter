@@ -212,20 +212,21 @@ public class AllApiEndpointsTests : IClassFixture<WebApplicationFactory<Program>
             $"Expected success status code but got {response.StatusCode}");
     }
 
-    [Fact]
-    public async Task TestCommunication_ReturnsSuccess()
-    {
-        // Act
-        var response = await _client.PostAsync("/api/communication/test", null);
-
-        // Assert
-        // Note: This test will always return 200 OK, but Success field may be false
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        
-        var result = await response.Content.ReadFromJsonAsync<ConnectionTestResponse>(TestJsonOptions.GetOptions());
-        Assert.NotNull(result);
-        // Connection may fail if RuleEngine is not running, which is expected
-    }
+    // Test removed: TestCommunication endpoint deleted for performance optimization
+    // [Fact]
+    // public async Task TestCommunication_ReturnsSuccess()
+    // {
+    //     // Act
+    //     var response = await _client.PostAsync("/api/communication/test", null);
+    //
+    //     // Assert
+    //     // Note: This test will always return 200 OK, but Success field may be false
+    //     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    //     
+    //     var result = await response.Content.ReadFromJsonAsync<ConnectionTestResponse>(TestJsonOptions.GetOptions());
+    //     Assert.NotNull(result);
+    //     // Connection may fail if RuleEngine is not running, which is expected
+    // }
 
     #endregion
 }

@@ -69,26 +69,6 @@ public class CommunicationController : ControllerBase {
         _serverBackgroundService = serverBackgroundService;
     }
 
-    /// <summary>
-    /// 测试与RuleEngine的连接
-    /// </summary>
-    /// <param name="cancellationToken">取消令牌，用于取消长时间运行的连接测试操作</param>
-    /// <returns>连接测试结果，包括是否成功、响应时间、错误详情等</returns>
-    /// <response code="200">测试完成（返回成功或失败的详细信息）</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 尝试连接到配置的RuleEngine服务器并返回测试结果。
-    /// 测试结果包括：
-    /// - 连接是否成功
-    /// - 响应时间（毫秒）
-    /// - 错误详情（如果失败）
-    /// - 测试时间戳
-    /// 
-    /// 注意：此操作可能需要较长时间完成，取决于网络状况和配置的超时时间。
-    /// </remarks>
-
-    #endregion
-
     #region 通信状态
 
     /// <summary>
@@ -623,4 +603,6 @@ public class CommunicationController : ControllerBase {
             return StatusCode(500, new { message = "重置通信配置失败 - Failed to reset communication configuration" });
         }
     }
+
+    #endregion
 }

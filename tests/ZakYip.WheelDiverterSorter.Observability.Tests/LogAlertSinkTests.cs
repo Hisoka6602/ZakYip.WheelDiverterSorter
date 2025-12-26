@@ -153,9 +153,8 @@ public class LogAlertSinkTests
     [Fact]
     public async Task WriteAlertAsync_WithMetrics_ShouldNotThrow()
     {
-        // Arrange - Use real metrics instance (cannot mock because methods aren't virtual)
-        var realMetrics = new PrometheusMetrics(Mock.Of<ISystemClock>());
-        var sink = new LogAlertSink(_mockLogger.Object, realMetrics);
+        // Arrange - Metrics removed, test now uses LogAlertSink without metrics
+        var sink = new LogAlertSink(_mockLogger.Object);
         var alertEvent = new AlertRaisedEventArgs
         {
             AlertCode = "TEST_ALERT",
@@ -174,7 +173,7 @@ public class LogAlertSinkTests
     public async Task WriteAlertAsync_WithoutMetrics_ShouldNotThrow()
     {
         // Arrange
-        var sink = new LogAlertSink(_mockLogger.Object, null); // No metrics
+        var sink = new LogAlertSink(_mockLogger.Object); // No metrics parameter
         var alertEvent = new AlertRaisedEventArgs
         {
             AlertCode = "TEST_ALERT",

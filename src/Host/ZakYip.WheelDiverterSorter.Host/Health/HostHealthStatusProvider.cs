@@ -119,50 +119,11 @@ public class HostHealthStatusProvider : IHealthStatusProvider
 
     /// <summary>
     /// 更新 Prometheus 健康检查指标
-    /// Update Prometheus health check metrics
+    /// Update Prometheus health check metrics (removed for performance optimization)
     /// </summary>
     private void UpdateHealthMetrics(LineHealthSnapshot snapshot)
     {
-        {
-            return;
-        }
-
-        try
-        {
-            // 更新整体健康检查状态
-            var isReady = snapshot.IsLineAvailable && snapshot.IsSelfTestSuccess;
-            var ruleEngineHealthy = snapshot.Upstreams?.All(u => u.IsHealthy) ?? true;
-            var driversHealthy = snapshot.Drivers?.All(d => d.IsHealthy) ?? true;
-            isReady = isReady && ruleEngineHealthy && driversHealthy;
-
-
-            // 更新 RuleEngine 连接健康状态
-            if (snapshot.Upstreams != null)
-            {
-                foreach (var upstream in snapshot.Upstreams)
-                {
-                    // 如果是 RuleEngine 连接，也更新专用指标
-                    if (upstream.EndpointName.StartsWith("RuleEngine", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var connectionType = upstream.EndpointName.Replace("RuleEngine-", "");
-                    }
-                }
-            }
-
-            // 更新驱动器健康状态
-            if (snapshot.Drivers != null)
-            {
-                foreach (var driver in snapshot.Drivers)
-                {
-                }
-            }
-
-            // TD-043: 更新 TTL 调度器健康状态
-            // 当前暂时设置为健康，待实现 TTL 调度器健康检查
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "更新 Prometheus 健康检查指标失败");
-        }
+        // Metrics removed for performance optimization
+        // This method is now a no-op
     }
 }
