@@ -153,7 +153,7 @@ public class PerformanceBaselineTests : IDisposable
 
         services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<SimulationReportPrinter>();
-        services.AddSingleton<PrometheusMetrics>();
+        // Removed: PrometheusMetrics (PR: Remove Prometheus)
 
         _serviceProvider = services.BuildServiceProvider();
     }
@@ -238,7 +238,7 @@ public class PerformanceBaselineTests : IDisposable
         var pathExecutor = services.GetRequiredService<ISwitchingPathExecutor>();
         var timelineFactory = services.GetRequiredService<ParcelTimelineFactory>();
         var reportPrinter = services.GetRequiredService<SimulationReportPrinter>();
-        var metrics = services.GetRequiredService<PrometheusMetrics>();
+        // Removed: PrometheusMetrics metrics = services.GetRequiredService<PrometheusMetrics>(); (PR: Remove Prometheus)
         var logger = services.GetRequiredService<ILogger<SimulationRunner>>();
 
         var runner = new SimulationRunner(
@@ -248,7 +248,7 @@ public class PerformanceBaselineTests : IDisposable
             pathExecutor,
             timelineFactory,
             reportPrinter,
-            metrics,
+            null, // metrics parameter removed
             logger
         );
 

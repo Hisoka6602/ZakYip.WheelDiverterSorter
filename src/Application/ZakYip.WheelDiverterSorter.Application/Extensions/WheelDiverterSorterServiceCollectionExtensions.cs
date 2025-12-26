@@ -92,7 +92,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 2. 运行时配置文件服务
     /// 3. 分拣系统配置选项
     /// 4. 性能监控和缓存服务
-    /// 5. Prometheus 指标和告警服务
+    /// 5. 告警服务
     /// 6. 包裹追踪和日志清理服务
     /// 7. 配置仓储服务
     /// 8. 应用层服务

@@ -97,7 +97,6 @@ public class UtilityMethodDuplicationDetectionTests
     {
         // 领域特定的工厂/建造者类
         "ErrorCodes",                       // 错误码定义
-        "PrometheusMetrics",                // Prometheus指标定义
         "DefaultConfiguration",             // 默认配置
         "WheelDriverException",             // 异常类型（包含工厂方法）
         

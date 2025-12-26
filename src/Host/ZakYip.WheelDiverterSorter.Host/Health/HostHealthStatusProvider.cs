@@ -86,7 +86,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 ExceptionChuteRatio = exceptionChuteRatio
             };
 
-            // PR-34: 更新 Prometheus 健康检查指标
+            // PR-34: Metrics removed (Prometheus removed)
             UpdateHealthMetrics(snapshot);
 
             return Task.FromResult(snapshot);
@@ -118,12 +118,11 @@ public class HostHealthStatusProvider : IHealthStatusProvider
     }
 
     /// <summary>
-    /// 更新 Prometheus 健康检查指标
-    /// Update Prometheus health check metrics (removed for performance optimization)
+    /// Update health check metrics (removed)
     /// </summary>
     private void UpdateHealthMetrics(LineHealthSnapshot snapshot)
     {
-        // Metrics removed for performance optimization
+        // Metrics removed (Prometheus removed)
         // This method is now a no-op
     }
 }

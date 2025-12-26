@@ -1,6 +1,5 @@
 using NLog;
 using NLog.Web;
-using Prometheus;
 using System.Reflection;
 using Microsoft.OpenApi.Models;
 using ZakYip.WheelDiverterSorter.Host.Swagger;
@@ -117,11 +116,6 @@ try
     });
 
     var app = builder.Build();
-
-    // 配置Prometheus指标中间件
-    // Configure Prometheus metrics middleware
-    app.UseHttpMetrics(); // 自动收集HTTP请求指标
-    app.MapMetrics(); // 暴露 /metrics 端点
 
     // 根据配置决定是否启用Swagger - Enable Swagger based on configuration
     if (miniApiOptions.EnableSwagger)

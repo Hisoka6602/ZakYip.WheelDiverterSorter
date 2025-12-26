@@ -40,8 +40,6 @@ public class BootHostedService : IHostedService
                 _logger.LogInformation("驱动器自检: {DriverCount} 个驱动器，全部健康", report.Drivers.Count);
                 _logger.LogInformation("上游系统检查: {UpstreamCount} 个上游端点检查完成", report.Upstreams.Count);
                 _logger.LogInformation("配置验证: {ConfigStatus}", report.Config.IsValid ? "通过" : "失败");
-
-                // 更新Prometheus指标
             }
             else
             {
@@ -64,8 +62,6 @@ public class BootHostedService : IHostedService
                 {
                     _logger.LogError("  - 配置: {ErrorMessage}", report.Config.ErrorMessage);
                 }
-
-                // 更新Prometheus指标
             }
 
             _logger.LogInformation("========================================");
