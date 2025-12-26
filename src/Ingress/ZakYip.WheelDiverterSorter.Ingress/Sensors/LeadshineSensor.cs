@@ -154,7 +154,10 @@ public class LeadshineSensor : ISensor {
                 var currentState = await _inputPort.ReadAsync(_inputBit);
                 var now = _systemClock.LocalNowOffset;
 
-                // 检测状态变化
+                // 检测状态变化（边沿触发机制）
+                // 重要：只有在状态发生变化时（上升沿 LOW→HIGH 或下降沿 HIGH→LOW）才会触发事件
+                // 如果信号保持 HIGH 不变，不会重复触发，这是正确的防抖行为
+                // 详见：docs/DEBOUNCE_BEHAVIOR_EXPLANATION.md
                 if (currentState != _lastState) {
                     // 状态变化忽略窗口逻辑（用于处理镂空包裹）
                     if (_stateChangeIgnoreWindowMs > 0 && _lastRisingEdgeTime.HasValue)

@@ -427,8 +427,24 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     }
 
     /// <summary>
-    /// 检查是否为重复触发
+    /// 检查是否为重复触发（防抖机制）
     /// </summary>
+    /// <remarks>
+    /// 防抖策略：在配置的时间窗口内（默认400ms），只有第一次触发生效。
+    /// 
+    /// 重要说明：
+    /// - 本方法只在收到新的传感器事件时调用
+    /// - 如果传感器信号保持 HIGH，传感器层不会产生新事件（边沿触发）
+    /// - 因此即使防抖窗口过期，信号保持 HIGH 时也不会重复触发
+    /// - 只有当信号产生新的上升沿（LOW → HIGH）时，才会有新事件进入本方法
+    /// 
+    /// 详见：docs/DEBOUNCE_BEHAVIOR_EXPLANATION.md
+    /// </remarks>
+    /// <param name="sensorEvent">传感器事件</param>
+    /// <returns>
+    /// - IsDuplicate: true 表示是重复触发（在防抖窗口内），false 表示允许触发
+    /// - TimeSinceLastTriggerMs: 距离上次触发的毫秒数
+    /// </returns>
     private (bool IsDuplicate, double TimeSinceLastTriggerMs) CheckForDuplicateTrigger(SensorEvent sensorEvent)
     {
         if (!_lastTriggerTimes.TryGetValue(sensorEvent.SensorId, out var lastTime))
