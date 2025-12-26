@@ -37,7 +37,6 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
@@ -56,7 +55,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
-using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
@@ -70,11 +68,11 @@ namespace ZakYip.WheelDiverterSorter.Application.Extensions;
 /// Unified DI entry point for all WheelDiverterSorter services
 /// </summary>
 /// <remarks>
-/// 提供统一的服务注册入口，将所有 Core/Execution/Drivers/Ingress/Communication/Observability/Simulation 
+/// 提供统一的服务注册入口，将所有 Core/Execution/Drivers/Ingress/Communication/Observability 
 /// 相关服务注册合并到 Application 层，使 Host 层只需调用这一个方法即可完成所有服务注册。
 /// 
 /// **依赖关系**：
-/// Host → Application → (Core/Execution/Drivers/Ingress/Communication/Observability/Simulation)
+/// Host → Application → (Core/Execution/Drivers/Ingress/Communication/Observability)
 /// 
 /// **使用方法**：
 /// <code>
@@ -101,13 +99,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 7. 配置仓储服务
     /// 8. 应用层服务
     /// 9. 分拣服务
-    /// 10. 驱动器服务（根据运行模式选择硬件/仿真）
+    /// 10. 驱动器服务（根据运行模式选择硬件）
     /// 11. 节点健康服务
     /// 12. 传感器服务
     /// 13. RuleEngine 通信服务
     /// 14. 改口功能服务
     /// 15. 中段皮带 IO 联动服务
-    /// 16. 仿真服务
     /// </remarks>
     public static IServiceCollection AddWheelDiverterSorter(
         this IServiceCollection services,
@@ -165,16 +162,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         configuration.GetSection("Driver").Bind(driverOptions);
         services.AddSingleton(driverOptions);
 
-        if (runtimeMode.Equals("Simulation", StringComparison.OrdinalIgnoreCase) ||
-            runtimeMode.Equals("PerformanceTest", StringComparison.OrdinalIgnoreCase))
+        // 生产模式和性能测试模式：根据数据库配置动态注册驱动器
+        // 注意：由于需要访问数据库才能确定厂商类型，这里使用工厂模式延迟解析
         {
-            // 仿真/性能测试模式
-            services.AddSimulatedIo();
-        }
-        else
-        {
-            // 生产模式：根据数据库配置动态注册驱动器
-            // 注意：由于需要访问数据库才能确定厂商类型，这里使用工厂模式延迟解析
             services.AddProductionModeDrivers(configuration);
         }
 
@@ -197,9 +187,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 15. 注册中段皮带 IO 联动服务
         // Middle conveyor services removed - functionality replaced by ConveyorSegmentConfiguration
-
-        // 16. 注册仿真服务
-        services.AddSimulationServices(configuration);
 
         return services;
     }
@@ -554,7 +541,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         return normalizedInput switch
         {
             "production" => RuntimeMode.Production,
-            "simulation" => RuntimeMode.Simulation,
             "performancetest" => RuntimeMode.PerformanceTest,
             _ when Enum.TryParse<RuntimeMode>(modeString, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed) => parsed,
             _ => RuntimeMode.Production
@@ -566,7 +552,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         return mode switch
         {
             RuntimeMode.Production => new ProductionRuntimeProfile(),
-            RuntimeMode.Simulation => new SimulationRuntimeProfile(),
             RuntimeMode.PerformanceTest => new PerformanceTestRuntimeProfile(),
             _ => new ProductionRuntimeProfile()
         };
@@ -584,37 +569,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
     #endregion
 
-    #region Private Helper Methods - Simulation Services
-
-    /// <summary>
-    /// 注册仿真服务（用于 API 触发仿真）
-    /// </summary>
-    private static IServiceCollection AddSimulationServices(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        var enableApiSimulation = configuration.GetValue<bool>("Simulation:EnableApiSimulation", false);
-        
-        if (!enableApiSimulation)
-        {
-            return services;
-        }
-
-        // 注册仿真服务
-        services.AddSingleton<Simulation.Services.SimulationRunner>();
-        services.AddSingleton<Simulation.Services.SimulationScenarioRunner>();
-        services.AddSingleton<Simulation.Services.ParcelTimelineFactory>();
-        services.AddSingleton<Simulation.Services.SimulationReportPrinter>();
-        
-        // 注册 ISimulationScenarioRunner 接口
-        services.AddSingleton<Simulation.Services.ISimulationScenarioRunner>(
-            serviceProvider => serviceProvider.GetRequiredService<Simulation.Services.SimulationScenarioRunner>());
-
-        return services;
-    }
-
-    #endregion
-
     #region Runtime Profile Implementations
 
     /// <summary>
@@ -623,8 +577,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     private sealed class ProductionRuntimeProfile : IRuntimeProfile
     {
         public RuntimeMode Mode => RuntimeMode.Production;
-        public bool UseHardwareDriver => true;
-        public bool IsSimulationMode => false;
         public bool IsPerformanceTestMode => false;
         public bool EnableIoOperations => true;
         public bool EnableUpstreamCommunication => true;
@@ -634,29 +586,11 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 仿真模式运行时配置文件
-    /// </summary>
-    private sealed class SimulationRuntimeProfile : IRuntimeProfile
-    {
-        public RuntimeMode Mode => RuntimeMode.Simulation;
-        public bool UseHardwareDriver => false;
-        public bool IsSimulationMode => true;
-        public bool IsPerformanceTestMode => false;
-        public bool EnableIoOperations => true;
-        public bool EnableUpstreamCommunication => true;
-        public bool EnableHealthCheckTasks => true;
-        public bool EnablePerformanceMonitoring => true;
-        public string GetModeDescription() => "仿真模式 - 使用模拟驱动器，虚拟传感器和条码源";
-    }
-
-    /// <summary>
     /// 性能测试模式运行时配置文件
     /// </summary>
     private sealed class PerformanceTestRuntimeProfile : IRuntimeProfile
     {
         public RuntimeMode Mode => RuntimeMode.PerformanceTest;
-        public bool UseHardwareDriver => false;
-        public bool IsSimulationMode => false;
         public bool IsPerformanceTestMode => true;
         public bool EnableIoOperations => false;
         public bool EnableUpstreamCommunication => false;
@@ -691,9 +625,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册数递鸟摆轮驱动器
         services.AddShuDiNiaoWheelDiverter();
         
-        // 注册面板输入读取器（根据配置动态选择）
+        // 注册面板输入读取器（使用硬件驱动）
         // 注意：面板配置在应用启动时读取一次，配置变更需要重启应用才能生效
-        // 这包括 UseSimulation 标志和 IO 位映射配置
+        // 这包括 IO 位映射配置
         services.AddSingleton<IPanelInputReader>(sp =>
         {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
@@ -710,9 +644,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             catch (Exception ex)
             {
                 fallbackLogger.LogError(ex, "读取面板配置时发生异常");
-                // 如果无法读取配置，无法判断是否应使用仿真模式，视为严重配置错误
+                // 如果无法读取配置，视为严重配置错误
                 throw new InvalidOperationException(
-                    "无法从数据库读取面板配置，系统无法确定是否应使用仿真或硬件模式。请检查数据库初始化和配置。", ex);
+                    "无法从数据库读取面板配置，请检查数据库初始化和配置。", ex);
             }
 
             // 配置缺失时，抛出异常
@@ -722,29 +656,16 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                     "未找到面板配置，无法初始化面板输入读取器。请先完成面板配置初始化。");
             }
                 
-            // 根据 IRuntimeProfile.IsSimulationMode 选择实现
-            var runtimeProfile = sp.GetService<IRuntimeProfile>();
-            bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
+            // 使用雷赛 IO 读取器 (removed simulation mode support)
+            var logger = loggerFactory.CreateLogger<LeadshinePanelInputReader>();
+            var inputPort = sp.GetRequiredService<IInputPort>();
             
-            if (isSimulationMode)
-            {
-                var logger = loggerFactory.CreateLogger<SimulatedPanelInputReader>();
-                logger.LogInformation("使用仿真面板输入读取器（仿真模式）");
-                return new SimulatedPanelInputReader(systemClock);
-            }
-            else
-            {
-                // 使用雷赛 IO 读取器
-                var logger = loggerFactory.CreateLogger<LeadshinePanelInputReader>();
-                var inputPort = sp.GetRequiredService<IInputPort>();
-                
-                logger.LogInformation("使用雷赛硬件面板输入读取器");
-                return new LeadshinePanelInputReader(
-                    logger,
-                    inputPort,
-                    panelConfigRepo,
-                    systemClock);
-            }
+            logger.LogInformation("使用雷赛硬件面板输入读取器");
+            return new LeadshinePanelInputReader(
+                logger,
+                inputPort,
+                panelConfigRepo,
+                systemClock);
         });
         
         // 注册面板 IO 协调器
@@ -773,9 +694,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 var isTestEnv = configuration.GetValue<bool>("IsTestEnvironment", false);
                 if (isTestEnv)
                 {
-                    logger.LogInformation("检测到测试环境，使用模拟 IO 联动驱动器");
-                    innerDriver = new SimulatedIoLinkageDriver(
-                        loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                    logger.LogInformation("检测到测试环境，使用 Leadshine 驱动器");
+                    innerDriver = CreateLeadshineDriver(sp, logger);
                 }
                 else
                 {
@@ -785,39 +705,23 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                     var driverConfig = driverRepo.Get();
                     var vendorType = driverConfig.VendorType;
                     
-                    // 使用 IRuntimeProfile.IsSimulationMode 判断是否使用模拟驱动器
-                    var runtimeProfile = sp.GetService<IRuntimeProfile>();
-                    bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
-                    
                     logger.LogInformation(
-                        "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}, SimulationMode={SimulationMode}",
-                        vendorType,
-                        isSimulationMode);
+                        "正在根据数据库配置选择 IO 联动驱动器: VendorType={VendorType}",
+                        vendorType);
                     
-                    // 如果是仿真模式或使用 Mock，返回模拟驱动器
-                    if (isSimulationMode || vendorType == DriverVendorType.Mock)
+                    // 根据厂商类型选择驱动器
+                    innerDriver = vendorType switch
                     {
-                        logger.LogInformation("使用模拟 IO 联动驱动器");
-                        innerDriver = new SimulatedIoLinkageDriver(
-                            loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
-                    }
-                    else
-                    {
-                        // 根据厂商类型选择驱动器
-                        innerDriver = vendorType switch
-                        {
-                            DriverVendorType.Leadshine => CreateLeadshineDriver(sp, logger),
-                            DriverVendorType.Siemens => CreateS7IoLinkageDriver(sp, configuration, loggerFactory),
-                            _ => CreateDefaultDriver(logger, vendorType)
-                        };
-                    }
+                        DriverVendorType.Leadshine => CreateLeadshineDriver(sp, logger),
+                        DriverVendorType.Siemens => CreateS7IoLinkageDriver(sp, configuration, loggerFactory),
+                        _ => CreateDefaultDriver(logger, vendorType)
+                    };
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "创建 IO 联动驱动器失败，回退到模拟驱动器");
-                innerDriver = new SimulatedIoLinkageDriver(
-                    loggerFactory.CreateLogger<SimulatedIoLinkageDriver>());
+                logger.LogError(ex, "创建 IO 联动驱动器失败，回退到 Leadshine 驱动器");
+                innerDriver = CreateLeadshineDriver(sp, logger);
             }
             
             // 使用装饰器包装驱动器以支持延迟执行和状态检查

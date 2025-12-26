@@ -49,8 +49,8 @@ public sealed class EmergencyStopButtonConfig
 /// <remarks>
 /// <para>包含面板所有按钮和指示灯的IO绑定及触发电平配置</para>
 /// <para>
-/// 架构原则：系统默认使用真实硬件面板驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
-/// Architecture principle: System uses real hardware panel driver by default, only uses Mock driver in simulation mode (IRuntimeProfile.IsSimulationMode).
+/// 架构原则：系统使用真实硬件面板驱动。
+/// Architecture principle: System uses real hardware panel driver.
 /// </para>
 /// </remarks>
 public sealed record class PanelConfiguration

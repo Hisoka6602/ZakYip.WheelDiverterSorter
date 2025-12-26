@@ -7,9 +7,9 @@ namespace ZakYip.WheelDiverterSorter.Core.Enums.System;
 /// Runtime mode enumeration for the system
 /// </summary>
 /// <remarks>
-/// 用于区分生产、仿真和性能测试等不同运行场景，
+/// 用于区分生产和性能测试等不同运行场景，
 /// 每种模式对应不同的驱动器和服务实现组合。
-/// Used to differentiate between production, simulation, and performance testing scenarios.
+/// Used to differentiate between production and performance testing scenarios.
 /// Each mode corresponds to different driver and service implementation combinations.
 /// </remarks>
 public enum RuntimeMode
@@ -20,13 +20,6 @@ public enum RuntimeMode
     /// </summary>
     [Description("生产模式")]
     Production = 0,
-
-    /// <summary>
-    /// 仿真模式 - 使用模拟驱动器，虚拟传感器和条码源
-    /// Simulation mode - Using simulated drivers, virtual sensors and barcode sources
-    /// </summary>
-    [Description("仿真模式")]
-    Simulation = 1,
 
     /// <summary>
     /// 性能测试模式 - 跳过实际 IO，专注于路径/算法性能测试

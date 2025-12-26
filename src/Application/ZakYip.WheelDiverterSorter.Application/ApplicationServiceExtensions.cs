@@ -4,7 +4,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
-using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
@@ -34,7 +33,6 @@ public static class ApplicationServiceExtensions
     /// - 通信配置服务 (ICommunicationConfigService)
     /// - IO联动配置服务 (IIoLinkageConfigService)
     /// - 厂商配置服务 (IVendorConfigService)
-    /// - 仿真模式提供者 (ISimulationModeProvider)
     /// - 调试分拣服务 (IDebugSortService)
     /// - 改口服务 (IChangeParcelChuteService)
     /// - 性能指标服务 (SorterMetrics)
@@ -52,9 +50,6 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<IIoLinkageConfigService, IoLinkageConfigService>();
         services.AddSingleton<IVendorConfigService, VendorConfigService>();
         services.AddSingleton<IConveyorSegmentService, ConveyorSegmentService>();
-        
-        // 注册仿真模式提供者（单例模式）
-        services.AddSingleton<ISimulationModeProvider, SimulationModeProvider>();
         
         // 注册调试分拣服务
         services.AddSingleton<IDebugSortService, DebugSortService>();

@@ -13,12 +13,5 @@ public enum EnvironmentMode
     /// Production - Using real hardware drivers
     /// </summary>
     [Description("正式环境")]
-    Production = 0,
-
-    /// <summary>
-    /// 仿真环境 - 使用模拟驱动
-    /// Simulation - Using simulated drivers
-    /// </summary>
-    [Description("仿真环境")]
-    Simulation = 1
+    Production = 0
 }

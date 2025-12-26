@@ -36,8 +36,8 @@ namespace ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 /// <para><b>架构原则</b>：</para>
 /// <list type="bullet">
 ///   <item>系统默认使用真实硬件传感器，不需要配置开关</item>
-///   <item>只有在仿真模式下（ISimulationModeProvider.IsSimulationMode() == true）才使用Mock传感器</item>
-///   <item>通过 POST /api/simulation/run-scenario-e 等仿真端点进入仿真模式</item>
+///   <item>系统使用真实硬件传感器</item>
+///   <item></item>
 /// </list>
 /// 
 /// <para><b>为什么不是简单的 Options 包装器</b>：</para>

@@ -15,7 +15,6 @@ namespace ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 /// <item>处理超时、错误码、异常</item>
 /// <item>记录日志（成功/失败等）</item>
 /// </list>
-/// <para>仿真模式与真实模式使用同一个执行器，区别只在于注入的驱动实现。</para>
 /// <para>
 /// 所有异常处理和日志记录都在执行器内部完成，上层调用方只需关心
 /// <see cref="OperationResult"/> 的业务含义。
