@@ -51,7 +51,7 @@ public class TopologyPathExecutionDefenseTests
     /// - Host/Models 下的 API DTO（如 ChutePathTopologyRequest/Response）
     /// - Application 层的服务接口（如 IChutePathTopologyService）
     /// - 仓储实现（如 InMemoryRoutePlanRepository）
-    /// - 执行器实现（如 ConcurrentSwitchingPathExecutor）
+    /// - 执行器实现
     /// </remarks>
     [Fact]
     public void CoreTopologyModelsShouldOnlyBeDefinedInCore()
@@ -194,7 +194,7 @@ public class TopologyPathExecutionDefenseTests
     /// <remarks>
     /// 允许的例外：
     /// - 实现 ISwitchingPathGenerator 的类型（如 CachedSwitchingPathGenerator）
-    /// - 实现 ISwitchingPathExecutor 的类型（如 ConcurrentSwitchingPathExecutor, MockSwitchingPathExecutor）
+    /// - 实现 ISwitchingPathExecutor 的类型（如 MockSwitchingPathExecutor）
     /// </remarks>
     [Fact]
     public void NonCoreProjectsShouldNotDefineSwitchingPathModelTypes()
