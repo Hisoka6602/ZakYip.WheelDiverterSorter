@@ -198,7 +198,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 15. 注册中段皮带 IO 联动服务
         // Middle conveyor services removed - functionality replaced by ConveyorSegmentConfiguration
 
-        // 17. 注册仿真服务
+        // 16. 注册仿真服务
         services.AddSimulationServices(configuration);
 
         return services;
