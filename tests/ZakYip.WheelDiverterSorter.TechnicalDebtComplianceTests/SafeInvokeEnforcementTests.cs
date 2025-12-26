@@ -189,7 +189,6 @@ public class SafeInvokeEnforcementTests
     /// </summary>
     [Theory]
     [InlineData("src/Ingress/ZakYip.WheelDiverterSorter.Ingress/Sensors/LeadshineSensor.cs", "SensorTriggered.SafeInvoke")]
-    [InlineData("src/Ingress/ZakYip.WheelDiverterSorter.Ingress/Sensors/MockSensor.cs", "SensorTriggered.SafeInvoke")]
     [InlineData("src/Ingress/ZakYip.WheelDiverterSorter.Ingress/Services/ParcelDetectionService.cs", "ParcelDetected.SafeInvoke")]
     [InlineData("src/Infrastructure/ZakYip.WheelDiverterSorter.Communication/Clients/RuleEngineClientBase.cs", "ChuteAssigned.SafeInvoke")]
     [InlineData("src/Execution/ZakYip.WheelDiverterSorter.Execution/Health/NodeHealthRegistry.cs", "NodeHealthChanged.SafeInvoke")]

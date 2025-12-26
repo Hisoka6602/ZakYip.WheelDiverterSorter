@@ -86,7 +86,6 @@ public class IoDriverConfigurationSchemaFilter : ISchemaFilter
     {
         return vendorType switch
         {
-            DriverVendorType.Mock => "模拟IO驱动器",
             DriverVendorType.Leadshine => "雷赛运动控制卡",
             DriverVendorType.Siemens => "西门子PLC",
             DriverVendorType.Mitsubishi => "三菱PLC",

@@ -6,7 +6,6 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Benchmarks;
@@ -24,7 +23,7 @@ public class PathExecutionBenchmarks
     [GlobalSetup]
     public void Setup()
     {
-        _executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
+        _executor = new BenchmarkPathExecutor();
 
         _singleSegmentPath = new SwitchingPath
         {

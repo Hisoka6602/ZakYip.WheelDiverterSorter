@@ -10,7 +10,6 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 
 namespace ZakYip.WheelDiverterSorter.Benchmarks;
@@ -72,7 +71,7 @@ public class PerformanceBottleneckBenchmarks
         _repository.Upsert(complexRoute);
 
         _generator = new DefaultSwitchingPathGenerator(_repository);
-        _executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
+        _executor = new BenchmarkPathExecutor();
 
         _simplePath = _generator.GeneratePath(1)!;
         _complexPath = _generator.GeneratePath(2)!;

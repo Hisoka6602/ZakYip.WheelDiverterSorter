@@ -10,7 +10,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Models.Panel;
 /// <remarks>
 /// <para>用于更新面板配置的请求数据传输对象，参数按功能分类组织</para>
 /// <para>
-/// 架构原则：系统默认使用真实硬件面板驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// 架构原则：系统默认使用真实硬件面板驱动。
 /// 仿真模式由系统运行时配置控制，不再通过面板配置指定。
 /// </para>
 /// </remarks>
@@ -93,7 +93,7 @@ public sealed record PanelConfigRequest
 /// <remarks>
 /// <para>面板配置的数据传输对象，用于查询返回，参数按功能分类组织</para>
 /// <para>
-/// 架构原则：系统默认使用真实硬件面板驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// 架构原则：系统默认使用真实硬件面板驱动。
 /// 仿真模式由系统运行时配置控制，不再通过面板配置指定。
 /// </para>
 /// </remarks>

@@ -605,7 +605,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 根据数据库配置的 DriverVendorType 决定注册哪种 IO 驱动器：
     /// - Leadshine（默认）: 雷赛 IO 驱动器 + 数递鸟摆轮驱动器
     /// - Siemens: 西门子 S7 IO 驱动器 + 数递鸟摆轮驱动器
-    /// - Mock: 模拟驱动器
     /// 
     /// 注意：IO 驱动器会在应用启动时立即初始化，确保连接问题能够及早发现。
     /// </remarks>

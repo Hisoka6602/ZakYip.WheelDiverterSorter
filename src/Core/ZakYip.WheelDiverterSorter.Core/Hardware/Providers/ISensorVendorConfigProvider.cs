@@ -58,7 +58,7 @@ namespace ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 public interface ISensorVendorConfigProvider
 {
     /// <summary>
-    /// 传感器厂商类型名称（如 "Leadshine", "Siemens", "Mock" 等）
+    /// 传感器厂商类型名称（如 "Leadshine", "Siemens" 等）
     /// </summary>
     string VendorTypeName { get; }
 

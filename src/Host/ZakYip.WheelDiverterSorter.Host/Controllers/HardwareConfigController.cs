@@ -1187,7 +1187,6 @@ public class HardwareConfigController : ControllerBase
     {
         return vendorType switch
         {
-            DriverVendorType.Mock => "模拟驱动器",
             DriverVendorType.Leadshine => "雷赛",
             DriverVendorType.Siemens => "西门子",
             DriverVendorType.Mitsubishi => "三菱",
@@ -1401,7 +1400,7 @@ public class HardwareConfigController : ControllerBase
 /// IO驱动器配置响应模型
 /// </summary>
 /// <remarks>
-/// 架构原则：系统默认使用真实硬件驱动，只有在仿真模式下（IRuntimeProfile.IsSimulationMode）才使用Mock驱动。
+/// 架构原则：系统默认使用真实硬件驱动。
 /// </remarks>
 public class IoDriverConfiguration
 {
