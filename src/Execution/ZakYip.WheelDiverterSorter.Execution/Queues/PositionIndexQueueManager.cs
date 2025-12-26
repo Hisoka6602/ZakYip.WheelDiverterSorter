@@ -14,12 +14,25 @@ namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 /// <remarks>
 /// 使用 ConcurrentDictionary 和 ConcurrentQueue 确保线程安全。
 /// 每个 positionIndex 有独立的 FIFO 队列，避免全局锁竞争。
+/// 
+/// <para><b>并发控制（PR-race-condition-fix）</b>：</para>
+/// 使用细粒度锁（per-Position locks）保护队列操作，确保"清空→修改→放回"等复合操作的原子性。
+/// 这解决了以下竞态条件：
+/// <list type="bullet">
+///   <item>与 DequeueTask 的竞态：防止队列清空时传感器触发返回null</item>
+///   <item>与 EnqueueTask 的竞态：防止FIFO顺序被破坏</item>
+///   <item>多个丢失事件竞态：防止同时处理多个丢失时漏修改任务</item>
+/// </list>
 /// </remarks>
 public class PositionIndexQueueManager : IPositionIndexQueueManager
 {
     private readonly ConcurrentDictionary<int, ConcurrentQueue<PositionQueueItem>> _queues = new();
     private readonly ConcurrentDictionary<int, DateTime> _lastEnqueueTimes = new();
     private readonly ConcurrentDictionary<int, DateTime> _lastDequeueTimes = new();
+    
+    // PR-race-condition-fix: 细粒度锁，每个Position独立，避免全局锁竞争
+    private readonly ConcurrentDictionary<int, object> _queueLocks = new();
+    
     private readonly ILogger<PositionIndexQueueManager> _logger;
     private readonly ISystemClock _clock;
     private readonly IPositionIntervalTracker? _intervalTracker;
@@ -43,9 +56,15 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         // 应用丢失检测阈值（基于输送线配置）
         task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
         
+        var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
-        queue.Enqueue(task);
-        _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
+        
+        // PR-race-condition-fix: 使用锁保护，防止与 UpdateAffectedParcelsToStraight 竞态
+        lock (queueLock)
+        {
+            queue.Enqueue(task);
+            _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
+        }
 
         _logger.LogDebug(
             "任务已加入 Position {PositionIndex} 队列尾部: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, QueueCount={QueueCount}",
@@ -58,26 +77,31 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         // 应用丢失检测阈值（基于输送线配置）
         task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
         
+        var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
         
-        // ConcurrentQueue 不支持直接插入头部，需要重建队列
-        // 1. 取出所有现有任务
-        var existingTasks = new List<PositionQueueItem>();
-        while (queue.TryDequeue(out var existingTask))
+        // PR-race-condition-fix: 使用锁保护整个重建队列过程
+        lock (queueLock)
         {
-            existingTasks.Add(existingTask);
+            // ConcurrentQueue 不支持直接插入头部，需要重建队列
+            // 1. 取出所有现有任务
+            var existingTasks = new List<PositionQueueItem>();
+            while (queue.TryDequeue(out var existingTask))
+            {
+                existingTasks.Add(existingTask);
+            }
+            
+            // 2. 先加入优先任务
+            queue.Enqueue(task);
+            
+            // 3. 再加入原有任务
+            foreach (var existingTask in existingTasks)
+            {
+                queue.Enqueue(existingTask);
+            }
+            
+            _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
         }
-        
-        // 2. 先加入优先任务
-        queue.Enqueue(task);
-        
-        // 3. 再加入原有任务
-        foreach (var existingTask in existingTasks)
-        {
-            queue.Enqueue(existingTask);
-        }
-        
-        _lastEnqueueTimes[positionIndex] = _clock.LocalNow;
 
         _logger.LogWarning(
             "优先任务已插入 Position {PositionIndex} 队列头部: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, QueueCount={QueueCount}",
@@ -93,15 +117,21 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             return null;
         }
 
-        if (queue.TryDequeue(out var task))
+        var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+        
+        // PR-race-condition-fix: 使用锁保护，防止与 UpdateAffectedParcelsToStraight 竞态
+        lock (queueLock)
         {
-            _lastDequeueTimes[positionIndex] = _clock.LocalNow;
+            if (queue.TryDequeue(out var task))
+            {
+                _lastDequeueTimes[positionIndex] = _clock.LocalNow;
 
-            _logger.LogDebug(
-                "任务已从 Position {PositionIndex} 队列取出: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, RemainingCount={RemainingCount}",
-                positionIndex, task.ParcelId, task.DiverterId, task.DiverterAction, queue.Count);
+                _logger.LogDebug(
+                    "任务已从 Position {PositionIndex} 队列取出: ParcelId={ParcelId}, DiverterId={DiverterId}, Action={Action}, RemainingCount={RemainingCount}",
+                    positionIndex, task.ParcelId, task.DiverterId, task.DiverterAction, queue.Count);
 
-            return task;
+                return task;
+            }
         }
 
         _logger.LogDebug("Position {PositionIndex} 队列为空，无任务可取", positionIndex);
@@ -128,20 +158,26 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
 
         foreach (var (positionIndex, queue) in _queues)
         {
-            var count = queue.Count;
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
             
-            // 清空队列
-            while (queue.TryDequeue(out _))
+            // PR-race-condition-fix: 使用锁保护队列清空操作
+            lock (queueLock)
             {
-                clearedCount++;
-            }
+                var count = queue.Count;
+                
+                // 清空队列
+                while (queue.TryDequeue(out _))
+                {
+                    clearedCount++;
+                }
 
-            if (count > 0)
-            {
-                positionsCleaned.Add(positionIndex);
-                _logger.LogDebug(
-                    "Position {PositionIndex} 队列已清空，移除 {Count} 个任务",
-                    positionIndex, count);
+                if (count > 0)
+                {
+                    positionsCleaned.Add(positionIndex);
+                    _logger.LogDebug(
+                        "Position {PositionIndex} 队列已清空，移除 {Count} 个任务",
+                        positionIndex, count);
+                }
             }
         }
 
@@ -217,36 +253,42 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
 
         foreach (var (positionIndex, queue) in _queues)
         {
-            // 临时存储不属于该包裹的任务
-            var remainingTasks = new List<PositionQueueItem>();
-            int removedFromThisQueue = 0;
-
-            // 遍历队列，过滤掉指定包裹的任务
-            while (queue.TryDequeue(out var task))
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+            
+            // PR-race-condition-fix: 使用锁保护整个"清空→过滤→放回"操作
+            lock (queueLock)
             {
-                if (task.ParcelId == parcelId)
+                // 临时存储不属于该包裹的任务
+                var remainingTasks = new List<PositionQueueItem>();
+                int removedFromThisQueue = 0;
+
+                // 遍历队列，过滤掉指定包裹的任务
+                while (queue.TryDequeue(out var task))
                 {
-                    removedFromThisQueue++;
-                    totalRemoved++;
+                    if (task.ParcelId == parcelId)
+                    {
+                        removedFromThisQueue++;
+                        totalRemoved++;
+                    }
+                    else
+                    {
+                        remainingTasks.Add(task);
+                    }
                 }
-                else
+
+                // 将保留的任务放回队列
+                foreach (var task in remainingTasks)
                 {
-                    remainingTasks.Add(task);
+                    queue.Enqueue(task);
                 }
-            }
 
-            // 将保留的任务放回队列
-            foreach (var task in remainingTasks)
-            {
-                queue.Enqueue(task);
-            }
-
-            if (removedFromThisQueue > 0)
-            {
-                affectedPositions.Add(positionIndex);
-                _logger.LogDebug(
-                    "[包裹丢失清理] Position {PositionIndex} 移除了包裹 {ParcelId} 的 {Count} 个任务",
-                    positionIndex, parcelId, removedFromThisQueue);
+                if (removedFromThisQueue > 0)
+                {
+                    affectedPositions.Add(positionIndex);
+                    _logger.LogDebug(
+                        "[包裹丢失清理] Position {PositionIndex} 移除了包裹 {ParcelId} 的 {Count} 个任务",
+                        positionIndex, parcelId, removedFromThisQueue);
+                }
             }
         }
 
@@ -276,75 +318,82 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
 
         foreach (var (positionIndex, queue) in _queues)
         {
-            // 临时存储队列中的任务
-            var tempTasks = new List<PositionQueueItem>();
-            int modifiedCount = 0;
-
-            // 遍历队列，识别并修改受影响的包裹任务
-            while (queue.TryDequeue(out var task))
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+            
+            // PR-race-condition-fix: 使用锁保护整个"清空→修改→放回"操作
+            // 这是最关键的修复点，解决与 EnqueueTask/DequeueTask 的竞态条件
+            lock (queueLock)
             {
-                // 判断该包裹是否受影响：
-                // 1. 包裹创建时间在丢失包裹创建时间之后
-                // 2. 包裹创建时间在丢失检测时间之前或等于检测时间
-                if (task.CreatedAt > lostParcelCreatedAt && task.CreatedAt <= detectionTime)
+                // 临时存储队列中的任务
+                var tempTasks = new List<PositionQueueItem>();
+                int modifiedCount = 0;
+
+                // 遍历队列，识别并修改受影响的包裹任务
+                while (queue.TryDequeue(out var task))
                 {
-                    // 如果任务方向不是直行，则修改为直行
-                    if (task.DiverterAction != DiverterDirection.Straight)
+                    // 判断该包裹是否受影响：
+                    // 1. 包裹创建时间在丢失包裹创建时间之后
+                    // 2. 包裹创建时间在丢失检测时间之前或等于检测时间
+                    if (task.CreatedAt > lostParcelCreatedAt && task.CreatedAt <= detectionTime)
                     {
-                        // 创建新任务，方向改为直行
-                        // 同时清除丢失检测截止时间，防止误判为丢失
-                        var modifiedTask = task with 
-                        { 
-                            DiverterAction = DiverterDirection.Straight,
-                            LostDetectionDeadline = null,  // 清除丢失检测截止时间
-                            LostDetectionTimeoutMs = null  // 清除丢失检测超时时间
-                        };
-                        tempTasks.Add(modifiedTask);
-                        
-                        // 记录受影响的包裹ID（去重）- O(1) 性能
-                        affectedParcelIdsSet.Add(task.ParcelId);
-                        
-                        modifiedCount++;
-                        
-                        _logger.LogDebug(
-                            "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 的任务方向从 {OldAction} 改为 Straight，已清除丢失检测截止时间",
-                            positionIndex, task.ParcelId, task.DiverterAction);
+                        // 如果任务方向不是直行，则修改为直行
+                        if (task.DiverterAction != DiverterDirection.Straight)
+                        {
+                            // 创建新任务，方向改为直行
+                            // 同时清除丢失检测截止时间，防止误判为丢失
+                            var modifiedTask = task with 
+                            { 
+                                DiverterAction = DiverterDirection.Straight,
+                                LostDetectionDeadline = null,  // 清除丢失检测截止时间
+                                LostDetectionTimeoutMs = null  // 清除丢失检测超时时间
+                            };
+                            tempTasks.Add(modifiedTask);
+                            
+                            // 记录受影响的包裹ID（去重）- O(1) 性能
+                            affectedParcelIdsSet.Add(task.ParcelId);
+                            
+                            modifiedCount++;
+                            
+                            _logger.LogDebug(
+                                "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 的任务方向从 {OldAction} 改为 Straight，已清除丢失检测截止时间",
+                                positionIndex, task.ParcelId, task.DiverterAction);
+                        }
+                        else
+                        {
+                            // 已经是直行，但仍需清除丢失检测截止时间（因为受到影响）
+                            var modifiedTask = task with 
+                            { 
+                                LostDetectionDeadline = null,
+                                LostDetectionTimeoutMs = null
+                            };
+                            tempTasks.Add(modifiedTask);
+                            
+                            // 即使是直行，也要记录为受影响（时间可能需要调整）
+                            affectedParcelIdsSet.Add(task.ParcelId);
+                            modifiedCount++;
+                            
+                            _logger.LogDebug(
+                                "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 已是直行，但清除丢失检测截止时间",
+                                positionIndex, task.ParcelId);
+                        }
                     }
                     else
                     {
-                        // 已经是直行，但仍需清除丢失检测截止时间（因为受到影响）
-                        var modifiedTask = task with 
-                        { 
-                            LostDetectionDeadline = null,
-                            LostDetectionTimeoutMs = null
-                        };
-                        tempTasks.Add(modifiedTask);
-                        
-                        // 即使是直行，也要记录为受影响（时间可能需要调整）
-                        affectedParcelIdsSet.Add(task.ParcelId);
-                        modifiedCount++;
-                        
-                        _logger.LogDebug(
-                            "[包裹丢失影响] Position {PositionIndex} 包裹 {ParcelId} 已是直行，但清除丢失检测截止时间",
-                            positionIndex, task.ParcelId);
+                        // 不受影响的任务保持原样
+                        tempTasks.Add(task);
                     }
                 }
-                else
+
+                // 将所有任务放回队列（保持原顺序）
+                foreach (var task in tempTasks)
                 {
-                    // 不受影响的任务保持原样
-                    tempTasks.Add(task);
+                    queue.Enqueue(task);
                 }
-            }
 
-            // 将所有任务放回队列（保持原顺序）
-            foreach (var task in tempTasks)
-            {
-                queue.Enqueue(task);
-            }
-
-            if (modifiedCount > 0)
-            {
-                affectedPositions[positionIndex] = modifiedCount;
+                if (modifiedCount > 0)
+                {
+                    affectedPositions[positionIndex] = modifiedCount;
+                }
             }
         }
 
