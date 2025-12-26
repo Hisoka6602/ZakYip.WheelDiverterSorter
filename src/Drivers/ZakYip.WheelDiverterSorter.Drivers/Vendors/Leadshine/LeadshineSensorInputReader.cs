@@ -77,23 +77,139 @@ public sealed class LeadshineSensorInputReader : ISensorInputReader
     }
 
     /// <inheritdoc/>
-    public async Task<IDictionary<int, bool>> ReadSensorsAsync(
+    /// <remarks>
+    /// 优化实现：计算需要读取的位范围，使用 IInputPort 的批量读取API一次性获取所有传感器状态，
+    /// 避免逐个调用 dmc_read_inbit 导致的IO阻塞。
+    /// </remarks>
+    public Task<IDictionary<int, bool>> ReadSensorsAsync(
         IEnumerable<int> logicalPoints,
         CancellationToken cancellationToken = default)
     {
         var results = new Dictionary<int, bool>();
-
-        foreach (var point in logicalPoints)
+        
+        try
         {
-            if (cancellationToken.IsCancellationRequested)
+            var pointsList = logicalPoints.ToList();
+            
+            if (pointsList.Count == 0)
             {
-                break;
+                return Task.FromResult<IDictionary<int, bool>>(results);
             }
 
-            results[point] = await ReadSensorAsync(point, cancellationToken);
+            if (!_emcController.IsAvailable())
+            {
+                _logger.LogWarning("EMC控制器不可用，无法批量读取传感器状态");
+                foreach (var point in pointsList)
+                {
+                    results[point] = false;
+                }
+                return Task.FromResult<IDictionary<int, bool>>(results);
+            }
+
+            // 如果只有少量点位（≤3个），直接逐个读取可能更高效
+            if (pointsList.Count <= 3)
+            {
+                foreach (var point in pointsList)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    
+                    if (point < 0 || point > ushort.MaxValue)
+                    {
+                        results[point] = false;
+                        continue;
+                    }
+
+                    short result = LTDMC.dmc_read_inbit(_emcController.CardNo, (ushort)point);
+                    results[point] = result > 0;
+                }
+                return Task.FromResult<IDictionary<int, bool>>(results);
+            }
+
+            // 对于多个点位，使用批量读取优化
+            // 找出最小和最大点位，计算需要读取的范围
+            int minPoint = pointsList.Min();
+            int maxPoint = pointsList.Max();
+            
+            if (minPoint < 0 || maxPoint > ushort.MaxValue)
+            {
+                _logger.LogWarning(
+                    "传感器逻辑点位超出有效范围: 最小={MinPoint}, 最大={MaxPoint}, 有效范围=0-{MaxValue}",
+                    minPoint,
+                    maxPoint,
+                    ushort.MaxValue);
+                
+                // 对于超出范围的，回退到逐个读取并验证
+                foreach (var point in pointsList)
+                {
+                    if (point < 0 || point > ushort.MaxValue)
+                    {
+                        results[point] = false;
+                    }
+                    else
+                    {
+                        short result = LTDMC.dmc_read_inbit(_emcController.CardNo, (ushort)point);
+                        results[point] = result > 0;
+                    }
+                }
+                return Task.FromResult<IDictionary<int, bool>>(results);
+            }
+
+            // 计算需要读取的端口范围（每个端口32位）
+            const int BitsPerPort = 32;
+            ushort startPort = (ushort)(minPoint / BitsPerPort);
+            ushort endPort = (ushort)(maxPoint / BitsPerPort);
+            ushort portCount = (ushort)(endPort - startPort + 1);
+
+            // 使用批量读取API一次性读取所有涉及的端口
+            uint[] portValues = new uint[portCount];
+            short batchResult = LTDMC.dmc_read_inport_array(_emcController.CardNo, portCount, portValues);
+
+            if (batchResult < 0)
+            {
+                _logger.LogWarning(
+                    "批量读取传感器状态失败，错误码={ErrorCode}，回退到逐个读取",
+                    batchResult);
+                
+                // 批量读取失败，回退到逐个读取
+                foreach (var point in pointsList)
+                {
+                    short result = LTDMC.dmc_read_inbit(_emcController.CardNo, (ushort)point);
+                    results[point] = result > 0;
+                }
+                return Task.FromResult<IDictionary<int, bool>>(results);
+            }
+
+            // 从批量读取的结果中提取各个点位的值
+            foreach (var point in pointsList)
+            {
+                int portOffset = (point / BitsPerPort) - startPort;
+                int bitInPort = point % BitsPerPort;
+                
+                bool isTriggered = ((portValues[portOffset] >> bitInPort) & 1) != 0;
+                results[point] = isTriggered;
+            }
+
+            _logger.LogDebug(
+                "批量读取了 {Count} 个传感器状态，涉及端口范围: {StartPort}-{EndPort}",
+                pointsList.Count,
+                startPort,
+                endPort);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量读取传感器状态时发生异常");
+            
+            // 异常情况下返回所有点位为false
+            foreach (var point in logicalPoints)
+            {
+                results[point] = false;
+            }
         }
 
-        return results;
+        return Task.FromResult<IDictionary<int, bool>>(results);
     }
 
     /// <inheritdoc/>

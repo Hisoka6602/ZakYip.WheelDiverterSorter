@@ -218,19 +218,9 @@ public class PanelConfigController : ControllerBase
             }
 
             // 业务规则验证
-            if (request.PollingIntervalMs < 50 || request.PollingIntervalMs > 1000)
-            {
-                return BadRequest(new { message = "轮询间隔必须在 50-1000 毫秒之间" });
-            }
-
             if (request.DebounceMs < 10 || request.DebounceMs > 500)
             {
                 return BadRequest(new { message = "防抖时间必须在 10-500 毫秒之间" });
-            }
-
-            if (request.DebounceMs >= request.PollingIntervalMs)
-            {
-                return BadRequest(new { message = "防抖时间必须小于轮询间隔" });
             }
 
             // 从请求映射到域模型
@@ -248,9 +238,8 @@ public class PanelConfigController : ControllerBase
             _repository.Update(config);
 
             _logger.LogInformation(
-                "面板配置已更新并持久化: Enabled={Enabled}, Polling={PollingMs}ms, Debounce={DebounceMs}ms",
+                "面板配置已更新并持久化: Enabled={Enabled}, Debounce={DebounceMs}ms (轮询间隔已硬编码为10ms)",
                 request.Enabled,
-                request.PollingIntervalMs,
                 request.DebounceMs);
 
             // 重新读取并返回
@@ -323,7 +312,7 @@ public class PanelConfigController : ControllerBase
             ConfigName = "panel",
             Version = 1,
             Enabled = request.Enabled,
-            PollingIntervalMs = request.PollingIntervalMs,
+            PollingIntervalMs = 10, // 硬编码为10ms
             DebounceMs = request.DebounceMs,
             StartButtonInputBit = request.StartButton?.InputBit,
             StartButtonTriggerLevel = request.StartButton?.InputTriggerLevel ?? Core.Enums.Hardware.TriggerLevel.ActiveHigh,
@@ -365,7 +354,6 @@ public class PanelConfigController : ControllerBase
         return new PanelConfigResponse
         {
             Enabled = config.Enabled,
-            PollingIntervalMs = config.PollingIntervalMs,
             DebounceMs = config.DebounceMs,
             StartButton = new StartButtonConfigDto
             {

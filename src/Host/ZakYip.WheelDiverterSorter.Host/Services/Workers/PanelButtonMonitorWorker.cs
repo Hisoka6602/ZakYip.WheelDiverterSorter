@@ -20,7 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 /// </summary>
 /// <remarks>
 /// 定期轮询面板按钮状态，当检测到按钮按下时触发相应的IO联动动作。
-/// 轮询间隔可通过面板配置中的 PollingIntervalMs 参数配置（范围：10~5000ms）。
+/// 轮询间隔已硬编码为10ms，以确保实时响应。
 /// </remarks>
 public sealed class PanelButtonMonitorWorker : BackgroundService
 {
@@ -35,9 +35,9 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
     private readonly IUpstreamRoutingClient? _upstreamClient;
     
     /// <summary>
-    /// 默认按钮轮询间隔（毫秒）
+    /// 面板按钮轮询间隔（毫秒），硬编码为10ms以确保实时响应
     /// </summary>
-    private const int DefaultPollingIntervalMs = 100;
+    private const int PollingIntervalMs = 10;
     
     /// <summary>
     /// 异常恢复延迟（毫秒）
@@ -97,20 +97,6 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                 {
                     try
                     {
-                        // 从配置中读取轮询间隔
-                        var panelConfig = _panelConfigRepository.Get();
-                        int pollingInterval = panelConfig?.PollingIntervalMs ?? DefaultPollingIntervalMs;
-                        
-                        // 确保轮询间隔在有效范围内（10~5000ms）
-                        if (pollingInterval < 10 || pollingInterval > 5000)
-                        {
-                            _logger.LogWarning(
-                                "面板轮询间隔 {PollingInterval}ms 超出有效范围（10~5000ms），使用默认值 {DefaultInterval}ms",
-                                pollingInterval,
-                                DefaultPollingIntervalMs);
-                            pollingInterval = DefaultPollingIntervalMs;
-                        }
-
                         // 读取所有按钮状态
                         var buttonStates = await _panelInputReader.ReadAllButtonStatesAsync(stoppingToken);
 
@@ -159,8 +145,8 @@ public sealed class PanelButtonMonitorWorker : BackgroundService
                             _lastButtonStates[buttonType] = isPressed;
                         }
 
-                        // 使用配置的轮询间隔等待下一次轮询
-                        await Task.Delay(pollingInterval, stoppingToken);
+                        // 使用硬编码的轮询间隔等待下一次轮询
+                        await Task.Delay(PollingIntervalMs, stoppingToken);
                     }
                     catch (OperationCanceledException)
                     {
