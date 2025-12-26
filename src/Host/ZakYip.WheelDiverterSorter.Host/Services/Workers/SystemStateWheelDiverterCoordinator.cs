@@ -64,7 +64,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     /// 上次在非Running状态下尝试重新连接的时间
     /// PR-stopped-auto-reconnect
     /// </summary>
-    private DateTime _lastStoppedReconnectAttempt = DateTime.MinValue;
+    private DateTime _lastStoppedReconnectAttempt;
 
     public SystemStateWheelDiverterCoordinator(
         ISystemStateManager stateManager,
@@ -78,6 +78,9 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        
+        // 初始化为一个足够早的时间，确保首次检查时会立即触发重连
+        _lastStoppedReconnectAttempt = _clock.LocalNow.AddSeconds(-StoppedStateReconnectIntervalMs / 1000.0 - 1);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
