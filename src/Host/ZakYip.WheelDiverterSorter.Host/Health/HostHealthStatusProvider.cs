@@ -32,7 +32,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
         ILogger<HostHealthStatusProvider> logger,
         ISystemConfigurationRepository? systemConfigRepository = null,
         IOptions<DiagnosticsOptions>? diagnosticsOptions = null,
-        AlertHistoryService? alertHistoryService = null,
+        AlertHistoryService? alertHistoryService = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

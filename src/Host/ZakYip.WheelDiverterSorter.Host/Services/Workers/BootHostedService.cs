@@ -16,7 +16,7 @@ public class BootHostedService : IHostedService
 
     public BootHostedService(
         ISystemStateManager stateManager,
-        ILogger<BootHostedService> logger,
+        ILogger<BootHostedService> logger)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));

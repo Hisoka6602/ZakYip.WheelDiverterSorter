@@ -22,7 +22,6 @@ public class PathExecutionServiceTests
     private readonly Mock<IPathFailureHandler> _mockPathFailureHandler;
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<PathExecutionService>> _mockLogger;
-    private readonly Mock<PrometheusMetrics> _mockMetrics;
     private readonly PathExecutionService _service;
 
     public PathExecutionServiceTests()
@@ -31,7 +30,6 @@ public class PathExecutionServiceTests
         _mockPathFailureHandler = new Mock<IPathFailureHandler>();
         _mockClock = new Mock<ISystemClock>();
         _mockLogger = new Mock<ILogger<PathExecutionService>>();
-        _mockMetrics = new Mock<PrometheusMetrics>(_mockClock.Object);
 
         _mockClock.Setup(c => c.LocalNowOffset).Returns(DateTimeOffset.UtcNow);
 
@@ -39,8 +37,7 @@ public class PathExecutionServiceTests
             _mockPathExecutor.Object,
             _mockPathFailureHandler.Object,
             _mockClock.Object,
-            _mockLogger.Object,
-            _mockMetrics.Object);
+            _mockLogger.Object);
     }
 
     private static SwitchingPath CreateTestPath(long targetChuteId = 1, long fallbackChuteId = 999)
@@ -230,17 +227,15 @@ public class PathExecutionServiceTests
                 ActualChuteId = path.TargetChuteId
             });
 
-        // Act - 使用真实的 metrics 对象（不是 mock）来验证不会抛出异常
+        // Act - No metrics instance needed
         var realClock = new LocalSystemClock();
-        ZakYip.WheelDiverterSorter.Observability.PrometheusMetrics? realMetrics = null;  // Explicitly typed
-        var serviceWithRealMetrics = new PathExecutionService(
+        var serviceWithoutMetrics = new PathExecutionService(
             _mockPathExecutor.Object,
             _mockPathFailureHandler.Object,
             _mockClock.Object,
-            _mockLogger.Object,
-            realMetrics);
+            _mockLogger.Object);
 
-        var result = await serviceWithRealMetrics.ExecutePathAsync(parcelId, path);
+        var result = await serviceWithoutMetrics.ExecutePathAsync(parcelId, path);
 
         // Assert - 确保执行成功且不抛出异常
         result.IsSuccess.Should().BeTrue();
@@ -265,8 +260,7 @@ public class PathExecutionServiceTests
             _mockPathExecutor.Object,
             _mockPathFailureHandler.Object,
             _mockClock.Object,
-            _mockLogger.Object,
-            metrics: null);
+            _mockLogger.Object);
 
         var path = CreateTestPath();
         var parcelId = 12345L;
