@@ -37,7 +37,6 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware.Vendors;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
-using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
@@ -56,7 +55,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Caching;
 using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
-using ZakYip.WheelDiverterSorter.Application.Services.Simulation;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
 using ZakYip.WheelDiverterSorter.Application.Services.Debug;
@@ -554,7 +552,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         return normalizedInput switch
         {
             "production" => RuntimeMode.Production,
-            "simulation" => RuntimeMode.Simulation,
             "performancetest" => RuntimeMode.PerformanceTest,
             _ when Enum.TryParse<RuntimeMode>(modeString, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed) => parsed,
             _ => RuntimeMode.Production
@@ -566,7 +563,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         return mode switch
         {
             RuntimeMode.Production => new ProductionRuntimeProfile(),
-            RuntimeMode.Simulation => new SimulationRuntimeProfile(),
             RuntimeMode.PerformanceTest => new PerformanceTestRuntimeProfile(),
             _ => new ProductionRuntimeProfile()
         };
@@ -623,8 +619,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     private sealed class ProductionRuntimeProfile : IRuntimeProfile
     {
         public RuntimeMode Mode => RuntimeMode.Production;
-        public bool UseHardwareDriver => true;
-        public bool IsSimulationMode => false;
         public bool IsPerformanceTestMode => false;
         public bool EnableIoOperations => true;
         public bool EnableUpstreamCommunication => true;
@@ -634,29 +628,11 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     }
 
     /// <summary>
-    /// 仿真模式运行时配置文件
-    /// </summary>
-    private sealed class SimulationRuntimeProfile : IRuntimeProfile
-    {
-        public RuntimeMode Mode => RuntimeMode.Simulation;
-        public bool UseHardwareDriver => false;
-        public bool IsSimulationMode => true;
-        public bool IsPerformanceTestMode => false;
-        public bool EnableIoOperations => true;
-        public bool EnableUpstreamCommunication => true;
-        public bool EnableHealthCheckTasks => true;
-        public bool EnablePerformanceMonitoring => true;
-        public string GetModeDescription() => "仿真模式 - 使用模拟驱动器，虚拟传感器和条码源";
-    }
-
-    /// <summary>
     /// 性能测试模式运行时配置文件
     /// </summary>
     private sealed class PerformanceTestRuntimeProfile : IRuntimeProfile
     {
         public RuntimeMode Mode => RuntimeMode.PerformanceTest;
-        public bool UseHardwareDriver => false;
-        public bool IsSimulationMode => false;
         public bool IsPerformanceTestMode => true;
         public bool EnableIoOperations => false;
         public bool EnableUpstreamCommunication => false;

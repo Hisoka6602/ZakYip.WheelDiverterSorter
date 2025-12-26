@@ -67,21 +67,9 @@ public static class SensorServiceExtensions {
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("ZakYip.WheelDiverterSorter.Ingress.SensorServiceExtensions");
             
-            // 判断是否为仿真模式
-            bool isSimulationMode = runtimeProfile?.IsSimulationMode ?? false;
-            
-            if (isSimulationMode)
-            {
-                // 仿真模式：使用Mock传感器
-                logger.LogInformation("系统运行在仿真模式下，使用Mock传感器");
-                return CreateMockSensorFactory(sp, sensorOptions);
-            }
-            else
-            {
-                // 正常模式：使用真实硬件传感器
-                logger.LogInformation("系统运行在真实硬件模式下，使用 {VendorType} 传感器", sensorOptions.VendorType);
-                return CreateHardwareSensorFactory(sp, sensorOptions);
-            }
+            // Always use real hardware sensors (simulation mode removed)
+            logger.LogInformation("系统运行在真实硬件模式下，使用 {VendorType} 传感器", sensorOptions.VendorType);
+            return CreateHardwareSensorFactory(sp, sensorOptions);
         });
 
         // 注册传感器实例
