@@ -27,14 +27,18 @@ public static class HealthCheckServiceExtensions
     /// </summary>
     public static IServiceCollection AddHealthCheckServices(this IServiceCollection services)
     {
-        // 注册配置验证器
-        services.AddSingleton<IConfigValidator, DefaultConfigValidator>();
+        // 注册详细配置验证器（替代 DefaultConfigValidator）
+        services.AddSingleton<IConfigValidator, DetailedConfigValidator>();
+
+        // 注册驱动器自检
+        services.AddSingleton<IDriverSelfTest, IoDriverSelfTest>();
+        services.AddSingleton<IDriverSelfTest, WheelDiverterSelfTest>();
 
         // 注册自检协调器
         services.AddSingleton<ISelfTestCoordinator, SystemSelfTestCoordinator>();
 
         // 注册上游健康检查器（可选，如果有RuleEngine客户端）
-        // 注意：RuleEngineUpstreamHealthChecker需要IRuleEngineClient，
+        // 注意：RuleEngineUpstreamHealthChecker需要IUpstreamRoutingClient，
         // 但这是可选的，所以我们通过工厂方法创建
         services.AddSingleton<IUpstreamHealthChecker>(sp =>
         {
@@ -43,10 +47,6 @@ public static class HealthCheckServiceExtensions
             var client = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream.IUpstreamRoutingClient>();
             return new RuleEngineUpstreamHealthChecker(client, "Default", logger, clock);
         });
-
-        // 注册驱动器自检（暂时为空列表，可以在实际使用时添加）
-        // 注意：实际的驱动器自检实现需要在Drivers层注册
-        // services.AddSingleton<IDriverSelfTest, RelayWheelDiverterSelfTest>();
 
         // 使用装饰器模式包装SystemStateManager，添加BootAsync功能
         services.AddSingleton<SystemStateManager>(sp =>
@@ -74,8 +74,8 @@ public static class HealthCheckServiceExtensions
         // 注册系统状态与摆轮协调服务（监听状态变化，在进入Running时设置摆轮为直行）
         services.AddHostedService<SystemStateWheelDiverterCoordinator>();
 
-        // 注册运行前健康检查服务
-        services.AddSingleton<IPreRunHealthCheckService, PreRunHealthCheckService>();
+        // 注册运行前健康检查服务 - 使用适配器包装 SystemSelfTestCoordinator
+        services.AddSingleton<IPreRunHealthCheckService, PreRunHealthCheckAdapter>();
 
         return services;
     }

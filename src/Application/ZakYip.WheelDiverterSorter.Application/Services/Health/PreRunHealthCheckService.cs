@@ -20,10 +20,15 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 namespace ZakYip.WheelDiverterSorter.Application.Services.Health;
 
 /// <summary>
-/// 运行前健康检查服务实现
-/// Pre-run health check service implementation
+/// 运行前健康检查服务实现（已废弃）
+/// Pre-run health check service implementation (Obsolete)
 /// PR-U1: 使用 IUpstreamRoutingClient 替代 IRuleEngineClient
 /// </summary>
+/// <remarks>
+/// 此类已被 PreRunHealthCheckAdapter 替代，后者基于 SystemSelfTestCoordinator 实现
+/// 避免重复代码和维护成本。保留此类仅用于参考。
+/// </remarks>
+[Obsolete("此类已被 PreRunHealthCheckAdapter 替代。请使用基于 SystemSelfTestCoordinator 的统一健康检查实现。", error: true)]
 public class PreRunHealthCheckService : IPreRunHealthCheckService
 {
     private readonly ISystemConfigurationRepository _systemConfigRepository;
