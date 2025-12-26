@@ -17,12 +17,6 @@ namespace ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 public enum DriverVendorType
 {
     /// <summary>
-    /// 模拟驱动器（用于测试）
-    /// </summary>
-    [Description("模拟驱动器（用于测试）")]
-    Mock = 0,
-
-    /// <summary>
     /// 雷赛（Leadshine）控制器
     /// </summary>
     [Description("雷赛（Leadshine）控制器")]

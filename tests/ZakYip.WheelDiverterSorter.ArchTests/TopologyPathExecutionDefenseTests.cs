@@ -194,7 +194,7 @@ public class TopologyPathExecutionDefenseTests
     /// <remarks>
     /// 允许的例外：
     /// - 实现 ISwitchingPathGenerator 的类型（如 CachedSwitchingPathGenerator）
-    /// - 实现 ISwitchingPathExecutor 的类型（如 MockSwitchingPathExecutor）
+    /// - 实现 ISwitchingPathExecutor 的类型
     /// </remarks>
     [Fact]
     public void NonCoreProjectsShouldNotDefineSwitchingPathModelTypes()

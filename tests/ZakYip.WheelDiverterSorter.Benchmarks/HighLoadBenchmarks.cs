@@ -8,8 +8,8 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Results;
 
 namespace ZakYip.WheelDiverterSorter.Benchmarks;
 
@@ -53,7 +53,7 @@ public class HighLoadBenchmarks
         }
 
         _generator = new DefaultSwitchingPathGenerator(_repository);
-        _executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
+        _executor = new BenchmarkPathExecutor();
 
         // 预生成路径用于执行测试
         _preCachedPaths = new List<SwitchingPath>();

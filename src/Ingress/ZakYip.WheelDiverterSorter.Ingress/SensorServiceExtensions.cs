@@ -29,8 +29,6 @@ namespace ZakYip.WheelDiverterSorter.Ingress;
 /// 
 /// **架构原则**：
 /// - 默认使用真实硬件传感器（Leadshine/Siemens等）
-/// - 只有在仿真模式下（IRuntimeProfile.IsSimulationMode == true）才使用Mock传感器
-/// - 通过 POST /api/simulation/run-scenario-e 等端点进入仿真模式
 /// </remarks>
 public static class SensorServiceExtensions {
 
@@ -43,11 +41,9 @@ public static class SensorServiceExtensions {
     /// <remarks>
     /// 调用此方法前，需确保以下服务已注册：
     /// - IInputPort（硬件传感器模式需要）
-    /// - IRuntimeProfile（用于判断是否使用Mock传感器）
     /// 
     /// 传感器类型选择逻辑：
-    /// - 如果 IRuntimeProfile.IsSimulationMode 返回 true：使用 MockSensor
-    /// - 否则：使用真实硬件传感器（根据 VendorType 配置）
+    /// - 使用真实硬件传感器（根据 VendorType 配置）
     /// </remarks>
     public static IServiceCollection AddSensorServices(
         this IServiceCollection services,
@@ -60,14 +56,11 @@ public static class SensorServiceExtensions {
         services.Configure<ParcelDetectionOptions>(
             options => configuration.GetSection("ParcelDetection").Bind(options));
 
-        // 注册传感器工厂 - 运行时根据仿真模式动态选择
-        // 这里注册一个工厂，它会在运行时检查 IRuntimeProfile
+        // 注册传感器工厂 - 使用真实硬件传感器
         services.AddSingleton<ISensorFactory>(sp => {
-            var runtimeProfile = sp.GetService<IRuntimeProfile>();
             var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
             var logger = loggerFactory.CreateLogger("ZakYip.WheelDiverterSorter.Ingress.SensorServiceExtensions");
             
-            // Always use real hardware sensors (simulation mode removed)
             logger.LogInformation("系统运行在真实硬件模式下，使用 {VendorType} 传感器", sensorOptions.VendorType);
             return CreateHardwareSensorFactory(sp, sensorOptions);
         });
@@ -148,25 +141,5 @@ public static class SensorServiceExtensions {
             configProvider,
             systemClock,
             sensorOptions.PollingIntervalMs);
-    }
-
-    /// <summary>
-    /// 创建Mock传感器工厂
-    /// </summary>
-    private static ISensorFactory CreateMockSensorFactory(
-        IServiceProvider sp,
-        SensorOptions sensorOptions)
-    {
-        // 如果没有配置模拟传感器，使用默认配置
-        if (!sensorOptions.MockSensors.Any()) {
-            sensorOptions.MockSensors = new List<MockSensorConfigDto>
-            {
-                new() { SensorId = 1, Type = SensorType.Photoelectric, IsEnabled = true },
-                new() { SensorId = 2, Type = SensorType.Laser, IsEnabled = true }
-            };
-        }
-
-        var logger = sp.GetRequiredService<ILogger<MockSensorFactory>>();
-        return new MockSensorFactory(logger, sensorOptions.MockSensors);
     }
 }

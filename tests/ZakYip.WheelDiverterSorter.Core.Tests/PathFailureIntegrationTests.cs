@@ -7,11 +7,11 @@ using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Drivers;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Core.Events.Path;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Core.Results;
 
 namespace ZakYip.WheelDiverterSorter.Core.Tests;
 
@@ -132,7 +132,7 @@ public class PathFailureIntegrationTests
             pathGeneratorMock.Object,
             NullLogger<PathFailureHandler>.Instance, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
         
-        var executor = new MockSwitchingPathExecutor(new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());
+        var executor = new SuccessMockExecutor();
         
         var failureEventRaised = false;
         failureHandler.PathExecutionFailed += (sender, args) => failureEventRaised = true;
@@ -199,6 +199,20 @@ public class PathFailureIntegrationTests
                 FailedSegment = failedSegment,
                 FailureTime = DateTimeOffset.Now
             });
+        }
+    }
+    
+    /// <summary>
+    /// 模拟成功的执行器，用于测试成功场景
+    /// </summary>
+    private class SuccessMockExecutor : ISwitchingPathExecutor
+    {
+        public ValueTask<PathExecutionResult> ExecuteAsync(
+            SwitchingPath path,
+            CancellationToken cancellationToken = default)
+        {
+            // 模拟执行成功
+            return ValueTask.FromResult(PathExecutionResult.Success(path.TargetChuteId));
         }
     }
 }

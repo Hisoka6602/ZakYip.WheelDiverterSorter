@@ -849,7 +849,6 @@ public class HealthController : ControllerBase
     {
         return vendorType switch
         {
-            DriverVendorType.Mock => "模拟驱动",
             DriverVendorType.Leadshine => "雷赛",
             DriverVendorType.Siemens => "西门子",
             DriverVendorType.Mitsubishi => "三菱",

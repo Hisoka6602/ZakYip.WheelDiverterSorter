@@ -17,12 +17,6 @@ namespace ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 public enum SensorVendorType
 {
     /// <summary>
-    /// 模拟传感器（用于测试）
-    /// </summary>
-    [Description("模拟传感器（用于测试）")]
-    Mock = 0,
-
-    /// <summary>
     /// 雷赛（Leadshine）传感器
     /// </summary>
     [Description("雷赛（Leadshine）传感器")]
