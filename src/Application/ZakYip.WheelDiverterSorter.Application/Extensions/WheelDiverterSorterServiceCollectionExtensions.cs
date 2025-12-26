@@ -828,8 +828,9 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             
             // 使用装饰器包装驱动器以支持延迟执行和状态检查
             var systemStateManager = sp.GetRequiredService<ISystemStateManager>();
+            var safeExecutor = sp.GetRequiredService<ISafeExecutionService>();
             var decoratorLogger = loggerFactory.CreateLogger<DelayedIoLinkageDriverDecorator>();
-            return new DelayedIoLinkageDriverDecorator(innerDriver, systemStateManager, decoratorLogger);
+            return new DelayedIoLinkageDriverDecorator(innerDriver, systemStateManager, safeExecutor, decoratorLogger);
         });
         
         // 注册驱动器初始化服务，在启动时强制解析驱动器
