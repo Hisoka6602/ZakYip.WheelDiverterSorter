@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
-using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
@@ -15,28 +14,21 @@ namespace ZakYip.WheelDiverterSorter.Execution.Health;
 public class NodeHealthMonitorService : BackgroundService
 {
     private readonly INodeHealthRegistry _nodeHealthRegistry;
-    private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<NodeHealthMonitorService> _logger;
     private readonly ILogDeduplicator _logDeduplicator;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly TimeSpan _updateInterval = TimeSpan.FromSeconds(10);
-    
-    // 用于跟踪上一次的健康状态，避免重复日志
-    private int _lastUnhealthyNodesCount = -1;
-    private DegradationMode _lastDegradationMode = (DegradationMode)(-1);
 
     public NodeHealthMonitorService(
         INodeHealthRegistry nodeHealthRegistry,
         ILogger<NodeHealthMonitorService> logger,
         ILogDeduplicator logDeduplicator,
-        ISafeExecutionService safeExecutor,
-        PrometheusMetrics? metrics = null)
+        ISafeExecutionService safeExecutor)
     {
         _nodeHealthRegistry = nodeHealthRegistry ?? throw new ArgumentNullException(nameof(nodeHealthRegistry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _logDeduplicator = logDeduplicator ?? throw new ArgumentNullException(nameof(logDeduplicator));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
-        _metrics = metrics;
 
         // Subscribe to node health changes
         _nodeHealthRegistry.NodeHealthChanged += OnNodeHealthChanged;
@@ -92,35 +84,8 @@ public class NodeHealthMonitorService : BackgroundService
 
     private void UpdateMetrics()
     {
-        if (_metrics == null)
-        {
-            return;
-        }
-
-        try
-        {
-            var unhealthyNodes = _nodeHealthRegistry.GetUnhealthyNodes();
-            var degradationMode = _nodeHealthRegistry.GetDegradationMode();
-
-            // Update Prometheus metrics
-            _metrics.SetDegradedNodesTotal(unhealthyNodes.Count);
-            _metrics.SetDegradedMode((int)degradationMode);
-
-            // 只有当状态发生变化时才记录日志
-            if (unhealthyNodes.Count != _lastUnhealthyNodesCount || degradationMode != _lastDegradationMode)
-            {
-                _logger.LogDebug(
-                    "更新降级指标: 不健康节点数={Count}, 降级模式={Mode}",
-                    unhealthyNodes.Count, degradationMode);
-                
-                _lastUnhealthyNodesCount = unhealthyNodes.Count;
-                _lastDegradationMode = degradationMode;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新节点健康指标失败");
-        }
+        // Metrics removed for performance optimization
+        // This method is now a no-op
     }
 
     public override void Dispose()

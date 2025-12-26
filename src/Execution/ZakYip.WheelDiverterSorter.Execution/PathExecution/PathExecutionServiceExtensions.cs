@@ -32,7 +32,7 @@ public static class PathExecutionServiceExtensions
             var clock = sp.GetRequiredService<Core.Utilities.ISystemClock>();
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PathExecutionService>>();
 
-            return new PathExecutionService(pathExecutor, pathFailureHandler, clock, logger, null);
+            return new PathExecutionService(pathExecutor, pathFailureHandler, clock, logger);
         });
 
         return services;

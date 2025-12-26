@@ -87,7 +87,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISystemStateManager _systemStateManager; // 必需：用于状态验证
     private readonly ICongestionDetector? _congestionDetector;
     private readonly ICongestionDataCollector? _congestionCollector;
-    private readonly PrometheusMetrics? _metrics;
     private readonly IParcelTraceSink? _traceSink;
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
@@ -181,7 +180,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IPathFailureHandler? pathFailureHandler = null,
         ICongestionDetector? congestionDetector = null,
         ICongestionDataCollector? congestionCollector = null,
-        PrometheusMetrics? metrics = null,
         IParcelTraceSink? traceSink = null,
         PathHealthChecker? pathHealthChecker = null,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
@@ -220,7 +218,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _pathFailureHandler = pathFailureHandler;
         _congestionDetector = congestionDetector;
         _congestionCollector = congestionCollector;
-        _metrics = metrics;
         _traceSink = traceSink;
         _pathHealthChecker = pathHealthChecker;
         _timeoutCalculator = timeoutCalculator;
@@ -385,7 +382,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId);
 
                 stopwatch.Stop();
-                _metrics?.RecordSortingFailedParcel("QueueManagerMissing");
                 return new SortingResult(
                     IsSuccess: false,
                     ParcelId: parcelId.ToString(),
@@ -423,7 +419,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 {
                     // 连异常格口任务都无法生成
                     stopwatch.Stop();
-                    _metrics?.RecordSortingFailedParcel("QueueTaskGenerationFailed");
                     return new SortingResult(
                         IsSuccess: false,
                         ParcelId: parcelId.ToString(),
@@ -2474,7 +2469,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 _logger.LogError(
                     "包裹 {ParcelId} 超时后无法生成到异常格口 {ChuteId} 的路径",
                     parcelId, exceptionChuteId);
-                _metrics?.RecordSortingFailedParcel("PathGenerationFailed");
                 return;
             }
 
@@ -2530,7 +2524,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     parcelId, exceptionChuteId, executionResult.FailureReason);
 
                 // 记录失败指标
-                _metrics?.RecordSortingFailedParcel(executionResult.FailureReason ?? "Unknown");
 
                 // 即使路由失败也发送通知到上游
                 // 根因是超时，执行失败是次要问题，因此 FinalStatus 仍为 Timeout
@@ -2553,7 +2546,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "处理超时包裹 {ParcelId} 时发生异常", parcelId);
-            _metrics?.RecordSortingFailedParcel($"Exception: {ex.Message}");
         }
     }
 
@@ -2703,10 +2695,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 await NotifyUpstreamParcelLostAsync(e, affectedParcelIds);
 
                 // 6. 记录指标
-                if (_metrics != null)
                 {
                     // 记录丢失包裹
-                    _metrics.RecordSortingFailedParcel($"Lost:Position{e.DetectedAtPositionIndex}");
                 }
 
                 // 记录失败率和统计数据
@@ -2979,7 +2969,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="isTimeout">是否为超时</param>
     private void RecordSortingFailure(double elapsedSeconds, bool isTimeout)
     {
-        _metrics?.RecordSortingFailure(elapsedSeconds);
         _alarmService?.RecordSortingFailure();
         if (isTimeout)
         {
@@ -2993,7 +2982,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="elapsedSeconds">已用时间（秒）</param>
     private void RecordSortingSuccess(double elapsedSeconds)
     {
-        _metrics?.RecordSortingSuccess(elapsedSeconds);
         _alarmService?.RecordSortingSuccess();
         _statisticsService?.IncrementSuccess();
     }

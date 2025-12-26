@@ -725,65 +725,7 @@ public class CommunicationController : ControllerBase {
         }
     }
 
-    /// <summary>
-    /// 发送测试包裹创建请求（在未启动或故障状态下可用）
-    /// </summary>
-    /// <param name="request">测试包裹请求</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>测试结果</returns>
-    /// <response code="200">测试成功</response>
-    /// <response code="400">请求参数无效或系统状态不允许</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// 此端点用于在系统未运行时测试与上游RuleEngine的通信。
-    /// 只能在系统处于Ready或Faulted状态时调用，用于验证通信配置是否正确。
-    /// 
-    /// **重要**：此端点遵循持久化的通信配置（/api/communication/config/persisted），
-    /// 使用配置中指定的通信模式和连接模式：
-    /// - **通信模式**: 使用配置的协议（TCP/HTTP/MQTT/SignalR）
-    /// - **连接模式**:
-    ///   - Client模式：向配置的服务器地址发送
-    ///   - Server模式：向所有已连接的客户端广播（如TCP-Server会向所有TCP客户端广播）
-    /// 
-    /// 示例请求:
-    ///
-    ///     POST /api/communication/test-parcel
-    ///     {
-    ///         "parcelId": "TEST-PKG-001"
-    ///     }
-    ///
-    /// 注意：
-    /// - 此端点仅用于测试目的
-    /// - 系统必须处于Ready或Faulted状态
-    /// - 如果系统正在运行，将返回400错误
-    /// - 测试时会使用当前持久化的通信配置
-    /// </remarks>
-    [HttpPost("test-parcel")]
-    [SwaggerOperation(
-        Summary = "发送测试包裹创建请求",
-        Description = "发送测试包裹到上游RuleEngine，使用持久化的通信配置，仅在系统未启动（Ready或Faulted状态）时可用",
-        OperationId = "SendTestParcel",
-        Tags = new[] { "通信管理" }
-    )]
-    [SwaggerResponse(200, "测试成功", typeof(TestParcelResponse))]
-    [SwaggerResponse(400, "请求参数无效或系统状态不允许", typeof(StateValidationErrorResponse))]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(TestParcelResponse), 200)]
-    [ProducesResponseType(typeof(StateValidationErrorResponse), 400)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<ActionResult<TestParcelResponse>> SendTestParcel(
-        [FromBody] TestParcelRequest request,
-        CancellationToken cancellationToken = default) {
-        try {
-            // 验证请求
-            if (!ModelState.IsValid) {
-                var errors = ModelState.Values
-                    .SelectMany(v => v.Errors)
-                    .Select(e => e.ErrorMessage);
-                return BadRequest(new { message = "请求参数无效 - Invalid request parameters", errors });
-            }
-
-            // 检查系统状态，只允许在Ready或Faulted状态下发送测试
+                // 检查系统状态，只允许在Ready或Faulted状态下发送测试
             var currentState = _stateManager.CurrentState;
             if (currentState != Core.Enums.System.SystemState.Ready && 
                 currentState != Core.Enums.System.SystemState.Faulted) {

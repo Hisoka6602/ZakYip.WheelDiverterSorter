@@ -25,7 +25,6 @@ public class HostHealthStatusProvider : IHealthStatusProvider
     private readonly ISystemConfigurationRepository? _systemConfigRepository;
     private readonly DiagnosticsOptions? _diagnosticsOptions;
     private readonly AlertHistoryService? _alertHistoryService;
-    private readonly PrometheusMetrics? _prometheusMetrics;
     private readonly ILogger<HostHealthStatusProvider> _logger;
 
     public HostHealthStatusProvider(
@@ -34,14 +33,12 @@ public class HostHealthStatusProvider : IHealthStatusProvider
         ISystemConfigurationRepository? systemConfigRepository = null,
         IOptions<DiagnosticsOptions>? diagnosticsOptions = null,
         AlertHistoryService? alertHistoryService = null,
-        PrometheusMetrics? prometheusMetrics = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _systemConfigRepository = systemConfigRepository;
         _diagnosticsOptions = diagnosticsOptions?.Value;
         _alertHistoryService = alertHistoryService;
-        _prometheusMetrics = prometheusMetrics;
     }
 
     /// <inheritdoc />
@@ -126,7 +123,6 @@ public class HostHealthStatusProvider : IHealthStatusProvider
     /// </summary>
     private void UpdateHealthMetrics(LineHealthSnapshot snapshot)
     {
-        if (_prometheusMetrics == null)
         {
             return;
         }
@@ -139,21 +135,16 @@ public class HostHealthStatusProvider : IHealthStatusProvider
             var driversHealthy = snapshot.Drivers?.All(d => d.IsHealthy) ?? true;
             isReady = isReady && ruleEngineHealthy && driversHealthy;
 
-            _prometheusMetrics.SetHealthCheckStatus("live", true); // 能执行到这里说明进程存活
-            _prometheusMetrics.SetHealthCheckStatus("startup", _stateManager.CurrentState != SystemState.Booting);
-            _prometheusMetrics.SetHealthCheckStatus("ready", isReady);
 
             // 更新 RuleEngine 连接健康状态
             if (snapshot.Upstreams != null)
             {
                 foreach (var upstream in snapshot.Upstreams)
                 {
-                    _prometheusMetrics.SetUpstreamHealthStatus(upstream.EndpointName, upstream.IsHealthy);
                     // 如果是 RuleEngine 连接，也更新专用指标
                     if (upstream.EndpointName.StartsWith("RuleEngine", StringComparison.OrdinalIgnoreCase))
                     {
                         var connectionType = upstream.EndpointName.Replace("RuleEngine-", "");
-                        _prometheusMetrics.SetRuleEngineConnectionHealth(connectionType, upstream.IsHealthy);
                     }
                 }
             }
@@ -163,13 +154,11 @@ public class HostHealthStatusProvider : IHealthStatusProvider
             {
                 foreach (var driver in snapshot.Drivers)
                 {
-                    _prometheusMetrics.SetDriverHealthStatus(driver.DriverName, driver.IsHealthy);
                 }
             }
 
             // TD-043: 更新 TTL 调度器健康状态
             // 当前暂时设置为健康，待实现 TTL 调度器健康检查
-            _prometheusMetrics.SetTtlSchedulerHealth(true);
         }
         catch (Exception ex)
         {

@@ -470,7 +470,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pathFailureHandler,
                 congestionDetector,
                 congestionCollector,
-                null, // metrics - removed PrometheusMetrics
                 traceSink,
                 pathHealthChecker,
                 timeoutCalculator,

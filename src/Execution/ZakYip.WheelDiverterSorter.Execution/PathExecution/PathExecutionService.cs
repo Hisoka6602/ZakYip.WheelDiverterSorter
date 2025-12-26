@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
-using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 
 namespace ZakYip.WheelDiverterSorter.Execution.PathExecution;
@@ -21,7 +20,6 @@ public sealed class PathExecutionService : IPathExecutionService
 {
     private readonly ISwitchingPathExecutor _pathExecutor;
     private readonly IPathFailureHandler _pathFailureHandler;
-    private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<PathExecutionService> _logger;
     private readonly ISystemClock _clock;
 
@@ -32,19 +30,16 @@ public sealed class PathExecutionService : IPathExecutionService
     /// <param name="pathFailureHandler">路径失败处理器</param>
     /// <param name="clock">系统时钟</param>
     /// <param name="logger">日志记录器</param>
-    /// <param name="metrics">Prometheus指标服务（可选）</param>
     public PathExecutionService(
         ISwitchingPathExecutor pathExecutor,
         IPathFailureHandler pathFailureHandler,
         ISystemClock clock,
-        ILogger<PathExecutionService> logger,
-        PrometheusMetrics? metrics = null)
+        ILogger<PathExecutionService> logger)
     {
         _pathExecutor = pathExecutor ?? throw new ArgumentNullException(nameof(pathExecutor));
         _pathFailureHandler = pathFailureHandler ?? throw new ArgumentNullException(nameof(pathFailureHandler));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _metrics = metrics;
     }
 
     /// <inheritdoc/>
@@ -70,7 +65,6 @@ public sealed class PathExecutionService : IPathExecutionService
             var elapsedSeconds = elapsedTime.TotalSeconds;
 
             // 记录路径执行指标
-            _metrics?.RecordPathExecution(elapsedSeconds);
 
             if (result.IsSuccess)
             {
