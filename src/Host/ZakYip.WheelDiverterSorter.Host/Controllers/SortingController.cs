@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Application.Services;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
-using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
@@ -25,7 +24,6 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// 
 /// 本控制器整合所有分拣相关功能的统一入口，包括：
 /// - 分拣改口（动态更改包裹目标格口）
-/// - 分拣测试（手动触发分拣用于测试）
 /// - Position间隔查询（支持包裹丢失检测的方案A+）
 /// - 落格回调配置（配置分拣完成通知的触发模式）
 /// - 检测开关配置（统一管理干扰检测、超时检测、包裹丢失检测三个开关）
@@ -50,7 +48,6 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 public class SortingController : ApiControllerBase
 {
     private readonly IChangeParcelChuteService _changeParcelChuteService;
-    private readonly IDebugSortService? _debugSortService;
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
     private readonly IParcelLossDetectionConfigurationRepository _lossDetectionConfigRepository;
@@ -75,7 +72,6 @@ public class SortingController : ApiControllerBase
         ILogger<SortingController> logger,
         AlarmService alarmService,
         ISortingStatisticsService statisticsService,
-        IDebugSortService? debugSortService = null,
         Execution.Tracking.IPositionIntervalTracker? intervalTracker = null)
     {
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
@@ -89,7 +85,6 @@ public class SortingController : ApiControllerBase
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _alarmService = alarmService ?? throw new ArgumentNullException(nameof(alarmService));
         _statisticsService = statisticsService ?? throw new ArgumentNullException(nameof(statisticsService));
-        _debugSortService = debugSortService;
         _intervalTracker = intervalTracker;
     }
 
@@ -188,166 +183,6 @@ public class SortingController : ApiControllerBase
 
     #endregion
 
-    #region 分拣测试
-
-    /// <summary>
-    /// 手动触发包裹分拣（仅供测试/仿真环境）
-    /// </summary>
-    /// <param name="request">分拣请求，包含包裹ID和目标格口ID</param>
-    /// <param name="cancellationToken">取消令牌</param>
-    /// <returns>分拣执行结果</returns>
-    /// <response code="200">分拣执行成功</response>
-    /// <response code="400">请求参数无效</response>
-    /// <response code="403">生产环境禁止调用</response>
-    /// <response code="503">服务未配置或不可用</response>
-    /// <response code="500">服务器内部错误</response>
-    /// <remarks>
-    /// **⚠️ 重要警告：仅供测试/仿真环境使用，生产环境禁止调用**
-    /// 
-    /// **功能说明**：
-    /// 
-    /// 接收包裹ID和目标格口ID，生成摆轮切换路径并执行分拣操作。
-    /// 
-    /// **环境限制**：
-    /// - **仅在测试和仿真环境中可用**
-    /// - 在生产环境（Production）中调用将返回 403 错误
-    /// - 生产环境下应通过扫码或供包台触发分拣，而非此接口
-    /// 
-    /// **示例请求**：
-    /// ```json
-    /// {
-    ///   "parcelId": "PKG-20231201-001",
-    ///   "targetChuteId": 5
-    /// }
-    /// ```
-    /// 
-    /// **示例响应**：
-    /// ```json
-    /// {
-    ///   "parcelId": "PKG-20231201-001",
-    ///   "targetChuteId": 5,
-    ///   "actualChuteId": 5,
-    ///   "isSuccess": true,
-    ///   "message": "分拣执行成功",
-    ///   "pathSegmentCount": 3
-    /// }
-    /// ```
-    /// 
-    /// **注意事项**：
-    /// - 包裹ID必须唯一，避免与真实包裹冲突
-    /// - 目标格口ID必须在系统路由配置中存在
-    /// - 此接口会实际触发摆轮动作（在硬件环境下）
-    /// </remarks>
-    [HttpPost("test-sort")]
-    [SwaggerOperation(
-        Summary = "手动触发包裹分拣（仅供测试/仿真环境）",
-        Description = "接收包裹ID和目标格口ID，生成并执行摆轮分拣路径。**仅在测试/仿真环境可用，生产环境禁止调用**",
-        OperationId = "TriggerTestSort",
-        Tags = new[] { "分拣管理" }
-    )]
-    [SwaggerResponse(200, "分拣执行成功", typeof(DebugSortResponse))]
-    [SwaggerResponse(400, "请求参数无效")]
-    [SwaggerResponse(403, "生产环境禁止调用")]
-    [SwaggerResponse(503, "服务未配置或不可用")]
-    [SwaggerResponse(500, "服务器内部错误")]
-    [ProducesResponseType(typeof(DebugSortResponse), 200)]
-    [ProducesResponseType(typeof(object), 400)]
-    [ProducesResponseType(typeof(object), 403)]
-    [ProducesResponseType(typeof(object), 503)]
-    [ProducesResponseType(typeof(object), 500)]
-    public async Task<IActionResult> TriggerTestSort(
-        [FromBody] DebugSortRequest request,
-        CancellationToken cancellationToken)
-    {
-        // 检查环境：生产环境禁止调用
-        if (_environment.IsProduction())
-        {
-            _logger.LogWarning(
-                "生产环境下尝试调用测试分拣接口 /api/sorting/test-sort，已拒绝。ParcelId: {ParcelId}",
-                request.ParcelId);
-            
-            return StatusCode(403, new
-            {
-                message = "生产环境下禁止调用测试分拣接口",
-                errorCode = "FORBIDDEN_IN_PRODUCTION",
-                hint = "此接口仅供开发、测试和仿真环境使用。生产环境下应通过扫码或供包台触发分拣。"
-            });
-        }
-
-        // 参数验证
-        if (string.IsNullOrWhiteSpace(request.ParcelId))
-        {
-            return BadRequest(new { message = "包裹ID不能为空" });
-        }
-
-        if (request.TargetChuteId <= 0)
-        {
-            return BadRequest(new { message = "目标格口ID必须大于0" });
-        }
-
-        // 检查是否注入了 DebugSortService
-        if (_debugSortService == null)
-        {
-            _logger.LogError("DebugSortService 未注册，无法执行调试分拣");
-            return StatusCode(503, new 
-            { 
-                message = "调试分拣服务未配置或不可用",
-                hint = "请确保在测试/仿真环境中正确注册 DebugSortService"
-            });
-        }
-
-        try
-        {
-            _logger.LogInformation(
-                "测试分拣：手动触发分拣，ParcelId: {ParcelId}, TargetChuteId: {TargetChuteId}",
-                request.ParcelId,
-                request.TargetChuteId);
-
-            var result = await _debugSortService.ExecuteDebugSortAsync(
-                request.ParcelId,
-                request.TargetChuteId,
-                cancellationToken);
-
-            // Map Application layer result to Host layer response
-            var response = new DebugSortResponse
-            {
-                ParcelId = result.ParcelId,
-                TargetChuteId = result.TargetChuteId,
-                IsSuccess = result.IsSuccess,
-                ActualChuteId = result.ActualChuteId,
-                Message = result.Message,
-                FailureReason = result.FailureReason,
-                PathSegmentCount = result.PathSegmentCount
-            };
-
-            if (response.IsSuccess)
-            {
-                _logger.LogInformation(
-                    "测试分拣：分拣执行成功，ParcelId: {ParcelId}",
-                    request.ParcelId);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "测试分拣：分拣执行失败，ParcelId: {ParcelId}, Message: {Message}",
-                    request.ParcelId,
-                    response.Message);
-            }
-
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "测试分拣：分拣执行异常，ParcelId: {ParcelId}", request.ParcelId);
-            return StatusCode(500, new
-            {
-                message = "分拣执行失败",
-                error = ex.Message
-            });
-        }
-    }
-
-    #endregion
 
     #region Position间隔查询
 

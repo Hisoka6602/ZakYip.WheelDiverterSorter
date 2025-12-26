@@ -25,8 +25,7 @@ public class AlertFlowIntegrationTests
         // Arrange - Setup the complete pipeline
         var mockAlertSinkLogger = new Mock<ILogger<LogAlertSink>>();
         var mockClock = new Mock<Core.Utilities.ISystemClock>();
-        var metrics = new PrometheusMetrics(mockClock.Object);
-        var alertSink = new LogAlertSink(mockAlertSinkLogger.Object, metrics);
+        var alertSink = new LogAlertSink(mockAlertSinkLogger.Object);
 
         var mockDetectorLogger = new Mock<ILogger<AnomalyDetector>>();
         var detector = new AnomalyDetector(alertSink, mockDetectorLogger.Object, new ZakYip.WheelDiverterSorter.Core.Utilities.LocalSystemClock());

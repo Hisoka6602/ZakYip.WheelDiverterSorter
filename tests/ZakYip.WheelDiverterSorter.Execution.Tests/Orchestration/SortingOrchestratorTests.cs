@@ -1,6 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 #pragma warning disable CS0618 // 向后兼容：测试中使用已废弃字段
-using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using Moq;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
@@ -14,6 +13,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
+using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
@@ -109,8 +109,8 @@ public class SortingOrchestratorTests : IDisposable
 
         // Setup state service - by default, allow parcel creation (Running state)
         _mockStateService
-            .Setup(s => s.ValidateParcelCreation())
-            .Returns(OperationResult.Success());
+            .Setup(s => s.CurrentState)
+            .Returns(SystemState.Running);
 
         _orchestrator = new SortingOrchestrator(
             _mockSensorEventProvider.Object,

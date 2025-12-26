@@ -12,17 +12,14 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 public class BootHostedService : IHostedService
 {
     private readonly ISystemStateManager _stateManager;
-    private readonly PrometheusMetrics? _metrics;
     private readonly ILogger<BootHostedService> _logger;
 
     public BootHostedService(
         ISystemStateManager stateManager,
-        ILogger<BootHostedService> logger,
-        PrometheusMetrics? metrics = null)
+        ILogger<BootHostedService> logger)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _metrics = metrics;
     }
 
     /// <summary>
@@ -45,8 +42,6 @@ public class BootHostedService : IHostedService
                 _logger.LogInformation("配置验证: {ConfigStatus}", report.Config.IsValid ? "通过" : "失败");
 
                 // 更新Prometheus指标
-                _metrics?.RecordSelfTestSuccess();
-                _metrics?.SetSystemState((int)_stateManager.CurrentState);
             }
             else
             {
@@ -71,8 +66,6 @@ public class BootHostedService : IHostedService
                 }
 
                 // 更新Prometheus指标
-                _metrics?.RecordSelfTestFailure();
-                _metrics?.SetSystemState((int)_stateManager.CurrentState);
             }
 
             _logger.LogInformation("========================================");
@@ -80,8 +73,6 @@ public class BootHostedService : IHostedService
         catch (Exception ex)
         {
             _logger.LogError(ex, "系统自检过程中发生异常");
-            _metrics?.RecordSelfTestFailure();
-            _metrics?.SetSystemState((int)SystemState.Faulted);
         }
     }
 

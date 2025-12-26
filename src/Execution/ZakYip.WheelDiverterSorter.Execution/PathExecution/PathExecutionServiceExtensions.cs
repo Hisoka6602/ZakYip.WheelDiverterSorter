@@ -21,7 +21,6 @@ public static class PathExecutionServiceExtensions
     /// <item>ISwitchingPathExecutor - 路径执行器（真实驱动或仿真驱动）</item>
     /// <item>IPathFailureHandler - 路径失败处理器</item>
     /// <item>ISystemClock - 系统时钟</item>
-    /// <item>PrometheusMetrics（可选）- 指标服务</item>
     /// </list>
     /// </remarks>
     public static IServiceCollection AddPathExecutionService(this IServiceCollection services)
@@ -32,9 +31,8 @@ public static class PathExecutionServiceExtensions
             var pathFailureHandler = sp.GetRequiredService<IPathFailureHandler>();
             var clock = sp.GetRequiredService<Core.Utilities.ISystemClock>();
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<PathExecutionService>>();
-            var metrics = sp.GetService<Observability.PrometheusMetrics>();
 
-            return new PathExecutionService(pathExecutor, pathFailureHandler, clock, logger, metrics);
+            return new PathExecutionService(pathExecutor, pathFailureHandler, clock, logger);
         });
 
         return services;
