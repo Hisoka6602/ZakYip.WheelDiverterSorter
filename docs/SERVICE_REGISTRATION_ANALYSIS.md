@@ -45,7 +45,6 @@
 | 依赖项 | 注册位置 | 生命周期 | 状态 | 用途 |
 |--------|---------|---------|------|------|
 | ICongestionDataCollector | WheelDiverterSorterServiceCollectionExtensions | Singleton | ✅ | 拥堵数据收集 |
-| PrometheusMetrics | ObservabilityServiceExtensions | Singleton | ✅ | 性能指标 |
 | IParcelTraceSink | ObservabilityServiceExtensions | Singleton | ✅ | 包裹追踪日志 |
 | PathHealthChecker | NodeHealthServiceExtensions | Singleton | ✅ | 路径健康检查 |
 | IPositionIndexQueueManager | WheelDiverterSorterServiceCollectionExtensions | Singleton | ✅ | Position队列管理 |
@@ -154,12 +153,10 @@ return systemConfig.SortingMode switch
 5. AddRoutingOptions()                            # Line 127
 
 6. AddMemoryCache() + AddMetrics()                # Line 130-135
-7. AddPrometheusMetrics()                         # Line 138
-   └─ PrometheusMetrics (Singleton)
 
-8. AddAlarmService()                              # Line 139
-9. AddAlertSinks()                                # Line 140
-10. AddNetworkConnectivityChecker()               # Line 141
+7. AddAlarmService()                              # Line 139
+8. AddAlertSinks()                                # Line 140
+9. AddNetworkConnectivityChecker()               # Line 141
 
 11. AddParcelLifecycleLogger()                    # Line 144
 12. AddParcelTraceLogging()                       # Line 145
@@ -207,7 +204,6 @@ SortingOrchestrator (Line 447)
 ├─ ISortingExceptionHandler (Line 162) ✅
 ├─ ISystemStateManager (Line 159) ✅
 ├─ ICongestionDataCollector (Line 162) ✅
-├─ PrometheusMetrics (Line 138) ✅
 ├─ IParcelTraceSink (Line 145) ✅
 ├─ PathHealthChecker (Line 188) ✅
 ├─ IPositionIndexQueueManager (Line 162) ✅

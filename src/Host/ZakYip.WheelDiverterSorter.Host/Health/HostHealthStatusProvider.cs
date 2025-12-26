@@ -86,9 +86,6 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 ExceptionChuteRatio = exceptionChuteRatio
             };
 
-            // PR-34: 更新 Prometheus 健康检查指标
-            UpdateHealthMetrics(snapshot);
-
             return Task.FromResult(snapshot);
         }
         catch (Exception ex)
@@ -115,15 +112,5 @@ public class HostHealthStatusProvider : IHealthStatusProvider
             SystemState.EmergencyStop => CongestionLevel.Severe,
             _ => CongestionLevel.Normal
         };
-    }
-
-    /// <summary>
-    /// 更新 Prometheus 健康检查指标
-    /// Update Prometheus health check metrics (removed for performance optimization)
-    /// </summary>
-    private void UpdateHealthMetrics(LineHealthSnapshot snapshot)
-    {
-        // Metrics removed for performance optimization
-        // This method is now a no-op
     }
 }

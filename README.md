@@ -454,8 +454,6 @@ tools/                  # 工具项目
 ├── Reporting/          # 仿真报告分析工具
 ├── SafeExecutionStats/ # SafeExecution 统计工具
 └── Profiling/          # 性能剖析脚本
-
-monitoring/             # Prometheus/Grafana 配置
 ```
 
 ## 快速开始
@@ -1164,7 +1162,6 @@ Content-Type: application/json
 | 运行时 | .NET 8.0 | 长期支持版本 |
 | Web 框架 | ASP.NET Core | Web API 和后台服务 |
 | 数据库 | LiteDB | 嵌入式 NoSQL 数据库，配置持久化 |
-| 监控 | Prometheus + Grafana | 指标收集与可视化 |
 | 日志 | NLog | 结构化日志 |
 | API 文档 | Swagger/OpenAPI | 自动生成的 API 文档 |
 | 测试 | xUnit + Moq | 单元测试和集成测试 |

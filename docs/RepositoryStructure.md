@@ -940,7 +940,7 @@ ZakYip.WheelDiverterSorter.Communication/
 
 ### 3.8 ZakYip.WheelDiverterSorter.Observability
 
-**项目职责**：可观测性层，提供监控指标（Prometheus）、告警、追踪日志、安全执行服务等基础设施。
+**项目职责**：可观测性层，提供告警、追踪日志、安全执行服务等基础设施。
 
 ```
 ZakYip.WheelDiverterSorter.Observability/
@@ -960,7 +960,6 @@ ZakYip.WheelDiverterSorter.Observability/
 │   └── InfrastructureServiceExtensions.cs
 ├── AlarmService.cs                  # 告警服务
 ├── AlertHistoryService.cs           # 告警历史服务
-├── PrometheusMetrics.cs             # Prometheus 指标定义
 ├── ParcelLifecycleLogger.cs         # 包裹生命周期日志
 ├── ParcelTimelineCollector.cs       # 包裹时间线收集器
 ├── MarkdownReportWriter.cs          # Markdown 报告生成
@@ -971,7 +970,6 @@ ZakYip.WheelDiverterSorter.Observability/
 
 - `ISafeExecutionService`（位于 Utilities/）：安全执行服务接口，所有后台任务必须通过此服务包裹
 - `SafeExecutionService`（位于 Utilities/）：安全执行服务实现，捕获异常防止进程崩溃
-- `PrometheusMetrics`：Prometheus 指标定义，包含分拣计数、延迟直方图等
 - `AlarmService`：告警服务，处理系统告警的生成与通知
 - `ParcelLifecycleLogger`：包裹生命周期日志记录器
 - `FileBasedParcelTraceSink`（位于 Tracing/）：基于文件的包裹追踪日志输出
@@ -1296,7 +1294,6 @@ tools/Profiling/
 | `OperationResult<T>` | Core/Results/ | 统一的操作结果类型（携带数据），包含错误码、错误消息和数据负载 |
 | `ErrorCodes` | Core/Results/ | 统一错误码定义，所有错误码必须在此类中定义 |
 | `ISafeExecutionService` | Observability/Utilities/ | 安全执行服务接口，捕获异常防止进程崩溃 |
-| `PrometheusMetrics` | Observability/ | Prometheus 指标定义与收集 |
 | `AlarmService` | Observability/ | 告警服务，处理系统告警 |
 
 ### 4.6 仿真相关
@@ -1528,7 +1525,7 @@ tools/Profiling/
 | **配置模型** | `SystemConfiguration`, `ChutePathTopologyConfig`, `IoLinkageConfiguration`, `CommunicationConfiguration` 等 | `Core/LineModel/Configuration/Models/` | ❌ 其他项目中定义同名配置模型<br/>❌ `Host/Models/` 中定义持久化配置（只允许 DTO）<br/>❌ `Application/` 中重复定义配置模型<br/>❌ `Configuration/` 目录根下平铺 .cs 文件 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests`<br/>`TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests` |
 | **配置仓储** | `ISystemConfigurationRepository`, `IChutePathTopologyRepository` 等 | `Core/LineModel/Configuration/Repositories/Interfaces/` (接口)<br/>`Configuration.Persistence` (LiteDB 实现，TD-030 迁移) | ❌ `Host/` 中定义仓储接口或实现<br/>❌ `Application/` 中定义仓储（只使用缓存装饰器）<br/>❌ `Execution/` 中定义仓储<br/>❌ `Repositories/` 目录根下平铺 .cs 文件 | `ArchTests.HostLayerConstraintTests`<br/>`TechnicalDebtComplianceTests.ConfigurationDirectoryStructureTests` |
 | **运行时 Options** | `UpstreamConnectionOptions`, `SortingSystemOptions`, `RoutingOptions`, `ChuteAssignmentTimeoutOptions` 等 (Core)<br/>`TcpOptions`, `SignalROptions`, `MqttOptions`, `RuleEngineConnectionOptions` (Communication)<br/>`LeadshineOptions`, `S7Options`, `ShuDiNiaoOptions`, `SimulatedOptions` (Drivers/Vendors) | `Core/Sorting/Policies/` (分拣策略选项)<br/>`Core/LineModel/Configuration/Models/` (持久化配置关联选项)<br/>`Infrastructure/Communication/Configuration/` (通信协议选项)<br/>`Drivers/Vendors/<VendorName>/Configuration/` (厂商选项) | ❌ `Host/` 中定义运行时配置选项（只允许 API 请求/响应 DTO）<br/>❌ 厂商命名 Options 在 Core 中定义<br/>❌ 同名 Options 跨项目重复定义 | `TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.OptionsTypesShouldNotBeDuplicatedAcrossProjects`<br/>`TechnicalDebtComplianceTests.DuplicateTypeDetectionTests.CoreShouldNotHaveVendorNamedOptionsTypes`<br/>`SingleAuthorityCatalogTests` |
-| **日志 / 指标** | `IParcelLifecycleLogger`, `PrometheusMetrics`, `AlarmService`, `ISafeExecutionService` | `Observability/` | ❌ `Host/` 中重新定义日志服务<br/>❌ `Execution/` 中定义指标收集<br/>❌ `Core/` 中实现日志服务 | `TechnicalDebtComplianceTests.LoggingConfigShadowTests` |
+| **日志 / 指标** | `IParcelLifecycleLogger`, `AlarmService`, `ISafeExecutionService` | `Observability/` | ❌ `Host/` 中重新定义日志服务<br/>❌ `Execution/` 中定义指标收集<br/>❌ `Core/` 中实现日志服务 | `TechnicalDebtComplianceTests.LoggingConfigShadowTests` |
 | **系统时钟** | `ISystemClock`, `LocalSystemClock` | `Core/Utilities/` | ❌ 其他项目中定义时钟接口<br/>❌ 直接使用 `DateTime.Now` 或 `DateTime.UtcNow` | `Analyzers.DateTimeNowUsageAnalyzer`<br/>`TechnicalDebtComplianceTests.DateTimeUsageComplianceTests`<br/>`TechnicalDebtComplianceTests.SystemClockShadowTests`<br/>`TechnicalDebtComplianceTests.AnalyzersComplianceTests` |
 | **仿真** | `ISimulationScenarioRunner`, `SimulationRunner`, `SimulationOptions`, `SimulationSummary` | `Simulation/` (库项目)<br/>`Simulation.Cli/` (入口项目) | ❌ `Execution/` 中包含仿真专用逻辑<br/>❌ `Host/` 中实现仿真逻辑（只通过 API 调用）<br/>❌ `Drivers/` 中的仿真驱动之外定义仿真逻辑 | `TechnicalDebtComplianceTests.SimulationShadowTests` |
 | **面板 / IO 联动** | `IoLinkageConfiguration`, `CabinetIoOptions`, `IIoLinkageDriver`, `IPanelInputReader`, `IPanelIoCoordinator` | `Core/LineModel/Configuration/Models/` (配置)<br/>`Core/Hardware/IoLinkage/` (IO联动接口)<br/>`Core/LineModel/Bindings/` (面板接口) | ❌ `Drivers/` 中硬编码面板逻辑（应通过配置）<br/>❌ `Host/` 中直接操作 IO<br/>❌ `Execution/` 中定义 IO 配置模型<br/>❌ 其他项目中定义 `IPanelInputReader` 或 `IPanelIoCoordinator` 接口 | `TechnicalDebtComplianceTests.PanelConfigShadowTests`<br/>`TechnicalDebtComplianceTests.IoShadowTests`<br/>`TechnicalDebtComplianceTests.PanelIoShadowTests` |
@@ -2265,7 +2262,6 @@ grep -r "ProjectReference" src/**/*.csproj
 - `ZakYip.WheelDiverterSorter.Observability/ParcelLifecycleLogger.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Observability/ParcelTimelineCollector.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Observability/ParcelTimelineSnapshot.cs` - 类定义
-- `ZakYip.WheelDiverterSorter.Observability/PrometheusMetrics.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Observability/Runtime/Health/IHealthStatusProvider.cs` - 提供者 - 提供特定功能或数据
 - `ZakYip.WheelDiverterSorter.Observability/Runtime/Health/LineHealthSnapshot.cs` - 类定义
 - `ZakYip.WheelDiverterSorter.Observability/Runtime/RuntimePerformanceCollector.cs` - 类定义

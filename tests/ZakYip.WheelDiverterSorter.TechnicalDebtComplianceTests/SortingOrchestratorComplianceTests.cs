@@ -249,7 +249,7 @@ public class SortingOrchestratorComplianceTests
             report.AppendLine("  1. 将独立业务逻辑移动到 SortingOrchestrator");
             report.AppendLine("  2. Application 层服务只保留：");
             report.AppendLine("     - 调用 orchestrator 的委托代码");
-            report.AppendLine("     - 指标记录代码（SorterMetrics / PrometheusMetrics）");
+            report.AppendLine("     - 指标记录代码（SorterMetrics）");
             report.AppendLine("     - 简单日志");
             report.AppendLine("  3. 不要在 Application 层重复实现分拣流程");
 

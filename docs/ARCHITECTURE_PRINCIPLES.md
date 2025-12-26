@@ -799,15 +799,15 @@ public async Task<SortingResult> ProcessParcelAsync(string parcelId)
 }
 ```
 
-### 2. 关键指标必须暴露
+### 2. 关键指标必须记录
 
-**原则**: 所有关键业务指标必须通过 Prometheus 暴露，便于监控和告警。
+**原则**: 所有关键业务指标必须记录到日志和追踪系统中，便于监控和分析。
 
-**必须暴露的指标**:
-- 包裹处理速率（`sorting_throughput`）
-- 成功率（`sorting_success_rate`）
-- 异常率（`sorting_exception_rate`）
-- 错分次数（`sorting_mis_sort_total` = 0）
+**必须记录的指标**:
+- 包裹处理速率（通过日志统计）
+- 成功率（通过日志统计）
+- 异常率（通过日志统计）
+- 错分次数（应该为 0）
 - 摆轮使用率（`diverter_utilization`）
 - 路径执行延迟（`path_execution_duration`）
 

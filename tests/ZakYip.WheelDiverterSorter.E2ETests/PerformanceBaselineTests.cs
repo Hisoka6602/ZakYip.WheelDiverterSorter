@@ -153,7 +153,7 @@ public class PerformanceBaselineTests : IDisposable
 
         services.AddSingleton<ParcelTimelineFactory>();
         services.AddSingleton<SimulationReportPrinter>();
-        services.AddSingleton<PrometheusMetrics>();
+        // Removed: PrometheusMetrics (PR: Remove Prometheus)
 
         _serviceProvider = services.BuildServiceProvider();
     }
@@ -227,6 +227,9 @@ public class PerformanceBaselineTests : IDisposable
         Console.WriteLine($"\nBaseline saved to: {baselinePath}");
     }
 
+    // TODO: SimulationRunner class no longer exists - this method needs to be updated or removed
+    // Commented out due to missing SimulationRunner dependency (removed with Simulation project)
+    /*
     private async Task<SimulationSummary> RunScenarioAsync(SimulationScenario scenario)
     {
         using var scope = _serviceProvider.CreateScope();
@@ -238,7 +241,6 @@ public class PerformanceBaselineTests : IDisposable
         var pathExecutor = services.GetRequiredService<ISwitchingPathExecutor>();
         var timelineFactory = services.GetRequiredService<ParcelTimelineFactory>();
         var reportPrinter = services.GetRequiredService<SimulationReportPrinter>();
-        var metrics = services.GetRequiredService<PrometheusMetrics>();
         var logger = services.GetRequiredService<ILogger<SimulationRunner>>();
 
         var runner = new SimulationRunner(
@@ -248,11 +250,16 @@ public class PerformanceBaselineTests : IDisposable
             pathExecutor,
             timelineFactory,
             reportPrinter,
-            metrics,
             logger
         );
 
         return await runner.RunAsync();
+    }
+    */
+    
+    private Task<SimulationSummary> RunScenarioAsync(SimulationScenario scenario)
+    {
+        throw new NotImplementedException("SimulationRunner is not available - simulation functionality has been removed");
     }
 
     public void Dispose()

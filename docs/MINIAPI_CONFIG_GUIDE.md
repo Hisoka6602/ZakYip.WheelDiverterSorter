@@ -90,7 +90,6 @@ MiniApi 配置允许您在 `appsettings.json` 中配置 API 服务的监听地�
 
 - **API 端点**: `http://<host>:<port>/api/...`
 - **Swagger 文档**: `http://<host>:<port>/swagger` （仅当 EnableSwagger=true 时可用）
-- **Prometheus 指标**: `http://<host>:<port>/metrics`
 
 ## 常见问题
 
