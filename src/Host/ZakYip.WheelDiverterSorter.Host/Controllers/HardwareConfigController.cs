@@ -47,6 +47,7 @@ public class HardwareConfigController : ControllerBase
     private readonly IWheelDiverterConfigurationRepository _wheelRepository;
     private readonly IWheelDiverterDriverManager? _driverManager;
     private readonly IEmcController? _emcController;
+    private readonly IInputPort? _inputPort;
     private readonly ISystemStateManager _stateManager;
     private readonly ILogger<HardwareConfigController> _logger;
 
@@ -60,7 +61,8 @@ public class HardwareConfigController : ControllerBase
         ISystemStateManager stateManager,
         ILogger<HardwareConfigController> logger,
         IWheelDiverterDriverManager? driverManager = null,
-        IEmcController? emcController = null)
+        IEmcController? emcController = null,
+        IInputPort? inputPort = null)
     {
         _driverRepository = driverRepository;
         _sensorRepository = sensorRepository;
@@ -69,6 +71,7 @@ public class HardwareConfigController : ControllerBase
         _logger = logger;
         _driverManager = driverManager;
         _emcController = emcController;
+        _inputPort = inputPort;
     }
 
     #region 雷赛IO驱动器配置 (Leadshine IO Driver)
@@ -1382,6 +1385,218 @@ public class HardwareConfigController : ControllerBase
         {
             _logger.LogError(ex, "自动加载摆轮驱动器配置失败");
             // 不抛出异常，让调用方继续执行，后续会因为没有活动驱动器而返回友好错误
+        }
+    }
+
+    /// <summary>
+    /// IO读取性能测试
+    /// </summary>
+    /// <param name="request">性能测试请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>性能测试结果，包含每次读取的耗时统计</returns>
+    /// <response code="200">测试执行成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="503">IO驱动未初始化或不可用</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 测试指定IO位的读取性能，支持同步和异步两种模式。
+    /// 
+    /// **功能说明**：
+    /// - 支持最多 100,000 次循环测试
+    /// - 返回总耗时、平均耗时、最小/最大耗时
+    /// - 当循环次数 ≤ 1000 时，返回每次读取的详细耗时
+    /// - 当循环次数 > 1000 时，仅返回统计信息
+    /// 
+    /// **测试模式**：
+    /// - **同步模式** (isAsync=false): 阻塞式读取，模拟实际轮询场景
+    /// - **异步模式** (isAsync=true): 使用 async/await 模式
+    /// 
+    /// **示例请求**：
+    /// ```json
+    /// {
+    ///   "bitNumber": 0,
+    ///   "iterationCount": 1000,
+    ///   "isAsync": false
+    /// }
+    /// ```
+    /// 
+    /// **示例响应**：
+    /// ```json
+    /// {
+    ///   "success": true,
+    ///   "code": "Ok",
+    ///   "message": "性能测试完成",
+    ///   "data": {
+    ///     "bitNumber": 0,
+    ///     "iterationCount": 1000,
+    ///     "isAsync": false,
+    ///     "totalDurationMs": 125.4,
+    ///     "averageDurationMs": 0.1254,
+    ///     "minDurationMs": 0.08,
+    ///     "maxDurationMs": 0.95,
+    ///     "detailedTimings": [0.12, 0.11, 0.13, ...],
+    ///     "successCount": 1000,
+    ///     "failedCount": 0,
+    ///     "startTime": "2025-12-26T09:00:00+08:00",
+    ///     "endTime": "2025-12-26T09:00:00.125+08:00"
+    ///   }
+    /// }
+    /// ```
+    /// 
+    /// **性能分析**：
+    /// - 使用此端点可以评估不同轮询间隔的可行性
+    /// - 对比同步/异步模式的性能差异
+    /// - 检测硬件响应时间和稳定性
+    /// 
+    /// **注意事项**：
+    /// - 大量循环测试会占用系统资源，建议在非生产时段执行
+    /// - 测试期间会实际读取硬件IO，请确保不会影响现有业务
+    /// </remarks>
+    [HttpPost("io/performance-test")]
+    [SwaggerOperation(
+        Summary = "IO读取性能测试",
+        Description = "测试指定IO位的读取性能，支持同步和异步两种模式，最多支持100,000次循环测试。",
+        OperationId = "TestIoPerformance",
+        Tags = new[] { "硬件配置" }
+    )]
+    [SwaggerResponse(200, "测试执行成功", typeof(ApiResponse<IoPerformanceTestResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(503, "IO驱动未初始化或不可用", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<IoPerformanceTestResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 503)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<IoPerformanceTestResponse>>> TestIoPerformance(
+        [FromBody] IoPerformanceTestRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // 参数验证
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage)
+                    .ToList();
+                return BadRequest(ApiResponse<IoPerformanceTestResponse>.BadRequest(
+                    $"请求参数无效: {string.Join(", ", errors)}"));
+            }
+
+            // 检查IO驱动是否可用
+            if (_inputPort == null)
+            {
+                return StatusCode(503, ApiResponse<IoPerformanceTestResponse>.Error(
+                    "ServiceUnavailable",
+                    "IO驱动未初始化，可能是仿真模式或系统启动阶段"));
+            }
+
+            _logger.LogInformation(
+                "开始IO性能测试: BitNumber={BitNumber}, IterationCount={IterationCount}, IsAsync={IsAsync}",
+                request.BitNumber, request.IterationCount, request.IsAsync);
+
+            var startTime = DateTimeOffset.Now;
+            var timings = new List<double>();
+            int successCount = 0;
+            int failedCount = 0;
+            double minDuration = double.MaxValue;
+            double maxDuration = double.MinValue;
+
+            // 是否记录详细耗时（仅当循环次数 ≤ 1000 时）
+            bool recordDetailedTimings = request.IterationCount <= 1000;
+
+            // 执行性能测试
+            for (int i = 0; i < request.IterationCount; i++)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                var iterationStart = DateTimeOffset.Now;
+                bool readSuccess = false;
+
+                try
+                {
+                    if (request.IsAsync)
+                    {
+                        // 异步模式
+                        _ = await _inputPort.ReadAsync(request.BitNumber);
+                    }
+                    else
+                    {
+                        // 同步阻塞模式 - 直接调用底层同步方法
+                        // 注意：这里仍然使用 ReadAsync，因为底层 LeadshineInputPort.ReadAsync 
+                        // 实际上是同步执行的（使用 Task.FromResult）
+                        var task = _inputPort.ReadAsync(request.BitNumber);
+                        task.Wait(cancellationToken); // 同步等待
+                        _ = task.Result;
+                    }
+
+                    readSuccess = true;
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "IO读取失败: BitNumber={BitNumber}, Iteration={Iteration}", 
+                        request.BitNumber, i);
+                    failedCount++;
+                }
+
+                var iterationEnd = DateTimeOffset.Now;
+                var duration = (iterationEnd - iterationStart).TotalMilliseconds;
+
+                if (readSuccess)
+                {
+                    if (duration < minDuration) minDuration = duration;
+                    if (duration > maxDuration) maxDuration = duration;
+
+                    if (recordDetailedTimings)
+                    {
+                        timings.Add(duration);
+                    }
+                }
+            }
+
+            var endTime = DateTimeOffset.Now;
+            var totalDuration = (endTime - startTime).TotalMilliseconds;
+            var averageDuration = successCount > 0 ? totalDuration / successCount : 0;
+
+            // 如果没有成功的读取，重置 min/max
+            if (successCount == 0)
+            {
+                minDuration = 0;
+                maxDuration = 0;
+            }
+
+            var response = new IoPerformanceTestResponse
+            {
+                BitNumber = request.BitNumber,
+                IterationCount = request.IterationCount,
+                IsAsync = request.IsAsync,
+                TotalDurationMs = totalDuration,
+                AverageDurationMs = averageDuration,
+                MinDurationMs = minDuration,
+                MaxDurationMs = maxDuration,
+                DetailedTimings = recordDetailedTimings ? timings.ToArray() : null,
+                SuccessCount = successCount,
+                FailedCount = failedCount,
+                StartTime = startTime,
+                EndTime = endTime
+            };
+
+            _logger.LogInformation(
+                "IO性能测试完成: BitNumber={BitNumber}, Total={TotalMs}ms, Avg={AvgMs}ms, Min={MinMs}ms, Max={MaxMs}ms, Success={Success}, Failed={Failed}",
+                request.BitNumber, totalDuration, averageDuration, minDuration, maxDuration, successCount, failedCount);
+
+            return Ok(ApiResponse<IoPerformanceTestResponse>.Ok(response, "性能测试完成"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "IO性能测试异常: BitNumber={BitNumber}", request.BitNumber);
+            return StatusCode(500, ApiResponse<IoPerformanceTestResponse>.ServerError(
+                $"性能测试失败: {ex.Message}"));
         }
     }
 
