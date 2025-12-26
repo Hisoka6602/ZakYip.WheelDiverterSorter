@@ -11,7 +11,6 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Mappings;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
@@ -45,7 +44,6 @@ using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
 using ZakYip.WheelDiverterSorter.Execution.Routing;
 using ZakYip.WheelDiverterSorter.Ingress;
-using ZakYip.WheelDiverterSorter.Ingress.Adapters;
 using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
@@ -381,9 +379,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册包裹检测服务
         services.AddSingleton<IParcelDetectionService, ParcelDetectionService>();
 
-        // 注册适配器：将 Ingress 层的具体实现适配为 Execution 层抽象
-        // PR-U1: IUpstreamRoutingClient 现在由 AddRuleEngineCommunication 直接注册，不再需要 Adapter
-        services.AddSingleton<ISensorEventProvider, SensorEventProviderAdapter>();
+        // 移除适配器：Execution 层直接依赖 Ingress 层的 IParcelDetectionService
+        // PR-PHASE1: 删除纯转发适配器 SensorEventProviderAdapter
         services.AddSingleton<ICongestionDataCollector, CongestionDataCollector>();
 
         // 注册 UpstreamConnectionOptions（从配置绑定）
@@ -422,7 +419,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册分拣编排服务（支持Client和Server模式通知）
         services.AddSingleton<ISortingOrchestrator>(sp =>
         {
-            var sensorEventProvider = sp.GetRequiredService<ISensorEventProvider>();
+            var parcelDetectionService = sp.GetRequiredService<IParcelDetectionService>();
             var upstreamClient = sp.GetRequiredService<IUpstreamRoutingClient>();
             var pathGenerator = sp.GetRequiredService<ISwitchingPathGenerator>();
             var pathExecutor = sp.GetRequiredService<ISwitchingPathExecutor>();
@@ -457,7 +454,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var upstreamServer = sp.GetService<Communication.Abstractions.IRuleEngineServer>(); // 服务端模式（可选）
             
             return new SortingOrchestrator(
-                sensorEventProvider,
+                parcelDetectionService,
                 upstreamClient,
                 pathGenerator,
                 pathExecutor,
