@@ -39,7 +39,6 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Simulated;
 using ZakYip.WheelDiverterSorter.Execution;
-using ZakYip.WheelDiverterSorter.Execution.Concurrency;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
 using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
@@ -103,13 +102,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     /// 8. 应用层服务
     /// 9. 分拣服务
     /// 10. 驱动器服务（根据运行模式选择硬件/仿真）
-    /// 11. 并发控制服务
-    /// 12. 节点健康服务
-    /// 13. 传感器服务
-    /// 14. RuleEngine 通信服务
-    /// 15. 改口功能服务
-    /// 16. 中段皮带 IO 联动服务
-    /// 17. 仿真服务
+    /// 11. 节点健康服务
+    /// 12. 传感器服务
+    /// 13. RuleEngine 通信服务
+    /// 14. 改口功能服务
+    /// 15. 中段皮带 IO 联动服务
+    /// 16. 仿真服务
     /// </remarks>
     public static IServiceCollection AddWheelDiverterSorter(
         this IServiceCollection services,
@@ -180,31 +178,27 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             services.AddProductionModeDrivers(configuration);
         }
 
-        // 11. 注册并发控制服务
-        services.AddConcurrencyControl(configuration);
-        services.DecorateWithConcurrencyControl();
-
-        // 12. 注册节点健康服务
+        // 11. 注册节点健康服务
         services.AddNodeHealthServices();
         
-        // 12.1 注册包裹丢失监控服务
+        // 11.1 注册包裹丢失监控服务
         services.AddParcelLossMonitoring();
 
-        // 13. 注册传感器服务
+        // 12. 注册传感器服务
         services.AddSensorServices(configuration);
 
-        // 14. 注册 RuleEngine 通信服务
+        // 13. 注册 RuleEngine 通信服务
         services.AddRuleEngineCommunication(configuration);
         services.AddUpstreamConnectionManagement(configuration);
 
-        // 15. 注册改口功能服务（使用内存缓存，3分钟滑动过期）
+        // 14. 注册改口功能服务（使用内存缓存，3分钟滑动过期）
         services.AddSingleton<IRoutePlanRepository, InMemoryRoutePlanRepository>();
         services.AddSingleton<IRouteReplanner, RouteReplanner>();
 
-        // 16. 注册中段皮带 IO 联动服务
+        // 15. 注册中段皮带 IO 联动服务
         // Middle conveyor services removed - functionality replaced by ConveyorSegmentConfiguration
 
-        // 17. 注册仿真服务
+        // 16. 注册仿真服务
         services.AddSimulationServices(configuration);
 
         return services;
