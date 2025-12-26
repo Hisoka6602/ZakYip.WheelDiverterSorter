@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using csLTDMC;
 using ZakYip.WheelDiverterSorter.Core.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.Hardware.IoLinkage;
@@ -14,19 +13,19 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// Leadshine Sensor Input Reader Implementation
 /// </summary>
 /// <remarks>
-/// 通过雷赛控制卡的数字量输入端口读取传感器状态。
-/// 逻辑点位直接映射到物理输入位。
+/// 从IO状态缓存服务读取传感器状态。
+/// 所有硬件IO读取由 LeadshineIoStateCache 后台服务集中处理。
 /// </remarks>
 public sealed class LeadshineSensorInputReader : ISensorInputReader
 {
     private readonly ILogger<LeadshineSensorInputReader> _logger;
-    private readonly IEmcController _emcController;
+    private readonly ILeadshineIoStateCache _ioStateCache;
 
     public LeadshineSensorInputReader(
-        IEmcController emcController,
+        ILeadshineIoStateCache ioStateCache,
         ILogger<LeadshineSensorInputReader> logger)
     {
-        _emcController = emcController ?? throw new ArgumentNullException(nameof(emcController));
+        _ioStateCache = ioStateCache ?? throw new ArgumentNullException(nameof(ioStateCache));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -45,28 +44,16 @@ public sealed class LeadshineSensorInputReader : ISensorInputReader
                 return Task.FromResult(false);
             }
 
-            if (!_emcController.IsAvailable())
+            if (!_ioStateCache.IsAvailable)
             {
                 _logger.LogWarning(
-                    "EMC控制器不可用，无法读取传感器状态: 点位={Point}",
+                    "IO状态缓存不可用，无法读取传感器状态: 点位={Point}",
                     logicalPoint);
                 return Task.FromResult(false);
             }
 
-            // 直接读取输入位
-            short result = LTDMC.dmc_read_inbit(_emcController.CardNo, (ushort)logicalPoint);
-
-            if (result < 0)
-            {
-                _logger.LogWarning(
-                    "读取传感器状态失败: 点位={Point}, 错误码={ErrorCode}",
-                    logicalPoint,
-                    result);
-                return Task.FromResult(false);
-            }
-
-            // 高电平（1）表示有信号/触发
-            bool isTriggered = result == 1;
+            // 从缓存读取（非阻塞）
+            bool isTriggered = _ioStateCache.ReadInputBit(logicalPoint);
             return Task.FromResult(isTriggered);
         }
         catch (Exception ex)
@@ -77,30 +64,59 @@ public sealed class LeadshineSensorInputReader : ISensorInputReader
     }
 
     /// <inheritdoc/>
-    public async Task<IDictionary<int, bool>> ReadSensorsAsync(
+    /// <remarks>
+    /// 从IO状态缓存批量读取，非阻塞操作。
+    /// </remarks>
+    public Task<IDictionary<int, bool>> ReadSensorsAsync(
         IEnumerable<int> logicalPoints,
         CancellationToken cancellationToken = default)
     {
         var results = new Dictionary<int, bool>();
-
-        foreach (var point in logicalPoints)
+        
+        try
         {
-            if (cancellationToken.IsCancellationRequested)
+            var pointsList = logicalPoints.ToList();
+            
+            if (pointsList.Count == 0)
             {
-                break;
+                return Task.FromResult<IDictionary<int, bool>>(results);
             }
 
-            results[point] = await ReadSensorAsync(point, cancellationToken);
+            if (!_ioStateCache.IsAvailable)
+            {
+                _logger.LogWarning("IO状态缓存不可用，无法批量读取传感器状态");
+                foreach (var point in pointsList)
+                {
+                    results[point] = false;
+                }
+                return Task.FromResult<IDictionary<int, bool>>(results);
+            }
+
+            // 从缓存批量读取（非阻塞）
+            results = (Dictionary<int, bool>)_ioStateCache.ReadInputBits(pointsList);
+            
+            _logger.LogDebug(
+                "批量读取了 {Count} 个传感器状态（从缓存）",
+                pointsList.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "批量读取传感器状态时发生异常");
+            
+            // 异常情况下返回所有点位为false
+            foreach (var point in logicalPoints)
+            {
+                results[point] = false;
+            }
         }
 
-        return results;
+        return Task.FromResult<IDictionary<int, bool>>(results);
     }
 
     /// <inheritdoc/>
     public Task<bool> IsSensorOnlineAsync(int logicalPoint)
     {
-        // 对于雷赛控制卡，只要EMC控制器可用，传感器就被认为在线
-        // 实际的传感器故障需要通过其他机制检测（如心跳或专用故障输入）
-        return Task.FromResult(_emcController.IsAvailable());
+        // 传感器在线状态取决于IO缓存服务是否可用
+        return Task.FromResult(_ioStateCache.IsAvailable);
     }
 }

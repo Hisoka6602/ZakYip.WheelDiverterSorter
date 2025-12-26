@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using csLTDMC;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
@@ -9,7 +10,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// </summary>
 /// <remarks>
 /// 直接实现 <see cref="IWheelDiverterDriver"/> 接口，
-/// 内部使用 IO 输出端口控制摆轮角度，将方向操作映射为角度操作。
+/// 内部使用 IO 输出端口控制摆轮方向，通过二进制编码映射方向到输出位。
 /// </remarks>
 public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
 {
@@ -18,14 +19,6 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     private readonly LeadshineDiverterConfig _config;
     private readonly IEmcController _emcController;
     private string _currentStatus = "未知";
-    
-    /// <summary>
-    /// 继电器通道映射配置 - 角度定义
-    /// </summary>
-    private const int LeftTurnAngle = 45;
-    private const int RightTurnAngle = -45;
-    private const int PassThroughAngle = 0;
-    private const int StopAngle = 0;
 
     /// <inheritdoc/>
     public string DiverterId => _config.DiverterId.ToString();
@@ -49,18 +42,16 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
         _emcController = emcController ?? throw new ArgumentNullException(nameof(emcController));
         
         _logger.LogInformation(
-            "已初始化雷赛摆轮驱动器 {DiverterId}，卡号={CardNo}，左转={LeftAngle}°，右转={RightAngle}°，直通={PassAngle}°",
-            DiverterId, _cardNo, LeftTurnAngle, RightTurnAngle, PassThroughAngle);
+            "已初始化雷赛摆轮驱动器 {DiverterId}，卡号={CardNo}，输出起始位={StartBit}",
+            DiverterId, _cardNo, _config.OutputStartBit);
     }
 
     /// <inheritdoc/>
     public async ValueTask<bool> TurnLeftAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-            "[摆轮通信-发送] 摆轮 {DiverterId} 执行左转 | 目标角度={Angle}度",
-            DiverterId, LeftTurnAngle);
+        _logger.LogInformation("[摆轮通信-发送] 摆轮 {DiverterId} 执行左转", DiverterId);
         
-        var result = await SetAngleInternalAsync(LeftTurnAngle, cancellationToken);
+        var result = await SetDirectionInternalAsync(DiverterDirection.Left, cancellationToken);
         if (result)
         {
             _currentStatus = "左转";
@@ -78,11 +69,9 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     /// <inheritdoc/>
     public async ValueTask<bool> TurnRightAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-            "[摆轮通信-发送] 摆轮 {DiverterId} 执行右转 | 目标角度={Angle}度",
-            DiverterId, RightTurnAngle);
+        _logger.LogInformation("[摆轮通信-发送] 摆轮 {DiverterId} 执行右转", DiverterId);
         
-        var result = await SetAngleInternalAsync(RightTurnAngle, cancellationToken);
+        var result = await SetDirectionInternalAsync(DiverterDirection.Right, cancellationToken);
         if (result)
         {
             _currentStatus = "右转";
@@ -100,11 +89,9 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     /// <inheritdoc/>
     public async ValueTask<bool> PassThroughAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-            "[摆轮通信-发送] 摆轮 {DiverterId} 执行直通 | 目标角度={Angle}度",
-            DiverterId, PassThroughAngle);
+        _logger.LogInformation("[摆轮通信-发送] 摆轮 {DiverterId} 执行直通", DiverterId);
         
-        var result = await SetAngleInternalAsync(PassThroughAngle, cancellationToken);
+        var result = await SetDirectionInternalAsync(DiverterDirection.Straight, cancellationToken);
         if (result)
         {
             _currentStatus = "直通";
@@ -122,11 +109,9 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     /// <inheritdoc/>
     public async ValueTask<bool> StopAsync(CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation(
-            "[摆轮通信-发送] 摆轮 {DiverterId} 执行停止 | 目标角度={Angle}度",
-            DiverterId, StopAngle);
+        _logger.LogInformation("[摆轮通信-发送] 摆轮 {DiverterId} 执行停止", DiverterId);
         
-        var result = await SetAngleInternalAsync(StopAngle, cancellationToken);
+        var result = await SetDirectionInternalAsync(DiverterDirection.Straight, cancellationToken);
         if (result)
         {
             _currentStatus = "已停止";
@@ -158,9 +143,9 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
     }
 
     /// <summary>
-    /// 内部方法：设置摆轮角度
+    /// 内部方法：设置摆轮方向
     /// </summary>
-    private async Task<bool> SetAngleInternalAsync(int angle, CancellationToken cancellationToken)
+    private async Task<bool> SetDirectionInternalAsync(DiverterDirection direction, CancellationToken cancellationToken)
     {
         try
         {
@@ -168,16 +153,16 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
             if (!_emcController.IsAvailable())
             {
                 _logger.LogError(
-                    "[摆轮通信-发送] 摆轮 {DiverterId} 无法设置角度：EMC 控制器未初始化或不可用 | 目标角度={Angle}度 | 卡号={CardNo}",
-                    DiverterId, angle, _cardNo);
+                    "[摆轮通信-发送] 摆轮 {DiverterId} 无法设置方向：EMC 控制器未初始化或不可用 | 目标方向={Direction} | 卡号={CardNo}",
+                    DiverterId, direction, _cardNo);
                 return false;
             }
 
             _logger.LogInformation(
-                "[摆轮通信-发送] 摆轮 {DiverterId} 开始设置角度 | 目标角度={Angle}度 | 卡号={CardNo}",
-                DiverterId, angle, _cardNo);
+                "[摆轮通信-发送] 摆轮 {DiverterId} 开始设置方向 | 目标方向={Direction} | 卡号={CardNo}",
+                DiverterId, direction, _cardNo);
 
-            var outputBits = MapAngleToOutputBits(angle);
+            var outputBits = MapDirectionToOutputBits(direction);
             
             foreach (var (bitIndex, value) in outputBits)
             {
@@ -196,53 +181,58 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
                 }
             }
 
-            await Task.Delay(100, cancellationToken);
+            /// <summary>
+            /// 摆轮动作最小稳定延迟（毫秒）
+            /// Minimal delay to ensure diverter hardware state stabilization
+            /// </summary>
+            const int DiverterActionStabilizationDelayMs = 1;
+            
+            await Task.Delay(DiverterActionStabilizationDelayMs, cancellationToken);
 
             _logger.LogInformation(
-                "[摆轮通信-发送完成] 摆轮 {DiverterId} 角度设置成功 | 目标角度={Angle}度",
-                DiverterId, angle);
+                "[摆轮通信-发送完成] 摆轮 {DiverterId} 方向设置成功 | 目标方向={Direction}",
+                DiverterId, direction);
             return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex,
-                "[摆轮通信-发送] 摆轮 {DiverterId} 设置角度失败 | 目标角度={Angle}度",
-                DiverterId, angle);
+                "[摆轮通信-发送] 摆轮 {DiverterId} 设置方向失败 | 目标方向={Direction}",
+                DiverterId, direction);
             return false;
         }
     }
 
     /// <summary>
-    /// 将角度映射到输出位组合
+    /// 将方向映射到输出位组合
     /// </summary>
-    private List<(int bitIndex, bool value)> MapAngleToOutputBits(int angle)
+    /// <remarks>
+    /// 使用二进制编码方式：
+    /// - Straight (直通) = 00 (bit0=0, bit1=0)
+    /// - Left (左转)     = 01 (bit0=0, bit1=1)
+    /// - Right (右转)    = 10 (bit0=1, bit1=0)
+    /// </remarks>
+    private List<(int bitIndex, bool value)> MapDirectionToOutputBits(DiverterDirection direction)
     {
         var bits = new List<(int, bool)>();
         int startBit = _config.OutputStartBit;
         
-        // 使用二进制编码方式：
-        // 0度 = 00 (bit0=0, bit1=0)
-        // 45度/-45度 = 根据方向使用不同编码
-        switch (angle)
+        switch (direction)
         {
-            case 0:
+            case DiverterDirection.Straight:
                 bits.Add((startBit, false));
                 bits.Add((startBit + 1, false));
                 break;
-            case 45: // 左转
+            case DiverterDirection.Left:
                 bits.Add((startBit, false));
                 bits.Add((startBit + 1, true));
                 break;
-            case -45: // 右转
+            case DiverterDirection.Right:
                 bits.Add((startBit, true));
                 bits.Add((startBit + 1, false));
-                break;
-            case 90:
-                bits.Add((startBit, true));
-                bits.Add((startBit + 1, true));
                 break;
             default:
-                _logger.LogWarning("不支持的角度 {Angle}，使用0度", angle);
+                _logger.LogWarning("不支持的方向 {Direction}，使用直通", direction);
                 bits.Add((startBit, false));
                 bits.Add((startBit + 1, false));
                 break;

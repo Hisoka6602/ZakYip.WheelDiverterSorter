@@ -104,6 +104,10 @@ public class LeadshinePanelInputReader : IPanelInputReader
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// 优化实现：收集所有需要读取的IO位，使用批量读取API一次性获取，
+    /// 避免逐个读取导致的IO阻塞问题。
+    /// </remarks>
     public async Task<IDictionary<PanelButtonType, PanelButtonState>> ReadAllButtonStatesAsync(
         CancellationToken cancellationToken = default)
     {
@@ -113,14 +117,80 @@ public class LeadshinePanelInputReader : IPanelInputReader
             var config = _panelConfigRepository.Get();
             var result = new Dictionary<PanelButtonType, PanelButtonState>();
 
-            // 读取所有定义的按钮类型
+            // 收集所有需要读取的按钮位（用于批量读取）
+            var buttonBits = new Dictionary<int, (PanelButtonType ButtonType, TriggerLevel TriggerLevel)>();
+            var emergencyStopBits = new List<int>();
+
+            // 收集常规按钮的IO位
+            foreach (PanelButtonType buttonType in Enum.GetValues<PanelButtonType>().Where(bt => bt != PanelButtonType.EmergencyStop))
+            {
+                var (bitNumber, triggerLevel) = GetButtonConfig(buttonType, config);
+                
+                if (bitNumber.HasValue && !buttonBits.ContainsKey(bitNumber.Value))
+                {
+                    buttonBits[bitNumber.Value] = (buttonType, triggerLevel);
+                }
+            }
+            
+            // 收集急停按钮的IO位（可能有多个）
+            foreach (var emergencyButton in config.EmergencyStopButtons)
+            {
+                if (!emergencyStopBits.Contains(emergencyButton.InputBit))
+                {
+                    emergencyStopBits.Add(emergencyButton.InputBit);
+                }
+            }
+
+            // 合并所有需要读取的位
+            var allBitsToRead = buttonBits.Keys.Concat(emergencyStopBits).Distinct().OrderBy(b => b).ToList();
+
+            // 批量读取所有IO位
+            Dictionary<int, bool> ioValues = new Dictionary<int, bool>();
+            
+            if (allBitsToRead.Count > 0)
+            {
+                int minBit = allBitsToRead.Min();
+                int maxBit = allBitsToRead.Max();
+                int count = maxBit - minBit + 1;
+                
+                /// <summary>
+                /// 批量读取范围扩展倍数阈值
+                /// 当IO位范围不超过实际位数的此倍数时，使用批量读取更高效
+                /// </summary>
+                const int MaxBatchRangeMultiplier = 3;
+                
+                // 如果位分布比较集中（范围内的位数不超过实际需要读取位数的3倍），使用批量读取
+                if (count <= allBitsToRead.Count * MaxBatchRangeMultiplier)
+                {
+                    bool[] batchValues = await _inputPort.ReadBatchAsync(minBit, count);
+                    
+                    for (int i = 0; i < count; i++)
+                    {
+                        ioValues[minBit + i] = batchValues[i];
+                    }
+                    
+                    _logger.LogDebug(
+                        "批量读取面板按钮IO位，范围: {MinBit}-{MaxBit}, 数量: {Count}",
+                        minBit,
+                        maxBit,
+                        count);
+                }
+                else
+                {
+                    // 位分布太分散，逐个读取
+                    foreach (var bit in allBitsToRead)
+                    {
+                        ioValues[bit] = await _inputPort.ReadAsync(bit);
+                    }
+                }
+            }
+
+            // 处理常规按钮
             foreach (PanelButtonType buttonType in Enum.GetValues<PanelButtonType>())
             {
-                // 特殊处理急停按钮：检查所有急停按钮
                 if (buttonType == PanelButtonType.EmergencyStop)
                 {
-                    result[buttonType] = await ReadEmergencyStopStateAsync(config);
-                    continue;
+                    continue; // 急停按钮稍后单独处理
                 }
 
                 var (bitNumber, triggerLevel) = GetButtonConfig(buttonType, config);
@@ -140,8 +210,8 @@ public class LeadshinePanelInputReader : IPanelInputReader
 
                 try
                 {
-                    // 从硬件读取 IO 位
-                    bool rawValue = await _inputPort.ReadAsync(bitNumber.Value);
+                    // 从批量读取的结果中获取IO值
+                    bool rawValue = ioValues.TryGetValue(bitNumber.Value, out bool val) && val;
 
                     // 根据触发电平判断按钮是否按下
                     bool isPressed = triggerLevel == TriggerLevel.ActiveHigh ? rawValue : !rawValue;
@@ -171,6 +241,9 @@ public class LeadshinePanelInputReader : IPanelInputReader
                 }
             }
 
+            // 处理急停按钮（特殊逻辑：任意一个按下就算按下）
+            result[PanelButtonType.EmergencyStop] = await ReadEmergencyStopStateAsync(config, ioValues);
+
             return result;
         }
         catch (Exception ex)
@@ -196,6 +269,8 @@ public class LeadshinePanelInputReader : IPanelInputReader
     /// <summary>
     /// 读取急停按钮状态
     /// </summary>
+    /// <param name="config">面板配置</param>
+    /// <param name="ioValues">可选的已读取IO值缓存（用于批量读取优化）</param>
     /// <remarks>
     /// 系统只有在所有急停按钮都处于"解除"状态时才视为解除急停状态：
     /// - 如果任意一个急停按钮处于"按下"状态，则返回 IsPressed = true
@@ -204,9 +279,12 @@ public class LeadshinePanelInputReader : IPanelInputReader
     /// 对于每个急停按钮：
     /// - 当 InputTriggerLevel 为 ActiveHigh 时，高电平表示按下急停，低电平表示解除急停
     /// - 当 InputTriggerLevel 为 ActiveLow 时，低电平表示按下急停，高电平表示解除急停
+    /// 
+    /// 优化：支持从预读取的IO值缓存中获取状态，避免重复读取
     /// </remarks>
     private async Task<PanelButtonState> ReadEmergencyStopStateAsync(
-        Core.LineModel.Configuration.Models.PanelConfiguration config)
+        Core.LineModel.Configuration.Models.PanelConfiguration config,
+        Dictionary<int, bool>? ioValues = null)
     {
         try
         {
@@ -229,8 +307,10 @@ public class LeadshinePanelInputReader : IPanelInputReader
             {
                 try
                 {
-                    // 从硬件读取 IO 位
-                    bool rawValue = await _inputPort.ReadAsync(emergencyButton.InputBit);
+                    // 优先从缓存中读取，如果没有缓存则从硬件读取
+                    bool rawValue = ioValues != null && ioValues.TryGetValue(emergencyButton.InputBit, out bool cachedValue)
+                        ? cachedValue
+                        : await _inputPort.ReadAsync(emergencyButton.InputBit);
 
                     // 根据触发电平判断按钮是否按下
                     // ActiveHigh: 高电平=按下急停，低电平=解除急停

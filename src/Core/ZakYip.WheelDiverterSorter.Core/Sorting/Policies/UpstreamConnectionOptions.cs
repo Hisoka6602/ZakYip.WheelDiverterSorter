@@ -137,13 +137,13 @@ public record UpstreamConnectionOptions
     public int ChuteAssignmentTimeoutMs { get; init; } = 10000;
 
     /// <summary>
-    /// 格口分配超时时间（秒）
+    /// 格口分配超时时间（毫秒）
     /// </summary>
     /// <remarks>
     /// 当无法通过动态超时计算器获取超时时间时，使用此备用值。
-    /// 默认为 5 秒。
+    /// 默认为 5000 毫秒。
     /// </remarks>
-    public decimal FallbackTimeoutSeconds { get; init; } = 5m;
+    public int FallbackTimeoutMs { get; init; } = 5000;
 
     /// <summary>
     /// TCP相关配置

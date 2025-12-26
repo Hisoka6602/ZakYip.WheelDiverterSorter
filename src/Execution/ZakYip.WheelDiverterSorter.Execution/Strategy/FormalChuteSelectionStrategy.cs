@@ -29,9 +29,9 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
     private readonly bool _subscribeToEvents;
 
     /// <summary>
-    /// 默认超时时间（秒）
+    /// 默认超时时间（毫秒）
     /// </summary>
-    private const decimal DefaultFallbackTimeoutSeconds = 5m;
+    private const int DefaultFallbackTimeoutMs = 5000;
 
     /// <summary>
     /// 创建正式分拣格口选择策略
@@ -167,8 +167,8 @@ public class FormalChuteSelectionStrategy : IChuteSelectionStrategy, IDisposable
             return _timeoutCalculator.CalculateTimeoutSeconds(timeoutContext);
         }
 
-        // 降级：使用默认值
-        return DefaultFallbackTimeoutSeconds;
+        // 降级：使用默认值（转换为秒）
+        return DefaultFallbackTimeoutMs / 1000m;
     }
 
     /// <summary>

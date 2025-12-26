@@ -24,18 +24,6 @@ public sealed record PanelConfigRequest
     public required bool Enabled { get; init; }
 
     /// <summary>
-    /// 面板按钮轮询间隔（毫秒）
-    /// </summary>
-    /// <remarks>
-    /// 有效范围：50-1000 毫秒
-    /// 建议值：100 毫秒
-    /// </remarks>
-    /// <example>100</example>
-    [Required]
-    [Range(50, 1000, ErrorMessage = "轮询间隔必须在 50-1000 毫秒之间")]
-    public required int PollingIntervalMs { get; init; }
-
-    /// <summary>
     /// 按钮防抖时间（毫秒）
     /// </summary>
     /// <remarks>
@@ -103,11 +91,6 @@ public sealed record PanelConfigResponse
     /// 是否启用面板功能
     /// </summary>
     public required bool Enabled { get; init; }
-
-    /// <summary>
-    /// 面板按钮轮询间隔（毫秒）
-    /// </summary>
-    public required int PollingIntervalMs { get; init; }
 
     /// <summary>
     /// 按钮防抖时间（毫秒）
