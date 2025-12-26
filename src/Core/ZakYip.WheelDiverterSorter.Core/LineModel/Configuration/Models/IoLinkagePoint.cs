@@ -22,4 +22,15 @@ public sealed record class IoLinkagePoint
     /// </summary>
     [Required(ErrorMessage = "IO 电平状态不能为空")]
     public required TriggerLevel Level { get; init; }
+
+    /// <summary>
+    /// 延迟执行时间（秒），默认为 0 表示立即执行。
+    /// </summary>
+    /// <remarks>
+    /// 如果配置了延迟时间，IO点将在延迟指定秒数后才生效。
+    /// 延迟期间如果系统状态发生变化（如急停/停止），则取消执行。
+    /// 优先级：急停 > 停止 > 运行
+    /// </remarks>
+    [Range(0, 3600, ErrorMessage = "延迟时间必须在 0-3600 秒之间")]
+    public int DelaySeconds { get; init; } = 0;
 }

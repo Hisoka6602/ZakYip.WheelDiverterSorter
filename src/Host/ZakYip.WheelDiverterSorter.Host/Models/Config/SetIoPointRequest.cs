@@ -18,4 +18,11 @@ public sealed record class SetIoPointRequest
     /// </remarks>
     [Required(ErrorMessage = "Level 不能为空")]
     public required TriggerLevel Level { get; init; }
+
+    /// <summary>
+    /// 延迟执行时间（秒），默认为 0 表示立即执行
+    /// </summary>
+    /// <example>0</example>
+    [Range(0, 3600, ErrorMessage = "延迟时间必须在 0-3600 秒之间")]
+    public int DelaySeconds { get; init; } = 0;
 }
