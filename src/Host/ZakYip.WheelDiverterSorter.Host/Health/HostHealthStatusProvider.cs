@@ -86,9 +86,6 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 ExceptionChuteRatio = exceptionChuteRatio
             };
 
-            // PR-34: Metrics removed (Prometheus removed)
-            UpdateHealthMetrics(snapshot);
-
             return Task.FromResult(snapshot);
         }
         catch (Exception ex)
@@ -115,14 +112,5 @@ public class HostHealthStatusProvider : IHealthStatusProvider
             SystemState.EmergencyStop => CongestionLevel.Severe,
             _ => CongestionLevel.Normal
         };
-    }
-
-    /// <summary>
-    /// Update health check metrics (removed)
-    /// </summary>
-    private void UpdateHealthMetrics(LineHealthSnapshot snapshot)
-    {
-        // Metrics removed (Prometheus removed)
-        // This method is now a no-op
     }
 }

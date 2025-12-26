@@ -63,7 +63,7 @@ public class BootHostedService : IHostedService
                     _logger.LogError("  - 配置: {ErrorMessage}", report.Config.ErrorMessage);
                 }
             }
-
+            
             _logger.LogInformation("========================================");
         }
         catch (Exception ex)
