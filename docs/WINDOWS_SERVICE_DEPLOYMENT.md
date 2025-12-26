@@ -421,7 +421,7 @@ Remove-Item -Path "C:\Program Files\WheelDiverterSorter" -Recurse -Force
 4. **监控告警**
    - 监控服务运行状态
    - 配置性能计数器告警
-   - 使用 `/metrics` 端点集成 Prometheus 监控
+   - 通过日志文件监控系统健康状态
 
 5. **安全加固**
    - 使用专用服务账户（避免使用 Local System）
