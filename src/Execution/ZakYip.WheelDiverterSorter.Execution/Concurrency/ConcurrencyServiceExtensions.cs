@@ -25,9 +25,6 @@ public static class ConcurrencyServiceExtensions
         services.Configure<ConcurrencyOptions>(
             options => configuration.GetSection(ConcurrencyOptions.SectionName).Bind(options));
 
-        // 注册摆轮资源锁管理器（单例）
-        services.TryAddSingleton<IDiverterResourceLockManager, DiverterResourceLockManager>();
-
         return services;
     }
 
@@ -46,12 +43,11 @@ public static class ConcurrencyServiceExtensions
         // 使用装饰器模式包装现有执行器
         services.Decorate<ISwitchingPathExecutor>((inner, sp) =>
         {
-            var lockManager = sp.GetRequiredService<IDiverterResourceLockManager>();
             var options = sp.GetRequiredService<IOptions<ConcurrencyOptions>>();
             var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ConcurrentSwitchingPathExecutor>>();
             var clock = sp.GetRequiredService<Core.Utilities.ISystemClock>();
 
-            return new ConcurrentSwitchingPathExecutor(inner, lockManager, options, logger, clock);
+            return new ConcurrentSwitchingPathExecutor(inner, options, logger, clock);
         });
 
         return services;
