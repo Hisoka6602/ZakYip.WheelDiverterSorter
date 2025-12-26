@@ -196,7 +196,7 @@ public class LeadshineWheelDiverterDriver : IWheelDiverterDriver
                 }
             }
 
-            await Task.Delay(100, cancellationToken);
+            await Task.Delay(1, cancellationToken);
 
             _logger.LogInformation(
                 "[摆轮通信-发送完成] 摆轮 {DiverterId} 角度设置成功 | 目标角度={Angle}度",
