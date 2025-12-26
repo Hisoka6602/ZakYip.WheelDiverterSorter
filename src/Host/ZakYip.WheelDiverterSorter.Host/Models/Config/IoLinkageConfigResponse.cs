@@ -77,7 +77,7 @@ public sealed record class IoLinkagePointResponse
     public required string Level { get; init; }
 
     /// <summary>
-    /// 延迟执行时间（秒），0 表示立即执行
+    /// 延迟执行时间（毫秒），0 表示立即执行
     /// </summary>
-    public int DelaySeconds { get; init; } = 0;
+    public int DelayMilliseconds { get; init; } = 0;
 }

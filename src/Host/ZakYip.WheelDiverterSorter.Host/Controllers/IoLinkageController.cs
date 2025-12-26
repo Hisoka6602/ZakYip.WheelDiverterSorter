@@ -120,27 +120,27 @@ public class IoLinkageController : ControllerBase
     ///     {
     ///         "enabled": true,
     ///         "runningStateIos": [
-    ///             { "bitNumber": 3, "level": "ActiveLow", "delaySeconds": 0 },
-    ///             { "bitNumber": 5, "level": "ActiveLow", "delaySeconds": 5 }
+    ///             { "bitNumber": 3, "level": "ActiveLow", "delayMilliseconds": 0 },
+    ///             { "bitNumber": 5, "level": "ActiveLow", "delayMilliseconds": 5000 }
     ///         ],
     ///         "stoppedStateIos": [
-    ///             { "bitNumber": 3, "level": "ActiveHigh", "delaySeconds": 0 },
-    ///             { "bitNumber": 5, "level": "ActiveHigh", "delaySeconds": 0 }
+    ///             { "bitNumber": 3, "level": "ActiveHigh", "delayMilliseconds": 0 },
+    ///             { "bitNumber": 5, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "emergencyStopStateIos": [
-    ///             { "bitNumber": 10, "level": "ActiveHigh", "delaySeconds": 0 }
+    ///             { "bitNumber": 10, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "upstreamConnectionExceptionStateIos": [
-    ///             { "bitNumber": 11, "level": "ActiveHigh", "delaySeconds": 0 }
+    ///             { "bitNumber": 11, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "diverterExceptionStateIos": [
-    ///             { "bitNumber": 12, "level": "ActiveHigh", "delaySeconds": 0 }
+    ///             { "bitNumber": 12, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "postPreStartWarningStateIos": [
-    ///             { "bitNumber": 13, "level": "ActiveHigh", "delaySeconds": 0 }
+    ///             { "bitNumber": 13, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ],
     ///         "wheelDiverterDisconnectedStateIos": [
-    ///             { "bitNumber": 14, "level": "ActiveHigh", "delaySeconds": 0 }
+    ///             { "bitNumber": 14, "level": "ActiveHigh", "delayMilliseconds": 0 }
     ///         ]
     ///     }
     /// 
@@ -149,11 +149,11 @@ public class IoLinkageController : ControllerBase
     /// - ActiveHigh：高电平有效（输出1时设备工作）
     /// 
     /// 延迟执行说明：
-    /// - delaySeconds：延迟执行时间（秒），默认为 0 表示立即执行
-    /// - 如果配置了延迟时间，IO点将在延迟指定秒数后才生效
+    /// - delayMilliseconds：延迟执行时间（毫秒），默认为 0 表示立即执行
+    /// - 如果配置了延迟时间，IO点将在延迟指定毫秒后才生效
     /// - 延迟期间如果系统状态发生变化（如急停/停止），则取消执行
     /// - 优先级：急停 > 停止 > 运行
-    /// - 例如：配置某个IO在启动后5秒生效，但在1秒时按下急停，则该IO不会生效
+    /// - 例如：配置某个IO在启动后5000毫秒（5秒）生效，但在1000毫秒（1秒）时按下急停，则该IO不会生效
     /// 
     /// 配置更新后立即生效，无需重启服务。
     /// 系统根据不同状态自动应用对应的IO联动配置：
@@ -603,7 +603,7 @@ public class IoLinkageController : ControllerBase
             {
                 BitNumber = bitNumber,
                 Level = request.Level,
-                DelaySeconds = request.DelaySeconds
+                DelayMilliseconds = request.DelayMilliseconds
             };
 
             await _ioLinkageDriver.SetIoPointAsync(ioPoint);
@@ -720,7 +720,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList();
 
@@ -777,7 +777,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             RunningStateIos = request.RunningStateIos
@@ -785,7 +785,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             StoppedStateIos = request.StoppedStateIos
@@ -793,7 +793,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             EmergencyStopStateIos = request.EmergencyStopStateIos
@@ -801,7 +801,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             UpstreamConnectionExceptionStateIos = request.UpstreamConnectionExceptionStateIos
@@ -809,7 +809,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             DiverterExceptionStateIos = request.DiverterExceptionStateIos
@@ -817,7 +817,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             PostPreStartWarningStateIos = request.PostPreStartWarningStateIos
@@ -825,7 +825,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             WheelDiverterDisconnectedStateIos = request.WheelDiverterDisconnectedStateIos
@@ -833,7 +833,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level,
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             CreatedAt = _systemClock.LocalNow,
@@ -854,7 +854,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             RunningStateIos = config.RunningStateIos
@@ -862,7 +862,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             StoppedStateIos = config.StoppedStateIos
@@ -870,7 +870,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             EmergencyStopStateIos = config.EmergencyStopStateIos
@@ -878,7 +878,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             UpstreamConnectionExceptionStateIos = config.UpstreamConnectionExceptionStateIos
@@ -886,7 +886,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             DiverterExceptionStateIos = config.DiverterExceptionStateIos
@@ -894,7 +894,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             PostPreStartWarningStateIos = config.PostPreStartWarningStateIos
@@ -902,7 +902,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList(),
             WheelDiverterDisconnectedStateIos = config.WheelDiverterDisconnectedStateIos
@@ -910,7 +910,7 @@ public class IoLinkageController : ControllerBase
                 {
                     BitNumber = p.BitNumber,
                     Level = p.Level.ToString(),
-                    DelaySeconds = p.DelaySeconds
+                    DelayMilliseconds = p.DelayMilliseconds
                 })
                 .ToList()
         };

@@ -35,16 +35,16 @@ public class DelayedIoLinkageDriverDecorator : IIoLinkageDriver
     public async Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken = default)
     {
         // 如果配置了延迟，先等待并检查状态
-        if (ioPoint.DelaySeconds > 0)
+        if (ioPoint.DelayMilliseconds > 0)
         {
             var originalState = _systemStateManager.CurrentState;
             _logger.LogInformation(
-                "IO 联动延迟执行: IO {BitNumber} 将延迟 {DelaySeconds} 秒执行，当前系统状态: {SystemState}",
+                "IO 联动延迟执行: IO {BitNumber} 将延迟 {DelayMilliseconds} 毫秒执行，当前系统状态: {SystemState}",
                 ioPoint.BitNumber,
-                ioPoint.DelaySeconds,
+                ioPoint.DelayMilliseconds,
                 originalState);
 
-            await Task.Delay(TimeSpan.FromSeconds(ioPoint.DelaySeconds), cancellationToken);
+            await Task.Delay(ioPoint.DelayMilliseconds, cancellationToken);
 
             // 延迟后检查系统状态是否改变
             var currentState = _systemStateManager.CurrentState;
@@ -59,9 +59,9 @@ public class DelayedIoLinkageDriverDecorator : IIoLinkageDriver
             }
 
             _logger.LogInformation(
-                "IO 联动延迟执行继续: IO {BitNumber}，延迟 {DelaySeconds} 秒后系统状态保持为 {SystemState}",
+                "IO 联动延迟执行继续: IO {BitNumber}，延迟 {DelayMilliseconds} 毫秒后系统状态保持为 {SystemState}",
                 ioPoint.BitNumber,
-                ioPoint.DelaySeconds,
+                ioPoint.DelayMilliseconds,
                 currentState);
         }
 
