@@ -70,7 +70,7 @@ public class PreRunHealthCheckAdapter : IPreRunHealthCheckService
                     .Select(u => new HealthCheckItem
                     {
                         Name = $"Upstream_{u.EndpointName.Replace("-", "_")}",
-                        Status = u.IsHealthy ? HealthStatus.Healthy : HealthStatus.Degraded,  // 使用 Degraded 而不是 Unhealthy
+                        Status = u.IsHealthy ? HealthStatus.Healthy : HealthStatus.Unhealthy,  // 上游连接失败标记为 Unhealthy
                         Message = u.ErrorMessage ?? (u.IsHealthy ? $"{u.EndpointName} 已连接" : $"{u.EndpointName} 未连接（非必需）")
                     })
                     .ToList();
