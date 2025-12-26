@@ -70,9 +70,9 @@ public record SortingSystemOptions
     /// </summary>
     /// <remarks>
     /// 当无法计算理论物理极限时间时使用的保守默认值。
-    /// 范围：1 ~ 60 秒，默认 5 秒。
+    /// 范围：1000 ~ 60000 毫秒，默认 5000 毫秒。
     /// </remarks>
-    public decimal ChuteAssignmentFallbackTimeoutSeconds { get; init; } = 5m;
+    public int ChuteAssignmentFallbackTimeoutMs { get; init; } = 5000;
 }
 
 /// <summary>
@@ -123,9 +123,9 @@ public class SortingSystemOptionsValidator : IValidateOptions<SortingSystemOptio
             errors.Add("格口分配超时安全系数（ChuteAssignmentTimeoutSafetyFactor）必须在0.1到1.0之间");
         }
 
-        if (options.ChuteAssignmentFallbackTimeoutSeconds < 1m || options.ChuteAssignmentFallbackTimeoutSeconds > 60m)
+        if (options.ChuteAssignmentFallbackTimeoutMs < 1000 || options.ChuteAssignmentFallbackTimeoutMs > 60000)
         {
-            errors.Add("格口分配降级超时时间（ChuteAssignmentFallbackTimeoutSeconds）必须在1到60秒之间");
+            errors.Add("格口分配降级超时时间（ChuteAssignmentFallbackTimeoutMs）必须在1000到60000毫秒之间");
         }
 
         if (errors.Count > 0)

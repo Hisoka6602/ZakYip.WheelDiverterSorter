@@ -21,12 +21,12 @@ public record ChuteAssignmentTimeoutResponse
     public required decimal SafetyFactor { get; init; }
 
     /// <summary>
-    /// 降级策略的默认超时时间（秒）
-    /// Default timeout for fallback strategy (seconds)
+    /// 降级策略的默认超时时间（毫秒）
+    /// Default timeout for fallback strategy (milliseconds)
     /// </summary>
-    /// <example>5</example>
-    [SwaggerSchema(Description = "当无法计算理论时间时使用的保守默认超时值")]
-    public required decimal FallbackTimeoutSeconds { get; init; }
+    /// <example>5000</example>
+    [SwaggerSchema(Description = "当无法计算理论时间时使用的保守默认超时值（毫秒）")]
+    public required int FallbackTimeoutMs { get; init; }
 
     /// <summary>
     /// 当前线体的理论物理极限时间（秒）
@@ -46,7 +46,7 @@ public record ChuteAssignmentTimeoutResponse
     /// </summary>
     /// <remarks>
     /// 实际等待时间 = TheoreticalLimitSeconds × SafetyFactor
-    /// 或者 FallbackTimeoutSeconds（如果无法计算理论时间）
+    /// 或者 FallbackTimeoutMs（如果无法计算理论时间）
     /// </remarks>
     /// <example>4.05</example>
     [SwaggerSchema(Description = "实际生效的超时时间")]

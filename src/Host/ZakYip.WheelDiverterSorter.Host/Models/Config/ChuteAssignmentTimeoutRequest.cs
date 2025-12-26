@@ -29,14 +29,14 @@ public record ChuteAssignmentTimeoutRequest
     public required decimal SafetyFactor { get; init; }
 
     /// <summary>
-    /// 降级策略的默认超时时间（秒）
-    /// Default timeout for fallback strategy (seconds)
+    /// 降级策略的默认超时时间（毫秒）
+    /// Default timeout for fallback strategy (milliseconds)
     /// </summary>
     /// <remarks>
     /// 当无法计算理论物理极限时间时使用的保守默认值
     /// </remarks>
-    /// <example>5</example>
-    [Range(1, 60, ErrorMessage = "降级超时时间必须在1到60秒之间")]
-    [SwaggerSchema(Description = "降级超时时间（秒），当无法计算理论时间时使用")]
-    public decimal FallbackTimeoutSeconds { get; init; } = 5m;
+    /// <example>5000</example>
+    [Range(1000, 60000, ErrorMessage = "降级超时时间必须在1000到60000毫秒之间")]
+    [SwaggerSchema(Description = "降级超时时间（毫秒），当无法计算理论时间时使用")]
+    public int FallbackTimeoutMs { get; init; } = 5000;
 }

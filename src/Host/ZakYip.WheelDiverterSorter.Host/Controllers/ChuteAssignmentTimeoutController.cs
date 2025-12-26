@@ -63,7 +63,7 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
 
             // 尝试计算当前的理论物理极限时间和有效超时时间
             decimal? theoreticalLimit = null;
-            decimal effectiveTimeout = options.FallbackTimeoutSeconds;
+            decimal effectiveTimeout = options.FallbackTimeoutMs / 1000m; // 转换为秒用于计算
 
             if (_timeoutCalculator != null)
             {
@@ -91,7 +91,7 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
             var response = new ChuteAssignmentTimeoutResponse
             {
                 SafetyFactor = options.SafetyFactor,
-                FallbackTimeoutSeconds = options.FallbackTimeoutSeconds,
+                FallbackTimeoutMs = options.FallbackTimeoutMs,
                 TheoreticalLimitSeconds = theoreticalLimit,
                 EffectiveTimeoutSeconds = effectiveTimeout
             };
@@ -156,7 +156,7 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
             systemConfig.ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions
             {
                 SafetyFactor = request.SafetyFactor,
-                FallbackTimeoutSeconds = request.FallbackTimeoutSeconds
+                FallbackTimeoutMs = request.FallbackTimeoutMs
             };
 
             // 验证配置
@@ -171,9 +171,9 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
             _configRepository.Update(systemConfig);
 
             _logger.LogInformation(
-                "格口分配超时配置已更新: SafetyFactor={SafetyFactor}, FallbackTimeout={FallbackTimeout}秒",
+                "格口分配超时配置已更新: SafetyFactor={SafetyFactor}, FallbackTimeout={FallbackTimeout}ms",
                 request.SafetyFactor,
-                request.FallbackTimeoutSeconds);
+                request.FallbackTimeoutMs);
 
             // 返回更新后的配置
             return GetConfiguration();

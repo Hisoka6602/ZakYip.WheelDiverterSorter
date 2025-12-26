@@ -1001,8 +1001,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return _timeoutCalculator.CalculateTimeoutSeconds(context);
         }
 
-        // 降级：使用配置的固定超时时间
-        return systemConfig.ChuteAssignmentTimeout?.FallbackTimeoutSeconds ?? _options.FallbackTimeoutSeconds;
+        // 降级：使用配置的固定超时时间（转换为秒）
+        var fallbackMs = systemConfig.ChuteAssignmentTimeout?.FallbackTimeoutMs ?? _options.FallbackTimeoutMs;
+        return fallbackMs / 1000m;
     }
 
     /// <summary>
