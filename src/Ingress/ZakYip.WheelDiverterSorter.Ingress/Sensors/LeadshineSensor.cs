@@ -172,13 +172,15 @@ public class LeadshineSensor : ISensor {
                                 timeSinceLastRisingEdge,
                                 _stateChangeIgnoreWindowMs);
                             
-                            // 不更新 _lastState，不触发事件，继续轮询
+                            // 更新 _lastState 以防止重复检测同一状态变化，但不触发事件
+                            _lastState = currentState;
                             await Task.Delay(_pollingIntervalMs, cancellationToken);
                             continue;
                         }
                     }
                     
                     // 记录上升沿时间（用于状态变化忽略窗口）
+                    // 只记录非忽略的上升沿
                     if (currentState && !_lastState)
                     {
                         _lastRisingEdgeTime = now;

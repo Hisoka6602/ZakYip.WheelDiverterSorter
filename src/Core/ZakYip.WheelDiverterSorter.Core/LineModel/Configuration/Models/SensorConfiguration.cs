@@ -141,6 +141,10 @@ public class SensorConfiguration
 public class SensorIoEntry
 {
     /// <summary>
+    /// 默认防抖窗口时间（毫秒）
+    /// </summary>
+    private const int DefaultDeduplicationWindowMs = 400;
+    /// <summary>
     /// 感应IO标识符（数字ID）
     /// </summary>
     public required long SensorId { get; set; }
@@ -221,7 +225,7 @@ public class SensorIoEntry
     /// </remarks>
     /// <example>400</example>
     [Range(100, 5000, ErrorMessage = "重复触发判定窗口必须在 100-5000ms 之间")]
-    public int DeduplicationWindowMs { get; set; } = 400;
+    public int DeduplicationWindowMs { get; set; } = DefaultDeduplicationWindowMs;
 
     /// <summary>
     /// 状态变化忽略窗口（毫秒）
@@ -245,7 +249,7 @@ public class SensorIoEntry
     /// </list>
     /// </remarks>
     /// <example>0</example>
-    [Range(0, 1000, ErrorMessage = "状态变化忽略窗口必须在 0-1000ms 之间")]
+    [Range(0, 500, ErrorMessage = "状态变化忽略窗口必须在 0-500ms 之间")]
     public int StateChangeIgnoreWindowMs { get; set; } = 0;
 
     /// <summary>
