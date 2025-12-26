@@ -77,6 +77,9 @@ public class LeadshineSensorFactory : ISensorFactory {
 
                 // 使用传感器独立的轮询间隔，如果未配置则使用全局默认值
                 var pollingIntervalMs = config.PollingIntervalMs ?? _defaultPollingIntervalMs;
+                
+                // 使用传感器配置的状态变化忽略窗口
+                var stateChangeIgnoreWindowMs = config.StateChangeIgnoreWindowMs;
 
                 var sensor = new LeadshineSensor(
                     _loggerFactory.CreateLogger<LeadshineSensor>(),
@@ -86,16 +89,18 @@ public class LeadshineSensorFactory : ISensorFactory {
                     _inputPort,
                     config.InputBit,
                     _systemClock,
-                    pollingIntervalMs);
+                    pollingIntervalMs,
+                    stateChangeIgnoreWindowMs);
 
                 sensors.Add(sensor);
                 _logger.LogInformation(
-                    "成功创建雷赛传感器 {SensorId}，类型: {Type}，输入位: {InputBit}，轮询间隔: {PollingIntervalMs}ms{Source}",
+                    "成功创建雷赛传感器 {SensorId}，类型: {Type}，输入位: {InputBit}，轮询间隔: {PollingIntervalMs}ms{Source}，状态变化忽略窗口: {StateChangeIgnoreWindowMs}ms",
                     config.SensorId,
                     sensorType,
                     config.InputBit,
                     pollingIntervalMs,
-                    config.PollingIntervalMs.HasValue ? " (独立配置)" : " (全局默认)");
+                    config.PollingIntervalMs.HasValue ? " (独立配置)" : " (全局默认)",
+                    stateChangeIgnoreWindowMs);
             }
             catch (Exception ex) {
                 _logger.LogError(ex, "创建雷赛传感器 {SensorId} 失败", config.SensorId);

@@ -110,4 +110,14 @@ public sealed record SensorConfigEntry
     /// 建议范围：5ms - 50ms。
     /// </remarks>
     public int? PollingIntervalMs { get; init; }
+
+    /// <summary>
+    /// 状态变化忽略窗口（毫秒）
+    /// </summary>
+    /// <remarks>
+    /// <para>在首次上升沿触发后的此时间窗口内，所有状态变化（包括上升沿和下降沿）都将被忽略。</para>
+    /// <para>应用场景：镂空包裹经过传感器时，会触发多次上升沿/下降沿变化，导致被误认为多个包裹。</para>
+    /// <para>默认值：0（禁用）。建议范围：0-500ms。</para>
+    /// </remarks>
+    public int StateChangeIgnoreWindowMs { get; init; } = 0;
 }
