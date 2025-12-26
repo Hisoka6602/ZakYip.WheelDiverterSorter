@@ -38,24 +38,22 @@ public class WheelDiverterSelfTest : IDriverSelfTest
     public string DriverName => "摆轮驱动器";
 
     /// <inheritdoc/>
-    public async Task<DriverHealthStatus> RunSelfTestAsync(CancellationToken cancellationToken = default)
+    public Task<DriverHealthStatus> RunSelfTestAsync(CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask; // 使方法异步兼容
-
         try
         {
             var wheelConfig = _wheelDiverterConfigRepository.Get();
 
             if (wheelConfig == null)
             {
-                return new DriverHealthStatus
+                return Task.FromResult(new DriverHealthStatus
                 {
                     DriverName = "摆轮驱动器",
                     IsHealthy = false,
                     ErrorCode = "NOT_CONFIGURED",
                     ErrorMessage = "摆轮驱动器配置未初始化",
                     CheckedAt = _clock.LocalNowOffset
-                };
+                });
             }
 
             // 获取厂商显示名称
@@ -70,59 +68,59 @@ public class WheelDiverterSelfTest : IDriverSelfTest
 
                 if (connectedCount == 0 && configuredDeviceCount > 0)
                 {
-                    return new DriverHealthStatus
+                    return Task.FromResult(new DriverHealthStatus
                     {
                         DriverName = $"摆轮驱动器 ({vendorDisplayName})",
                         IsHealthy = false,
                         ErrorCode = "NOT_CONNECTED",
                         ErrorMessage = $"摆轮驱动器未连接：厂商 {vendorDisplayName}，已配置 {configuredDeviceCount} 台设备，但均未连接",
                         CheckedAt = _clock.LocalNowOffset
-                    };
+                    });
                 }
 
                 if (connectedCount < configuredDeviceCount)
                 {
-                    return new DriverHealthStatus
+                    return Task.FromResult(new DriverHealthStatus
                     {
                         DriverName = $"摆轮驱动器 ({vendorDisplayName})",
                         IsHealthy = false,
                         ErrorCode = "PARTIAL_CONNECTED",
                         ErrorMessage = $"摆轮驱动器部分连接：厂商 {vendorDisplayName}，已配置 {configuredDeviceCount} 台设备，已连接 {connectedCount} 台",
                         CheckedAt = _clock.LocalNowOffset
-                    };
+                    });
                 }
 
-                return new DriverHealthStatus
+                return Task.FromResult(new DriverHealthStatus
                 {
                     DriverName = $"摆轮驱动器 ({vendorDisplayName})",
                     IsHealthy = true,
                     ErrorCode = null,
                     ErrorMessage = $"摆轮驱动器全部连接：厂商 {vendorDisplayName}，已连接 {connectedCount} 台设备",
                     CheckedAt = _clock.LocalNowOffset
-                };
+                });
             }
 
             // 没有驱动管理器时，只验证配置
-            return new DriverHealthStatus
+            return Task.FromResult(new DriverHealthStatus
             {
                 DriverName = $"摆轮驱动器 ({vendorDisplayName})",
                 IsHealthy = true,
                 ErrorCode = null,
                 ErrorMessage = $"摆轮驱动器已配置，厂商: {vendorDisplayName}，硬件模式已启用",
                 CheckedAt = _clock.LocalNowOffset
-            };
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "摆轮驱动器自检失败");
-            return new DriverHealthStatus
+            return Task.FromResult(new DriverHealthStatus
             {
                 DriverName = "摆轮驱动器",
                 IsHealthy = false,
                 ErrorCode = "SELF_TEST_ERROR",
                 ErrorMessage = $"自检过程异常: {ex.Message}",
                 CheckedAt = _clock.LocalNowOffset
-            };
+            });
         }
     }
 

@@ -42,7 +42,7 @@ public class DetailedConfigValidator : IConfigValidator
     }
 
     /// <inheritdoc/>
-    public async Task<ConfigHealthStatus> ValidateAsync(CancellationToken cancellationToken = default)
+    public Task<ConfigHealthStatus> ValidateAsync(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -179,33 +179,31 @@ public class DetailedConfigValidator : IConfigValidator
                 }
             }
 
-            await Task.CompletedTask; // 使方法异步兼容
-
             if (errors.Any())
             {
                 var errorMessage = string.Join("; ", errors);
                 _logger.LogWarning("详细配置验证失败: {ErrorMessage}", errorMessage);
-                return new ConfigHealthStatus
+                return Task.FromResult(new ConfigHealthStatus
                 {
                     IsValid = false,
                     ErrorMessage = errorMessage
-                };
+                });
             }
 
             _logger.LogInformation("详细配置验证成功");
-            return new ConfigHealthStatus
+            return Task.FromResult(new ConfigHealthStatus
             {
                 IsValid = true
-            };
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "详细配置验证失败");
-            return new ConfigHealthStatus
+            return Task.FromResult(new ConfigHealthStatus
             {
                 IsValid = false,
                 ErrorMessage = $"配置验证异常: {ex.Message}"
-            };
+            });
         }
     }
 }
