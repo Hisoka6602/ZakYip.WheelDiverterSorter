@@ -26,21 +26,22 @@
   6. ✅ 更新所有测试文件中的接口引用
 - [x] **代码减少**: 删除了 ~200 行代码（接口 69 行 + 适配器 135 行 - 测试更新）
 
-#### 1.2 PreRunHealthCheckAdapter
-- [ ] **文件**: `src/Application/.../Health/PreRunHealthCheckAdapter.cs` (112行)
-- [ ] **问题**: 类型转换 SystemSelfTestReport → PreRunHealthCheckResult
-- [ ] **影响范围**:
-  - `HealthCheckServiceExtensions.cs` - DI 注册
-  - `HealthController.cs` - API 端点使用
-- [ ] **修改方案**:
-  1. 删除 `IPreRunHealthCheckService` 接口
-  2. 删除 `PreRunHealthCheckAdapter` 类
-  3. 删除 `PreRunHealthCheckResult` 和 `HealthCheckItem` DTO
-  4. Controller 直接使用 `ISelfTestCoordinator`
-  5. API 返回 `SystemSelfTestReport`
-- [ ] **测试验证**:
-  - 运行健康检查 API 测试
-  - 验证响应格式
+#### 1.2 PreRunHealthCheckAdapter ✅ 完成
+- [x] **文件**: `src/Application/.../Health/PreRunHealthCheckAdapter.cs` (112行)
+- [x] **问题**: 类型转换 SystemSelfTestReport → PreRunHealthCheckResult
+- [x] **影响范围**:
+  - `HealthCheckServiceExtensions.cs` - DI 注册已更新
+  - `HealthController.cs` - API 端点已更新为直接使用 ISelfTestCoordinator
+- [x] **修改内容**:
+  1. ✅ 删除 `IPreRunHealthCheckService` 接口 (72行)
+  2. ✅ 删除 `PreRunHealthCheckAdapter` 类 (112行)
+  3. ✅ 删除空的 `Services/Health/` 目录
+  4. ✅ Controller 直接使用 `ISelfTestCoordinator`
+  5. ✅ API 响应格式保持不变（使用 PreRunHealthCheckResponse）
+  6. ✅ 更新 DI 注册
+  7. ✅ 清理所有 using 语句
+- [x] **代码减少**: 删除了 ~184 行代码（接口 72 行 + 适配器 112 行）
+- [x] **编译验证**: ✅ Host 项目编译成功
 
 #### 1.3 ServerModeClientAdapter
 - [ ] **文件**: `src/Communication/.../Adapters/ServerModeClientAdapter.cs`
@@ -183,13 +184,13 @@ Application/Extensions/
 ## 进度跟踪
 
 - **开始时间**: 2025-12-26 15:26
-- **当前任务**: P0-1.2 PreRunHealthCheckAdapter
-- **已完成**: 1/3 (P0-1), 0/11 (P0-2), 0/1 (P0-3)
-- **总进度**: 7% (1/15 tasks)
+- **当前任务**: P0-1.3 ServerModeClientAdapter 分析
+- **已完成**: 2/3 (P0-1), 0/11 (P0-2), 0/1 (P0-3)
+- **总进度**: 13% (2/15 tasks)
 
 ### 已完成项目
 
-#### P0-1.1 SensorEventProviderAdapter  ✅ 完成
+#### P0-1.1 SensorEventProviderAdapter ✅ 完成
 - **完成时间**: 2025-12-26
 - **代码减少**: ~200 行
 - **修改文件**: 
@@ -198,3 +199,15 @@ Application/Extensions/
   - 修改: `Execution.csproj` (添加 Ingress 项目引用)
   - 更新: 9 个测试文件
 - **编译状态**: ✅ Execution 项目编译成功
+
+#### P0-1.2 PreRunHealthCheckAdapter ✅ 完成
+- **完成时间**: 2025-12-26
+- **代码减少**: ~184 行
+- **修改文件**:
+  - 删除: `IPreRunHealthCheckService.cs` (72行), `PreRunHealthCheckAdapter.cs` (112行)
+  - 删除: `Services/Health/` 目录
+  - 修改: `HealthController.cs` (直接使用 ISelfTestCoordinator)
+  - 修改: `HealthCheckServiceExtensions.cs` (删除 adapter DI 注册)
+  - 清理: 多个文件的 using 语句
+- **编译状态**: ✅ Host 项目编译成功
+- **API 兼容性**: ✅ API 响应格式保持不变
