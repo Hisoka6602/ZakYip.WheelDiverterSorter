@@ -19,6 +19,13 @@
 | [TOPOLOGY_LINEAR_N_DIVERTERS.md](TOPOLOGY_LINEAR_N_DIVERTERS.md) | N 摆轮线性拓扑模型（PR-TOPO02） |
 | [../.github/copilot-instructions.md](../.github/copilot-instructions.md) | Copilot 约束说明 |
 
+## 系统能力与技术分析
+
+| 文档 | 说明 |
+|------|------|
+| [SYSTEM_CAPABILITIES_ANALYSIS.md](SYSTEM_CAPABILITIES_ANALYSIS.md) | **系统能力现状分析**（防抖、镂空包裹识别、队列错误防护） |
+| [RACE_CONDITION_ANALYSIS.md](RACE_CONDITION_ANALYSIS.md) | **竞态条件分析**（UpdateAffectedParcelsToStraight 的竞态场景与修复方案） |
+
 ## 使用指南
 
 | 文档 | 说明 |

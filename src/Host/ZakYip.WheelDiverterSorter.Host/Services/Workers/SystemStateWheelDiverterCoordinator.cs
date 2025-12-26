@@ -4,6 +4,7 @@ using ZakYip.WheelDiverterSorter.Core.Enums.System;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -36,6 +37,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
     private readonly IWheelDiverterConnectionService _wheelDiverterService;
     private readonly ISafeExecutionService _safeExecutor;
     private readonly ILogger<SystemStateWheelDiverterCoordinator> _logger;
+    private readonly ISystemClock _clock;
 
     /// <summary>
     /// 轮询间隔（毫秒）
@@ -68,12 +70,14 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
         ISystemStateManager stateManager,
         IWheelDiverterConnectionService wheelDiverterService,
         ISafeExecutionService safeExecutor,
-        ILogger<SystemStateWheelDiverterCoordinator> logger)
+        ILogger<SystemStateWheelDiverterCoordinator> logger,
+        ISystemClock clock)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _wheelDiverterService = wheelDiverterService ?? throw new ArgumentNullException(nameof(wheelDiverterService));
         _safeExecutor = safeExecutor ?? throw new ArgumentNullException(nameof(safeExecutor));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -128,7 +132,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                         // 包括 Ready, Paused, Faulted, EmergencyStop 等状态
                         else if (currentState != SystemState.Running)
                         {
-                            var timeSinceLastReconnect = DateTime.Now - _lastStoppedReconnectAttempt;
+                            var timeSinceLastReconnect = _clock.LocalNow - _lastStoppedReconnectAttempt;
                             if (timeSinceLastReconnect.TotalMilliseconds >= StoppedStateReconnectIntervalMs)
                             {
                                 _logger.LogDebug(
@@ -137,7 +141,7 @@ public sealed class SystemStateWheelDiverterCoordinator : BackgroundService
                                     timeSinceLastReconnect.TotalSeconds);
                                 
                                 await ReconnectWheelDivertersInNonRunningStateAsync(currentState, stoppingToken);
-                                _lastStoppedReconnectAttempt = DateTime.Now;
+                                _lastStoppedReconnectAttempt = _clock.LocalNow;
                             }
                         }
 
