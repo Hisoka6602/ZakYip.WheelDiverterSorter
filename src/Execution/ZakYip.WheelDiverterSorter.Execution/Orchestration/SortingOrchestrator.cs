@@ -67,8 +67,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 单个摆轮动作执行超时时间（毫秒）
     /// </summary>
     /// <remarks>
-    /// 用于 IO 触发执行时单段摆轮动作的超时设置。
-    /// 5000ms 作为保守默认值，覆盖大多数摆轮动作场景。
+    /// <para>用于 IO 触发执行时单段摆轮动作的超时设置。</para>
+    /// <para>5000ms 作为保守默认值，覆盖大多数摆轮动作场景。</para>
+    /// <para>此值会在日志中显示为 "动作超时阈值={ActionTimeoutMs}ms"，用于追踪和诊断。</para>
+    /// <para>使用位置：</para>
+    /// <list type="bullet">
+    ///   <item>line 1554: 创建单段路径时的 TtlMilliseconds 参数</item>
+    ///   <item>line 1538: 日志输出中的 ActionTimeoutMs 参数</item>
+    /// </list>
     /// </remarks>
     private const int DefaultSingleActionTimeoutMs = 5000;
 
@@ -1534,8 +1540,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         _logger.LogInformation(
-            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
-            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
+            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout}, 动作超时阈值={ActionTimeoutMs}ms)",
+            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout, DefaultSingleActionTimeoutMs);
 
         // 执行摆轮动作（Phase 5 完整实现）
         // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
