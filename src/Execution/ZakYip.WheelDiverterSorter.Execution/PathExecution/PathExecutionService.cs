@@ -14,7 +14,6 @@ namespace ZakYip.WheelDiverterSorter.Execution.PathExecution;
 /// <list type="bullet">
 /// <item>通过ISwitchingPathExecutor执行路径段</item>
 /// <item>通过IPathFailureHandler处理失败</item>
-/// <item>通过PrometheusMetrics采集指标</item>
 /// </list>
 /// <para>仿真环境和生产环境共用此管线，仅通过注入不同的ISwitchingPathExecutor区分行为。</para>
 /// </remarks>

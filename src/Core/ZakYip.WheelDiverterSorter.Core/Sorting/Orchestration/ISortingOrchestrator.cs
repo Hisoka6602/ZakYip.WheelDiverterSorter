@@ -62,7 +62,6 @@ public interface ISortingOrchestrator
     /// <list type="bullet">
     ///   <item>真实传感器触发：IParcelDetectionService.ParcelDetected 事件</item>
     ///   <item>仿真场景：SimulationScenarioRunner 模拟传感器触发</item>
-    ///   <item>手动触发：DebugSortService 调用（测试环境）</item>
     /// </list>
     /// 
     /// <para><b>流程步骤</b>：</para>

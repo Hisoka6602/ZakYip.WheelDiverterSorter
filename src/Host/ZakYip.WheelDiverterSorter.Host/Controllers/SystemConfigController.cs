@@ -8,7 +8,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
-using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;

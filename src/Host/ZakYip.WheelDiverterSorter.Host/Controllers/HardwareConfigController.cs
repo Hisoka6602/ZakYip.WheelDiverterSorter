@@ -17,6 +17,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Host.Models.Communication;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 

@@ -40,7 +40,6 @@ using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens;
 using ZakYip.WheelDiverterSorter.Execution;
 using ZakYip.WheelDiverterSorter.Execution.Extensions;
 using ZakYip.WheelDiverterSorter.Execution.Health;
-using ZakYip.WheelDiverterSorter.Execution.Infrastructure;
 using ZakYip.WheelDiverterSorter.Execution.Orchestration;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
@@ -57,7 +56,6 @@ using ZakYip.WheelDiverterSorter.Application.Services.Health;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Application.Services.Metrics;
 using ZakYip.WheelDiverterSorter.Application.Services.Topology;
-using ZakYip.WheelDiverterSorter.Application.Services.Debug;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Siemens.Configuration;
 
@@ -129,8 +127,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         services.AddMetrics();
         services.AddSingleton<SorterMetrics>();
 
-        // 5. 添加 Prometheus 指标服务和告警服务
-        services.AddPrometheusMetrics();
+        // 5. 添加告警服务
         services.AddAlarmService();
         services.AddAlertSinks();
         services.AddNetworkConnectivityChecker();  // 添加网络连通性检查器
@@ -440,7 +437,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var pathFailureHandler = sp.GetService<IPathFailureHandler>();
             var congestionDetector = sp.GetService<ICongestionDetector>();
             var congestionCollector = sp.GetService<ICongestionDataCollector>();
-            var metrics = sp.GetService<PrometheusMetrics>();
             var traceSink = sp.GetService<IParcelTraceSink>();
             var pathHealthChecker = sp.GetService<PathHealthChecker>();
             var timeoutCalculator = sp.GetService<IChuteAssignmentTimeoutCalculator>();
@@ -474,7 +470,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pathFailureHandler,
                 congestionDetector,
                 congestionCollector,
-                metrics,
+                null, // metrics - removed PrometheusMetrics
                 traceSink,
                 pathHealthChecker,
                 timeoutCalculator,

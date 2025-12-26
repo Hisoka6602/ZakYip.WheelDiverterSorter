@@ -232,7 +232,7 @@ public class PathExecutionServiceTests
 
         // Act - 使用真实的 metrics 对象（不是 mock）来验证不会抛出异常
         var realClock = new LocalSystemClock();
-        var realMetrics = new PrometheusMetrics(realClock);
+        ZakYip.WheelDiverterSorter.Observability.PrometheusMetrics? realMetrics = null;  // Explicitly typed
         var serviceWithRealMetrics = new PathExecutionService(
             _mockPathExecutor.Object,
             _mockPathFailureHandler.Object,

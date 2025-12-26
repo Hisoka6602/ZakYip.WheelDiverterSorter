@@ -19,17 +19,15 @@ namespace ZakYip.WheelDiverterSorter.Observability;
 public class LogAlertSink : IAlertSink
 {
     private readonly ILogger<LogAlertSink> _logger;
-    private readonly PrometheusMetrics? _metrics;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = false,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
-    public LogAlertSink(ILogger<LogAlertSink> logger, PrometheusMetrics? metrics = null)
+    public LogAlertSink(ILogger<LogAlertSink> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _metrics = metrics; // Optional - if not provided, metrics won't be recorded
     }
 
     public Task WriteAlertAsync(AlertRaisedEventArgs alertEvent, CancellationToken cancellationToken = default)
@@ -83,10 +81,6 @@ public class LogAlertSink : IAlertSink
                         alertEvent.Message);
                     break;
             }
-
-            // 记录 Prometheus 指标
-            // Record Prometheus metrics
-            _metrics?.RecordAlert(alertEvent.Severity.ToString(), alertEvent.AlertCode);
 
             return Task.CompletedTask;
         }
