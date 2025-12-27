@@ -1500,21 +1500,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "[包裹丢失-递归处理] 包裹 {ParcelId} 丢失处理完成，递归处理下一个包裹 (Position={PositionIndex})",
                 task.ParcelId, positionIndex);
             
-            // 在执行当前包裹的摆轮动作后，递归处理下一个包裹
-            // 注意：我们需要先执行当前包裹的动作，然后才能处理下一个包裹
-            // 所以递归调用将在方法末尾进行
+            // 包裹丢失：不执行当前丢失包裹的动作，递归处理下一个包裹
+            // 下一个包裹的动作将在递归调用中执行
+            // 所以直接返回，跳过当前丢失包裹的摆轮动作执行
+            _logger.LogInformation(
+                "[包裹丢失-跳过动作] 包裹 {ParcelId} 已丢失，跳过其摆轮动作执行，将递归处理下一个包裹",
+                task.ParcelId);
+            
+            // 立即递归处理下一个包裹
+            RecursiveProcessNextParcelAfterLoss(boundWheelDiverterId, sensorId, positionIndex, task.ParcelId);
+            return; // 丢失包裹不执行任何摆轮动作，直接返回
         }
         else
         {
             // 正常情况：直接执行计划动作
         }
         
-        // 执行计划动作（超时、丢失、正常都执行任务的计划动作）
+        // 执行计划动作（仅正常到达和超时执行，丢失已在上面return）
         DiverterDirection actionToExecute = task.DiverterAction;
 
         _logger.LogInformation(
-            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout}, 丢失={IsLoss})",
-            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout, isPacketLoss);
+            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
+            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
 
         // 执行摆轮动作（Phase 5 完整实现）
         // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
@@ -1668,42 +1675,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             RecordSortingSuccess(0);
         }
-        
-        // 包裹丢失后递归处理下一个包裹
-        // 由于触发时间已经到达下一个包裹的出队时间，需要立即处理队列中的下一个包裹
-        if (isPacketLoss)
-        {
-            _logger.LogInformation(
-                "[包裹丢失-递归触发] 丢失包裹 {ParcelId} 处理完成，立即检查并处理 Position {PositionIndex} 队列中的下一个包裹",
-                task.ParcelId, positionIndex);
-            
-            // 递归调用以处理下一个包裹
-            // 使用 SafeExecutionService 确保异常被正确处理和记录
-            if (_safeExecutor != null)
-            {
-                _ = _safeExecutor.ExecuteAsync(
-                    () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
-                    operationName: $"WheelFrontSorting_RecursivePacketLossHandling_Position{positionIndex}",
-                    cancellationToken: default);
-            }
-            else
-            {
-                // Fallback: 使用 Task.Run（当 SafeExecutionService 不可用时）
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex,
-                            "[包裹丢失-递归处理失败] Position {PositionIndex} 递归处理下一个包裹时发生异常",
-                            positionIndex);
-                    }
-                });
-            }
-        }
     }
 
     /// <summary>
@@ -1772,6 +1743,51 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "无法确定包裹 {ParcelId} 的实际格口ID，DiverterId={DiverterId}, Action={Action}",
             parcelId, diverterId, action);
         return Task.FromResult(0L);
+    }
+
+    /// <summary>
+    /// 包裹丢失后递归处理下一个包裹
+    /// </summary>
+    /// <param name="boundWheelDiverterId">绑定的摆轮ID</param>
+    /// <param name="sensorId">传感器ID</param>
+    /// <param name="positionIndex">位置索引</param>
+    /// <param name="lostParcelId">丢失的包裹ID</param>
+    private void RecursiveProcessNextParcelAfterLoss(
+        long boundWheelDiverterId,
+        long sensorId,
+        int positionIndex,
+        long lostParcelId)
+    {
+        _logger.LogInformation(
+            "[包裹丢失-递归触发] 丢失包裹 {LostParcelId} 处理完成，立即检查并处理 Position {PositionIndex} 队列中的下一个包裹",
+            lostParcelId, positionIndex);
+        
+        // 递归调用以处理下一个包裹
+        // 使用 SafeExecutionService 确保异常被正确处理和记录
+        if (_safeExecutor != null)
+        {
+            _ = _safeExecutor.ExecuteAsync(
+                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
+                operationName: $"WheelFrontSorting_RecursivePacketLossHandling_Position{positionIndex}",
+                cancellationToken: default);
+        }
+        else
+        {
+            // Fallback: 使用 Task.Run（当 SafeExecutionService 不可用时）
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "[包裹丢失-递归处理失败] Position {PositionIndex} 递归处理下一个包裹时发生异常",
+                        positionIndex);
+                }
+            });
+        }
     }
 
     /// <summary>
