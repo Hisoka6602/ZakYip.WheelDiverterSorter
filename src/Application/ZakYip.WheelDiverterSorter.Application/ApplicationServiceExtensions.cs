@@ -48,6 +48,17 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<IVendorConfigService, VendorConfigService>();
         services.AddSingleton<IConveyorSegmentService, ConveyorSegmentService>();
         
+        // 注册格口落格回调配置服务（单例模式，缓存支持）
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChuteDropoffCallbackConfigService, ChuteDropoffCallbackConfigService>();
+        
+        // 注册 Core 层配置服务接口（供 Execution 层使用，无需引用 Application 层）
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.ISystemConfigService>(
+            sp => sp.GetRequiredService<ISystemConfigService>());
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService>(
+            sp => sp.GetRequiredService<IVendorConfigService>());
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService>(
+            sp => sp.GetRequiredService<IChutePathTopologyService>());
+        
         // 注册改口服务
         services.AddSingleton<IChangeParcelChuteService, ChangeParcelChuteService>();
         

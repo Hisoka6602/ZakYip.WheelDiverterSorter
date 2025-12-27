@@ -102,16 +102,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ISortingExceptionHandler _exceptionHandler;
     private readonly IChuteSelectionService? _chuteSelectionService;
-    private readonly IChuteDropoffCallbackConfigurationRepository? _callbackConfigRepository;
+    private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChuteDropoffCallbackConfigService? _callbackConfigService;
     private readonly IRoutePlanRepository? _routePlanRepository;
     private readonly object? _upstreamServer; // 服务端模式（可选，类型为 IRuleEngineServer）
 
     // 新的 Position-Index 队列系统依赖
     private readonly IPositionIndexQueueManager? _queueManager;
 
-    private readonly IChutePathTopologyRepository? _topologyRepository;
+    private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService? _topologyService;
     private readonly IConveyorSegmentRepository? _segmentRepository;
-    private readonly ISensorConfigurationRepository? _sensorConfigRepository;
+    private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService? _vendorConfigService;
     private readonly ISafeExecutionService? _safeExecutor;
     private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
     private readonly AlarmService? _alarmService; // 告警服务（用于失败率统计）
@@ -194,12 +194,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null,
         IChuteSelectionService? chuteSelectionService = null,
         IPositionIndexQueueManager? queueManager = null, // 新的 Position-Index 队列管理器
-        IChutePathTopologyRepository? topologyRepository = null, // TD-062: 拓扑配置仓储
+        ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService? topologyService = null, // 拓扑配置服务（缓存）
         IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
-        ISensorConfigurationRepository? sensorConfigRepository = null, // TD-062: 传感器配置仓储
+        ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService? vendorConfigService = null, // 厂商配置服务（缓存，包含传感器配置）
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
-        IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
+        ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChuteDropoffCallbackConfigService? callbackConfigService = null, // 落格回调配置服务（缓存）
         AlarmService? alarmService = null, // 告警服务（用于失败率统计）
         ISortingStatisticsService? statisticsService = null, // 分拣统计服务
         IRoutePlanRepository? routePlanRepository = null, // 路由计划仓储（用于保存格口分配）
@@ -233,12 +233,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 新的 Position-Index 队列系统依赖（可选）
         _queueManager = queueManager;
-        _topologyRepository = topologyRepository;
+        _topologyService = topologyService;
         _segmentRepository = segmentRepository;
-        _sensorConfigRepository = sensorConfigRepository;
+        _vendorConfigService = vendorConfigService;
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
-        _callbackConfigRepository = callbackConfigRepository;
+        _callbackConfigService = callbackConfigService;
         _alarmService = alarmService;
         _statisticsService = statisticsService;
         _routePlanRepository = routePlanRepository;
@@ -1187,16 +1187,16 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex);
                 return;
             }
-            else if (_sensorConfigRepository != null && _queueManager != null && _topologyRepository != null)
+            else if (_vendorConfigService != null && _queueManager != null && _topologyService != null)
             {
                 // 缓存未命中时fallback到原有逻辑（仅在缓存未初始化或配置更新时）
-                var sensorConfig = _sensorConfigRepository.Get();
+                var sensorConfig = _vendorConfigService.GetSensorConfiguration();
                 var sensor = sensorConfig.Sensors.FirstOrDefault(s => s.SensorId == e.SensorId);
 
                 if (sensor?.IoType == SensorIoType.WheelFront)
                 {
                     // 从拓扑配置中找到对应的摆轮节点
-                    var topology = _topologyRepository.Get();
+                    var topology = _topologyService.GetTopology();
                     var node = topology?.DiverterNodes.FirstOrDefault(n => n.FrontSensorId == e.SensorId);
 
                     if (node == null)
@@ -1222,9 +1222,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 _logger.LogWarning(
                     "[配置缺失] Position-Index 队列系统组件未完全配置: SensorConfigRepo={HasSensorConfig}, QueueManager={HasQueue}, TopologyRepo={HasTopo}",
-                    _sensorConfigRepository != null,
+                    _vendorConfigService != null,
                     _queueManager != null,
-                    _topologyRepository != null);
+                    _topologyService != null);
             }
 
             // 验证 ParcelId 有效性（防止 ParcelId=0 等无效值进入分拣流程）
@@ -1338,9 +1338,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             // 获取输送段信息用于日志记录
             string segmentInfo = "线体信息未知";
-            if (_topologyRepository != null && _segmentRepository != null)
+            if (_topologyService != null && _segmentRepository != null)
             {
-                var topology = _topologyRepository.Get();
+                var topology = _topologyService.GetTopology();
                 if (topology != null)
                 {
                     var node = topology.FindNodeByDiverterId(peekedTask.DiverterId);
@@ -1584,9 +1584,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 task.ParcelId, positionIndex, actionToExecute);
 
             // 检查是否需要在摆轮执行时触发回调
-            if (_callbackConfigRepository != null)
+            if (_callbackConfigService != null)
             {
-                var callbackConfig = _callbackConfigRepository.Get();
+                var callbackConfig = _callbackConfigService.GetCallbackConfiguration();
                 if (callbackConfig.CallbackMode == ChuteDropoffCallbackMode.OnWheelExecution)
                 {
                     // OnWheelExecution 模式：检查是否为终态
@@ -1699,14 +1699,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <returns>是否为最后一个摆轮</returns>
     private bool IsLastDiverterInTopology(int positionIndex)
     {
-        if (_topologyRepository == null)
+        if (_topologyService == null)
         {
-            // 如果拓扑仓储不可用，保守地返回 false
-            _logger.LogWarning("拓扑仓储不可用，无法判断是否为最后一个摆轮，Position={PositionIndex}", positionIndex);
+            // 如果拓扑服务不可用，保守地返回 false
+            _logger.LogWarning("拓扑服务不可用，无法判断是否为最后一个摆轮，Position={PositionIndex}", positionIndex);
             return false;
         }
 
-        var topology = _topologyRepository.Get();
+        var topology = _topologyService.GetTopology();
         if (topology == null || topology.DiverterNodes == null || topology.DiverterNodes.Count == 0)
         {
             _logger.LogWarning("拓扑配置无效或为空，无法判断是否为最后一个摆轮，Position={PositionIndex}", positionIndex);
@@ -1890,13 +1890,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 e.DetectedAt);
 
             // 检查是否为 OnSensorTrigger 模式
-            if (_callbackConfigRepository == null)
+            if (_callbackConfigService == null)
             {
-                _logger.LogDebug("未注入落格回调配置仓储，跳过处理");
+                _logger.LogDebug("未注入落格回调配置服务，跳过处理");
                 return;
             }
 
-            var callbackConfig = _callbackConfigRepository.Get();
+            var callbackConfig = _callbackConfigService.GetCallbackConfiguration();
             if (callbackConfig.CallbackMode != ChuteDropoffCallbackMode.OnSensorTrigger)
             {
                 _logger.LogDebug(
@@ -2670,7 +2670,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private void BuildSensorToPositionCache()
     {
-        if (_sensorConfigRepository == null || _topologyRepository == null)
+        if (_vendorConfigService == null || _topologyService == null)
         {
             _logger.LogWarning("无法构建传感器位置缓存：缺少传感器配置或拓扑仓储");
             return;
@@ -2678,8 +2678,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         try
         {
-            var sensorConfig = _sensorConfigRepository.Get();
-            var topology = _topologyRepository.Get();
+            if (_vendorConfigService == null || _topologyService == null)
+            {
+                _logger.LogWarning("无法构建传感器位置缓存：配置服务未初始化");
+                return;
+            }
+
+            var sensorConfig = _vendorConfigService.GetSensorConfiguration();
+            var topology = _topologyService.GetTopology();
 
             if (sensorConfig == null || topology == null)
             {
@@ -2825,14 +2831,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private void UpdateNextPositionExpectedTime(PositionQueueItem currentTask, int currentPositionIndex, DateTime actualArrivalTime)
     {
-        if (_queueManager == null || _topologyRepository == null || _segmentRepository == null)
+        if (_queueManager == null || _topologyService == null || _segmentRepository == null)
         {
             return;
         }
 
         try
         {
-            var topology = _topologyRepository.Get();
+            var topology = _topologyService.GetTopology();
             if (topology == null)
             {
                 return;

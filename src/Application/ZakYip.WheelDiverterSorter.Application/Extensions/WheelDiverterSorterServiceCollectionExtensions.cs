@@ -429,12 +429,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             
             // 新的 Position-Index 队列系统依赖
             var queueManager = sp.GetService<IPositionIndexQueueManager>();
-            var topologyRepository = sp.GetService<IChutePathTopologyRepository>();
+            var topologyService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService>();
             var segmentRepository = sp.GetService<IConveyorSegmentRepository>();
-            var sensorConfigRepository = sp.GetService<ISensorConfigurationRepository>();
+            var vendorConfigService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService>();
             var safeExecutor = sp.GetService<ISafeExecutionService>();
             var intervalTracker = sp.GetService<Execution.Tracking.IPositionIntervalTracker>();
-            var callbackConfigRepository = sp.GetService<IChuteDropoffCallbackConfigurationRepository>();
+            var callbackConfigService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChuteDropoffCallbackConfigService>();
             var alarmService = sp.GetService<AlarmService>();
             var statisticsService = sp.GetService<ISortingStatisticsService>();
             var routePlanRepository = sp.GetService<IRoutePlanRepository>();
@@ -459,12 +459,12 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 timeoutCalculator,
                 chuteSelectionService,
                 queueManager,
-                topologyRepository,
+                topologyService,
                 segmentRepository,
-                sensorConfigRepository,
+                vendorConfigService,
                 safeExecutor,
                 intervalTracker,
-                callbackConfigRepository,
+                callbackConfigService,
                 alarmService,
                 statisticsService,
                 routePlanRepository,
