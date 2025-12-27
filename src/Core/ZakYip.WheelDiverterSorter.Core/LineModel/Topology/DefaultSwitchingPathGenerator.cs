@@ -71,6 +71,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     private readonly ISystemClock? _systemClock;
     private readonly ILogger? _logger;
     private bool _topologyConfigLogged = false;  // 用于记录是否已输出拓扑配置日志
+    
+    // TD-088: 线段配置缓存（避免热路径直接读数据库）
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<long, ConveyorSegmentConfiguration?> _segmentConfigCache = new();
 
     /// <summary>
     /// 初始化路径生成器（使用路由配置仓储）
@@ -341,6 +344,8 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <remarks>
     /// 修复问题：TTL从硬编码5000ms改为根据线体配置动态计算
     /// 计算公式：TTL = (线段长度 / 线速) + 时间容差
+    /// 
+    /// TD-088: 性能优化 - 使用内存缓存避免热路径直接读数据库
     /// </remarks>
     private int CalculateSegmentTtl(long segmentId)
     {
@@ -354,8 +359,25 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return DefaultSegmentTtlMs;
         }
 
-        // 从仓储获取线段配置
-        var segmentConfig = _conveyorSegmentRepository.GetById(segmentId);
+        // TD-088: 从缓存获取线段配置（避免热路径直接读数据库）
+        var segmentConfig = _segmentConfigCache.GetOrAdd(segmentId, id =>
+        {
+            var config = _conveyorSegmentRepository.GetById(id);
+            if (config == null)
+            {
+                _logger?.LogWarning(
+                    "[TTL计算] 线段配置不存在 (SegmentId={SegmentId})，将使用默认TTL",
+                    id);
+            }
+            else
+            {
+                _logger?.LogDebug(
+                    "[TTL计算-缓存未命中] SegmentId={SegmentId} 配置已加载到缓存",
+                    id);
+            }
+            return config;
+        });
+        
         if (segmentConfig == null)
         {
             _logger?.LogWarning(
@@ -639,8 +661,22 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         {
             var node = sortedNodes[i];
             
-            // 从输送线段配置读取传输时间和超时容差
-            var segmentConfig = _conveyorSegmentRepository?.GetById(node.SegmentId);
+            // TD-088: 从缓存读取线段配置（避免热路径直接读数据库）
+            ConveyorSegmentConfiguration? segmentConfig = null;
+            if (_conveyorSegmentRepository != null)
+            {
+                segmentConfig = _segmentConfigCache.GetOrAdd(node.SegmentId, id =>
+                {
+                    var config = _conveyorSegmentRepository.GetById(id);
+                    if (config != null)
+                    {
+                        _logger?.LogDebug(
+                            "[队列任务生成-缓存未命中] SegmentId={SegmentId} 配置已加载到缓存",
+                            id);
+                    }
+                    return config;
+                });
+            }
             
             // 计算理论传输时间和超时容差
             double transitTimeMs;
@@ -817,5 +853,34 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             parcelId, tasks.Count);
 
         return tasks;
+    }
+
+    /// <summary>
+    /// TD-088: 使线段配置缓存失效
+    /// </summary>
+    /// <param name="segmentId">线段ID，如果为 null 则清空所有缓存</param>
+    /// <remarks>
+    /// 当 ConveyorSegmentConfiguration 通过 API 更新时调用此方法，确保缓存与数据库保持一致。
+    /// 缓存失效后，下次访问时会重新从数据库加载最新配置。
+    /// </remarks>
+    public void InvalidateSegmentConfigCache(long? segmentId = null)
+    {
+        if (segmentId.HasValue)
+        {
+            if (_segmentConfigCache.TryRemove(segmentId.Value, out _))
+            {
+                _logger?.LogInformation(
+                    "[缓存失效] 线段配置缓存已清除: SegmentId={SegmentId}",
+                    segmentId.Value);
+            }
+        }
+        else
+        {
+            var count = _segmentConfigCache.Count;
+            _segmentConfigCache.Clear();
+            _logger?.LogInformation(
+                "[缓存失效] 已清空所有线段配置缓存: 共清除 {Count} 条",
+                count);
+        }
     }
 }
