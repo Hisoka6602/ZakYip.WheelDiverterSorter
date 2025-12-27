@@ -149,10 +149,27 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             return null;
         }
 
-        // ConcurrentQueue 不支持直接访问第二个元素
-        // 需要转换为数组后访问
-        var tasks = queue.ToArray();
-        return tasks.Length >= 2 ? tasks[1] : null;
+        var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+
+        // 使用锁和枚举器获取第二个元素，避免 ToArray 带来的整队列复制开销
+        lock (queueLock)
+        {
+            using var enumerator = queue.GetEnumerator();
+
+            // 跳过第一个元素
+            if (!enumerator.MoveNext())
+            {
+                return null;
+            }
+
+            // 获取第二个元素
+            if (!enumerator.MoveNext())
+            {
+                return null;
+            }
+
+            return enumerator.Current;
+        }
     }
 
     /// <inheritdoc/>

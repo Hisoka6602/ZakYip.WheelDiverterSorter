@@ -71,6 +71,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 5000ms 作为保守默认值，覆盖大多数摆轮动作场景。
     /// </remarks>
     private const int DefaultSingleActionTimeoutMs = 5000;
+    
+    /// <summary>
+    /// 无目标格口的占位符（用于超时、丢失等异常场景的上游通知）
+    /// </summary>
+    /// <remarks>
+    /// 当包裹超时或丢失时，使用此值表示未成功分配到任何格口。
+    /// 值为 0 是因为合法的格口ID均为正整数。
+    /// </remarks>
+    private const long NoTargetChute = 0;
 
     // 空的可用格口列表（静态共享实例）
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
@@ -1400,7 +1409,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         
         bool isTimeout = false;
         bool isPacketLoss = false;
-        DiverterDirection actionToExecute = task.DiverterAction;
 
         if (enableTimeoutDetection && currentTime > task.ExpectedArrivalTime)
         {
@@ -1452,15 +1460,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 发送超时通知到上游
             await NotifyUpstreamSortingCompletedAsync(
                 task.ParcelId,
-                0, // 超时未完成分拣
+                NoTargetChute, // 超时未完成分拣，无目标格口
                 isSuccess: false,
                 failureReason: "Timeout",
                 finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
             
-            // 仍然执行计划动作（不执行回退动作）
-            actionToExecute = task.DiverterAction;
-            
-            RecordSortingFailure(0, isTimeout: true);
+            RecordSortingFailure(NoTargetChute, isTimeout: true);
         }
         else if (isPacketLoss)
         {
@@ -1473,7 +1478,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 发送丢失通知到上游
             await NotifyUpstreamSortingCompletedAsync(
                 task.ParcelId,
-                0, // 丢失未完成分拣
+                NoTargetChute, // 丢失未完成分拣，无目标格口
                 isSuccess: false,
                 failureReason: "PacketLoss",
                 finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Lost);
@@ -1484,10 +1489,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "[包裹丢失清理] 已从所有队列删除包裹 {ParcelId} 的 {RemovedCount} 个任务",
                 task.ParcelId, removedCount);
             
-            // 仍然执行计划动作（让当前这个物理包裹通过）
-            actionToExecute = task.DiverterAction;
-            
-            RecordSortingFailure(0, isTimeout: false);
+            RecordSortingFailure(NoTargetChute, isTimeout: false);
             
             // 清理丢失包裹的内存记录
             CleanupParcelMemory(task.ParcelId);
@@ -1504,8 +1506,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         else
         {
-            actionToExecute = task.DiverterAction;
+            // 正常情况：直接执行计划动作
         }
+        
+        // 执行计划动作（超时、丢失、正常都执行任务的计划动作）
+        DiverterDirection actionToExecute = task.DiverterAction;
 
         _logger.LogInformation(
             "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout}, 丢失={IsLoss})",
@@ -1673,20 +1678,31 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 task.ParcelId, positionIndex);
             
             // 递归调用以处理下一个包裹
-            // 使用 Task.Run 避免深度递归导致的栈溢出
-            _ = Task.Run(async () =>
+            // 使用 SafeExecutionService 确保异常被正确处理和记录
+            if (_safeExecutor != null)
             {
-                try
+                _ = _safeExecutor.ExecuteAsync(
+                    () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
+                    operationName: $"WheelFrontSorting_RecursivePacketLossHandling_Position{positionIndex}",
+                    cancellationToken: default);
+            }
+            else
+            {
+                // Fallback: 使用 Task.Run（当 SafeExecutionService 不可用时）
+                _ = Task.Run(async () =>
                 {
-                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex,
-                        "[包裹丢失-递归处理失败] Position {PositionIndex} 递归处理下一个包裹时发生异常",
-                        positionIndex);
-                }
-            });
+                    try
+                    {
+                        await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex,
+                            "[包裹丢失-递归处理失败] Position {PositionIndex} 递归处理下一个包裹时发生异常",
+                            positionIndex);
+                    }
+                });
+            }
         }
     }
 
