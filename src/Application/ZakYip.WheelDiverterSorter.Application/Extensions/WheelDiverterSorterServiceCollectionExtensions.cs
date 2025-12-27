@@ -404,8 +404,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             options.MinSamplesForThreshold = 3;
             options.MaxReasonableIntervalMs = 60000;
             options.MonitoringIntervalMs = 60;
-            options.ParcelRecordCleanupThreshold = 1000;
-            options.ParcelRecordRetentionCount = 800;
+            // ParcelRecordCleanupThreshold 和 ParcelRecordRetentionCount 已移除
+            // 自动清理已禁用，包裹记录仅在分拣完成时通过 ClearParcelTracking() 显式清理
         });
         services.AddSingleton<Execution.Tracking.IPositionIntervalTracker, Execution.Tracking.PositionIntervalTracker>();
 

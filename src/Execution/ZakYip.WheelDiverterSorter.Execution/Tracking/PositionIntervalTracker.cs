@@ -145,11 +145,12 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
                 parcelId, positionIndex);
         }
         
-        // 定期清理过期的包裹记录（当记录数超过阈值时触发）
-        if (_parcelPositionTimes.Count > _options.ParcelRecordCleanupThreshold)
-        {
-            CleanupOldParcelRecords();
-        }
+        // FIX: 移除自动清理逻辑，避免清理仍在运输中的包裹记录
+        // 原问题：当清理触发时，会删除基于ParcelId（时间戳）最旧的记录
+        // 但这些"旧"包裹可能仍在物理传输中，未到达下一个位置
+        // 当它们到达下一位置时，找不到前一位置的时间，导致间隔计算失败
+        // 解决方案：仅通过 ClearParcelTracking() 显式清理已完成分拣的包裹
+        // （在 RecordSortingResultAsync 中调用）
     }
 
     /// <inheritdoc/>
@@ -266,39 +267,9 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
             : sorted[n / 2];
     }
 
-    /// <summary>
-    /// 清理旧的包裹位置记录
-    /// </summary>
-    /// <remarks>
-    /// 当包裹记录超过配置阈值时，删除最旧的记录以防止内存泄漏
-    /// </remarks>
-    private void CleanupOldParcelRecords()
-    {
-        try
-        {
-            // 只保留最近的包裹记录（按包裹ID降序，假设ID是时间戳）
-            var parcelIds = _parcelPositionTimes.Keys.OrderByDescending(id => id).ToList();
-            
-            // 删除超过限制的旧记录
-            var toRemove = parcelIds.Skip(_options.ParcelRecordRetentionCount).ToList(); // 保留配置数量，给新包裹留空间
-            
-            foreach (var parcelId in toRemove)
-            {
-                _parcelPositionTimes.TryRemove(parcelId, out _);
-            }
-            
-            if (toRemove.Count > 0)
-            {
-                _logger.LogDebug(
-                    "清理了 {Count} 个旧包裹的位置记录",
-                    toRemove.Count);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "清理旧包裹记录时发生异常");
-        }
-    }
+    // 注意：CleanupOldParcelRecords 方法已移除
+    // 原因：自动清理会误删除仍在传输中的包裹记录，导致间隔计算失败
+    // 现在仅通过 ClearParcelTracking() 在包裹完成分拣时显式清理
 }
 
 /// <summary>
@@ -336,24 +307,6 @@ public sealed class PositionIntervalTrackerOptions
     /// </remarks>
     public double TimeoutMultiplier { get; set; } = 3.0;
     
-    /// <summary>
-    /// 包裹记录清理阈值（当包裹记录数超过此值时触发清理）
-    /// </summary>
-    /// <remarks>
-    /// 默认值：1000
-    /// 推荐范围：800-1500
-    /// </remarks>
-    public int ParcelRecordCleanupThreshold { get; set; } = 1000;
-    
-    /// <summary>
-    /// 包裹记录保留数量（清理时保留最近的记录数）
-    /// </summary>
-    /// <remarks>
-    /// 默认值：800
-    /// 推荐范围：600-1000
-    /// 清理时会删除超过此数量的旧记录，给新包裹留空间
-    /// </remarks>
-    public int ParcelRecordRetentionCount { get; set; } = 800;
     
     /// <summary>
     /// 计算动态阈值所需的最小样本数

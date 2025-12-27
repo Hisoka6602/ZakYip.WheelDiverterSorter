@@ -26,8 +26,6 @@ public class PositionIntervalTrackerTests
             TimeoutMultiplier = 3.0,
             MinSamplesForThreshold = 3,
             MaxReasonableIntervalMs = 60000,
-            ParcelRecordCleanupThreshold = 1000,
-            ParcelRecordRetentionCount = 800,
             LostDetectionMultiplier = 1.5
         };
 
@@ -230,5 +228,53 @@ public class PositionIntervalTrackerTests
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Exactly(4)); // 预期有4次警告（对 ParcelId=0 和 ParcelId=-1 各调用2次）
+    }
+
+    /// <summary>
+    /// 测试：包裹记录不应该被自动清理，即使有大量包裹被追踪
+    /// </summary>
+    /// <remarks>
+    /// 修复问题：自动清理会移除仍在运输中的包裹记录，导致后续间隔计算失败
+    /// </remarks>
+    [Fact]
+    public void RecordParcelPosition_WithManyParcels_ShouldNotAutoCleanupInTransitParcels()
+    {
+        // Arrange: 模拟大量包裹（超过旧的清理阈值）
+        var baseTime = new DateTime(2025, 12, 27, 10, 0, 0);
+        
+        // 创建 1500 个包裹的记录（超过旧的 1000 阈值）
+        for (int i = 1; i <= 1500; i++)
+        {
+            long parcelId = 1000000 + i;
+            var entryTime = baseTime.AddSeconds(i * 0.1);
+            
+            // 每个包裹只记录入口位置（position 0），还未到达下一位置
+            _tracker.RecordParcelPosition(parcelId, 0, entryTime);
+        }
+        
+        // Act: 现在第一个包裹到达 position 1
+        // 第一个包裹在 baseTime + 0.1s 进入系统（position 0）
+        // 现在在 baseTime + 5.1s 到达 position 1
+        // 间隔应该是 5秒 = 5000ms
+        var firstParcelArrivalTime = baseTime.AddSeconds(5.1);
+        _tracker.RecordParcelPosition(1000001, 1, firstParcelArrivalTime);
+        
+        // Assert: 第一个包裹的间隔应该被正确计算（5秒 = 5000ms）
+        // 如果自动清理误删了 position 0 的记录，这里会失败
+        var stats = _tracker.GetStatistics(1);
+        Assert.NotNull(stats);
+        Assert.Equal(1, stats.Value.PositionIndex);
+        Assert.Equal(5000.0, stats.Value.MedianIntervalMs!.Value, precision: 1); // 允许1ms误差
+        Assert.Equal(1, stats.Value.SampleCount);
+        
+        // 验证没有清理警告日志（自动清理已禁用）
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Debug,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("清理了")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never()); // 不应该有清理日志
     }
 }
