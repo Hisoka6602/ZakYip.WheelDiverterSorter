@@ -67,6 +67,12 @@ public class CommunicationConfigService : ICommunicationConfigService
     }
 
     /// <inheritdoc />
+    public CommunicationConfiguration GetCommunicationConfiguration()
+    {
+        return GetConfiguration(); // Delegate to existing method
+    }
+
+    /// <inheritdoc />
     public async Task<CommunicationConfigUpdateResult> UpdateConfigurationAsync(UpdateCommunicationConfigCommand command)
     {
         try

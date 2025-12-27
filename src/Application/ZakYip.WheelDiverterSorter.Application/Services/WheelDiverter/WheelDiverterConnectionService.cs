@@ -24,7 +24,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
     /// </summary>
     private const int PingTimeoutMs = 2000;
 
-    private readonly IWheelDiverterConfigurationRepository _configRepository;
+    private readonly IVendorConfigService _vendorConfigService;
     private readonly ISystemConfigService _systemConfigService;
     private readonly IWheelDiverterDriverManager _driverManager;
     private readonly INodeHealthRegistry _healthRegistry;
@@ -33,7 +33,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
     private readonly ILogger<WheelDiverterConnectionService> _logger;
 
     public WheelDiverterConnectionService(
-        IWheelDiverterConfigurationRepository configRepository,
+        IVendorConfigService vendorConfigService,
         ISystemConfigService systemConfigService,
         IWheelDiverterDriverManager driverManager,
         INodeHealthRegistry healthRegistry,
@@ -41,7 +41,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
         ISafeExecutionService safeExecutor,
         ILogger<WheelDiverterConnectionService> logger)
     {
-        _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
+        _vendorConfigService = vendorConfigService ?? throw new ArgumentNullException(nameof(vendorConfigService));
         _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _driverManager = driverManager ?? throw new ArgumentNullException(nameof(driverManager));
         _healthRegistry = healthRegistry ?? throw new ArgumentNullException(nameof(healthRegistry));
@@ -88,7 +88,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 }
 
                 // 获取摆轮配置
-                var config = _configRepository.Get();
+                var config = _vendorConfigService.GetWheelDiverterConfiguration();
                 if (config == null)
                 {
                     _logger.LogWarning("摆轮配置未初始化");

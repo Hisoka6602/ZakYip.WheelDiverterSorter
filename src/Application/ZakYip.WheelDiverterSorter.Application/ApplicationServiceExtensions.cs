@@ -58,6 +58,8 @@ public static class ApplicationServiceExtensions
             sp => sp.GetRequiredService<IVendorConfigService>());
         services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService>(
             sp => sp.GetRequiredService<IChutePathTopologyService>());
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.ICommunicationConfigService>(
+            sp => sp.GetRequiredService<ICommunicationConfigService>());
         
         // 注册改口服务
         services.AddSingleton<IChangeParcelChuteService, ChangeParcelChuteService>();

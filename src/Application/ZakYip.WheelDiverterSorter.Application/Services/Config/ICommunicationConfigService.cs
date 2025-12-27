@@ -1,18 +1,20 @@
 using ZakYip.WheelDiverterSorter.Core.Enums.Communication;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
+using CoreConfig = ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
 /// <summary>
-/// 通信配置服务接口
+/// 通信配置服务接口（Application层扩展）
 /// </summary>
 /// <remarks>
-/// 负责通信配置的业务逻辑，包括查询、更新、验证、热更新等操作
+/// 负责通信配置的业务逻辑，包括查询、更新、验证、热更新等操作。
+/// 继承 Core 层的 ICommunicationConfigService 接口。
 /// </remarks>
-public interface ICommunicationConfigService
+public interface ICommunicationConfigService : CoreConfig.ICommunicationConfigService
 {
     /// <summary>
-    /// 获取当前通信配置
+    /// 获取当前通信配置（Application层扩展名称）
     /// </summary>
     /// <returns>通信配置</returns>
     CommunicationConfiguration GetConfiguration();

@@ -21,23 +21,23 @@ public class DetailedConfigValidator : IConfigValidator
 {
     private readonly ISystemConfigService _systemConfigService;
     private readonly IPanelConfigurationRepository _panelConfigRepository;
-    private readonly IChutePathTopologyRepository _topologyRepository;
-    private readonly ICommunicationConfigurationRepository _communicationConfigRepository;
+    private readonly IChutePathTopologyService _topologyService;
+    private readonly ICommunicationConfigService _communicationConfigService;
     private readonly ILogger<DetailedConfigValidator> _logger;
     private readonly ISystemClock _clock;
 
     public DetailedConfigValidator(
         ISystemConfigService systemConfigService,
         IPanelConfigurationRepository panelConfigRepository,
-        IChutePathTopologyRepository topologyRepository,
-        ICommunicationConfigurationRepository communicationConfigRepository,
+        IChutePathTopologyService topologyService,
+        ICommunicationConfigService communicationConfigService,
         ILogger<DetailedConfigValidator> logger,
         ISystemClock clock)
     {
         _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
-        _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
-        _communicationConfigRepository = communicationConfigRepository ?? throw new ArgumentNullException(nameof(communicationConfigRepository));
+        _topologyService = topologyService ?? throw new ArgumentNullException(nameof(topologyService));
+        _communicationConfigService = communicationConfigService ?? throw new ArgumentNullException(nameof(communicationConfigService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
     }
@@ -67,7 +67,7 @@ public class DetailedConfigValidator : IConfigValidator
                 else
                 {
                     // 检查异常口是否存在于拓扑中
-                    var topologyForException = _topologyRepository.Get();
+                    var topologyForException = _topologyService.GetTopology();
                     if (topologyForException == null)
                     {
                         errors.Add("格口路径拓扑未配置，无法验证异常口");
@@ -127,7 +127,7 @@ public class DetailedConfigValidator : IConfigValidator
             }
 
             // 3. 验证拓扑完整性
-            var topology = _topologyRepository.Get();
+            var topology = _topologyService.GetTopology();
             if (topology == null)
             {
                 errors.Add("格口路径拓扑未配置");
@@ -159,7 +159,7 @@ public class DetailedConfigValidator : IConfigValidator
             }
 
             // 4. 验证上游连接配置
-            var commConfig = _communicationConfigRepository.Get();
+            var commConfig = _communicationConfigService.GetCommunicationConfiguration();
             if (commConfig == null)
             {
                 errors.Add("上游通信配置未初始化");
