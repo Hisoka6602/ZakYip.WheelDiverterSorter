@@ -48,6 +48,8 @@
 - [TD-034] 配置缓存统一 (PR-CONFIG-HOTRELOAD01)
 - [TD-035] 上游通信协议完整性与驱动厂商可用性审计
 - [TD-036] API 端点响应模型不一致
+- ... (更多技术债条目见完整目录)
+- **[TD-088] 🔴 P0-Critical：移除上游路由阻塞等待**
 - [TD-037] Siemens 驱动实现与文档不匹配
 - [TD-038] Siemens 缺少 IO 联动和传送带驱动
 - [TD-039] 代码中存在 TODO 标记待处理项
@@ -6098,4 +6100,175 @@ public class ParcelDetectedHandler : INotificationHandler<ParcelEvent>
 - `OVER_ENGINEERING_DETAILED_EXAMPLES.md` - 事件系统简化示例（示例6）
 - [MediatR GitHub](https://github.com/jbogard/MediatR)
 - [MediatR Wiki](https://github.com/jbogard/MediatR/wiki)
+
+---
+
+## [TD-088] 移除上游路由阻塞等待
+
+### 状态
+- **当前状态**: ❌ 未开始
+- **优先级**: 🔴 **P0-Critical（最高优先级）**
+- **创建时间**: 2025-12-27
+- **预计工作量**: 1-2 天（较大重构）
+
+### 问题描述
+
+在 `SortingOrchestrator.GetChuteFromUpstreamAsync()` 中，系统使用 `TaskCompletionSource` 同步阻塞等待上游系统返回格口分配（5-10秒超时）。这导致：
+
+1. **性能严重下降**: Position 0 → Position 1 间隔从 3258ms 增长到 7724ms（增加 137%）
+2. **串行等待**: 多个包裹依次等待上游响应，延迟累积
+3. **吞吐量受限**: 上游系统响应变慢时，整个系统吞吐量下降
+
+**实机日志证据**:
+```
+Position 0 → 1 (需要上游路由):
+  包裹 1766847554163: 3258ms
+  包裹 1766847595395: 7724ms (延迟累积)
+
+Position 3 → 4 (无需上游路由):
+  稳定在 ~5600ms (正常)
+```
+
+**根本原因**:
+- 代码本身已是异步 (`async/await`)，但每个包裹仍需等待上游响应
+- 当包裹数量增多，上游系统负载增加，响应时间变长
+- 阻塞等待导致后续包裹无法及时处理
+
+### 当前实现
+
+**位置**: `src/Execution/ZakYip.WheelDiverterSorter.Execution/Orchestration/SortingOrchestrator.cs`
+
+```csharp
+// Line 714 - DetermineTargetChuteAsync
+SortingMode.Formal => await GetChuteFromUpstreamAsync(parcelId, systemConfig),
+
+// Line 927 - GetChuteFromUpstreamAsync  
+private async Task<long> GetChuteFromUpstreamAsync(long parcelId, SystemConfiguration systemConfig)
+{
+    var tcs = new TaskCompletionSource<long>();
+    _pendingAssignments[parcelId] = tcs;
+    
+    try
+    {
+        using var cts = new CancellationTokenSource(timeoutMs);
+        var targetChuteId = await tcs.Task.WaitAsync(cts.Token); // ❌ 阻塞等待
+        return targetChuteId;
+    }
+    catch (TimeoutException)
+    {
+        return await HandleRoutingTimeoutAsync(...); // 返回异常格口
+    }
+}
+```
+
+### 解决方案
+
+#### 方案：异步非阻塞路由
+
+**核心思路**: 不等待上游响应，立即处理包裹；上游响应到达时异步更新任务
+
+**实施步骤**:
+
+1. **修改 `DetermineTargetChuteAsync`** (Formal 模式):
+   ```csharp
+   // ✅ 新实现：立即返回异常格口（占位符）
+   SortingMode.Formal => systemConfig.ExceptionChuteId,
+   ```
+
+2. **修改 `OnChuteAssignmentReceived`** (上游响应处理):
+   ```csharp
+   // ✅ 检测到非阻塞模式（_pendingAssignments 中无 TCS）
+   if (!_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
+   {
+       // 异步重新生成路径并替换队列任务
+       await RegenerateAndReplaceQueueTasksAsync(e.ParcelId, e.ChuteId);
+   }
+   ```
+
+3. **新增 `RegenerateAndReplaceQueueTasksAsync`** 方法:
+   ```csharp
+   private async Task RegenerateAndReplaceQueueTasksAsync(long parcelId, long newTargetChuteId)
+   {
+       // 1. 从所有队列中移除旧任务
+       var removedCount = _queueManager.RemoveAllTasksForParcel(parcelId);
+       
+       // 2. 重新生成到新格口的任务
+       var newTasks = _pathGenerator.GenerateQueueTasks(parcelId, newTargetChuteId, _clock.LocalNow);
+       
+       // 3. 将新任务加入队列
+       foreach (var task in newTasks)
+       {
+           _queueManager.EnqueueTask(task.PositionIndex, task);
+       }
+       
+       // 4. 更新目标格口映射
+       _parcelTargetChutes[parcelId] = newTargetChuteId;
+   }
+   ```
+
+4. **删除旧的阻塞等待代码**:
+   - 移除 `GetChuteFromUpstreamAsync()` 方法
+   - 清理 `_pendingAssignments` 相关逻辑（或改为可选）
+
+### 预期效果
+
+| 指标 | 优化前 | 优化后 | 改进 |
+|------|--------|--------|------|
+| Position 0 → 1 延迟 | 3258ms → 7724ms (递增) | 稳定 ~3200ms | **消除延迟累积** |
+| 上游响应阻塞 | 5-10秒/包裹 | 0秒（非阻塞） | **-100%** |
+| 系统吞吐量 | 受上游限制 | 不受上游限制 | **+50-100%** |
+
+### 技术约束
+
+必须遵守以下强制规则（`.github/copilot-instructions.md` 规则5）:
+
+- ❌ **禁止使用 `Task.Run`** - 违反热路径性能约束
+- ❌ **禁止直接读数据库** - 必须使用缓存（`ISystemConfigService`）
+- ✅ 使用 `async/await` 或 `SafeExecutionService.ExecuteAsync()`
+
+### 风险评估
+
+- **中风险**: 需要处理队列任务替换的时序问题
+  - **缓解**: 使用 `RemoveAllTasksForParcel` + 重新入队保证原子性
+  
+- **低风险**: 上游响应到达时包裹可能已经通过某些位置
+  - **缓解**: 任务替换会覆盖所有未执行的位置
+
+- **低风险**: 上游超时/失败情况
+  - **缓解**: 包裹已用异常格口路径完成分拣，不影响正常运行
+
+### 验证清单
+
+- [ ] 实现 `RegenerateAndReplaceQueueTasksAsync` 方法
+- [ ] 修改 `DetermineTargetChuteAsync` 返回异常格口
+- [ ] 修改 `OnChuteAssignmentReceived` 处理非阻塞模式
+- [ ] 删除 `GetChuteFromUpstreamAsync` 方法（或标记为废弃）
+- [ ] 所有单元测试通过
+- [ ] 所有集成测试通过
+- [ ] E2E 测试验证分拣流程正常
+- [ ] 实机测试验证 Position 0 → 1 延迟稳定
+- [ ] 验证无 `Task.Run` 使用（热路径约束）
+- [ ] 验证无直接数据库访问（热路径约束）
+
+### 相关文档
+
+- `docs/PERFORMANCE_ANALYSIS_SUMMARY.md` - 性能分析总结
+- `docs/POSITION_INTERVAL_PERFORMANCE_FIX.md` - PositionIntervalTracker 优化详情
+- `docs/PR_SUMMARY_FINAL.md` - 当前 PR 总结
+- `.github/copilot-instructions.md` - 规则5: 热路径性能强制约束
+- `docs/CORE_ROUTING_LOGIC.md` - 核心路由逻辑文档
+
+### 后续工作
+
+完成本技术债后，建议进行以下优化：
+
+1. **TD-089**: 缓存线段配置（`ConveyorSegmentConfiguration`）- 减少数据库访问
+2. **TD-090**: 添加性能监控指标 - 上游响应时间、路径生成耗时
+3. **TD-091**: 实现 ArchTests 验证热路径规则 - 自动检测 `Task.Run` 和数据库访问
+
+---
+
+**文档版本**: 1.0  
+**最后更新**: 2025-12-27  
+**负责人**: GitHub Copilot
 
