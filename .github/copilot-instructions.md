@@ -242,6 +242,123 @@ public class MyService
 
 ---
 
+### 规则5: 热路径性能强制约束 🔴
+
+**规则**: 热路径（包裹处理主流程）中必须遵守以下性能约束，违反将导致 PR 自动失败。
+
+**违规后果**: ❌ **PR自动失败**
+
+#### 5.1 禁止使用 Task.Run
+
+**规则**: 所有热路径代码中**严禁使用 `Task.Run`**，必须使用原生 async/await 或专用服务。
+
+**热路径定义**:
+- 包裹检测到落格的完整流程（传感器触发 → 路由决策 → 队列入队 → 摆轮执行 → 落格完成）
+- 上游通信请求/响应处理
+- 队列任务生成与执行
+- 路径计算与缓存访问
+- 传感器事件处理
+
+**允许的异步模式**:
+```csharp
+// ✅ 正确：直接使用 async/await
+public async Task ProcessParcelAsync(long parcelId)
+{
+    await CreateParcelEntityAsync(parcelId);
+    var targetChute = await DetermineTargetChuteAsync(parcelId);
+    await GenerateAndEnqueueTasksAsync(parcelId, targetChute);
+}
+
+// ✅ 正确：使用 SafeExecutionService 包装后台任务
+if (_safeExecutor != null)
+{
+    _ = _safeExecutor.ExecuteAsync(
+        async () => await UpdateRoutePlanAsync(parcelId, chuteId),
+        operationName: "UpdateRoutePlan");
+}
+
+// ❌ 错误：使用 Task.Run（热路径禁止）
+public async Task ProcessParcelAsync(long parcelId)
+{
+    await Task.Run(async () =>  // ❌ 禁止！
+    {
+        await CreateParcelEntityAsync(parcelId);
+    });
+}
+```
+
+**例外情况**:
+- ⚠️ 非热路径的初始化代码（应用启动、配置加载）可以使用 `Task.Run`
+- ⚠️ 测试代码中可以使用 `Task.Run`
+
+#### 5.2 禁止热路径直接读数据库
+
+**规则**: 热路径中**严禁直接访问数据库读取配置**，必须使用缓存/内存。
+
+**强制使用缓存服务**:
+```csharp
+// ✅ 正确：使用内存缓存服务
+public class SortingOrchestrator
+{
+    private readonly ISystemConfigService _configService;  // 内存缓存
+    
+    public async Task ProcessParcelAsync(long parcelId)
+    {
+        var config = _configService.GetSystemConfig();  // ✅ 内存读取
+        var exceptionChuteId = config.ExceptionChuteId;
+    }
+}
+
+// ✅ 正确：使用路径缓存
+public class CachedSwitchingPathGenerator : ISwitchingPathGenerator
+{
+    public SwitchingPath? GeneratePath(long targetChuteId)
+    {
+        if (_configCache.TryGetValue<SwitchingPath>(cacheKey, out var cachedPath))
+        {
+            return cachedPath;  // ✅ 缓存命中
+        }
+        
+        var path = _innerGenerator.GeneratePath(targetChuteId);
+        _configCache.Set(cacheKey, path);  // ✅ 更新缓存
+        return path;
+    }
+}
+
+// ❌ 错误：热路径直接读数据库
+public async Task ProcessParcelAsync(long parcelId)
+{
+    var config = _configRepository.Get();  // ❌ 禁止！直接读数据库
+    var segment = _segmentRepository.GetById(segmentId);  // ❌ 禁止！
+}
+```
+
+**配置缓存服务清单**:
+- `ISystemConfigService.GetSystemConfig()` - 系统配置（内存缓存）
+- `CachedSwitchingPathGenerator` - 路径生成（1小时滑动缓存）
+- `ISlidingConfigCache` - 通用配置缓存
+
+**数据库访问允许场景**:
+- ✅ API 配置更新端点（非热路径）
+- ✅ 系统启动时的初始化加载
+- ✅ 管理界面操作
+- ✅ 报表和统计查询
+
+**验证检查清单**:
+- [ ] 热路径代码中无 `Task.Run` 调用
+- [ ] 热路径代码中无 `_repository.Get()` / `_repository.GetById()` 等数据库读取
+- [ ] 所有配置读取使用 `ISystemConfigService` 或缓存服务
+- [ ] 后台任务使用 `SafeExecutionService.ExecuteAsync()`
+
+**ArchTests 验证**:
+```csharp
+[Fact] HotPath_MustNotUse_TaskRun()
+[Fact] HotPath_MustNotDirectly_AccessDatabase()
+[Fact] HotPath_MustUse_CachedConfigServices()
+```
+
+---
+
 ### 🔴 包裹路由与位置索引队列机制
 
 **文档**: `docs/CORE_ROUTING_LOGIC.md`
