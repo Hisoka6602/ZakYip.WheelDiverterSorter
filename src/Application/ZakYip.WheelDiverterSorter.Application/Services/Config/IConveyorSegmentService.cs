@@ -8,20 +8,13 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 /// <remarks>
 /// 负责输送线段配置的业务逻辑，包括CRUD操作、验证、自动计算等
 /// </remarks>
-public interface IConveyorSegmentService
+public interface IConveyorSegmentService : ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentService
 {
     /// <summary>
     /// 获取所有线段配置
     /// </summary>
     /// <returns>线段配置列表</returns>
     IEnumerable<ConveyorSegmentConfiguration> GetAllSegments();
-
-    /// <summary>
-    /// 根据线段ID获取配置
-    /// </summary>
-    /// <param name="segmentId">线段ID</param>
-    /// <returns>线段配置，如不存在则返回null</returns>
-    ConveyorSegmentConfiguration? GetSegmentById(long segmentId);
 
     /// <summary>
     /// 创建新的线段配置

@@ -110,7 +110,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly IPositionIndexQueueManager? _queueManager;
 
     private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService? _topologyService;
-    private readonly IConveyorSegmentRepository? _segmentRepository;
+    private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentService? _conveyorSegmentService;
     private readonly ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService? _vendorConfigService;
     private readonly ISafeExecutionService? _safeExecutor;
     private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
@@ -195,7 +195,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         IChuteSelectionService? chuteSelectionService = null,
         IPositionIndexQueueManager? queueManager = null, // 新的 Position-Index 队列管理器
         ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService? topologyService = null, // 拓扑配置服务（缓存）
-        IConveyorSegmentRepository? segmentRepository = null, // TD-062: 线体段配置仓储
+        ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentService? conveyorSegmentService = null, // TD-062: 线体段配置服务（缓存）
         ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService? vendorConfigService = null, // 厂商配置服务（缓存，包含传感器配置）
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
@@ -234,7 +234,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 新的 Position-Index 队列系统依赖（可选）
         _queueManager = queueManager;
         _topologyService = topologyService;
-        _segmentRepository = segmentRepository;
+        _conveyorSegmentService = conveyorSegmentService;
         _vendorConfigService = vendorConfigService;
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
@@ -1338,7 +1338,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             // 获取输送段信息用于日志记录
             string segmentInfo = "线体信息未知";
-            if (_topologyService != null && _segmentRepository != null)
+            if (_topologyService != null && _conveyorSegmentService != null)
             {
                 var topology = _topologyService.GetTopology();
                 if (topology != null)
@@ -1346,7 +1346,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     var node = topology.FindNodeByDiverterId(peekedTask.DiverterId);
                     if (node != null)
                     {
-                        var segment = _segmentRepository.GetById(node.SegmentId);
+                        var segment = _conveyorSegmentService.GetSegmentById(node.SegmentId);
                         if (segment != null)
                         {
                             segmentInfo = $"线体Id={segment.SegmentId}, " +
@@ -2831,7 +2831,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private void UpdateNextPositionExpectedTime(PositionQueueItem currentTask, int currentPositionIndex, DateTime actualArrivalTime)
     {
-        if (_queueManager == null || _topologyService == null || _segmentRepository == null)
+        if (_queueManager == null || _topologyService == null || _conveyorSegmentService == null)
         {
             return;
         }
@@ -2856,7 +2856,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 获取到下一个position的线段配置
-            var segmentConfig = _segmentRepository.GetById(nextNode.SegmentId);
+            var segmentConfig = _conveyorSegmentService?.GetSegmentById(nextNode.SegmentId);
             if (segmentConfig == null)
             {
                 _logger.LogDebug(

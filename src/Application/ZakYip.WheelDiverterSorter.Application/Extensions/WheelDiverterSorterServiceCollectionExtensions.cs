@@ -430,7 +430,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             // 新的 Position-Index 队列系统依赖
             var queueManager = sp.GetService<IPositionIndexQueueManager>();
             var topologyService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService>();
-            var segmentRepository = sp.GetService<IConveyorSegmentRepository>();
+            var conveyorSegmentService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentService>();
             var vendorConfigService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService>();
             var safeExecutor = sp.GetService<ISafeExecutionService>();
             var intervalTracker = sp.GetService<Execution.Tracking.IPositionIntervalTracker>();
@@ -460,7 +460,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 chuteSelectionService,
                 queueManager,
                 topologyService,
-                segmentRepository,
+                conveyorSegmentService,
                 vendorConfigService,
                 safeExecutor,
                 intervalTracker,
