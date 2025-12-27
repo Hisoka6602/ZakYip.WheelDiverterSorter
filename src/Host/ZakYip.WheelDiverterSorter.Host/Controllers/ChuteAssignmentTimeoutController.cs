@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
@@ -24,16 +25,19 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
     private readonly ISystemConfigService _systemConfigService;
     private readonly ISystemConfigurationRepository _configRepository; // For update operations
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
+    private readonly ISystemClock _clock;
     private readonly ILogger<ChuteAssignmentTimeoutController> _logger;
 
     public ChuteAssignmentTimeoutController(
         ISystemConfigService systemConfigService,
         ISystemConfigurationRepository configRepository,
+        ISystemClock clock,
         ILogger<ChuteAssignmentTimeoutController> logger,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null)
     {
         _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
+        _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeoutCalculator = timeoutCalculator;
     }
@@ -170,6 +174,9 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
                 return ValidationError<ChuteAssignmentTimeoutResponse>(
                     validation.ErrorMessage ?? "配置验证失败");
             }
+
+            // 设置更新时间（必需，否则数据库不会保存）
+            systemConfig.UpdatedAt = _clock.LocalNow;
 
             // 保存配置
             _configRepository.Update(systemConfig);
