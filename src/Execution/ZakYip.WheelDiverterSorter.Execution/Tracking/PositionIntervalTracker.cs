@@ -205,7 +205,13 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         _intervalHistory.Clear();
         _lastUpdatedTimes.Clear();
         
-        _logger.LogInformation("已清空所有 Position 的统计数据");
+        // 清空包裹位置追踪记录（停止/急停/复位时，所有在途包裹已不在系统中）
+        var parcelCount = _parcelPositionTimes.Count;
+        _parcelPositionTimes.Clear();
+        
+        _logger.LogInformation(
+            "已清空所有 Position 的统计数据和 {ParcelCount} 个包裹的位置追踪记录",
+            parcelCount);
     }
 
     /// <inheritdoc/>

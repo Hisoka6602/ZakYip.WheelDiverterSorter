@@ -277,4 +277,48 @@ public class PositionIntervalTrackerTests
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Never()); // 不应该有清理日志
     }
+
+    /// <summary>
+    /// 测试：ClearAllStatistics 应该清空包裹位置追踪记录（停止/急停/复位时）
+    /// </summary>
+    /// <remarks>
+    /// 修复问题：停止IO后，在途包裹的位置记录应该被清空，防止内存泄漏
+    /// </remarks>
+    [Fact]
+    public void ClearAllStatistics_ShouldClearParcelPositionTracking()
+    {
+        // Arrange: 创建多个包裹的位置记录
+        var baseTime = new DateTime(2025, 12, 27, 10, 0, 0);
+        
+        // 模拟10个包裹在系统中（匹配 WindowSize = 10）
+        for (int i = 1; i <= 10; i++)
+        {
+            long parcelId = 2000000 + i;
+            _tracker.RecordParcelPosition(parcelId, 0, baseTime.AddSeconds(i * 0.1));
+            _tracker.RecordParcelPosition(parcelId, 1, baseTime.AddSeconds(i * 0.1 + 5));
+        }
+        
+        // Verify: 应该有间隔统计数据
+        var statsBefore = _tracker.GetStatistics(1);
+        Assert.NotNull(statsBefore);
+        Assert.Equal(10, statsBefore.Value.SampleCount);
+        
+        // Act: 清空所有统计数据（模拟停止IO）
+        _tracker.ClearAllStatistics();
+        
+        // Assert: 间隔统计数据应该被清空
+        var statsAfter = _tracker.GetStatistics(1);
+        Assert.Null(statsAfter);
+        
+        // 新包裹应该能正常计算间隔（证明位置追踪记录已清空）
+        // 如果旧的位置记录未清空，新包裹会找到旧记录导致错误
+        var newParcelId = 3000001L;
+        _tracker.RecordParcelPosition(newParcelId, 0, baseTime.AddSeconds(200));
+        _tracker.RecordParcelPosition(newParcelId, 1, baseTime.AddSeconds(205));
+        
+        var newStats = _tracker.GetStatistics(1);
+        Assert.NotNull(newStats);
+        Assert.Equal(1, newStats.Value.SampleCount); // 应该只有1个新样本
+        Assert.Equal(5000.0, newStats.Value.MedianIntervalMs!.Value, precision: 1);
+    }
 }
