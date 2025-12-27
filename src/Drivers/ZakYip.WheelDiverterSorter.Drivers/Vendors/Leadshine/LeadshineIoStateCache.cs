@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
+using csLTDMC;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
+using System.Collections.Concurrent;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
+using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using csLTDMC;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 
@@ -14,7 +14,7 @@ namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
 /// <remarks>
 /// 这是系统中唯一读取雷赛硬件IO的地方。
 /// 后台服务每10ms批量读取所有输入端口并缓存，其他组件从缓存读取。
-/// 
+///
 /// 架构约束（Critical for Real-time Performance）：
 /// - 禁止在此服务外部调用 dmc_read_inbit
 /// - 禁止在此服务外部调用 dmc_read_inport
@@ -27,33 +27,33 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
     private readonly IEmcController _emcController;
     private readonly ISystemClock _systemClock;
     private readonly ISafeExecutionService _safeExecutor;
-    
+
     /// <summary>
     /// IO刷新间隔（毫秒），硬编码为10ms以确保实时性
     /// </summary>
     private const int RefreshIntervalMs = 10;
-    
+
     /// <summary>
     /// 每个端口的位数（雷赛控制器每个端口为32位）
     /// </summary>
     private const int BitsPerPort = 32;
-    
+
     /// <summary>
     /// 输入端口缓存（端口号 -> 端口值）
     /// 使用ConcurrentDictionary确保线程安全
     /// </summary>
     private readonly ConcurrentDictionary<ushort, uint> _inputPortCache = new();
-    
+
     /// <summary>
     /// 输入端口总数
     /// </summary>
     private ushort _totalInputPorts;
-    
+
     /// <summary>
     /// 最后一次刷新时间
     /// </summary>
     private DateTimeOffset _lastRefreshTime;
-    
+
     /// <summary>
     /// 服务是否可用
     /// </summary>
@@ -80,21 +80,18 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
     /// <inheritdoc/>
     public bool ReadInputBit(int bitIndex)
     {
-        if (bitIndex < 0 || bitIndex > ushort.MaxValue)
+        if (bitIndex < 0 || bitIndex > 32)
         {
             _logger.LogWarning("位索引超出范围: {BitIndex}", bitIndex);
             return false;
         }
 
-        ushort portNo = (ushort)(bitIndex / BitsPerPort);
-        int bitInPort = bitIndex % BitsPerPort;
-
-        if (_inputPortCache.TryGetValue(portNo, out uint portValue))
+        if (_inputPortCache.TryGetValue((ushort)bitIndex, out uint portValue))
         {
-            return ((portValue >> bitInPort) & 1) != 0;
+            return portValue != 0;
         }
 
-        _logger.LogWarning("端口 {PortNo} 未在缓存中找到", portNo);
+        _logger.LogWarning("端口 {PortNo} 未在缓存中找到", bitIndex);
         return false;
     }
 
@@ -102,12 +99,12 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
     public IDictionary<int, bool> ReadInputBits(IEnumerable<int> bitIndices)
     {
         var results = new Dictionary<int, bool>();
-        
+
         foreach (var bitIndex in bitIndices)
         {
             results[bitIndex] = ReadInputBit(bitIndex);
         }
-        
+
         return results;
     }
 
@@ -118,7 +115,7 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
             {
                 // 初始化：获取输入端口总数
                 _totalInputPorts = GetTotalInputPorts();
-                
+
                 _logger.LogInformation(
                     "雷赛IO状态缓存服务启动，刷新间隔={RefreshMs}ms，输入端口数={PortCount}",
                     RefreshIntervalMs,
@@ -139,10 +136,10 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
                         // 这是系统中唯一调用雷赛IO读取函数的地方
                         // 批量读取所有输入端口
                         await RefreshAllInputPortsAsync();
-                        
+
                         _isAvailable = true;
                         _lastRefreshTime = _systemClock.LocalNowOffset;
-                        
+
                         // 等待下一次刷新周期
                         await Task.Delay(RefreshIntervalMs, stoppingToken);
                     }
@@ -154,7 +151,7 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
                     {
                         _logger.LogError(ex, "刷新IO状态时发生异常");
                         _isAvailable = false;
-                        
+
                         // 发生异常后稍作延迟再重试
                         await Task.Delay(RefreshIntervalMs, stoppingToken);
                     }
@@ -175,29 +172,29 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
     /// </remarks>
     private Task RefreshAllInputPortsAsync()
     {
-        if (_totalInputPorts == 0)
+        if (_totalInputPorts == 0 || !_emcController.IsAvailable())
         {
             return Task.CompletedTask;
         }
 
         try
         {
-            // 批量读取所有输入端口（这是唯一允许的硬件IO调用点）
-            uint[] portValues = new uint[_totalInputPorts];
-            short result = LTDMC.dmc_read_inport_array(_emcController.CardNo, _totalInputPorts, portValues);
+            var dmcReadInport = LTDMC.dmc_read_inport(_emcController.CardNo, 0);
 
-            if (result < 0)
+            if (dmcReadInport == 0)
             {
                 _logger.LogWarning(
                     "批量读取输入端口失败，错误码={ErrorCode}",
-                    result);
+                    dmcReadInport);
                 return Task.CompletedTask;
             }
 
+            var ints = ToBits32_LsbFirst(dmcReadInport);
+
             // 更新缓存
-            for (ushort i = 0; i < _totalInputPorts; i++)
+            for (ushort i = 0; i < ints.Length; i++)
             {
-                _inputPortCache[i] = portValues[i];
+                _inputPortCache[i] = ints[i];
             }
 
             _logger.LogDebug(
@@ -217,36 +214,19 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
     /// </summary>
     private ushort GetTotalInputPorts()
     {
-        try
-        {
-            ushort totalIn = 0;
-            ushort totalOut = 0;
-            short result = LTDMC.dmc_get_total_ionum(_emcController.CardNo, ref totalIn, ref totalOut);
-            
-            if (result < 0)
-            {
-                _logger.LogWarning(
-                    "获取IO端口总数失败，卡号={CardNo}, 错误码={ErrorCode}，使用默认值8个端口",
-                    _emcController.CardNo,
-                    result);
-                return 8; // 默认8个端口（256位）
-            }
+        return 32;
+    }
 
-            // totalIn 是输入位总数，需要转换为端口数
-            ushort portCount = (ushort)((totalIn + BitsPerPort - 1) / BitsPerPort);
-            
-            _logger.LogInformation(
-                "雷赛控制器 {CardNo} 输入端口信息: 输入位总数={TotalIn}, 端口数={PortCount}",
-                _emcController.CardNo,
-                totalIn,
-                portCount);
-            
-            return portCount;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "获取输入端口总数异常，使用默认值8个端口");
-            return 8;
-        }
+    /// <summary>
+    /// 以“从低位到高位（LSB->MSB）”输出 32 位 bit 数组（0/1）
+    /// </summary>
+    public static uint[] ToBits32_LsbFirst(uint value)
+    {
+        var v = unchecked((uint)value);
+
+        // 0 表示最低位（bit0），31 表示最高位（bit31）
+        return Enumerable.Range(0, 32)
+            .Select(i => (uint)((v >> i) & 1u))
+            .ToArray();
     }
 }

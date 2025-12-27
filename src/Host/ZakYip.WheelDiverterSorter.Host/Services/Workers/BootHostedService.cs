@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
+using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 
@@ -27,6 +27,7 @@ public class BootHostedService : IHostedService
     /// </summary>
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        await Task.Yield();
         _logger.LogInformation("========== 系统启动自检 ==========");
 
         try
@@ -48,13 +49,13 @@ public class BootHostedService : IHostedService
 
                 foreach (var driver in report.Drivers.Where(d => !d.IsHealthy))
                 {
-                    _logger.LogError("  - 驱动器 [{DriverName}]: {ErrorMessage}", 
+                    _logger.LogError("  - 驱动器 [{DriverName}]: {ErrorMessage}",
                         driver.DriverName, driver.ErrorMessage);
                 }
 
                 foreach (var upstream in report.Upstreams.Where(u => !u.IsHealthy))
                 {
-                    _logger.LogError("  - 上游系统 [{EndpointName}]: {ErrorMessage}", 
+                    _logger.LogError("  - 上游系统 [{EndpointName}]: {ErrorMessage}",
                         upstream.EndpointName, upstream.ErrorMessage);
                 }
 
@@ -63,7 +64,7 @@ public class BootHostedService : IHostedService
                     _logger.LogError("  - 配置: {ErrorMessage}", report.Config.ErrorMessage);
                 }
             }
-            
+
             _logger.LogInformation("========================================");
         }
         catch (Exception ex)

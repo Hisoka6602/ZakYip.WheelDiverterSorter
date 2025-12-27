@@ -1,54 +1,55 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <UserSecretsId>dotnet-ZakYip.WheelDiverterSorter.Host-4dd359c7-614f-4f0d-90a4-f234a803ded5</UserSecretsId>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <NoWarn>$(NoWarn);1591</NoWarn>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UserSecretsId>dotnet-ZakYip.WheelDiverterSorter.Host-4dd359c7-614f-4f0d-90a4-f234a803ded5</UserSecretsId>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
 
-  <!-- 自包含部署配置 (Self-Contained Deployment Configuration) -->
-  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- 启用自包含部署，包含 .NET Runtime -->
-    <SelfContained>true</SelfContained>
-    <!-- 启用 ReadyToRun 编译，提升启动性能 -->
-    <PublishReadyToRun>true</PublishReadyToRun>
-  </PropertyGroup>
+	<!-- 自包含部署配置 (Self-Contained Deployment Configuration) -->
+	<PropertyGroup Condition="'$(Configuration)' == 'Release'">
+		<!-- 启用自包含部署，包含 .NET Runtime -->
+		<SelfContained>true</SelfContained>
+		<!-- 启用 ReadyToRun 编译，提升启动性能 -->
+		<PublishReadyToRun>true</PublishReadyToRun>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <None Include="nlog.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<None Include="nlog.config">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageReference Include="NLog.Web.AspNetCore" Version="6.1.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
-    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.6" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+		<PackageReference Include="NLog.Web.AspNetCore" Version="6.1.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.5.0" />
+		<PackageReference Include="Swashbuckle.AspNetCore.Annotations" Version="6.5.0" />
+		<PackageReference Include="System.Diagnostics.DiagnosticSource" Version="10.0.0" />
+		<PackageReference Include="System.Text.Json" Version="8.0.6" />
+	</ItemGroup>
 
-  <!-- PR-H1: Host 层依赖收缩 - Host 仅依赖 Application/Core/Observability -->
-  <!-- Host layer dependency reduction - Host only depends on Application/Core/Observability -->
-  <!-- 原有的 Execution/Drivers/Ingress/Communication/Simulation 依赖现在通过 Application 层传递 -->
-  <!-- Original Execution/Drivers/Ingress/Communication/Simulation dependencies are now transitive through Application -->
-  <ItemGroup>
-    <ProjectReference Include="../../Application/ZakYip.WheelDiverterSorter.Application/ZakYip.WheelDiverterSorter.Application.csproj" />
-    <ProjectReference Include="../../Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
-    <ProjectReference Include="../../Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="install.bat">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="uninstall.bat">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<!-- PR-H1: Host 层依赖收缩 - Host 仅依赖 Application/Core/Observability -->
+	<!-- Host layer dependency reduction - Host only depends on Application/Core/Observability -->
+	<!-- 原有的 Execution/Drivers/Ingress/Communication/Simulation 依赖现在通过 Application 层传递 -->
+	<!-- Original Execution/Drivers/Ingress/Communication/Simulation dependencies are now transitive through Application -->
+	<ItemGroup>
+		<ProjectReference Include="../../Application/ZakYip.WheelDiverterSorter.Application/ZakYip.WheelDiverterSorter.Application.csproj" />
+		<ProjectReference Include="../../Core/ZakYip.WheelDiverterSorter.Core/ZakYip.WheelDiverterSorter.Core.csproj" />
+		<ProjectReference Include="../../Observability/ZakYip.WheelDiverterSorter.Observability/ZakYip.WheelDiverterSorter.Observability.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Update="install.bat">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="uninstall.bat">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 </Project>
