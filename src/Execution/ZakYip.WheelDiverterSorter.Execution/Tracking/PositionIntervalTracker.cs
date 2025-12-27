@@ -80,6 +80,17 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     /// <inheritdoc/>
     public void RecordParcelPosition(long parcelId, int positionIndex, DateTime arrivedAt)
     {
+        // 拒绝无效的包裹ID（ParcelId <= 0 表示非真实包裹）
+        if (parcelId <= 0)
+        {
+            _logger.LogWarning(
+                "拒绝记录无效的包裹ID {ParcelId} 在 Position {PositionIndex}。" +
+                "ParcelId <= 0 通常表示 WheelFront/ChuteLock 等非包裹创建传感器触发，不应进入位置追踪。",
+                parcelId,
+                positionIndex);
+            return;
+        }
+        
         // 更新最后包裹记录时间
         lock (_lastRecordTimeLock)
         {
