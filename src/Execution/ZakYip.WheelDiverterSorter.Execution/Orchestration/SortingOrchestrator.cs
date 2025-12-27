@@ -1488,6 +1488,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             actionToExecute = task.DiverterAction;
             
             RecordSortingFailure(0, isTimeout: false);
+            
+            // 清理丢失包裹的内存记录
+            CleanupParcelMemory(task.ParcelId);
+            
+            // 关键：触发时间已经到达下一个包裹的出队时间，递归处理下一个包裹
+            // 这确保了队列中的下一个包裹能够立即被处理，而不是等待下一次物理传感器触发
+            _logger.LogInformation(
+                "[包裹丢失-递归处理] 包裹 {ParcelId} 丢失处理完成，递归处理下一个包裹 (Position={PositionIndex})",
+                task.ParcelId, positionIndex);
+            
+            // 在执行当前包裹的摆轮动作后，递归处理下一个包裹
+            // 注意：我们需要先执行当前包裹的动作，然后才能处理下一个包裹
+            // 所以递归调用将在方法末尾进行
         }
         else
         {
@@ -1649,6 +1662,31 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         if (!isTimeout)
         {
             RecordSortingSuccess(0);
+        }
+        
+        // 包裹丢失后递归处理下一个包裹
+        // 由于触发时间已经到达下一个包裹的出队时间，需要立即处理队列中的下一个包裹
+        if (isPacketLoss)
+        {
+            _logger.LogInformation(
+                "[包裹丢失-递归触发] 丢失包裹 {ParcelId} 处理完成，立即检查并处理 Position {PositionIndex} 队列中的下一个包裹",
+                task.ParcelId, positionIndex);
+            
+            // 递归调用以处理下一个包裹
+            // 使用 Task.Run 避免深度递归导致的栈溢出
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "[包裹丢失-递归处理失败] Position {PositionIndex} 递归处理下一个包裹时发生异常",
+                        positionIndex);
+                }
+            });
         }
     }
 
