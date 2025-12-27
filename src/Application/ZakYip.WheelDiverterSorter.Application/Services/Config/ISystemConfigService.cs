@@ -1,21 +1,19 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.Enums.Sorting;
+using CoreConfig = ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 
 /// <summary>
-/// 系统配置服务接口
+/// 系统配置服务接口（Application层扩展）
 /// </summary>
 /// <remarks>
-/// 负责系统配置的业务逻辑，包括验证、更新、默认模板生成等
+/// 负责系统配置的业务逻辑，包括验证、更新、默认模板生成等。
+/// 继承 Core 层的 ISystemConfigService 接口，提供配置更新和高级操作。
 /// </remarks>
-public interface ISystemConfigService
+public interface ISystemConfigService : CoreConfig.ISystemConfigService
 {
-    /// <summary>
-    /// 获取当前系统配置
-    /// </summary>
-    /// <returns>系统配置</returns>
-    SystemConfiguration GetSystemConfig();
+    // GetSystemConfig() inherited from CoreConfig.ISystemConfigService
 
     /// <summary>
     /// 获取默认系统配置模板

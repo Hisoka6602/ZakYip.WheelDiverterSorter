@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
@@ -22,7 +23,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Health;
 public class HostHealthStatusProvider : IHealthStatusProvider
 {
     private readonly ISystemStateManager _stateManager;
-    private readonly ISystemConfigurationRepository? _systemConfigRepository;
+    private readonly ISystemConfigService? _systemConfigService;
     private readonly DiagnosticsOptions? _diagnosticsOptions;
     private readonly AlertHistoryService? _alertHistoryService;
     private readonly ILogger<HostHealthStatusProvider> _logger;
@@ -30,13 +31,13 @@ public class HostHealthStatusProvider : IHealthStatusProvider
     public HostHealthStatusProvider(
         ISystemStateManager stateManager,
         ILogger<HostHealthStatusProvider> logger,
-        ISystemConfigurationRepository? systemConfigRepository = null,
+        ISystemConfigService? systemConfigService = null,
         IOptions<DiagnosticsOptions>? diagnosticsOptions = null,
         AlertHistoryService? alertHistoryService = null)
     {
         _stateManager = stateManager ?? throw new ArgumentNullException(nameof(stateManager));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _systemConfigRepository = systemConfigRepository;
+        _systemConfigService = systemConfigService;
         _diagnosticsOptions = diagnosticsOptions?.Value;
         _alertHistoryService = alertHistoryService;
     }
@@ -79,7 +80,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 DegradedNodesCount = degradedNodes?.Count ?? 0,
                 DegradedNodes = degradedNodes,
                 DiagnosticsLevel = _diagnosticsOptions?.Level ?? DiagnosticsLevel.Basic,
-                ConfigVersion = _systemConfigRepository?.Get()?.ConfigName,
+                ConfigVersion = _systemConfigService?.GetSystemConfig()?.ConfigName,
                 RecentCriticalAlertCount = recentCriticalAlertCount,
                 CurrentCongestionLevel = GetCongestionLevelFromState(currentState),
                 IsLineAvailable = isLineAvailable,

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Execution.SelfTest;
 
@@ -10,16 +11,16 @@ namespace ZakYip.WheelDiverterSorter.Execution.SelfTest;
 /// </summary>
 public class DefaultConfigValidator : IConfigValidator
 {
-    private readonly ISystemConfigurationRepository _systemConfig;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly IRouteConfigurationRepository _routeConfig;
     private readonly ILogger<DefaultConfigValidator> _logger;
 
     public DefaultConfigValidator(
-        ISystemConfigurationRepository systemConfig,
+        ISystemConfigService systemConfigService,
         IRouteConfigurationRepository routeConfig,
         ILogger<DefaultConfigValidator> logger)
     {
-        _systemConfig = systemConfig ?? throw new ArgumentNullException(nameof(systemConfig));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _routeConfig = routeConfig ?? throw new ArgumentNullException(nameof(routeConfig));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -32,7 +33,7 @@ public class DefaultConfigValidator : IConfigValidator
             _logger.LogInformation("开始验证系统配置...");
 
             // 验证系统配置
-            var sysConfig = _systemConfig.Get();
+            var sysConfig = _systemConfigService.GetSystemConfig();
             if (sysConfig == null)
             {
                 _logger.LogError("系统配置为空");

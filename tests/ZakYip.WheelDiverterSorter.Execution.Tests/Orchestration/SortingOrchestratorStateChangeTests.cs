@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
@@ -32,7 +33,7 @@ public class SortingOrchestratorStateChangeTests : IDisposable
     private readonly Mock<IUpstreamRoutingClient> _mockUpstreamClient;
     private readonly Mock<ISwitchingPathGenerator> _mockPathGenerator;
     private readonly Mock<ISwitchingPathExecutor> _mockPathExecutor;
-    private readonly Mock<ISystemConfigurationRepository> _mockConfigRepository;
+    private readonly Mock<ISystemConfigService> _mockConfigRepository;
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<SortingOrchestrator>> _mockLogger;
     private readonly Mock<ISortingExceptionHandler> _mockExceptionHandler;
@@ -48,7 +49,7 @@ public class SortingOrchestratorStateChangeTests : IDisposable
         _mockUpstreamClient = new Mock<IUpstreamRoutingClient>();
         _mockPathGenerator = new Mock<ISwitchingPathGenerator>();
         _mockPathExecutor = new Mock<ISwitchingPathExecutor>();
-        _mockConfigRepository = new Mock<ISystemConfigurationRepository>();
+        _mockConfigRepository = new Mock<ISystemConfigService>();
         _mockClock = new Mock<ISystemClock>();
         _mockLogger = new Mock<ILogger<SortingOrchestrator>>();
         _mockExceptionHandler = new Mock<ISortingExceptionHandler>();
@@ -71,7 +72,7 @@ public class SortingOrchestratorStateChangeTests : IDisposable
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutMs = 5000 }
         };
 
-        _mockConfigRepository.Setup(r => r.Get()).Returns(defaultConfig);
+        _mockConfigRepository.Setup(r => r.GetSystemConfig()).Returns(defaultConfig);
 
         _orchestrator = new SortingOrchestrator(
             _mockSensorEventProvider.Object,

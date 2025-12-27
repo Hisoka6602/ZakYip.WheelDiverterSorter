@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
@@ -14,20 +14,20 @@ namespace ZakYip.WheelDiverterSorter.Execution.SelfTest;
 /// </summary>
 public class WheelDiverterSelfTest : IDriverSelfTest
 {
-    private readonly IWheelDiverterConfigurationRepository _wheelDiverterConfigRepository;
+    private readonly IVendorConfigService _vendorConfigService;
     private readonly IWheelDiverterDriverManager? _wheelDiverterDriverManager;
     private readonly INodeHealthRegistry? _nodeHealthRegistry;
     private readonly ILogger<WheelDiverterSelfTest> _logger;
     private readonly ISystemClock _clock;
 
     public WheelDiverterSelfTest(
-        IWheelDiverterConfigurationRepository wheelDiverterConfigRepository,
+        IVendorConfigService vendorConfigService,
         ILogger<WheelDiverterSelfTest> logger,
         ISystemClock clock,
         IWheelDiverterDriverManager? wheelDiverterDriverManager = null,
         INodeHealthRegistry? nodeHealthRegistry = null)
     {
-        _wheelDiverterConfigRepository = wheelDiverterConfigRepository ?? throw new ArgumentNullException(nameof(wheelDiverterConfigRepository));
+        _vendorConfigService = vendorConfigService ?? throw new ArgumentNullException(nameof(vendorConfigService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _wheelDiverterDriverManager = wheelDiverterDriverManager;
@@ -42,7 +42,7 @@ public class WheelDiverterSelfTest : IDriverSelfTest
     {
         try
         {
-            var wheelConfig = _wheelDiverterConfigRepository.Get();
+            var wheelConfig = _vendorConfigService.GetWheelDiverterConfiguration();
 
             if (wheelConfig == null)
             {

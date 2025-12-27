@@ -11,6 +11,7 @@ using ZakYip.WheelDiverterSorter.Core.Hardware.Providers;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Policies;
 using ZakYip.WheelDiverterSorter.Core.Enums.System;
@@ -48,7 +49,7 @@ public class SortingOrchestratorTests : IDisposable
     private readonly Mock<IUpstreamRoutingClient> _mockUpstreamClient;
     private readonly Mock<ISwitchingPathGenerator> _mockPathGenerator;
     private readonly Mock<ISwitchingPathExecutor> _mockPathExecutor;
-    private readonly Mock<ISystemConfigurationRepository> _mockConfigRepository;
+    private readonly Mock<ISystemConfigService> _mockConfigRepository;
     private readonly Mock<ISystemClock> _mockClock;
     private readonly Mock<ILogger<SortingOrchestrator>> _mockLogger;
     private readonly Mock<ISortingExceptionHandler> _mockExceptionHandler;
@@ -64,7 +65,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockUpstreamClient = new Mock<IUpstreamRoutingClient>();
         _mockPathGenerator = new Mock<ISwitchingPathGenerator>();
         _mockPathExecutor = new Mock<ISwitchingPathExecutor>();
-        _mockConfigRepository = new Mock<ISystemConfigurationRepository>();
+        _mockConfigRepository = new Mock<ISystemConfigService>();
         _mockClock = new Mock<ISystemClock>();
         _mockLogger = new Mock<ILogger<SortingOrchestrator>>();
         _mockExceptionHandler = new Mock<ISortingExceptionHandler>();
@@ -87,7 +88,7 @@ public class SortingOrchestratorTests : IDisposable
             AvailableChuteIds = new List<long> { 1, 2, 3, 4, 5 }
         };
 
-        _mockConfigRepository.Setup(r => r.Get()).Returns(_defaultConfig);
+        _mockConfigRepository.Setup(r => r.GetSystemConfig()).Returns(_defaultConfig);
 
         // Default mock setup for exception handler - returns null by default
         // Individual tests can override this for specific scenarios
@@ -211,7 +212,7 @@ public class SortingOrchestratorTests : IDisposable
             ExceptionChuteId = 99,
             FixedChuteId = fixedChuteId
         };
-        _mockConfigRepository.Setup(r => r.Get()).Returns(config);
+        _mockConfigRepository.Setup(r => r.GetSystemConfig()).Returns(config);
 
         var expectedPath = new SwitchingPath
         {
@@ -261,7 +262,7 @@ public class SortingOrchestratorTests : IDisposable
             ExceptionChuteId = 99,
             AvailableChuteIds = new List<long> { 1, 2, 3 }
         };
-        _mockConfigRepository.Setup(r => r.Get()).Returns(config);
+        _mockConfigRepository.Setup(r => r.GetSystemConfig()).Returns(config);
 
         var expectedPath = new SwitchingPath
         {
@@ -310,7 +311,7 @@ public class SortingOrchestratorTests : IDisposable
             ExceptionChuteId = exceptionChuteId,
             ChuteAssignmentTimeout = new ChuteAssignmentTimeoutOptions { FallbackTimeoutMs = 100 } // 很短的超时时间
         };
-        _mockConfigRepository.Setup(r => r.Get()).Returns(config);
+        _mockConfigRepository.Setup(r => r.GetSystemConfig()).Returns(config);
 
         // 模拟上游不返回响应（超时）
         _mockUpstreamClient

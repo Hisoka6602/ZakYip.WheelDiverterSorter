@@ -1,23 +1,21 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
+using CoreConfig = ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.Topology;
 
 /// <summary>
-/// Application 层格口路径拓扑服务接口
+/// Application 层格口路径拓扑服务接口（扩展）
 /// </summary>
 /// <remarks>
 /// 提供格口路径拓扑配置的管理功能，包括获取、更新、验证等操作。
 /// Host 层的 Controller 应通过此服务访问拓扑配置，
 /// 而不是直接依赖 Core 层的仓储接口。
+/// 继承 Core 层的 IChutePathTopologyService 接口，提供配置更新和高级操作。
 /// </remarks>
-public interface IChutePathTopologyService
+public interface IChutePathTopologyService : CoreConfig.IChutePathTopologyService
 {
-    /// <summary>
-    /// 获取格口路径拓扑配置
-    /// </summary>
-    /// <returns>当前的格口路径拓扑配置</returns>
-    ChutePathTopologyConfig GetTopology();
+    // GetTopology() inherited from CoreConfig.IChutePathTopologyService
 
     /// <summary>
     /// 更新格口路径拓扑配置

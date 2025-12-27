@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Devices;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
@@ -14,18 +14,18 @@ namespace ZakYip.WheelDiverterSorter.Execution.SelfTest;
 /// </summary>
 public class IoDriverSelfTest : IDriverSelfTest
 {
-    private readonly IDriverConfigurationRepository _ioDriverConfigRepository;
+    private readonly IVendorConfigService _vendorConfigService;
     private readonly IEmcController? _emcController;
     private readonly ILogger<IoDriverSelfTest> _logger;
     private readonly ISystemClock _clock;
 
     public IoDriverSelfTest(
-        IDriverConfigurationRepository ioDriverConfigRepository,
+        IVendorConfigService vendorConfigService,
         ILogger<IoDriverSelfTest> logger,
         ISystemClock clock,
         IEmcController? emcController = null)
     {
-        _ioDriverConfigRepository = ioDriverConfigRepository ?? throw new ArgumentNullException(nameof(ioDriverConfigRepository));
+        _vendorConfigService = vendorConfigService ?? throw new ArgumentNullException(nameof(vendorConfigService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _emcController = emcController;
@@ -39,7 +39,7 @@ public class IoDriverSelfTest : IDriverSelfTest
     {
         try
         {
-            var ioConfig = _ioDriverConfigRepository.Get();
+            var ioConfig = _vendorConfigService.GetDriverConfiguration();
 
             if (ioConfig == null)
             {
