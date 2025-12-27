@@ -2022,6 +2022,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     ///   2. 传感器触发时会检查队列状态，空队列会记录警告但不会崩溃
     ///   3. 包裹位置追踪（_intervalTracker）独立于队列，不受影响
     /// - **概率分析**：窗口时长 &lt;1ms，包裹间隔 ~3200ms，碰撞概率 &lt;0.03%
+    /// 
+    /// **超时/迟到响应处理**:
+    /// - 检查包裹是否仍在 _createdParcels 中（未完成分拣）
+    /// - 如果包裹已完成分拣/落格，直接忽略上游响应，不更新路径
+    /// - 防止迟到的上游响应对已完成包裹进行无效操作
     /// </remarks>
     private async Task RegenerateAndReplaceQueueTasksAsync(long parcelId, long newTargetChuteId)
     {
@@ -2030,6 +2035,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogError(
                 "[TD-088-路径重生成失败] QueueManager 未配置，无法重新生成包裹 {ParcelId} 的路径",
                 parcelId);
+            return;
+        }
+
+        // TD-088: 检查包裹是否仍存在（未完成分拣）
+        // 如果包裹已完成/落格，CleanupParcelMemory 会将其从 _createdParcels 中移除
+        if (!_createdParcels.ContainsKey(parcelId))
+        {
+            _logger.LogWarning(
+                "[TD-088-路径重生成跳过] 包裹 {ParcelId} 已完成分拣或已清理，忽略迟到的上游响应 (ChuteId={ChuteId})",
+                parcelId,
+                newTargetChuteId);
             return;
         }
 
