@@ -639,7 +639,7 @@ public class SortingController : ApiControllerBase
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 统一查询两个检测开关的状态：
+    /// 统一查询三个检测开关的状态：
     /// 
     /// **干扰检测开关 (EnableInterferenceDetection)**：
     /// - 启用提前触发检测，防止包裹提前到达导致的错位问题
@@ -649,11 +649,16 @@ public class SortingController : ApiControllerBase
     /// - 启用包裹传输超时检测和处理
     /// - 默认值：true（启用）
     /// 
+    /// **干扰直行开关 (PassThroughOnInterference)**：
+    /// - 干扰信号和提前触发时让摆轮直行（直通）
+    /// - 默认值：false（不执行动作）
+    /// 
     /// **示例响应**：
     /// ```json
     /// {
     ///   "enableInterferenceDetection": false,
     ///   "enableTimeoutDetection": true,
+    ///   "passThroughOnInterference": false,
     ///   "updatedAt": "2025-12-25T15:00:00Z"
     /// }
     /// ```
@@ -661,7 +666,7 @@ public class SortingController : ApiControllerBase
     [HttpGet("detection-switches")]
     [SwaggerOperation(
         Summary = "获取所有检测开关配置",
-        Description = "统一查询干扰检测、超时检测两个开关的状态",
+        Description = "统一查询干扰检测、超时检测、干扰直行三个开关的状态",
         OperationId = "GetDetectionSwitches",
         Tags = new[] { "分拣管理" }
     )]
@@ -673,13 +678,14 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            // 获取系统配置（干扰检测开关、超时检测开关）
+            // 获取系统配置（干扰检测开关、超时检测开关、干扰直行开关）
             var systemConfig = _systemConfigRepository.Get();
             
             var response = new DetectionSwitchesDto
             {
                 EnableInterferenceDetection = systemConfig.EnableEarlyTriggerDetection,
                 EnableTimeoutDetection = systemConfig.EnableTimeoutDetection,
+                PassThroughOnInterference = systemConfig.PassThroughOnInterference,
                 UpdatedAt = systemConfig.UpdatedAt
             };
             
@@ -718,6 +724,13 @@ public class SortingController : ApiControllerBase
     /// - 如不提供则保持当前值不变
     /// - ⚠️ 注意：此开关会同时影响所有输送段配置
     /// 
+    /// **干扰直行开关 (PassThroughOnInterference)**：
+    /// - 可选参数
+    /// - 控制干扰信号和提前触发时摆轮的行为
+    /// - true: 执行直行（Straight）动作，让包裹通过
+    /// - false: 不执行任何摆轮动作（默认行为）
+    /// - 如不提供则保持当前值不变
+    /// 
     /// **部分更新支持**：
     /// - 所有字段均为可选，仅更新提供的字段
     /// - 未提供的字段保持当前值不变
@@ -727,7 +740,8 @@ public class SortingController : ApiControllerBase
     /// ```json
     /// {
     ///   "enableInterferenceDetection": false,
-    ///   "enableTimeoutDetection": true
+    ///   "enableTimeoutDetection": true,
+    ///   "passThroughOnInterference": true
     /// }
     /// ```
     /// 
@@ -736,6 +750,7 @@ public class SortingController : ApiControllerBase
     /// {
     ///   "enableInterferenceDetection": false,
     ///   "enableTimeoutDetection": true,
+    ///   "passThroughOnInterference": true,
     ///   "updatedAt": "2025-12-25T15:30:00Z"
     /// }
     /// ```
@@ -748,7 +763,7 @@ public class SortingController : ApiControllerBase
     [HttpPut("detection-switches")]
     [SwaggerOperation(
         Summary = "更新检测开关配置",
-        Description = "统一更新干扰检测、超时检测两个开关的状态。修改后立即生效。",
+        Description = "统一更新干扰检测、超时检测、干扰直行三个开关的状态。修改后立即生效。",
         OperationId = "UpdateDetectionSwitches",
         Tags = new[] { "分拣管理" }
     )]
@@ -770,7 +785,8 @@ public class SortingController : ApiControllerBase
 
             // 如果没有提供任何更新字段，返回错误
             if (request.EnableInterferenceDetection == null &&
-                request.EnableTimeoutDetection == null)
+                request.EnableTimeoutDetection == null &&
+                request.PassThroughOnInterference == null)
             {
                 return BadRequest(ApiResponse<object>.BadRequest("至少需要提供一个检测开关字段进行更新"));
             }
@@ -802,6 +818,19 @@ public class SortingController : ApiControllerBase
                     "超时检测开关已更新: {EnableTimeoutDetection}",
                     request.EnableTimeoutDetection.Value);
             }
+            
+            // 更新干扰直行开关（系统配置）
+            if (request.PassThroughOnInterference.HasValue)
+            {
+                var systemConfig = _systemConfigRepository.Get();
+                systemConfig.PassThroughOnInterference = request.PassThroughOnInterference.Value;
+                systemConfig.UpdatedAt = now;
+                _systemConfigRepository.Update(systemConfig);
+                
+                _logger.LogInformation(
+                    "干扰直行开关已更新: {PassThroughOnInterference}",
+                    request.PassThroughOnInterference.Value);
+            }
 
             // 重新获取更新后的配置并返回
             var updatedSystemConfig = _systemConfigRepository.Get();
@@ -810,13 +839,15 @@ public class SortingController : ApiControllerBase
             {
                 EnableInterferenceDetection = updatedSystemConfig.EnableEarlyTriggerDetection,
                 EnableTimeoutDetection = updatedSystemConfig.EnableTimeoutDetection,
+                PassThroughOnInterference = updatedSystemConfig.PassThroughOnInterference,
                 UpdatedAt = now
             };
 
             _logger.LogInformation(
-                "检测开关配置已更新: 干扰检测={InterferenceDetection}, 超时检测={TimeoutDetection}",
+                "检测开关配置已更新: 干扰检测={InterferenceDetection}, 超时检测={TimeoutDetection}, 干扰直行={PassThroughOnInterference}",
                 response.EnableInterferenceDetection,
-                response.EnableTimeoutDetection);
+                response.EnableTimeoutDetection,
+                response.PassThroughOnInterference);
 
             return Ok(ApiResponse<DetectionSwitchesDto>.Ok(response, "检测开关配置已更新"));
         }
