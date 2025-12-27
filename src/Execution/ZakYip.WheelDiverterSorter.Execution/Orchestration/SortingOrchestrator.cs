@@ -118,7 +118,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISortingStatisticsService? _statisticsService; // 分拣统计服务
 
     // 包裹路由相关的状态 - 使用线程安全集合 (PR-44)
-    private readonly ConcurrentDictionary<long, TaskCompletionSource<long>> _pendingAssignments;
+    // TD-088: 移除 _pendingAssignments（不再使用 TaskCompletionSource 阻塞等待）
 
     private readonly ConcurrentDictionary<long, SwitchingPath> _parcelPaths;
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
@@ -244,7 +244,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _routePlanRepository = routePlanRepository;
         _upstreamServer = upstreamServer;
 
-        _pendingAssignments = new ConcurrentDictionary<long, TaskCompletionSource<long>>();
+        // TD-088: 移除 _pendingAssignments 初始化（不再使用阻塞等待）
         _parcelPaths = new ConcurrentDictionary<long, SwitchingPath>();
         _createdParcels = new ConcurrentDictionary<long, ParcelCreationRecord>();
         _parcelTargetChutes = new ConcurrentDictionary<long, long>();
@@ -709,9 +709,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         // 兼容模式：使用原有的模式分支逻辑
+        // TD-088: 移除上游路由阻塞等待 - Formal 模式下立即返回异常格口作为占位符
+        // 上游响应到达时会通过 OnChuteAssignmentReceived 异步更新路径
         return systemConfig.SortingMode switch
         {
-            SortingMode.Formal => await GetChuteFromUpstreamAsync(parcelId, systemConfig),
+            SortingMode.Formal => exceptionChuteId,  // TD-088: 立即返回异常格口，不再阻塞等待
             SortingMode.FixedChute => GetFixedChute(systemConfig),
             SortingMode.RoundRobin => GetNextRoundRobinChute(systemConfig),
             _ => GetDefaultExceptionChute(parcelId, systemConfig)
@@ -892,171 +894,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
-    /// 从上游系统获取格口分配（正式分拣模式）
-    /// </summary>
-    /// <remarks>
-    /// PR-fix-upstream-notification-all-modes: 通知发送逻辑已提取到 SendUpstreamNotificationAsync，
-    /// 此方法仅负责等待上游返回格口分配。
-    /// </remarks>
-    private async Task<long> GetChuteFromUpstreamAsync(long parcelId, SystemConfiguration systemConfig)
-    {
-        var exceptionChuteId = systemConfig.ExceptionChuteId;
-
-        // 注意：上游通知已在 DetermineTargetChuteAsync 中发送，此处不再重复发送
-
-        // 等待上游推送格口分配（带动态超时）
-        var tcs = new TaskCompletionSource<long>();
-
-        // 计算动态超时时间
-        var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
-        var timeoutMs = (int)(timeoutSeconds * 1000);
-        var startTime = _clock.LocalNow;
-
-        // PR-44: ConcurrentDictionary 索引器赋值是线程安全的
-        _pendingAssignments[parcelId] = tcs;
-
-        _logger.LogDebug(
-            "[格口分配-等待] 包裹 {ParcelId} 开始等待上游格口分配 | 超时限制={TimeoutMs}ms | 开始时间={StartTime:HH:mm:ss.fff}",
-            parcelId,
-            timeoutMs,
-            startTime);
-
-        try
-        {
-            using var cts = new CancellationTokenSource(timeoutMs);
-            var targetChuteId = await tcs.Task.WaitAsync(cts.Token);
-            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
-
-            _logger.LogInformation(
-                "[格口分配-成功] 包裹 {ParcelId} 从上游系统分配到格口 {ChuteId} | 耗时={ElapsedMs:F0}ms | 超时限制={TimeoutMs}ms",
-                parcelId,
-                targetChuteId,
-                elapsedMs,
-                timeoutMs);
-
-            // PR-10: 记录上游分配事件
-            await WriteTraceAsync(new ParcelTraceEventArgs
-            {
-                ItemId = parcelId,
-                BarCode = null,
-                OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                Stage = "UpstreamAssigned",
-                Source = "Upstream",
-                Details = $"ChuteId={targetChuteId}, LatencyMs={elapsedMs:F0}, Status=Success, TimeoutMs={timeoutMs}"
-            });
-
-            return targetChuteId;
-        }
-        catch (TimeoutException)
-        {
-            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
-            _logger.LogWarning(
-                "[格口分配-超时] 包裹 {ParcelId} 等待上游格口分配超时 | 耗时={ElapsedMs:F0}ms | 超时限制={TimeoutMs}ms | 即将返回异常格口={ExceptionChuteId}",
-                parcelId,
-                elapsedMs,
-                timeoutMs,
-                exceptionChuteId);
-
-            return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Timeout");
-        }
-        catch (OperationCanceledException)
-        {
-            var elapsedMs = (_clock.LocalNow - startTime).TotalMilliseconds;
-            _logger.LogWarning(
-                "[格口分配-取消] 包裹 {ParcelId} 等待上游格口分配被取消 | 耗时={ElapsedMs:F0}ms | 超时限制={TimeoutMs}ms | 即将返回异常格口={ExceptionChuteId}",
-                parcelId,
-                elapsedMs,
-                timeoutMs,
-                exceptionChuteId);
-
-            return await HandleRoutingTimeoutAsync(parcelId, systemConfig, exceptionChuteId, "Cancelled");
-        }
-        finally
-        {
-            // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
-            // 注意：OnChuteAssignmentReceived可能已提前移除，导致此处返回false
-            var removed = _pendingAssignments.TryRemove(parcelId, out _);
-            var barcodeSuffix = GetBarcodeSuffix(parcelId);
-            _logger.LogDebug(
-                "[格口分配-清理] 包裹 {ParcelId}{BarcodeSuffix} 的TaskCompletionSource清理完成 | " +
-                "从_pendingAssignments中移除={Removed}（false表示可能已在事件处理器中提前移除）",
-                parcelId,
-                barcodeSuffix,
-                removed);
-        }
-    }
-
-    /// <summary>
-    /// 计算格口分配超时时间（秒）
-    /// </summary>
-    private decimal CalculateChuteAssignmentTimeout(SystemConfiguration systemConfig)
-    {
-        // 如果有超时计算器，使用动态计算
-        if (_timeoutCalculator != null)
-        {
-            var context = new ChuteAssignmentTimeoutContext(
-                LineId: 1, // TD-042: 当前假设只有一条线，未来支持多线时需要从包裹上下文获取LineId
-                SafetyFactor: systemConfig.ChuteAssignmentTimeout?.SafetyFactor ?? 0.9m
-            );
-
-            return _timeoutCalculator.CalculateTimeoutSeconds(context);
-        }
-
-        // 降级：使用配置的固定超时时间（转换为秒）
-        var fallbackMs = systemConfig.ChuteAssignmentTimeout?.FallbackTimeoutMs ?? _options.FallbackTimeoutMs;
-        return fallbackMs / 1000m;
-    }
-
-    /// <summary>
-    /// 处理路由超时（提取公共逻辑）
-    /// </summary>
-    private async Task<long> HandleRoutingTimeoutAsync(
-        long parcelId,
-        SystemConfiguration systemConfig,
-        long exceptionChuteId,
-        string status)
-    {
-        var timeoutSeconds = CalculateChuteAssignmentTimeout(systemConfig);
-        var timeoutMs = (int)(timeoutSeconds * 1000);
-
-        _logger.LogWarning(
-            "【路由超时兜底】包裹 {ParcelId} 等待格口分配超时（超时限制：{TimeoutMs}ms），已分拣至异常口。" +
-            "异常口ChuteId={ExceptionChuteId}, " +
-            "发生时间={OccurredAt:yyyy-MM-dd HH:mm:ss.fff}",
-            parcelId,
-            timeoutMs,
-            exceptionChuteId,
-            _clock.LocalNow);
-
-        // PR-10: 记录超时事件
-        await WriteTraceAsync(new ParcelTraceEventArgs
-        {
-            ItemId = parcelId,
-            BarCode = null,
-            OccurredAt = new DateTimeOffset(_clock.LocalNow),
-            Stage = "RoutingTimeout",
-            Source = "Upstream",
-            Details = $"TimeoutMs={timeoutMs}, Status={status}, RoutedToException={exceptionChuteId}"
-        });
-
-        // 立即发送超时通知到上游系统
-        await NotifyUpstreamSortingCompletedAsync(
-            parcelId,
-            exceptionChuteId,
-            isSuccess: false,
-            failureReason: $"AssignmentTimeout: {status}",
-            finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
-
-        // 清理目标格口记录，防止后续IO触发时重复发送通知
-        _parcelTargetChutes.TryRemove(parcelId, out _);
-        
-        // 清理条码缓存
-        _parcelBarcodes.TryRemove(parcelId, out _);
-
-        return exceptionChuteId;
-    }
-
-    /// <summary>
     /// 获取固定格口（固定格口模式）
     /// </summary>
     private long GetFixedChute(SystemConfiguration systemConfig)
@@ -1150,7 +987,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
         _createdParcels.TryRemove(parcelId, out _);
         _parcelPaths.TryRemove(parcelId, out _);
-        _pendingAssignments.TryRemove(parcelId, out _);
+        // TD-088: 已移除 _pendingAssignments（不再使用阻塞等待）
         _parcelBarcodes.TryRemove(parcelId, out _);
     }
 
@@ -2097,96 +1934,50 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 注意：对 ConcurrentDictionary 中对象的属性赋值不是原子操作
             // 假设：每个包裹的格口分配通知只会收到一次，不会有并发修改同一包裹记录的情况
             parcelRecord.UpstreamReplyReceivedAt = new DateTimeOffset(receivedAt);
+            parcelRecord.RouteBoundAt = new DateTimeOffset(receivedAt);
 
-            // ⚠️ 关键修复（PR-UPSTREAM-TIMEOUT-FIX）：先完成TCS解除超时等待，再异步更新RoutePlan
-            // 问题根因：UpdateRoutePlanWithChuteAssignmentAsync 包含数据库操作，如果耗时超过剩余超时时间，
-            //         会导致超时处理器在 TCS 完成前触发，将包裹路由到异常格口。
-            //
-            // 修复策略：
-            // 1. 立即完成 TCS，解除 GetChuteFromUpstreamAsync 的等待，防止超时
-            // 2. 在后台异步更新 RoutePlan，不阻塞主流程
-            // 3. 即使 RoutePlan 更新失败，包裹仍能正常分拣（格口已通过TCS传递）
-            //
-            // 时序保证：
-            // - 步骤3"确定目标格口"已经从上游获取到 chuteId（通过TCS）
-            // - 步骤5"生成队列任务"使用该 chuteId 生成路径和任务
-            // - RoutePlan 主要用于历史记录和追溯，不是分拣流程的关键路径
+            // TD-088: 异步非阻塞路由 - 重新生成路径并替换队列任务
+            // 新逻辑：
+            // 1. 包裹创建时立即使用异常格口生成路径并入队（不等待上游）
+            // 2. 上游响应到达时，异步重新生成到正确格口的路径，替换队列中的旧任务
+            // 3. 消除阻塞等待，提升系统吞吐量
+            
+            var barcodeSuffix = GetBarcodeSuffix(e.ParcelId);  // TD-088: 重新声明 barcodeSuffix
+            
+            _logger.LogInformation(
+                "[TD-088-上游响应] 包裹 {ParcelId}{BarcodeSuffix} 收到格口分配 ChuteId={ChuteId}，开始异步更新路径",
+                e.ParcelId,
+                barcodeSuffix,
+                e.ChuteId);
 
-            if (_pendingAssignments.TryGetValue(e.ParcelId, out var tcs))
+            // 记录路由绑定完成的 Trace 日志
+            _logger.LogTrace(
+                "[Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
+                "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
+                e.ParcelId,
+                e.ChuteId,
+                parcelRecord.CreatedAt,
+                parcelRecord.UpstreamRequestSentAt,
+                parcelRecord.UpstreamReplyReceivedAt,
+                parcelRecord.RouteBoundAt);
+
+            // 使用 SafeExecutionService 在后台异步重新生成路径
+            if (_safeExecutor != null)
             {
-                // 正常情况：在超时前收到响应，立即完成等待任务
-                _logger.LogInformation(
-                    "[格口分配-接收成功] 包裹 {ParcelId} 成功分配到格口 {ChuteId}，立即完成TCS解除超时等待",
-                    e.ParcelId,
-                    e.ChuteId);
-
-                // 记录路由绑定时间
-                parcelRecord.RouteBoundAt = new DateTimeOffset(receivedAt);
-
-                // 记录路由绑定完成的 Trace 日志
-                _logger.LogTrace(
-                    "[Parcel-First] 路由绑定完成: ParcelId={ParcelId}, ChuteId={ChuteId}, " +
-                    "时间顺序: Created={CreatedAt:o} -> RequestSent={RequestAt:o} -> ReplyReceived={ReplyAt:o} -> RouteBound={BoundAt:o}",
-                    e.ParcelId,
-                    e.ChuteId,
-                    parcelRecord.CreatedAt,
-                    parcelRecord.UpstreamRequestSentAt,
-                    parcelRecord.UpstreamReplyReceivedAt,
-                    parcelRecord.RouteBoundAt);
-
-                // ⚠️ 关键：立即完成TCS，解除GetChuteFromUpstreamAsync的超时等待
-                var taskCompleted = tcs.TrySetResult(e.ChuteId);
-
-                var barcodeSuffix = GetBarcodeSuffix(e.ParcelId);
-                _logger.LogDebug(
-                    "[格口分配-TCS完成] 包裹 {ParcelId}{BarcodeSuffix} 的TaskCompletionSource{Result}",
-                    e.ParcelId,
-                    barcodeSuffix,
-                    taskCompleted ? "已成功设置结果" : "设置结果失败（可能已被取消或超时）");
-
-                // 在后台异步更新 RoutePlan（不阻塞主流程）
-                // 使用 SafeExecutionService 将数据库操作移到后台执行
-                if (_safeExecutor != null)
-                {
-                    _ = _safeExecutor.ExecuteAsync(
-                        async () =>
-                        {
-                            try
-                            {
-                                await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
-
-                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                                _logger.LogDebug(
-                                    "[格口分配-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已成功更新为格口 {ChuteId}",
-                                    e.ParcelId,
-                                    barcodeSuffixInner,
-                                    e.ChuteId);
-                            }
-                            catch (Exception ex)
-                            {
-                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                                _logger.LogError(
-                                    ex,
-                                    "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
-                                    e.ParcelId,
-                                    barcodeSuffixInner,
-                                    e.ChuteId);
-                            }
-                        },
-                        operationName: "SortingOrchestrator.OnChuteAssignmentReceived_RoutePlanUpdate");
-                }
-                else
-                {
-                    // 降级：如果 SafeExecutionService 不可用，使用 Task.Run
-                    _ = Task.Run(async () =>
+                _ = _safeExecutor.ExecuteAsync(
+                    async () =>
                     {
                         try
                         {
+                            // 重新生成路径并替换队列任务
+                            await RegenerateAndReplaceQueueTasksAsync(e.ParcelId, e.ChuteId);
+                            
+                            // 更新 RoutePlan
                             await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
 
                             var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                            _logger.LogDebug(
-                                "[格口分配-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已成功更新为格口 {ChuteId}",
+                            _logger.LogInformation(
+                                "[TD-088-路径更新成功] 包裹 {ParcelId}{BarcodeSuffix} 的路径和RoutePlan已成功更新为格口 {ChuteId}",
                                 e.ParcelId,
                                 barcodeSuffixInner,
                                 e.ChuteId);
@@ -2196,86 +1987,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                             var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                             _logger.LogError(
                                 ex,
-                                "[格口分配-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
+                                "[TD-088-路径更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的路径时发生错误 (ChuteId={ChuteId})",
                                 e.ParcelId,
                                 barcodeSuffixInner,
                                 e.ChuteId);
                         }
-                    });
-                }
-
-                // 不在此处移除TCS，由GetChuteFromUpstreamAsync的finally块统一清理
-            }
-            else
-            {
-                // 迟到的响应：包裹已经超时并被路由到异常口
-                _logger.LogWarning(
-                    "【迟到路由响应】收到包裹 {ParcelId} 的格口分配 (ChuteId={ChuteId})，" +
-                    "但该包裹已因超时被路由到异常口（_pendingAssignments中未找到对应的TCS）。" +
-                    "接收时间={ReceivedAt:yyyy-MM-dd HH:mm:ss.fff}，将在后台更新RoutePlan记录正确的目标格口",
-                    e.ParcelId,
-                    e.ChuteId,
-                    receivedAt);
-
-                // 即使迟到，仍然在后台更新 RoutePlan 以保留正确的历史记录
-                // 使用 SafeExecutionService 包裹后台任务
-                if (_safeExecutor != null)
-                {
-                    _ = _safeExecutor.ExecuteAsync(
-                        async () =>
-                        {
-                            try
-                            {
-                                await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
-
-                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                                _logger.LogDebug(
-                                    "[迟到响应-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
-                                    e.ParcelId,
-                                    barcodeSuffixInner,
-                                    e.ChuteId);
-                            }
-                            catch (Exception ex)
-                            {
-                                var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                                _logger.LogError(
-                                    ex,
-                                    "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
-                                    e.ParcelId,
-                                    barcodeSuffixInner,
-                                    e.ChuteId);
-                            }
-                        },
-                        operationName: "SortingOrchestrator.OnChuteAssignmentReceived_LateRoutePlanUpdate");
-                }
-                else
-                {
-                    // 降级：如果 SafeExecutionService 不可用，使用 Task.Run
-                    _ = Task.Run(async () =>
-                    {
-                        try
-                        {
-                            await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
-
-                            var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                            _logger.LogDebug(
-                                "[迟到响应-RoutePlan已更新] 包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan已更新为格口 {ChuteId}（虽然实际已路由到异常口）",
-                                e.ParcelId,
-                                barcodeSuffixInner,
-                                e.ChuteId);
-                        }
-                        catch (Exception ex)
-                        {
-                            var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
-                            _logger.LogError(
-                                ex,
-                                "[迟到响应-RoutePlan更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的RoutePlan时发生错误 (ChuteId={ChuteId})",
-                                e.ParcelId,
-                                barcodeSuffixInner,
-                                e.ChuteId);
-                        }
-                    });
-                }
+                    },
+                    operationName: "SortingOrchestrator.OnChuteAssignmentReceived_AsyncPathUpdate");
             }
         }
         catch (Exception ex)
@@ -2286,6 +2004,87 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "[格口分配-严重错误] OnChuteAssignmentReceived 发生未处理异常: ParcelId={ParcelId}, ChuteId={ChuteId}",
                 e?.ParcelId ?? 0,
                 e?.ChuteId ?? 0);
+        }
+    }
+
+    /// <summary>
+    /// TD-088: 重新生成路径并替换队列任务（异步非阻塞路由）
+    /// </summary>
+    /// <remarks>
+    /// 当上游响应到达时，使用新的目标格口重新生成路径并替换队列中的旧任务。
+    /// 用于实现非阻塞路由：包裹先用异常格口入队，上游响应到达后异步更新路径。
+    /// </remarks>
+    private async Task RegenerateAndReplaceQueueTasksAsync(long parcelId, long newTargetChuteId)
+    {
+        if (_queueManager == null)
+        {
+            _logger.LogError(
+                "[TD-088-路径重生成失败] QueueManager 未配置，无法重新生成包裹 {ParcelId} 的路径",
+                parcelId);
+            return;
+        }
+
+        var barcodeSuffix = GetBarcodeSuffix(parcelId);
+        
+        _logger.LogInformation(
+            "[TD-088-路径重生成] 开始为包裹 {ParcelId}{BarcodeSuffix} 重新生成到格口 {ChuteId} 的路径",
+            parcelId,
+            barcodeSuffix,
+            newTargetChuteId);
+
+        // 1. 从所有队列中移除旧任务
+        var removedCount = _queueManager.RemoveAllTasksForParcel(parcelId);
+        
+        _logger.LogInformation(
+            "[TD-088-旧任务移除] 包裹 {ParcelId}{BarcodeSuffix} 从队列中移除了 {RemovedCount} 个旧任务",
+            parcelId,
+            barcodeSuffix,
+            removedCount);
+
+        // 2. 重新生成到新格口的任务
+        var newTasks = _pathGenerator.GenerateQueueTasks(
+            parcelId,
+            newTargetChuteId,
+            _clock.LocalNow);
+
+        if (newTasks == null || newTasks.Count == 0)
+        {
+            _logger.LogError(
+                "[TD-088-路径重生成失败] 包裹 {ParcelId}{BarcodeSuffix} 无法生成到格口 {ChuteId} 的路径，包裹可能已完成分拣",
+                parcelId,
+                barcodeSuffix,
+                newTargetChuteId);
+            return;
+        }
+
+        // 3. 将新任务加入队列
+        foreach (var task in newTasks)
+        {
+            _queueManager.EnqueueTask(task.PositionIndex, task);
+        }
+
+        // 4. 更新目标格口映射
+        _parcelTargetChutes[parcelId] = newTargetChuteId;
+
+        _logger.LogInformation(
+            "[TD-088-新任务入队] 包裹 {ParcelId}{BarcodeSuffix} 重新生成了 {TaskCount} 个任务并加入队列，目标格口={ChuteId}",
+            parcelId,
+            barcodeSuffix,
+            newTasks.Count,
+            newTargetChuteId);
+
+        // 5. 记录 Trace 日志
+        if (_traceSink != null)
+        {
+            await _traceSink.WriteAsync(new ParcelTraceEventArgs
+            {
+                ItemId = parcelId,
+                BarCode = null,
+                OccurredAt = new DateTimeOffset(_clock.LocalNow),
+                Stage = "PathRegenerated",
+                Source = "TD-088",
+                Details = $"RemovedTasks={removedCount}, NewTasks={newTasks.Count}, NewTargetChute={newTargetChuteId}"
+            });
         }
     }
 
@@ -2632,24 +2431,24 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     ///   <item>创建记录 (_createdParcels)</item>
     ///   <item>目标格口映射 (_parcelTargetChutes)</item>
     ///   <item>路径信息 (_parcelPaths)</item>
-    ///   <item>待处理分配 (_pendingAssignments)</item>
     ///   <item>超时补偿标记 (_timeoutCompensationInserted)</item>
     ///   <item>位置追踪记录 (_intervalTracker)</item>
     ///   <item>条码缓存 (_parcelBarcodes)</item>
     /// </list>
+    /// TD-088: 已移除待处理分配 (_pendingAssignments)，不再使用阻塞等待
     /// </remarks>
     private void CleanupParcelMemory(long parcelId)
     {
         _createdParcels.TryRemove(parcelId, out _);
         _parcelTargetChutes.TryRemove(parcelId, out _);
         _parcelPaths.TryRemove(parcelId, out _);
-        _pendingAssignments.TryRemove(parcelId, out _);
+        // TD-088: 已移除 _pendingAssignments（不再使用阻塞等待）
         _timeoutCompensationInserted.TryRemove(parcelId, out _);
         _parcelBarcodes.TryRemove(parcelId, out _);
         _intervalTracker?.ClearParcelTracking(parcelId);
 
         _logger.LogTrace(
-            "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、位置追踪）",
+            "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、超时标记、位置追踪）",
             parcelId);
     }
 
