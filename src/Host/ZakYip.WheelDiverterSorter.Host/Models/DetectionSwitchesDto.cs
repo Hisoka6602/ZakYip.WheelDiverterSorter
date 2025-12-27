@@ -4,7 +4,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Models;
 /// 检测开关配置响应模型
 /// </summary>
 /// <remarks>
-/// 统一管理三个检测开关的配置状态：干扰检测、超时检测、包裹丢失检测
+/// 统一管理两个检测开关的配置状态：干扰检测、超时检测
 /// </remarks>
 public record DetectionSwitchesDto
 {
@@ -35,30 +35,6 @@ public record DetectionSwitchesDto
     /// </remarks>
     /// <example>false</example>
     public bool EnableTimeoutDetection { get; init; }
-
-    /// <summary>
-    /// 包裹丢失检测开关
-    /// </summary>
-    /// <remarks>
-    /// <para><b>控制范围</b>：</para>
-    /// <list type="bullet">
-    /// <item><description>后台主动巡检服务（ParcelLossMonitoringService）：巡检是否执行</description></item>
-    /// <item><description>队列任务的丢失判定字段（LostDetectionDeadline）：是否设置和使用</description></item>
-    /// </list>
-    /// <para><b>启用（true）</b>：</para>
-    /// <list type="bullet">
-    /// <item><description>后台服务定期巡检队列，检测超时丢失的包裹</description></item>
-    /// <item><description>包裹超过阈值未到达时，触发丢失处理（清除任务、记录日志、触发事件）</description></item>
-    /// </list>
-    /// <para><b>禁用（false）</b>：</para>
-    /// <list type="bullet">
-    /// <item><description>后台服务跳过所有巡检逻辑，不执行任何检测</description></item>
-    /// <item><description>包裹不会因为超时/丢失而被自动移除，只能通过正常到达或手动清空队列</description></item>
-    /// </list>
-    /// <para><b>默认值</b>：false（禁用检测，不自动清理丢失包裹）</para>
-    /// </remarks>
-    /// <example>false</example>
-    public bool EnableParcelLossDetection { get; init; }
 
     /// <summary>
     /// 最后更新时间
@@ -97,17 +73,4 @@ public record UpdateDetectionSwitchesRequest
     /// </remarks>
     /// <example>false</example>
     public bool? EnableTimeoutDetection { get; init; }
-
-    /// <summary>
-    /// 包裹丢失检测开关
-    /// </summary>
-    /// <remarks>
-    /// <para>可选参数，如不提供则保持当前值不变</para>
-    /// <para>控制整个包裹丢失检测功能的开关</para>
-    /// <para>true: 启用丢失检测和超时检测</para>
-    /// <para>false: 关闭所有检测，包裹不会因超时或丢失而被移除</para>
-    /// <para>默认值为 false（禁用检测，不自动清理丢失包裹）</para>
-    /// </remarks>
-    /// <example>false</example>
-    public bool? EnableParcelLossDetection { get; init; }
 }

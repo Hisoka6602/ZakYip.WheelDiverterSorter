@@ -251,14 +251,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             return repository;
         });
 
-        // 注册包裹丢失检测配置仓储为单例
-        services.AddSingleton<IParcelLossDetectionConfigurationRepository>(serviceProvider =>
-        {
-            var repository = new LiteDbParcelLossDetectionConfigurationRepository(fullDatabasePath);
-            repository.InitializeDefault();
-            return repository;
-        });
-
         // 注册面板配置仓储为单例
         services.AddSingleton<IPanelConfigurationRepository>(serviceProvider =>
         {

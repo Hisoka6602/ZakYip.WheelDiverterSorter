@@ -36,26 +36,20 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     private readonly ILogger<PositionIndexQueueManager> _logger;
     private readonly ISystemClock _clock;
     private readonly IPositionIntervalTracker? _intervalTracker;
-    private readonly IParcelLossDetectionConfigurationRepository? _configRepository;
 
     public PositionIndexQueueManager(
         ILogger<PositionIndexQueueManager> logger,
         ISystemClock clock,
-        IPositionIntervalTracker? intervalTracker = null,
-        IParcelLossDetectionConfigurationRepository? configRepository = null)
+        IPositionIntervalTracker? intervalTracker = null)
     {
         _logger = logger;
         _clock = clock;
         _intervalTracker = intervalTracker;
-        _configRepository = configRepository;
     }
 
     /// <inheritdoc/>
     public void EnqueueTask(int positionIndex, PositionQueueItem task)
     {
-        // 应用丢失检测阈值（基于输送线配置）
-        task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
-        
         var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
         
@@ -74,9 +68,6 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     /// <inheritdoc/>
     public void EnqueuePriorityTask(int positionIndex, PositionQueueItem task)
     {
-        // 应用丢失检测阈值（基于输送线配置）
-        task = ApplyDynamicLostDetectionDeadline(task, positionIndex);
-        
         var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
         var queue = _queues.GetOrAdd(positionIndex, _ => new ConcurrentQueue<PositionQueueItem>());
         
@@ -428,74 +419,5 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
 
         // 转换为 List 返回
         return affectedParcelIdsSet.ToList();
-    }
-
-    /// <summary>
-    /// 应用丢失检测截止时间（基于输送线配置）
-    /// </summary>
-    /// <param name="task">原始任务</param>
-    /// <param name="positionIndex">位置索引</param>
-    /// <returns>更新后的任务</returns>
-    /// <remarks>
-    /// <para>首先检查配置是否启用包裹丢失检测（IsEnabled）。</para>
-    /// <para>如果禁用，则清除任务的所有丢失检测字段，阻止任何形式的丢失判定。</para>
-    /// <para>如果启用，则使用任务中的 TimeoutThresholdMs（来自 ConveyorSegmentConfiguration.TimeToleranceMs）。</para>
-    /// <para>丢失检测阈值 = TimeoutThresholdMs × 1.5，用于区分超时和丢失两种情况。</para>
-    /// <para>⚠️ 重要：不再使用中位数计算，所有判断均基于输送线配置。</para>
-    /// </remarks>
-    private PositionQueueItem ApplyDynamicLostDetectionDeadline(PositionQueueItem task, int positionIndex)
-    {
-        // 检查是否启用了包裹丢失检测
-        bool isDetectionEnabled = true; // 默认启用（安全策略）
-        if (_configRepository != null)
-        {
-            try
-            {
-                var config = _configRepository.Get();
-                isDetectionEnabled = config.IsEnabled;
-            }
-            catch (Exception ex)
-            {
-                // 配置读取失败，使用默认值（启用）
-                _logger.LogWarning(ex, "读取包裹丢失检测配置失败，使用默认值（启用）");
-            }
-        }
-        
-        // 如果检测被禁用，清除所有丢失检测相关字段
-        if (!isDetectionEnabled)
-        {
-            _logger.LogDebug(
-                "[检测已禁用] Position {PositionIndex} 包裹 {ParcelId}: 包裹丢失检测已禁用，清除丢失判定字段",
-                positionIndex, task.ParcelId);
-            
-            return task with
-            {
-                LostDetectionTimeoutMs = null,
-                LostDetectionDeadline = null
-            };
-        }
-        
-        // 检测已启用，使用输送线配置（TimeoutThresholdMs）计算丢失检测阈值
-        // 如果任务已有 ExpectedArrivalTime 和 TimeoutThresholdMs，计算丢失检测截止时间
-        if (task.ExpectedArrivalTime != default && task.TimeoutThresholdMs > 0)
-        {
-            // 使用 TimeoutThresholdMs × 1.5 作为丢失检测阈值
-            // 这确保丢失判定比超时判定更宽松，用于区分"超时"和"物理丢失"两种情况
-            var lostDetectionThreshold = task.TimeoutThresholdMs * 1.5;
-            var newDeadline = task.ExpectedArrivalTime.AddMilliseconds(lostDetectionThreshold);
-            
-            _logger.LogDebug(
-                "[配置阈值] Position {PositionIndex} 包裹 {ParcelId}: 使用输送线配置阈值 {ThresholdMs}ms (TimeoutThreshold × 1.5)，截止时间 {Deadline:HH:mm:ss.fff}",
-                positionIndex, task.ParcelId, lostDetectionThreshold, newDeadline);
-            
-            return task with
-            {
-                LostDetectionTimeoutMs = (long)lostDetectionThreshold,
-                LostDetectionDeadline = newDeadline
-            };
-        }
-        
-        // 如果无法计算（缺少必要字段），返回原任务
-        return task;
     }
 }
