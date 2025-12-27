@@ -403,6 +403,10 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 注册输送线段配置服务
         services.AddSingleton<IConveyorSegmentService, ConveyorSegmentService>();
+        
+        // 注册 IConveyorSegmentQuery 映射到 IConveyorSegmentService（用于热路径查询）
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentQuery>(
+            sp => sp.GetRequiredService<IConveyorSegmentService>());
 
         // 注册分拣编排服务（支持Client和Server模式通知）
         services.AddSingleton<ISortingOrchestrator>(sp =>
@@ -430,7 +434,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             // 新的 Position-Index 队列系统依赖
             var queueManager = sp.GetService<IPositionIndexQueueManager>();
             var topologyService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChutePathTopologyService>();
-            var conveyorSegmentService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentService>();
+            var conveyorSegmentQuery = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IConveyorSegmentQuery>();
             var vendorConfigService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IVendorConfigService>();
             var safeExecutor = sp.GetService<ISafeExecutionService>();
             var intervalTracker = sp.GetService<Execution.Tracking.IPositionIntervalTracker>();
@@ -460,7 +464,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 chuteSelectionService,
                 queueManager,
                 topologyService,
-                conveyorSegmentService,
+                conveyorSegmentQuery,
                 vendorConfigService,
                 safeExecutor,
                 intervalTracker,
