@@ -151,6 +151,20 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
     }
 
     /// <inheritdoc/>
+    public PositionQueueItem? PeekNextTask(int positionIndex)
+    {
+        if (!_queues.TryGetValue(positionIndex, out var queue))
+        {
+            return null;
+        }
+
+        // ConcurrentQueue 不支持直接访问第二个元素
+        // 需要转换为数组后访问
+        var tasks = queue.ToArray();
+        return tasks.Length >= 2 ? tasks[1] : null;
+    }
+
+    /// <inheritdoc/>
     public void ClearAllQueues()
     {
         var clearedCount = 0;
