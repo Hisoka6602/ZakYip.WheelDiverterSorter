@@ -445,4 +445,99 @@ public class DelayedIoLinkageDriverDecoratorTests
     }
 
     #endregion
+
+    #region 批量操作容错性场景 (TD-IOLINKAGE-003)
+
+    [Fact(DisplayName = "批量设置IO点时部分失败应收集所有结果")]
+    public async Task SetIoPointsAsync_PartialFailure_CollectsAllResults()
+    {
+        // Arrange - 3个IO点，第2个会失败
+        var ioPoints = new[]
+        {
+            new IoLinkagePoint { BitNumber = 1, Level = TriggerLevel.ActiveHigh, DelayMilliseconds = 0 },
+            new IoLinkagePoint { BitNumber = 2, Level = TriggerLevel.ActiveLow, DelayMilliseconds = 0 },
+            new IoLinkagePoint { BitNumber = 3, Level = TriggerLevel.ActiveHigh, DelayMilliseconds = 0 }
+        };
+
+        var setupCallCount = 0;
+        _mockInnerDriver.Setup(d => d.SetIoPointAsync(It.IsAny<IoLinkagePoint>(), It.IsAny<CancellationToken>()))
+            .Returns<IoLinkagePoint, CancellationToken>((point, ct) =>
+            {
+                setupCallCount++;
+                // 第2个IO点失败
+                if (point.BitNumber == 2)
+                {
+                    return Task.FromException(new InvalidOperationException($"模拟IO点 {point.BitNumber} 失败"));
+                }
+                return Task.CompletedTask;
+            });
+
+        // Act & Assert - 应该抛出AggregateException，包含1个内部异常
+        var exception = await Assert.ThrowsAsync<AggregateException>(() => 
+            _decorator.SetIoPointsAsync(ioPoints));
+
+        // 验证所有IO点都尝试过（包括失败的）
+        Assert.Equal(3, setupCallCount);
+        
+        // 验证AggregateException包含正确的内部异常数量
+        Assert.Single(exception.InnerExceptions);
+        Assert.Contains("模拟IO点 2 失败", exception.InnerExceptions[0].Message);
+        
+        // 验证成功的IO点也被调用了
+        _mockInnerDriver.Verify(d => d.SetIoPointAsync(
+            It.Is<IoLinkagePoint>(p => p.BitNumber == 1), 
+            It.IsAny<CancellationToken>()), Times.Once);
+        _mockInnerDriver.Verify(d => d.SetIoPointAsync(
+            It.Is<IoLinkagePoint>(p => p.BitNumber == 3), 
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "批量设置IO点全部成功时不抛异常")]
+    public async Task SetIoPointsAsync_AllSuccess_NoException()
+    {
+        // Arrange - 3个IO点，全部成功
+        var ioPoints = new[]
+        {
+            new IoLinkagePoint { BitNumber = 1, Level = TriggerLevel.ActiveHigh, DelayMilliseconds = 0 },
+            new IoLinkagePoint { BitNumber = 2, Level = TriggerLevel.ActiveLow, DelayMilliseconds = 0 },
+            new IoLinkagePoint { BitNumber = 3, Level = TriggerLevel.ActiveHigh, DelayMilliseconds = 0 }
+        };
+
+        _mockInnerDriver.Setup(d => d.SetIoPointAsync(It.IsAny<IoLinkagePoint>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        // Act - 不应抛出异常
+        await _decorator.SetIoPointsAsync(ioPoints);
+
+        // Assert - 验证所有IO点都被调用
+        _mockInnerDriver.Verify(d => d.SetIoPointAsync(It.IsAny<IoLinkagePoint>(), It.IsAny<CancellationToken>()), 
+            Times.Exactly(3));
+    }
+
+    [Fact(DisplayName = "批量设置IO点全部失败时应抛出包含所有错误的AggregateException")]
+    public async Task SetIoPointsAsync_AllFailure_ThrowsAggregateExceptionWithAllErrors()
+    {
+        // Arrange - 3个IO点，全部失败
+        var ioPoints = new[]
+        {
+            new IoLinkagePoint { BitNumber = 1, Level = TriggerLevel.ActiveHigh, DelayMilliseconds = 0 },
+            new IoLinkagePoint { BitNumber = 2, Level = TriggerLevel.ActiveLow, DelayMilliseconds = 0 },
+            new IoLinkagePoint { BitNumber = 3, Level = TriggerLevel.ActiveHigh, DelayMilliseconds = 0 }
+        };
+
+        _mockInnerDriver.Setup(d => d.SetIoPointAsync(It.IsAny<IoLinkagePoint>(), It.IsAny<CancellationToken>()))
+            .Returns<IoLinkagePoint, CancellationToken>((point, ct) =>
+                Task.FromException(new InvalidOperationException($"IO点 {point.BitNumber} 失败")));
+
+        // Act & Assert - 应该抛出AggregateException，包含3个内部异常
+        var exception = await Assert.ThrowsAsync<AggregateException>(() => 
+            _decorator.SetIoPointsAsync(ioPoints));
+
+        // 验证AggregateException包含所有3个错误
+        Assert.Equal(3, exception.InnerExceptions.Count);
+        Assert.All(exception.InnerExceptions, ex => 
+            Assert.IsType<InvalidOperationException>(ex));
+    }
+
+    #endregion
 }
