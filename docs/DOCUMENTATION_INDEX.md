@@ -17,6 +17,8 @@
 | [ARCHITECTURE_PRINCIPLES.md](ARCHITECTURE_PRINCIPLES.md) | 架构原则 |
 | [CODING_GUIDELINES.md](CODING_GUIDELINES.md) | 编码规范 |
 | [TOPOLOGY_LINEAR_N_DIVERTERS.md](TOPOLOGY_LINEAR_N_DIVERTERS.md) | N 摆轮线性拓扑模型（PR-TOPO02） |
+| [CORE_ROUTING_LOGIC.md](CORE_ROUTING_LOGIC.md) | **核心路由逻辑（包裹路由与位置索引队列机制）** |
+| [EARLY_ARRIVAL_HANDLING.md](EARLY_ARRIVAL_HANDLING.md) | **早到包裹处理机制说明（提前触发检测详解）** |
 | [../.github/copilot-instructions.md](../.github/copilot-instructions.md) | Copilot 约束说明 |
 
 ## 系统能力与技术分析
