@@ -194,4 +194,41 @@ public class PositionIntervalTrackerTests
         var stats = _tracker.GetStatistics(1);
         Assert.Null(stats); // 没有任何间隔数据
     }
+
+    /// <summary>
+    /// 测试：无效的 ParcelId（小于等于0）应该被拒绝
+    /// </summary>
+    [Fact]
+    public void RecordParcelPosition_WithInvalidParcelId_ShouldBeRejected()
+    {
+        // Arrange
+        var now = new DateTime(2025, 12, 27, 10, 0, 0);
+        _mockClock.Setup(c => c.LocalNow).Returns(now);
+
+        // Act & Assert: 尝试记录 ParcelId = 0
+        _tracker.RecordParcelPosition(0, 0, now);
+        _tracker.RecordParcelPosition(0, 1, now.AddSeconds(5));
+
+        // 验证 ParcelId = 0 没有被追踪
+        var stats = _tracker.GetStatistics(1);
+        Assert.Null(stats); // 不应该有任何间隔数据
+
+        // Act & Assert: 尝试记录 ParcelId = -1
+        _tracker.RecordParcelPosition(-1, 0, now);
+        _tracker.RecordParcelPosition(-1, 1, now.AddSeconds(5));
+
+        // 验证 ParcelId = -1 没有被追踪
+        stats = _tracker.GetStatistics(1);
+        Assert.Null(stats); // 不应该有任何间隔数据
+
+        // 验证警告日志被记录（ParcelId <= 0）
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("拒绝记录无效的包裹ID")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeast(2)); // 至少应该有2次警告（ParcelId=0 和 ParcelId=-1）
+    }
 }

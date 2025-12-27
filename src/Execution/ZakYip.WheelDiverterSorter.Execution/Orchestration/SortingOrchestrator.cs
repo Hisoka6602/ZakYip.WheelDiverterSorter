@@ -1226,6 +1226,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     _topologyRepository != null);
             }
 
+            // 验证 ParcelId 有效性（防止 ParcelId=0 等无效值进入分拣流程）
+            if (e.ParcelId <= 0)
+            {
+                _logger.LogWarning(
+                    "[无效ParcelId] 检测到无效的包裹ID {ParcelId}，传感器 {SensorId} 可能未正确配置为 WheelFront 类型。" +
+                    "ParcelId <= 0 表示非包裹创建事件，不应进入正常分拣流程。请检查传感器配置和缓存初始化状态。",
+                    e.ParcelId,
+                    e.SensorId);
+                return;
+            }
+
             // 默认行为：ParcelCreation 传感器，创建新包裹并进入正常分拣流程
             _logger.LogInformation(
                 "[ParcelCreation触发] 检测到包裹创建传感器触发，开始处理包裹: ParcelId={ParcelId}, SensorId={SensorId}",
