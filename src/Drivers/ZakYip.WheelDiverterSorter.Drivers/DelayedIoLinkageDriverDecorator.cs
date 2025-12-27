@@ -131,10 +131,62 @@ public class DelayedIoLinkageDriverDecorator : IIoLinkageDriver
     /// <inheritdoc/>
     public async Task SetIoPointsAsync(IEnumerable<IoLinkagePoint> ioPoints, CancellationToken cancellationToken = default)
     {
-        // 使用信号量限制并发执行，避免任务爆炸
-        // 立即执行的IO点不消耗信号量，只有延迟的IO点才会限制并发
-        var tasks = ioPoints.Select(ioPoint => SetIoPointAsync(ioPoint, cancellationToken));
-        await Task.WhenAll(tasks);
+        // TD-IOLINKAGE-003: 改进批量操作 - 收集所有结果而非快速失败
+        // 原因：
+        // 1. 需要支持并发处理延迟 IO 点（提高性能）
+        // 2. 但必须正确处理部分失败的情况
+        // 3. 即使部分 IO 点失败，其他 IO 点应该继续执行
+        
+        var ioPointsList = ioPoints.ToList();
+        _logger.LogInformation(
+            "批量设置 IO 点（装饰器层），共 {Count} 个",
+            ioPointsList.Count);
+        
+        // 为每个 IO 点创建任务，但不立即抛出异常
+        var tasks = ioPointsList.Select(async ioPoint =>
+        {
+            try
+            {
+                await SetIoPointAsync(ioPoint, cancellationToken);
+                return (Success: true, IoPoint: ioPoint, Error: (Exception?)null);
+            }
+            catch (Exception ex)
+            {
+                // 捕获异常但不立即抛出，而是返回结果
+                _logger.LogWarning(
+                    ex,
+                    "IO 点 {BitNumber} 设置失败（装饰器层），将继续处理其他 IO 点",
+                    ioPoint.BitNumber);
+                return (Success: false, IoPoint: ioPoint, Error: (Exception?)ex);
+            }
+        }).ToList();
+        
+        // 等待所有任务完成（即使有些失败）
+        var results = await Task.WhenAll(tasks);
+        
+        // 统计结果
+        var failures = results.Where(r => !r.Success).ToList();
+        var successes = results.Where(r => r.Success).ToList();
+        
+        _logger.LogInformation(
+            "批量设置 IO 点完成（装饰器层）: 成功 {SuccessCount}/{TotalCount}",
+            successes.Count,
+            ioPointsList.Count);
+        
+        // 如果有失败的 IO 点，抛出聚合异常
+        if (failures.Count > 0)
+        {
+            var failedBits = string.Join(", ", failures.Select(f => f.IoPoint.BitNumber));
+            _logger.LogError(
+                "批量设置 IO 点部分失败（装饰器层）: 成功 {SuccessCount}/{TotalCount}, 失败 IO 点: {FailedBits}",
+                successes.Count,
+                ioPointsList.Count,
+                failedBits);
+            
+            throw new AggregateException(
+                $"批量设置 IO 点失败: 成功 {successes.Count}/{ioPointsList.Count}, 失败 IO 点: {failedBits}",
+                failures.Select(f => f.Error!));
+        }
     }
 
     /// <inheritdoc/>

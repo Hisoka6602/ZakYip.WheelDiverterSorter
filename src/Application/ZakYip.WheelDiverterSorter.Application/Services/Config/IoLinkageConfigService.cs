@@ -160,6 +160,24 @@ public class IoLinkageConfigService : IIoLinkageConfigService
                 }).ToList()
             };
         }
+        catch (AggregateException aggEx)
+        {
+            // TD-IOLINKAGE-004: 特别处理聚合异常，提供更详细的错误信息
+            var innerMessages = string.Join("; ", aggEx.InnerExceptions.Select(e => e.Message));
+            _logger.LogError(
+                aggEx,
+                "触发 IO 联动部分失败: SystemState={SystemState}, 错误数量={ErrorCount}, 详细信息={Details}",
+                systemState,
+                aggEx.InnerExceptions.Count,
+                innerMessages);
+            
+            return new IoLinkageTriggerResult
+            {
+                Success = false,
+                SystemState = systemState.ToString(),
+                ErrorMessage = $"触发 IO 联动部分失败 ({aggEx.InnerExceptions.Count} 个错误): {innerMessages}"
+            };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "触发 IO 联动失败: SystemState={SystemState}", systemState);
@@ -167,7 +185,7 @@ public class IoLinkageConfigService : IIoLinkageConfigService
             {
                 Success = false,
                 SystemState = systemState.ToString(),
-                ErrorMessage = "触发 IO 联动失败"
+                ErrorMessage = $"触发 IO 联动失败: {ex.Message}"
             };
         }
     }

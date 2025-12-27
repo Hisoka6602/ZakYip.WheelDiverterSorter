@@ -23,6 +23,16 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     /// </summary>
     private const short ErrorCodeCardNotInitialized = 9;
 
+    /// <summary>
+    /// 设置 IO 点时的最大重试次数（针对瞬时错误）
+    /// </summary>
+    private const int MaxSetIoRetries = 3;
+
+    /// <summary>
+    /// 重试间隔（毫秒）
+    /// </summary>
+    private const int RetryDelayMs = 50;
+
     private readonly ILogger<LeadshineIoLinkageDriver> _logger;
     private readonly IEmcController _emcController;
     private readonly IInputPort _inputPort;
@@ -38,7 +48,73 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     }
 
     /// <inheritdoc/>
-    public Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken = default)
+    public async Task SetIoPointAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken = default)
+    {
+        int attempt = 0;
+        Exception? lastException = null;
+
+        // TD-IOLINKAGE-002: 添加重试逻辑处理瞬时错误
+        // 原因：网络通信或硬件瞬时故障可能导致单次操作失败，但重试可能成功
+        while (attempt < MaxSetIoRetries)
+        {
+            attempt++;
+            
+            try
+            {
+                await SetIoPointInternalAsync(ioPoint, cancellationToken);
+                
+                // 成功则返回
+                if (attempt > 1)
+                {
+                    _logger.LogInformation(
+                        "设置 IO 点成功（第 {Attempt} 次尝试）: BitNumber={BitNumber}",
+                        attempt,
+                        ioPoint.BitNumber);
+                }
+                return;
+            }
+            catch (InvalidOperationException ex)
+            {
+                lastException = ex;
+                
+                // 如果是最后一次尝试，抛出异常
+                if (attempt >= MaxSetIoRetries)
+                {
+                    _logger.LogError(
+                        ex,
+                        "设置 IO 点失败（已重试 {Attempts} 次）: BitNumber={BitNumber}",
+                        MaxSetIoRetries,
+                        ioPoint.BitNumber);
+                    throw;
+                }
+                
+                // 否则记录警告并重试
+                _logger.LogWarning(
+                    ex,
+                    "设置 IO 点失败（第 {Attempt}/{MaxRetries} 次尝试），{DelayMs}ms 后重试: BitNumber={BitNumber}",
+                    attempt,
+                    MaxSetIoRetries,
+                    RetryDelayMs,
+                    ioPoint.BitNumber);
+                
+                await Task.Delay(RetryDelayMs, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // 对于非预期异常，记录并立即抛出
+                _logger.LogError(ex, "设置 IO 点时发生非预期异常: BitNumber={BitNumber}", ioPoint.BitNumber);
+                throw;
+            }
+        }
+
+        // 理论上不会到达这里，但为了安全起见
+        throw lastException ?? new InvalidOperationException($"设置 IO 点 {ioPoint.BitNumber} 失败");
+    }
+
+    /// <summary>
+    /// 内部实现：设置单个 IO 点（不包含重试逻辑）
+    /// </summary>
+    private Task SetIoPointInternalAsync(IoLinkagePoint ioPoint, CancellationToken cancellationToken)
     {
         try
         {
@@ -122,16 +198,52 @@ public class LeadshineIoLinkageDriver : IIoLinkageDriver
     public async Task SetIoPointsAsync(IEnumerable<IoLinkagePoint> ioPoints, CancellationToken cancellationToken = default)
     {
         var ioPointsList = ioPoints.ToList();
+        var errors = new List<(int BitNumber, Exception Exception)>();
+        int successCount = 0;
 
         _logger.LogInformation("批量设置 IO 点，共 {Count} 个", ioPointsList.Count);
 
+        // TD-IOLINKAGE-001: 改进批量设置逻辑 - 即使部分失败也继续处理其他 IO 点
+        // 原因：避免一个 IO 点失败导致整个批次失败，造成设备状态不一致
         foreach (var ioPoint in ioPointsList)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await SetIoPointAsync(ioPoint, cancellationToken);
+            
+            try
+            {
+                await SetIoPointAsync(ioPoint, cancellationToken);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                // 记录错误但继续处理其他 IO 点
+                _logger.LogWarning(
+                    ex,
+                    "设置 IO 点 {BitNumber} 失败，继续处理其他 IO 点（已成功: {SuccessCount}, 失败: {FailureCount}）",
+                    ioPoint.BitNumber,
+                    successCount,
+                    errors.Count + 1);
+                errors.Add((ioPoint.BitNumber, ex));
+            }
         }
 
-        _logger.LogInformation("批量设置 IO 点完成");
+        // 如果有错误，记录汇总信息
+        if (errors.Count > 0)
+        {
+            var failedBits = string.Join(", ", errors.Select(e => e.BitNumber));
+            _logger.LogError(
+                "批量设置 IO 点部分失败: 成功 {SuccessCount}/{TotalCount}, 失败 IO 点: {FailedBits}",
+                successCount,
+                ioPointsList.Count,
+                failedBits);
+
+            // 抛出聚合异常，包含所有失败的详细信息
+            throw new AggregateException(
+                $"批量设置 IO 点失败: 成功 {successCount}/{ioPointsList.Count}, 失败 IO 点: {failedBits}",
+                errors.Select(e => e.Exception));
+        }
+
+        _logger.LogInformation("批量设置 IO 点全部成功，共 {Count} 个", successCount);
     }
 
     /// <inheritdoc/>
