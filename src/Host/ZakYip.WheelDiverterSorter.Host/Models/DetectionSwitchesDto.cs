@@ -35,6 +35,22 @@ public record DetectionSwitchesDto
     /// </remarks>
     /// <example>false</example>
     public bool EnableTimeoutDetection { get; init; }
+    
+    /// <summary>
+    /// 干扰信号和提前触发时是否让摆轮直行（直通）
+    /// </summary>
+    /// <remarks>
+    /// <para>控制在以下两种情况下摆轮的行为：</para>
+    /// <list type="bullet">
+    ///   <item><description>队列为空时传感器被触发（干扰信号/残留包裹）</description></item>
+    ///   <item><description>启用提前触发检测且检测到包裹提前到达</description></item>
+    /// </list>
+    /// <para>当启用时（true）：摆轮执行直行（Straight）动作，让包裹通过</para>
+    /// <para>当禁用时（false）：不执行任何摆轮动作（默认行为）</para>
+    /// <para>默认值为 false（保持向后兼容）</para>
+    /// </remarks>
+    /// <example>false</example>
+    public bool PassThroughOnInterference { get; init; }
 
     /// <summary>
     /// 最后更新时间
@@ -73,4 +89,21 @@ public record UpdateDetectionSwitchesRequest
     /// </remarks>
     /// <example>false</example>
     public bool? EnableTimeoutDetection { get; init; }
+    
+    /// <summary>
+    /// 干扰信号和提前触发时是否让摆轮直行（直通）
+    /// </summary>
+    /// <remarks>
+    /// <para>可选参数，如不提供则保持当前值不变</para>
+    /// <para>控制在以下两种情况下摆轮的行为：</para>
+    /// <list type="bullet">
+    ///   <item><description>队列为空时传感器被触发（干扰信号/残留包裹）</description></item>
+    ///   <item><description>启用提前触发检测且检测到包裹提前到达</description></item>
+    /// </list>
+    /// <para>当启用时（true）：摆轮执行直行（Straight）动作，让包裹通过</para>
+    /// <para>当禁用时（false）：不执行任何摆轮动作（默认行为）</para>
+    /// <para>默认值为 false（保持向后兼容）</para>
+    /// </remarks>
+    /// <example>false</example>
+    public bool? PassThroughOnInterference { get; init; }
 }

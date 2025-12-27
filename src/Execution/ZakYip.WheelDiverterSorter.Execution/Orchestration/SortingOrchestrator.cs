@@ -1303,22 +1303,29 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 先窥视队列头部任务（不出队）
         var peekedTask = _queueManager!.PeekTask(positionIndex);
         
+        // 获取系统配置（提前获取以便在两处使用）
+        var systemConfig = _systemConfigRepository.Get();
+        var passThroughOnInterference = systemConfig?.PassThroughOnInterference ?? false;
+        
         if (peekedTask == null)
         {
             // 队列为空但传感器触发 - 可能是输送线上的残留包裹（干扰信号）
-            // 不应记录为超时异常，只记录日志用于监控
             _logger.LogInformation(
                 "[干扰信号] Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - " +
-                "可能是输送线残留包裹，不执行任何动作",
-                positionIndex, sensorId, boundWheelDiverterId);
+                "可能是输送线残留包裹，PassThroughOnInterference={PassThroughOnInterference}",
+                positionIndex, sensorId, boundWheelDiverterId, passThroughOnInterference);
+            
+            // 如果启用了干扰直行开关，执行直行动作
+            if (passThroughOnInterference)
+            {
+                await ExecutePassThroughActionAsync(boundWheelDiverterId, positionIndex, "干扰信号");
+            }
             
             // 不记录为分拣失败，不影响系统统计
-            // RecordSortingFailure(0, isTimeout: true); // 移除此调用
             return;
         }
 
         // 检查是否启用提前触发检测
-        var systemConfig = _systemConfigRepository.Get();
         var enableEarlyTriggerDetection = systemConfig?.EnableEarlyTriggerDetection ?? false;
         
         // 提前触发检测：如果启用且队列任务有 EarliestDequeueTime，检查当前时间是否过早
@@ -1352,13 +1359,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             _logger.LogWarning(
                 "[提前触发检测] Position {PositionIndex} 传感器 {SensorId} 提前触发 {EarlyMs}ms，" +
-                "包裹 {ParcelId} 不出队、不执行动作 | " +
+                "包裹 {ParcelId}，PassThroughOnInterference={PassThroughOnInterference} | " +
                 "当前时间={CurrentTime:HH:mm:ss.fff}, " +
                 "最早出队时间={EarliestTime:HH:mm:ss.fff}, " +
                 "期望到达时间={ExpectedTime:HH:mm:ss.fff}, " +
                 "{SegmentInfo}",
                 positionIndex, sensorId, earlyMs,
                 peekedTask.ParcelId,
+                passThroughOnInterference,
                 currentTime,
                 earliestDequeueTime,
                 peekedTask.ExpectedArrivalTime,
@@ -1367,7 +1375,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 记录为分拣异常（用于监控提前触发频率）
             _alarmService?.RecordSortingFailure();
             
-            // 不出队、不执行动作，直接返回
+            // 如果启用了干扰直行开关，执行直行动作
+            if (passThroughOnInterference)
+            {
+                await ExecutePassThroughActionAsync(peekedTask.DiverterId, positionIndex, "提前触发检测");
+            }
+            
+            // 不出队、直接返回（任务保留在队列中）
             return;
         }
         
@@ -2959,6 +2973,69 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return $",BarCode:{barcode}";
         }
         return string.Empty;
+    }
+    
+    /// <summary>
+    /// 执行摆轮直行（Straight）动作
+    /// </summary>
+    /// <param name="diverterId">摆轮ID</param>
+    /// <param name="positionIndex">位置索引</param>
+    /// <param name="scenario">触发场景（用于日志记录）</param>
+    /// <remarks>
+    /// 在以下两种情况下调用此方法：
+    /// <list type="bullet">
+    /// <item>队列为空时传感器被触发（干扰信号/残留包裹）</item>
+    /// <item>启用提前触发检测且检测到包裹提前到达</item>
+    /// </list>
+    /// <para>仅当 PassThroughOnInterference 配置为 true 时才会调用此方法。</para>
+    /// </remarks>
+    private async Task ExecutePassThroughActionAsync(long diverterId, int positionIndex, string scenario)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "[{Scenario}] Position {PositionIndex} 执行直行动作 (摆轮ID={DiverterId})",
+                scenario, positionIndex, diverterId);
+
+            // 创建单段路径，执行直行动作
+            var singleSegmentPath = new SwitchingPath
+            {
+                TargetChuteId = 0, // 直行场景不涉及目标格口
+                Segments = new List<SwitchingPathSegment>
+                {
+                    new SwitchingPathSegment
+                    {
+                        SequenceNumber = 1,
+                        DiverterId = diverterId,
+                        TargetDirection = DiverterDirection.Straight,
+                        TtlMilliseconds = DefaultSingleActionTimeoutMs
+                    }
+                }.AsReadOnly(),
+                GeneratedAt = _clock.LocalNowOffset,
+                FallbackChuteId = 0
+            };
+
+            var executionResult = await _pathExecutor.ExecuteAsync(singleSegmentPath, default);
+
+            if (!executionResult.IsSuccess)
+            {
+                _logger.LogError(
+                    "[{Scenario}] Position {PositionIndex} 直行动作执行失败: {ErrorMessage}",
+                    scenario, positionIndex, executionResult.FailureReason);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[{Scenario}] Position {PositionIndex} 直行动作执行成功",
+                    scenario, positionIndex);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "[{Scenario}] Position {PositionIndex} 执行直行动作时发生异常",
+                scenario, positionIndex);
+        }
     }
 
     #endregion Helper Methods - 性能优化辅助方法

@@ -182,6 +182,22 @@ public class SystemConfiguration
     /// <para>此为全局开关，通过 /api/sorting/detection-switches 统一控制</para>
     /// </remarks>
     public bool EnableTimeoutDetection { get; set; } = false;
+    
+    /// <summary>
+    /// 干扰信号和提前触发时是否让摆轮直行（直通）
+    /// </summary>
+    /// <remarks>
+    /// <para>控制在以下两种情况下摆轮的行为：</para>
+    /// <list type="bullet">
+    ///   <item><description>队列为空时传感器被触发（干扰信号/残留包裹）</description></item>
+    ///   <item><description>启用提前触发检测且检测到包裹提前到达（EnableEarlyTriggerDetection = true 且当前时间 &lt; EarliestDequeueTime）</description></item>
+    /// </list>
+    /// <para>当启用时（true）：摆轮执行直行（Straight）动作，让包裹通过</para>
+    /// <para>当禁用时（false）：不执行任何摆轮动作（当前默认行为）</para>
+    /// <para>默认值为 false（向后兼容，保持原有行为）</para>
+    /// <para>此为全局开关，通过 /api/sorting/detection-switches 统一控制</para>
+    /// </remarks>
+    public bool PassThroughOnInterference { get; set; } = false;
 
     /// <summary>
     /// 配置版本号
@@ -274,6 +290,7 @@ public class SystemConfiguration
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
             EnableEarlyTriggerDetection = true, // 默认启用提前触发检测，防止包裹错位问题
+            PassThroughOnInterference = false, // 默认不执行直行动作，保持向后兼容
             Version = 1,
             CreatedAt = now,
             UpdatedAt = now

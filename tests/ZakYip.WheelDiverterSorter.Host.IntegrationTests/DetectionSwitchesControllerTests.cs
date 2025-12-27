@@ -40,7 +40,7 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
         
         Assert.True(dataElement.TryGetProperty("enableInterferenceDetection", out _));
         Assert.True(dataElement.TryGetProperty("enableTimeoutDetection", out _));
-        Assert.True(dataElement.TryGetProperty("enableParcelLossDetection", out _));
+        Assert.True(dataElement.TryGetProperty("passThroughOnInterference", out _));
         Assert.True(dataElement.TryGetProperty("updatedAt", out _));
     }
 
@@ -51,7 +51,8 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
         var request = new UpdateDetectionSwitchesRequest
         {
             EnableInterferenceDetection = false,
-            EnableParcelLossDetection = true
+            EnableTimeoutDetection = true,
+            PassThroughOnInterference = true
         };
 
         // Act
@@ -67,8 +68,8 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
         var dataElement = jsonDoc.RootElement.GetProperty("data");
         
         Assert.False(dataElement.GetProperty("enableInterferenceDetection").GetBoolean());
-        Assert.True(dataElement.GetProperty("enableParcelLossDetection").GetBoolean());
-        // Note: We don't assert enableTimeoutDetection here because it depends on conveyor segment configuration
+        Assert.True(dataElement.GetProperty("enableTimeoutDetection").GetBoolean());
+        Assert.True(dataElement.GetProperty("passThroughOnInterference").GetBoolean());
     }
 
     [Fact]
@@ -125,11 +126,11 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
     [Fact]
     public async Task GetDetectionSwitches_AfterUpdate_ShouldReturnUpdatedValues()
     {
-        // Arrange - Update switches to specific values (skip timeout detection as it depends on segment config)
+        // Arrange - Update switches to specific values
         var updateRequest = new UpdateDetectionSwitchesRequest
         {
             EnableInterferenceDetection = true,
-            EnableParcelLossDetection = false
+            PassThroughOnInterference = false
         };
 
         // Act - Update
@@ -147,18 +148,17 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
         var dataElement = jsonDoc.RootElement.GetProperty("data");
         
         Assert.True(dataElement.GetProperty("enableInterferenceDetection").GetBoolean());
-        Assert.False(dataElement.GetProperty("enableParcelLossDetection").GetBoolean());
-        // Note: We don't assert enableTimeoutDetection here because it depends on conveyor segment configuration
+        Assert.False(dataElement.GetProperty("passThroughOnInterference").GetBoolean());
     }
 
     [Fact]
     public async Task UpdateDetectionSwitches_MultiplePartialUpdates_ShouldMaintainOtherValues()
     {
-        // Arrange - Set initial state (skip timeout detection as it depends on segment config)
+        // Arrange - Set initial state
         var initialRequest = new UpdateDetectionSwitchesRequest
         {
             EnableInterferenceDetection = false,
-            EnableParcelLossDetection = true
+            PassThroughOnInterference = true
         };
         await _client.PutAsJsonAsync("/api/sorting/detection-switches", initialRequest);
 
@@ -179,8 +179,32 @@ public class DetectionSwitchesControllerTests : IClassFixture<WebApplicationFact
         // Interference detection should be updated
         Assert.True(dataElement.GetProperty("enableInterferenceDetection").GetBoolean());
         
-        // Parcel loss detection should remain unchanged
-        Assert.True(dataElement.GetProperty("enableParcelLossDetection").GetBoolean());
-        // Note: We don't assert enableTimeoutDetection here because it depends on conveyor segment configuration
+        // PassThroughOnInterference should remain unchanged
+        Assert.True(dataElement.GetProperty("passThroughOnInterference").GetBoolean());
+    }
+    
+    [Fact]
+    public async Task UpdateDetectionSwitches_OnlyPassThroughOnInterference_ShouldReturnSuccess()
+    {
+        // Arrange - Update only PassThroughOnInterference
+        var request = new UpdateDetectionSwitchesRequest
+        {
+            PassThroughOnInterference = true
+        };
+
+        // Act
+        var response = await _client.PutAsJsonAsync("/api/sorting/detection-switches", request);
+
+        // Assert
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        
+        var content = await response.Content.ReadAsStringAsync();
+        Assert.NotNull(content);
+        
+        var jsonDoc = JsonDocument.Parse(content);
+        var dataElement = jsonDoc.RootElement.GetProperty("data");
+        
+        // Verify the updated field
+        Assert.True(dataElement.GetProperty("passThroughOnInterference").GetBoolean());
     }
 }
