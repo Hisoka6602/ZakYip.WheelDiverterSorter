@@ -61,15 +61,9 @@ public class CommunicationConfigService : ICommunicationConfigService
     }
 
     /// <inheritdoc />
-    public CommunicationConfiguration GetConfiguration()
-    {
-        return _configCache.GetOrAdd(CommunicationConfigCacheKey, () => _configRepository.Get());
-    }
-
-    /// <inheritdoc />
     public CommunicationConfiguration GetCommunicationConfiguration()
     {
-        return GetConfiguration(); // Delegate to existing method
+        return _configCache.GetOrAdd(CommunicationConfigCacheKey, () => _configRepository.Get());
     }
 
     /// <inheritdoc />

@@ -13,11 +13,7 @@ namespace ZakYip.WheelDiverterSorter.Application.Services.Config;
 /// </remarks>
 public interface ICommunicationConfigService : CoreConfig.ICommunicationConfigService
 {
-    /// <summary>
-    /// 获取当前通信配置（Application层扩展名称）
-    /// </summary>
-    /// <returns>通信配置</returns>
-    CommunicationConfiguration GetConfiguration();
+    // GetCommunicationConfiguration() inherited from CoreConfig.ICommunicationConfigService
 
     /// <summary>
     /// 更新通信配置
