@@ -44,6 +44,16 @@ public interface IPositionIndexQueueManager
     PositionQueueItem? PeekTask(int positionIndex);
     
     /// <summary>
+    /// 查看指定 position 队列的第二个任务（下一个任务），但不移除
+    /// </summary>
+    /// <param name="positionIndex">Position Index</param>
+    /// <returns>队列第二个任务，如果队列中任务数少于2则返回 null</returns>
+    /// <remarks>
+    /// 用于超时/丢失判断：基于下一个包裹的 EarliestDequeueTime 来区分超时和丢失
+    /// </remarks>
+    PositionQueueItem? PeekNextTask(int positionIndex);
+    
+    /// <summary>
     /// 清空所有 position 的队列
     /// </summary>
     /// <remarks>

@@ -71,6 +71,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 5000ms 作为保守默认值，覆盖大多数摆轮动作场景。
     /// </remarks>
     private const int DefaultSingleActionTimeoutMs = 5000;
+    
+    /// <summary>
+    /// 无目标格口的占位符（用于超时、丢失等异常场景的上游通知）
+    /// </summary>
+    /// <remarks>
+    /// 当包裹超时或丢失时，使用此值表示未成功分配到任何格口。
+    /// 值为 0 是因为合法的格口ID均为正整数。
+    /// </remarks>
+    private const long NoTargetChute = 0;
 
     // 空的可用格口列表（静态共享实例）
     private static readonly IReadOnlyList<long> EmptyAvailableChuteIds = Array.Empty<long>();
@@ -104,7 +113,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     private readonly ISafeExecutionService? _safeExecutor;
     private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
-    private readonly Monitoring.ParcelLossMonitoringService? _lossMonitoringService;
     private readonly AlarmService? _alarmService; // 告警服务（用于失败率统计）
     private readonly ISortingStatisticsService? _statisticsService; // 分拣统计服务
 
@@ -191,7 +199,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
         IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
-        Monitoring.ParcelLossMonitoringService? lossMonitoringService = null, // 包裹丢失监控服务
         AlarmService? alarmService = null, // 告警服务（用于失败率统计）
         ISortingStatisticsService? statisticsService = null, // 分拣统计服务
         IRoutePlanRepository? routePlanRepository = null, // 路由计划仓储（用于保存格口分配）
@@ -231,7 +238,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
         _callbackConfigRepository = callbackConfigRepository;
-        _lossMonitoringService = lossMonitoringService;
         _alarmService = alarmService;
         _statisticsService = statisticsService;
         _routePlanRepository = routePlanRepository;
@@ -265,12 +271,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 订阅系统状态变更事件（用于自动清空队列）
         _systemStateManager.StateChanged += OnSystemStateChanged;
-
-        // TD-LOSS-ORCHESTRATOR-001: 订阅包裹丢失事件
-        if (_lossMonitoringService != null)
-        {
-            _lossMonitoringService.ParcelLostDetected += OnParcelLostDetectedAsync;
-        }
     }
 
     /// <summary>
@@ -1399,146 +1399,125 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             UpdateNextPositionExpectedTime(task, positionIndex, currentTime);
         }
 
-        // IO触发逻辑说明：
-        // 1. 包裹物理丢失的情况由 ParcelLossMonitoringService 主动检测并处理
-        // 2. 既然IO被触发，说明包裹物理上已经到达传感器，不可能是"丢失"
-        // 3. IO触发时只需要判断"超时"（延迟到达）或"正常到达"
-        // 4. 即使包裹延迟很大（如前面包裹丢失导致），也应该正常执行摆轮动作
-
-        // 检查是否超时（延迟到达）
-        // FIX: 读取全局实时配置，确保通过 /api/sorting/detection-switches 的配置变更立即生效
-        // 使用 SystemConfiguration.EnableTimeoutDetection 作为唯一控制源
+        // 新的超时/丢失检测逻辑：
+        // 1. 检查触发时间是否晚于当前包裹的期望到达时间
+        // 2. 如果是，则查看下一个包裹的最早出队时间来区分"超时"和"丢失"
+        //    - 触发时间 < 下一个包裹最早出队时间 → 超时（仅发送上游消息）
+        //    - 触发时间 >= 下一个包裹最早出队时间 → 丢失（发送上游消息 + 删除所有队列任务）
+        
         var enableTimeoutDetection = systemConfig?.EnableTimeoutDetection ?? false;
         
-        // - 启用时：延迟到达判定为"超时"，执行回退动作并插入补偿任务
-        // - 禁用时：不区分"延迟到达"和"正常到达"，一律按正常到达执行主动作
-        var isTimeout = enableTimeoutDetection && 
-                       currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
+        bool isTimeout = false;
+        bool isPacketLoss = false;
 
-        DiverterDirection actionToExecute;
+        if (enableTimeoutDetection && currentTime > task.ExpectedArrivalTime)
+        {
+            // 当前包裹已延迟到达，需要判断是超时还是丢失
+            var nextTask = _queueManager!.PeekNextTask(positionIndex);
+            
+            if (nextTask != null && nextTask.EarliestDequeueTime.HasValue)
+            {
+                // 有下一个包裹，基于其最早出队时间判断
+                if (currentTime < nextTask.EarliestDequeueTime.Value)
+                {
+                    // 触发时间在下一个包裹最早出队时间之前 → 超时
+                    isTimeout = true;
+                    var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+                    _logger.LogWarning(
+                        "[超时检测] 包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，" +
+                        "触发时间={CurrentTime:HH:mm:ss.fff} < 下一个包裹最早出队时间={NextEarliest:HH:mm:ss.fff}",
+                        task.ParcelId, positionIndex, delayMs, currentTime, nextTask.EarliestDequeueTime.Value);
+                }
+                else
+                {
+                    // 触发时间在下一个包裹最早出队时间之后或相等 → 丢失
+                    isPacketLoss = true;
+                    var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+                    _logger.LogError(
+                        "[包裹丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 判定为丢失 (延迟 {DelayMs}ms)，" +
+                        "触发时间={CurrentTime:HH:mm:ss.fff} >= 下一个包裹最早出队时间={NextEarliest:HH:mm:ss.fff}",
+                        task.ParcelId, positionIndex, delayMs, currentTime, nextTask.EarliestDequeueTime.Value);
+                }
+            }
+            else
+            {
+                // 没有下一个包裹（队列中只有当前包裹），判定为超时
+                isTimeout = true;
+                var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+                _logger.LogWarning(
+                    "[超时检测] 包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，队列中无下一个包裹",
+                    task.ParcelId, positionIndex, delayMs);
+            }
+        }
 
         if (isTimeout)
         {
-            var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+            // 超时处理：仅发送上游超时消息，不插入补偿任务，不执行回退动作
             _logger.LogWarning(
-                "包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，使用回退动作 {FallbackAction}",
-                task.ParcelId, positionIndex, delayMs, task.FallbackAction);
-
-            actionToExecute = task.FallbackAction;
-
-            // 超时包裹需要在后续所有 position 插入 Straight 任务到队列头部
-            // 但只在首次超时时插入一次，避免重复插入导致队列堆积
-            if (_timeoutCompensationInserted.TryAdd(task.ParcelId, 0))
-            {
-                // Issue #3: 使用缓存的后续节点列表，避免重复查询和构造
-                if (_subsequentNodesCache.TryGetValue(positionIndex, out var subsequentNodes) && subsequentNodes.Any())
-                {
-                    _logger.LogWarning(
-                        "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
-                        task.ParcelId,
-                        subsequentNodes.Count,
-                        string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
-
-                    foreach (var node in subsequentNodes)
-                    {
-                        var now = _clock.LocalNow;
-                        var compensationEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
-                        if (compensationEarliestDequeueTime < task.CreatedAt)
-                        {
-                            compensationEarliestDequeueTime = task.CreatedAt;
-                        }
-                        
-                        var straightTask = new PositionQueueItem
-                        {
-                            ParcelId = task.ParcelId,
-                            DiverterId = node.DiverterId,
-                            DiverterAction = DiverterDirection.Straight,
-                            ExpectedArrivalTime = now, // 已超时，使用当前时间
-                            TimeoutThresholdMs = task.TimeoutThresholdMs,
-                            FallbackAction = DiverterDirection.Straight,
-                            PositionIndex = node.PositionIndex,
-                            CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
-                            // 丢失判定超时 = TimeoutThreshold * 1.5
-                            LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                            LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
-                            // 最早出队时间（提前触发检测）
-                            EarliestDequeueTime = compensationEarliestDequeueTime,
-                            // 继承原任务的超时检测开关设置
-                            EnableTimeoutDetection = task.EnableTimeoutDetection
-                        };
-
-                        // 使用优先入队，插入到队列头部
-                        _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
-                    }
-                }
-                else if (_topologyRepository != null)
-                {
-                    // 缓存未命中时的fallback（配置动态变更场景）
-                    var topology = _topologyRepository.Get();
-                    if (topology != null)
-                    {
-                        // 找到所有比当前 position 大的节点
-                        var fallbackSubsequentNodes = topology.DiverterNodes
-                            .Where(n => n.PositionIndex > positionIndex)
-                            .OrderBy(n => n.PositionIndex)
-                            .ToList();
-
-                        if (fallbackSubsequentNodes.Any())
-                        {
-                            _logger.LogWarning(
-                                "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务 (缓存未命中，使用fallback): [{Positions}]",
-                                task.ParcelId,
-                                fallbackSubsequentNodes.Count,
-                                string.Join(", ", fallbackSubsequentNodes.Select(n => n.PositionIndex)));
-
-                            foreach (var node in fallbackSubsequentNodes)
-                            {
-                                var now = _clock.LocalNow;
-                                var fallbackEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
-                                if (fallbackEarliestDequeueTime < task.CreatedAt)
-                                {
-                                    fallbackEarliestDequeueTime = task.CreatedAt;
-                                }
-                                
-                                var straightTask = new PositionQueueItem
-                                {
-                                    ParcelId = task.ParcelId,
-                                    DiverterId = node.DiverterId,
-                                    DiverterAction = DiverterDirection.Straight,
-                                    ExpectedArrivalTime = now, // 已超时，使用当前时间
-                                    TimeoutThresholdMs = task.TimeoutThresholdMs,
-                                    FallbackAction = DiverterDirection.Straight,
-                                    PositionIndex = node.PositionIndex,
-                                    CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
-                                    // 丢失判定超时 = TimeoutThreshold * 1.5
-                                    LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                                    LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
-                                    // 最早出队时间（提前触发检测）
-                                    EarliestDequeueTime = fallbackEarliestDequeueTime,
-                                    // 继承原任务的超时检测开关设置
-                                    EnableTimeoutDetection = task.EnableTimeoutDetection
-                                };
-
-                                // 使用优先入队，插入到队列头部
-                                _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
-                            }
-                        }
-                    }
-                }
-            }
-            else if (!_timeoutCompensationInserted.ContainsKey(task.ParcelId))
-            {
-                _logger.LogDebug(
-                    "包裹 {ParcelId} 在 Position {PositionIndex} 再次超时，已在首次超时时插入补偿任务，本次不重复插入",
-                    task.ParcelId, positionIndex);
-            }
-
-            RecordSortingFailure(0, isTimeout: true);
+                "[超时处理] 包裹 {ParcelId} 在 Position {PositionIndex} 超时，发送上游超时通知",
+                task.ParcelId, positionIndex);
+            
+            // 发送超时通知到上游
+            await NotifyUpstreamSortingCompletedAsync(
+                task.ParcelId,
+                NoTargetChute, // 超时未完成分拣，无目标格口
+                isSuccess: false,
+                failureReason: "Timeout",
+                finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
+            
+            RecordSortingFailure(NoTargetChute, isTimeout: true);
+        }
+        else if (isPacketLoss)
+        {
+            // 包裹丢失处理：发送上游丢失消息 + 从所有队列删除该包裹的所有任务
+            _logger.LogError(
+                "[包裹丢失处理] 包裹 {ParcelId} 在 Position {PositionIndex} 判定为丢失，" +
+                "发送上游丢失通知并删除所有队列中的任务",
+                task.ParcelId, positionIndex);
+            
+            // 发送丢失通知到上游
+            await NotifyUpstreamSortingCompletedAsync(
+                task.ParcelId,
+                NoTargetChute, // 丢失未完成分拣，无目标格口
+                isSuccess: false,
+                failureReason: "PacketLoss",
+                finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Lost);
+            
+            // 从所有队列中删除该包裹的所有任务
+            var removedCount = _queueManager!.RemoveAllTasksForParcel(task.ParcelId);
+            _logger.LogWarning(
+                "[包裹丢失清理] 已从所有队列删除包裹 {ParcelId} 的 {RemovedCount} 个任务",
+                task.ParcelId, removedCount);
+            
+            RecordSortingFailure(NoTargetChute, isTimeout: false);
+            
+            // 清理丢失包裹的内存记录
+            CleanupParcelMemory(task.ParcelId);
+            
+            // 关键：触发时间已经到达下一个包裹的出队时间，递归处理下一个包裹
+            // 这确保了队列中的下一个包裹能够立即被处理，而不是等待下一次物理传感器触发
+            _logger.LogInformation(
+                "[包裹丢失-递归处理] 包裹 {ParcelId} 丢失处理完成，递归处理下一个包裹 (Position={PositionIndex})",
+                task.ParcelId, positionIndex);
+            
+            // 包裹丢失：不执行当前丢失包裹的动作，递归处理下一个包裹
+            // 下一个包裹的动作将在递归调用中执行
+            // 所以直接返回，跳过当前丢失包裹的摆轮动作执行
+            _logger.LogInformation(
+                "[包裹丢失-跳过动作] 包裹 {ParcelId} 已丢失，跳过其摆轮动作执行，将递归处理下一个包裹",
+                task.ParcelId);
+            
+            // 立即递归处理下一个包裹
+            RecursiveProcessNextParcelAfterLoss(boundWheelDiverterId, sensorId, positionIndex, task.ParcelId);
+            return; // 丢失包裹不执行任何摆轮动作，直接返回
         }
         else
         {
-            actionToExecute = task.DiverterAction;
+            // 正常情况：直接执行计划动作
         }
+        
+        // 执行计划动作（仅正常到达和超时执行，丢失已在上面return）
+        DiverterDirection actionToExecute = task.DiverterAction;
 
         _logger.LogInformation(
             "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
@@ -1764,6 +1743,51 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "无法确定包裹 {ParcelId} 的实际格口ID，DiverterId={DiverterId}, Action={Action}",
             parcelId, diverterId, action);
         return Task.FromResult(0L);
+    }
+
+    /// <summary>
+    /// 包裹丢失后递归处理下一个包裹
+    /// </summary>
+    /// <param name="boundWheelDiverterId">绑定的摆轮ID</param>
+    /// <param name="sensorId">传感器ID</param>
+    /// <param name="positionIndex">位置索引</param>
+    /// <param name="lostParcelId">丢失的包裹ID</param>
+    private void RecursiveProcessNextParcelAfterLoss(
+        long boundWheelDiverterId,
+        long sensorId,
+        int positionIndex,
+        long lostParcelId)
+    {
+        _logger.LogInformation(
+            "[包裹丢失-递归触发] 丢失包裹 {LostParcelId} 处理完成，立即检查并处理 Position {PositionIndex} 队列中的下一个包裹",
+            lostParcelId, positionIndex);
+        
+        // 递归调用以处理下一个包裹
+        // 使用 SafeExecutionService 确保异常被正确处理和记录
+        if (_safeExecutor != null)
+        {
+            _ = _safeExecutor.ExecuteAsync(
+                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
+                operationName: $"WheelFrontSorting_RecursivePacketLossHandling_Position{positionIndex}",
+                cancellationToken: default);
+        }
+        else
+        {
+            // Fallback: 使用 Task.Run（当 SafeExecutionService 不可用时）
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex,
+                        "[包裹丢失-递归处理失败] Position {PositionIndex} 递归处理下一个包裹时发生异常",
+                        positionIndex);
+                }
+            });
+        }
     }
 
     /// <summary>
@@ -2579,158 +2603,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 取消订阅系统状态变更事件
         _systemStateManager.StateChanged -= OnSystemStateChanged;
 
-        // TD-LOSS-ORCHESTRATOR-001: 取消订阅包裹丢失事件
-        if (_lossMonitoringService != null)
-        {
-            _lossMonitoringService.ParcelLostDetected -= OnParcelLostDetectedAsync;
-        }
-
         // 断开连接
         StopAsync().GetAwaiter().GetResult();
-    }
-
-    #region 包裹丢失处理 (TD-LOSS-ORCHESTRATOR-001)
-
-    /// <summary>
-    /// 处理包裹丢失事件
-    /// </summary>
-    /// <remarks>
-    /// 当 ParcelLossMonitoringService 检测到包裹丢失时触发此方法。
-    ///
-    /// 处理流程：
-    /// 1. 从所有队列删除丢失包裹的任务
-    /// 2. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
-    /// 3. 上报丢失包裹到上游（包含受影响包裹信息）
-    /// 4. 清理丢失包裹的本地记录
-    ///
-    /// <b>受影响包裹的判定规则：</b>
-    /// - 包裹创建时间 > 丢失包裹创建时间
-    /// - 包裹创建时间 < 丢失检测时间
-    /// - 这些包裹的任务方向会被改为直行（Straight），以导向异常格口
-    ///
-    /// <b>不受影响的包裹：</b>
-    /// - 在丢失包裹创建之前创建的包裹（保持原方向）
-    /// - 在丢失检测之后创建的包裹（保持原方向）
-    ///
-    /// <b>关于 async void 的使用说明：</b>
-    /// 此方法使用 async void 是因为它是一个事件处理器，必须匹配 EventHandler 委托签名。
-    /// 所有异步操作都包裹在 SafeExecutionService 中，确保异常不会导致应用程序崩溃。
-    /// SafeExecutionService 会捕获并记录所有未处理的异常。
-    /// </remarks>
-    private async void OnParcelLostDetectedAsync(object? sender, Core.Events.Queue.ParcelLostEventArgs e)
-    {
-        if (_safeExecutor == null)
-        {
-            _logger.LogWarning(
-                "[包裹丢失] 未配置 SafeExecutionService，无法安全处理丢失事件 (ParcelId={ParcelId})",
-                e.LostParcelId);
-            return;
-        }
-
-        _logger.LogError(
-            "[生命周期-丢失] P{ParcelId} Pos{Position}丢失 延迟{DelayMs}ms 阈值{ThresholdMs}ms",
-            e.LostParcelId,
-            e.DetectedAtPositionIndex,
-            e.DelayMs,
-            e.LostThresholdMs);
-
-        // ⚠️ 关键修复：优先取消待处理的格口分配，再执行其他操作
-        // 原代码问题：CleanupParcelMemory在SafeExecutor异步回调的最后才执行，
-        // 可能导致上游格口分配到达时，TCS已被移除但其他清理操作尚未完成
-
-        // 1. 立即取消待处理的格口分配（如果存在）
-        if (_pendingAssignments.TryRemove(e.LostParcelId, out var tcs))
-        {
-            // 尝试取消TCS（如果尚未完成）
-            bool wasCancelled = tcs.TrySetCanceled();
-
-            if (wasCancelled)
-            {
-                _logger.LogWarning(
-                    "[包裹丢失-取消分配] 包裹 {ParcelId} 丢失，已取消待处理的格口分配请求",
-                    e.LostParcelId);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "[包裹丢失-取消分配] 包裹 {ParcelId} 丢失，发现TCS已完成，跳过取消操作",
-                    e.LostParcelId);
-            }
-        }
-
-        // 2. 立即移除已创建的包裹记录，避免后续回调在已清理的实体上继续操作
-        // 这可以防止 OnChuteAssignmentReceived 在验证通过后尝试更新已删除的包裹记录
-        if (_createdParcels.TryRemove(e.LostParcelId, out _))
-        {
-            _logger.LogInformation(
-                "[包裹丢失-清理创建记录] 已从 _createdParcels 中移除包裹 {ParcelId} 的创建记录",
-                e.LostParcelId);
-        }
-
-        // 3. 异步执行其他清理操作（不阻塞主流程）
-        await _safeExecutor.ExecuteAsync(
-            async () =>
-            {
-                // 3. 从所有队列删除丢失包裹的任务
-                int removedTasks = 0;
-                if (_queueManager != null)
-                {
-                    removedTasks = _queueManager.RemoveAllTasksForParcel(e.LostParcelId);
-                    _logger.LogInformation(
-                        "[包裹丢失-清理队列] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务",
-                        e.LostParcelId, removedTasks);
-                }
-
-                // 4. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
-                List<long> affectedParcelIds = new List<long>();
-                if (_queueManager != null && e.ParcelCreatedAt.HasValue)
-                {
-                    affectedParcelIds = _queueManager.UpdateAffectedParcelsToStraight(
-                        e.ParcelCreatedAt.Value,
-                        e.DetectedAt);
-
-                    if (affectedParcelIds.Count > 0)
-                    {
-                        _logger.LogWarning(
-                            "[包裹丢失影响] 包裹 {LostParcelId} 丢失影响了 {Count} 个包裹: [{AffectedIds}]，" +
-                            "这些包裹的任务已改为直行",
-                            e.LostParcelId,
-                            affectedParcelIds.Count,
-                            string.Join(", ", affectedParcelIds));
-                    }
-                }
-
-                // 5. 上报丢失包裹到上游（包含受影响包裹信息）
-                await NotifyUpstreamParcelLostAsync(e, affectedParcelIds);
-
-                // 6. 记录指标
-                {
-                    // 记录丢失包裹
-                }
-
-                // 记录失败率和统计数据
-                _alarmService?.RecordSortingFailure(); // 丢失算作失败
-                _statisticsService?.IncrementLost(); // 增加丢失计数
-
-                // 记录受影响的包裹数量
-                if (affectedParcelIds.Count > 0)
-                {
-                    _statisticsService?.IncrementAffected(affectedParcelIds.Count);
-                }
-
-                // 7. 清理丢失包裹的其他内存记录（_pendingAssignments和_createdParcels已在上面立即处理）
-                _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
-                _parcelPaths.TryRemove(e.LostParcelId, out _);
-                _parcelBarcodes.TryRemove(e.LostParcelId, out _);
-                _timeoutCompensationInserted.TryRemove(e.LostParcelId, out _);
-                _intervalTracker?.ClearParcelTracking(e.LostParcelId);
-
-                _logger.LogTrace(
-                    "[包裹丢失-内存清理] 已清理包裹 {ParcelId} 在内存中的其他痕迹（目标格口、路径、超时标记、位置追踪）",
-                    e.LostParcelId);
-            },
-            operationName: "HandleParcelLost",
-            cancellationToken: CancellationToken.None);
     }
 
     /// <summary>
@@ -2763,82 +2637,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、位置追踪）",
             parcelId);
     }
-
-    /// <summary>
-    /// 通知上游系统包裹丢失
-    /// </summary>
-    /// <param name="e">包裹丢失事件参数</param>
-    /// <param name="affectedParcelIds">受影响的包裹ID列表</param>
-    private async Task NotifyUpstreamParcelLostAsync(
-        Core.Events.Queue.ParcelLostEventArgs e,
-        List<long> affectedParcelIds)
-    {
-        _logger.LogWarning(
-            "[上游通知-准备] 即将向上游发送包裹 {ParcelId} 丢失通知 (Position={Position}, 受影响包裹数={AffectedCount})",
-            e.LostParcelId,
-            e.DetectedAtPositionIndex,
-            affectedParcelIds.Count);
-
-        try
-        {
-            var systemConfig = _systemConfigRepository.Get();
-
-            // 构建失败原因，包含受影响包裹信息
-            var failureReason = $"包裹在 Position {e.DetectedAtPositionIndex} 丢失 " +
-                               $"(延迟={e.DelayMs:F0}ms, 阈值={e.LostThresholdMs:F0}ms)";
-
-            if (affectedParcelIds.Count > 0)
-            {
-                failureReason += $"，影响了 {affectedParcelIds.Count} 个包裹: [{string.Join(", ", affectedParcelIds)}]";
-            }
-
-            var notification = new SortingCompletedNotification
-            {
-                ParcelId = e.LostParcelId,
-                ActualChuteId = systemConfig.ExceptionChuteId, // 丢失包裹标记为异常口
-                CompletedAt = new DateTimeOffset(e.DetectedAt),
-                IsSuccess = false,
-                FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Lost,
-                FailureReason = failureReason,
-                AffectedParcelIds = affectedParcelIds.Count > 0 ? affectedParcelIds.AsReadOnly() : null // 结构化发送受影响包裹列表
-            };
-
-            _logger.LogTrace(
-                "[生命周期-丢失] P{ParcelId} 准备上报上游 (C{ExceptionChuteId})",
-                e.LostParcelId,
-                systemConfig.ExceptionChuteId);
-
-            await _upstreamClient.SendAsync(
-                new SortingCompletedMessage { Notification = notification });
-
-            if (affectedParcelIds.Count > 0)
-            {
-                _logger.LogWarning(
-                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 影响{Count}个包裹 [{AffectedIds}]",
-                    e.LostParcelId,
-                    affectedParcelIds.Count,
-                    string.Join(",", affectedParcelIds));
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 无其他包裹受影响",
-                    e.LostParcelId);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "[生命周期-丢失] P{ParcelId} 上报上游失败❌: {Message}",
-                e.LostParcelId,
-                ex.Message);
-
-            // 重要：即使发送失败也要记录，不要静默失败
-            throw; // 重新抛出异常，让 SafeExecutionService 记录
-        }
-    }
-
-    #endregion 包裹丢失处理 (TD-LOSS-ORCHESTRATOR-001)
 
     #region Helper Methods - 性能优化辅助方法
 

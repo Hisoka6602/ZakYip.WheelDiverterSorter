@@ -26,7 +26,7 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// - 分拣改口（动态更改包裹目标格口）
 /// - Position间隔查询（支持包裹丢失检测的方案A+）
 /// - 落格回调配置（配置分拣完成通知的触发模式）
-/// - 检测开关配置（统一管理干扰检测、超时检测、包裹丢失检测三个开关）
+/// - 检测开关配置（统一管理干扰检测、超时检测两个开关）
 /// 
 /// **落格回调模式**：
 /// - OnWheelExecution：执行摆轮动作时立即发送分拣完成通知
@@ -35,7 +35,6 @@ namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 /// **检测开关**：
 /// - 干扰检测开关（提前触发检测）：防止包裹提前到达导致的错位问题
 /// - 超时检测开关：启用包裹传输超时检测和处理
-/// - 包裹丢失检测开关：启用包裹丢失的主动巡检和处理
 /// 
 /// **Position间隔查询**：
 /// 支持Position间隔统计观测，提供各positionIndex的实际触发间隔中位数。
@@ -50,7 +49,6 @@ public class SortingController : ApiControllerBase
     private readonly IChangeParcelChuteService _changeParcelChuteService;
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
-    private readonly IParcelLossDetectionConfigurationRepository _lossDetectionConfigRepository;
     private readonly ISystemConfigurationRepository _systemConfigRepository;
     private readonly IConveyorSegmentRepository _conveyorSegmentRepository;
     private readonly ISystemClock _clock;
@@ -64,7 +62,6 @@ public class SortingController : ApiControllerBase
         IChangeParcelChuteService changeParcelChuteService,
         IPositionIndexQueueManager queueManager,
         IChuteDropoffCallbackConfigurationRepository callbackConfigRepository,
-        IParcelLossDetectionConfigurationRepository lossDetectionConfigRepository,
         ISystemConfigurationRepository systemConfigRepository,
         IConveyorSegmentRepository conveyorSegmentRepository,
         ISystemClock clock,
@@ -77,7 +74,6 @@ public class SortingController : ApiControllerBase
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _callbackConfigRepository = callbackConfigRepository ?? throw new ArgumentNullException(nameof(callbackConfigRepository));
-        _lossDetectionConfigRepository = lossDetectionConfigRepository ?? throw new ArgumentNullException(nameof(lossDetectionConfigRepository));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _conveyorSegmentRepository = conveyorSegmentRepository ?? throw new ArgumentNullException(nameof(conveyorSegmentRepository));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -643,7 +639,7 @@ public class SortingController : ApiControllerBase
     /// <response code="200">成功返回配置</response>
     /// <response code="500">服务器内部错误</response>
     /// <remarks>
-    /// 统一查询三个检测开关的状态：
+    /// 统一查询两个检测开关的状态：
     /// 
     /// **干扰检测开关 (EnableInterferenceDetection)**：
     /// - 启用提前触发检测，防止包裹提前到达导致的错位问题
@@ -653,16 +649,11 @@ public class SortingController : ApiControllerBase
     /// - 启用包裹传输超时检测和处理
     /// - 默认值：true（启用）
     /// 
-    /// **包裹丢失检测开关 (EnableParcelLossDetection)**：
-    /// - 启用包裹丢失的主动巡检和处理
-    /// - 默认值：true（启用）
-    /// 
     /// **示例响应**：
     /// ```json
     /// {
     ///   "enableInterferenceDetection": false,
     ///   "enableTimeoutDetection": true,
-    ///   "enableParcelLossDetection": true,
     ///   "updatedAt": "2025-12-25T15:00:00Z"
     /// }
     /// ```
@@ -670,7 +661,7 @@ public class SortingController : ApiControllerBase
     [HttpGet("detection-switches")]
     [SwaggerOperation(
         Summary = "获取所有检测开关配置",
-        Description = "统一查询干扰检测、超时检测、包裹丢失检测三个开关的状态",
+        Description = "统一查询干扰检测、超时检测两个开关的状态",
         OperationId = "GetDetectionSwitches",
         Tags = new[] { "分拣管理" }
     )]
@@ -685,20 +676,11 @@ public class SortingController : ApiControllerBase
             // 获取系统配置（干扰检测开关、超时检测开关）
             var systemConfig = _systemConfigRepository.Get();
             
-            // 获取包裹丢失检测配置
-            var lossDetectionConfig = _lossDetectionConfigRepository.Get();
-            
-            // 取最新的更新时间
-            var latestUpdateTime = systemConfig.UpdatedAt > lossDetectionConfig.UpdatedAt 
-                ? systemConfig.UpdatedAt 
-                : lossDetectionConfig.UpdatedAt;
-            
             var response = new DetectionSwitchesDto
             {
                 EnableInterferenceDetection = systemConfig.EnableEarlyTriggerDetection,
                 EnableTimeoutDetection = systemConfig.EnableTimeoutDetection,
-                EnableParcelLossDetection = lossDetectionConfig.IsEnabled,
-                UpdatedAt = latestUpdateTime
+                UpdatedAt = systemConfig.UpdatedAt
             };
             
             return Ok(ApiResponse<DetectionSwitchesDto>.Ok(response));
@@ -736,13 +718,6 @@ public class SortingController : ApiControllerBase
     /// - 如不提供则保持当前值不变
     /// - ⚠️ 注意：此开关会同时影响所有输送段配置
     /// 
-    /// **包裹丢失检测开关 (EnableParcelLossDetection)**：
-    /// - 可选参数
-    /// - 控制包裹丢失的主动巡检功能
-    /// - true: 启用检测，后台服务定期巡检队列
-    /// - false: 禁用检测，包裹不会因丢失而被自动移除
-    /// - 如不提供则保持当前值不变
-    /// 
     /// **部分更新支持**：
     /// - 所有字段均为可选，仅更新提供的字段
     /// - 未提供的字段保持当前值不变
@@ -752,8 +727,7 @@ public class SortingController : ApiControllerBase
     /// ```json
     /// {
     ///   "enableInterferenceDetection": false,
-    ///   "enableTimeoutDetection": true,
-    ///   "enableParcelLossDetection": true
+    ///   "enableTimeoutDetection": true
     /// }
     /// ```
     /// 
@@ -762,7 +736,6 @@ public class SortingController : ApiControllerBase
     /// {
     ///   "enableInterferenceDetection": false,
     ///   "enableTimeoutDetection": true,
-    ///   "enableParcelLossDetection": true,
     ///   "updatedAt": "2025-12-25T15:30:00Z"
     /// }
     /// ```
@@ -775,7 +748,7 @@ public class SortingController : ApiControllerBase
     [HttpPut("detection-switches")]
     [SwaggerOperation(
         Summary = "更新检测开关配置",
-        Description = "统一更新干扰检测、超时检测、包裹丢失检测三个开关的状态。修改后立即生效。",
+        Description = "统一更新干扰检测、超时检测两个开关的状态。修改后立即生效。",
         OperationId = "UpdateDetectionSwitches",
         Tags = new[] { "分拣管理" }
     )]
@@ -797,8 +770,7 @@ public class SortingController : ApiControllerBase
 
             // 如果没有提供任何更新字段，返回错误
             if (request.EnableInterferenceDetection == null &&
-                request.EnableTimeoutDetection == null &&
-                request.EnableParcelLossDetection == null)
+                request.EnableTimeoutDetection == null)
             {
                 return BadRequest(ApiResponse<object>.BadRequest("至少需要提供一个检测开关字段进行更新"));
             }
@@ -831,36 +803,20 @@ public class SortingController : ApiControllerBase
                     request.EnableTimeoutDetection.Value);
             }
 
-            // 更新包裹丢失检测开关
-            if (request.EnableParcelLossDetection.HasValue)
-            {
-                var lossDetectionConfig = _lossDetectionConfigRepository.Get();
-                lossDetectionConfig.IsEnabled = request.EnableParcelLossDetection.Value;
-                lossDetectionConfig.UpdatedAt = now;
-                _lossDetectionConfigRepository.Update(lossDetectionConfig);
-                
-                _logger.LogInformation(
-                    "包裹丢失检测开关已更新: {EnableParcelLossDetection}",
-                    request.EnableParcelLossDetection.Value);
-            }
-
             // 重新获取更新后的配置并返回
             var updatedSystemConfig = _systemConfigRepository.Get();
-            var updatedLossDetectionConfig = _lossDetectionConfigRepository.Get();
 
             var response = new DetectionSwitchesDto
             {
                 EnableInterferenceDetection = updatedSystemConfig.EnableEarlyTriggerDetection,
                 EnableTimeoutDetection = updatedSystemConfig.EnableTimeoutDetection,
-                EnableParcelLossDetection = updatedLossDetectionConfig.IsEnabled,
                 UpdatedAt = now
             };
 
             _logger.LogInformation(
-                "检测开关配置已更新: 干扰检测={InterferenceDetection}, 超时检测={TimeoutDetection}, 丢失检测={LossDetection}",
+                "检测开关配置已更新: 干扰检测={InterferenceDetection}, 超时检测={TimeoutDetection}",
                 response.EnableInterferenceDetection,
-                response.EnableTimeoutDetection,
-                response.EnableParcelLossDetection);
+                response.EnableTimeoutDetection);
 
             return Ok(ApiResponse<DetectionSwitchesDto>.Ok(response, "检测开关配置已更新"));
         }
