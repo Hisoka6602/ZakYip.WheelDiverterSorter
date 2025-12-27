@@ -164,9 +164,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
 
         // 11. 注册节点健康服务
         services.AddNodeHealthServices();
-        
-        // 11.1 注册包裹丢失监控服务
-        services.AddParcelLossMonitoring();
 
         // 12. 注册传感器服务
         services.AddSensorServices(configuration);
@@ -446,7 +443,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var safeExecutor = sp.GetService<ISafeExecutionService>();
             var intervalTracker = sp.GetService<Execution.Tracking.IPositionIntervalTracker>();
             var callbackConfigRepository = sp.GetService<IChuteDropoffCallbackConfigurationRepository>();
-            var lossMonitoringService = sp.GetService<Execution.Monitoring.ParcelLossMonitoringService>();
             var alarmService = sp.GetService<AlarmService>();
             var statisticsService = sp.GetService<ISortingStatisticsService>();
             var routePlanRepository = sp.GetService<IRoutePlanRepository>();
@@ -477,7 +473,6 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 safeExecutor,
                 intervalTracker,
                 callbackConfigRepository,
-                lossMonitoringService,
                 alarmService,
                 statisticsService,
                 routePlanRepository,

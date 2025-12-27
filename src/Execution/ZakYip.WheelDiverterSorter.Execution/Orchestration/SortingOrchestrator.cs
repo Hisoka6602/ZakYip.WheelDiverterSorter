@@ -104,7 +104,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISensorConfigurationRepository? _sensorConfigRepository;
     private readonly ISafeExecutionService? _safeExecutor;
     private readonly Tracking.IPositionIntervalTracker? _intervalTracker;
-    private readonly Monitoring.ParcelLossMonitoringService? _lossMonitoringService;
     private readonly AlarmService? _alarmService; // 告警服务（用于失败率统计）
     private readonly ISortingStatisticsService? _statisticsService; // 分拣统计服务
 
@@ -191,7 +190,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISafeExecutionService? safeExecutor = null, // TD-062: 安全执行服务
         Tracking.IPositionIntervalTracker? intervalTracker = null, // Position 间隔追踪器
         IChuteDropoffCallbackConfigurationRepository? callbackConfigRepository = null, // 落格回调配置仓储
-        Monitoring.ParcelLossMonitoringService? lossMonitoringService = null, // 包裹丢失监控服务
         AlarmService? alarmService = null, // 告警服务（用于失败率统计）
         ISortingStatisticsService? statisticsService = null, // 分拣统计服务
         IRoutePlanRepository? routePlanRepository = null, // 路由计划仓储（用于保存格口分配）
@@ -231,7 +229,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _safeExecutor = safeExecutor;
         _intervalTracker = intervalTracker;
         _callbackConfigRepository = callbackConfigRepository;
-        _lossMonitoringService = lossMonitoringService;
         _alarmService = alarmService;
         _statisticsService = statisticsService;
         _routePlanRepository = routePlanRepository;
@@ -265,12 +262,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 订阅系统状态变更事件（用于自动清空队列）
         _systemStateManager.StateChanged += OnSystemStateChanged;
-
-        // TD-LOSS-ORCHESTRATOR-001: 订阅包裹丢失事件
-        if (_lossMonitoringService != null)
-        {
-            _lossMonitoringService.ParcelLostDetected += OnParcelLostDetectedAsync;
-        }
     }
 
     /// <summary>
@@ -2542,158 +2533,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 取消订阅系统状态变更事件
         _systemStateManager.StateChanged -= OnSystemStateChanged;
 
-        // TD-LOSS-ORCHESTRATOR-001: 取消订阅包裹丢失事件
-        if (_lossMonitoringService != null)
-        {
-            _lossMonitoringService.ParcelLostDetected -= OnParcelLostDetectedAsync;
-        }
-
         // 断开连接
         StopAsync().GetAwaiter().GetResult();
-    }
-
-    #region 包裹丢失处理 (TD-LOSS-ORCHESTRATOR-001)
-
-    /// <summary>
-    /// 处理包裹丢失事件
-    /// </summary>
-    /// <remarks>
-    /// 当 ParcelLossMonitoringService 检测到包裹丢失时触发此方法。
-    ///
-    /// 处理流程：
-    /// 1. 从所有队列删除丢失包裹的任务
-    /// 2. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
-    /// 3. 上报丢失包裹到上游（包含受影响包裹信息）
-    /// 4. 清理丢失包裹的本地记录
-    ///
-    /// <b>受影响包裹的判定规则：</b>
-    /// - 包裹创建时间 > 丢失包裹创建时间
-    /// - 包裹创建时间 < 丢失检测时间
-    /// - 这些包裹的任务方向会被改为直行（Straight），以导向异常格口
-    ///
-    /// <b>不受影响的包裹：</b>
-    /// - 在丢失包裹创建之前创建的包裹（保持原方向）
-    /// - 在丢失检测之后创建的包裹（保持原方向）
-    ///
-    /// <b>关于 async void 的使用说明：</b>
-    /// 此方法使用 async void 是因为它是一个事件处理器，必须匹配 EventHandler 委托签名。
-    /// 所有异步操作都包裹在 SafeExecutionService 中，确保异常不会导致应用程序崩溃。
-    /// SafeExecutionService 会捕获并记录所有未处理的异常。
-    /// </remarks>
-    private async void OnParcelLostDetectedAsync(object? sender, Core.Events.Queue.ParcelLostEventArgs e)
-    {
-        if (_safeExecutor == null)
-        {
-            _logger.LogWarning(
-                "[包裹丢失] 未配置 SafeExecutionService，无法安全处理丢失事件 (ParcelId={ParcelId})",
-                e.LostParcelId);
-            return;
-        }
-
-        _logger.LogError(
-            "[生命周期-丢失] P{ParcelId} Pos{Position}丢失 延迟{DelayMs}ms 阈值{ThresholdMs}ms",
-            e.LostParcelId,
-            e.DetectedAtPositionIndex,
-            e.DelayMs,
-            e.LostThresholdMs);
-
-        // ⚠️ 关键修复：优先取消待处理的格口分配，再执行其他操作
-        // 原代码问题：CleanupParcelMemory在SafeExecutor异步回调的最后才执行，
-        // 可能导致上游格口分配到达时，TCS已被移除但其他清理操作尚未完成
-
-        // 1. 立即取消待处理的格口分配（如果存在）
-        if (_pendingAssignments.TryRemove(e.LostParcelId, out var tcs))
-        {
-            // 尝试取消TCS（如果尚未完成）
-            bool wasCancelled = tcs.TrySetCanceled();
-
-            if (wasCancelled)
-            {
-                _logger.LogWarning(
-                    "[包裹丢失-取消分配] 包裹 {ParcelId} 丢失，已取消待处理的格口分配请求",
-                    e.LostParcelId);
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "[包裹丢失-取消分配] 包裹 {ParcelId} 丢失，发现TCS已完成，跳过取消操作",
-                    e.LostParcelId);
-            }
-        }
-
-        // 2. 立即移除已创建的包裹记录，避免后续回调在已清理的实体上继续操作
-        // 这可以防止 OnChuteAssignmentReceived 在验证通过后尝试更新已删除的包裹记录
-        if (_createdParcels.TryRemove(e.LostParcelId, out _))
-        {
-            _logger.LogInformation(
-                "[包裹丢失-清理创建记录] 已从 _createdParcels 中移除包裹 {ParcelId} 的创建记录",
-                e.LostParcelId);
-        }
-
-        // 3. 异步执行其他清理操作（不阻塞主流程）
-        await _safeExecutor.ExecuteAsync(
-            async () =>
-            {
-                // 3. 从所有队列删除丢失包裹的任务
-                int removedTasks = 0;
-                if (_queueManager != null)
-                {
-                    removedTasks = _queueManager.RemoveAllTasksForParcel(e.LostParcelId);
-                    _logger.LogInformation(
-                        "[包裹丢失-清理队列] 已从所有队列移除包裹 {ParcelId} 的 {Count} 个任务",
-                        e.LostParcelId, removedTasks);
-                }
-
-                // 4. 将受影响的包裹（在丢失包裹创建之后、丢失检测之前创建的包裹）的任务方向改为直行
-                List<long> affectedParcelIds = new List<long>();
-                if (_queueManager != null && e.ParcelCreatedAt.HasValue)
-                {
-                    affectedParcelIds = _queueManager.UpdateAffectedParcelsToStraight(
-                        e.ParcelCreatedAt.Value,
-                        e.DetectedAt);
-
-                    if (affectedParcelIds.Count > 0)
-                    {
-                        _logger.LogWarning(
-                            "[包裹丢失影响] 包裹 {LostParcelId} 丢失影响了 {Count} 个包裹: [{AffectedIds}]，" +
-                            "这些包裹的任务已改为直行",
-                            e.LostParcelId,
-                            affectedParcelIds.Count,
-                            string.Join(", ", affectedParcelIds));
-                    }
-                }
-
-                // 5. 上报丢失包裹到上游（包含受影响包裹信息）
-                await NotifyUpstreamParcelLostAsync(e, affectedParcelIds);
-
-                // 6. 记录指标
-                {
-                    // 记录丢失包裹
-                }
-
-                // 记录失败率和统计数据
-                _alarmService?.RecordSortingFailure(); // 丢失算作失败
-                _statisticsService?.IncrementLost(); // 增加丢失计数
-
-                // 记录受影响的包裹数量
-                if (affectedParcelIds.Count > 0)
-                {
-                    _statisticsService?.IncrementAffected(affectedParcelIds.Count);
-                }
-
-                // 7. 清理丢失包裹的其他内存记录（_pendingAssignments和_createdParcels已在上面立即处理）
-                _parcelTargetChutes.TryRemove(e.LostParcelId, out _);
-                _parcelPaths.TryRemove(e.LostParcelId, out _);
-                _parcelBarcodes.TryRemove(e.LostParcelId, out _);
-                _timeoutCompensationInserted.TryRemove(e.LostParcelId, out _);
-                _intervalTracker?.ClearParcelTracking(e.LostParcelId);
-
-                _logger.LogTrace(
-                    "[包裹丢失-内存清理] 已清理包裹 {ParcelId} 在内存中的其他痕迹（目标格口、路径、超时标记、位置追踪）",
-                    e.LostParcelId);
-            },
-            operationName: "HandleParcelLost",
-            cancellationToken: CancellationToken.None);
     }
 
     /// <summary>
@@ -2726,82 +2567,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "已清理包裹 {ParcelId} 在内存中的所有痕迹（创建记录、目标格口、路径、待处理分配、超时标记、位置追踪）",
             parcelId);
     }
-
-    /// <summary>
-    /// 通知上游系统包裹丢失
-    /// </summary>
-    /// <param name="e">包裹丢失事件参数</param>
-    /// <param name="affectedParcelIds">受影响的包裹ID列表</param>
-    private async Task NotifyUpstreamParcelLostAsync(
-        Core.Events.Queue.ParcelLostEventArgs e,
-        List<long> affectedParcelIds)
-    {
-        _logger.LogWarning(
-            "[上游通知-准备] 即将向上游发送包裹 {ParcelId} 丢失通知 (Position={Position}, 受影响包裹数={AffectedCount})",
-            e.LostParcelId,
-            e.DetectedAtPositionIndex,
-            affectedParcelIds.Count);
-
-        try
-        {
-            var systemConfig = _systemConfigRepository.Get();
-
-            // 构建失败原因，包含受影响包裹信息
-            var failureReason = $"包裹在 Position {e.DetectedAtPositionIndex} 丢失 " +
-                               $"(延迟={e.DelayMs:F0}ms, 阈值={e.LostThresholdMs:F0}ms)";
-
-            if (affectedParcelIds.Count > 0)
-            {
-                failureReason += $"，影响了 {affectedParcelIds.Count} 个包裹: [{string.Join(", ", affectedParcelIds)}]";
-            }
-
-            var notification = new SortingCompletedNotification
-            {
-                ParcelId = e.LostParcelId,
-                ActualChuteId = systemConfig.ExceptionChuteId, // 丢失包裹标记为异常口
-                CompletedAt = new DateTimeOffset(e.DetectedAt),
-                IsSuccess = false,
-                FinalStatus = Core.Enums.Parcel.ParcelFinalStatus.Lost,
-                FailureReason = failureReason,
-                AffectedParcelIds = affectedParcelIds.Count > 0 ? affectedParcelIds.AsReadOnly() : null // 结构化发送受影响包裹列表
-            };
-
-            _logger.LogTrace(
-                "[生命周期-丢失] P{ParcelId} 准备上报上游 (C{ExceptionChuteId})",
-                e.LostParcelId,
-                systemConfig.ExceptionChuteId);
-
-            await _upstreamClient.SendAsync(
-                new SortingCompletedMessage { Notification = notification });
-
-            if (affectedParcelIds.Count > 0)
-            {
-                _logger.LogWarning(
-                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 影响{Count}个包裹 [{AffectedIds}]",
-                    e.LostParcelId,
-                    affectedParcelIds.Count,
-                    string.Join(",", affectedParcelIds));
-            }
-            else
-            {
-                _logger.LogWarning(
-                    "[生命周期-丢失] P{ParcelId} 上报上游✅ 无其他包裹受影响",
-                    e.LostParcelId);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex,
-                "[生命周期-丢失] P{ParcelId} 上报上游失败❌: {Message}",
-                e.LostParcelId,
-                ex.Message);
-
-            // 重要：即使发送失败也要记录，不要静默失败
-            throw; // 重新抛出异常，让 SafeExecutionService 记录
-        }
-    }
-
-    #endregion 包裹丢失处理 (TD-LOSS-ORCHESTRATOR-001)
 
     #region Helper Methods - 性能优化辅助方法
 
