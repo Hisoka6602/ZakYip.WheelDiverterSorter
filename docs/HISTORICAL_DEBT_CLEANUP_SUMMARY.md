@@ -1,5 +1,9 @@
 # 历史债务清理总结 (Historical Debt Cleanup Summary)
 
+> **⚠️ 文档删除期限**: 2026-01-27（30天后删除）  
+> **文档类型**: PR 总结文档  
+> **处理方式**: 本文档为临时性 PR 总结，30天后应删除。重要信息已记录在 `TechnicalDebtLog.md` 中。
+
 **日期**: 2025-12-27  
 **状态**: ✅ 已完成  
 **PR**: `copilot/resolve-historical-debts`

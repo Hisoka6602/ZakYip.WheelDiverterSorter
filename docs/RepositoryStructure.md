@@ -62,6 +62,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | TIMEOUT_HANDLING_MECHANISM.md | `./docs/TIMEOUT_HANDLING_MECHANISM.md` | **包裹超时处理机制说明文档（上游无响应时的超时兜底流程、配置参数、日志追踪、故障排查）** | 🔴 高 |
 | VERIFICATION_REPORT.md | `./docs/VERIFICATION_REPORT.md` | PR #464 功能验证报告（队列清理与预警取消功能验证） | 🟢 低 |
 | FIX_LITEDB_DUPLICATE_KEY_ERROR.md | `./docs/FIX_LITEDB_DUPLICATE_KEY_ERROR.md` | LiteDB重复键错误修复记录（.NET 9兼容性、序列化问题、设计权衡） 📅 删除期限：2025-02-24 | 🟢 低 |
+| HISTORICAL_DEBT_CLEANUP_SUMMARY.md | `./docs/HISTORICAL_DEBT_CLEANUP_SUMMARY.md` | 历史债务清理总结（TD-072/TD-073清理、废弃工厂方法修复） 📅 删除期限：2026-01-27 | 🟢 低 |
 
 ### docs/guides/ 使用指南
 
