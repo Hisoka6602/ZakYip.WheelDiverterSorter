@@ -733,10 +733,13 @@ public static class WheelDiverterSorterServiceCollectionExtensions
     private static IIoLinkageDriver CreateLeadshineDriver(IServiceProvider sp, ILogger logger)
     {
         logger.LogInformation("使用雷赛 IO 联动驱动器");
-        // 从工厂获取已初始化的 IO 联动驱动器
-        // AddLeadshineIo() 已经创建并初始化了 EMC 控制器
-        var factory = sp.GetRequiredService<IVendorDriverFactory>();
-        return factory.CreateIoLinkageDriver();
+        // 直接创建驱动器实例，不使用已废弃的工厂方法
+        // AddLeadshineIo() 已经注册了 EMC 控制器和 IInputPort
+        var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+        var driverLogger = loggerFactory.CreateLogger<LeadshineIoLinkageDriver>();
+        var emcController = sp.GetRequiredService<IEmcController>();
+        var inputPort = sp.GetRequiredService<IInputPort>();
+        return new LeadshineIoLinkageDriver(driverLogger, emcController, inputPort);
     }
     
     /// <summary>

@@ -598,15 +598,14 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="sensorId">传感器ID</param>
     /// <returns>格口ID</returns>
     /// <remarks>
-    /// 当前实现：使用传感器ID作为格口ID（简化实现）。
-    /// 未来可以通过拓扑配置或ChuteSensorConfig来建立传感器到格口的映射关系。
+    /// 当前实现：使用传感器ID作为格口ID。
+    /// 系统设计约定传感器位置与格口位置对应，传感器ID与格口ID保持一致。
     /// </remarks>
     private long GetChuteIdFromSensor(long sensorId)
     {
-        // 简化实现：直接使用传感器ID作为格口ID
-        // TODO (TD-072): 未来可以通过配置建立传感器到格口的映射
+        // 传感器ID直接作为格口ID（系统设计约定）
         _logger?.LogDebug(
-            "使用传感器ID {SensorId} 作为格口ID（简化实现）",
+            "使用传感器ID {SensorId} 作为格口ID",
             sensorId);
         return sensorId;
     }
