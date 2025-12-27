@@ -22,15 +22,18 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
     private const long DefaultLineId = 1;
     
     private readonly ISystemConfigService _systemConfigService;
+    private readonly ISystemConfigurationRepository _configRepository; // For update operations
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ILogger<ChuteAssignmentTimeoutController> _logger;
 
     public ChuteAssignmentTimeoutController(
         ISystemConfigService systemConfigService,
+        ISystemConfigurationRepository configRepository,
         ILogger<ChuteAssignmentTimeoutController> logger,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null)
     {
         _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
+        _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeoutCalculator = timeoutCalculator;
     }

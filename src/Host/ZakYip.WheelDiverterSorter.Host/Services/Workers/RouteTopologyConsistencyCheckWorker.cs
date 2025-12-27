@@ -25,7 +25,7 @@ public class RouteTopologyConsistencyCheckWorker : IHostedService
         IConfiguration configuration)
     {
         _consistencyChecker = consistencyChecker ?? throw new ArgumentNullException(nameof(consistencyChecker));
-        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }

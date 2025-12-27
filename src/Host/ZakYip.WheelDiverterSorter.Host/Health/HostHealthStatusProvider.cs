@@ -80,7 +80,7 @@ public class HostHealthStatusProvider : IHealthStatusProvider
                 DegradedNodesCount = degradedNodes?.Count ?? 0,
                 DegradedNodes = degradedNodes,
                 DiagnosticsLevel = _diagnosticsOptions?.Level ?? DiagnosticsLevel.Basic,
-                ConfigVersion = _systemConfigRepository?.Get()?.ConfigName,
+                ConfigVersion = _systemConfigService?.GetSystemConfig()?.ConfigName,
                 RecentCriticalAlertCount = recentCriticalAlertCount,
                 CurrentCongestionLevel = GetCongestionLevelFromState(currentState),
                 IsLineAvailable = isLineAvailable,

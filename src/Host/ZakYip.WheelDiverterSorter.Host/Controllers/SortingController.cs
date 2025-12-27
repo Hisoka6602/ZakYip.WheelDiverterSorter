@@ -6,7 +6,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Application.Services.Config;
+
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
@@ -51,6 +51,7 @@ public class SortingController : ApiControllerBase
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
     private readonly ISystemConfigService _systemConfigService;
+    private readonly ISystemConfigurationRepository _systemConfigRepository; // For update operations
     private readonly IConveyorSegmentRepository _conveyorSegmentRepository;
     private readonly ISystemClock _clock;
     private readonly IWebHostEnvironment _environment;
@@ -64,6 +65,7 @@ public class SortingController : ApiControllerBase
         IPositionIndexQueueManager queueManager,
         IChuteDropoffCallbackConfigurationRepository callbackConfigRepository,
         ISystemConfigService systemConfigService,
+        ISystemConfigurationRepository systemConfigRepository,
         IConveyorSegmentRepository conveyorSegmentRepository,
         ISystemClock clock,
         IWebHostEnvironment environment,
@@ -75,7 +77,8 @@ public class SortingController : ApiControllerBase
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _callbackConfigRepository = callbackConfigRepository ?? throw new ArgumentNullException(nameof(callbackConfigRepository));
-        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
+        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _conveyorSegmentRepository = conveyorSegmentRepository ?? throw new ArgumentNullException(nameof(conveyorSegmentRepository));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));

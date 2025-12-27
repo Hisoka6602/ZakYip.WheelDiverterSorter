@@ -412,7 +412,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             var pathGenerator = sp.GetRequiredService<ISwitchingPathGenerator>();
             var pathExecutor = sp.GetRequiredService<ISwitchingPathExecutor>();
             var options = sp.GetRequiredService<IOptions<UpstreamConnectionOptions>>();
-            var systemConfigRepository = sp.GetRequiredService<ISystemConfigurationRepository>();
+            var systemConfigService = sp.GetRequiredService<ISystemConfigService>();
             var clock = sp.GetRequiredService<ISystemClock>();
             var logger = sp.GetRequiredService<ILogger<SortingOrchestrator>>();
             var exceptionHandler = sp.GetRequiredService<ISortingExceptionHandler>();
@@ -446,7 +446,7 @@ public static class WheelDiverterSorterServiceCollectionExtensions
                 pathGenerator,
                 pathExecutor,
                 options,
-                systemConfigRepository,
+                systemConfigService,
                 clock,
                 logger,
                 exceptionHandler,
