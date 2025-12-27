@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
@@ -18,7 +19,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.SelfTest;
 /// </remarks>
 public class DetailedConfigValidator : IConfigValidator
 {
-    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly IPanelConfigurationRepository _panelConfigRepository;
     private readonly IChutePathTopologyRepository _topologyRepository;
     private readonly ICommunicationConfigurationRepository _communicationConfigRepository;
@@ -26,14 +27,14 @@ public class DetailedConfigValidator : IConfigValidator
     private readonly ISystemClock _clock;
 
     public DetailedConfigValidator(
-        ISystemConfigurationRepository systemConfigRepository,
+        ISystemConfigService systemConfigService,
         IPanelConfigurationRepository panelConfigRepository,
         IChutePathTopologyRepository topologyRepository,
         ICommunicationConfigurationRepository communicationConfigRepository,
         ILogger<DetailedConfigValidator> logger,
         ISystemClock clock)
     {
-        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
         _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
         _communicationConfigRepository = communicationConfigRepository ?? throw new ArgumentNullException(nameof(communicationConfigRepository));
@@ -51,7 +52,7 @@ public class DetailedConfigValidator : IConfigValidator
             var errors = new List<string>();
 
             // 1. 验证系统配置
-            var systemConfig = _systemConfigRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             if (systemConfig == null)
             {
                 errors.Add("系统配置未初始化");

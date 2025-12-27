@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
@@ -49,7 +50,7 @@ public class SortingController : ApiControllerBase
     private readonly IChangeParcelChuteService _changeParcelChuteService;
     private readonly IPositionIndexQueueManager _queueManager;
     private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
-    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly IConveyorSegmentRepository _conveyorSegmentRepository;
     private readonly ISystemClock _clock;
     private readonly IWebHostEnvironment _environment;
@@ -62,7 +63,7 @@ public class SortingController : ApiControllerBase
         IChangeParcelChuteService changeParcelChuteService,
         IPositionIndexQueueManager queueManager,
         IChuteDropoffCallbackConfigurationRepository callbackConfigRepository,
-        ISystemConfigurationRepository systemConfigRepository,
+        ISystemConfigService systemConfigService,
         IConveyorSegmentRepository conveyorSegmentRepository,
         ISystemClock clock,
         IWebHostEnvironment environment,
@@ -74,7 +75,7 @@ public class SortingController : ApiControllerBase
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
         _callbackConfigRepository = callbackConfigRepository ?? throw new ArgumentNullException(nameof(callbackConfigRepository));
-        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _conveyorSegmentRepository = conveyorSegmentRepository ?? throw new ArgumentNullException(nameof(conveyorSegmentRepository));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _environment = environment ?? throw new ArgumentNullException(nameof(environment));
@@ -679,7 +680,7 @@ public class SortingController : ApiControllerBase
         try
         {
             // 获取系统配置（干扰检测开关、超时检测开关、干扰直行开关）
-            var systemConfig = _systemConfigRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             
             var response = new DetectionSwitchesDto
             {
@@ -796,7 +797,7 @@ public class SortingController : ApiControllerBase
             // 更新干扰检测开关（系统配置）
             if (request.EnableInterferenceDetection.HasValue)
             {
-                var systemConfig = _systemConfigRepository.Get();
+                var systemConfig = _systemConfigService.GetSystemConfig();
                 systemConfig.EnableEarlyTriggerDetection = request.EnableInterferenceDetection.Value;
                 systemConfig.UpdatedAt = now;
                 _systemConfigRepository.Update(systemConfig);
@@ -809,7 +810,7 @@ public class SortingController : ApiControllerBase
             // 更新超时检测开关（系统配置）
             if (request.EnableTimeoutDetection.HasValue)
             {
-                var systemConfig = _systemConfigRepository.Get();
+                var systemConfig = _systemConfigService.GetSystemConfig();
                 systemConfig.EnableTimeoutDetection = request.EnableTimeoutDetection.Value;
                 systemConfig.UpdatedAt = now;
                 _systemConfigRepository.Update(systemConfig);
@@ -822,7 +823,7 @@ public class SortingController : ApiControllerBase
             // 更新干扰直行开关（系统配置）
             if (request.PassThroughOnInterference.HasValue)
             {
-                var systemConfig = _systemConfigRepository.Get();
+                var systemConfig = _systemConfigService.GetSystemConfig();
                 systemConfig.PassThroughOnInterference = request.PassThroughOnInterference.Value;
                 systemConfig.UpdatedAt = now;
                 _systemConfigRepository.Update(systemConfig);
@@ -833,7 +834,7 @@ public class SortingController : ApiControllerBase
             }
 
             // 重新获取更新后的配置并返回
-            var updatedSystemConfig = _systemConfigRepository.Get();
+            var updatedSystemConfig = _systemConfigService.GetSystemConfig();
 
             var response = new DetectionSwitchesDto
             {

@@ -6,6 +6,7 @@ using ZakYip.WheelDiverterSorter.Observability.Utilities;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Runtime.Health;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 
 namespace ZakYip.WheelDiverterSorter.Application.Services.WheelDiverter;
 
@@ -24,7 +25,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
     private const int PingTimeoutMs = 2000;
 
     private readonly IWheelDiverterConfigurationRepository _configRepository;
-    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly IWheelDiverterDriverManager _driverManager;
     private readonly INodeHealthRegistry _healthRegistry;
     private readonly ISystemClock _clock;
@@ -33,7 +34,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
 
     public WheelDiverterConnectionService(
         IWheelDiverterConfigurationRepository configRepository,
-        ISystemConfigurationRepository systemConfigRepository,
+        ISystemConfigService systemConfigService,
         IWheelDiverterDriverManager driverManager,
         INodeHealthRegistry healthRegistry,
         ISystemClock clock,
@@ -41,7 +42,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
         ILogger<WheelDiverterConnectionService> logger)
     {
         _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
-        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _driverManager = driverManager ?? throw new ArgumentNullException(nameof(driverManager));
         _healthRegistry = healthRegistry ?? throw new ArgumentNullException(nameof(healthRegistry));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
@@ -58,7 +59,7 @@ public sealed class WheelDiverterConnectionService : IWheelDiverterConnectionSer
                 _logger.LogInformation("开始连接所有摆轮设备...");
 
                 // 获取系统配置以检查启动延迟设置
-                var systemConfig = _systemConfigRepository.Get();
+                var systemConfig = _systemConfigService.GetSystemConfig();
                 if (systemConfig != null && systemConfig.DriverStartupDelaySeconds > 0)
                 {
                     var systemUptime = TimeSpan.FromMilliseconds(Environment.TickCount64);

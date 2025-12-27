@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Configuration.Persistence.Repositories.LiteDb;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Host.Models;
@@ -20,16 +21,16 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
     // TD-042: 当前假设只有一条线，未来支持多线时需要动态获取LineId
     private const long DefaultLineId = 1;
     
-    private readonly ISystemConfigurationRepository _configRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly IChuteAssignmentTimeoutCalculator? _timeoutCalculator;
     private readonly ILogger<ChuteAssignmentTimeoutController> _logger;
 
     public ChuteAssignmentTimeoutController(
-        ISystemConfigurationRepository configRepository,
+        ISystemConfigService systemConfigService,
         ILogger<ChuteAssignmentTimeoutController> logger,
         IChuteAssignmentTimeoutCalculator? timeoutCalculator = null)
     {
-        _configRepository = configRepository ?? throw new ArgumentNullException(nameof(configRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _timeoutCalculator = timeoutCalculator;
     }
@@ -58,7 +59,7 @@ public class ChuteAssignmentTimeoutController : ApiControllerBase
     {
         try
         {
-            var systemConfig = _configRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             var options = systemConfig.ChuteAssignmentTimeout ?? new ChuteAssignmentTimeoutOptions();
 
             // 尝试计算当前的理论物理极限时间和有效超时时间

@@ -1,4 +1,5 @@
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Orchestration;
 
 namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
@@ -13,18 +14,18 @@ namespace ZakYip.WheelDiverterSorter.Host.Services.Workers;
 public class RouteTopologyConsistencyCheckWorker : IHostedService
 {
     private readonly IRouteTopologyConsistencyChecker _consistencyChecker;
-    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly ILogger<RouteTopologyConsistencyCheckWorker> _logger;
     private readonly IConfiguration _configuration;
 
     public RouteTopologyConsistencyCheckWorker(
         IRouteTopologyConsistencyChecker consistencyChecker,
-        ISystemConfigurationRepository systemConfigRepository,
+        ISystemConfigService systemConfigService,
         ILogger<RouteTopologyConsistencyCheckWorker> logger,
         IConfiguration configuration)
     {
         _consistencyChecker = consistencyChecker ?? throw new ArgumentNullException(nameof(consistencyChecker));
-        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
@@ -61,7 +62,7 @@ public class RouteTopologyConsistencyCheckWorker : IHostedService
                 }
 
                 // 获取并验证异常格口配置
-                var systemConfig = _systemConfigRepository.Get();
+                var systemConfig = _systemConfigService.GetSystemConfig();
                 _logger.LogInformation(
                     "已配置的异常格口 ExceptionChuteId={ExceptionChuteId}，" +
                     "无法生成路径的包裹将自动路由到此格口",
