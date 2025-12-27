@@ -229,6 +229,6 @@ public class PositionIntervalTrackerTests
                 It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("拒绝记录无效的包裹ID")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.AtLeast(2)); // 至少应该有2次警告（ParcelId=0 和 ParcelId=-1）
+            Times.Exactly(4)); // 预期有4次警告（对 ParcelId=0 和 ParcelId=-1 各调用2次）
     }
 }
