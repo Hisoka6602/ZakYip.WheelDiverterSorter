@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Pipeline;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Events.Monitoring;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Tracing;
@@ -20,7 +20,7 @@ namespace ZakYip.WheelDiverterSorter.Execution.Pipeline.Middlewares;
 public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
 {
     private readonly ISwitchingPathGenerator _pathGenerator;
-    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly PathHealthChecker? _pathHealthChecker;
     private readonly IParcelTraceSink? _traceSink;
     private readonly ILogger<RoutePlanningMiddleware>? _logger;
@@ -31,14 +31,14 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
     /// </summary>
     public RoutePlanningMiddleware(
         ISwitchingPathGenerator pathGenerator,
-        ISystemConfigurationRepository systemConfigRepository,
+        ISystemConfigService systemConfigService,
         ISystemClock clock,
         PathHealthChecker? pathHealthChecker = null,
         IParcelTraceSink? traceSink = null,
         ILogger<RoutePlanningMiddleware>? logger = null)
     {
         _pathGenerator = pathGenerator ?? throw new ArgumentNullException(nameof(pathGenerator));
-        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _pathHealthChecker = pathHealthChecker;
         _traceSink = traceSink;
@@ -68,7 +68,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
                 _logger?.LogWarning("包裹 {ParcelId} 无法生成到格口 {TargetChuteId} 的路径", context.ParcelId, context.TargetChuteId);
                 
                 // 尝试生成到异常格口的路径
-                var systemConfig = _systemConfigRepository.Get();
+                var systemConfig = _systemConfigService.GetSystemConfig();
                 var exceptionChuteId = systemConfig.ExceptionChuteId;
                 path = _pathGenerator.GeneratePath(exceptionChuteId);
 
@@ -111,7 +111,7 @@ public sealed class RoutePlanningMiddleware : ISortingPipelineMiddleware
                     });
 
                     // 重新生成到异常格口的路径
-                    var systemConfig = _systemConfigRepository.Get();
+                    var systemConfig = _systemConfigService.GetSystemConfig();
                     var exceptionChuteId = systemConfig.ExceptionChuteId;
                     path = _pathGenerator.GeneratePath(exceptionChuteId);
 

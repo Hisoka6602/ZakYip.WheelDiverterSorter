@@ -32,7 +32,7 @@ using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Orchestration;
 
@@ -92,7 +92,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ISystemClock _clock;
     private readonly ILogger<SortingOrchestrator> _logger;
     private readonly UpstreamConnectionOptions _options;
-    private readonly ISystemConfigurationRepository _systemConfigRepository;
+    private readonly ISystemConfigService _systemConfigService;
     private readonly ISystemStateManager _systemStateManager; // 必需：用于状态验证
     private readonly ICongestionDetector? _congestionDetector;
     private readonly ICongestionDataCollector? _congestionCollector;
@@ -180,7 +180,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         ISwitchingPathGenerator pathGenerator,
         ISwitchingPathExecutor pathExecutor,
         IOptions<UpstreamConnectionOptions> options,
-        ISystemConfigurationRepository systemConfigRepository,
+        ISystemConfigService systemConfigService,
         ISystemClock clock,
         ILogger<SortingOrchestrator> logger,
         ISortingExceptionHandler exceptionHandler,
@@ -219,7 +219,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _clock = clock ?? throw new ArgumentNullException(nameof(clock));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-        _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
+        _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _exceptionHandler = exceptionHandler ?? throw new ArgumentNullException(nameof(exceptionHandler));
         _systemStateManager = systemStateManager ?? throw new ArgumentNullException(nameof(systemStateManager)); // 必需
         _pathFailureHandler = pathFailureHandler;
@@ -371,7 +371,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogDebug("[步骤 5/5] 生成队列任务并入队");
 
             // 获取系统配置和异常格口ID
-            var systemConfig = _systemConfigRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
             // 检查队列服务是否可用
@@ -505,7 +505,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             }
 
             // 直接生成和执行路径
-            var systemConfig = _systemConfigRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
             var path = _pathGenerator.GeneratePath(targetChuteId);
 
@@ -689,7 +689,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private async Task<long> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
     {
-        var systemConfig = _systemConfigRepository.Get();
+        var systemConfig = _systemConfigService.GetSystemConfig();
         var exceptionChuteId = systemConfig.ExceptionChuteId;
 
         // PR-fix-upstream-notification-all-modes: 在所有模式下都向上游发送包裹检测通知
@@ -1304,7 +1304,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         var peekedTask = _queueManager!.PeekTask(positionIndex);
         
         // 获取系统配置（提前获取以便在两处使用）
-        var systemConfig = _systemConfigRepository.Get();
+        var systemConfig = _systemConfigService.GetSystemConfig();
         var passThroughOnInterference = systemConfig?.PassThroughOnInterference ?? false;
         
         if (peekedTask == null)
@@ -1824,7 +1824,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             await CreateParcelEntityAsync(parcelId, e.SensorId);
 
             // 获取异常格口ID
-            var systemConfig = _systemConfigRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
             // 通知上游包裹重复触发异常（不等待响应）
@@ -2502,7 +2502,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         try
         {
             // 获取异常格口配置（同步方法）
-            var systemConfig = _systemConfigRepository.Get();
+            var systemConfig = _systemConfigService.GetSystemConfig();
             var exceptionChuteId = systemConfig.ExceptionChuteId;
 
             // 使用统一的异常处理器生成到异常格口的路径
