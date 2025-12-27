@@ -300,6 +300,7 @@ public class ChutePathTopologyControllerTests : IClassFixture<CustomWebApplicati
         Assert.NotNull(result);
         Assert.True(result.Success);
         Assert.NotNull(result.Data);
+    }
 
     [Fact]
     public async Task SimulateParcelPath_WithTimeout_ShouldRouteToExceptionChute()
