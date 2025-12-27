@@ -58,19 +58,32 @@ public sealed class CircularBuffer<T>
     /// 将缓冲区内容转换为数组（按时间顺序，最旧到最新）
     /// </summary>
     /// <returns>包含缓冲区所有元素的数组</returns>
+    /// <remarks>
+    /// 优化：避免 LINQ Take().ToArray() 的额外分配，直接使用 Array.Copy
+    /// </remarks>
     public T[] ToArray()
     {
         lock (_lock)
         {
-            if (_count < _buffer.Length)
+            if (_count == 0)
             {
-                return _buffer.Take(_count).ToArray();
+                return Array.Empty<T>();
             }
             
-            // 按正确顺序返回（最旧到最新）
-            var result = new T[_buffer.Length];
-            Array.Copy(_buffer, _index, result, 0, _buffer.Length - _index);
-            Array.Copy(_buffer, 0, result, _buffer.Length - _index, _index);
+            var result = new T[_count];
+            
+            if (_count < _buffer.Length)
+            {
+                // 缓冲区未满，直接复制前 _count 个元素
+                Array.Copy(_buffer, 0, result, 0, _count);
+            }
+            else
+            {
+                // 缓冲区已满，按正确顺序返回（最旧到最新）
+                Array.Copy(_buffer, _index, result, 0, _buffer.Length - _index);
+                Array.Copy(_buffer, 0, result, _buffer.Length - _index, _index);
+            }
+            
             return result;
         }
     }

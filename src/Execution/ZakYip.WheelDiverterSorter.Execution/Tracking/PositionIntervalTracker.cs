@@ -161,17 +161,34 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
             return null;
         }
         
-        var intervals = buffer.ToArray();
-        var median = CalculateMedian(intervals);
-        var min = intervals.Min();
-        var max = intervals.Max();
+        // 优化：在锁外获取数据快照，减少锁持有时间
+        double[] intervals;
+        int count;
+        
+        // 使用 buffer 内部的 ToArray 方法（已有锁保护）
+        intervals = buffer.ToArray();
+        count = intervals.Length;
+        
+        if (count == 0)
+        {
+            return null;
+        }
+        
+        // 优化：在锁外执行统计计算（CPU密集型操作）
+        // 使用单次排序同时获取 min, max, median，避免多次遍历
+        Array.Sort(intervals);
+        var min = intervals[0];
+        var max = intervals[count - 1];
+        var median = count % 2 == 0
+            ? (intervals[count / 2 - 1] + intervals[count / 2]) / 2.0
+            : intervals[count / 2];
         
         _lastUpdatedTimes.TryGetValue(positionIndex, out var lastUpdated);
         
         return (
             positionIndex,
             median,
-            intervals.Length,
+            count,
             min,
             max,
             lastUpdated == default ? null : lastUpdated
@@ -257,22 +274,10 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         }
     }
 
-    /// <summary>
-    /// 计算中位数
-    /// </summary>
-    private static double CalculateMedian(double[] values)
-    {
-        if (values.Length == 0)
-            return 0;
-        
-        var sorted = values.OrderBy(v => v).ToArray();
-        int n = sorted.Length;
-        
-        return n % 2 == 0
-            ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
-            : sorted[n / 2];
-    }
-
+    // 注意：CalculateMedian 方法已移除
+    // 优化：统计计算已内联到 GetStatistics 方法中，使用 Array.Sort 一次性完成排序
+    // 避免 LINQ OrderBy().ToArray() 产生的额外分配和性能开销
+    
     // 注意：CleanupOldParcelRecords 方法已移除
     // 原因：自动清理会误删除仍在传输中的包裹记录，导致间隔计算失败
     // 现在仅通过 ClearParcelTracking() 在包裹完成分拣时显式清理
