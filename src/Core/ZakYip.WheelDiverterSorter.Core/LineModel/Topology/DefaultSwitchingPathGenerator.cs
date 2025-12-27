@@ -71,6 +71,9 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     private readonly ISystemClock? _systemClock;
     private readonly ILogger? _logger;
     private bool _topologyConfigLogged = false;  // 用于记录是否已输出拓扑配置日志
+    
+    // TD-088: 线段配置缓存（避免热路径直接读数据库）
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<long, ConveyorSegmentConfiguration?> _segmentConfigCache = new();
 
     /// <summary>
     /// 初始化路径生成器（使用路由配置仓储）
@@ -341,6 +344,8 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// <remarks>
     /// 修复问题：TTL从硬编码5000ms改为根据线体配置动态计算
     /// 计算公式：TTL = (线段长度 / 线速) + 时间容差
+    /// 
+    /// TD-088: 性能优化 - 使用内存缓存避免热路径直接读数据库
     /// </remarks>
     private int CalculateSegmentTtl(long segmentId)
     {
@@ -354,8 +359,25 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return DefaultSegmentTtlMs;
         }
 
-        // 从仓储获取线段配置
-        var segmentConfig = _conveyorSegmentRepository.GetById(segmentId);
+        // TD-088: 从缓存获取线段配置（避免热路径直接读数据库）
+        var segmentConfig = _segmentConfigCache.GetOrAdd(segmentId, id =>
+        {
+            var config = _conveyorSegmentRepository.GetById(id);
+            if (config == null)
+            {
+                _logger?.LogWarning(
+                    "[TTL计算] 线段配置不存在 (SegmentId={SegmentId})，将使用默认TTL",
+                    id);
+            }
+            else
+            {
+                _logger?.LogDebug(
+                    "[TTL计算-缓存未命中] SegmentId={SegmentId} 配置已加载到缓存",
+                    id);
+            }
+            return config;
+        });
+        
         if (segmentConfig == null)
         {
             _logger?.LogWarning(
