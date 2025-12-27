@@ -1399,141 +1399,104 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             UpdateNextPositionExpectedTime(task, positionIndex, currentTime);
         }
 
-        // IO触发逻辑说明：
-        // 1. 包裹物理丢失的情况由 ParcelLossMonitoringService 主动检测并处理
-        // 2. 既然IO被触发，说明包裹物理上已经到达传感器，不可能是"丢失"
-        // 3. IO触发时只需要判断"超时"（延迟到达）或"正常到达"
-        // 4. 即使包裹延迟很大（如前面包裹丢失导致），也应该正常执行摆轮动作
-
-        // 检查是否超时（延迟到达）
-        // FIX: 读取全局实时配置，确保通过 /api/sorting/detection-switches 的配置变更立即生效
-        // 使用 SystemConfiguration.EnableTimeoutDetection 作为唯一控制源
+        // 新的超时/丢失检测逻辑：
+        // 1. 检查触发时间是否晚于当前包裹的期望到达时间
+        // 2. 如果是，则查看下一个包裹的最早出队时间来区分"超时"和"丢失"
+        //    - 触发时间 < 下一个包裹最早出队时间 → 超时（仅发送上游消息）
+        //    - 触发时间 >= 下一个包裹最早出队时间 → 丢失（发送上游消息 + 删除所有队列任务）
+        
         var enableTimeoutDetection = systemConfig?.EnableTimeoutDetection ?? false;
         
-        // - 启用时：延迟到达判定为"超时"，执行回退动作并插入补偿任务
-        // - 禁用时：不区分"延迟到达"和"正常到达"，一律按正常到达执行主动作
-        var isTimeout = enableTimeoutDetection && 
-                       currentTime > task.ExpectedArrivalTime.AddMilliseconds(task.TimeoutThresholdMs);
+        bool isTimeout = false;
+        bool isPacketLoss = false;
+        DiverterDirection actionToExecute = task.DiverterAction;
 
-        DiverterDirection actionToExecute;
+        if (enableTimeoutDetection && currentTime > task.ExpectedArrivalTime)
+        {
+            // 当前包裹已延迟到达，需要判断是超时还是丢失
+            var nextTask = _queueManager!.PeekNextTask(positionIndex);
+            
+            if (nextTask != null && nextTask.EarliestDequeueTime.HasValue)
+            {
+                // 有下一个包裹，基于其最早出队时间判断
+                if (currentTime < nextTask.EarliestDequeueTime.Value)
+                {
+                    // 触发时间在下一个包裹最早出队时间之前 → 超时
+                    isTimeout = true;
+                    var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+                    _logger.LogWarning(
+                        "[超时检测] 包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，" +
+                        "触发时间={CurrentTime:HH:mm:ss.fff} < 下一个包裹最早出队时间={NextEarliest:HH:mm:ss.fff}",
+                        task.ParcelId, positionIndex, delayMs, currentTime, nextTask.EarliestDequeueTime.Value);
+                }
+                else
+                {
+                    // 触发时间在下一个包裹最早出队时间之后或相等 → 丢失
+                    isPacketLoss = true;
+                    var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+                    _logger.LogError(
+                        "[包裹丢失] 包裹 {ParcelId} 在 Position {PositionIndex} 判定为丢失 (延迟 {DelayMs}ms)，" +
+                        "触发时间={CurrentTime:HH:mm:ss.fff} >= 下一个包裹最早出队时间={NextEarliest:HH:mm:ss.fff}",
+                        task.ParcelId, positionIndex, delayMs, currentTime, nextTask.EarliestDequeueTime.Value);
+                }
+            }
+            else
+            {
+                // 没有下一个包裹（队列中只有当前包裹），判定为超时
+                isTimeout = true;
+                var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+                _logger.LogWarning(
+                    "[超时检测] 包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，队列中无下一个包裹",
+                    task.ParcelId, positionIndex, delayMs);
+            }
+        }
 
         if (isTimeout)
         {
-            var delayMs = (currentTime - task.ExpectedArrivalTime).TotalMilliseconds;
+            // 超时处理：仅发送上游超时消息，不插入补偿任务，不执行回退动作
             _logger.LogWarning(
-                "包裹 {ParcelId} 在 Position {PositionIndex} 超时 (延迟 {DelayMs}ms)，使用回退动作 {FallbackAction}",
-                task.ParcelId, positionIndex, delayMs, task.FallbackAction);
-
-            actionToExecute = task.FallbackAction;
-
-            // 超时包裹需要在后续所有 position 插入 Straight 任务到队列头部
-            // 但只在首次超时时插入一次，避免重复插入导致队列堆积
-            if (_timeoutCompensationInserted.TryAdd(task.ParcelId, 0))
-            {
-                // Issue #3: 使用缓存的后续节点列表，避免重复查询和构造
-                if (_subsequentNodesCache.TryGetValue(positionIndex, out var subsequentNodes) && subsequentNodes.Any())
-                {
-                    _logger.LogWarning(
-                        "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务: [{Positions}]",
-                        task.ParcelId,
-                        subsequentNodes.Count,
-                        string.Join(", ", subsequentNodes.Select(n => n.PositionIndex)));
-
-                    foreach (var node in subsequentNodes)
-                    {
-                        var now = _clock.LocalNow;
-                        var compensationEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
-                        if (compensationEarliestDequeueTime < task.CreatedAt)
-                        {
-                            compensationEarliestDequeueTime = task.CreatedAt;
-                        }
-                        
-                        var straightTask = new PositionQueueItem
-                        {
-                            ParcelId = task.ParcelId,
-                            DiverterId = node.DiverterId,
-                            DiverterAction = DiverterDirection.Straight,
-                            ExpectedArrivalTime = now, // 已超时，使用当前时间
-                            TimeoutThresholdMs = task.TimeoutThresholdMs,
-                            FallbackAction = DiverterDirection.Straight,
-                            PositionIndex = node.PositionIndex,
-                            CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
-                            // 丢失判定超时 = TimeoutThreshold * 1.5
-                            LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                            LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
-                            // 最早出队时间（提前触发检测）
-                            EarliestDequeueTime = compensationEarliestDequeueTime,
-                            // 继承原任务的超时检测开关设置
-                            EnableTimeoutDetection = task.EnableTimeoutDetection
-                        };
-
-                        // 使用优先入队，插入到队列头部
-                        _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
-                    }
-                }
-                else if (_topologyRepository != null)
-                {
-                    // 缓存未命中时的fallback（配置动态变更场景）
-                    var topology = _topologyRepository.Get();
-                    if (topology != null)
-                    {
-                        // 找到所有比当前 position 大的节点
-                        var fallbackSubsequentNodes = topology.DiverterNodes
-                            .Where(n => n.PositionIndex > positionIndex)
-                            .OrderBy(n => n.PositionIndex)
-                            .ToList();
-
-                        if (fallbackSubsequentNodes.Any())
-                        {
-                            _logger.LogWarning(
-                                "包裹 {ParcelId} 首次超时，在后续 {Count} 个 position 插入 Straight 任务 (缓存未命中，使用fallback): [{Positions}]",
-                                task.ParcelId,
-                                fallbackSubsequentNodes.Count,
-                                string.Join(", ", fallbackSubsequentNodes.Select(n => n.PositionIndex)));
-
-                            foreach (var node in fallbackSubsequentNodes)
-                            {
-                                var now = _clock.LocalNow;
-                                var fallbackEarliestDequeueTime = now.AddMilliseconds(-task.TimeoutThresholdMs);
-                                if (fallbackEarliestDequeueTime < task.CreatedAt)
-                                {
-                                    fallbackEarliestDequeueTime = task.CreatedAt;
-                                }
-                                
-                                var straightTask = new PositionQueueItem
-                                {
-                                    ParcelId = task.ParcelId,
-                                    DiverterId = node.DiverterId,
-                                    DiverterAction = DiverterDirection.Straight,
-                                    ExpectedArrivalTime = now, // 已超时，使用当前时间
-                                    TimeoutThresholdMs = task.TimeoutThresholdMs,
-                                    FallbackAction = DiverterDirection.Straight,
-                                    PositionIndex = node.PositionIndex,
-                                    CreatedAt = task.CreatedAt, // 使用原始包裹创建时间
-                                    // 丢失判定超时 = TimeoutThreshold * 1.5
-                                    LostDetectionTimeoutMs = (long)(task.TimeoutThresholdMs * 1.5),
-                                    LostDetectionDeadline = now.AddMilliseconds(task.TimeoutThresholdMs * 1.5),
-                                    // 最早出队时间（提前触发检测）
-                                    EarliestDequeueTime = fallbackEarliestDequeueTime,
-                                    // 继承原任务的超时检测开关设置
-                                    EnableTimeoutDetection = task.EnableTimeoutDetection
-                                };
-
-                                // 使用优先入队，插入到队列头部
-                                _queueManager!.EnqueuePriorityTask(node.PositionIndex, straightTask);
-                            }
-                        }
-                    }
-                }
-            }
-            else if (!_timeoutCompensationInserted.ContainsKey(task.ParcelId))
-            {
-                _logger.LogDebug(
-                    "包裹 {ParcelId} 在 Position {PositionIndex} 再次超时，已在首次超时时插入补偿任务，本次不重复插入",
-                    task.ParcelId, positionIndex);
-            }
-
+                "[超时处理] 包裹 {ParcelId} 在 Position {PositionIndex} 超时，发送上游超时通知",
+                task.ParcelId, positionIndex);
+            
+            // 发送超时通知到上游
+            await NotifyUpstreamSortingCompletedAsync(
+                task.ParcelId,
+                0, // 超时未完成分拣
+                isSuccess: false,
+                failureReason: "Timeout",
+                finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
+            
+            // 仍然执行计划动作（不执行回退动作）
+            actionToExecute = task.DiverterAction;
+            
             RecordSortingFailure(0, isTimeout: true);
+        }
+        else if (isPacketLoss)
+        {
+            // 包裹丢失处理：发送上游丢失消息 + 从所有队列删除该包裹的所有任务
+            _logger.LogError(
+                "[包裹丢失处理] 包裹 {ParcelId} 在 Position {PositionIndex} 判定为丢失，" +
+                "发送上游丢失通知并删除所有队列中的任务",
+                task.ParcelId, positionIndex);
+            
+            // 发送丢失通知到上游
+            await NotifyUpstreamSortingCompletedAsync(
+                task.ParcelId,
+                0, // 丢失未完成分拣
+                isSuccess: false,
+                failureReason: "PacketLoss",
+                finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Lost);
+            
+            // 从所有队列中删除该包裹的所有任务
+            var removedCount = _queueManager!.RemoveAllTasksForParcel(task.ParcelId);
+            _logger.LogWarning(
+                "[包裹丢失清理] 已从所有队列删除包裹 {ParcelId} 的 {RemovedCount} 个任务",
+                task.ParcelId, removedCount);
+            
+            // 仍然执行计划动作（让当前这个物理包裹通过）
+            actionToExecute = task.DiverterAction;
+            
+            RecordSortingFailure(0, isTimeout: false);
         }
         else
         {
@@ -1541,8 +1504,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         _logger.LogInformation(
-            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
-            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
+            "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout}, 丢失={IsLoss})",
+            task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout, isPacketLoss);
 
         // 执行摆轮动作（Phase 5 完整实现）
         // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
