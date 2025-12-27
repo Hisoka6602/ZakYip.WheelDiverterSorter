@@ -1936,6 +1936,31 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             parcelRecord.UpstreamReplyReceivedAt = new DateTimeOffset(receivedAt);
             parcelRecord.RouteBoundAt = new DateTimeOffset(receivedAt);
 
+            // TD-088: 严格超时检查 - 超过配置的超时时间后，即使收到上游响应也拒绝更新
+            // 获取系统配置中的超时时间
+            var systemConfig = _systemConfigService.GetSystemConfig();
+            var timeoutMs = systemConfig.ChuteAssignmentTimeout.FallbackTimeoutMs;
+            
+            // 计算响应延迟
+            var responseDelay = parcelRecord.UpstreamRequestSentAt.HasValue
+                ? (receivedAt - parcelRecord.UpstreamRequestSentAt.Value.DateTime).TotalMilliseconds
+                : 0;
+            
+            // 如果响应超时，拒绝更新路径
+            if (responseDelay > timeoutMs)
+            {
+                var barcodeSuffixTimeout = GetBarcodeSuffix(e.ParcelId);
+                _logger.LogWarning(
+                    "[TD-088-超时拒绝] 包裹 {ParcelId}{BarcodeSuffix} 的上游响应已超时 ({Delay:F0}ms > {Timeout}ms)，" +
+                    "拒绝更新路径，包裹将继续使用异常格口 (分配格口={ChuteId})",
+                    e.ParcelId,
+                    barcodeSuffixTimeout,
+                    responseDelay,
+                    timeoutMs,
+                    e.ChuteId);
+                return;  // 超时后直接返回，不进行路径更新
+            }
+
             // TD-088: 异步非阻塞路由 - 重新生成路径并替换队列任务
             // 新逻辑：
             // 1. 包裹创建时立即使用异常格口生成路径并入队（不等待上游）
@@ -1945,10 +1970,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             var barcodeSuffix = GetBarcodeSuffix(e.ParcelId);  // TD-088: 重新声明 barcodeSuffix
             
             _logger.LogInformation(
-                "[TD-088-上游响应] 包裹 {ParcelId}{BarcodeSuffix} 收到格口分配 ChuteId={ChuteId}，开始异步更新路径",
+                "[TD-088-上游响应] 包裹 {ParcelId}{BarcodeSuffix} 收到格口分配 ChuteId={ChuteId} (延迟={Delay:F0}ms)，开始异步更新路径",
                 e.ParcelId,
                 barcodeSuffix,
-                e.ChuteId);
+                e.ChuteId,
+                responseDelay);
 
             // 记录路由绑定完成的 Trace 日志
             _logger.LogTrace(
