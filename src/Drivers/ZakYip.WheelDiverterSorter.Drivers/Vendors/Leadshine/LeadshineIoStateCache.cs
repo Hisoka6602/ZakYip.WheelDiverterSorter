@@ -197,9 +197,7 @@ public sealed class LeadshineIoStateCache : BackgroundService, ILeadshineIoState
                 _inputPortCache[i] = ints[i];
             }
 
-            _logger.LogDebug(
-                "成功刷新{PortCount}个输入端口状态",
-                _totalInputPorts);
+            // 成功时不输出日志，仅在失败时输出（避免日志泛滥）
         }
         catch (Exception ex)
         {
