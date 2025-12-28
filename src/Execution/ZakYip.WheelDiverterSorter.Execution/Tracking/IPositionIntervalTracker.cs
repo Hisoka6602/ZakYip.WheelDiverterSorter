@@ -14,7 +14,7 @@ public interface IPositionIntervalTracker
     /// 记录触发间隔
     /// </summary>
     /// <param name="positionIndex">Position 索引</param>
-    /// <param name="intervalMs">触发间隔（毫秒）</param>
+    /// <param name="intervalMs">触发间隔（毫秒），表示物理运输时间</param>
     void RecordInterval(int positionIndex, double intervalMs);
     
     /// <summary>
@@ -22,10 +22,13 @@ public interface IPositionIntervalTracker
     /// </summary>
     /// <param name="parcelId">包裹ID</param>
     /// <param name="positionIndex">Position 索引</param>
-    /// <param name="arrivedAt">到达时间</param>
+    /// <param name="arrivedAt">到达时间（传感器实际触发时间）</param>
     /// <remarks>
     /// 此方法会跟踪包裹在各个position的时间，并计算相邻position间的间隔。
     /// 例如：包裹从 position 1 → position 2 的间隔 = position2触发时间 - position1触发时间
+    /// 
+    /// ⚠️ 重要：间隔反映的是物理运输时间（传感器触发时间差），不是处理耗时。
+    /// arrivedAt 参数来自传感器实际触发时刻，因此间隔值准确反映包裹在输送线上的真实传输时间。
     /// </remarks>
     void RecordParcelPosition(long parcelId, int positionIndex, DateTime arrivedAt);
     
