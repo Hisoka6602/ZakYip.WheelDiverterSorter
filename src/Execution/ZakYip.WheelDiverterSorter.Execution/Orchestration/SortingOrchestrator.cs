@@ -1919,7 +1919,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 假设：每个包裹的格口分配通知只会收到一次，不会有并发修改同一包裹记录的情况
             parcelRecord.UpstreamReplyReceivedAt = new DateTimeOffset(receivedAt);
             parcelRecord.RouteBoundAt = new DateTimeOffset(receivedAt);
-
             // TD-088: 严格超时检查 - 超过配置的超时时间后，即使收到上游响应也拒绝更新
             // 获取系统配置中的超时时间
             var systemConfig = _systemConfigService.GetSystemConfig();
@@ -1942,7 +1941,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     responseDelay,
                     timeoutMs,
                     e.ChuteId);
-                return;  // 超时后直接返回，不进行路径更新
             }
 
             // 验证格口ID有效性（必须 > 0）
@@ -1955,7 +1953,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     e.ParcelId,
                     barcodeSuffixInvalid,
                     e.ChuteId);
-                return;  // 无效格口ID，直接返回
             }
 
             // TD-088: 异步非阻塞路由 - 重新生成路径并替换队列任务
@@ -1993,17 +1990,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         try
                         {
                             // 重新生成路径并替换队列任务
-                            await RegenerateAndReplaceQueueTasksAsync(e.ParcelId, e.ChuteId);
+                            await RegenerateAndReplaceQueueTasksAsync(e.ParcelId, e.ChuteId == 0 ? 999 : e.ChuteId);
 
                             // 更新 RoutePlan
-                            await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
+                            await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId == 0 ? 999 : e.ChuteId, e.AssignedAt);
 
                             var barcodeSuffixInner = GetBarcodeSuffix(e.ParcelId);
                             _logger.LogInformation(
                                 "[TD-088-路径更新成功] 包裹 {ParcelId}{BarcodeSuffix} 的路径和RoutePlan已成功更新为格口 {ChuteId}",
                                 e.ParcelId,
                                 barcodeSuffixInner,
-                                e.ChuteId);
+                                e.ChuteId == 0 ? 999 : e.ChuteId);
                         }
                         catch (Exception ex)
                         {
@@ -2013,7 +2010,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                                 "[TD-088-路径更新失败] 更新包裹 {ParcelId}{BarcodeSuffix} 的路径时发生错误 (ChuteId={ChuteId})",
                                 e.ParcelId,
                                 barcodeSuffixInner,
-                                e.ChuteId);
+                                e.ChuteId == 0 ? 999 : e.ChuteId);
                         }
                     },
                     operationName: "SortingOrchestrator.OnChuteAssignmentReceived_AsyncPathUpdate");
