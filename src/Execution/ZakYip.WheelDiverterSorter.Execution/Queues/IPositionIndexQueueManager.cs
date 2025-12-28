@@ -54,6 +54,20 @@ public interface IPositionIndexQueueManager
     PositionQueueItem? PeekNextTask(int positionIndex);
     
     /// <summary>
+    /// 原地更新指定包裹的任务（不影响队列顺序）
+    /// </summary>
+    /// <param name="positionIndex">Position Index</param>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="updateFunc">更新函数，接收旧任务返回新任务</param>
+    /// <returns>是否成功更新（false 表示任务不存在）</returns>
+    /// <remarks>
+    /// <para><b>用途</b>：动态时间更新场景，包裹在当前 Position 触发后需要更新下一个 Position 的期望到达时间。</para>
+    /// <para><b>优势</b>：O(1) 操作，仅更新 Dictionary 中的数据，不影响 Channel 中的 FIFO 顺序，无需出队/入队。</para>
+    /// <para><b>线程安全</b>：使用 ConcurrentDictionary 的原子操作保证并发安全。</para>
+    /// </remarks>
+    bool TryUpdateTask(int positionIndex, long parcelId, Func<PositionQueueItem, PositionQueueItem> updateFunc);
+    
+    /// <summary>
     /// 清空所有 position 的队列
     /// </summary>
     /// <remarks>

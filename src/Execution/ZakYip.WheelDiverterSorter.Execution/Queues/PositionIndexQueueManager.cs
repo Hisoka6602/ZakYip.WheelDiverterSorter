@@ -654,4 +654,54 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         
         return result;
     }
+
+    /// <inheritdoc/>
+    public bool TryUpdateTask(int positionIndex, long parcelId, Func<PositionQueueItem, PositionQueueItem> updateFunc)
+    {
+        var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+        
+        lock (queueLock)
+        {
+            if (!_queues.TryGetValue(positionIndex, out var queue))
+            {
+                return false;
+            }
+
+            // 找到目标任务并更新
+            var tempList = new List<PositionQueueItem>();
+            bool found = false;
+            PositionQueueItem? updatedTask = null;
+
+            // 出队所有任务到临时列表
+            while (queue.TryDequeue(out var task))
+            {
+                if (task.ParcelId == parcelId && !found)
+                {
+                    // 找到目标任务，执行更新
+                    updatedTask = updateFunc(task);
+                    tempList.Add(updatedTask);
+                    found = true;
+                }
+                else
+                {
+                    tempList.Add(task);
+                }
+            }
+
+            // 将所有任务放回队列（保持原顺序）
+            foreach (var task in tempList)
+            {
+                queue.Enqueue(task);
+            }
+
+            if (found)
+            {
+                _logger.LogDebug(
+                    "[原地更新] Position {PositionIndex} 包裹 {ParcelId} 的任务已更新",
+                    positionIndex, parcelId);
+            }
+
+            return found;
+        }
+    }
 }

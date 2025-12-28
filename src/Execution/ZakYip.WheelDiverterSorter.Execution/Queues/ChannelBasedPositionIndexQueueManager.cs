@@ -55,7 +55,10 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
     // 每个 Position 的已入队包裹ID集合（用于防止重复入队）
     private readonly ConcurrentDictionary<int, HashSet<long>> _queuedSets = new();
     
-    // 每个 Position 的锁（用于保护 HashSet 的同步操作）
+    // 每个 Position 的包裹ID顺序列表（用于 Peek 操作，避免 Channel 重建）
+    private readonly ConcurrentDictionary<int, List<long>> _orderLists = new();
+    
+    // 每个 Position 的锁（用于保护 HashSet 和 List 的同步操作）
     private readonly ConcurrentDictionary<int, object> _positionLocks = new();
     
     // 时间戳记录
@@ -97,6 +100,7 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             var channel = GetOrCreateChannel(positionIndex);
             var taskDict = GetOrCreateTaskDictionary(positionIndex);
             var queuedSet = GetOrCreateQueuedSet(positionIndex);
+            var orderList = GetOrCreateOrderList(positionIndex);
             
             // 2. 检查是否已入队
             var isNewParcel = !queuedSet.Contains(task.ParcelId);
@@ -104,7 +108,7 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             // 3. 存储/更新任务数据（无论是否新包裹都更新）
             taskDict[task.ParcelId] = task;
             
-            // 4. 仅在首次入队时将包裹ID加入 Channel 和 Set
+            // 4. 仅在首次入队时将包裹ID加入 Channel、Set 和 List
             if (isNewParcel)
             {
                 // 加入 Channel（FIFO 队列）
@@ -119,6 +123,9 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                 
                 // 标记已入队
                 queuedSet.Add(task.ParcelId);
+                
+                // 加入顺序列表（用于 Peek）
+                orderList.Add(task.ParcelId);
             }
             
             // 5. 更新时间戳
@@ -141,6 +148,7 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             var channel = GetOrCreateChannel(positionIndex);
             var taskDict = GetOrCreateTaskDictionary(positionIndex);
             var queuedSet = GetOrCreateQueuedSet(positionIndex);
+            var orderList = GetOrCreateOrderList(positionIndex);
             
             // 1. 创建新的临时 Channel
             var newChannel = Channel.CreateUnbounded<long>(_channelOptions);
@@ -158,8 +166,9 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             // 4. 替换旧 Channel
             _orderChannels[positionIndex] = newChannel;
             
-            // 5. 更新 Set（插入头部）
+            // 5. 更新 Set 和 List（插入头部）
             queuedSet.Add(task.ParcelId);
+            orderList.Insert(0, task.ParcelId);
             
             // 6. 存储任务数据
             taskDict[task.ParcelId] = task;
@@ -188,6 +197,8 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             return null;
         }
 
+        var positionLock = GetOrCreateLock(positionIndex);
+        
         // 逻辑删除 + 消费端跳过模式：
         // 循环读取 Channel 直到找到有效任务（未被逻辑删除的）
         while (channel.Reader.TryRead(out var parcelId))
@@ -196,12 +207,16 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             if (taskDict.TryRemove(parcelId, out var task))
             {
                 // 成功移除 = 有效任务，处理它
-                var positionLock = GetOrCreateLock(positionIndex);
                 lock (positionLock)
                 {
                     if (_queuedSets.TryGetValue(positionIndex, out var queuedSet))
                     {
                         queuedSet.Remove(parcelId); // 允许该 key 未来重新入队
+                    }
+                    
+                    if (_orderLists.TryGetValue(positionIndex, out var orderList))
+                    {
+                        orderList.Remove(parcelId); // 从顺序列表中移除
                     }
                 }
                 
@@ -216,6 +231,15 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             else
             {
                 // 失败 = 已被逻辑删除（取消或已处理），跳过继续读下一个
+                // 同时从顺序列表中移除已删除的ID
+                lock (positionLock)
+                {
+                    if (_orderLists.TryGetValue(positionIndex, out var orderList))
+                    {
+                        orderList.Remove(parcelId);
+                    }
+                }
+                
                 _logger.LogDebug(
                     "跳过已取消的任务: Position {PositionIndex}, ParcelId={ParcelId}",
                     positionIndex, parcelId);
@@ -231,35 +255,11 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
     /// <inheritdoc/>
     public PositionQueueItem? PeekTask(int positionIndex)
     {
-        if (!_orderChannels.TryGetValue(positionIndex, out var channel))
-        {
-            return null;
-        }
-
-        if (!_taskData.TryGetValue(positionIndex, out var taskDict))
-        {
-            return null;
-        }
-
-        // 窥视 Channel 头部，找到第一个有效任务
-        if (!channel.Reader.TryPeek(out var parcelId))
-        {
-            return null;
-        }
-
-        // 从 Dictionary 中获取任务数据（不移除）
-        taskDict.TryGetValue(parcelId, out var task);
-        return task;
-    }
-
-    /// <inheritdoc/>
-    public PositionQueueItem? PeekNextTask(int positionIndex)
-    {
         var positionLock = GetOrCreateLock(positionIndex);
         
         lock (positionLock)
         {
-            if (!_orderChannels.TryGetValue(positionIndex, out var channel))
+            if (!_orderLists.TryGetValue(positionIndex, out var orderList))
             {
                 return null;
             }
@@ -269,47 +269,52 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                 return null;
             }
 
-            // 由于 Channel 不支持 Peek 第二个元素，我们需要临时读取并放回
-            // 使用 List 临时存储前两个有效的包裹ID
-            var tempIds = new List<long>();
-            var reader = channel.Reader;
-            
-            // 读取前两个ID
-            while (tempIds.Count < 2 && reader.TryRead(out var parcelId))
+            // 从顺序列表中找到第一个有效任务（在 taskDict 中存在的）
+            foreach (var parcelId in orderList)
             {
-                // 只收集有效的任务（在 taskDict 中存在的）
-                if (taskDict.ContainsKey(parcelId))
+                if (taskDict.TryGetValue(parcelId, out var task))
                 {
-                    tempIds.Add(parcelId);
+                    return task; // 返回第一个有效任务
                 }
             }
-            
-            // 将读取的所有ID放回（通过重建Channel）
-            var newChannel = Channel.CreateUnbounded<long>(_channelOptions);
-            
-            // 先放回我们读取的ID
-            foreach (var id in tempIds)
-            {
-                newChannel.Writer.TryWrite(id);
-            }
-            
-            // 再复制剩余的所有ID
-            while (reader.TryRead(out var remainingId))
-            {
-                newChannel.Writer.TryWrite(remainingId);
-            }
-            
-            // 替换Channel
-            _orderChannels[positionIndex] = newChannel;
-            
-            // 返回第二个有效元素
-            if (tempIds.Count >= 2)
-            {
-                var secondParcelId = tempIds[1];
-                return taskDict.TryGetValue(secondParcelId, out var task) ? task : null;
-            }
-            
+
             return null;
+        }
+    }
+
+    /// <inheritdoc/>
+    public PositionQueueItem? PeekNextTask(int positionIndex)
+    {
+        var positionLock = GetOrCreateLock(positionIndex);
+        
+        lock (positionLock)
+        {
+            if (!_orderLists.TryGetValue(positionIndex, out var orderList))
+            {
+                return null;
+            }
+
+            if (!_taskData.TryGetValue(positionIndex, out var taskDict))
+            {
+                return null;
+            }
+
+            // 从顺序列表中找到前两个有效任务
+            var validTasks = 0;
+            foreach (var parcelId in orderList)
+            {
+                if (taskDict.ContainsKey(parcelId))
+                {
+                    validTasks++;
+                    if (validTasks == 2)
+                    {
+                        // 返回第二个有效任务
+                        return taskDict.TryGetValue(parcelId, out var task) ? task : null;
+                    }
+                }
+            }
+
+            return null; // 少于2个有效任务
         }
     }
 
@@ -342,6 +347,12 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                     if (_queuedSets.TryGetValue(positionIndex, out var queuedSet))
                     {
                         queuedSet.Clear();
+                    }
+                    
+                    // 清空顺序列表
+                    if (_orderLists.TryGetValue(positionIndex, out var orderList))
+                    {
+                        orderList.Clear();
                     }
                     
                     clearedCount += count;
@@ -733,5 +744,40 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
     private HashSet<long> GetOrCreateQueuedSet(int positionIndex)
     {
         return _queuedSets.GetOrAdd(positionIndex, _ => new HashSet<long>());
+    }
+
+    /// <summary>
+    /// 获取或创建指定 Position 的顺序列表
+    /// </summary>
+    private List<long> GetOrCreateOrderList(int positionIndex)
+    {
+        return _orderLists.GetOrAdd(positionIndex, _ => new List<long>());
+    }
+
+    /// <inheritdoc/>
+    public bool TryUpdateTask(int positionIndex, long parcelId, Func<PositionQueueItem, PositionQueueItem> updateFunc)
+    {
+        if (!_taskData.TryGetValue(positionIndex, out var taskDict))
+        {
+            return false;
+        }
+
+        // 检查任务是否存在
+        if (!taskDict.TryGetValue(parcelId, out var existingTask))
+        {
+            return false;
+        }
+
+        // 执行更新函数
+        var updatedTask = updateFunc(existingTask);
+
+        // 原地更新字典中的任务（O(1) 操作）
+        taskDict[parcelId] = updatedTask;
+
+        _logger.LogDebug(
+            "[原地更新] Position {PositionIndex} 包裹 {ParcelId} 的任务已更新",
+            positionIndex, parcelId);
+
+        return true;
     }
 }
