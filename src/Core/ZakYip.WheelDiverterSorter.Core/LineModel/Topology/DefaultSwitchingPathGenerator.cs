@@ -128,12 +128,6 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _conveyorSegmentRepository = conveyorSegmentRepository;
         _logger = logger;
-        
-        // Validate that systemClock is not null for queue operations
-        if (_systemClock == null)
-        {
-            throw new InvalidOperationException("SystemClock is required for queue task generation");
-        }
     }
 
     /// <summary>

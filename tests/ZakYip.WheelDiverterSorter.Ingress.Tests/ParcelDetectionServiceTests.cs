@@ -68,7 +68,7 @@ public class ParcelDetectionServiceTests
     /// <summary>
     /// 创建带传感器配置的 Mock 仓储（已弃用，使用 CreateMockSensorService 代替）
     /// </summary>
-    [Obsolete("Use CreateMockSensorService instead")]
+    [Obsolete("Use CreateMockSensorService instead. This helper uses a repository-based configuration which is deprecated in favor of ISensorConfigService mocking to avoid hot path DB access (Rule 5.2).")]
     private Mock<ISensorConfigurationRepository> CreateMockSensorRepository(long sensorId, int deduplicationWindowMs = 400)
     {
         var mockRepo = new Mock<ISensorConfigurationRepository>();
@@ -94,7 +94,7 @@ public class ParcelDetectionServiceTests
     /// <summary>
     /// 创建带多个传感器配置的 Mock 仓储（已弃用，使用 CreateMockSensorService 代替）
     /// </summary>
-    [Obsolete("Use CreateMockSensorService instead")]
+    [Obsolete("Use CreateMockSensorService instead. This helper uses a repository-based configuration which is deprecated in favor of ISensorConfigService mocking to avoid hot path DB access (Rule 5.2).")]
     private Mock<ISensorConfigurationRepository> CreateMockSensorRepository(Dictionary<long, int> sensorDeduplicationWindows)
     {
         var mockRepo = new Mock<ISensorConfigurationRepository>();
