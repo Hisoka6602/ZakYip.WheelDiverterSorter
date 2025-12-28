@@ -390,4 +390,193 @@ public class PositionIndexQueueManagerTests
             EarliestDequeueTime = _mockClock.Object.LocalNow
         };
     }
+    
+    #region UpdateTaskInPlace Tests
+    
+    /// <summary>
+    /// 测试：UpdateTaskInPlace 成功更新队列头部任务
+    /// </summary>
+    [Fact]
+    public void UpdateTaskInPlace_HeadTask_ShouldUpdateSuccessfully()
+    {
+        // Arrange
+        var manager = new PositionIndexQueueManager(
+            _mockLogger.Object,
+            _mockClock.Object,
+            _mockIntervalTracker.Object);
+            
+        var originalTime = _mockClock.Object.LocalNow.AddSeconds(5);
+        var task = new PositionQueueItem
+        {
+            ParcelId = 1001,
+            DiverterId = 1,
+            PositionIndex = 1,
+            DiverterAction = DiverterDirection.Left,
+            ExpectedArrivalTime = originalTime,
+            TimeoutThresholdMs = 2000,
+            FallbackAction = DiverterDirection.Straight,
+            CreatedAt = _mockClock.Object.LocalNow,
+            EarliestDequeueTime = _mockClock.Object.LocalNow
+        };
+        
+        manager.EnqueueTask(1, task);
+        
+        // Act
+        var newTime = _mockClock.Object.LocalNow.AddSeconds(10);
+        var updated = manager.UpdateTaskInPlace(1, 1001, t => t with 
+        { 
+            ExpectedArrivalTime = newTime 
+        });
+        
+        // Assert
+        Assert.True(updated);
+        
+        var dequeuedTask = manager.DequeueTask(1);
+        Assert.NotNull(dequeuedTask);
+        Assert.Equal(1001, dequeuedTask.ParcelId);
+        Assert.Equal(newTime, dequeuedTask.ExpectedArrivalTime);
+        Assert.Equal(DiverterDirection.Left, dequeuedTask.DiverterAction); // 其他字段未变
+    }
+    
+    /// <summary>
+    /// 测试：UpdateTaskInPlace 当队列头部是其他包裹时应返回 false
+    /// </summary>
+    [Fact]
+    public void UpdateTaskInPlace_DifferentHeadParcel_ShouldReturnFalse()
+    {
+        // Arrange
+        var manager = new PositionIndexQueueManager(
+            _mockLogger.Object,
+            _mockClock.Object,
+            _mockIntervalTracker.Object);
+            
+        var task1 = CreateTask(1001, 1, DiverterDirection.Left);
+        var task2 = CreateTask(1002, 1, DiverterDirection.Right);
+        
+        manager.EnqueueTask(1, task1);
+        manager.EnqueueTask(1, task2);
+        
+        // Act - 尝试更新第二个包裹（但队列头是第一个包裹）
+        var updated = manager.UpdateTaskInPlace(1, 1002, t => t with 
+        { 
+            ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(10) 
+        });
+        
+        // Assert
+        Assert.False(updated);
+        
+        // 验证队列顺序未被破坏
+        var firstTask = manager.DequeueTask(1);
+        Assert.Equal(1001, firstTask!.ParcelId);
+    }
+    
+    /// <summary>
+    /// 测试：UpdateTaskInPlace 保持 FIFO 顺序
+    /// </summary>
+    [Fact]
+    public void UpdateTaskInPlace_ShouldMaintainFIFOOrder()
+    {
+        // Arrange
+        var manager = new PositionIndexQueueManager(
+            _mockLogger.Object,
+            _mockClock.Object,
+            _mockIntervalTracker.Object);
+            
+        var task1 = CreateTask(1001, 1, DiverterDirection.Left);
+        var task2 = CreateTask(1002, 1, DiverterDirection.Right);
+        var task3 = CreateTask(1003, 1, DiverterDirection.Straight);
+        
+        manager.EnqueueTask(1, task1);
+        manager.EnqueueTask(1, task2);
+        manager.EnqueueTask(1, task3);
+        
+        // Act - 更新队列头部包裹
+        var updated = manager.UpdateTaskInPlace(1, 1001, t => t with 
+        { 
+            ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(20) 
+        });
+        
+        // Assert
+        Assert.True(updated);
+        
+        // 验证 FIFO 顺序保持不变：1001 -> 1002 -> 1003
+        var dequeued1 = manager.DequeueTask(1);
+        Assert.Equal(1001, dequeued1!.ParcelId);
+        
+        var dequeued2 = manager.DequeueTask(1);
+        Assert.Equal(1002, dequeued2!.ParcelId);
+        
+        var dequeued3 = manager.DequeueTask(1);
+        Assert.Equal(1003, dequeued3!.ParcelId);
+    }
+    
+    /// <summary>
+    /// 测试：UpdateTaskInPlace 在队列为空时应返回 false
+    /// </summary>
+    [Fact]
+    public void UpdateTaskInPlace_EmptyQueue_ShouldReturnFalse()
+    {
+        // Arrange
+        var manager = new PositionIndexQueueManager(
+            _mockLogger.Object,
+            _mockClock.Object,
+            _mockIntervalTracker.Object);
+        
+        // Act - 尝试更新空队列中的任务
+        var updated = manager.UpdateTaskInPlace(1, 1001, t => t with 
+        { 
+            ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(10) 
+        });
+        
+        // Assert
+        Assert.False(updated);
+    }
+    
+    /// <summary>
+    /// 测试：UpdateTaskInPlace 应该是线程安全的（并发测试）
+    /// </summary>
+    [Fact]
+    public async Task UpdateTaskInPlace_ConcurrentAccess_ShouldBeThreadSafe()
+    {
+        // Arrange
+        var manager = new PositionIndexQueueManager(
+            _mockLogger.Object,
+            _mockClock.Object,
+            _mockIntervalTracker.Object);
+            
+        var task = CreateTask(1001, 1, DiverterDirection.Left);
+        manager.EnqueueTask(1, task);
+        
+        // Act - 并发执行更新和出队操作
+        var updateTask = Task.Run(() =>
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                manager.UpdateTaskInPlace(1, 1001, t => t with 
+                { 
+                    ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(i) 
+                });
+                Thread.Sleep(1); // 增加并发竞争的可能性
+            }
+        });
+        
+        var enqueueTask = Task.Run(() =>
+        {
+            for (int i = 0; i < 100; i++)
+            {
+                var newTask = CreateTask(1002 + i, 1, DiverterDirection.Right);
+                manager.EnqueueTask(1, newTask);
+                Thread.Sleep(1);
+            }
+        });
+        
+        // 等待两个任务完成
+        await Task.WhenAll(updateTask, enqueueTask);
+        
+        // Assert - 验证队列仍然可用，未发生数据损坏
+        var count = manager.GetQueueCount(1);
+        Assert.True(count >= 1); // 至少有一个任务（可能更新了原任务或新增了任务）
+    }
+    
+    #endregion
 }
