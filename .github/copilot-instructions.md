@@ -378,6 +378,129 @@ public async Task ProcessParcelAsync(long parcelId)
 
 ---
 
+#### 5.3 事件订阅者不得阻塞发布者 🔴
+
+**规则**: 任何事件订阅者都**不得阻塞事件发布者**，必须立即返回控制权。
+
+**违规后果**: ❌ **导致热路径阻塞、系统性能下降**
+
+**问题场景**:
+- 传感器触发事件每2ms发布一次
+- 如果订阅者执行耗时操作（数据库查询、网络请求、复杂计算），发布者被阻塞
+- 导致传感器事件积压，系统响应延迟（可能5000ms+）
+
+**强制要求**:
+
+1. **所有 async void 事件处理器必须在第一行使用 Task.Yield()**
+
+```csharp
+// ✅ 正确：立即返回，后台异步处理
+private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
+{
+    // 第一行必须是 Task.Yield()，立即返回控制权给发布者
+    await Task.Yield();
+    
+    // 后续处理在后台异步执行，不阻塞发布者
+    _logger.LogDebug("收到包裹事件: {ParcelId}", e.ParcelId);
+    await ProcessParcelAsync(e.ParcelId);
+}
+
+// ❌ 错误：没有 Task.Yield()，同步代码阻塞发布者
+private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
+{
+    _logger.LogDebug("收到包裹事件: {ParcelId}", e.ParcelId);  // ❌ 同步执行，阻塞！
+    var config = _configService.GetConfig();  // ❌ 如果缓存miss，阻塞！
+    await ProcessParcelAsync(e.ParcelId);  // 第一个await之前都是同步的
+}
+```
+
+2. **事件订阅者中禁止同步等待**
+
+```csharp
+// ❌ 错误：同步等待 Task
+private void OnSensorTriggered(object? sender, SensorEvent e)
+{
+    ProcessAsync(e).Wait();  // ❌ 禁止！阻塞发布者
+    ProcessAsync(e).GetAwaiter().GetResult();  // ❌ 禁止！阻塞发布者
+}
+
+// ❌ 错误：使用 lock 阻塞
+private void OnSensorTriggered(object? sender, SensorEvent e)
+{
+    lock (_lock)  // ❌ 禁止！如果锁争用会阻塞发布者
+    {
+        _state = e.IsTriggered;
+    }
+}
+
+// ✅ 正确：使用 async void + Task.Yield()
+private async void OnSensorTriggered(object? sender, SensorEvent e)
+{
+    await Task.Yield();  // 立即返回
+    await ProcessAsync(e);  // 后台异步处理
+}
+
+// ✅ 正确：使用无锁数据结构
+private void OnSensorTriggered(object? sender, SensorEvent e)
+{
+    _concurrentDict.TryAdd(e.SensorId, e.IsTriggered);  // 无锁，快速返回
+}
+```
+
+3. **SafeInvoke 使用直接调用，不使用 Task.Run**
+
+```csharp
+// ✅ 正确：直接调用订阅者（EventHandlerExtensions.cs）
+public static void SafeInvoke<TEventArgs>(
+    this EventHandler<TEventArgs>? eventHandler,
+    object? sender,
+    TEventArgs args,
+    ILogger? logger = null,
+    string? eventName = null)
+{
+    if (eventHandler == null) return;
+
+    foreach (var handler in eventHandler.GetInvocationList())
+    {
+        try
+        {
+            // 直接调用，订阅者使用 async void + Task.Yield() 自行异步化
+            ((EventHandler<TEventArgs>)handler).Invoke(sender, args);
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "订阅者异常");
+        }
+    }
+}
+
+// ❌ 错误：使用 Task.Run（高频调用会耗尽线程池）
+foreach (var handler in eventHandler.GetInvocationList())
+{
+    _ = Task.Run(() => handler.Invoke(sender, args));  // ❌ 禁止！
+}
+```
+
+**验证检查清单**:
+- [ ] 所有 async void 事件处理器第一行是 `await Task.Yield()`
+- [ ] 事件订阅者中无 `.Wait()`, `.Result`, `.GetAwaiter().GetResult()`
+- [ ] 事件订阅者中无 `lock` 语句（改用 ConcurrentDictionary 等无锁结构）
+- [ ] SafeInvoke 使用直接调用，不使用 Task.Run
+- [ ] 事件订阅者中无数据库直接访问（必须使用缓存服务）
+
+**相关规则**:
+- Rule 5.1: 禁止在热路径和高频方法中使用 Task.Run
+- Rule 5.2: 禁止热路径直接读数据库
+
+**ArchTests 验证**:
+```csharp
+[Fact] AsyncVoidEventHandlers_MustStartWith_TaskYield()
+[Fact] EventSubscribers_MustNotBlock_Publisher()
+[Fact] SafeInvoke_MustNotUse_TaskRun()
+```
+
+---
+
 ### 🔴 包裹路由与位置索引队列机制
 
 **文档**: `docs/CORE_ROUTING_LOGIC.md`
