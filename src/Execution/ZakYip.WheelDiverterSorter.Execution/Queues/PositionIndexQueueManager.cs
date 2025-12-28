@@ -522,17 +522,88 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
             }
         }
         
+        // 清理幽灵任务：移除不在新路径中的Position的该包裹任务
+        // 场景：包裹最初到Position 5（异常口999），上游响应后只需到Position 2左转
+        // 则Position 3、4、5的旧任务需要被移除，防止幽灵任务积累
+        int totalRemovedCount = 0;
+        foreach (var (positionIndex, queue) in _queues)
+        {
+            // 如果这个Position在新任务列表中，已经处理过了（替换），跳过
+            if (newTasksByPosition.ContainsKey(positionIndex))
+            {
+                continue;
+            }
+            
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+            
+            lock (queueLock)
+            {
+                var tempTasks = new List<PositionQueueItem>();
+                int removedFromThisQueue = 0;
+                
+                // 遍历队列，移除目标包裹的任务
+                while (queue.TryDequeue(out var task))
+                {
+                    if (task.ParcelId == parcelId)
+                    {
+                        // 这是幽灵任务，不放回队列
+                        removedFromThisQueue++;
+                        totalRemovedCount++;
+                        
+                        _logger.LogDebug(
+                            "[幽灵任务清理] Position {PositionIndex} 移除了包裹 {ParcelId} 的旧任务（新路径不经过此Position）",
+                            positionIndex, parcelId);
+                    }
+                    else
+                    {
+                        // 其他包裹的任务保留
+                        tempTasks.Add(task);
+                    }
+                }
+                
+                // 将保留的任务放回队列
+                foreach (var task in tempTasks)
+                {
+                    queue.Enqueue(task);
+                }
+                
+                if (removedFromThisQueue > 0)
+                {
+                    result.RemovedPositions.Add(positionIndex);
+                }
+            }
+        }
+        
         // 统计结果
-        result = result with { ReplacedCount = result.ReplacedPositions.Count };
+        result = result with 
+        { 
+            ReplacedCount = result.ReplacedPositions.Count,
+            RemovedCount = totalRemovedCount
+        };
         
         // 记录汇总日志
         if (result.IsFullySuccessful)
         {
-            _logger.LogInformation(
-                "[原地替换-成功] 包裹 {ParcelId} 的所有任务已成功替换，共 {Count} 个 Position: [{Positions}]",
-                parcelId,
-                result.ReplacedCount,
-                string.Join(", ", result.ReplacedPositions));
+            if (totalRemovedCount > 0)
+            {
+                _logger.LogInformation(
+                    "[原地替换-成功] 包裹 {ParcelId} 的任务已成功处理，" +
+                    "替换 {ReplacedCount} 个 Position: [{ReplacedPositions}]，" +
+                    "清理 {RemovedCount} 个幽灵任务（Position: [{RemovedPositions}]）",
+                    parcelId,
+                    result.ReplacedCount,
+                    string.Join(", ", result.ReplacedPositions),
+                    result.RemovedCount,
+                    string.Join(", ", result.RemovedPositions));
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[原地替换-成功] 包裹 {ParcelId} 的所有任务已成功替换，共 {Count} 个 Position: [{Positions}]",
+                    parcelId,
+                    result.ReplacedCount,
+                    string.Join(", ", result.ReplacedPositions));
+            }
         }
         else if (result.IsPartiallySuccessful)
         {
@@ -540,11 +611,13 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
                 "[原地替换-部分成功] 包裹 {ParcelId} 部分任务替换成功: " +
                 "成功 {SuccessCount} 个 Position [{SuccessPositions}], " +
                 "未找到 {NotFoundCount} 个 [{NotFoundPositions}], " +
-                "跳过 {SkippedCount} 个 [{SkippedPositions}]",
+                "跳过 {SkippedCount} 个 [{SkippedPositions}], " +
+                "清理幽灵任务 {RemovedCount} 个 [{RemovedPositions}]",
                 parcelId,
                 result.ReplacedCount, string.Join(", ", result.ReplacedPositions),
                 result.NotFoundPositions.Count, string.Join(", ", result.NotFoundPositions),
-                result.SkippedPositions.Count, string.Join(", ", result.SkippedPositions));
+                result.SkippedPositions.Count, string.Join(", ", result.SkippedPositions),
+                result.RemovedCount, string.Join(", ", result.RemovedPositions));
         }
         else
         {

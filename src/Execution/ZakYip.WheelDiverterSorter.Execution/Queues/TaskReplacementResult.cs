@@ -29,6 +29,16 @@ public record TaskReplacementResult
     public List<int> ReplacedPositions { get; init; } = new();
     
     /// <summary>
+    /// 被移除的Position索引列表（旧路径有但新路径没有的Position，已清理幽灵任务）
+    /// </summary>
+    public List<int> RemovedPositions { get; init; } = new();
+    
+    /// <summary>
+    /// 从所有队列中移除的任务总数（幽灵任务清理）
+    /// </summary>
+    public int RemovedCount { get; init; }
+    
+    /// <summary>
     /// 替换操作是否完全成功（所有新任务都找到了对应的旧任务并成功替换）
     /// </summary>
     public bool IsFullySuccessful => NotFoundPositions.Count == 0 && SkippedPositions.Count == 0;
