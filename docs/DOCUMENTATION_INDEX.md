@@ -56,6 +56,8 @@
 | [INVALID_CHUTE_ASSIGNMENT_IMPACT.md](INVALID_CHUTE_ASSIGNMENT_IMPACT.md) | **无效格口分配影响分析**（ChuteId=0 不删除任务、不阻塞队列） |
 | [QUEUE_TASK_TIME_CALCULATION.md](QUEUE_TASK_TIME_CALCULATION.md) | **队列任务时间计算机制**（TD-088 异步非阻塞路由、超时 vs 丢失判定） |
 | [CHUTE_ZERO_QUEUE_CORRUPTION_CORRELATION.md](CHUTE_ZERO_QUEUE_CORRUPTION_CORRELATION.md) | **ChuteId=0 与队列错位相关性调查**（相关性≠因果性、四种理论分析、调查建议）** |
+| [CHUTE_ZERO_ROOT_CAUSE_FOUND.md](CHUTE_ZERO_ROOT_CAUSE_FOUND.md) | **队列错位根因确认**（ChuteId=0 → 延迟 → 误判丢失 → RemoveAllTasksForParcel → 队列 FIFO 破坏）** |
+| [PACKET_LOSS_DETECTION_SCENARIOS.md](PACKET_LOSS_DETECTION_SCENARIOS.md) | **包裹丢失判定机制详解**（判定场景、RemoveAllTasksForParcel 调用位置、修复方案）** |
 | [../SELF_CONTAINED_DEPLOYMENT.md](../SELF_CONTAINED_DEPLOYMENT.md) | **自包含部署指南（无需安装 .NET Runtime）** |
 | [SELF_CONTAINED_DEPLOYMENT_SUMMARY.md](SELF_CONTAINED_DEPLOYMENT_SUMMARY.md) | 自包含部署实施总结 |
 
