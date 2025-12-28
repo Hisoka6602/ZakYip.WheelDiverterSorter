@@ -319,7 +319,8 @@ public class ConveyorSegmentService : IConveyorSegmentService
         var allSegments = _repository.GetAll().ToList();
         _configCache.Set(AllSegmentsCacheKey, allSegments);
         
-        // PR-PERF01: 同时清空字典缓存，下次查询时重建
-        _segmentDictCache = null;
+        // PR-PERF01: 同步重建字典缓存，避免多线程下通过 null 触发重建的竞态条件
+        // 直接重建新字典并原子替换，确保读取线程永远看到有效的字典引用（旧或新）
+        _segmentDictCache = allSegments.ToDictionary(s => s.SegmentId);
     }
 }
