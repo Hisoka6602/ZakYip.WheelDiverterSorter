@@ -325,16 +325,15 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     /// <param name="parcelId">包裹ID（时间戳）</param>
     /// <param name="sensorId">触发传感器ID</param>
-    /// <param name="detectedAt">传感器实际检测到包裹的时间（用于准确计算位置间隔）</param>
+    /// <param name="detectedAt">传感器实际检测到包裹的时间（用于准确计算位置间隔，必填）</param>
     /// <param name="cancellationToken">取消令牌</param>
-    public async Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, DateTimeOffset? detectedAt = null, CancellationToken cancellationToken = default)
+    public async Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, DateTimeOffset detectedAt, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
-            // 如果未提供 detectedAt，使用当前时间作为 fallback（兼容旧调用方）
-            var actualDetectedAt = detectedAt ?? new DateTimeOffset(_clock.LocalNow);
+            var actualDetectedAt = detectedAt;
             
             _logger.LogInformation(
                 "[生命周期-创建] P{ParcelId} 入口传感器{SensorId}触发 T={StartTime:HH:mm:ss.fff}",

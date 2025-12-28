@@ -151,10 +151,14 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
         // FIX: 基于字典大小的自动清理机制（防止内存泄漏导致性能劣化）
         // 
         // 问题背景：
-        // - 虽然 ClearParcelTracking() 会在包裹完成分拣时清理（CleanupParcelMemory 调用），
-        //   但在高速运行时，字典仍可能积累大量记录（包裹在途数量多）
-        // - ConcurrentDictionary 在数据量大+高并发时性能下降（锁竞争增加）
-        // - 实测：字典从11个包裹增长到33个包裹时，Position 0→1 间隔从3.3s增长到7.1s
+        // - 之前的性能异常主要原因：Position 0 使用 _clock.LocalNow（处理时间）而非传感器 DetectedAt（检测时间），
+        //   在线路高负载 + 线程池饱和时导致 Position 0→1 间隔被严重放大（时间戳错位），
+        //   这一问题已在 POSITION_INTERVAL_FIX_SUMMARY.md 中修复和说明。
+        // - 字典增长 / ConcurrentDictionary 在数据量大 + 高并发时会增加锁竞争，但这是次要因素，
+        //   本段清理逻辑仅作为防御性措施，避免在极端情况下因长期不清理导致不必要的内存与竞争开销。
+        // - 历史观测：在旧实现（使用处理时间作为 Position 0 基准）下，当字典从 11 个包裹增加到 33 个包裹时，
+        //   曾观察到 Position 0→1 间隔从约 3.3s 增长到约 7.1s；该现象主要由时间戳错位放大，
+        //   字典大小仅是放大的辅助因素，而非根本原因。
         //
         // 清理策略：
         // - 仅在字典大小超过 MaxParcelTrackingSize 时触发清理
@@ -301,32 +305,78 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     /// <remarks>
     /// 基于 ParcelId（时间戳）删除最旧的记录，防止字典无限增长导致性能劣化。
     /// 仅在字典大小超过 MaxParcelTrackingSize 时由 RecordParcelPosition 自动调用。
+    /// 使用批次清理策略处理并发写入场景。
     /// </remarks>
     private void CleanupOldestParcelRecords(int count)
     {
-        if (count <= 0) return;
-        
-        // 获取所有 ParcelId 并排序（ParcelId 即时间戳，越小越旧）
-        var oldestParcelIds = _parcelPositionTimes.Keys
-            .OrderBy(id => id)
-            .Take(count)
-            .ToList();
-        
-        foreach (var parcelId in oldestParcelIds)
+        if (count <= 0)
         {
-            if (_parcelPositionTimes.TryRemove(parcelId, out _))
-            {
-                _logger.LogDebug(
-                    "[自动清理] 字典大小超限，清除最旧包裹 {ParcelId} 的位置追踪记录",
-                    parcelId);
-            }
+            return;
         }
-        
-        if (oldestParcelIds.Count > 0)
+
+        // 为了应对并发写入，这里按批次清理，并在每批后重新检查当前大小。
+        // 防止在获取快照和实际删除之间有大量新记录写入，导致清理后仍然超过上限。
+        var totalRemoved = 0;
+        var iteration = 0;
+        const int maxCleanupIterations = 5;
+
+        while (iteration < maxCleanupIterations)
+        {
+            iteration++;
+
+            var currentSize = _parcelPositionTimes.Count;
+            var targetSize = _options.MaxParcelTrackingSize;
+
+            if (currentSize <= targetSize)
+            {
+                break;
+            }
+
+            // 需要清理的数量：当前超出的部分和调用者建议的数量取较小值
+            var overflow = currentSize - targetSize;
+            var batchSize = Math.Min(overflow, count);
+            if (batchSize <= 0)
+            {
+                break;
+            }
+
+            // 使用 Array.Sort 而非 LINQ OrderBy，避免在热路径中产生额外分配
+            var keysArray = _parcelPositionTimes.Keys.ToArray();
+            if (keysArray.Length == 0)
+            {
+                break;
+            }
+            
+            Array.Sort(keysArray);
+            var takeCount = Math.Min(batchSize, keysArray.Length);
+
+            var removedThisBatch = 0;
+            for (int i = 0; i < takeCount; i++)
+            {
+                var parcelId = keysArray[i];
+                if (_parcelPositionTimes.TryRemove(parcelId, out _))
+                {
+                    removedThisBatch++;
+                    _logger.LogDebug(
+                        "[自动清理] 字典大小超限，清除最旧包裹 {ParcelId} 的位置追踪记录",
+                        parcelId);
+                }
+            }
+
+            if (removedThisBatch == 0)
+            {
+                // 没有真正删除任何记录，避免在高并发场景下出现无意义的自旋
+                break;
+            }
+
+            totalRemoved += removedThisBatch;
+        }
+
+        if (totalRemoved > 0)
         {
             _logger.LogInformation(
                 "[自动清理] 清理了 {Count} 个最旧包裹的位置追踪记录，当前字典大小: {CurrentSize}",
-                oldestParcelIds.Count,
+                totalRemoved,
                 _parcelPositionTimes.Count);
         }
     }

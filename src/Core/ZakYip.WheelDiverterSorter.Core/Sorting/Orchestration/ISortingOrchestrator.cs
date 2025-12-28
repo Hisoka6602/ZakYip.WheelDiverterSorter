@@ -53,7 +53,7 @@ public interface ISortingOrchestrator
     /// </summary>
     /// <param name="parcelId">包裹ID</param>
     /// <param name="sensorId">触发传感器ID</param>
-    /// <param name="detectedAt">传感器实际检测到包裹的时间（用于准确计算位置间隔）</param>
+    /// <param name="detectedAt">传感器实际检测到包裹的时间（用于准确计算位置间隔，必填）</param>
     /// <param name="cancellationToken">取消令牌</param>
     /// <returns>分拣结果</returns>
     /// <remarks>
@@ -76,10 +76,10 @@ public interface ISortingOrchestrator
     /// </list>
     /// 
     /// <para><b>DetectedAt 参数说明</b>：</para>
-    /// <para>传递传感器实际检测时间可以消除处理线程拥堵对位置间隔统计的影响，
-    /// 确保计算的是真实物理传输时间，而非处理延迟。如果未提供，将使用当前时间作为fallback。</para>
+    /// <para>必须传递传感器实际检测时间以确保位置间隔统计准确反映真实物理传输时间，
+    /// 而非处理延迟。这对于消除线程拥堵对间隔统计的影响至关重要。</para>
     /// </remarks>
-    Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, DateTimeOffset? detectedAt = null, CancellationToken cancellationToken = default);
+    Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, DateTimeOffset detectedAt, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// 执行调试分拣（跳过包裹创建和上游路由）
