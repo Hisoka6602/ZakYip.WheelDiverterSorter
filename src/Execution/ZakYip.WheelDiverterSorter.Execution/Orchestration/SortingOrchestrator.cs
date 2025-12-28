@@ -334,7 +334,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         try
         {
             var actualDetectedAt = detectedAt;
-            
+
             _logger.LogInformation(
                 "[生命周期-创建] P{ParcelId} 入口传感器{SensorId}触发 T={StartTime:HH:mm:ss.fff}",
                 parcelId,
@@ -1682,7 +1682,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // PR-async-events: 立即yield回调用者，防止阻塞传感器事件链路
         // Immediately yield to caller to prevent blocking sensor event chain
         await Task.Yield();
-        
+
         var parcelId = e.ParcelId;
         _logger.LogWarning(
             "检测到重复触发异常: ParcelId={ParcelId}, 传感器={SensorId}, " +
@@ -1691,63 +1691,6 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             e.SensorId,
             e.TimeSinceLastTriggerMs,
             e.Reason);
-
-        try
-        {
-            // PR-42: Parcel-First - 本地创建包裹实体
-            // FIX: 使用传感器实际检测时间
-            await CreateParcelEntityAsync(parcelId, e.SensorId, e.DetectedAt);
-
-            // 获取异常格口ID
-            var systemConfig = _systemConfigService.GetSystemConfig();
-            var exceptionChuteId = systemConfig.ExceptionChuteId;
-
-            // 通知上游包裹重复触发异常（不等待响应）
-            await _upstreamClient.SendAsync(new ParcelDetectedMessage { ParcelId = parcelId, DetectedAt = _clock.LocalNowOffset }, CancellationToken.None);
-
-            // 使用新的队列系统将包裹发送到异常格口
-            if (_queueManager != null)
-            {
-                var queueTasks = _pathGenerator.GenerateQueueTasks(
-                    parcelId,
-                    exceptionChuteId,
-                    _clock.LocalNow);
-
-                if (queueTasks != null && queueTasks.Count > 0)
-                {
-                    // 记录包裹的目标格口
-                    _parcelTargetChutes[parcelId] = exceptionChuteId;
-
-                    foreach (var task in queueTasks)
-                    {
-                        _queueManager.EnqueueTask(task.PositionIndex, task);
-                    }
-
-                    _logger.LogInformation(
-                        "重复触发异常包裹 {ParcelId} 已加入队列，目标异常格口={ExceptionChuteId}",
-                        parcelId, exceptionChuteId);
-                }
-                else
-                {
-                    _logger.LogError(
-                        "重复触发异常包裹 {ParcelId} 无法生成到异常格口的队列任务",
-                        parcelId);
-                }
-            }
-            else
-            {
-                _logger.LogError(
-                    "重复触发异常包裹 {ParcelId} 处理失败：队列管理器未配置",
-                    parcelId);
-            }
-
-            CleanupParcelRecord(parcelId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "处理重复触发异常包裹 {ParcelId} 时发生错误", parcelId);
-            CleanupParcelRecord(parcelId);
-        }
     }
 
     /// <summary>
@@ -1758,7 +1701,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // PR-async-events: 立即yield回调用者，防止阻塞传感器事件链路
         // Immediately yield to caller to prevent blocking sensor event chain
         await Task.Yield();
-        
+
         try
         {
             _logger.LogInformation(
@@ -2103,11 +2046,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// **问题场景示例**:
     /// ```
     /// 初始队列: [P1-异常, P2-异常, P3-异常]
-    /// 
+    ///
     /// 错误做法（删除+重新入队）:
     ///   T1: P2响应先到 → 删除P2 → 队列=[P1, P3] → P2加入队尾 → 队列=[P1, P3, P2] ❌ 顺序错乱
     ///   T2: P1响应到达 → 删除P1 → 队列=[P3, P2] → P1加入队尾 → 队列=[P3, P2, P1] ❌ 完全错乱
-    /// 
+    ///
     /// 正确做法（原地替换）:
     ///   T1: P2响应先到 → 找到P2位置（索引1） → 替换动作 → 队列=[P1-异常, P2-新动作, P3-异常] ✅
     ///   T2: P1响应到达 → 找到P1位置（索引0） → 替换动作 → 队列=[P1-新动作, P2-新动作, P3-异常] ✅
@@ -2117,7 +2060,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// - 检查包裹是否仍在 _createdParcels 中（未完成分拣）
     /// - 如果包裹已完成分拣/落格，直接忽略上游响应，不更新路径
     /// - 如果队列中找不到任务（已出队执行），记录日志但不报错
-    /// 
+    ///
     /// **性能监控**:
     /// - 记录替换操作的总耗时，用于验证是否满足 &lt;1ms 的性能要求
     /// - 记录成功/失败的 Position 数量，用于诊断潜在问题
