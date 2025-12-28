@@ -17,6 +17,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
 using ZakYip.WheelDiverterSorter.Host.Models.Config;
+using ZakYip.WheelDiverterSorter.Host.Services;
 using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.ShuDiNiao;
 
@@ -1388,6 +1389,177 @@ public class HardwareConfigController : ControllerBase
         {
             _logger.LogError(ex, "自动加载摆轮驱动器配置失败");
             // 不抛出异常，让调用方继续执行，后续会因为没有活动驱动器而返回友好错误
+        }
+    }
+
+    #endregion
+
+    #region 数递鸟摆轮测试端点 (ShuDiNiao Wheel Diverter Test Endpoints)
+
+    /// <summary>
+    /// 启动数递鸟摆轮循环测试
+    /// </summary>
+    /// <param name="request">循环测试请求参数</param>
+    /// <param name="cycleTestService">循环测试服务（DI注入）</param>
+    /// <returns>测试启动结果</returns>
+    /// <response code="200">成功启动测试</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("shudiniao/test/cycle")]
+    [SwaggerOperation(
+        Summary = "启动数递鸟摆轮循环测试",
+        Description = @"启动一个或多个数递鸟摆轮的循环测试任务。
+        
+        **测试流程**：
+        1. 验证请求参数（摆轮ID、方向、循环次数、间隔）
+        2. 为每个摆轮创建独立的测试任务
+        3. 在后台异步执行循环测试
+        4. 返回测试ID供停止使用
+        
+        **注意事项**：
+        - 指令间隔不得小于90ms（数递鸟硬件要求）
+        - 摆轮ID和方向数组长度必须相同
+        - 测试日志记录在 logs/shudiniao-diverter-{date}.log 文件中
+        - 可使用 POST /api/hardware/shudiniao/test/stop 停止测试",
+        OperationId = "StartShuDiNiaoCycleTest",
+        Tags = new[] { "硬件配置" }
+    )]
+    [SwaggerResponse(200, "成功启动测试", typeof(ApiResponse<ShuDiNiaoCycleTestResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<ShuDiNiaoCycleTestResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<ShuDiNiaoCycleTestResponse>> StartCycleTest(
+        [FromBody] ShuDiNiaoCycleTestRequest request,
+        [FromServices] ShuDiNiaoCycleTestService cycleTestService)
+    {
+        try
+        {
+            // 验证参数
+            if (request.DiverterIds.Length != request.Directions.Length)
+            {
+                return BadRequest(ApiResponse.Error<ShuDiNiaoCycleTestResponse>(
+                    "摆轮ID数组和方向数组长度必须相同"));
+            }
+
+            // 生成测试ID
+            var testId = $"test-{Guid.NewGuid():N}";
+            
+            var tasks = new List<DiverterTestTask>();
+            var successCount = 0;
+
+            // 为每个摆轮启动测试任务
+            for (int i = 0; i < request.DiverterIds.Length; i++)
+            {
+                var diverterId = request.DiverterIds[i];
+                var direction = request.Directions[i];
+
+                var taskId = $"{testId}-{diverterId}";
+                var started = cycleTestService.StartCycleTestAsync(
+                    taskId,
+                    diverterId,
+                    direction,
+                    request.CycleCount,
+                    request.IntervalMs).Result;
+
+                if (started)
+                {
+                    successCount++;
+                }
+
+                tasks.Add(new DiverterTestTask
+                {
+                    DiverterId = diverterId,
+                    Direction = direction,
+                    CycleCount = request.CycleCount,
+                    IntervalMs = request.IntervalMs,
+                    Status = started ? "已启动" : "启动失败"
+                });
+            }
+
+            var response = new ShuDiNiaoCycleTestResponse
+            {
+                IsSuccess = successCount > 0,
+                Message = successCount == request.DiverterIds.Length 
+                    ? $"成功启动 {successCount} 个测试任务"
+                    : $"成功启动 {successCount}/{request.DiverterIds.Length} 个测试任务",
+                TestId = testId,
+                Tasks = tasks
+            };
+
+            _logger.LogInformation(
+                "[摆轮测试] 启动循环测试: TestId={TestId}, 成功={SuccessCount}/{TotalCount}",
+                testId, successCount, request.DiverterIds.Length);
+
+            return Ok(ApiResponse.Success(response));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[摆轮测试] 启动循环测试时发生异常");
+            return StatusCode(500, ApiResponse.Error<ShuDiNiaoCycleTestResponse>(
+                $"启动测试失败: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// 停止数递鸟摆轮循环测试
+    /// </summary>
+    /// <param name="request">停止测试请求参数（可选TestId）</param>
+    /// <param name="cycleTestService">循环测试服务（DI注入）</param>
+    /// <returns>停止测试结果</returns>
+    /// <response code="200">成功停止测试</response>
+    /// <response code="500">服务器内部错误</response>
+    [HttpPost("shudiniao/test/stop")]
+    [SwaggerOperation(
+        Summary = "停止数递鸟摆轮循环测试",
+        Description = @"停止正在运行的摆轮循环测试任务。
+        
+        **停止方式**：
+        - 提供 TestId: 停止指定的测试任务
+        - 不提供 TestId: 停止所有正在运行的测试任务
+        
+        **注意事项**：
+        - 停止操作是立即生效的
+        - 已执行的循环次数会在日志中记录",
+        OperationId = "StopShuDiNiaoCycleTest",
+        Tags = new[] { "硬件配置" }
+    )]
+    [SwaggerResponse(200, "成功停止测试", typeof(ApiResponse<StopCycleTestResponse>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<StopCycleTestResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<StopCycleTestResponse>> StopCycleTest(
+        [FromBody] StopCycleTestRequest? request,
+        [FromServices] ShuDiNiaoCycleTestService cycleTestService)
+    {
+        try
+        {
+            var testId = request?.TestId;
+            var stoppedCount = cycleTestService.StopCycleTest(testId);
+
+            var response = new StopCycleTestResponse
+            {
+                IsSuccess = true,
+                Message = string.IsNullOrEmpty(testId)
+                    ? $"已停止所有测试，共 {stoppedCount} 个"
+                    : stoppedCount > 0
+                        ? $"已停止测试 {testId}"
+                        : $"测试 {testId} 不存在或已停止",
+                StoppedCount = stoppedCount
+            };
+
+            _logger.LogInformation(
+                "[摆轮测试] 停止循环测试: TestId={TestId}, 停止数量={StoppedCount}",
+                testId ?? "全部", stoppedCount);
+
+            return Ok(ApiResponse.Success(response));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[摆轮测试] 停止循环测试时发生异常");
+            return StatusCode(500, ApiResponse.Error<StopCycleTestResponse>(
+                $"停止测试失败: {ex.Message}"));
         }
     }
 
