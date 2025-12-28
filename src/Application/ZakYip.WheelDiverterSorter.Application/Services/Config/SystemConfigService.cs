@@ -48,6 +48,21 @@ public class SystemConfigService : ISystemConfigService
         return _configCache.GetOrAdd(SystemConfigCacheKey, () => _repository.Get());
     }
 
+    /// <summary>
+    /// 刷新系统配置缓存（从数据库重新加载）
+    /// </summary>
+    /// <returns>刷新后的系统配置</returns>
+    /// <remarks>
+    /// 用于配置热更新场景：当外部直接更新数据库后（如通过 SortingController），
+    /// 调用此方法可立即刷新缓存，确保后续 GetSystemConfig() 返回最新值。
+    /// </remarks>
+    public SystemConfiguration RefreshCacheFromRepository()
+    {
+        var updatedConfig = _repository.Get();
+        _configCache.Set(SystemConfigCacheKey, updatedConfig);
+        return updatedConfig;
+    }
+
     public SystemConfiguration GetDefaultTemplate()
     {
         return SystemConfiguration.GetDefault();

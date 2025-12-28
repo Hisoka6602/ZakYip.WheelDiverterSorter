@@ -805,6 +805,9 @@ public class SortingController : ApiControllerBase
                 systemConfig.UpdatedAt = now;
                 _systemConfigRepository.Update(systemConfig);
                 
+                // 立即刷新缓存，确保热更新生效
+                _systemConfigService.RefreshCacheFromRepository();
+                
                 _logger.LogInformation(
                     "干扰检测开关已更新: {EnableInterferenceDetection}",
                     request.EnableInterferenceDetection.Value);
@@ -818,6 +821,9 @@ public class SortingController : ApiControllerBase
                 systemConfig.UpdatedAt = now;
                 _systemConfigRepository.Update(systemConfig);
                 
+                // 立即刷新缓存，确保热更新生效
+                _systemConfigService.RefreshCacheFromRepository();
+                
                 _logger.LogInformation(
                     "超时检测开关已更新: {EnableTimeoutDetection}",
                     request.EnableTimeoutDetection.Value);
@@ -830,6 +836,9 @@ public class SortingController : ApiControllerBase
                 systemConfig.PassThroughOnInterference = request.PassThroughOnInterference.Value;
                 systemConfig.UpdatedAt = now;
                 _systemConfigRepository.Update(systemConfig);
+                
+                // 立即刷新缓存，确保热更新生效
+                _systemConfigService.RefreshCacheFromRepository();
                 
                 _logger.LogInformation(
                     "干扰直行开关已更新: {PassThroughOnInterference}",
