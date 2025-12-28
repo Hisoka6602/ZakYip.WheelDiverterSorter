@@ -12,14 +12,63 @@ using ZakYip.WheelDiverterSorter.Ingress.Services;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Tests;
 
 public class ParcelDetectionServiceTests
 {
     /// <summary>
-    /// 创建带传感器配置的 Mock 仓储
+    /// 创建带传感器配置的 Mock 服务
     /// </summary>
+    private Mock<ISensorConfigService> CreateMockSensorService(long sensorId, int deduplicationWindowMs = 400)
+    {
+        var mockService = new Mock<ISensorConfigService>();
+        var sensorConfig = new SensorConfiguration
+        {
+            Sensors = new List<SensorIoEntry>
+            {
+                new SensorIoEntry
+                {
+                    SensorId = sensorId,
+                    SensorName = "Test Sensor",
+                    IoType = SensorIoType.ParcelCreation,
+                    BitNumber = 0,
+                    DeduplicationWindowMs = deduplicationWindowMs,
+                    IsEnabled = true
+                }
+            }
+        };
+        mockService.Setup(s => s.GetSensorConfig()).Returns(sensorConfig);
+        return mockService;
+    }
+
+    /// <summary>
+    /// 创建带多个传感器配置的 Mock 服务
+    /// </summary>
+    private Mock<ISensorConfigService> CreateMockSensorService(Dictionary<long, int> sensorDeduplicationWindows)
+    {
+        var mockService = new Mock<ISensorConfigService>();
+        var sensorConfig = new SensorConfiguration
+        {
+            Sensors = sensorDeduplicationWindows.Select((kvp, index) => new SensorIoEntry
+            {
+                SensorId = kvp.Key,
+                SensorName = $"Test Sensor {kvp.Key}",
+                IoType = SensorIoType.ParcelCreation,
+                BitNumber = (int)kvp.Key,
+                DeduplicationWindowMs = kvp.Value,
+                IsEnabled = true
+            }).ToList()
+        };
+        mockService.Setup(s => s.GetSensorConfig()).Returns(sensorConfig);
+        return mockService;
+    }
+
+    /// <summary>
+    /// 创建带传感器配置的 Mock 仓储（已弃用，使用 CreateMockSensorService 代替）
+    /// </summary>
+    [Obsolete("Use CreateMockSensorService instead. This helper uses a repository-based configuration which is deprecated in favor of ISensorConfigService mocking to avoid hot path DB access (Rule 5.2).")]
     private Mock<ISensorConfigurationRepository> CreateMockSensorRepository(long sensorId, int deduplicationWindowMs = 400)
     {
         var mockRepo = new Mock<ISensorConfigurationRepository>();
@@ -43,8 +92,9 @@ public class ParcelDetectionServiceTests
     }
 
     /// <summary>
-    /// 创建带多个传感器配置的 Mock 仓储
+    /// 创建带多个传感器配置的 Mock 仓储（已弃用，使用 CreateMockSensorService 代替）
     /// </summary>
+    [Obsolete("Use CreateMockSensorService instead. This helper uses a repository-based configuration which is deprecated in favor of ISensorConfigService mocking to avoid hot path DB access (Rule 5.2).")]
     private Mock<ISensorConfigurationRepository> CreateMockSensorRepository(Dictionary<long, int> sensorDeduplicationWindows)
     {
         var mockRepo = new Mock<ISensorConfigurationRepository>();
@@ -114,8 +164,8 @@ public class ParcelDetectionServiceTests
 
         var sensors = new[] { mockSensor.Object };
         var options = Options.Create(new ParcelDetectionOptions());
-        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 500);
-        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
+        var mockSensorRepo = CreateMockSensorService(1, deduplicationWindowMs: 500);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigService: mockSensorRepo.Object);
 
         var detectedCount = 0;
         var duplicateCount = 0;
@@ -162,8 +212,8 @@ public class ParcelDetectionServiceTests
 
         var sensors = new[] { mockSensor.Object };
         var options = Options.Create(new ParcelDetectionOptions());
-        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 500);
-        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
+        var mockSensorRepo = CreateMockSensorService(1, deduplicationWindowMs: 500);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigService: mockSensorRepo.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
@@ -295,12 +345,12 @@ public class ParcelDetectionServiceTests
 
         var sensors = new[] { mockSensor1.Object, mockSensor2.Object };
         var options = Options.Create(new ParcelDetectionOptions());
-        var mockSensorRepo = CreateMockSensorRepository(new Dictionary<long, int>
+        var mockSensorRepo = CreateMockSensorService(new Dictionary<long, int>
         {
             { 1, 1000 },
             { 2, 1000 }
         });
-        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigService: mockSensorRepo.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
@@ -344,8 +394,8 @@ public class ParcelDetectionServiceTests
 
         var sensors = new[] { mockSensor.Object };
         var options = Options.Create(new ParcelDetectionOptions());
-        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 500);
-        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
+        var mockSensorRepo = CreateMockSensorService(1, deduplicationWindowMs: 500);
+        var service = new ParcelDetectionService(sensors, options, sensorConfigService: mockSensorRepo.Object);
 
         ZakYip.WheelDiverterSorter.Core.Events.Sensor.DuplicateTriggerEventArgs? duplicateArgs = null;
         service.DuplicateTriggerDetected += (sender, e) => duplicateArgs = e;
@@ -399,8 +449,8 @@ public class ParcelDetectionServiceTests
         {
             ParcelIdHistorySize = 10 // Small history size for testing
         });
-        var mockSensorRepo = CreateMockSensorRepository(1, deduplicationWindowMs: 100); // Small window to allow rapid triggering
-        var service = new ParcelDetectionService(sensors, options, sensorConfigRepository: mockSensorRepo.Object);
+        var mockSensorRepo = CreateMockSensorService(1, deduplicationWindowMs: 100); // Small window to allow rapid triggering
+        var service = new ParcelDetectionService(sensors, options, sensorConfigService: mockSensorRepo.Object);
 
         var detectedParcelIds = new List<long>();
         service.ParcelDetected += (sender, e) => detectedParcelIds.Add(e.ParcelId);
@@ -454,14 +504,14 @@ public class ParcelDetectionServiceTests
             }
         };
         
-        var mockRepository = new Mock<ISensorConfigurationRepository>();
-        mockRepository.Setup(r => r.Get()).Returns(mockConfig);
+        var mockRepository = new Mock<ISensorConfigService>();
+        mockRepository.Setup(s => s.GetSensorConfig()).Returns(mockConfig);
         
         var options = Options.Create(new ParcelDetectionOptions());
         var service = new ParcelDetectionService(
             sensors, 
             options,
-            sensorConfigRepository: mockRepository.Object);
+            sensorConfigService: mockRepository.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
@@ -502,14 +552,14 @@ public class ParcelDetectionServiceTests
             Sensors = new List<SensorIoEntry>()
         };
         
-        var mockRepository = new Mock<ISensorConfigurationRepository>();
-        mockRepository.Setup(r => r.Get()).Returns(mockConfig);
+        var mockRepository = new Mock<ISensorConfigService>();
+        mockRepository.Setup(s => s.GetSensorConfig()).Returns(mockConfig);
         
         var options = Options.Create(new ParcelDetectionOptions());
         var service = new ParcelDetectionService(
             sensors, 
             options,
-            sensorConfigRepository: mockRepository.Object);
+            sensorConfigService: mockRepository.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;
@@ -559,14 +609,14 @@ public class ParcelDetectionServiceTests
             }
         };
         
-        var mockRepository = new Mock<ISensorConfigurationRepository>();
-        mockRepository.Setup(r => r.Get()).Returns(mockConfig);
+        var mockRepository = new Mock<ISensorConfigService>();
+        mockRepository.Setup(s => s.GetSensorConfig()).Returns(mockConfig);
         
         var options = Options.Create(new ParcelDetectionOptions());
         var service = new ParcelDetectionService(
             sensors, 
             options,
-            sensorConfigRepository: mockRepository.Object);
+            sensorConfigService: mockRepository.Object);
 
         var detectedCount = 0;
         service.ParcelDetected += (sender, e) => detectedCount++;

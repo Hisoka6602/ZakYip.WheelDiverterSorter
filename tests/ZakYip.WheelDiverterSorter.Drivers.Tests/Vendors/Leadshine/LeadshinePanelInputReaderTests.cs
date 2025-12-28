@@ -9,6 +9,7 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Tests.Vendors.Leadshine;
 
@@ -19,7 +20,7 @@ public class LeadshinePanelInputReaderTests
 {
     private readonly Mock<ILogger<LeadshinePanelInputReader>> _loggerMock;
     private readonly Mock<IInputPort> _inputPortMock;
-    private readonly Mock<IPanelConfigurationRepository> _configRepoMock;
+    private readonly Mock<IPanelConfigService> _configServiceMock;
     private readonly Mock<ISystemClock> _systemClockMock;
     private readonly DateTimeOffset _testTime;
 
@@ -27,7 +28,7 @@ public class LeadshinePanelInputReaderTests
     {
         _loggerMock = new Mock<ILogger<LeadshinePanelInputReader>>();
         _inputPortMock = new Mock<IInputPort>();
-        _configRepoMock = new Mock<IPanelConfigurationRepository>();
+        _configServiceMock = new Mock<IPanelConfigService>();
         _systemClockMock = new Mock<ISystemClock>();
         
         _testTime = new DateTimeOffset(2025, 12, 8, 12, 0, 0, TimeSpan.Zero);
@@ -39,7 +40,7 @@ public class LeadshinePanelInputReaderTests
         return new LeadshinePanelInputReader(
             _loggerMock.Object,
             _inputPortMock.Object,
-            _configRepoMock.Object,
+            _configServiceMock.Object,
             _systemClockMock.Object);
     }
 
@@ -76,7 +77,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig(startBit: 1, startLevel: TriggerLevel.ActiveHigh);
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(1)).ReturnsAsync(true); // IO 位为高电平
 
         var reader = CreateReader();
@@ -96,7 +97,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig(startBit: 1, startLevel: TriggerLevel.ActiveHigh);
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(1)).ReturnsAsync(false); // IO 位为低电平
 
         var reader = CreateReader();
@@ -114,7 +115,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig(startBit: 1, startLevel: TriggerLevel.ActiveLow);
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(1)).ReturnsAsync(false); // IO 位为低电平
 
         var reader = CreateReader();
@@ -132,7 +133,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig(startBit: 1, startLevel: TriggerLevel.ActiveLow);
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(1)).ReturnsAsync(true); // IO 位为高电平
 
         var reader = CreateReader();
@@ -150,7 +151,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig(startBit: null); // Start 按钮未配置
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
 
         var reader = CreateReader();
 
@@ -171,7 +172,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig();
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
 
         var reader = CreateReader();
 
@@ -191,7 +192,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig(startBit: 1);
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(1)).ThrowsAsync(new InvalidOperationException("IO 读取失败"));
 
         var reader = CreateReader();
@@ -226,7 +227,7 @@ public class LeadshinePanelInputReaderTests
             emergencyStopBit: 3,
             emergencyStopLevel: TriggerLevel.ActiveHigh);
         
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(1)).ReturnsAsync(false); // Start 按下 (ActiveLow)
         _inputPortMock.Setup(x => x.ReadAsync(2)).ReturnsAsync(true);  // Stop 未按下 (ActiveLow)
         _inputPortMock.Setup(x => x.ReadAsync(3)).ReturnsAsync(true);  // EmergencyStop 按下 (ActiveHigh)
@@ -249,7 +250,7 @@ public class LeadshinePanelInputReaderTests
     {
         // Arrange
         var config = CreateTestConfig();
-        _configRepoMock.Setup(x => x.Get()).Returns(config);
+        _configServiceMock.Setup(x => x.GetPanelConfig()).Returns(config);
         _inputPortMock.Setup(x => x.ReadAsync(It.IsAny<int>())).ReturnsAsync(false);
 
         var reader = CreateReader();

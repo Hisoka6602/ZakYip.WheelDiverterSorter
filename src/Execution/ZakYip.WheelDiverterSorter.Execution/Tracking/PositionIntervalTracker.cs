@@ -113,6 +113,8 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
             // 尝试获取前一个position的时间
             if (positionTimes.TryGetValue(previousPosition, out var previousTime))
             {
+                // 计算物理运输间隔：arrivedAt 和 previousTime 都是传感器实际触发时间
+                // 因此 intervalMs 反映的是包裹从前一位置物理移动到当前位置的真实耗时
                 var intervalMs = (arrivedAt - previousTime).TotalMilliseconds;
                 
                 // 只记录有效的间隔
@@ -121,13 +123,14 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
                     RecordInterval(positionIndex, intervalMs);
                     
                     _logger.LogDebug(
-                        "包裹 {ParcelId} 从 Position {PrevPos} 到 Position {CurrPos} 间隔: {IntervalMs}ms",
+                        "包裹 {ParcelId} 从 Position {PrevPos} 到 Position {CurrPos} 物理运输间隔: {IntervalMs}ms " +
+                        "(传感器触发时间差，非处理耗时)",
                         parcelId, previousPosition, positionIndex, intervalMs);
                 }
                 else
                 {
                     _logger.LogWarning(
-                        "包裹 {ParcelId} 从 Position {PrevPos} 到 Position {CurrPos} 间隔异常: {IntervalMs}ms",
+                        "包裹 {ParcelId} 从 Position {PrevPos} 到 Position {CurrPos} 物理运输间隔异常: {IntervalMs}ms",
                         parcelId, previousPosition, positionIndex, intervalMs);
                 }
             }

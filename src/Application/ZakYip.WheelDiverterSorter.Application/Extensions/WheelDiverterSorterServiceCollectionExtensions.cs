@@ -640,12 +640,13 @@ public static class WheelDiverterSorterServiceCollectionExtensions
             // 使用雷赛 IO 读取器 (removed simulation mode support)
             var logger = loggerFactory.CreateLogger<LeadshinePanelInputReader>();
             var inputPort = sp.GetRequiredService<IInputPort>();
+            var panelConfigService = sp.GetRequiredService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IPanelConfigService>();
             
             logger.LogInformation("使用雷赛硬件面板输入读取器");
             return new LeadshinePanelInputReader(
                 logger,
                 inputPort,
-                panelConfigRepo,
+                panelConfigService,
                 systemClock);
         });
         

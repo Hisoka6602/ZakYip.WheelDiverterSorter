@@ -78,7 +78,7 @@ public static class SensorServiceExtensions {
             var options = sp.GetService<IOptions<ParcelDetectionOptions>>();
             var logger = sp.GetService<ILogger<Services.ParcelDetectionService>>();
             var healthMonitor = sp.GetService<Services.ISensorHealthMonitor>();
-            var sensorConfigRepo = sp.GetService<ISensorConfigurationRepository>();
+            var sensorConfigService = sp.GetService<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.ISensorConfigService>();
             var systemStateManager = sp.GetService<ISystemStateManager>();
             
             return new Services.ParcelDetectionService(
@@ -86,7 +86,7 @@ public static class SensorServiceExtensions {
                 options,
                 logger,
                 healthMonitor,
-                sensorConfigRepo,
+                sensorConfigService,
                 systemStateManager);
         });
 
