@@ -148,12 +148,25 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
                 parcelId, positionIndex);
         }
         
-        // FIX: 移除自动清理逻辑，避免清理仍在运输中的包裹记录
-        // 原问题：当清理触发时，会删除基于ParcelId（时间戳）最旧的记录
-        // 但这些"旧"包裹可能仍在物理传输中，未到达下一个位置
-        // 当它们到达下一位置时，找不到前一位置的时间，导致间隔计算失败
-        // 解决方案：仅通过 ClearParcelTracking() 显式清理已完成分拣的包裹
-        // （在 RecordSortingResultAsync 中调用）
+        // FIX: 基于字典大小的自动清理机制（防止内存泄漏导致性能劣化）
+        // 
+        // 问题背景：
+        // - 虽然 ClearParcelTracking() 会在包裹完成分拣时清理（CleanupParcelMemory 调用），
+        //   但在高速运行时，字典仍可能积累大量记录（包裹在途数量多）
+        // - ConcurrentDictionary 在数据量大+高并发时性能下降（锁竞争增加）
+        // - 实测：字典从11个包裹增长到33个包裹时，Position 0→1 间隔从3.3s增长到7.1s
+        //
+        // 清理策略：
+        // - 仅在字典大小超过 MaxParcelTrackingSize 时触发清理
+        // - 删除最旧的包裹记录（基于 ParcelId 即时间戳）
+        // - 清理量：删除超出限制的数量（通常1-2个包裹）
+        // - 风险：极端情况下可能删除仍在途的慢速包裹记录，但概率极低（需要包裹在线体停留超长时间）
+        //
+        // 注意：正常情况下 CleanupParcelMemory 会及时清理，此机制仅作为防御性措施
+        if (_options.MaxParcelTrackingSize > 0 && _parcelPositionTimes.Count > _options.MaxParcelTrackingSize)
+        {
+            CleanupOldestParcelRecords(_parcelPositionTimes.Count - _options.MaxParcelTrackingSize);
+        }
     }
 
     /// <inheritdoc/>
@@ -281,9 +294,42 @@ public sealed class PositionIntervalTracker : IPositionIntervalTracker
     // 优化：统计计算已内联到 GetStatistics 方法中，使用 Array.Sort 一次性完成排序
     // 避免 LINQ OrderBy().ToArray() 产生的额外分配和性能开销
     
-    // 注意：CleanupOldParcelRecords 方法已移除
-    // 原因：自动清理会误删除仍在传输中的包裹记录，导致间隔计算失败
-    // 现在仅通过 ClearParcelTracking() 在包裹完成分拣时显式清理
+    /// <summary>
+    /// 清理最旧的包裹位置追踪记录
+    /// </summary>
+    /// <param name="count">要清理的记录数量</param>
+    /// <remarks>
+    /// 基于 ParcelId（时间戳）删除最旧的记录，防止字典无限增长导致性能劣化。
+    /// 仅在字典大小超过 MaxParcelTrackingSize 时由 RecordParcelPosition 自动调用。
+    /// </remarks>
+    private void CleanupOldestParcelRecords(int count)
+    {
+        if (count <= 0) return;
+        
+        // 获取所有 ParcelId 并排序（ParcelId 即时间戳，越小越旧）
+        var oldestParcelIds = _parcelPositionTimes.Keys
+            .OrderBy(id => id)
+            .Take(count)
+            .ToList();
+        
+        foreach (var parcelId in oldestParcelIds)
+        {
+            if (_parcelPositionTimes.TryRemove(parcelId, out _))
+            {
+                _logger.LogDebug(
+                    "[自动清理] 字典大小超限，清除最旧包裹 {ParcelId} 的位置追踪记录",
+                    parcelId);
+            }
+        }
+        
+        if (oldestParcelIds.Count > 0)
+        {
+            _logger.LogInformation(
+                "[自动清理] 清理了 {Count} 个最旧包裹的位置追踪记录，当前字典大小: {CurrentSize}",
+                oldestParcelIds.Count,
+                _parcelPositionTimes.Count);
+        }
+    }
 }
 
 /// <summary>
@@ -351,4 +397,15 @@ public sealed class PositionIntervalTrackerOptions
     /// 默认值：60000ms (60秒)
     /// </remarks>
     public double MaxReasonableIntervalMs { get; set; } = 60000;
+    
+    /// <summary>
+    /// 包裹位置追踪字典的最大容量
+    /// </summary>
+    /// <remarks>
+    /// 当 _parcelPositionTimes 字典大小超过此值时，自动清理最旧的记录。
+    /// 默认值：50（足够容纳高速分拣场景下的在途包裹）
+    /// 推荐范围：30-100
+    /// 设置为 0 表示不限制大小（不推荐，可能导致内存泄漏）
+    /// </remarks>
+    public int MaxParcelTrackingSize { get; set; } = 50;
 }

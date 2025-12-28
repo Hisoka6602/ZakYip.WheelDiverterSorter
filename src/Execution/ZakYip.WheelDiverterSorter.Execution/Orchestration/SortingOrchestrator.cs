@@ -323,20 +323,28 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 处理包裹分拣流程（主入口）
     /// </summary>
-    public async Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, CancellationToken cancellationToken = default)
+    /// <param name="parcelId">包裹ID（时间戳）</param>
+    /// <param name="sensorId">触发传感器ID</param>
+    /// <param name="detectedAt">传感器实际检测到包裹的时间（用于准确计算位置间隔）</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    public async Task<SortingResult> ProcessParcelAsync(long parcelId, long sensorId, DateTimeOffset? detectedAt = null, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
 
         try
         {
+            // 如果未提供 detectedAt，使用当前时间作为 fallback（兼容旧调用方）
+            var actualDetectedAt = detectedAt ?? new DateTimeOffset(_clock.LocalNow);
+            
             _logger.LogInformation(
                 "[生命周期-创建] P{ParcelId} 入口传感器{SensorId}触发 T={StartTime:HH:mm:ss.fff}",
                 parcelId,
                 sensorId,
-                _clock.LocalNow);
+                actualDetectedAt.LocalDateTime);
 
             // 步骤 1: 创建本地包裹实体（Parcel-First）
-            await CreateParcelEntityAsync(parcelId, sensorId);
+            // 传递传感器实际检测时间，用于准确记录 Position 0 的时间戳
+            await CreateParcelEntityAsync(parcelId, sensorId, actualDetectedAt);
 
             // 步骤 2: 验证系统状态
             var stateValidation = await ValidateSystemStateAsync(parcelId);
@@ -595,9 +603,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <summary>
     /// 步骤 1: 创建本地包裹实体（PR-42 Parcel-First）
     /// </summary>
-    private async Task CreateParcelEntityAsync(long parcelId, long sensorId)
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="sensorId">传感器ID</param>
+    /// <param name="detectedAt">传感器实际检测时间（用于准确记录 Position 0）</param>
+    private async Task CreateParcelEntityAsync(long parcelId, long sensorId, DateTimeOffset detectedAt)
     {
-        var createdAt = new DateTimeOffset(_clock.LocalNow);
+        var createdAt = detectedAt;
 
         // PR-44: ConcurrentDictionary 是线程安全的，不需要锁
         _createdParcels[parcelId] = new ParcelCreationRecord
@@ -624,10 +635,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         });
 
         // PR-08B: 记录包裹进入系统
-        _congestionCollector?.RecordParcelEntry(parcelId, _clock.LocalNow);
+        _congestionCollector?.RecordParcelEntry(parcelId, detectedAt.LocalDateTime);
 
-        // 记录包裹在入口位置（position 0）的时间，用于跟踪入口到第一个摆轮的间隔
-        _intervalTracker?.RecordParcelPosition(parcelId, 0, _clock.LocalNow);
+        // FIX: 记录包裹在入口位置（position 0）的时间，使用传感器实际检测时间
+        // 这样可以消除处理线程拥堵对 Position 0 → Position 1 间隔统计的影响
+        // 确保计算的是真实物理传输时间，而非处理延迟
+        _intervalTracker?.RecordParcelPosition(parcelId, 0, detectedAt.LocalDateTime);
 
         // 触发包裹创建事件，通知其他逻辑代码
         var parcelCreatedArgs = new ParcelCreatedEventArgs
@@ -1099,7 +1112,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 e.ParcelId,
                 e.SensorId);
 
-            _ = ProcessParcelAsync(e.ParcelId, e.SensorId);
+            // FIX: 传递传感器实际检测时间，确保 Position 0 时间戳准确
+            _ = ProcessParcelAsync(e.ParcelId, e.SensorId, e.DetectedAt);
         }
         catch (Exception ex)
         {
@@ -1682,7 +1696,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         try
         {
             // PR-42: Parcel-First - 本地创建包裹实体
-            await CreateParcelEntityAsync(parcelId, e.SensorId);
+            // FIX: 使用传感器实际检测时间
+            await CreateParcelEntityAsync(parcelId, e.SensorId, e.DetectedAt);
 
             // 获取异常格口ID
             var systemConfig = _systemConfigService.GetSystemConfig();
