@@ -66,7 +66,8 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
     private readonly ConcurrentDictionary<int, HashSet<long>> _queuedSets = new();
     
     // 每个 Position 的包裹ID顺序列表（用于 Peek 操作，避免 Channel 重建）
-    private readonly ConcurrentDictionary<int, List<long>> _orderLists = new();
+    // 使用 LinkedList 替代 List 实现 O(1) 头部删除
+    private readonly ConcurrentDictionary<int, LinkedList<long>> _orderLists = new();
     
     // 每个 Position 的锁（用于保护 HashSet 和 List 的同步操作）
     private readonly ConcurrentDictionary<int, object> _positionLocks = new();
@@ -135,7 +136,7 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                 queuedSet.Add(task.ParcelId);
                 
                 // 加入顺序列表（用于 Peek）
-                orderList.Add(task.ParcelId);
+                orderList.AddLast(task.ParcelId);
             }
             
             // 5. 更新时间戳
@@ -178,7 +179,7 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             
             // 5. 更新 Set 和 List（插入头部）
             queuedSet.Add(task.ParcelId);
-            orderList.Insert(0, task.ParcelId);
+            orderList.AddFirst(task.ParcelId);
             
             // 6. 存储任务数据
             taskDict[task.ParcelId] = task;
@@ -230,15 +231,16 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                     
                     if (_orderLists.TryGetValue(positionIndex, out var orderList))
                     {
-                        // ⚠️ 性能优化：理论上 parcelId 应该在列表头部
-                        // 先尝试快速路径（头部移除），失败则降级到线性搜索
-                        if (orderList.Count > 0 && orderList[0] == parcelId)
+                        // ✅ O(1) 头部删除（LinkedList.RemoveFirst）
+                        // 理论上 parcelId 应该在列表头部（FIFO 顺序）
+                        if (orderList.Count > 0 && orderList.First?.Value == parcelId)
                         {
-                            orderList.RemoveAt(0); // O(n) but with Array.Copy optimization
+                            orderList.RemoveFirst(); // O(1)
                         }
                         else
                         {
-                            orderList.Remove(parcelId); // O(n) fallback
+                            // 降级到查找删除（O(n)，但极少发生）
+                            orderList.Remove(parcelId);
                         }
                     }
                 }
@@ -509,13 +511,19 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                 totalRemoved++;
                 affectedPositions.Add(positionIndex);
                 
-                // 同时从 queuedSet 中移除，允许该 key 未来重新入队
+                // 同时从 queuedSet 和 orderList 中移除，允许该 key 未来重新入队
                 var positionLock = GetOrCreateLock(positionIndex);
                 lock (positionLock)
                 {
                     if (_queuedSets.TryGetValue(positionIndex, out var queuedSet))
                     {
                         queuedSet.Remove(parcelId);
+                    }
+                    
+                    // 🔧 修复内存泄漏：清理 _orderLists 中的已删除包裹ID
+                    if (_orderLists.TryGetValue(positionIndex, out var orderList))
+                    {
+                        orderList.Remove(parcelId);
                     }
                 }
                 
@@ -703,13 +711,19 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                 totalRemovedCount++;
                 result.RemovedPositions.Add(positionIndex);
                 
-                // 从 queuedSet 中移除
+                // 从 queuedSet 和 orderList 中移除
                 var positionLock = GetOrCreateLock(positionIndex);
                 lock (positionLock)
                 {
                     if (_queuedSets.TryGetValue(positionIndex, out var queuedSet))
                     {
                         queuedSet.Remove(parcelId);
+                    }
+                    
+                    // 🔧 修复内存泄漏：清理 _orderLists 中的已删除包裹ID
+                    if (_orderLists.TryGetValue(positionIndex, out var orderList))
+                    {
+                        orderList.Remove(parcelId);
                     }
                 }
                 
@@ -808,11 +822,11 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
     }
 
     /// <summary>
-    /// 获取或创建指定 Position 的顺序列表
+    /// 获取或创建指定 Position 的顺序列表（LinkedList 实现 O(1) 头部删除）
     /// </summary>
-    private List<long> GetOrCreateOrderList(int positionIndex)
+    private LinkedList<long> GetOrCreateOrderList(int positionIndex)
     {
-        return _orderLists.GetOrAdd(positionIndex, _ => new List<long>());
+        return _orderLists.GetOrAdd(positionIndex, _ => new LinkedList<long>());
     }
 
     /// <inheritdoc/>
@@ -823,46 +837,30 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             return false;
         }
 
-        // 使用 ConcurrentDictionary 的原子操作避免竞态条件
-        // TryUpdate 确保：只有当 key 存在且值未被修改时才更新
-        var updateAttempted = false;
-        var updateSuccess = false;
-        
-        while (!updateAttempted)
+        // 尝试获取当前值
+        if (!taskDict.TryGetValue(parcelId, out var existingTask))
         {
-            // 尝试获取当前值
-            if (!taskDict.TryGetValue(parcelId, out var existingTask))
-            {
-                // 任务不存在
-                return false;
-            }
-
-            // 执行更新函数
-            var updatedTask = updateFunc(existingTask);
-
-            // 原子更新：仅当值未被其他线程修改时才更新
-            if (taskDict.TryUpdate(parcelId, updatedTask, existingTask))
-            {
-                updateSuccess = true;
-                updateAttempted = true;
-                
-                _logger.LogDebug(
-                    "[原地更新] Position {PositionIndex} 包裹 {ParcelId} 的任务已更新",
-                    positionIndex, parcelId);
-            }
-            else
-            {
-                // 值被其他线程修改了，重试
-                // 但为了避免无限循环，设置最大重试次数
-                updateAttempted = true; // 暂时只尝试一次，失败即返回false
-                updateSuccess = false;
-                
-                _logger.LogWarning(
-                    "[原地更新-竞争] Position {PositionIndex} 包裹 {ParcelId} 的任务更新失败（被其他线程修改）",
-                    positionIndex, parcelId);
-            }
+            // 任务不存在
+            return false;
         }
 
-        return updateSuccess;
+        // 执行更新函数
+        var updatedTask = updateFunc(existingTask);
+
+        // 原子更新：仅当值未被其他线程修改时才更新
+        if (taskDict.TryUpdate(parcelId, updatedTask, existingTask))
+        {
+            _logger.LogDebug(
+                "[原地更新] Position {PositionIndex} 包裹 {ParcelId} 的任务已更新",
+                positionIndex, parcelId);
+            return true;
+        }
+
+        // 值被其他线程修改了，当前策略是只尝试一次，失败即返回 false
+        _logger.LogWarning(
+            "[原地更新-竞争] Position {PositionIndex} 包裹 {ParcelId} 的任务更新失败（被其他线程修改）",
+            positionIndex, parcelId);
+
+        return false;
     }
 }
