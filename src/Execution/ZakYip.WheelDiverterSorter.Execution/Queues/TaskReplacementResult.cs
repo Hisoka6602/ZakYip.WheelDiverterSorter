@@ -4,7 +4,22 @@ namespace ZakYip.WheelDiverterSorter.Execution.Queues;
 /// 任务原地替换操作的结果
 /// </summary>
 /// <remarks>
-/// 用于 ReplaceTasksInPlace 方法的返回值，提供详细的替换操作结果信息。
+/// <para>用于 ReplaceTasksInPlace 方法的返回值，提供详细的替换操作结果信息。</para>
+/// 
+/// <para><b>什么是"幽灵任务"（Ghost Tasks）？</b></para>
+/// <para>
+/// 当上游返回的新路径比初始路径短时（例如从Position 0→5缩短为Position 0→2），
+/// 剩余Position（3、4、5）中该包裹的旧任务会成为"幽灵任务"。
+/// 因为包裹已在Position 2落格，这些任务永远不会执行，但仍占用队列空间，导致队列污染。
+/// </para>
+/// 
+/// <para><b>幽灵任务示例</b>：</para>
+/// <example>
+/// 初始路径：Position 0→5（异常口999，全直通）
+/// 上游返回：Position 0→2（格口6，Position 2左转）
+/// 幽灵任务：Position 3、4、5的旧任务（包裹已不在输送线上，这些任务永不执行）
+/// 清理结果：RemovedPositions = [3, 4, 5], RemovedCount = 3
+/// </example>
 /// </remarks>
 public record TaskReplacementResult
 {
