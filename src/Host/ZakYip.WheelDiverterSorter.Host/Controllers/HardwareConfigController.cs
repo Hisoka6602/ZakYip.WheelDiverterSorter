@@ -52,6 +52,12 @@ public class HardwareConfigController : ControllerBase
     private readonly ISystemClock? _clock;
     private readonly ISystemStateManager _stateManager;
     private readonly ILogger<HardwareConfigController> _logger;
+    
+    // 循环测试任务跟踪
+    private static CancellationTokenSource? _cycleTestCts;
+    private static Task? _cycleTestTask;
+    private static int _executedCycles = 0;
+    private static readonly object _cycleTestLock = new();
 
     /// <summary>
     /// 构造函数
@@ -1160,6 +1166,203 @@ public class HardwareConfigController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// 启动数递鸟摆轮循环测试
+    /// </summary>
+    /// <param name="request">循环测试请求</param>
+    /// <param name="cancellationToken">取消令牌</param>
+    /// <returns>循环测试启动结果</returns>
+    /// <response code="200">循环测试启动成功</response>
+    /// <response code="400">请求参数无效</response>
+    /// <response code="409">系统正在运行中、急停状态或已有循环测试在运行</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 启动摆轮循环测试，按照指定的方向序列循环执行。
+    /// 
+    /// **参数说明**：
+    /// - **diverterIds**: 要测试的摆轮ID数组
+    /// - **cycleDirections**: 循环方向序列，如 [Left, Right, Straight]
+    /// - **cycleCount**: 循环次数，范围 1 到 2147483647
+    /// - **intervalMs**: 每次指令间隔（毫秒），范围 100 到 60000
+    /// 
+    /// **执行逻辑**：
+    /// 对每个摆轮，按照方向序列循环执行指定次数。
+    /// 例如：cycleDirections=[Left,Right], cycleCount=3
+    /// 执行顺序：Left → Right → Left → Right → Left → Right
+    /// 
+    /// **注意事项**：
+    /// - 系统处于运行或急停状态时无法启动
+    /// - 同一时间只能有一个循环测试运行
+    /// - 可通过停止端点随时停止测试
+    /// </remarks>
+    [HttpPost("shudiniao/test/cycle/start")]
+    [SwaggerOperation(
+        Summary = "启动数递鸟摆轮循环测试",
+        Description = "启动摆轮循环测试，按照指定的方向序列和次数循环执行，支持随时停止",
+        OperationId = "StartDiverterCycleTest",
+        Tags = new[] { "硬件配置" }
+    )]
+    [SwaggerResponse(200, "循环测试启动成功", typeof(ApiResponse<DiverterCycleTestResponse>))]
+    [SwaggerResponse(400, "请求参数无效", typeof(ApiResponse<object>))]
+    [SwaggerResponse(409, "系统正在运行中、急停状态或已有循环测试在运行", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<DiverterCycleTestResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 400)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 409)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public async Task<ActionResult<ApiResponse<DiverterCycleTestResponse>>> StartDiverterCycleTest(
+        [FromBody] DiverterCycleTestRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // 检查系统状态
+            var currentState = _stateManager.CurrentState;
+            if (currentState == SystemState.Running || currentState == SystemState.EmergencyStop)
+            {
+                var stateMessage = currentState == SystemState.Running ? "运行中" : "急停";
+                _logger.LogWarning("系统处于{State}状态，禁止启动摆轮循环测试", stateMessage);
+                return Conflict(ApiResponse<object>.BadRequest($"系统处于{stateMessage}状态，禁止启动摆轮循环测试"));
+            }
+
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState.Values
+                    .SelectMany(v => v.Errors)
+                    .Select(e => e.ErrorMessage);
+                return BadRequest(ApiResponse<object>.BadRequest("请求参数无效", new { errors }));
+            }
+
+            if (request.DiverterIds == null || !request.DiverterIds.Any())
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("摆轮ID数组不能为空"));
+            }
+
+            if (request.CycleDirections == null || !request.CycleDirections.Any())
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("循环方向数组不能为空"));
+            }
+
+            if (_driverManager == null)
+            {
+                return BadRequest(ApiResponse<object>.BadRequest("摆轮驱动管理器未注册，可能是仿真模式或系统启动阶段"));
+            }
+
+            // 检查是否已有循环测试在运行
+            lock (_cycleTestLock)
+            {
+                if (_cycleTestTask != null && !_cycleTestTask.IsCompleted)
+                {
+                    return Conflict(ApiResponse<object>.BadRequest("已有循环测试在运行，请先停止当前测试"));
+                }
+            }
+
+            // 确保配置已加载到驱动管理器
+            await EnsureDriversLoadedAsync(cancellationToken);
+
+            // 启动循环测试任务
+            lock (_cycleTestLock)
+            {
+                _cycleTestCts?.Cancel();
+                _cycleTestCts = new CancellationTokenSource();
+                _executedCycles = 0;
+
+                var cts = _cycleTestCts;
+                _cycleTestTask = Task.Run(async () =>
+                {
+                    await ExecuteCycleTestAsync(
+                        request.DiverterIds,
+                        request.CycleDirections,
+                        request.CycleCount,
+                        request.IntervalMs,
+                        cts.Token);
+                }, cts.Token);
+            }
+
+            var taskId = Guid.NewGuid().ToString("N");
+            _logger.LogInformation(
+                "循环测试已启动: TaskId={TaskId}, Diverters={Diverters}, Directions={Directions}, Cycles={Cycles}, Interval={Interval}ms",
+                taskId, string.Join(",", request.DiverterIds), string.Join(",", request.CycleDirections), 
+                request.CycleCount, request.IntervalMs);
+
+            var response = new DiverterCycleTestResponse
+            {
+                IsSuccess = true,
+                Message = "循环测试已启动",
+                TaskId = taskId,
+                DiverterCount = request.DiverterIds.Count,
+                DirectionCount = request.CycleDirections.Count,
+                CycleCount = request.CycleCount,
+                IntervalMs = request.IntervalMs
+            };
+
+            return Ok(ApiResponse<DiverterCycleTestResponse>.Ok(response, "循环测试启动成功"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "启动摆轮循环测试失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("启动摆轮循环测试失败"));
+        }
+    }
+
+    /// <summary>
+    /// 停止数递鸟摆轮循环测试
+    /// </summary>
+    /// <returns>停止测试结果</returns>
+    /// <response code="200">成功停止测试</response>
+    /// <response code="404">没有正在运行的循环测试</response>
+    /// <response code="500">服务器内部错误</response>
+    /// <remarks>
+    /// 停止当前正在运行的摆轮循环测试。
+    /// 
+    /// **行为说明**：
+    /// - 如果有循环测试正在运行，立即停止并返回已执行的循环次数
+    /// - 如果没有循环测试运行，返回404错误
+    /// </remarks>
+    [HttpPost("shudiniao/test/cycle/stop")]
+    [SwaggerOperation(
+        Summary = "停止数递鸟摆轮循环测试",
+        Description = "停止当前正在运行的摆轮循环测试，返回已执行的循环次数",
+        OperationId = "StopDiverterCycleTest",
+        Tags = new[] { "硬件配置" }
+    )]
+    [SwaggerResponse(200, "成功停止测试", typeof(ApiResponse<StopCycleTestResponse>))]
+    [SwaggerResponse(404, "没有正在运行的循环测试", typeof(ApiResponse<object>))]
+    [SwaggerResponse(500, "服务器内部错误", typeof(ApiResponse<object>))]
+    [ProducesResponseType(typeof(ApiResponse<StopCycleTestResponse>), 200)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 404)]
+    [ProducesResponseType(typeof(ApiResponse<object>), 500)]
+    public ActionResult<ApiResponse<StopCycleTestResponse>> StopDiverterCycleTest()
+    {
+        try
+        {
+            lock (_cycleTestLock)
+            {
+                if (_cycleTestTask == null || _cycleTestTask.IsCompleted)
+                {
+                    return NotFound(ApiResponse<object>.BadRequest("没有正在运行的循环测试"));
+                }
+
+                _cycleTestCts?.Cancel();
+                _logger.LogInformation("循环测试已停止，已执行循环次数: {ExecutedCycles}", _executedCycles);
+
+                var response = new StopCycleTestResponse
+                {
+                    IsSuccess = true,
+                    Message = "循环测试已停止",
+                    ExecutedCycles = _executedCycles
+                };
+
+                return Ok(ApiResponse<StopCycleTestResponse>.Ok(response, "循环测试已停止"));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "停止摆轮循环测试失败");
+            return StatusCode(500, ApiResponse<object>.ServerError("停止摆轮循环测试失败"));
+        }
+    }
+
     #endregion
 
     #region 私有方法
@@ -1388,6 +1591,133 @@ public class HardwareConfigController : ControllerBase
         {
             _logger.LogError(ex, "自动加载摆轮驱动器配置失败");
             // 不抛出异常，让调用方继续执行，后续会因为没有活动驱动器而返回友好错误
+        }
+    }
+
+    /// <summary>
+    /// 执行循环测试的核心逻辑
+    /// </summary>
+    private async Task ExecuteCycleTestAsync(
+        List<long> diverterIds,
+        List<DiverterDirection> cycleDirections,
+        int cycleCount,
+        int intervalMs,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (_driverManager == null)
+            {
+                _logger.LogWarning("摆轮驱动管理器未注册，循环测试无法执行");
+                return;
+            }
+
+            var activeDrivers = _driverManager.GetActiveDrivers();
+            if (activeDrivers == null || !activeDrivers.Any())
+            {
+                _logger.LogWarning("没有活动的摆轮驱动器，循环测试无法执行");
+                return;
+            }
+
+            // 计算总的执行次数（循环次数 × 方向数量）
+            int totalExecutions = cycleCount * cycleDirections.Count;
+            _logger.LogInformation(
+                "开始执行循环测试: Diverters={Diverters}, Directions={Directions}, Cycles={Cycles}, Total={Total}",
+                string.Join(",", diverterIds), string.Join(",", cycleDirections), cycleCount, totalExecutions);
+
+            _executedCycles = 0;
+
+            for (int cycle = 0; cycle < cycleCount; cycle++)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    _logger.LogInformation("循环测试已取消，已执行 {ExecutedCycles}/{TotalCycles} 个循环", _executedCycles, cycleCount);
+                    break;
+                }
+
+                foreach (var direction in cycleDirections)
+                {
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        break;
+                    }
+
+                    // 对每个摆轮执行当前方向
+                    foreach (var diverterId in diverterIds)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            break;
+                        }
+
+                        try
+                        {
+                            if (activeDrivers.TryGetValue(diverterId.ToString(), out var driver))
+                            {
+                                bool success = direction switch
+                                {
+                                    DiverterDirection.Left => await driver.TurnLeftAsync(cancellationToken),
+                                    DiverterDirection.Right => await driver.TurnRightAsync(cancellationToken),
+                                    DiverterDirection.Straight => await driver.PassThroughAsync(cancellationToken),
+                                    _ => false
+                                };
+
+                                if (success)
+                                {
+                                    _logger.LogDebug(
+                                        "[摆轮循环测试] 摆轮 {DiverterId} 执行 {Direction} 成功 (循环 {Cycle}/{Total})",
+                                        diverterId, direction, cycle + 1, cycleCount);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning(
+                                        "[摆轮循环测试] 摆轮 {DiverterId} 执行 {Direction} 失败",
+                                        diverterId, direction);
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogWarning(
+                                    "[摆轮循环测试] 未找到摆轮 {DiverterId} 的驱动器",
+                                    diverterId);
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex,
+                                "[摆轮循环测试] 摆轮 {DiverterId} 执行 {Direction} 异常",
+                                diverterId, direction);
+                        }
+
+                        // 等待指定的间隔时间
+                        if (!cancellationToken.IsCancellationRequested)
+                        {
+                            await Task.Delay(intervalMs, cancellationToken);
+                        }
+                    }
+                }
+
+                _executedCycles++;
+                _logger.LogInformation(
+                    "[摆轮循环测试] 完成第 {Current}/{Total} 个循环",
+                    _executedCycles, cycleCount);
+            }
+
+            _logger.LogInformation(
+                "循环测试完成: 总共执行 {ExecutedCycles} 个循环",
+                _executedCycles);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("循环测试已被取消，已执行 {ExecutedCycles} 个循环", _executedCycles);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "循环测试执行异常");
         }
     }
 
@@ -1804,6 +2134,104 @@ public record class ShuDiNiaoSpeedSettingResult
     /// </summary>
     /// <example>51 52 5C 51 54 5A 5A 5A 5A 5A 5A FE</example>
     public string? SpeedFrameSent { get; init; }
+}
+
+/// <summary>
+/// 数递鸟摆轮循环测试请求
+/// </summary>
+public record class DiverterCycleTestRequest
+{
+    /// <summary>
+    /// 摆轮ID数组
+    /// </summary>
+    /// <example>[1, 2, 3]</example>
+    [Required(ErrorMessage = "摆轮ID数组不能为空")]
+    public required List<long> DiverterIds { get; init; }
+
+    /// <summary>
+    /// 循环方向数组（Left, Right, Straight）
+    /// </summary>
+    /// <example>["Left", "Right", "Straight"]</example>
+    [Required(ErrorMessage = "循环方向数组不能为空")]
+    public required List<DiverterDirection> CycleDirections { get; init; }
+
+    /// <summary>
+    /// 循环次数（1 到 int.MaxValue）
+    /// </summary>
+    /// <example>10</example>
+    [Required(ErrorMessage = "循环次数不能为空")]
+    [Range(1, int.MaxValue, ErrorMessage = "循环次数必须在 1 到 2147483647 之间")]
+    public required int CycleCount { get; init; }
+
+    /// <summary>
+    /// 每次指令间隔（毫秒）
+    /// </summary>
+    /// <example>1000</example>
+    [Required(ErrorMessage = "每次指令间隔不能为空")]
+    [Range(100, 60000, ErrorMessage = "指令间隔必须在 100 到 60000 毫秒之间")]
+    public required int IntervalMs { get; init; }
+}
+
+/// <summary>
+/// 数递鸟摆轮循环测试响应
+/// </summary>
+public record class DiverterCycleTestResponse
+{
+    /// <summary>
+    /// 是否成功启动
+    /// </summary>
+    public bool IsSuccess { get; init; }
+
+    /// <summary>
+    /// 响应消息
+    /// </summary>
+    public string? Message { get; init; }
+
+    /// <summary>
+    /// 测试任务ID（用于停止测试）
+    /// </summary>
+    public string? TaskId { get; init; }
+
+    /// <summary>
+    /// 配置的摆轮数量
+    /// </summary>
+    public int DiverterCount { get; init; }
+
+    /// <summary>
+    /// 配置的方向数量
+    /// </summary>
+    public int DirectionCount { get; init; }
+
+    /// <summary>
+    /// 配置的循环次数
+    /// </summary>
+    public int CycleCount { get; init; }
+
+    /// <summary>
+    /// 配置的间隔时间（毫秒）
+    /// </summary>
+    public int IntervalMs { get; init; }
+}
+
+/// <summary>
+/// 停止循环测试响应
+/// </summary>
+public record class StopCycleTestResponse
+{
+    /// <summary>
+    /// 是否成功停止
+    /// </summary>
+    public bool IsSuccess { get; init; }
+
+    /// <summary>
+    /// 响应消息
+    /// </summary>
+    public string? Message { get; init; }
+
+    /// <summary>
+    /// 已执行的循环次数
+    /// </summary>
+    public int ExecutedCycles { get; init; }
 }
 
 #endregion
