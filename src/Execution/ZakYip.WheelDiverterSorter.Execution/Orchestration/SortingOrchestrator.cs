@@ -1018,6 +1018,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
+        // PR-async-events: 立即yield回调用者，防止阻塞传感器事件链路
+        // Immediately yield to caller to prevent blocking sensor event chain
+        await Task.Yield();
+        
         try
         {
             _logger.LogDebug(
@@ -1665,6 +1669,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private async void OnDuplicateTriggerDetected(object? sender, DuplicateTriggerEventArgs e)
     {
+        // PR-async-events: 立即yield回调用者，防止阻塞传感器事件链路
+        // Immediately yield to caller to prevent blocking sensor event chain
+        await Task.Yield();
+        
         var parcelId = e.ParcelId;
         _logger.LogWarning(
             "检测到重复触发异常: ParcelId={ParcelId}, 传感器={SensorId}, " +
@@ -1736,6 +1744,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     private async void OnChuteDropoffDetected(object? sender, ChuteDropoffDetectedEventArgs e)
     {
+        // PR-async-events: 立即yield回调用者，防止阻塞传感器事件链路
+        // Immediately yield to caller to prevent blocking sensor event chain
+        await Task.Yield();
+        
         try
         {
             _logger.LogInformation(

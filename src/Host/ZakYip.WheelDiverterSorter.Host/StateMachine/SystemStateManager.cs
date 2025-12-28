@@ -19,7 +19,11 @@ public class SystemStateManager : ISystemStateManager
     private readonly ILogger<SystemStateManager> _logger;
     private readonly ISystemClock _clock;
     private readonly object _lock = new(); // 用于状态转换和历史记录的原子性
-    private SystemState _currentState;
+    
+    // PR-async-events: 使用 volatile 确保无锁读取，避免热路径阻塞
+    // Use volatile for lock-free reads to avoid hot path blocking
+    private volatile SystemState _currentState;
+    
     // PR-44: 保持 List 但在锁保护下使用（历史记录需要有序性和大小限制）
     private readonly List<StateTransitionRecord> _transitionHistory = new();
     private const int MaxHistorySize = 100;
@@ -33,14 +37,17 @@ public class SystemStateManager : ISystemStateManager
     public event EventHandler<StateChangeEventArgs>? StateChanged;
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// PR-async-events: 使用 volatile 字段实现无锁读取，避免热路径锁竞争
+    /// Uses volatile field for lock-free reads to avoid hot path lock contention
+    /// </remarks>
     public SystemState CurrentState
     {
         get
         {
-            lock (_lock)
-            {
-                return _currentState;
-            }
+            // PR-async-events: 直接读取 volatile 字段，无需锁（避免传感器事件链路阻塞）
+            // Direct read of volatile field without lock (prevents sensor event chain blocking)
+            return _currentState;
         }
     }
 

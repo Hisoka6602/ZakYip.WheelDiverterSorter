@@ -248,9 +248,13 @@ public class MyService
 
 **违规后果**: ❌ **PR自动失败**
 
-#### 5.1 禁止使用 Task.Run
+#### 5.1 禁止在热路径和高频方法中使用 Task.Run
 
-**规则**: 所有热路径代码中**严禁使用 `Task.Run`**，必须使用原生 async/await 或专用服务。
+**规则**: 所有热路径代码和高频调用方法中**严禁使用 `Task.Run`**，必须使用原生 async/await 或专用服务。
+
+**违规原因**: 
+- Task.Run 会从线程池分配新线程，高频调用（如传感器触发每2ms）会快速耗尽线程池资源
+- 导致系统整体性能下降、线程饥饿、响应延迟
 
 **热路径定义**:
 - 包裹检测到落格的完整流程（传感器触发 → 路由决策 → 队列入队 → 摆轮执行 → 落格完成）
@@ -258,6 +262,11 @@ public class MyService
 - 队列任务生成与执行
 - 路径计算与缓存访问
 - 传感器事件处理
+
+**高频方法定义**:
+- 每秒调用超过10次的方法（如传感器轮询每10ms、事件处理每2ms触发）
+- 事件发布器的 SafeInvoke 方法
+- 并发集合的读写操作
 
 **允许的异步模式**:
 ```csharp
@@ -267,6 +276,16 @@ public async Task ProcessParcelAsync(long parcelId)
     await CreateParcelEntityAsync(parcelId);
     var targetChute = await DetermineTargetChuteAsync(parcelId);
     await GenerateAndEnqueueTasksAsync(parcelId, targetChute);
+}
+
+// ✅ 正确：async void 事件处理器使用 Task.Yield() 立即返回
+private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
+{
+    // 立即yield回调用者，防止阻塞事件链路
+    await Task.Yield();
+    
+    // 后续处理在后台异步执行
+    await ProcessParcelAsync(e.ParcelId);
 }
 
 // ✅ 正确：使用 SafeExecutionService 包装后台任务
