@@ -27,6 +27,10 @@
 |------|------|
 | [SYSTEM_CAPABILITIES_ANALYSIS.md](SYSTEM_CAPABILITIES_ANALYSIS.md) | **系统能力现状分析**（防抖、镂空包裹识别、队列错误防护） |
 | [RACE_CONDITION_ANALYSIS.md](RACE_CONDITION_ANALYSIS.md) | **竞态条件分析**（UpdateAffectedParcelsToStraight 的竞态场景与修复方案） |
+| [../POSITION_INTERVAL_PERFORMANCE_ANALYSIS.md](../POSITION_INTERVAL_PERFORMANCE_ANALYSIS.md) | **Position 间隔性能分析**（阻塞点分析与 fire-and-forget 优化） |
+| [../PACKET_LOSS_DETECTION_ISSUE.md](../PACKET_LOSS_DETECTION_ISSUE.md) | **包裹丢失检测问题排查**（配置热更新验证、故障排查步骤） |
+| [../CONFIGURATION_HOT_RELOAD_MECHANISM.md](../CONFIGURATION_HOT_RELOAD_MECHANISM.md) | **配置热更新机制**（缓存刷新机制、配置立即生效保证） |
+| [../CONFIGURATION_CACHE_AUDIT.md](../CONFIGURATION_CACHE_AUDIT.md) | **配置缓存一致性审计**（7个配置服务审计报告、缓存刷新覆盖率） |
 
 ## 使用指南
 

@@ -698,18 +698,18 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // PR-perf-async-upstream: 异步发送上游通知，不等待完成
         // 使用 SafeExecutionService 包裹，防止未捕获异常导致进程崩溃
-        if (_safeExecutor != null)
+        // SafeExecutionService 是必需依赖，如果为null则表示配置错误
+        if (_safeExecutor == null)
         {
-            _ = _safeExecutor.ExecuteAsync(
-                () => SendUpstreamNotificationAsync(parcelId, exceptionChuteId),
-                operationName: $"UpstreamNotification_Parcel{parcelId}",
-                cancellationToken: CancellationToken.None);
+            throw new InvalidOperationException(
+                "ISafeExecutionService is required for SortingOrchestrator. " +
+                "Ensure it is registered in dependency injection.");
         }
-        else
-        {
-            // Fallback: 直接 fire-and-forget（仅在 SafeExecutor 不可用时）
-            _ = Task.Run(() => SendUpstreamNotificationAsync(parcelId, exceptionChuteId));
-        }
+        
+        _ = _safeExecutor.ExecuteAsync(
+            () => SendUpstreamNotificationAsync(parcelId, exceptionChuteId),
+            operationName: $"UpstreamNotification_Parcel{parcelId}",
+            cancellationToken: CancellationToken.None);
 
         // 如果超载决策要求强制异常，直接返回异常格口
         if (overloadDecision.ShouldForceException)
@@ -1377,20 +1377,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // Performance Optimization: 摆轮动作改为异步 Fire-and-Forget 模式
         // 原因：摆轮物理动作耗时 100-2000ms，阻塞包裹处理流程导致 Position 0 → 1 间隔异常
         // 解决方案：使用 SafeExecutionService 异步执行，不等待完成，立即处理下一个包裹
-        if (_safeExecutor != null)
+        // SafeExecutionService 是必需依赖，如果为null则表示配置错误
+        if (_safeExecutor == null)
         {
-            _ = _safeExecutor.ExecuteAsync(
-                async () => await ExecuteDiverterActionWithCallbackAsync(
-                    task, positionIndex, actionToExecute, isTimeout, singleSegmentPath),
-                operationName: $"DiverterExecution_Parcel{task.ParcelId}_Pos{positionIndex}",
-                cancellationToken: CancellationToken.None);
+            throw new InvalidOperationException(
+                "ISafeExecutionService is required for SortingOrchestrator. " +
+                "Ensure it is registered in dependency injection.");
         }
-        else
-        {
-            // Fallback: 无 SafeExecutor 时使用 Task.Run
-            _ = Task.Run(async () => await ExecuteDiverterActionWithCallbackAsync(
-                task, positionIndex, actionToExecute, isTimeout, singleSegmentPath));
-        }
+        
+        _ = _safeExecutor.ExecuteAsync(
+            async () => await ExecuteDiverterActionWithCallbackAsync(
+                task, positionIndex, actionToExecute, isTimeout, singleSegmentPath),
+            operationName: $"DiverterExecution_Parcel{task.ParcelId}_Pos{positionIndex}",
+            cancellationToken: CancellationToken.None);
         
         // 立即返回，不等待摆轮动作完成，继续处理下一个包裹
         _logger.LogDebug(
