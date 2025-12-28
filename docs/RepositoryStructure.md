@@ -75,6 +75,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | SENSOR_IO_POLLING_CONFIGURATION.md | `./docs/guides/SENSOR_IO_POLLING_CONFIGURATION.md` | 感应IO轮询时间配置指南 | 🟡 中 |
 | UPSTREAM_CONNECTION_GUIDE.md | `./docs/guides/UPSTREAM_CONNECTION_GUIDE.md` | 上游连接配置 | 🟡 中 |
 | VENDOR_EXTENSION_GUIDE.md | `./docs/guides/VENDOR_EXTENSION_GUIDE.md` | 厂商扩展开发 | 🟡 中 |
+| POSITION_INTERVAL_CALCULATION.md | `./docs/guides/POSITION_INTERVAL_CALCULATION.md` | Position 间隔时间计算详解（从 Position 2 到 Position 3 的时间计算原理） | 🔴 高 |
 
 ### 其他目录
 
