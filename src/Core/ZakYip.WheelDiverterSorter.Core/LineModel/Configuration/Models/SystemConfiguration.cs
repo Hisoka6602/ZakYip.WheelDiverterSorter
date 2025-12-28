@@ -172,13 +172,13 @@ public class SystemConfiguration
     public bool EnableEarlyTriggerDetection { get; set; } = true;
     
     /// <summary>
-    /// 启用超时检测功能
+    /// 启用超时检测功能（包裹丢失检测）
     /// </summary>
     /// <remarks>
     /// <para>当启用时，如果包裹在超时阈值后仍未到达下一个节点，判定为超时并路由到异常格口。</para>
     /// <para>当禁用时，超时后继续等待，不进行超时处理。</para>
     /// <para>超时阈值 = 理论传输时间 + 时间容差（来自输送线段配置）</para>
-    /// <para>默认值为 false（禁用超时检测）</para>
+    /// <para>默认值为 false（禁用超时检测和包裹丢失检测）</para>
     /// <para>此为全局开关，通过 /api/sorting/detection-switches 统一控制</para>
     /// </remarks>
     public bool EnableTimeoutDetection { get; set; } = false;
@@ -289,7 +289,8 @@ public class SystemConfiguration
             SortingMode = SortingMode.Formal,
             FixedChuteId = null,
             AvailableChuteIds = new List<long>(),
-            EnableEarlyTriggerDetection = true, // 默认启用提前触发检测，防止包裹错位问题
+            EnableEarlyTriggerDetection = true, // 默认启用干扰检测，防止包裹错位问题
+            EnableTimeoutDetection = false, // 默认禁用超时检测（包裹丢失检测）
             PassThroughOnInterference = false, // 默认不执行直行动作，保持向后兼容
             Version = 1,
             CreatedAt = now,

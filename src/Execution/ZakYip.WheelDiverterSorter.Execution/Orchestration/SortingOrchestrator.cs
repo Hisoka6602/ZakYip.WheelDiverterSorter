@@ -687,14 +687,29 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     ///
     /// PR-fix-upstream-notification-all-modes: 在所有模式下都向上游发送包裹检测通知。
     /// 只有 Formal 模式会等待并使用上游返回的路由决策，其他模式仅发送通知但使用本地策略。
+    ///
+    /// PR-perf-async-upstream: 上游通知改为异步 Fire-and-Forget 模式，避免阻塞分拣流程。
+    /// 这样可以消除网络延迟对 Position 0 → Position 1 间隔统计的影响。
     /// </remarks>
     private async Task<long> DetermineTargetChuteAsync(long parcelId, OverloadDecision overloadDecision)
     {
         var systemConfig = _systemConfigService.GetSystemConfig();
         var exceptionChuteId = systemConfig.ExceptionChuteId;
 
-        // PR-fix-upstream-notification-all-modes: 在所有模式下都向上游发送包裹检测通知
-        await SendUpstreamNotificationAsync(parcelId, systemConfig.ExceptionChuteId);
+        // PR-perf-async-upstream: 异步发送上游通知，不等待完成
+        // 使用 SafeExecutionService 包裹，防止未捕获异常导致进程崩溃
+        // SafeExecutionService 是必需依赖，如果为null则表示配置错误
+        if (_safeExecutor == null)
+        {
+            throw new InvalidOperationException(
+                "ISafeExecutionService is required for SortingOrchestrator. " +
+                "Ensure it is registered in dependency injection.");
+        }
+        
+        _ = _safeExecutor.ExecuteAsync(
+            () => SendUpstreamNotificationAsync(parcelId, exceptionChuteId),
+            operationName: $"UpstreamNotification_Parcel{parcelId}",
+            cancellationToken: CancellationToken.None);
 
         // 如果超载决策要求强制异常，直接返回异常格口
         if (overloadDecision.ShouldForceException)
@@ -1021,7 +1036,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     position.PositionIndex);
 
                 // 这是摆轮前传感器触发，处理待执行队列中的包裹
-                await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex);
+                // 传递传感器实际触发时间，确保间隔计算和超时判断的准确性
+                await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex, e.DetectedAt);
                 return;
             }
             else if (_vendorConfigService != null && _queueManager != null && _topologyService != null)
@@ -1051,7 +1067,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         node.PositionIndex);
 
                     // 这是摆轮前传感器触发，处理待执行队列中的包裹
-                    await HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex);
+                    // 传递传感器实际触发时间，确保间隔计算和超时判断的准确性
+                    await HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex, e.DetectedAt);
                     return;
                 }
             }
@@ -1095,33 +1112,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
     /// <summary>
     /// 处理摆轮前传感器触发事件（TD-062）
+    /// 性能要求：触发后10ms内完成所有操作，无阻塞，无并发锁
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
     /// <param name="positionIndex">Position Index</param>
-    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId, int positionIndex)
+    /// <param name="triggerTime">传感器实际触发时间（用于准确的间隔计算和超时判断）</param>
+    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId, int positionIndex, DateTimeOffset triggerTime)
     {
-        _logger.LogDebug(
-            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}, PositionIndex={PositionIndex}",
-            sensorId,
-            boundWheelDiverterId,
-            positionIndex);
-
-        if (_safeExecutor != null)
-        {
-            _logger.LogDebug("使用 SafeExecutionService 执行摆轮前传感器处理");
-            // 使用 SafeExecutionService 包裹异步操作
-            await _safeExecutor.ExecuteAsync(
-                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
-                operationName: $"WheelFrontTriggered_Sensor{sensorId}",
-                cancellationToken: default);
-        }
-        else
-        {
-            _logger.LogDebug("直接执行摆轮前传感器处理（无 SafeExecutor）");
-            // Fallback: 没有 SafeExecutor 时直接执行
-            await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
-        }
+        // 性能优化：直接执行，不通过 SafeExecutor 包装（减少间接调用开销）
+        // SafeExecutor 会增加额外的异步调度开销，影响 10ms 性能目标
+        await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex, triggerTime);
     }
 
     /// <summary>
@@ -1130,9 +1131,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="positionIndex">Position Index</param>
-    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex)
+    /// <param name="triggerTime">传感器实际触发时间（用于准确的间隔计算和超时判断）</param>
+    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex, DateTimeOffset triggerTime)
     {
-        var currentTime = _clock.LocalNow;
+        // 使用传感器实际触发时间，而不是处理时间，确保：
+        // 1. Position 间隔计算准确（反映真实物理传输时间）
+        // 2. 提前触发检测准确（基于真实触发时刻）
+        // 3. 超时判断准确（基于真实触发时刻）
+        var currentTime = triggerTime.LocalDateTime;
 
         _logger.LogDebug(
             "Position {PositionIndex} 传感器 {SensorId} 触发，检查队列任务",
@@ -1347,7 +1353,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
             task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
 
-        // 执行摆轮动作（Phase 5 完整实现）
+        // 执行摆轮动作（Phase 5 完整实现 + Performance Optimization）
         // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
         var singleSegmentPath = new SwitchingPath
         {
@@ -1368,6 +1374,43 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             FallbackChuteId = 0
         };
 
+        // Performance Optimization: 摆轮动作改为异步 Fire-and-Forget 模式
+        // 原因：摆轮物理动作耗时 100-2000ms，阻塞包裹处理流程导致 Position 0 → 1 间隔异常
+        // 解决方案：使用 SafeExecutionService 异步执行，不等待完成，立即处理下一个包裹
+        // SafeExecutionService 是必需依赖，如果为null则表示配置错误
+        if (_safeExecutor == null)
+        {
+            throw new InvalidOperationException(
+                "ISafeExecutionService is required for SortingOrchestrator. " +
+                "Ensure it is registered in dependency injection.");
+        }
+        
+        _ = _safeExecutor.ExecuteAsync(
+            async () => await ExecuteDiverterActionWithCallbackAsync(
+                task, positionIndex, actionToExecute, isTimeout, singleSegmentPath),
+            operationName: $"DiverterExecution_Parcel{task.ParcelId}_Pos{positionIndex}",
+            cancellationToken: CancellationToken.None);
+        
+        // 立即返回，不等待摆轮动作完成，继续处理下一个包裹
+        _logger.LogDebug(
+            "[性能优化] 包裹 {ParcelId} 摆轮动作已异步启动，不阻塞队列处理",
+            task.ParcelId);
+    }
+
+    /// <summary>
+    /// 执行摆轮动作并处理回调（异步 Fire-and-Forget 方法）
+    /// </summary>
+    /// <remarks>
+    /// 此方法包含完整的摆轮执行、错误处理、上游通知、内存清理流程。
+    /// 通过 SafeExecutionService 异步执行，不阻塞主流程。
+    /// </remarks>
+    private async Task ExecuteDiverterActionWithCallbackAsync(
+        PositionQueueItem task,
+        int positionIndex,
+        DiverterDirection actionToExecute,
+        bool isTimeout,
+        SwitchingPath singleSegmentPath)
+    {
         try
         {
             var executionResult = await _pathExecutor.ExecuteAsync(singleSegmentPath, default);
@@ -1587,11 +1630,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             lostParcelId, positionIndex);
         
         // 递归调用以处理下一个包裹
+        // 注意：这是递归调用（处理完丢失包裹后检查队列），使用当前时间作为触发时间
+        var recursiveTriggerTime = new DateTimeOffset(_clock.LocalNow);
+        
         // 使用 SafeExecutionService 确保异常被正确处理和记录
         if (_safeExecutor != null)
         {
             _ = _safeExecutor.ExecuteAsync(
-                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
+                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex, recursiveTriggerTime),
                 operationName: $"WheelFrontSorting_RecursivePacketLossHandling_Position{positionIndex}",
                 cancellationToken: default);
         }
@@ -1602,7 +1648,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 try
                 {
-                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
+                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex, recursiveTriggerTime);
                 }
                 catch (Exception ex)
                 {

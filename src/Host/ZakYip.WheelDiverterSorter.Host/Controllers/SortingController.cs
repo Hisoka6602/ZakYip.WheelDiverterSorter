@@ -1,12 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Application.Services;
-using ZakYip.WheelDiverterSorter.Application.Services.Config;
 using ZakYip.WheelDiverterSorter.Application.Services.Sorting;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 using ZakYip.WheelDiverterSorter.Host.Models;
@@ -14,6 +12,8 @@ using Swashbuckle.AspNetCore.Annotations;
 using ZakYip.WheelDiverterSorter.Execution.Queues;
 using ZakYip.WheelDiverterSorter.Execution.Tracking;
 using ZakYip.WheelDiverterSorter.Observability;
+using ISystemConfigService = ZakYip.WheelDiverterSorter.Application.Services.Config.ISystemConfigService;
+using IChuteDropoffCallbackConfigService = ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChuteDropoffCallbackConfigService;
 
 namespace ZakYip.WheelDiverterSorter.Host.Controllers;
 
@@ -49,7 +49,7 @@ public class SortingController : ApiControllerBase
 {
     private readonly IChangeParcelChuteService _changeParcelChuteService;
     private readonly IPositionIndexQueueManager _queueManager;
-    private readonly IChuteDropoffCallbackConfigurationRepository _callbackConfigRepository;
+    private readonly IChuteDropoffCallbackConfigService _callbackConfigService;
     private readonly ISystemConfigService _systemConfigService;
     private readonly ISystemConfigurationRepository _systemConfigRepository; // For update operations
     private readonly IConveyorSegmentRepository _conveyorSegmentRepository;
@@ -63,7 +63,7 @@ public class SortingController : ApiControllerBase
     public SortingController(
         IChangeParcelChuteService changeParcelChuteService,
         IPositionIndexQueueManager queueManager,
-        IChuteDropoffCallbackConfigurationRepository callbackConfigRepository,
+        IChuteDropoffCallbackConfigService callbackConfigService,
         ISystemConfigService systemConfigService,
         ISystemConfigurationRepository systemConfigRepository,
         IConveyorSegmentRepository conveyorSegmentRepository,
@@ -76,7 +76,7 @@ public class SortingController : ApiControllerBase
     {
         _changeParcelChuteService = changeParcelChuteService ?? throw new ArgumentNullException(nameof(changeParcelChuteService));
         _queueManager = queueManager ?? throw new ArgumentNullException(nameof(queueManager));
-        _callbackConfigRepository = callbackConfigRepository ?? throw new ArgumentNullException(nameof(callbackConfigRepository));
+        _callbackConfigService = callbackConfigService ?? throw new ArgumentNullException(nameof(callbackConfigService));
         _systemConfigService = systemConfigService ?? throw new ArgumentNullException(nameof(systemConfigService));
         _systemConfigRepository = systemConfigRepository ?? throw new ArgumentNullException(nameof(systemConfigRepository));
         _conveyorSegmentRepository = conveyorSegmentRepository ?? throw new ArgumentNullException(nameof(conveyorSegmentRepository));
@@ -360,7 +360,7 @@ public class SortingController : ApiControllerBase
     {
         try
         {
-            var config = _callbackConfigRepository.Get();
+            var config = _callbackConfigService.GetCallbackConfiguration();
 
             var response = new ChuteDropoffCallbackConfigDto
             {
@@ -432,21 +432,17 @@ public class SortingController : ApiControllerBase
                 return BadRequest(new { message = "请求体不能为空" });
             }
 
-            // 创建或更新配置
+            // 创建或更新配置（通过 Service 层，确保缓存刷新）
             var config = new ChuteDropoffCallbackConfiguration
             {
                 ConfigName = "chute-dropoff-callback",  // 设置required属性
                 CallbackMode = request.TriggerMode
             };
 
-            _callbackConfigRepository.Update(config);
-
-            _logger.LogInformation(
-                "落格回调配置已更新: {CallbackMode}",
-                request.TriggerMode);
+            _callbackConfigService.UpdateCallbackConfiguration(config);
 
             // 重新获取config以确保有UpdatedAt
-            var updatedConfig = _callbackConfigRepository.Get();
+            var updatedConfig = _callbackConfigService.GetCallbackConfiguration();
             
             var response = new ChuteDropoffCallbackConfigDto
             {

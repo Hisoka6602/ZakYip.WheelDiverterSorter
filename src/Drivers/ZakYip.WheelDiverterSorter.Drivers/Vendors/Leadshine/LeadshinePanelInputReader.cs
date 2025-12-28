@@ -169,11 +169,7 @@ public class LeadshinePanelInputReader : IPanelInputReader
                         ioValues[minBit + i] = batchValues[i];
                     }
                     
-                    _logger.LogDebug(
-                        "批量读取面板按钮IO位，范围: {MinBit}-{MaxBit}, 数量: {Count}",
-                        minBit,
-                        maxBit,
-                        count);
+                    // 成功时不输出日志，仅在失败时输出（避免日志泛滥）
                 }
                 else
                 {

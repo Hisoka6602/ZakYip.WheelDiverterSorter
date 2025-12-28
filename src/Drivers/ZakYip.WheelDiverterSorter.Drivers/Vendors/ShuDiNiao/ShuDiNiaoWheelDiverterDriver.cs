@@ -888,8 +888,19 @@ public sealed class ShuDiNiaoWheelDiverterDriver : IWheelDiverterDriver, IDispos
                 // 等待任务完成，但不阻塞太久
                 _receiveTask.Wait(ReceiveTaskStopTimeout);
             }
+            catch (TaskCanceledException)
+            {
+                // TaskCanceledException 是预期行为（任务被主动取消），不需要记录警告
+                _logger.LogDebug("摆轮 {DiverterId} 接收任务已被取消", DiverterId);
+            }
+            catch (AggregateException ex) when (ex.InnerExceptions.All(e => e is TaskCanceledException))
+            {
+                // 所有内部异常都是 TaskCanceledException，也是预期行为
+                _logger.LogDebug("摆轮 {DiverterId} 接收任务已被取消", DiverterId);
+            }
             catch (Exception ex)
             {
+                // 其他异常才记录警告
                 _logger.LogWarning(ex, "摆轮 {DiverterId} 停止接收任务时出现异常", DiverterId);
             }
             finally
