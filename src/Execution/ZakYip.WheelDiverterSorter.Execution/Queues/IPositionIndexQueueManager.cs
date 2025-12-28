@@ -109,4 +109,47 @@ public interface IPositionIndexQueueManager
     /// 这样可以确保这些包裹走向异常格口，而不影响在丢失包裹创建之前或丢失检测之后创建的包裹。
     /// </remarks>
     List<long> UpdateAffectedParcelsToStraight(DateTime lostParcelCreatedAt, DateTime detectionTime);
+    
+    /// <summary>
+    /// 原地替换指定包裹在所有队列中的任务（用于上游格口分配响应）
+    /// </summary>
+    /// <param name="parcelId">要替换任务的包裹ID</param>
+    /// <param name="newTasks">新的任务列表（按 PositionIndex 分组）</param>
+    /// <returns>替换结果，包含成功替换的任务数和失败的Position索引</returns>
+    /// <remarks>
+    /// <para><b>核心功能</b>：当收到上游的格口分配通知时，原地替换队列中该包裹的任务，保持队列顺序不变，并清理幽灵任务。</para>
+    /// 
+    /// <para><b>问题场景</b>：</para>
+    /// <list type="bullet">
+    ///   <item>包裹P1、P2、P3按顺序创建，初始都使用异常格口999入队</item>
+    ///   <item>上游响应顺序可能乱序：P2先返回（格口6），P1后返回（格口3）</item>
+    ///   <item>如果简单"删除+重新入队"会导致队列顺序错乱：[P1, P3, P2]</item>
+    ///   <item>正确做法：原地替换，保持顺序：[P1-新动作, P2-新动作, P3-异常]</item>
+    /// </list>
+    /// 
+    /// <para><b>替换逻辑</b>：</para>
+    /// <list type="number">
+    ///   <item>遍历新任务列表中的每个Position，找到目标包裹的任务并替换</item>
+    ///   <item>使用新任务的动作替换旧任务的动作（DiverterAction等字段）</item>
+    ///   <item>保持任务在队列中的原位置不变</item>
+    ///   <item>遍历所有其他Position，移除不在新路径中的该包裹任务（清理幽灵任务）</item>
+    /// </list>
+    /// 
+    /// <para><b>幽灵任务清理</b>：</para>
+    /// <example>
+    /// 场景：包裹最初创建时目标异常口999（Position 0→5全直通），上游返回后需要在Position 2左转
+    /// - 新路径：Position 0、1、2（共3个任务）
+    /// - 旧路径：Position 0、1、2、3、4、5（共6个任务）
+    /// - 操作：替换Position 0、1、2的任务，移除Position 3、4、5的任务（幽灵任务）
+    /// - 原因：包裹在Position 2已落格，Position 3、4、5的任务永不执行，需清理防止队列积累
+    /// </example>
+    /// 
+    /// <para><b>边界情况</b>：</para>
+    /// <list type="bullet">
+    ///   <item>任务已被出队执行 → 不操作该Position，记录到NotFoundPositions</item>
+    ///   <item>新路径Position少于旧路径 → 替换重叠部分，移除多余Position的任务</item>
+    ///   <item>新路径Position多于旧路径 → 替换已有部分，记录缺失Position到SkippedPositions</item>
+    /// </list>
+    /// </remarks>
+    TaskReplacementResult ReplaceTasksInPlace(long parcelId, List<PositionQueueItem> newTasks);
 }

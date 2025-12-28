@@ -437,4 +437,221 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         // 转换为 List 返回
         return affectedParcelIdsSet.ToList();
     }
+    
+    /// <inheritdoc/>
+    public TaskReplacementResult ReplaceTasksInPlace(long parcelId, List<PositionQueueItem> newTasks)
+    {
+        var result = new TaskReplacementResult();
+        
+        // 按 PositionIndex 对新任务进行分组，方便查找
+        var newTasksByPosition = newTasks.ToDictionary(t => t.PositionIndex);
+        
+        // 遍历所有需要替换的Position
+        foreach (var newTask in newTasks)
+        {
+            var positionIndex = newTask.PositionIndex;
+            
+            // 检查该Position的队列是否存在
+            if (!_queues.TryGetValue(positionIndex, out var queue))
+            {
+                _logger.LogWarning(
+                    "[原地替换-跳过] Position {PositionIndex} 的队列不存在，包裹 {ParcelId} 的任务无法替换",
+                    positionIndex, parcelId);
+                result.SkippedPositions.Add(positionIndex);
+                continue;
+            }
+            
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+            
+            // PR-race-condition-fix: 使用锁保护整个"清空→查找替换→放回"操作
+            lock (queueLock)
+            {
+                // 临时存储队列中的任务
+                var tempTasks = new List<PositionQueueItem>();
+                bool found = false;
+                
+                // 遍历队列，找到目标包裹的任务并替换
+                while (queue.TryDequeue(out var existingTask))
+                {
+                    if (existingTask.ParcelId == parcelId && !found)
+                    {
+                        // 找到了目标包裹的任务，使用新任务替换
+                        // 保留原任务的大部分字段，只更新关键字段
+                        var replacedTask = existingTask with
+                        {
+                            DiverterAction = newTask.DiverterAction,
+                            ExpectedArrivalTime = newTask.ExpectedArrivalTime,
+                            TimeoutThresholdMs = newTask.TimeoutThresholdMs,
+                            FallbackAction = newTask.FallbackAction,
+                            LostDetectionTimeoutMs = newTask.LostDetectionTimeoutMs,
+                            LostDetectionDeadline = newTask.LostDetectionDeadline,
+                            EarliestDequeueTime = newTask.EarliestDequeueTime
+                        };
+                        
+                        tempTasks.Add(replacedTask);
+                        found = true;
+                        
+                        _logger.LogDebug(
+                            "[原地替换] Position {PositionIndex} 包裹 {ParcelId} 的任务已替换: {OldAction} → {NewAction}",
+                            positionIndex, parcelId, existingTask.DiverterAction, newTask.DiverterAction);
+                    }
+                    else
+                    {
+                        // 其他任务保持不变
+                        tempTasks.Add(existingTask);
+                    }
+                }
+                
+                // 将所有任务放回队列（保持原顺序）
+                foreach (var task in tempTasks)
+                {
+                    queue.Enqueue(task);
+                }
+                
+                if (found)
+                {
+                    result.ReplacedPositions.Add(positionIndex);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "[原地替换-未找到] Position {PositionIndex} 队列中未找到包裹 {ParcelId} 的任务（可能已出队执行）",
+                        positionIndex, parcelId);
+                    result.NotFoundPositions.Add(positionIndex);
+                }
+            }
+        }
+        
+        // ============================================================================
+        // 幽灵任务清理逻辑（Ghost Task Cleanup）
+        // ============================================================================
+        // 
+        // 业务背景：
+        // 当上游返回的新路径比初始路径短时，会产生"幽灵任务"问题。
+        // 
+        // 什么是幽灵任务？
+        // - 包裹初始创建：目标异常口999，路径 Position 0→5（6个任务）
+        // - 上游返回新格口：目标格口6，路径 Position 0→2（3个任务）
+        // - 包裹在Position 2左转落格，实际已离开输送线
+        // - Position 3、4、5的旧任务成为"幽灵任务"：永远不会执行，但仍占用队列空间
+        // 
+        // 不清理幽灵任务的后果：
+        // - 队列污染：无效任务长期占用内存和队列空间
+        // - 影响性能：队列长度虚增，遍历操作变慢
+        // - 调试困难：队列状态与实际运行状态不一致
+        // 
+        // 清理策略：
+        // 遍历所有Position队列，移除"不在新路径中的Position"的该包裹任务
+        // 
+        // 示例：
+        // 新路径：Position [0, 1, 2]（newTasksByPosition包含这3个Position）
+        // 遍历所有队列：Position 0~5
+        // - Position 0、1、2：已在上面替换处理，跳过
+        // - Position 3、4、5：不在新路径中，移除该包裹的任务（幽灵任务清理）
+        // ============================================================================
+        
+        int totalRemovedCount = 0;
+        foreach (var (positionIndex, queue) in _queues)
+        {
+            // 如果这个Position在新任务列表中，已经处理过了（替换），跳过
+            if (newTasksByPosition.ContainsKey(positionIndex))
+            {
+                continue;
+            }
+            
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+            
+            lock (queueLock)
+            {
+                var tempTasks = new List<PositionQueueItem>();
+                int removedFromThisQueue = 0;
+                
+                // 遍历队列，移除目标包裹的任务
+                while (queue.TryDequeue(out var task))
+                {
+                    if (task.ParcelId == parcelId)
+                    {
+                        // 这是幽灵任务，不放回队列
+                        removedFromThisQueue++;
+                        totalRemovedCount++;
+                        
+                        _logger.LogDebug(
+                            "[幽灵任务清理] Position {PositionIndex} 移除了包裹 {ParcelId} 的旧任务（新路径不经过此Position）",
+                            positionIndex, parcelId);
+                    }
+                    else
+                    {
+                        // 其他包裹的任务保留
+                        tempTasks.Add(task);
+                    }
+                }
+                
+                // 将保留的任务放回队列
+                foreach (var task in tempTasks)
+                {
+                    queue.Enqueue(task);
+                }
+                
+                if (removedFromThisQueue > 0)
+                {
+                    result.RemovedPositions.Add(positionIndex);
+                }
+            }
+        }
+        
+        // 统计结果
+        result = result with 
+        { 
+            ReplacedCount = result.ReplacedPositions.Count,
+            RemovedCount = totalRemovedCount
+        };
+        
+        // 记录汇总日志
+        if (result.IsFullySuccessful)
+        {
+            if (totalRemovedCount > 0)
+            {
+                _logger.LogInformation(
+                    "[原地替换-成功] 包裹 {ParcelId} 的任务已成功处理，" +
+                    "替换 {ReplacedCount} 个 Position: [{ReplacedPositions}]，" +
+                    "清理 {RemovedCount} 个幽灵任务（Position: [{RemovedPositions}]）",
+                    parcelId,
+                    result.ReplacedCount,
+                    string.Join(", ", result.ReplacedPositions),
+                    result.RemovedCount,
+                    string.Join(", ", result.RemovedPositions));
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "[原地替换-成功] 包裹 {ParcelId} 的所有任务已成功替换，共 {Count} 个 Position: [{Positions}]",
+                    parcelId,
+                    result.ReplacedCount,
+                    string.Join(", ", result.ReplacedPositions));
+            }
+        }
+        else if (result.IsPartiallySuccessful)
+        {
+            _logger.LogWarning(
+                "[原地替换-部分成功] 包裹 {ParcelId} 部分任务替换成功: " +
+                "成功 {SuccessCount} 个 Position [{SuccessPositions}], " +
+                "未找到 {NotFoundCount} 个 [{NotFoundPositions}], " +
+                "跳过 {SkippedCount} 个 [{SkippedPositions}], " +
+                "清理幽灵任务 {RemovedCount} 个 [{RemovedPositions}]",
+                parcelId,
+                result.ReplacedCount, string.Join(", ", result.ReplacedPositions),
+                result.NotFoundPositions.Count, string.Join(", ", result.NotFoundPositions),
+                result.SkippedPositions.Count, string.Join(", ", result.SkippedPositions),
+                result.RemovedCount, string.Join(", ", result.RemovedPositions));
+        }
+        else
+        {
+            _logger.LogError(
+                "[原地替换-失败] 包裹 {ParcelId} 的任务替换完全失败，未找到任何任务（所有 {Count} 个 Position 都失败）",
+                parcelId,
+                newTasks.Count);
+        }
+        
+        return result;
+    }
 }
