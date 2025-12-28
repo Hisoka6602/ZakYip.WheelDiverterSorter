@@ -2772,62 +2772,54 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 nextEarliestDequeueTime = currentTask.CreatedAt;
             }
 
-            // 窥视下一个position的队列头部任务
-            var nextTask = _queueManager.PeekTask(nextNode.PositionIndex);
-            if (nextTask == null || nextTask.ParcelId != currentTask.ParcelId)
-            {
-                // 队列中没有该包裹的下一个任务，不需要更新
-                return;
-            }
-
-            // 出队旧任务
-            // 注意：此处存在潜在的并发风险，如果在出队和入队之间另一个传感器触发，可能导致顺序错乱
-            // 然而实际场景中，由于物理传感器的间隔和包裹移动的时序性，同一position的并发触发极为罕见
-            // 如果未来需要解决此问题，可以考虑为每个positionIndex添加独立的锁
-            var dequeuedTask = _queueManager.DequeueTask(nextNode.PositionIndex);
-            if (dequeuedTask == null || dequeuedTask.ParcelId != currentTask.ParcelId)
-            {
-                // 出队失败或队列已变化，放弃更新
-                if (dequeuedTask != null)
-                {
-                    // 如果出队了其他包裹的任务，放回队列
-                    _queueManager.EnqueuePriorityTask(nextNode.PositionIndex, dequeuedTask);
-                }
-                return;
-            }
-
-            // 创建更新后的任务（仅更新时间相关字段）
-            // 使用 record 的 with 表达式确保不可变性，以下字段被保留：
-            // - ParcelId, DiverterId, DiverterAction, PositionIndex (核心业务字段)
-            // - TimeoutThresholdMs, FallbackAction (超时处理配置)
-            // - CreatedAt, LostDetectionTimeoutMs (原始时间戳和配置)
-            // 以下字段被更新：
-            // - ExpectedArrivalTime (基于实际到达时间重新计算)
-            // - EarliestDequeueTime (基于新的期望时间重新计算)
-            // - LostDetectionDeadline (基于新的期望时间重新计算，保持一致性)
-            var updatedTask = dequeuedTask with
-            {
-                ExpectedArrivalTime = nextExpectedArrivalTime,
-                EarliestDequeueTime = nextEarliestDequeueTime,
-                // 也更新丢失检测截止时间，保持一致性
-                LostDetectionDeadline = dequeuedTask.LostDetectionTimeoutMs.HasValue
-                    ? nextExpectedArrivalTime.AddMilliseconds(dequeuedTask.LostDetectionTimeoutMs.Value)
-                    : dequeuedTask.LostDetectionDeadline
-            };
-
-            // 将更新后的任务放回队列头部（优先级入队）
-            _queueManager.EnqueuePriorityTask(nextNode.PositionIndex, updatedTask);
-
-            _logger.LogDebug(
-                "[动态时间更新] 包裹 {ParcelId} 在Position {CurrentPos}触发，" +
-                "更新Position {NextPos}的期望到达时间: {OldTime:HH:mm:ss.fff} -> {NewTime:HH:mm:ss.fff}, " +
-                "最早出队时间: {EarliestTime:HH:mm:ss.fff}",
+            // 使用原子性的 UpdateTaskInPlace 方法更新队列中的任务
+            // 这样可以避免"出队→修改→入队"导致的并发风险
+            var updated = _queueManager.UpdateTaskInPlace(
+                nextNode.PositionIndex, 
                 currentTask.ParcelId,
-                currentPositionIndex,
-                nextNode.PositionIndex,
-                dequeuedTask.ExpectedArrivalTime,
-                nextExpectedArrivalTime,
-                nextEarliestDequeueTime);
+                dequeuedTask =>
+                {
+                    // 创建更新后的任务（仅更新时间相关字段）
+                    // 使用 record 的 with 表达式确保不可变性，以下字段被保留：
+                    // - ParcelId, DiverterId, DiverterAction, PositionIndex (核心业务字段)
+                    // - TimeoutThresholdMs, FallbackAction (超时处理配置)
+                    // - CreatedAt, LostDetectionTimeoutMs (原始时间戳和配置)
+                    // 以下字段被更新：
+                    // - ExpectedArrivalTime (基于实际到达时间重新计算)
+                    // - EarliestDequeueTime (基于新的期望时间重新计算)
+                    // - LostDetectionDeadline (基于新的期望时间重新计算，保持一致性)
+                    return dequeuedTask with
+                    {
+                        ExpectedArrivalTime = nextExpectedArrivalTime,
+                        EarliestDequeueTime = nextEarliestDequeueTime,
+                        // 也更新丢失检测截止时间，保持一致性
+                        LostDetectionDeadline = dequeuedTask.LostDetectionTimeoutMs.HasValue
+                            ? nextExpectedArrivalTime.AddMilliseconds(dequeuedTask.LostDetectionTimeoutMs.Value)
+                            : dequeuedTask.LostDetectionDeadline
+                    };
+                });
+
+            if (updated)
+            {
+                _logger.LogDebug(
+                    "[动态时间更新] 包裹 {ParcelId} 在Position {CurrentPos}触发，" +
+                    "已原子性更新Position {NextPos}的期望到达时间为 {NewTime:HH:mm:ss.fff}, " +
+                    "最早出队时间: {EarliestTime:HH:mm:ss.fff}",
+                    currentTask.ParcelId,
+                    currentPositionIndex,
+                    nextNode.PositionIndex,
+                    nextExpectedArrivalTime,
+                    nextEarliestDequeueTime);
+            }
+            else
+            {
+                _logger.LogDebug(
+                    "[动态时间更新-跳过] 包裹 {ParcelId} 在Position {CurrentPos}触发，" +
+                    "但Position {NextPos}的队列头部不是该包裹或队列为空（可能已出队或被其他包裹插队），不更新",
+                    currentTask.ParcelId,
+                    currentPositionIndex,
+                    nextNode.PositionIndex);
+            }
         }
         catch (Exception ex)
         {

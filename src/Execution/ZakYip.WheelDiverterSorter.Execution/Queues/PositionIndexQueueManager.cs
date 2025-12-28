@@ -654,4 +654,75 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         
         return result;
     }
+    
+    /// <inheritdoc/>
+    public bool UpdateTaskInPlace(int positionIndex, long parcelId, Func<PositionQueueItem, PositionQueueItem> updateFunc)
+    {
+        // 检查队列是否存在
+        if (!_queues.TryGetValue(positionIndex, out var queue))
+        {
+            _logger.LogWarning(
+                "[原地更新-失败] Position {PositionIndex} 的队列不存在，无法更新包裹 {ParcelId} 的任务",
+                positionIndex, parcelId);
+            return false;
+        }
+        
+        var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+        
+        // 使用锁保护整个"窥视→清空→查找→修改→放回"操作，确保原子性
+        lock (queueLock)
+        {
+            // 先窥视队列头部任务，检查是否是目标包裹
+            if (!queue.TryPeek(out var headTask) || headTask.ParcelId != parcelId)
+            {
+                // 队列为空或头部任务不是目标包裹
+                _logger.LogDebug(
+                    "[原地更新-跳过] Position {PositionIndex} 队列头部任务不是包裹 {ParcelId}（可能已出队或是其他包裹），" +
+                    "实际头部包裹: {ActualParcelId}",
+                    positionIndex, parcelId, headTask?.ParcelId ?? 0);
+                return false;
+            }
+            
+            // 临时存储队列中的所有任务
+            var tempTasks = new List<PositionQueueItem>();
+            bool updated = false;
+            
+            // 遍历队列，找到目标包裹的第一个任务并更新
+            while (queue.TryDequeue(out var task))
+            {
+                if (task.ParcelId == parcelId && !updated)
+                {
+                    // 找到目标包裹的任务，应用更新函数
+                    var updatedTask = updateFunc(task);
+                    tempTasks.Add(updatedTask);
+                    updated = true;
+                    
+                    _logger.LogDebug(
+                        "[原地更新] Position {PositionIndex} 包裹 {ParcelId} 的任务已更新: " +
+                        "期望到达时间 {OldTime:HH:mm:ss.fff} → {NewTime:HH:mm:ss.fff}",
+                        positionIndex, parcelId, task.ExpectedArrivalTime, updatedTask.ExpectedArrivalTime);
+                }
+                else
+                {
+                    // 其他任务保持不变
+                    tempTasks.Add(task);
+                }
+            }
+            
+            // 将所有任务按原顺序放回队列
+            foreach (var task in tempTasks)
+            {
+                queue.Enqueue(task);
+            }
+            
+            if (!updated)
+            {
+                _logger.LogWarning(
+                    "[原地更新-未找到] Position {PositionIndex} 队列中未找到包裹 {ParcelId} 的任务（可能已被其他线程出队）",
+                    positionIndex, parcelId);
+            }
+            
+            return updated;
+        }
+    }
 }
