@@ -1036,7 +1036,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                     position.PositionIndex);
 
                 // 这是摆轮前传感器触发，处理待执行队列中的包裹
-                await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex);
+                // 传递传感器实际触发时间，确保间隔计算和超时判断的准确性
+                await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex, e.DetectedAt);
                 return;
             }
             else if (_vendorConfigService != null && _queueManager != null && _topologyService != null)
@@ -1066,7 +1067,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         node.PositionIndex);
 
                     // 这是摆轮前传感器触发，处理待执行队列中的包裹
-                    await HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex);
+                    // 传递传感器实际触发时间，确保间隔计算和超时判断的准确性
+                    await HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex, e.DetectedAt);
                     return;
                 }
             }
@@ -1110,33 +1112,17 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
     /// <summary>
     /// 处理摆轮前传感器触发事件（TD-062）
+    /// 性能要求：触发后10ms内完成所有操作，无阻塞，无并发锁
     /// </summary>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
     /// <param name="positionIndex">Position Index</param>
-    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId, int positionIndex)
+    /// <param name="triggerTime">传感器实际触发时间（用于准确的间隔计算和超时判断）</param>
+    private async Task HandleWheelFrontSensorAsync(long sensorId, long boundWheelDiverterId, int positionIndex, DateTimeOffset triggerTime)
     {
-        _logger.LogDebug(
-            "开始处理摆轮前传感器触发: SensorId={SensorId}, BoundWheelDiverterId={BoundWheelDiverterId}, PositionIndex={PositionIndex}",
-            sensorId,
-            boundWheelDiverterId,
-            positionIndex);
-
-        if (_safeExecutor != null)
-        {
-            _logger.LogDebug("使用 SafeExecutionService 执行摆轮前传感器处理");
-            // 使用 SafeExecutionService 包裹异步操作
-            await _safeExecutor.ExecuteAsync(
-                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
-                operationName: $"WheelFrontTriggered_Sensor{sensorId}",
-                cancellationToken: default);
-        }
-        else
-        {
-            _logger.LogDebug("直接执行摆轮前传感器处理（无 SafeExecutor）");
-            // Fallback: 没有 SafeExecutor 时直接执行
-            await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
-        }
+        // 性能优化：直接执行，不通过 SafeExecutor 包装（减少间接调用开销）
+        // SafeExecutor 会增加额外的异步调度开销，影响 10ms 性能目标
+        await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex, triggerTime);
     }
 
     /// <summary>
@@ -1145,9 +1131,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <param name="boundWheelDiverterId">绑定的摆轮ID（long类型）</param>
     /// <param name="sensorId">传感器ID</param>
     /// <param name="positionIndex">Position Index</param>
-    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex)
+    /// <param name="triggerTime">传感器实际触发时间（用于准确的间隔计算和超时判断）</param>
+    private async Task ExecuteWheelFrontSortingAsync(long boundWheelDiverterId, long sensorId, int positionIndex, DateTimeOffset triggerTime)
     {
-        var currentTime = _clock.LocalNow;
+        // 使用传感器实际触发时间，而不是处理时间，确保：
+        // 1. Position 间隔计算准确（反映真实物理传输时间）
+        // 2. 提前触发检测准确（基于真实触发时刻）
+        // 3. 超时判断准确（基于真实触发时刻）
+        var currentTime = triggerTime.LocalDateTime;
 
         _logger.LogDebug(
             "Position {PositionIndex} 传感器 {SensorId} 触发，检查队列任务",
@@ -1640,11 +1631,14 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             lostParcelId, positionIndex);
         
         // 递归调用以处理下一个包裹
+        // 注意：这是递归调用（处理完丢失包裹后检查队列），使用当前时间作为触发时间
+        var recursiveTriggerTime = new DateTimeOffset(_clock.LocalNow);
+        
         // 使用 SafeExecutionService 确保异常被正确处理和记录
         if (_safeExecutor != null)
         {
             _ = _safeExecutor.ExecuteAsync(
-                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex),
+                () => ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex, recursiveTriggerTime),
                 operationName: $"WheelFrontSorting_RecursivePacketLossHandling_Position{positionIndex}",
                 cancellationToken: default);
         }
@@ -1655,7 +1649,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             {
                 try
                 {
-                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex);
+                    await ExecuteWheelFrontSortingAsync(boundWheelDiverterId, sensorId, positionIndex, recursiveTriggerTime);
                 }
                 catch (Exception ex)
                 {
