@@ -43,6 +43,19 @@
 | [guides/VENDOR_EXTENSION_GUIDE.md](guides/VENDOR_EXTENSION_GUIDE.md) | 厂商扩展开发 |
 | [guides/POSITION_INTERVAL_CALCULATION.md](guides/POSITION_INTERVAL_CALCULATION.md) | **Position 间隔时间计算详解（从 Position 2 到 Position 3 的时间计算原理）** |
 | [PRODUCTION_SERVICE_STARTUP.md](PRODUCTION_SERVICE_STARTUP.md) | **生产环境服务启动说明（服务启动流程、配置加载、日志验证、故障排查）** |
+
+## 故障诊断与分析
+
+| 文档 | 说明 |
+|------|------|
+| [POSITION_23_TIMEOUT_ANALYSIS.md](POSITION_23_TIMEOUT_ANALYSIS.md) | **Position 2→3 超时问题分析**（包裹 1766935876325 异常间隔 9925ms 案例） |
+| [POSITION_23_ROOT_CAUSE_ANALYSIS.md](POSITION_23_ROOT_CAUSE_ANALYSIS.md) | **间隔计算根因验证**（确认未混淆包裹数据，9926ms 为真实物理传输时间） |
+| [TIMEOUT_FLAG_EXPLANATION.md](TIMEOUT_FLAG_EXPLANATION.md) | **超时标志含义澄清**（超时=True 表示到达超时，非摆轮执行超时） |
+| [DUPLICATE_TRIGGER_PARCELID_ZERO.md](DUPLICATE_TRIGGER_PARCELID_ZERO.md) | **ParcelId=0 机制说明**（重复触发时的占位符包裹机制） |
+| [QUEUE_TASK_GENERATION_SCENARIOS.md](QUEUE_TASK_GENERATION_SCENARIOS.md) | **队列任务生成场景**（正常分拣、重复触发、路径重生成三种场景） |
+| [INVALID_CHUTE_ASSIGNMENT_IMPACT.md](INVALID_CHUTE_ASSIGNMENT_IMPACT.md) | **无效格口分配影响分析**（ChuteId=0 不删除任务、不阻塞队列） |
+| [QUEUE_TASK_TIME_CALCULATION.md](QUEUE_TASK_TIME_CALCULATION.md) | **队列任务时间计算机制**（TD-088 异步非阻塞路由、超时 vs 丢失判定） |
+| [CHUTE_ZERO_QUEUE_CORRUPTION_CORRELATION.md](CHUTE_ZERO_QUEUE_CORRUPTION_CORRELATION.md) | **ChuteId=0 与队列错位相关性调查**（相关性≠因果性、四种理论分析、调查建议）** |
 | [../SELF_CONTAINED_DEPLOYMENT.md](../SELF_CONTAINED_DEPLOYMENT.md) | **自包含部署指南（无需安装 .NET Runtime）** |
 | [SELF_CONTAINED_DEPLOYMENT_SUMMARY.md](SELF_CONTAINED_DEPLOYMENT_SUMMARY.md) | 自包含部署实施总结 |
 
