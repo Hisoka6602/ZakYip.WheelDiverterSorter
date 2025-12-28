@@ -2088,25 +2088,39 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     }
 
     /// <summary>
-    /// TD-088: 重新生成路径并替换队列任务（异步非阻塞路由）
+    /// TD-088: 原地替换队列任务（异步非阻塞路由）
     /// </summary>
     /// <remarks>
-    /// 当上游响应到达时，使用新的目标格口重新生成路径并替换队列中的旧任务。
+    /// 当上游响应到达时，使用新的目标格口重新生成路径并原地替换队列中的旧任务。
     /// 用于实现非阻塞路由：包裹先用异常格口入队，上游响应到达后异步更新路径。
     ///
-    /// **时序窗口（Race Condition Mitigation）**:
-    /// - 存在极小的时间窗口：移除旧任务后、重新入队新任务前，如果传感器被触发会发现队列为空
-    /// - **实际风险极低**：上游响应通常在包裹到达 Position 0 之前到达（&lt;100ms），而包裹到达 Position 1 需要 ~3200ms
-    /// - **防护措施**：
-    ///   1. 队列操作是线程安全的（ConcurrentDictionary + lock per position）
-    ///   2. 传感器触发时会检查队列状态，空队列会记录警告但不会崩溃
-    ///   3. 包裹位置追踪（_intervalTracker）独立于队列，不受影响
-    /// - **概率分析**：窗口时长 &lt;1ms，包裹间隔 ~3200ms，碰撞概率 &lt;0.03%
+    /// **原地替换机制（In-Place Replacement）**:
+    /// - **核心目标**：保持包裹在队列中的相对顺序，防止上游乱序响应导致的张冠李戴问题
+    /// - **替换策略**：遍历每个 Position 队列，找到目标包裹的任务，用新动作替换旧动作，保持在原位置
+    /// - **性能保证**：使用细粒度锁（per-Position locks），每个 Position 独立处理，总耗时 &lt;1ms
+    /// - **无时序窗口**：不存在"删除+重新入队"导致的空队列窗口，避免了竞态条件
+    ///
+    /// **问题场景示例**:
+    /// ```
+    /// 初始队列: [P1-异常, P2-异常, P3-异常]
+    /// 
+    /// 错误做法（删除+重新入队）:
+    ///   T1: P2响应先到 → 删除P2 → 队列=[P1, P3] → P2加入队尾 → 队列=[P1, P3, P2] ❌ 顺序错乱
+    ///   T2: P1响应到达 → 删除P1 → 队列=[P3, P2] → P1加入队尾 → 队列=[P3, P2, P1] ❌ 完全错乱
+    /// 
+    /// 正确做法（原地替换）:
+    ///   T1: P2响应先到 → 找到P2位置（索引1） → 替换动作 → 队列=[P1-异常, P2-新动作, P3-异常] ✅
+    ///   T2: P1响应到达 → 找到P1位置（索引0） → 替换动作 → 队列=[P1-新动作, P2-新动作, P3-异常] ✅
+    /// ```
     ///
     /// **超时/迟到响应处理**:
     /// - 检查包裹是否仍在 _createdParcels 中（未完成分拣）
     /// - 如果包裹已完成分拣/落格，直接忽略上游响应，不更新路径
-    /// - 防止迟到的上游响应对已完成包裹进行无效操作
+    /// - 如果队列中找不到任务（已出队执行），记录日志但不报错
+    /// 
+    /// **性能监控**:
+    /// - 记录替换操作的总耗时，用于验证是否满足 &lt;1ms 的性能要求
+    /// - 记录成功/失败的 Position 数量，用于诊断潜在问题
     /// </remarks>
     private async Task RegenerateAndReplaceQueueTasksAsync(long parcelId, long newTargetChuteId)
     {
@@ -2137,7 +2151,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             barcodeSuffix,
             newTargetChuteId);
 
-        // 2. 重新生成到新格口的任务（先生成后替换，减少时序窗口）
+        // 1. 重新生成到新格口的任务
         var newTasks = _pathGenerator.GenerateQueueTasks(
             parcelId,
             newTargetChuteId,
@@ -2153,32 +2167,68 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             return;
         }
 
-        // 1. 从所有队列中移除旧任务（移到生成后，减少时序窗口）
-        var removedCount = _queueManager.RemoveAllTasksForParcel(parcelId);
+        // 2. 性能监控：记录替换操作开始时间
+        var replacementStartTime = _clock.LocalNow;
 
-        _logger.LogDebug(
-            "[TD-088-旧任务移除] 包裹 {ParcelId}{BarcodeSuffix} 从队列中移除了 {RemovedCount} 个旧任务",
-            parcelId,
-            barcodeSuffix,
-            removedCount);
+        // 3. 原地替换队列任务（保持队列顺序）
+        var result = _queueManager.ReplaceTasksInPlace(parcelId, newTasks);
 
-        // 3. 立即将新任务加入队列（时序窗口 <1ms）
-        foreach (var task in newTasks)
-        {
-            _queueManager.EnqueueTask(task.PositionIndex, task);
-        }
+        // 4. 性能监控：计算替换耗时
+        var replacementDuration = (_clock.LocalNow - replacementStartTime).TotalMilliseconds;
 
-        // 4. 更新目标格口映射
+        // 5. 更新目标格口映射
         _parcelTargetChutes[parcelId] = newTargetChuteId;
 
-        _logger.LogInformation(
-            "[TD-088-新任务入队] 包裹 {ParcelId}{BarcodeSuffix} 重新生成了 {TaskCount} 个任务并加入队列，目标格口={ChuteId}",
-            parcelId,
-            barcodeSuffix,
-            newTasks.Count,
-            newTargetChuteId);
+        // 6. 记录替换结果日志
+        if (result.IsFullySuccessful)
+        {
+            _logger.LogInformation(
+                "[TD-088-原地替换成功] 包裹 {ParcelId}{BarcodeSuffix} 的所有任务已成功替换，" +
+                "共 {Count} 个 Position，目标格口={ChuteId}，耗时={Duration:F2}ms",
+                parcelId,
+                barcodeSuffix,
+                result.ReplacedCount,
+                newTargetChuteId,
+                replacementDuration);
+        }
+        else if (result.IsPartiallySuccessful)
+        {
+            _logger.LogWarning(
+                "[TD-088-原地替换部分成功] 包裹 {ParcelId}{BarcodeSuffix} 部分任务替换成功: " +
+                "成功 {SuccessCount}/{TotalCount}，未找到 {NotFoundCount} 个（可能已出队执行），" +
+                "目标格口={ChuteId}，耗时={Duration:F2}ms",
+                parcelId,
+                barcodeSuffix,
+                result.ReplacedCount,
+                newTasks.Count,
+                result.NotFoundPositions.Count,
+                newTargetChuteId,
+                replacementDuration);
+        }
+        else
+        {
+            _logger.LogError(
+                "[TD-088-原地替换失败] 包裹 {ParcelId}{BarcodeSuffix} 的任务替换完全失败，" +
+                "所有 {TotalCount} 个 Position 都未找到任务（包裹可能已全部出队执行），" +
+                "目标格口={ChuteId}，耗时={Duration:F2}ms",
+                parcelId,
+                barcodeSuffix,
+                newTasks.Count,
+                newTargetChuteId,
+                replacementDuration);
+        }
 
-        // 5. 记录 Trace 日志
+        // 7. 性能警告：如果替换耗时超过1ms，记录警告
+        if (replacementDuration > 1.0)
+        {
+            _logger.LogWarning(
+                "[TD-088-性能警告] 包裹 {ParcelId}{BarcodeSuffix} 的任务替换耗时 {Duration:F2}ms，超过 1ms 性能目标",
+                parcelId,
+                barcodeSuffix,
+                replacementDuration);
+        }
+
+        // 8. 记录 Trace 日志
         if (_traceSink != null)
         {
             await _traceSink.WriteAsync(new ParcelTraceEventArgs
@@ -2186,9 +2236,10 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 ItemId = parcelId,
                 BarCode = null,
                 OccurredAt = new DateTimeOffset(_clock.LocalNow),
-                Stage = "PathRegenerated",
+                Stage = "TasksReplacedInPlace",
                 Source = "TD-088",
-                Details = $"RemovedTasks={removedCount}, NewTasks={newTasks.Count}, NewTargetChute={newTargetChuteId}"
+                Details = $"ReplacedCount={result.ReplacedCount}, NotFoundCount={result.NotFoundPositions.Count}, " +
+                          $"NewTargetChute={newTargetChuteId}, Duration={replacementDuration:F2}ms"
             });
         }
     }
