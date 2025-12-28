@@ -380,8 +380,8 @@ public static class WheelDiverterSorterServiceCollectionExtensions
         // 注册分拣异常处理器
         services.AddSingleton<ISortingExceptionHandler, SortingExceptionHandler>();
 
-        // 注册 Position-Index 队列管理器（新的队列系统）
-        services.AddSingleton<IPositionIndexQueueManager, PositionIndexQueueManager>();
+        // 注册 Position-Index 队列管理器（Channel-based 实现）
+        services.AddSingleton<IPositionIndexQueueManager, ChannelBasedPositionIndexQueueManager>();
         
         // Position 间隔追踪器（单例）
         services.Configure<Execution.Tracking.PositionIntervalTrackerOptions>(options =>
