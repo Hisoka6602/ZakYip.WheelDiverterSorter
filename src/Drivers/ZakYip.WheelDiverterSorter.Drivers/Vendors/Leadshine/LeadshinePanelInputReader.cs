@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.Hardware.Ports;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Bindings;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
 using ZakYip.WheelDiverterSorter.Core.Utilities;
 
 namespace ZakYip.WheelDiverterSorter.Drivers.Vendors.Leadshine;
@@ -19,18 +19,18 @@ public class LeadshinePanelInputReader : IPanelInputReader
 {
     private readonly ILogger<LeadshinePanelInputReader> _logger;
     private readonly IInputPort _inputPort;
-    private readonly IPanelConfigurationRepository _panelConfigRepository;
+    private readonly IPanelConfigService _panelConfigService;
     private readonly ISystemClock _systemClock;
 
     public LeadshinePanelInputReader(
         ILogger<LeadshinePanelInputReader> logger,
         IInputPort inputPort,
-        IPanelConfigurationRepository panelConfigRepository,
+        IPanelConfigService panelConfigService,
         ISystemClock systemClock)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _inputPort = inputPort ?? throw new ArgumentNullException(nameof(inputPort));
-        _panelConfigRepository = panelConfigRepository ?? throw new ArgumentNullException(nameof(panelConfigRepository));
+        _panelConfigService = panelConfigService ?? throw new ArgumentNullException(nameof(panelConfigService));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
     }
 
@@ -50,7 +50,7 @@ public class LeadshinePanelInputReader : IPanelInputReader
     {
         try
         {
-            var config = _panelConfigRepository.Get();
+            var config = _panelConfigService.GetPanelConfig();
 
             // 特殊处理急停按钮：检查所有急停按钮
             if (buttonType == PanelButtonType.EmergencyStop)
@@ -113,8 +113,8 @@ public class LeadshinePanelInputReader : IPanelInputReader
     {
         try
         {
-            // 一次性读取配置，避免重复数据库访问
-            var config = _panelConfigRepository.Get();
+            // 一次性读取配置，避免重复数据库访问（现已改为缓存访问）
+            var config = _panelConfigService.GetPanelConfig();
             var result = new Dictionary<PanelButtonType, PanelButtonState>();
 
             // 收集所有需要读取的按钮位（用于批量读取）

@@ -1,3 +1,4 @@
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Chutes;
@@ -67,6 +68,7 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
 
     private readonly IRouteConfigurationRepository? _routeRepository;
     private readonly IChutePathTopologyRepository? _topologyRepository;
+    private readonly IChutePathTopologyService? _topologyService;
     private readonly IConveyorSegmentRepository? _conveyorSegmentRepository;
     private readonly ISystemClock? _systemClock;
     private readonly ILogger? _logger;
@@ -98,6 +100,31 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
         ILogger<DefaultSwitchingPathGenerator>? logger = null)
     {
         _topologyRepository = topologyRepository ?? throw new ArgumentNullException(nameof(topologyRepository));
+        _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
+        _conveyorSegmentRepository = conveyorSegmentRepository;
+        _logger = logger;
+        
+        // Validate that systemClock is not null for queue operations
+        if (_systemClock == null)
+        {
+            throw new InvalidOperationException("SystemClock is required for queue task generation");
+        }
+    }
+
+    /// <summary>
+    /// 初始化路径生成器（使用拓扑配置服务，带缓存优化，支持 N 摆轮模型）
+    /// </summary>
+    /// <param name="topologyService">拓扑配置服务（带缓存，避免热路径DB访问）</param>
+    /// <param name="systemClock">系统时钟（必需，用于队列任务时间计算）</param>
+    /// <param name="conveyorSegmentRepository">输送线段配置仓储（可选，用于动态TTL计算）</param>
+    /// <param name="logger">日志记录器（可选）</param>
+    public DefaultSwitchingPathGenerator(
+        IChutePathTopologyService topologyService,
+        ISystemClock systemClock,
+        IConveyorSegmentRepository? conveyorSegmentRepository = null,
+        ILogger<DefaultSwitchingPathGenerator>? logger = null)
+    {
+        _topologyService = topologyService ?? throw new ArgumentNullException(nameof(topologyService));
         _systemClock = systemClock ?? throw new ArgumentNullException(nameof(systemClock));
         _conveyorSegmentRepository = conveyorSegmentRepository;
         _logger = logger;
@@ -171,7 +198,10 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
     /// </remarks>
     private SwitchingPath? GeneratePathFromTopology(long targetChuteId)
     {
-        var topologyConfig = _topologyRepository!.Get();
+        // 优先使用缓存的拓扑服务，避免热路径DB访问
+        var topologyConfig = _topologyService != null 
+            ? _topologyService.GetTopology() 
+            : _topologyRepository!.Get();
         
         // 首次使用拓扑配置时输出配置信息（仅在首次调用时记录）
         if (!_topologyConfigLogged)
@@ -610,7 +640,10 @@ public class DefaultSwitchingPathGenerator : ISwitchingPathGenerator
             return tasks;
         }
 
-        var topologyConfig = _topologyRepository.Get();
+        // 优先使用缓存的拓扑服务，避免热路径DB访问
+        var topologyConfig = _topologyService != null 
+            ? _topologyService.GetTopology() 
+            : _topologyRepository.Get();
 
         // 如果目标是异常口，生成全直通任务
         if (targetChuteId == topologyConfig.ExceptionChuteId)

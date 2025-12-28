@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
@@ -30,7 +30,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly ILogger<ParcelDetectionService>? _logger;
     private readonly Services.ISensorHealthMonitor? _healthMonitor;
     private readonly ParcelDetectionOptions _options;
-    private readonly ISensorConfigurationRepository? _sensorConfigRepository;
+    private readonly ISensorConfigService? _sensorConfigService;
     private readonly ISystemStateManager? _systemStateManager;
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
     private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
@@ -61,21 +61,21 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <param name="options">包裹检测配置选项</param>
     /// <param name="logger">日志记录器</param>
     /// <param name="healthMonitor">传感器健康监控器（可选）</param>
-    /// <param name="sensorConfigRepository">传感器配置仓储（可选，用于获取 IoType）</param>
-    /// <param name="systemRunStateService">系统运行状态服务（可选，用于验证是否允许创建包裹）</param>
+    /// <param name="sensorConfigService">传感器配置服务（可选，用于获取 IoType，使用缓存避免热路径DB访问）</param>
+    /// <param name="systemStateManager">系统运行状态服务（可选，用于验证是否允许创建包裹）</param>
     public ParcelDetectionService(
         IEnumerable<ISensor> sensors,
         IOptions<ParcelDetectionOptions>? options = null,
         ILogger<ParcelDetectionService>? logger = null,
         Services.ISensorHealthMonitor? healthMonitor = null,
-        ISensorConfigurationRepository? sensorConfigRepository = null,
+        ISensorConfigService? sensorConfigService = null,
         ISystemStateManager? systemStateManager = null)
     {
         _sensors = sensors ?? throw new ArgumentNullException(nameof(sensors));
         _options = options?.Value ?? new ParcelDetectionOptions();
         _logger = logger;
         _healthMonitor = healthMonitor;
-        _sensorConfigRepository = sensorConfigRepository;
+        _sensorConfigService = sensorConfigService;
         _systemStateManager = systemStateManager;
     }
 
@@ -322,19 +322,19 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// </remarks>
     private SensorIoType GetSensorType(long sensorId)
     {
-        // 如果没有配置仓储，默认为 ParcelCreation 类型（向后兼容）
+        // 如果没有配置服务，默认为 ParcelCreation 类型（向后兼容）
         // 这是唯一允许默认为 ParcelCreation 的场景，因为系统可能在简化模式下运行
-        if (_sensorConfigRepository == null)
+        if (_sensorConfigService == null)
         {
             _logger?.LogWarning(
-                "未注入 ISensorConfigurationRepository，传感器 {SensorId} 默认为 ParcelCreation 类型（向后兼容模式）",
+                "未注入 ISensorConfigService，传感器 {SensorId} 默认为 ParcelCreation 类型（向后兼容模式）",
                 sensorId);
             return SensorIoType.ParcelCreation;
         }
 
         try
         {
-            var config = _sensorConfigRepository.Get();
+            var config = _sensorConfigService.GetSensorConfig();
             var sensor = config.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
 
             if (sensor == null)
@@ -374,18 +374,18 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// <returns>true 表示应触发包裹创建，false 表示只用于监控</returns>
     private bool ShouldTriggerParcelCreation(long sensorId)
     {
-        // 如果没有配置仓储，默认允许所有传感器触发（向后兼容）
-        if (_sensorConfigRepository == null)
+        // 如果没有配置服务，默认允许所有传感器触发（向后兼容）
+        if (_sensorConfigService == null)
         {
             _logger?.LogWarning(
-                "未注入 ISensorConfigurationRepository，传感器 {SensorId} 默认允许创建包裹（向后兼容模式）",
+                "未注入 ISensorConfigService，传感器 {SensorId} 默认允许创建包裹（向后兼容模式）",
                 sensorId);
             return true;
         }
 
         try
         {
-            var config = _sensorConfigRepository.Get();
+            var config = _sensorConfigService.GetSensorConfig();
             var sensor = config.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
 
             if (sensor == null)
@@ -466,11 +466,11 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     {
         const int DefaultDeduplicationWindowMs = 400;
 
-        // 如果没有配置仓储，使用默认值
-        if (_sensorConfigRepository == null)
+        // 如果没有配置服务，使用默认值
+        if (_sensorConfigService == null)
         {
             _logger?.LogWarning(
-                "未注入 ISensorConfigurationRepository，传感器 {SensorId} 使用默认防抖时间: {DeduplicationWindowMs}ms",
+                "未注入 ISensorConfigService，传感器 {SensorId} 使用默认防抖时间: {DeduplicationWindowMs}ms",
                 sensorId,
                 DefaultDeduplicationWindowMs);
             return DefaultDeduplicationWindowMs;
@@ -478,7 +478,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         try
         {
-            var config = _sensorConfigRepository.Get();
+            var config = _sensorConfigService.GetSensorConfig();
             var sensor = config.Sensors.FirstOrDefault(s => s.SensorId == sensorId);
 
             // 如果找到传感器配置，使用配置的值

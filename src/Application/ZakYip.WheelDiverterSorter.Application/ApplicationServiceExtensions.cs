@@ -47,6 +47,8 @@ public static class ApplicationServiceExtensions
         services.AddSingleton<IIoLinkageConfigService, IoLinkageConfigService>();
         services.AddSingleton<IVendorConfigService, VendorConfigService>();
         services.AddSingleton<IConveyorSegmentService, ConveyorSegmentService>();
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.ISensorConfigService, SensorConfigService>();
+        services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IPanelConfigService, PanelConfigService>();
         
         // 注册格口落格回调配置服务（单例模式，缓存支持）
         services.AddSingleton<ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration.IChuteDropoffCallbackConfigService, ChuteDropoffCallbackConfigService>();
