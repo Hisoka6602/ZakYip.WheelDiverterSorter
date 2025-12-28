@@ -1,12 +1,12 @@
-using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using ZakYip.WheelDiverterSorter.Ingress.Configuration;
+using System.Collections.Concurrent;
+using ZakYip.WheelDiverterSorter.Core.Events.Sensor;
 using ZakYip.WheelDiverterSorter.Core.Enums.Hardware;
+using ZakYip.WheelDiverterSorter.Ingress.Configuration;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Services;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 
@@ -15,7 +15,7 @@ namespace ZakYip.WheelDiverterSorter.Ingress.Services;
 /// </summary>
 /// <remarks>
 /// 负责监听传感器事件，检测包裹到达，并生成唯一包裹ID。
-/// 
+///
 /// <para><b>重要规则（PR-fix-sensor-type-filtering）</b>：</para>
 /// <list type="bullet">
 ///   <item>只有 `ParcelCreation` 类型的传感器会触发 `ParcelDetected` 事件（创建包裹）</item>
@@ -32,10 +32,13 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     private readonly ParcelDetectionOptions _options;
     private readonly ISensorConfigService? _sensorConfigService;
     private readonly ISystemStateManager? _systemStateManager;
+
     // PR-44: 使用 ConcurrentDictionary 替代 Dictionary + lock
     private readonly ConcurrentDictionary<long, DateTimeOffset> _lastTriggerTimes = new();
+
     // PR-44: 使用 ConcurrentQueue 和 ConcurrentDictionary 替代 Queue + HashSet + lock
     private readonly ConcurrentQueue<long> _recentParcelIds = new();
+
     private readonly ConcurrentDictionary<long, byte> _parcelIdSet = new(); // 使用 byte 作为 dummy value
     private bool _isRunning;
 
@@ -95,7 +98,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         var sensorList = _sensors.ToList();
         var sensorCount = sensorList.Count;
         var activeSensorCount = 0;
-        
+
         // 订阅所有传感器的事件
         foreach (var sensor in sensorList)
         {
@@ -117,7 +120,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         }
 
         _isRunning = true;
-        
+
         // 输出启动完成总结（使用缓存的计数值）
         _logger?.LogInformation(
             "========== 包裹检测服务启动完成 ==========\n" +
@@ -175,7 +178,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
         // PR-44: 不再需要锁，使用 ConcurrentDictionary 和 ConcurrentQueue
         var (isDuplicate, timeSinceLastTriggerMs) = CheckForDuplicateTrigger(sensorEvent);
-        
+
         // 防抖策略：在 deduplicationWindowMs 窗口内，只有第一次触发生效，其余触发完全忽略
         if (isDuplicate)
         {
@@ -183,7 +186,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 "传感器 {SensorId} 在防抖窗口内重复触发（距上次 {TimeSinceLastMs}ms），已忽略",
                 sensorEvent.SensorId,
                 timeSinceLastTriggerMs);
-            
+
             // 触发重复触发事件通知（用于监控和统计）
             var deduplicationWindowMs = GetDeduplicationWindowForSensor(sensorEvent.SensorId);
             var duplicateEventArgs = new DuplicateTriggerEventArgs
@@ -198,18 +201,18 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             DuplicateTriggerDetected.SafeInvoke(this, duplicateEventArgs, _logger, nameof(DuplicateTriggerDetected));
             return; // 重复触发，直接返回，不创建包裹
         }
-        
+
         // 更新最后触发时间（只有非重复触发才更新）
         UpdateLastTriggerTime(sensorEvent);
 
-        // PR-fix-sensor-type-filtering: 
+        // PR-fix-sensor-type-filtering:
         // - ParcelCreation 类型：创建包裹并触发 ParcelDetected 事件
         // - WheelFront/ChuteLock 类型：触发 ParcelDetected 事件（但不创建包裹，由 Orchestrator 处理）
         // - Unknown 类型：不触发任何事件，阻止虚假包裹流
         // PR-fix-system-state-check: 所有传感器类型都需要检查系统状态
-        
+
         var sensorType = GetSensorType(sensorEvent.SensorId);
-        
+
         // 拦截未知传感器，防止虚假包裹流
         if (sensorType == SensorIoType.Unknown)
         {
@@ -218,7 +221,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 sensorEvent.SensorId);
             return;
         }
-        
+
         // 所有传感器类型都需要检查系统是否处于运行状态
         if (!IsSystemReadyForParcelCreation())
         {
@@ -228,13 +231,13 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 sensorType);
             return;
         }
-        
+
         if (sensorType == SensorIoType.ParcelCreation)
         {
             // ParcelCreation 传感器：创建包裹并触发事件（只有非重复触发才会到这里）
-            var parcelId = GenerateUniqueParcelId(sensorEvent);
+            var parcelId = sensorEvent.TriggerTime.ToUnixTimeMilliseconds();
             AddParcelIdToHistory(parcelId);
-            
+
             _logger?.LogDebug(
                 "传感器 {SensorId} 类型为 {SensorType}，触发包裹创建",
                 sensorEvent.SensorId,
@@ -248,7 +251,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 "传感器 {SensorId} 类型为 {SensorType}，触发落格检测事件",
                 sensorEvent.SensorId,
                 sensorType);
-            
+
             // 根据传感器ID确定格口ID（需要配置映射）
             // 这里假设传感器配置中有 ChuteId 信息
             var chuteId = GetChuteIdFromSensor(sensorEvent.SensorId);
@@ -262,7 +265,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
                 "传感器 {SensorId} 类型为 {SensorType}，不触发包裹创建（只用于监控）",
                 sensorEvent.SensorId,
                 sensorType);
-            
+
             // 触发 ParcelDetected 事件，ParcelId=0 表示非包裹创建事件
             RaiseParcelDetectedEvent(0, sensorEvent, false, sensorType); // isDuplicate 永远是 false（重复的已被过滤）
         }
@@ -285,7 +288,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         {
             // 使用系统状态管理器检查当前状态
             var currentState = _systemStateManager.CurrentState;
-            
+
             // 只有 Running 状态才允许创建包裹
             if (currentState != Core.Enums.System.SystemState.Running)
             {
@@ -315,7 +318,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
     /// - 配置未找到时：返回 Unknown（阻止创建）
     /// - 传感器已禁用时：返回 Unknown（阻止创建）
     /// - 异常时：返回 Unknown（阻止创建）
-    /// 
+    ///
     /// 日志级别说明：
     /// - 未配置的传感器使用 LogError：表示配置错误，需要立即修正
     /// - 已禁用的传感器使用 LogWarning：表示正常的配置状态，仅提醒
@@ -406,7 +409,7 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
 
             // 只有 ParcelCreation 类型的传感器才能创建包裹
             bool isParcelCreationType = sensor.IoType == SensorIoType.ParcelCreation;
-            
+
             if (!isParcelCreationType)
             {
                 _logger?.LogDebug(
@@ -608,43 +611,6 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             "使用传感器ID {SensorId} 作为格口ID",
             sensorId);
         return sensorId;
-    }
-
-    /// <summary>
-    /// 生成唯一包裹ID
-    /// </summary>
-    /// <param name="sensorEvent">传感器事件</param>
-    /// <returns>唯一包裹ID (毫秒时间戳)</returns>
-    private long GenerateUniqueParcelId(SensorEvent sensorEvent)
-    {
-        long parcelId;
-        int attempts = 0;
-        const int maxAttempts = 10;
-
-        do
-        {
-            // 使用触发时间的毫秒时间戳作为包裹ID
-            parcelId = sensorEvent.TriggerTime.ToUnixTimeMilliseconds();
-            attempts++;
-
-            // PR-44: 检查是否已存在于历史记录中 (ConcurrentDictionary.ContainsKey 是线程安全的)
-            if (!_parcelIdSet.ContainsKey(parcelId))
-            {
-                break;
-            }
-
-            // 如果ID已存在，增加1毫秒来生成新ID
-            sensorEvent = sensorEvent with { TriggerTime = sensorEvent.TriggerTime.AddMilliseconds(1) };
-
-            _logger?.LogWarning(
-                "生成的包裹ID {ParcelId} 已存在，重新生成 (尝试 {Attempt}/{MaxAttempts})",
-                parcelId,
-                attempts,
-                maxAttempts);
-
-        } while (attempts < maxAttempts);
-
-        return parcelId;
     }
 
     /// <summary>
