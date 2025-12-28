@@ -1362,7 +1362,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             "包裹 {ParcelId} 在 Position {PositionIndex} 执行动作 {Action} (摆轮ID={DiverterId}, 超时={IsTimeout})",
             task.ParcelId, positionIndex, actionToExecute, task.DiverterId, isTimeout);
 
-        // 执行摆轮动作（Phase 5 完整实现）
+        // 执行摆轮动作（Phase 5 完整实现 + Performance Optimization）
         // 使用现有的 PathExecutor 执行单段路径，复用已有的硬件抽象层
         var singleSegmentPath = new SwitchingPath
         {
@@ -1383,6 +1383,44 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             FallbackChuteId = 0
         };
 
+        // Performance Optimization: 摆轮动作改为异步 Fire-and-Forget 模式
+        // 原因：摆轮物理动作耗时 100-2000ms，阻塞包裹处理流程导致 Position 0 → 1 间隔异常
+        // 解决方案：使用 SafeExecutionService 异步执行，不等待完成，立即处理下一个包裹
+        if (_safeExecutor != null)
+        {
+            _ = _safeExecutor.ExecuteAsync(
+                async () => await ExecuteDiverterActionWithCallbackAsync(
+                    task, positionIndex, actionToExecute, isTimeout, singleSegmentPath),
+                operationName: $"DiverterExecution_Parcel{task.ParcelId}_Pos{positionIndex}",
+                cancellationToken: CancellationToken.None);
+        }
+        else
+        {
+            // Fallback: 无 SafeExecutor 时使用 Task.Run
+            _ = Task.Run(async () => await ExecuteDiverterActionWithCallbackAsync(
+                task, positionIndex, actionToExecute, isTimeout, singleSegmentPath));
+        }
+        
+        // 立即返回，不等待摆轮动作完成，继续处理下一个包裹
+        _logger.LogDebug(
+            "[性能优化] 包裹 {ParcelId} 摆轮动作已异步启动，不阻塞队列处理",
+            task.ParcelId);
+    }
+
+    /// <summary>
+    /// 执行摆轮动作并处理回调（异步 Fire-and-Forget 方法）
+    /// </summary>
+    /// <remarks>
+    /// 此方法包含完整的摆轮执行、错误处理、上游通知、内存清理流程。
+    /// 通过 SafeExecutionService 异步执行，不阻塞主流程。
+    /// </remarks>
+    private async Task ExecuteDiverterActionWithCallbackAsync(
+        PositionQueueItem task,
+        int positionIndex,
+        DiverterDirection actionToExecute,
+        bool isTimeout,
+        SwitchingPath singleSegmentPath)
+    {
         try
         {
             var executionResult = await _pathExecutor.ExecuteAsync(singleSegmentPath, default);

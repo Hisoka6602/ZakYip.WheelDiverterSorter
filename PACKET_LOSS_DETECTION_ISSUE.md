@@ -9,6 +9,25 @@
 行 20054: [包裹丢失清理] 已从所有队列移除包裹 1766883368239 的共 5 个任务
 ```
 
+## 配置热更新机制确认（重要）
+
+**✅ 系统支持配置热更新，无需重启服务**
+
+当通过 API 更新系统配置时，系统会：
+
+1. **写入数据库**: `_repository.Update(config)` (Line 109)
+2. **立即刷新缓存**: `_configCache.Set(SystemConfigCacheKey, updatedConfig)` (Line 112-113)
+3. **记录审计日志**: `_auditLogger.LogConfigurationChange(...)` (Line 116-120)
+
+**代码位置**: `src/Application/.../Services/Config/SystemConfigService.cs` Line 106-126
+
+**关键点**：
+- ✅ 缓存刷新**立即发生**，在数据库写入后的下一行代码
+- ✅ 无延迟，无异步等待
+- ✅ 下一次配置读取立即使用新值
+
+**详细说明请参考**: `CONFIGURATION_HOT_RELOAD_MECHANISM.md`
+
 ## 根本原因分析
 
 ### 1. 检测逻辑位置
