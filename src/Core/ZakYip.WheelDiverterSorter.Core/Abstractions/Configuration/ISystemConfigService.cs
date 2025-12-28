@@ -45,4 +45,14 @@ public interface ISystemConfigService
     /// 缓存策略：1小时滑动过期，配置更新后立即刷新。
     /// </remarks>
     SystemConfiguration GetSystemConfig();
+
+    /// <summary>
+    /// 刷新系统配置缓存（从数据库重新加载）
+    /// </summary>
+    /// <returns>刷新后的系统配置</returns>
+    /// <remarks>
+    /// 用于配置热更新场景：当外部直接更新数据库后（如通过 Controller），
+    /// 调用此方法可立即刷新缓存，确保后续 GetSystemConfig() 返回最新值。
+    /// </remarks>
+    SystemConfiguration RefreshCacheFromRepository();
 }
