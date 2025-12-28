@@ -152,4 +152,37 @@ public interface IPositionIndexQueueManager
     /// </list>
     /// </remarks>
     TaskReplacementResult ReplaceTasksInPlace(long parcelId, List<PositionQueueItem> newTasks);
+    
+    /// <summary>
+    /// 原地更新指定位置队列中某个包裹的任务时间字段（用于动态时间修正）
+    /// </summary>
+    /// <param name="positionIndex">位置索引</param>
+    /// <param name="parcelId">包裹ID</param>
+    /// <param name="updateFunc">更新函数，接收旧任务并返回更新后的任务</param>
+    /// <returns>如果成功更新则返回 true，如果任务未找到或已出队则返回 false</returns>
+    /// <remarks>
+    /// <para><b>核心功能</b>：原地更新队列头部特定包裹的任务，避免"出队→修改→入队"导致的并发风险。</para>
+    /// 
+    /// <para><b>并发风险</b>：</para>
+    /// <list type="bullet">
+    ///   <item>如果使用"出队→修改→入队"模式，在出队和入队之间可能有其他包裹入队</item>
+    ///   <item>这会导致FIFO顺序被破坏（新入队的包裹被插队到前面）</item>
+    ///   <item>原地更新使用细粒度锁保护整个"查找→修改→替换"操作，确保原子性</item>
+    /// </list>
+    /// 
+    /// <para><b>使用场景</b>：</para>
+    /// <list type="bullet">
+    ///   <item>动态更新下一个position的期望到达时间（避免误差累积）</item>
+    ///   <item>修正时间窗口字段（ExpectedArrivalTime、EarliestDequeueTime、LostDetectionDeadline）</item>
+    /// </list>
+    /// 
+    /// <para><b>实现要求</b>：</para>
+    /// <list type="number">
+    ///   <item>使用与其他队列操作一致的细粒度锁（per-Position locks）</item>
+    ///   <item>确保"清空队列→查找并修改→放回队列"操作的原子性</item>
+    ///   <item>仅更新队列头部的任务（因为动态时间修正只针对即将触发的包裹）</item>
+    ///   <item>如果队列头部任务不是目标包裹，返回 false 不做修改</item>
+    /// </list>
+    /// </remarks>
+    bool UpdateTaskInPlace(int positionIndex, long parcelId, Func<PositionQueueItem, PositionQueueItem> updateFunc);
 }
