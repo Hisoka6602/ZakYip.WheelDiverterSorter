@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
+using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Enums;
 using ZakYip.WheelDiverterSorter.Observability;
 using ZakYip.WheelDiverterSorter.Core.LineModel;
@@ -27,13 +28,12 @@ using ZakYip.WheelDiverterSorter.Core.LineModel.Topology;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Interfaces;
 using ZakYip.WheelDiverterSorter.Execution.PathExecution;
 using ZakYip.WheelDiverterSorter.Observability.Utilities;
-using ZakYip.WheelDiverterSorter.Ingress;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Upstream;
 using ZakYip.WheelDiverterSorter.Core.Sorting.Orchestration;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
+using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Models;
 using ZakYip.WheelDiverterSorter.Core.LineModel.Configuration.Repositories.Interfaces;
-using ZakYip.WheelDiverterSorter.Core.Abstractions.Configuration;
 
 namespace ZakYip.WheelDiverterSorter.Execution.Orchestration;
 
@@ -72,7 +72,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// 5000ms 作为保守默认值，覆盖大多数摆轮动作场景。
     /// </remarks>
     private const int DefaultSingleActionTimeoutMs = 5000;
-    
+
     /// <summary>
     /// 无目标格口的占位符（用于超时、丢失等异常场景的上游通知）
     /// </summary>
@@ -124,13 +124,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     private readonly ConcurrentDictionary<long, ParcelCreationRecord> _createdParcels; // PR-42: Track created parcels
     private readonly ConcurrentDictionary<long, long> _parcelTargetChutes; // Track target chute for each parcel (for Position-Index queue system)
     private readonly ConcurrentDictionary<long, byte> _timeoutCompensationInserted; // 记录已插入超时补偿任务的包裹ID，防止重复插入（使用byte占位）
-    
+
     // Issue #2: 缓存传感器到位置的映射，避免重复查询（热路径优化）
     private readonly ConcurrentDictionary<long, (long DiverterId, int PositionIndex)> _sensorToPositionCache;
-    
+
     // Issue #3: 缓存每个position后续节点列表，避免超时时重复构造
     private readonly ConcurrentDictionary<int, List<DiverterPathNode>> _subsequentNodesCache;
-    
+
     /// <summary>
     /// 包裹条码缓存，用于在日志中附加来自上游 DWS 的条码信息以便追踪。
     /// </summary>
@@ -154,7 +154,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </para>
     /// </remarks>
     private readonly ConcurrentDictionary<long, string> _parcelBarcodes;
-    
+
     private readonly object _lockObject = new object(); // 保留用于 RoundRobin 索引和连接状态
     private int _roundRobinIndex = 0;
 
@@ -705,7 +705,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "ISafeExecutionService is required for SortingOrchestrator. " +
                 "Ensure it is registered in dependency injection.");
         }
-        
+
         _ = _safeExecutor.ExecuteAsync(
             () => SendUpstreamNotificationAsync(parcelId, exceptionChuteId),
             operationName: $"UpstreamNotification_Parcel{parcelId}",
@@ -965,7 +965,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 清理路径记录
         // PR-44: ConcurrentDictionary.TryRemove 是线程安全的
         _parcelPaths.TryRemove(parcelId, out _);
-        
+
         // 清理条码缓存
         _parcelBarcodes.TryRemove(parcelId, out _);
 
@@ -1018,10 +1018,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </remarks>
     private async void OnParcelDetected(object? sender, ParcelDetectedEventArgs e)
     {
-        // PR-async-events: 立即yield回调用者，防止阻塞传感器事件链路
-        // Immediately yield to caller to prevent blocking sensor event chain
         await Task.Yield();
-        
         try
         {
             _logger.LogDebug(
@@ -1041,7 +1038,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                 // 这是摆轮前传感器触发，处理待执行队列中的包裹
                 // 传递传感器实际触发时间，确保间隔计算和超时判断的准确性
-                await HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex, e.DetectedAt);
+                _ = HandleWheelFrontSensorAsync(e.SensorId, position.DiverterId, position.PositionIndex, e.DetectedAt);
                 return;
             }
             else if (_vendorConfigService != null && _queueManager != null && _topologyService != null)
@@ -1072,7 +1069,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
                     // 这是摆轮前传感器触发，处理待执行队列中的包裹
                     // 传递传感器实际触发时间，确保间隔计算和超时判断的准确性
-                    await HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex, e.DetectedAt);
+                    _ = HandleWheelFrontSensorAsync(e.SensorId, node.DiverterId, node.PositionIndex, e.DetectedAt);
                     return;
                 }
             }
@@ -1102,7 +1099,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 e.ParcelId,
                 e.SensorId);
 
-            await ProcessParcelAsync(e.ParcelId, e.SensorId);
+            _ = ProcessParcelAsync(e.ParcelId, e.SensorId);
         }
         catch (Exception ex)
         {
@@ -1150,11 +1147,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 先窥视队列头部任务（不出队）
         var peekedTask = _queueManager!.PeekTask(positionIndex);
-        
+
         // 获取系统配置（提前获取以便在两处使用）
         var systemConfig = _systemConfigService.GetSystemConfig();
         var passThroughOnInterference = systemConfig?.PassThroughOnInterference ?? false;
-        
+
         if (peekedTask == null)
         {
             // 队列为空但传感器触发 - 可能是输送线上的残留包裹（干扰信号）
@@ -1162,27 +1159,27 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "[干扰信号] Position {PositionIndex} 队列为空，但传感器 {SensorId} 被触发 (摆轮ID={WheelDiverterId}) - " +
                 "可能是输送线残留包裹，PassThroughOnInterference={PassThroughOnInterference}",
                 positionIndex, sensorId, boundWheelDiverterId, passThroughOnInterference);
-            
+
             // 如果启用了干扰直行开关，执行直行动作
             if (passThroughOnInterference)
             {
-                await ExecutePassThroughActionAsync(boundWheelDiverterId, positionIndex, "干扰信号");
+                _ = ExecutePassThroughActionAsync(boundWheelDiverterId, positionIndex, "干扰信号");
             }
-            
+
             // 不记录为分拣失败，不影响系统统计
             return;
         }
 
         // 检查是否启用提前触发检测
         var enableEarlyTriggerDetection = systemConfig?.EnableEarlyTriggerDetection ?? false;
-        
+
         // 提前触发检测：如果启用且队列任务有 EarliestDequeueTime，检查当前时间是否过早
         if (enableEarlyTriggerDetection
-            && peekedTask.EarliestDequeueTime is DateTime earliestDequeueTime
+            && peekedTask.EarliestDequeueTime is { } earliestDequeueTime
             && currentTime < earliestDequeueTime)
         {
             var earlyMs = (earliestDequeueTime - currentTime).TotalMilliseconds;
-            
+
             // PR-PERF01: 移除详细线段信息查询（避免热路径中的拓扑遍历和数据库查询）
             // 只记录关键信息，提升性能：节省 ~200-500μs/次
             _logger.LogWarning(
@@ -1191,30 +1188,30 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 positionIndex, sensorId, earlyMs,
                 peekedTask.ParcelId,
                 peekedTask.DiverterId);
-            
+
             // 记录为分拣异常（用于监控提前触发频率）
             _alarmService?.RecordSortingFailure();
-            
+
             // 如果启用了干扰直行开关，执行直行动作
             if (passThroughOnInterference)
             {
-                await ExecutePassThroughActionAsync(peekedTask.DiverterId, positionIndex, "提前触发检测");
+                _ = ExecutePassThroughActionAsync(peekedTask.DiverterId, positionIndex, "提前触发检测");
             }
-            
+
             // 不出队、直接返回（任务保留在队列中）
             return;
         }
-        
+
         // 正常流程：从队列取出任务
         var task = _queueManager!.DequeueTask(positionIndex);
-        
+
         if (task == null)
         {
             // 理论上不应该发生（刚刚窥视时队列有任务），但防御性编程
             _logger.LogWarning(
                 "Position {PositionIndex} 窥视有任务但出队失败，传感器 {SensorId} (摆轮ID={WheelDiverterId})",
                 positionIndex, sensorId, boundWheelDiverterId);
-            
+
             RecordSortingFailure(0, isTimeout: true);
             return;
         }
@@ -1238,9 +1235,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         // 2. 如果是，则查看下一个包裹的最早出队时间来区分"超时"和"丢失"
         //    - 触发时间 < 下一个包裹最早出队时间 → 超时（仅发送上游消息）
         //    - 触发时间 >= 下一个包裹最早出队时间 → 丢失（发送上游消息 + 删除所有队列任务）
-        
+
         var enableTimeoutDetection = systemConfig?.EnableTimeoutDetection ?? false;
-        
+
         bool isTimeout = false;
         bool isPacketLoss = false;
 
@@ -1248,8 +1245,8 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             // 当前包裹已延迟到达，需要判断是超时还是丢失
             var nextTask = _queueManager!.PeekNextTask(positionIndex);
-            
-            if (nextTask != null && nextTask.EarliestDequeueTime.HasValue)
+
+            if (nextTask is { EarliestDequeueTime: not null })
             {
                 // 有下一个包裹，基于其最早出队时间判断
                 if (currentTime < nextTask.EarliestDequeueTime.Value)
@@ -1290,7 +1287,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             _logger.LogWarning(
                 "[超时处理] 包裹 {ParcelId} 在 Position {PositionIndex} 超时，发送上游超时通知",
                 task.ParcelId, positionIndex);
-            
+
             // 发送超时通知到上游
             await NotifyUpstreamSortingCompletedAsync(
                 task.ParcelId,
@@ -1298,7 +1295,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 isSuccess: false,
                 failureReason: "Timeout",
                 finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Timeout);
-            
+
             RecordSortingFailure(NoTargetChute, isTimeout: true);
         }
         else if (isPacketLoss)
@@ -1308,7 +1305,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "[包裹丢失处理] 包裹 {ParcelId} 在 Position {PositionIndex} 判定为丢失，" +
                 "发送上游丢失通知并删除所有队列中的任务",
                 task.ParcelId, positionIndex);
-            
+
             // 发送丢失通知到上游
             await NotifyUpstreamSortingCompletedAsync(
                 task.ParcelId,
@@ -1316,31 +1313,31 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 isSuccess: false,
                 failureReason: "PacketLoss",
                 finalStatus: Core.Enums.Parcel.ParcelFinalStatus.Lost);
-            
+
             // 从所有队列中删除该包裹的所有任务
             var removedCount = _queueManager!.RemoveAllTasksForParcel(task.ParcelId);
             _logger.LogWarning(
                 "[包裹丢失清理] 已从所有队列删除包裹 {ParcelId} 的 {RemovedCount} 个任务",
                 task.ParcelId, removedCount);
-            
+
             RecordSortingFailure(NoTargetChute, isTimeout: false);
-            
+
             // 清理丢失包裹的内存记录
             CleanupParcelMemory(task.ParcelId);
-            
+
             // 关键：触发时间已经到达下一个包裹的出队时间，递归处理下一个包裹
             // 这确保了队列中的下一个包裹能够立即被处理，而不是等待下一次物理传感器触发
             _logger.LogInformation(
                 "[包裹丢失-递归处理] 包裹 {ParcelId} 丢失处理完成，递归处理下一个包裹 (Position={PositionIndex})",
                 task.ParcelId, positionIndex);
-            
+
             // 包裹丢失：不执行当前丢失包裹的动作，递归处理下一个包裹
             // 下一个包裹的动作将在递归调用中执行
             // 所以直接返回，跳过当前丢失包裹的摆轮动作执行
             _logger.LogInformation(
                 "[包裹丢失-跳过动作] 包裹 {ParcelId} 已丢失，跳过其摆轮动作执行，将递归处理下一个包裹",
                 task.ParcelId);
-            
+
             // 立即递归处理下一个包裹
             RecursiveProcessNextParcelAfterLoss(boundWheelDiverterId, sensorId, positionIndex, task.ParcelId);
             return; // 丢失包裹不执行任何摆轮动作，直接返回
@@ -1349,7 +1346,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         {
             // 正常情况：直接执行计划动作
         }
-        
+
         // 执行计划动作（仅正常到达和超时执行，丢失已在上面return）
         DiverterDirection actionToExecute = task.DiverterAction;
 
@@ -1388,13 +1385,13 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 "ISafeExecutionService is required for SortingOrchestrator. " +
                 "Ensure it is registered in dependency injection.");
         }
-        
+
         _ = _safeExecutor.ExecuteAsync(
             async () => await ExecuteDiverterActionWithCallbackAsync(
                 task, positionIndex, actionToExecute, isTimeout, singleSegmentPath),
             operationName: $"DiverterExecution_Parcel{task.ParcelId}_Pos{positionIndex}",
             cancellationToken: CancellationToken.None);
-        
+
         // 立即返回，不等待摆轮动作完成，继续处理下一个包裹
         _logger.LogDebug(
             "[性能优化] 包裹 {ParcelId} 摆轮动作已异步启动，不阻塞队列处理",
@@ -1427,7 +1424,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 RecordSortingFailure(0, isTimeout: true);
 
                 // 摆轮动作失败，通知上游
-                await NotifyUpstreamSortingCompletedAsync(
+                _ = NotifyUpstreamSortingCompletedAsync(
                     task.ParcelId,
                     0, // 未知格口
                     isSuccess: false,
@@ -1632,11 +1629,11 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         _logger.LogInformation(
             "[包裹丢失-递归触发] 丢失包裹 {LostParcelId} 处理完成，立即检查并处理 Position {PositionIndex} 队列中的下一个包裹",
             lostParcelId, positionIndex);
-        
+
         // 递归调用以处理下一个包裹
         // 注意：这是递归调用（处理完丢失包裹后检查队列），使用当前时间作为触发时间
         var recursiveTriggerTime = new DateTimeOffset(_clock.LocalNow);
-        
+
         // 使用 SafeExecutionService 确保异常被正确处理和记录
         if (_safeExecutor != null)
         {
@@ -1970,12 +1967,12 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 获取系统配置中的超时时间
             var systemConfig = _systemConfigService.GetSystemConfig();
             var timeoutMs = systemConfig.ChuteAssignmentTimeout.FallbackTimeoutMs;
-            
+
             // 计算响应延迟
             var responseDelay = parcelRecord.UpstreamRequestSentAt.HasValue
                 ? (receivedAt - parcelRecord.UpstreamRequestSentAt.Value.DateTime).TotalMilliseconds
                 : 0;
-            
+
             // 如果响应超时，拒绝更新路径
             if (responseDelay > timeoutMs)
             {
@@ -2009,9 +2006,9 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             // 1. 包裹创建时立即使用异常格口生成路径并入队（不等待上游）
             // 2. 上游响应到达时，异步重新生成到正确格口的路径，替换队列中的旧任务
             // 3. 消除阻塞等待，提升系统吞吐量
-            
+
             var barcodeSuffix = GetBarcodeSuffix(e.ParcelId);  // TD-088: 重新声明 barcodeSuffix
-            
+
             _logger.LogInformation(
                 "[TD-088-上游响应] 包裹 {ParcelId}{BarcodeSuffix} 收到格口分配 ChuteId={ChuteId} (延迟={Delay:F0}ms)，开始异步更新路径",
                 e.ParcelId,
@@ -2040,7 +2037,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                         {
                             // 重新生成路径并替换队列任务
                             await RegenerateAndReplaceQueueTasksAsync(e.ParcelId, e.ChuteId);
-                            
+
                             // 更新 RoutePlan
                             await UpdateRoutePlanWithChuteAssignmentAsync(e.ParcelId, e.ChuteId, e.AssignedAt);
 
@@ -2082,7 +2079,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// <remarks>
     /// 当上游响应到达时，使用新的目标格口重新生成路径并替换队列中的旧任务。
     /// 用于实现非阻塞路由：包裹先用异常格口入队，上游响应到达后异步更新路径。
-    /// 
+    ///
     /// **时序窗口（Race Condition Mitigation）**:
     /// - 存在极小的时间窗口：移除旧任务后、重新入队新任务前，如果传感器被触发会发现队列为空
     /// - **实际风险极低**：上游响应通常在包裹到达 Position 0 之前到达（&lt;100ms），而包裹到达 Position 1 需要 ~3200ms
@@ -2091,7 +2088,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     ///   2. 传感器触发时会检查队列状态，空队列会记录警告但不会崩溃
     ///   3. 包裹位置追踪（_intervalTracker）独立于队列，不受影响
     /// - **概率分析**：窗口时长 &lt;1ms，包裹间隔 ~3200ms，碰撞概率 &lt;0.03%
-    /// 
+    ///
     /// **超时/迟到响应处理**:
     /// - 检查包裹是否仍在 _createdParcels 中（未完成分拣）
     /// - 如果包裹已完成分拣/落格，直接忽略上游响应，不更新路径
@@ -2119,7 +2116,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
 
         var barcodeSuffix = GetBarcodeSuffix(parcelId);
-        
+
         _logger.LogInformation(
             "[TD-088-路径重生成] 开始为包裹 {ParcelId}{BarcodeSuffix} 重新生成到格口 {ChuteId} 的路径",
             parcelId,
@@ -2144,7 +2141,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
 
         // 1. 从所有队列中移除旧任务（移到生成后，减少时序窗口）
         var removedCount = _queueManager.RemoveAllTasksForParcel(parcelId);
-        
+
         _logger.LogDebug(
             "[TD-088-旧任务移除] 包裹 {ParcelId}{BarcodeSuffix} 从队列中移除了 {RemovedCount} 个旧任务",
             parcelId,
@@ -2553,7 +2550,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     /// </summary>
     /// <remarks>
     /// 此方法在服务启动时调用，构建传感器ID到位置的映射缓存。
-    /// 
+    ///
     /// <para><b>缓存失效注意事项</b>：</para>
     /// <list type="bullet">
     ///   <item>如果传感器配置或拓扑在运行时更新，需要调用 <see cref="RebuildCaches"/> 方法重建缓存</item>
@@ -2668,7 +2665,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
     ///   <item>拓扑配置通过API动态更新后</item>
     ///   <item>摆轮节点配置发生变化后</item>
     /// </list>
-    /// 
+    ///
     /// <para><b>注意事项</b>：</para>
     /// <list type="bullet">
     ///   <item>此方法是线程安全的（使用ConcurrentDictionary.Clear()）</item>
@@ -2874,7 +2871,7 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
         }
         return string.Empty;
     }
-    
+
     /// <summary>
     /// 执行摆轮直行（Straight）动作
     /// </summary>
