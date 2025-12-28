@@ -51,6 +51,7 @@ Copilot 在进行代码修改或 PR 规划时，应按以下顺序阅读本文�
 | CODING_GUIDELINES.md | `./docs/CODING_GUIDELINES.md` | 编码规范 | 🟡 中 |
 | CORE_ROUTING_LOGIC.md | `./docs/CORE_ROUTING_LOGIC.md` | **核心路由逻辑（包裹路由与位置索引队列机制）** | 🔴 高 |
 | EARLY_ARRIVAL_HANDLING.md | `./docs/EARLY_ARRIVAL_HANDLING.md` | **早到包裹处理机制说明（提前触发检测详解）** | 🔴 高 |
+| SORTING_LOGIC_TIMING_ANALYSIS.md | `./docs/SORTING_LOGIC_TIMING_ANALYSIS.md` | **分拣逻辑触发时间依赖与执行性能分析报告** | 🔴 高 |
 | TOPOLOGY_LINEAR_N_DIVERTERS.md | `./docs/TOPOLOGY_LINEAR_N_DIVERTERS.md` | N 摆轮线性拓扑模型（PR-TOPO02） | 🟡 中 |
 | TouchSocket_Migration_Assessment.md | `./docs/TouchSocket_Migration_Assessment.md` | TouchSocket迁移评估报告 | 🟡 中 |
 | S7_Driver_Enhancement.md | `./docs/S7_Driver_Enhancement.md` | S7 IO驱动功能增强文档 | 🟡 中 |
