@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ZakYip.WheelDiverterSorter.Core.Abstractions.Execution;
@@ -547,26 +548,30 @@ public class PositionIndexQueueManagerTests
         var task = CreateTask(1001, 1, DiverterDirection.Left);
         manager.EnqueueTask(1, task);
         
-        // Act - 并发执行更新和出队操作
+        // 使用 Barrier 确保两个线程同时开始，增加并发竞争
+        var barrier = new Barrier(2);
+        const int iterations = 1000; // 增加迭代次数提高检测并发问题的概率
+        
+        // Act - 并发执行更新和入队操作
         var updateTask = Task.Run(() =>
         {
-            for (int i = 0; i < 100; i++)
+            barrier.SignalAndWait(); // 等待两个线程都准备好
+            for (int i = 0; i < iterations; i++)
             {
                 manager.UpdateTaskInPlace(1, 1001, t => t with 
                 { 
                     ExpectedArrivalTime = _mockClock.Object.LocalNow.AddSeconds(i) 
                 });
-                Thread.Sleep(1); // 增加并发竞争的可能性
             }
         });
         
         var enqueueTask = Task.Run(() =>
         {
-            for (int i = 0; i < 100; i++)
+            barrier.SignalAndWait(); // 等待两个线程都准备好
+            for (int i = 0; i < iterations; i++)
             {
                 var newTask = CreateTask(1002 + i, 1, DiverterDirection.Right);
                 manager.EnqueueTask(1, newTask);
-                Thread.Sleep(1);
             }
         });
         
@@ -576,6 +581,9 @@ public class PositionIndexQueueManagerTests
         // Assert - 验证队列仍然可用，未发生数据损坏
         var count = manager.GetQueueCount(1);
         Assert.True(count >= 1); // 至少有一个任务（可能更新了原任务或新增了任务）
+        
+        // 清理资源
+        barrier.Dispose();
     }
     
     #endregion
