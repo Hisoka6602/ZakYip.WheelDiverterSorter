@@ -620,11 +620,16 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
         long parcelId;
         int attempts = 0;
         const int maxAttempts = 10;
+        
+        // FIX: 使用局部变量进行时间递增，保护原始 sensorEvent.TriggerTime
+        // 这样确保 Position 0 的时间戳记录使用传感器真实触发时间
+        // 避免 ParcelId 冲突导致 Position 0→1 间隔测量错误
+        var candidateTime = sensorEvent.TriggerTime;
 
         do
         {
             // 使用触发时间的毫秒时间戳作为包裹ID
-            parcelId = sensorEvent.TriggerTime.ToUnixTimeMilliseconds();
+            parcelId = candidateTime.ToUnixTimeMilliseconds();
             attempts++;
 
             // PR-44: 检查是否已存在于历史记录中 (ConcurrentDictionary.ContainsKey 是线程安全的)
@@ -634,7 +639,8 @@ public class ParcelDetectionService : IParcelDetectionService, IDisposable
             }
 
             // 如果ID已存在，增加1毫秒来生成新ID
-            sensorEvent = sensorEvent with { TriggerTime = sensorEvent.TriggerTime.AddMilliseconds(1) };
+            // 只修改局部变量，不修改原始 sensorEvent.TriggerTime
+            candidateTime = candidateTime.AddMilliseconds(1);
 
             _logger?.LogWarning(
                 "生成的包裹ID {ParcelId} 已存在，重新生成 (尝试 {Attempt}/{MaxAttempts})",
