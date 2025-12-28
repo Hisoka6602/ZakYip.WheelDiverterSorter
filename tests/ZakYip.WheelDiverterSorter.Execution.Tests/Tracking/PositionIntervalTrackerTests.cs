@@ -321,4 +321,35 @@ public class PositionIntervalTrackerTests
         Assert.Equal(1, newStats.Value.SampleCount); // 应该只有1个新样本
         Assert.Equal(5000.0, newStats.Value.MedianIntervalMs!.Value, precision: 1);
     }
+
+    /// <summary>
+    /// 测试：Position 0 应该使用传感器实际检测时间，而非处理时间
+    /// </summary>
+    /// <remarks>
+    /// 修复问题：之前 Position 0 使用处理时的 _clock.LocalNow，导致包含了异步处理延迟
+    /// 现在应该使用传感器的实际 DetectedAt 时间，与 Position 1+ 的行为保持一致
+    /// </remarks>
+    [Fact]
+    public void RecordParcelPosition_Position0ShouldUseActualSensorTime()
+    {
+        // Arrange: 模拟传感器检测时间 vs 处理时间的差异
+        var sensorDetectedTime = new DateTime(2025, 12, 28, 10, 0, 0); // 传感器实际检测时间
+        var position1DetectedTime = sensorDetectedTime.AddSeconds(5); // 5秒后到达 position 1
+        
+        long parcelId = 1766882839955L;
+        
+        // Act: 记录 position 0（使用传感器实际检测时间）
+        _tracker.RecordParcelPosition(parcelId, 0, sensorDetectedTime);
+        
+        // 模拟处理延迟后，记录 position 1
+        _tracker.RecordParcelPosition(parcelId, 1, position1DetectedTime);
+        
+        // Assert: Position 1 的间隔应该准确是 5秒 = 5000ms
+        // 而不是 5000 + 处理延迟时间
+        var stats = _tracker.GetStatistics(1);
+        Assert.NotNull(stats);
+        Assert.Equal(1, stats.Value.PositionIndex);
+        Assert.Equal(5000.0, stats.Value.MedianIntervalMs!.Value, precision: 1);
+        Assert.Equal(1, stats.Value.SampleCount);
+    }
 }
