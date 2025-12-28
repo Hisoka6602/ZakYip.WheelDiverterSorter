@@ -208,6 +208,8 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
             return null;
         }
 
+        var positionLock = GetOrCreateLock(positionIndex);
+
         // 逻辑删除 + 消费端跳过模式：
         // 循环读取 Channel 直到找到有效任务（未被逻辑删除的）
         // ⚠️ 性能保护：最多跳过100个已删除任务，避免极端场景下循环过久
@@ -216,14 +218,20 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
         
         while (channel.Reader.TryRead(out var parcelId))
         {
-            // 尝试从 Dictionary 中移除任务数据
-            if (taskDict.TryRemove(parcelId, out var task))
+            // ✅ 原子性保证：在锁内完成 taskDict.TryRemove + queuedSet.Remove + orderList.Remove
+            // 确保在 EnqueueTask 和 DequeueTask 并发时，数据结构保持一致性
+            // 防止"另一个传感器在出队和入队之间触发导致顺序错乱"
+            PositionQueueItem? task = null;
+            bool removed = false;
+            
+            lock (positionLock)
             {
-                // 成功移除 = 有效任务，处理它
-                // 使用单次锁操作更新 Set 和 List
-                var positionLock = GetOrCreateLock(positionIndex);
-                lock (positionLock)
+                // 尝试从 Dictionary 中移除任务数据
+                removed = taskDict.TryRemove(parcelId, out task);
+                
+                if (removed)
                 {
+                    // 成功移除 = 有效任务，同时更新 Set 和 List
                     if (_queuedSets.TryGetValue(positionIndex, out var queuedSet))
                     {
                         queuedSet.Remove(parcelId); // 允许该 key 未来重新入队
@@ -244,7 +252,11 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                         }
                     }
                 }
-                
+            }
+            
+            // 在锁外处理返回值和日志，避免锁持有时间过长
+            if (removed && task != null)
+            {
                 _lastDequeueTimes[positionIndex] = _clock.LocalNow;
 
                 if (skippedCount > 0)
@@ -275,9 +287,6 @@ public class ChannelBasedPositionIndexQueueManager : IPositionIndexQueueManager
                         positionIndex, skippedCount);
                     break;
                 }
-                
-                // 同时从顺序列表中移除已删除的ID（批量延迟清理，避免每次都加锁）
-                // 注：这里不立即清理List，等到下次Dequeue时再清理，避免频繁加锁
                 
                 continue;
             }

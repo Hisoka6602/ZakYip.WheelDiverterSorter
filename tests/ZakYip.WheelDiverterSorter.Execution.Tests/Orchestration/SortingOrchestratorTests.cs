@@ -180,7 +180,7 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(executionResult);
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.True(result.IsSuccess, $"Expected success but got failure. FailureReason: {result.FailureReason}, TargetChute: {result.TargetChuteId}, ActualChute: {result.ActualChuteId}");
@@ -237,7 +237,7 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(executionResult);
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -280,9 +280,9 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = 1 });
 
         // Act - 处理 3 个包裹
-        var result1 = await _orchestrator.ProcessParcelAsync(1001, 1);
-        var result2 = await _orchestrator.ProcessParcelAsync(1002, 1);
-        var result3 = await _orchestrator.ProcessParcelAsync(1003, 1);
+        var result1 = await _orchestrator.ProcessParcelAsync(1001, 1, DateTimeOffset.UtcNow);
+        var result2 = await _orchestrator.ProcessParcelAsync(1002, 1, DateTimeOffset.UtcNow);
+        var result3 = await _orchestrator.ProcessParcelAsync(1003, 1, DateTimeOffset.UtcNow);
 
         // Assert - 应该轮询分配格口 1, 2, 3
         Assert.Equal(1, result1.TargetChuteId);
@@ -335,7 +335,7 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = exceptionChuteId });
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -398,7 +398,7 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = exceptionChuteId });
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.True(result.IsSuccess);
@@ -455,7 +455,7 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(failedExecutionResult);
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -494,7 +494,7 @@ public class SortingOrchestratorTests : IDisposable
         _mockPathGenerator.Setup(g => g.GeneratePath(It.IsAny<long>())).Returns((SwitchingPath?)null);
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -680,7 +680,7 @@ public class SortingOrchestratorTests : IDisposable
             .ReturnsAsync(new PathExecutionResult { IsSuccess = true, ActualChuteId = targetChuteId });
 
         // Act
-        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId);
+        var result = await _orchestrator.ProcessParcelAsync(parcelId, sensorId, DateTimeOffset.UtcNow);
 
         // Assert
         Assert.True(result.IsSuccess, $"Expected success but got failure. FailureReason: {result.FailureReason}, TargetChute: {result.TargetChuteId}, ActualChute: {result.ActualChuteId}");
