@@ -11,6 +11,16 @@
 
 **场景描述**: 当一个包裹应该在 00:05 的时候到达某个传感器位置，但是在 00:01 的时候就收到了传感器信号，系统会怎么处理？队列的逻辑是怎么样的？
 
+**快速答案**：
+- ❌ **包裹不会被删除** - 任务保留在队列中
+- ⚠️ **不会出队** - 使用 `PeekTask()` 窥视而不是 `DequeueTask()` 取出
+- ⚠️ **不执行摆轮动作** - 摆轮保持当前状态
+- 📝 **记录告警日志** - 提前触发告警（包含提前的时间差）
+- 🔄 **等待重新触发** - 包裹任务在队列中等待，下次传感器触发时重新判断
+- ✅ **最终正常处理** - 当触发时间进入正常窗口时，会正常出队并执行
+
+详细说明请参见 [第七章 常见问题 - Q3](#q3-检测到提前到达时当前包裹会被删除吗)
+
 ---
 
 ## 一、核心概念回顾
@@ -450,14 +460,59 @@ UpdateTaskTiming(nextPosition, task.ParcelId, nextExpectedArrival, nextEarliestD
 
 **建议**: 在输送线速度不稳定或包裹间距不均匀的场景下，建议启用提前触发检测。
 
-### Q3: 提前触发检测会不会导致包裹一直不出队？
+### Q3: 检测到提前到达时，当前包裹会被删除吗？
+
+**A**: **不会删除包裹**。提前触发检测时的处理逻辑如下：
+
+**包裹状态**：
+- ✅ **包裹任务保留在队列中**：不会从队列移除或删除
+- ✅ **包裹信息完整保留**：包裹ID、目标格口、期望时间等所有信息都不变
+- ✅ **队列顺序不变**：包裹仍然在队列头部，保持 FIFO 顺序
+
+**系统行为**：
+- ⚠️ **不出队**：`PeekTask()` 只窥视，不调用 `DequeueTask()`
+- ⚠️ **不执行摆轮动作**：摆轮保持当前状态，不执行计划的转向动作
+- 📝 **记录告警日志**：记录提前触发的时间差（例如"提前触发 238000ms"）
+- 📊 **记录统计信息**：调用 `_alarmService?.RecordSortingFailure()` 用于监控
+- 🔄 **可选执行直行**：如果配置了 `PassThroughOnInterference = true`，会执行直行动作
+
+**后续处理**：
+1. 包裹任务保留在队列头部，等待下次传感器触发
+2. 当传感器再次触发时（可能是同一个物理包裹再次经过，或下次正确触发）：
+   - 系统会重新判断 `currentTime < EarliestDequeueTime`
+   - 如果仍然提前，继续不出队
+   - 如果时间正确（`currentTime >= EarliestDequeueTime`），则正常出队并执行动作
+3. 如果包裹长时间未正确触发，最终会被**丢失检测机制**处理（参见 Q5）
+
+**代码参考**（SortingOrchestrator.cs 行 1190-1216）：
+```csharp
+// 提前触发检测
+if (enableEarlyTriggerDetection
+    && peekedTask.EarliestDequeueTime is { } earliestDequeueTime
+    && currentTime < earliestDequeueTime)
+{
+    _logger.LogWarning("[提前触发检测] Position {PositionIndex} 提前触发 {EarlyMs}ms，" +
+                      "包裹 {ParcelId}，不出队、不执行动作",
+                      positionIndex, earlyMs, peekedTask.ParcelId);
+    
+    _alarmService?.RecordSortingFailure();
+    
+    // ⚠️ 不出队、直接返回（任务保留在队列中）
+    return;
+}
+
+// 只有通过检测后才会出队
+var task = _queueManager!.DequeueTask(positionIndex);  // 正常出队
+```
+
+### Q4: 提前触发检测会不会导致包裹一直不出队？
 
 **A**: 不会。提前触发检测只是延迟出队，而不是永久阻止：
 - 当传感器触发时间 >= `EarliestDequeueTime` 时，会正常出队
 - 如果包裹真的物理到达了传感器，最终会在正常窗口内触发
 - 如果包裹长时间不到达，会被丢失检测机制处理
 
-### Q4: 提前触发和超时处理的区别是什么？
+### Q5: 提前触发和超时处理的区别是什么？
 
 **A**: 两者处理不同的异常场景：
 
@@ -468,7 +523,7 @@ UpdateTaskTiming(nextPosition, task.ParcelId, nextExpectedArrival, nextEarliestD
 | **系统动作** | 不出队、不执行 | 执行回退动作、插入补偿任务 |
 | **物理包裹** | 可能是其他包裹（错位） | 确实是该包裹（延迟） |
 
-### Q5: 为什么要动态更新下一个position的期望时间？
+### Q6: 为什么要动态更新下一个position的期望时间？
 
 **A**: 避免误差累积：
 - 初始期望时间基于**理论传输时间**计算
@@ -509,6 +564,6 @@ UpdateTaskTiming(nextPosition, task.ParcelId, nextExpectedArrival, nextEarliestD
 
 ---
 
-**文档版本**: 1.0  
-**最后更新**: 2025-12-27  
+**文档版本**: 1.1  
+**最后更新**: 2025-12-28  
 **维护团队**: ZakYip Development Team
