@@ -1969,6 +1969,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
             
             var barcodeSuffix = GetBarcodeSuffix(e.ParcelId);  // TD-088: 重新声明 barcodeSuffix
             
+            // 验证 ChuteId 有效性：ChuteId 必须 > 0（0 是 NoTargetChute 占位符）
+            if (e.ChuteId <= 0)
+            {
+                _logger.LogWarning(
+                    "[TD-088-无效格口] 包裹 {ParcelId}{BarcodeSuffix} 收到无效的格口分配 ChuteId={ChuteId}，" +
+                    "跳过路径重生成，包裹将继续使用异常格口 {ExceptionChuteId}",
+                    e.ParcelId,
+                    barcodeSuffix,
+                    e.ChuteId,
+                    systemConfig.ExceptionChuteId);
+                return;  // 跳过路径重生成
+            }
+            
             _logger.LogInformation(
                 "[TD-088-上游响应] 包裹 {ParcelId}{BarcodeSuffix} 收到格口分配 ChuteId={ChuteId} (延迟={Delay:F0}ms)，开始异步更新路径",
                 e.ParcelId,
