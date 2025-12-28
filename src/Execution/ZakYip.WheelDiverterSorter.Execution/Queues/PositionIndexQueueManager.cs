@@ -437,4 +437,123 @@ public class PositionIndexQueueManager : IPositionIndexQueueManager
         // 转换为 List 返回
         return affectedParcelIdsSet.ToList();
     }
+    
+    /// <inheritdoc/>
+    public TaskReplacementResult ReplaceTasksInPlace(long parcelId, List<PositionQueueItem> newTasks)
+    {
+        var result = new TaskReplacementResult();
+        
+        // 按 PositionIndex 对新任务进行分组，方便查找
+        var newTasksByPosition = newTasks.ToDictionary(t => t.PositionIndex);
+        
+        // 遍历所有需要替换的Position
+        foreach (var newTask in newTasks)
+        {
+            var positionIndex = newTask.PositionIndex;
+            
+            // 检查该Position的队列是否存在
+            if (!_queues.TryGetValue(positionIndex, out var queue))
+            {
+                _logger.LogWarning(
+                    "[原地替换-跳过] Position {PositionIndex} 的队列不存在，包裹 {ParcelId} 的任务无法替换",
+                    positionIndex, parcelId);
+                result.SkippedPositions.Add(positionIndex);
+                continue;
+            }
+            
+            var queueLock = _queueLocks.GetOrAdd(positionIndex, _ => new object());
+            
+            // PR-race-condition-fix: 使用锁保护整个"清空→查找替换→放回"操作
+            lock (queueLock)
+            {
+                // 临时存储队列中的任务
+                var tempTasks = new List<PositionQueueItem>();
+                bool found = false;
+                
+                // 遍历队列，找到目标包裹的任务并替换
+                while (queue.TryDequeue(out var existingTask))
+                {
+                    if (existingTask.ParcelId == parcelId && !found)
+                    {
+                        // 找到了目标包裹的任务，使用新任务替换
+                        // 保留原任务的大部分字段，只更新关键字段
+                        var replacedTask = existingTask with
+                        {
+                            DiverterAction = newTask.DiverterAction,
+                            ExpectedArrivalTime = newTask.ExpectedArrivalTime,
+                            TimeoutThresholdMs = newTask.TimeoutThresholdMs,
+                            FallbackAction = newTask.FallbackAction,
+                            LostDetectionTimeoutMs = newTask.LostDetectionTimeoutMs,
+                            LostDetectionDeadline = newTask.LostDetectionDeadline,
+                            EarliestDequeueTime = newTask.EarliestDequeueTime
+                        };
+                        
+                        tempTasks.Add(replacedTask);
+                        found = true;
+                        
+                        _logger.LogDebug(
+                            "[原地替换] Position {PositionIndex} 包裹 {ParcelId} 的任务已替换: {OldAction} → {NewAction}",
+                            positionIndex, parcelId, existingTask.DiverterAction, newTask.DiverterAction);
+                    }
+                    else
+                    {
+                        // 其他任务保持不变
+                        tempTasks.Add(existingTask);
+                    }
+                }
+                
+                // 将所有任务放回队列（保持原顺序）
+                foreach (var task in tempTasks)
+                {
+                    queue.Enqueue(task);
+                }
+                
+                if (found)
+                {
+                    result.ReplacedPositions.Add(positionIndex);
+                }
+                else
+                {
+                    _logger.LogWarning(
+                        "[原地替换-未找到] Position {PositionIndex} 队列中未找到包裹 {ParcelId} 的任务（可能已出队执行）",
+                        positionIndex, parcelId);
+                    result.NotFoundPositions.Add(positionIndex);
+                }
+            }
+        }
+        
+        // 统计结果
+        result = result with { ReplacedCount = result.ReplacedPositions.Count };
+        
+        // 记录汇总日志
+        if (result.IsFullySuccessful)
+        {
+            _logger.LogInformation(
+                "[原地替换-成功] 包裹 {ParcelId} 的所有任务已成功替换，共 {Count} 个 Position: [{Positions}]",
+                parcelId,
+                result.ReplacedCount,
+                string.Join(", ", result.ReplacedPositions));
+        }
+        else if (result.IsPartiallySuccessful)
+        {
+            _logger.LogWarning(
+                "[原地替换-部分成功] 包裹 {ParcelId} 部分任务替换成功: " +
+                "成功 {SuccessCount} 个 Position [{SuccessPositions}], " +
+                "未找到 {NotFoundCount} 个 [{NotFoundPositions}], " +
+                "跳过 {SkippedCount} 个 [{SkippedPositions}]",
+                parcelId,
+                result.ReplacedCount, string.Join(", ", result.ReplacedPositions),
+                result.NotFoundPositions.Count, string.Join(", ", result.NotFoundPositions),
+                result.SkippedPositions.Count, string.Join(", ", result.SkippedPositions));
+        }
+        else
+        {
+            _logger.LogError(
+                "[原地替换-失败] 包裹 {ParcelId} 的任务替换完全失败，未找到任何任务（所有 {Count} 个 Position 都失败）",
+                parcelId,
+                newTasks.Count);
+        }
+        
+        return result;
+    }
 }
