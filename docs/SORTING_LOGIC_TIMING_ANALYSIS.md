@@ -290,16 +290,51 @@ public void EnqueueTask(int positionIndex, PositionQueueItem task)
 var systemConfig = _systemConfigService.GetSystemConfig();  // ⚠️ 可能读数据库
 ```
 
+**实际实现机制**:
+```csharp
+// SystemConfigService.cs
+public SystemConfiguration GetSystemConfig()
+{
+    return _configCache.GetOrAdd(SystemConfigCacheKey, () => _repository.Get());
+}
+
+// LiteDbSystemConfigurationRepository.cs
+public SystemConfiguration Get()
+{
+    var config = _collection.Query().Where(x => x.ConfigName == SystemConfigName).FirstOrDefault();
+    
+    if (config == null)
+    {
+        // 数据库无配置时，自动初始化默认配置并保存
+        InitializeDefault();
+        config = _collection.Query().Where(x => x.ConfigName == SystemConfigName).FirstOrDefault();
+    }
+    
+    return config ?? SystemConfiguration.GetDefault();  // 兜底返回默认值
+}
+```
+
+**配置加载流程**（首次启动或缓存过期时）:
+1. **缓存查询** - `GetOrAdd()` 检查内存缓存
+2. **缓存未命中** - 调用 `_repository.Get()` 从数据库读取
+3. **数据库为空** - 调用 `InitializeDefault()` 插入默认配置
+4. **再次查询** - 从数据库读取刚插入的默认配置
+5. **兜底机制** - 如仍为null，返回 `SystemConfiguration.GetDefault()`
+6. **缓存存储** - 将结果存入内存缓存供后续使用
+
 **分析**:
-- **缓存机制**: `ISystemConfigService` 实现了内存缓存
+- **缓存机制**: `ISlidingConfigCache` 实现了1小时滑动过期的内存缓存
 - **缓存命中时**: < 1ms（内存读取）
-- **缓存未命中时**: < 50ms（LiteDB读取）
+- **缓存未命中时**: < 50ms（LiteDB读取 + 可能的初始化）
 - **执行频率**: 每次触发时1次（但缓存命中率 > 99%）
+- **默认值保障**: 即使数据库读取失败，也会返回硬编码的默认配置
 
 **风险评估**: 🟢 极低风险
-- 已有缓存机制
-- 配置变更频率极低
-- 缓存命中率极高
+- ✅ 已有内存缓存机制（1小时滑动过期）
+- ✅ 数据库为空时自动初始化默认配置
+- ✅ 多重兜底保障（数据库默认值 + 硬编码默认值）
+- ✅ 配置变更频率极低
+- ✅ 缓存命中率极高（> 99%）
 
 ##### 7. 日志记录操作
 
