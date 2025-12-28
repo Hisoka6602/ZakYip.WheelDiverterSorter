@@ -1961,6 +1961,19 @@ public class SortingOrchestrator : ISortingOrchestrator, IDisposable
                 return;  // 超时后直接返回，不进行路径更新
             }
 
+            // 验证格口ID有效性（必须 > 0）
+            if (e.ChuteId <= 0)
+            {
+                var barcodeSuffixInvalid = GetBarcodeSuffix(e.ParcelId);
+                _logger.LogWarning(
+                    "[格口分配-无效] 包裹 {ParcelId}{BarcodeSuffix} 收到无效的格口分配 (ChuteId={ChuteId})，" +
+                    "拒绝更新路径，包裹将继续使用异常格口",
+                    e.ParcelId,
+                    barcodeSuffixInvalid,
+                    e.ChuteId);
+                return;  // 无效格口ID，直接返回
+            }
+
             // TD-088: 异步非阻塞路由 - 重新生成路径并替换队列任务
             // 新逻辑：
             // 1. 包裹创建时立即使用异常格口生成路径并入队（不等待上游）
